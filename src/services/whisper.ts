@@ -61,7 +61,7 @@ async function transcribeOpenAI(
 
   if (config.language) formData.append('language', config.language);
   const techPrompt = TECH_TERMS.slice(0, 50).join(', ');
-  formData.append('prompt', `Technical interview discussion about: ${techPrompt}`);
+  formData.append('prompt', `Technical interview discussion about: AWS CodePipeline, AWS, Kubernetes, Docker, CI/CD, DevOps, ${techPrompt}`);
 
   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
@@ -97,6 +97,12 @@ async function transcribeLocal(
   formData.append('file', wavBlob, 'recording.wav');
   if (config.language) formData.append('language', config.language);
 
+  // Pass technical vocabulary prompt and greedy temperature to prime Whisper
+  const techPrompt = TECH_TERMS.slice(0, 50).join(', ');
+  formData.append('prompt', `Technical interview discussion: AWS CodePipeline, AWS, Kubernetes, Docker, CI/CD, DevOps, ${techPrompt}`);
+  formData.append('temperature', '0.0');
+  formData.append('response_format', 'json');
+
   const endpoint = config.endpoint || 'http://localhost:8080/inference';
   const response = await fetch(endpoint, { method: 'POST', body: formData });
 
@@ -129,8 +135,27 @@ async function transcribeLocal(
 function postProcessTranscript(text: string): string {
   let processed = text;
   const corrections: Record<string, string> = {
+    'aws code pipeline': 'AWS CodePipeline',
+    'aws codepipeline': 'AWS CodePipeline',
+    'aws code build': 'AWS CodeBuild',
+    'aws codebuild': 'AWS CodeBuild',
+    'aws code deploy': 'AWS CodeDeploy',
+    'aws codedeploy': 'AWS CodeDeploy',
+    'aws code commit': 'AWS CodeCommit',
+    'aws codecommit': 'AWS CodeCommit',
     'port pipeline': 'CodePipeline',
+    'court pipeline': 'CodePipeline',
+    'cold pipeline': 'CodePipeline',
+    'call pipeline': 'CodePipeline',
     'code pipeline': 'CodePipeline',
+    'codepipeline': 'CodePipeline',
+    'code build': 'CodeBuild',
+    'codebuild': 'CodeBuild',
+    'code deploy': 'CodeDeploy',
+    'codedeploy': 'CodeDeploy',
+    'code commit': 'CodeCommit',
+    'codecommit': 'CodeCommit',
+    'amazon web services': 'AWS',
     'aws': 'AWS',
     'node js': 'Node.js',
     'nodejs': 'Node.js',
@@ -235,12 +260,12 @@ export function extractQuestions(transcript: string): string[] {
     const questionPatterns = [
       /^(explain|describe|tell me|walk me through|what is|what are|how do|how does|how would|can you|could you|why|when|where|which|define|compare|differentiate|implement|write|design|solve|optimize|give|list|discuss)\b/i,
     ];
-    if (sentence.length > 15 && questionPatterns.some(pattern => pattern.test(sentence))) {
+    if (sentence.length >= 8 && questionPatterns.some(pattern => pattern.test(sentence))) {
       questions.push(sentence);
     }
   }
 
-  if (questions.length === 0 && transcript.trim().length > 10) {
+  if (questions.length === 0 && transcript.trim().length > 6) {
     questions.push(transcript.trim());
   }
   return questions;

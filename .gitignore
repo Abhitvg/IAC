@@ -6,3 +6,9 @@ coverage/
 .vscode/
 build/
 *.log
+
+release/
+
+.env.local
+.env.*.local
+
