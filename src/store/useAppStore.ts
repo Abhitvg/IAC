@@ -33,6 +33,8 @@ interface InterviewState {
     
     setStatus: (s: InterviewStatus) => void;
     setCurrentQuestion: (q: string) => void;
+    setCurrentAnswer: (a: string | null) => void;
+    appendAnswerToken: (token: string) => void;
     addTranscript: (msg: TranscriptMessage) => void;
     
     teleprompterQueue: string[];
@@ -90,6 +92,8 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     },
     
     setCurrentQuestion: (q) => set({ currentQuestion: q }),
+    setCurrentAnswer: (a) => set({ currentAnswer: a }),
+    appendAnswerToken: (token) => set(state => ({ currentAnswer: (state.currentAnswer || '') + token })),
     
     addTranscript: (msg) => set(state => ({ transcript: [...state.transcript, msg] })),
     
@@ -114,15 +118,25 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     
     analyzeTranscript: () => {
         const transcript = get().transcript;
-        if (transcript.length === 0) return; // Do nothing if no transcript
-        const lastMsg = transcript[transcript.length - 1].text;
-        InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: lastMsg });
+        const lastMsg = transcript.length > 0
+            ? transcript[transcript.length - 1].text
+            : get().diagnosticState.latestTranscript;
+        if (lastMsg && lastMsg !== '(empty)') {
+            InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: lastMsg });
+        }
     },
     
     loadSettings: () => {},
     loadSessionHistory: () => {},
 
-    copyAnswer: () => {},
+    copyAnswer: () => {
+        const ans = get().currentAnswer;
+        if (ans) {
+            navigator.clipboard.writeText(ans);
+            set({ toast: 'Answer copied to clipboard!' });
+            setTimeout(() => set({ toast: null }), 2500);
+        }
+    },
     setResponseMode: () => {},
     regenerateAnswer: () => {},
     sessionHistory: [],

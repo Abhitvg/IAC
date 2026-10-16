@@ -67,7 +67,6 @@ export class InterviewEngine {
 
             case 'QUESTION_DETECTED':
                 globalLatencyTracker.mark('questionDetected');
-// Cancellation logic
                 if (activeAbortController) {
                     activeAbortController.abort();
                     activeAbortController = null;
@@ -77,39 +76,58 @@ export class InterviewEngine {
                 store.incrementGenerationId();
                 store.clearAnswerQueue();
                 store.setCurrentQuestion(event.text);
+                store.setCurrentAnswer('');
                 store.setStatus('analyzing');
                 
                 const currentGen = useAppStore.getState().generationId;
                 
                 try {
                     globalLatencyTracker.mark('generationStart');
+                    const groqKey = import.meta.env.VITE_GROQ_API_KEY;
+                    if (!groqKey) {
+                        throw new Error('VITE_GROQ_API_KEY not configured in .env.local');
+                    }
                     await streamAnswer(
                         event.text, 
                         {
                             type: 'groq',
-                            apiKey: import.meta.env.VITE_GROQ_API_KEY,
-                            model: 'llama-3.1-8b-instant',
+                            apiKey: groqKey,
+                            model: 'qwen/qwen3.8-27b',
                             temperature: store.settings?.temperature || 0.7,
                             maxTokens: store.settings?.maxTokens || 1000,
                             systemPrompt: 'You are an expert technical interviewer.'
                         }, 
                         'javascript', 
                         {
+                            onToken: (token) => {
+                                if (useAppStore.getState().generationId === currentGen) {
+                                    useAppStore.getState().appendAnswerToken(token);
+                                    if (useAppStore.getState().status !== 'generating') {
+                                        useAppStore.getState().setStatus('generating');
+                                    }
+                                }
+                            },
                             onSentence: (sentence) => {
                                 if (!(globalLatencyTracker as any)._firstSentenceFired) {
                                     (globalLatencyTracker as any)._firstSentenceFired = true;
                                     globalLatencyTracker.mark('firstSentence');
                                 }
                                 if (useAppStore.getState().generationId === currentGen) {
-                                    useAppStore.getState().enqueueSentences([...useAppStore.getState().teleprompterQueue, sentence]);
+                                    const currentQueue = useAppStore.getState().teleprompterQueue;
+                                    useAppStore.getState().enqueueSentences([...currentQueue, sentence]);
                                 }
                             },
                             onComplete: (full) => {
                                 globalLatencyTracker.mark('generationEnd');
                                 console.log('Latency Report:', globalLatencyTracker.getReport());
                                 if (useAppStore.getState().generationId === currentGen) {
-                                    store.setStatus('ready');
+                                    useAppStore.getState().setCurrentAnswer(full);
+                                    useAppStore.getState().setStatus('ready');
                                 }
+                            },
+                            onError: (err) => {
+                                console.error('[InterviewEngine] Generation stream error:', err);
+                                store.updateDiagnostics({ whisperStatus: 'gen error: ' + (err.message || String(err)) });
                             }
                         },
                         activeAbortController.signal
@@ -117,6 +135,7 @@ export class InterviewEngine {
                 } catch(e: any) {
                     if (e.name !== 'AbortError') {
                         console.error('[InterviewEngine] Generation Failed:', e.message);
+                        store.updateDiagnostics({ whisperStatus: 'generation error: ' + (e.message || String(e)) });
                         store.setStatus('error');
                         setTimeout(() => {
                             if (useAppStore.getState().status === 'error') {
