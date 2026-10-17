@@ -16,7 +16,9 @@ import {
   Send,
   Target,
   FileUp,
-  Shield
+  Shield,
+  CheckCircle2,
+  Volume2
 } from "lucide-react";
 
 export default function TeleprompterView() {
@@ -41,7 +43,10 @@ export default function TeleprompterView() {
     setResumeModalOpen,
     setResumeText,
     setJobDescriptionText,
-    setToast
+    setToast,
+    recitalState,
+    lastInterruption,
+    doneAnswering
   } = useAppStore();
 
   const isListening =
@@ -139,6 +144,21 @@ export default function TeleprompterView() {
     }
   }, [currentQuestion]);
 
+  // Keyboard shortcut: Spacebar triggers doneAnswering() when not focused on an input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" && currentAnswer) {
+        const activeTag = document.activeElement?.tagName;
+        if (activeTag !== "INPUT" && activeTag !== "TEXTAREA") {
+          e.preventDefault();
+          doneAnswering();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentAnswer, doneAnswering]);
+
   const handleRestartScrolling = () => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
@@ -158,18 +178,25 @@ export default function TeleprompterView() {
 
   const handleTriggerQuestion = (q: string) => {
     if (!q || !q.trim()) return;
-    InterviewEngine.handleEvent({ type: "QUESTION_DETECTED", text: q.trim() });
-    setManualInput("");
+    InterviewEngine.handleEvent({
+      type: "QUESTION_DETECTED",
+      text: q.trim()
+    });
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    handleTriggerQuestion(manualInput);
+    if (!manualInput.trim()) return;
+    handleTriggerQuestion(manualInput.trim());
+    setManualInput("");
   };
 
   return (
     <div
-      onDragOver={(e) => { e.preventDefault(); setIsWindowDragging(true); }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsWindowDragging(true);
+      }}
       onDragLeave={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
           setIsWindowDragging(false);
@@ -177,22 +204,23 @@ export default function TeleprompterView() {
       }}
       onDrop={handleWindowDrop}
       style={{
-        position: "relative",
         display: "flex",
         flexDirection: "column",
         height: "100vh",
         width: "100vw",
-        background: `rgba(12, 12, 20, ${windowOpacity})`,
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        border: isWindowDragging ? "2px dashed #818cf8" : "1px solid rgba(255, 255, 255, 0.12)",
-        borderRadius: "10px",
+        background: `rgba(10, 10, 18, ${windowOpacity})`,
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        color: "#f8fafc",
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         overflow: "hidden",
-        boxShadow: "0 20px 50px rgba(0, 0, 0, 0.75)",
-        userSelect: "none"
+        border: "1px solid rgba(255, 255, 255, 0.12)",
+        borderRadius: "8px",
+        boxSizing: "border-box",
+        position: "relative"
       }}
     >
-      {/* Drag & Drop Visual Overlay */}
+      {/* Drag & Drop Overlay */}
       {isWindowDragging && (
         <div
           style={{
@@ -221,7 +249,8 @@ export default function TeleprompterView() {
           </div>
         </div>
       )}
-      {/* ════════════ TOP TELEPROMPTER CONTROL BAR (Matches Reference Photo) ════════════ */}
+
+      {/* ════════════ TOP TELEPROMPTER CONTROL BAR ════════════ */}
       <div
         className="teleprompter-draggable"
         style={{
@@ -278,7 +307,7 @@ export default function TeleprompterView() {
               cursor: "pointer"
             }}
           >
-            <RotateCcw size={11} /> Restart scrolling
+            <RotateCcw size={11} /> Restart
           </button>
 
           <button
@@ -321,7 +350,7 @@ export default function TeleprompterView() {
             {scrollSpeed}x
           </button>
 
-          {/* Running Timer Badge (e.g. 00:45) */}
+          {/* Running Timer Badge */}
           <div
             onClick={() => setTimerRunning(!timerRunning)}
             title="Click to pause or resume timer"
@@ -343,7 +372,7 @@ export default function TeleprompterView() {
           </div>
         </div>
 
-        {/* Right: Opacity Selector, History, Settings, Exit Button */}
+        {/* Right: Opacity Selector, Stealth, Resume Modal, Settings, History, Exit */}
         <div className="teleprompter-nodrag" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
           <select
             value={windowOpacity}
@@ -445,7 +474,6 @@ export default function TeleprompterView() {
             <History size={13} />
           </button>
 
-          {/* Red Exit Button (Matches photo) */}
           <button
             onClick={handleExit}
             style={{
@@ -478,26 +506,99 @@ export default function TeleprompterView() {
           userSelect: "text"
         }}
       >
-        {/* Active Detected Question Header */}
+        {/* Active Detected Question Header & Done Answering Button */}
         {currentQuestion && (
           <div
             style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
-              gap: "6px",
+              justifyContent: "space-between",
+              gap: "8px",
               background: "rgba(99, 102, 241, 0.22)",
               border: "1px solid rgba(129, 140, 248, 0.4)",
               borderRadius: "6px",
               padding: "6px 12px",
-              marginBottom: "16px",
+              marginBottom: "12px",
               color: "#e0e7ff",
               fontSize: "13px",
               fontWeight: 600,
               letterSpacing: "0.2px"
             }}
           >
-            <Sparkles size={13} style={{ color: "#818cf8" }} />
-            <span>Q: {currentQuestion}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1, overflow: "hidden" }}>
+              <Sparkles size={13} style={{ color: "#818cf8", flexShrink: 0 }} />
+              <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                Q: {currentQuestion}
+              </span>
+            </div>
+
+            {currentAnswer && (
+              <button
+                onClick={doneAnswering}
+                title="Mark answer complete and listen for next question (or press Space)"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  background: "rgba(34, 197, 94, 0.2)",
+                  border: "1px solid rgba(74, 222, 128, 0.5)",
+                  color: "#86efac",
+                  borderRadius: "4px",
+                  padding: "3px 8px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0
+                }}
+              >
+                <CheckCircle2 size={12} />
+                <span>Done Answering (Space)</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Dynamic Recital / Interruption Banner */}
+        {recitalState === "reciting" && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "rgba(59, 130, 246, 0.18)",
+              border: "1px solid rgba(96, 165, 250, 0.4)",
+              borderRadius: "6px",
+              padding: "6px 12px",
+              marginBottom: "14px",
+              color: "#93c5fd",
+              fontSize: "12px",
+              fontWeight: 600
+            }}
+          >
+            <Volume2 size={13} style={{ color: "#60a5fa" }} />
+            <span>🗣️ Reciting Answer: Mic is automatically paused for your speech • Auto-listening for interruptions</span>
+          </div>
+        )}
+
+        {recitalState === "interrupted" && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "rgba(239, 68, 68, 0.24)",
+              border: "1px solid rgba(248, 113, 113, 0.55)",
+              borderRadius: "6px",
+              padding: "6px 12px",
+              marginBottom: "14px",
+              color: "#fca5a5",
+              fontSize: "12px",
+              fontWeight: 600
+            }}
+          >
+            <span style={{ fontSize: "14px" }}>⚡</span>
+            <span>Interviewer Interruption Detected: "{lastInterruption || currentQuestion}" — Reacting live</span>
           </div>
         )}
 
@@ -543,7 +644,7 @@ export default function TeleprompterView() {
                 Position this transparent overlay window directly beneath your webcam lens over your video call (Zoom, Google Meet, Teams).
               </p>
               <p style={{ color: "#94a3b8", fontSize: "15px", marginTop: "10px" }}>
-                Speak naturally or type any question below — the real-time AI answer will stream right here so you can speak fluently while maintaining continuous eye contact.
+                When repeating the answers, the mic is paused for your voice automatically. If the interviewer interrupts with a question, it detects it and reacts immediately!
               </p>
             </div>
           )}
@@ -605,7 +706,7 @@ export default function TeleprompterView() {
             </button>
           </form>
 
-          {/* Quick Test Question Pills (Resume & JD Grounded) */}
+          {/* Quick Test Question Pills */}
           <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
             <span style={{ color: "#64748b", fontSize: "11px" }}>Quick:</span>
             <button
@@ -712,13 +813,28 @@ export default function TeleprompterView() {
             </button>
 
             {/* Status explanation */}
-            <span style={{ color: isListening ? "#86efac" : "#94a3b8" }}>
+            <span
+              style={{
+                color:
+                  recitalState === "reciting"
+                    ? "#93c5fd"
+                    : recitalState === "interrupted"
+                    ? "#fca5a5"
+                    : isListening
+                    ? "#86efac"
+                    : "#94a3b8"
+              }}
+            >
               {status === "transcribing"
                 ? "🎙️ Transcribing speech..."
                 : status === "analyzing" || status === "generating"
                 ? "⚡ Streaming answer..."
+                : recitalState === "reciting"
+                ? "🗣️ Candidate answering (mic echo paused • listening for third person)"
+                : recitalState === "interrupted"
+                ? "⚡ Interviewer interrupted! Reacting live..."
                 : isListening
-                ? "● Continuous mic active"
+                ? "● Continuous mic active (auto echo-filtering)"
                 : "Mic paused"}
             </span>
 

@@ -4,6 +4,8 @@ import { InterviewEngine } from '../services/InterviewEngine';
 
 export type InterviewStatus = "idle" | "listening" | "question_detected" | "transcribing" | "analyzing" | "generating" | "ready" | "paused" | "error";
 
+export type RecitalState = "idle" | "listening" | "reciting" | "interrupted";
+
 export interface DiagnosticState {
     micActive: boolean;
     currentDb: number;
@@ -13,6 +15,8 @@ export interface DiagnosticState {
     whisperStatus: string;
     latestTranscript: string;
     questionMatched: boolean;
+    recitalState?: RecitalState;
+    lastInterruption?: string | null;
 }
 
 export interface TranscriptMessage {
@@ -58,6 +62,13 @@ interface InterviewState {
     toggleRecording: () => void;
     analyzeTranscript: () => void;
     
+    // Candidate Recital & Interruption State
+    recitalState: RecitalState;
+    lastInterruption: string | null;
+    setRecitalState: (s: RecitalState) => void;
+    setLastInterruption: (text: string | null) => void;
+    doneAnswering: () => void;
+
     // Candidate Persona: Resume & Job Description
     resumeText: string;
     jobDescriptionText: string;
@@ -89,7 +100,6 @@ interface InterviewState {
     currentResponse: any;
     diagnosticState: DiagnosticState;
     updateDiagnostics: (updates: Partial<DiagnosticState>) => void;
-
 }
 
 export const useAppStore = create<InterviewState>((set, get) => ({
@@ -109,6 +119,18 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     followUps: [],
     isGenerating: false,
     isRecording: false,
+
+    recitalState: "idle",
+    lastInterruption: null,
+    setRecitalState: (recitalState) => set({ recitalState }),
+    setLastInterruption: (lastInterruption) => set({ lastInterruption }),
+    doneAnswering: () => {
+        set({
+            recitalState: "listening",
+            status: "listening"
+        });
+        get().setToast("Ready for next interviewer question");
+    },
     
     resumeText: DEFAULT_RESUME,
     jobDescriptionText: DEFAULT_JOB_DESCRIPTION,
@@ -150,7 +172,6 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     
     addTranscript: (msg) => set(state => ({ transcript: [...state.transcript, msg] })),
     
-    
     teleprompterQueue: [],
     currentSentenceIndex: 0,
     generationId: 0,
@@ -164,8 +185,10 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         if (status === 'listening' || status === 'transcribing' || status === 'analyzing' || status === 'generating') {
             InterviewEngine.handleEvent({ type: 'STOP_LISTENING' });
             get().setStatus('idle');
+            set({ recitalState: 'idle' });
         } else {
             InterviewEngine.handleEvent({ type: 'START_LISTENING' });
+            set({ recitalState: 'listening' });
         }
     },
     
@@ -220,8 +243,9 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         whisperStatus: 'idle',
         latestTranscript: '',
         questionMatched: false,
+        recitalState: 'idle',
+        lastInterruption: null
     },
     updateDiagnostics: (updates) => set((state) => ({ diagnosticState: { ...state.diagnosticState, ...updates } })),
     currentResponse: { interviewAnswer: '', followUpQuestions: [] },
-
 }));

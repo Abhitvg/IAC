@@ -1,8 +1,9 @@
+import { classifyUtterance } from './interruptionDetector';
 import { buildCandidateSystemPrompt } from './candidatePersona';
 import { globalLatencyTracker } from './LatencyTracker';
 import { useAppStore } from "../store/useAppStore";
 import { AudioRecorder } from "./audio";
-import { transcribeAudio, extractQuestions } from "./whisper";
+import { transcribeAudio } from "./whisper";
 import { streamAnswer } from "./ai";
 
 const audioService = new AudioRecorder();
@@ -16,6 +17,7 @@ export class InterviewEngine {
       case "START_LISTENING":
         globalLatencyTracker.mark("speechStart");
         store.setStatus("listening");
+        store.setRecitalState("listening");
         try {
           await audioService.start(async (utteranceBlob: Blob) => {
             if (utteranceBlob.size < 500) {
@@ -32,6 +34,7 @@ export class InterviewEngine {
           store.updateDiagnostics({ whisperStatus: "Mic error: " + (e?.message || e) });
           console.error("[InterviewEngine] Microphone start error:", e);
           store.setStatus("idle");
+          store.setRecitalState("idle");
         }
         break;
 
@@ -51,40 +54,93 @@ export class InterviewEngine {
             store.updateDiagnostics({
               whisperStatus: "no speech detected in utterance"
             });
-            // Return to listening state to capture next speech immediately
             store.setStatus("listening");
             return;
           }
 
           store.updateDiagnostics({
-            latestTranscript: text,
-            whisperStatus: "transcribed successfully"
+            latestTranscript: text
           });
 
-          store.addTranscript({
-            id: Date.now().toString(),
-            speaker: "interviewer",
-            text: text,
-            timestamp: Date.now()
-          });
+          // Intelligent Classification: Distinguish Candidate Recital vs. Third-Person Interruption
+          const classification = classifyUtterance(
+            text,
+            store.currentAnswer,
+            store.teleprompterQueue
+          );
 
-          // Check if utterance is a question or interview prompt
-          const extracted = extractQuestions(text);
-          // Any utterance >= 4 characters during an interview is treated as an active question/prompt
-          const matched = extracted.length > 0 || text.length >= 4;
-          store.updateDiagnostics({ questionMatched: matched });
+          console.log("[InterviewEngine] Utterance classification:", classification.type, `(${classification.reason})`, `"${text}"`);
 
-          if (matched) {
-            InterviewEngine.handleEvent({ type: "QUESTION_DETECTED", text: text });
-          } else {
+          // 1. CANDIDATE RECITAL: Candidate is repeating the teleprompted answer
+          // -> Suppress mic echo so it does NOT wipe or re-trigger the teleprompter
+          if (classification.type === "CANDIDATE_RECITAL") {
+            store.setRecitalState("reciting");
+            store.updateDiagnostics({
+              whisperStatus: `🗣️ Mic paused for self-speech: ${classification.reason}`,
+              recitalState: "reciting",
+              questionMatched: false
+            });
+
+            store.addTranscript({
+              id: Date.now().toString(),
+              speaker: "user",
+              text: text,
+              timestamp: Date.now()
+            });
+
+            // Keep the teleprompter answer completely active and visible!
             store.setStatus("listening");
+            return;
           }
+
+          // 2. CONVERSATIONAL FILLER ("Yeah", "Okay", "Right")
+          if (classification.type === "CONVERSATIONAL_FILLER") {
+            store.updateDiagnostics({
+              whisperStatus: `Conversational filler ignored ("${text}")`
+            });
+            store.setStatus("listening");
+            return;
+          }
+
+          // 3. INTERVIEWER INTERRUPTION OR NEW QUESTION
+          // -> Third person interrupted! Immediately react, capture question, and stream answer
+          if (classification.type === "INTERVIEWER_INTERRUPTION" || classification.type === "INTERVIEWER_QUESTION") {
+            const questionText = classification.questionText || text;
+            const isInterruption = classification.type === "INTERVIEWER_INTERRUPTION";
+
+            store.setRecitalState(isInterruption ? "interrupted" : "listening");
+            store.setLastInterruption(questionText);
+            store.updateDiagnostics({
+              latestTranscript: questionText,
+              whisperStatus: isInterruption
+                ? `⚡ Interviewer interruption: "${questionText.slice(0, 45)}..."`
+                : "Interviewer question received",
+              recitalState: isInterruption ? "interrupted" : "listening",
+              questionMatched: true
+            });
+
+            if (isInterruption) {
+              store.setToast(`⚡ Third-person interruption: "${questionText.slice(0, 50)}..."`);
+            }
+
+            store.addTranscript({
+              id: Date.now().toString(),
+              speaker: "interviewer",
+              text: questionText,
+              timestamp: Date.now()
+            });
+
+            InterviewEngine.handleEvent({ type: "QUESTION_DETECTED", text: questionText });
+            return;
+          }
+
+          store.setStatus("listening");
         } catch (e: any) {
           store.updateDiagnostics({
             whisperStatus: "error: " + (e?.message || e)
           });
           console.error("[InterviewEngine] Transcription error:", e);
-          store.setStatus("listening"); // Auto-recover so listening is never permanently blocked
+          store.setStatus("listening");
         }
         break;
 
@@ -102,6 +158,7 @@ export class InterviewEngine {
         store.setCurrentQuestion(event.text);
         store.setCurrentAnswer("");
         store.setStatus("analyzing");
+        store.setRecitalState("listening");
 
         const currentGen = useAppStore.getState().generationId;
 
@@ -155,7 +212,8 @@ export class InterviewEngine {
                 console.log("Latency Report:", globalLatencyTracker.getReport());
                 if (useAppStore.getState().generationId === currentGen) {
                   useAppStore.getState().setCurrentAnswer(full);
-                  // IMPORTANT: Transition back to listening so subsequent questions are detected continuously!
+                  // Transition back to listening for third person / candidate speech
+                  useAppStore.getState().setRecitalState("listening");
                   useAppStore.getState().setStatus("listening");
                 }
               },
@@ -192,6 +250,7 @@ export class InterviewEngine {
         }
         await audioService.stop();
         store.setStatus("idle");
+        store.setRecitalState("idle");
         break;
     }
   }
