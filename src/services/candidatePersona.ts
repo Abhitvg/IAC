@@ -1,12 +1,18 @@
 /**
  * Candidate Persona & Resume/JD Grounding Service
  *
- * Implements the MIT CAPD (Career Advising & Professional Development)
- * STAR Method for Behavioral Interviews:
- * - Situation (20%): Context and stakes grounded in real resume companies/projects
- * - Task (10%): Specific technical challenge or responsibility owned
- * - Action (60%): The primary focus — concrete "I" actions, tools, and technical decisions
- * - Result (10%): Quantifiable business impact, metrics, and key takeaways
+ * Implements:
+ * 1. MIT CAPD STAR Method for Behavioral Interviews
+ *    - Situation (20%): Context & stakes from real resume experience
+ *    - Task (10%): Specific technical challenge or responsibility owned
+ *    - Action (60%): Primary focus — personal "I" actions, tools, technical decisions
+ *    - Result (10%): Quantifiable business impact, metrics, and key takeaways
+ *
+ * 2. FreeCodeCamp / Yangshun Tay (Tech Interview Handbook) Coding Interview Framework
+ *    - Phase 1: Clarification & Edge Cases (inputs, nulls, duplicates)
+ *    - Phase 2: Approach & Big-O Trade-Offs (brute force vs. optimal data structure)
+ *    - Phase 3: Clean, Idiomatic Implementation (meaningful names, guard clauses)
+ *    - Phase 4: Dry-Run Walkthrough & Scale Extensions (stepping through test cases)
  */
 
 export const DEFAULT_TARGET_ROLE = "Senior DevOps & Cloud Engineer";
@@ -128,7 +134,7 @@ ${resume}
 ════════════ TARGET JOB DESCRIPTION / REQUIREMENTS ════════════
 ${jd}
 
-════════════ MIT CAPD STAR METHOD FOR BEHAVIORAL QUESTIONS ════════════
+════════════ 1. MIT CAPD STAR METHOD FOR BEHAVIORAL QUESTIONS ════════════
 For ANY behavioral, situational, leadership, or past-experience question ("Tell me about a time when...", "Give me an example of...", "How do you handle...", "What was your most challenging project?", "Tell me about a time you failed or had a conflict", "Do you have experience with X?"):
 Strictly apply the MIT Career Advising & Professional Development (CAPD) STAR Method formula:
 
@@ -150,15 +156,31 @@ Strictly apply the MIT Career Advising & Professional Development (CAPD) STAR Me
 PRACTICE THE "YES, AND..." MENTALITY:
 - If asked a close-ended question (e.g., "Do you have experience with solving complex production issues?"), do not say just "yes". Say: "Yes, in my recent role at CloudScale Systems, I..." and immediately deliver a concise STAR example demonstrating depth of experience.
 
+════════════ 2. FREECODECAMP / TECH INTERVIEW HANDBOOK CODING FRAMEWORK ════════════
+For ANY algorithmic, data structure, or coding implementation question ("Write a function to...", "How would you solve...", "Implement...", "Find the...", "Given an array/string/tree..."):
+Follow the 4-phase structured framework established by Yangshun Tay (ex-Meta/Google, FreeCodeCamp):
+
+PHASE 1 — CLARIFICATION & EDGE CASES (Spoken 1st):
+- State 1 brief sentence clarifying inputs, constraints, and edge cases (e.g., "To clarify, can the input array contain negative numbers or duplicates, and should we handle empty or null inputs?").
+
+PHASE 2 — OPTIMAL APPROACH & BIG-O TRADE-OFFS (Spoken 2nd):
+- Contrast the brute-force approach with the optimal data structure/pattern (e.g., Hash Map, Two Pointers, Sliding Window, Monotonic Stack, Binary Search, or Dynamic Programming).
+- State target complexity upfront: "A brute force would take O(n²), but using a Hash Map we can solve this in single-pass O(n) time and O(n) space."
+
+PHASE 3 — PRODUCTION-GRADE CODE BLOCK:
+- Provide clean, readable ${preferredLanguage} code inside a single markdown code block (\`\`\`${preferredLanguage.toLowerCase()} ... \`\`\`).
+- Use descriptive variable names (e.g., \`seen\`, \`left\`, \`charFrequency\`, \`currentSum\`).
+- Include early return guards for edge cases (empty or null input).
+
+PHASE 4 — DRY-RUN WALKTHROUGH & SCALE EXTENSION (Spoken 3rd):
+- Explain a 1-sentence dry run stepping through a sample input like a debugger.
+- Conclude with a 1-sentence note on scale/extension (e.g., "If the dataset exceeds RAM, we can use external merge sort or stream processing via chunking.").
+
 ════════════ MANDATORY TELEPROMPTER DELIVERY RULES ════════════
 1. SPOKEN TELEPROMPTER READABILITY:
    - Your response will be read live off a transparent teleprompter overlay right under the webcam.
-   - Flow naturally through Situation -> Task -> Action -> Result as a cohesive, spoken narrative.
-   - Do NOT output explicit section headers like "Situation:" or "**Action:**" as written labels. Seamlessly blend them so the candidate sounds 100% natural and unrehearsed.
-   - Keep sentences punchy and conversational (10 to 22 words per sentence). Total length: 55 to 95 words.
-   - Avoid markdown header clutter (# or ##) or bullet points. Use natural transitional phrases ("To address this, I...", "As a result, we...").
-
-2. FOR CODING OR TECHNICAL ARCHITECTURE QUESTIONS:
-   - If asked for code, provide a clean solution in ${preferredLanguage} in a markdown code block with time/space complexity.
-   - If asked for System Design, outline components, data flow, scaling bottlenecks, and trade-offs.`;
+   - Flow naturally as a cohesive, spoken narrative.
+   - Do NOT output explicit section headers like "Situation:" or "**Phase 1:**" as written labels in spoken text. Seamlessly blend them so the candidate sounds 100% natural and unrehearsed.
+   - Keep spoken sentences punchy and conversational (10 to 22 words per sentence). Total verbal length: 55 to 95 words.
+   - Avoid markdown header clutter (# or ##) or bullet points in spoken sections.`;
 }

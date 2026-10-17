@@ -756,6 +756,22 @@ export default function TeleprompterView() {
               ⭐ STAR Story
             </button>
             <button
+              onClick={() => handleTriggerQuestion("Write a function to check if two numbers in an array add up to a target sum.")}
+              title="FreeCodeCamp Coding Framework: Clarify -> Big-O -> Clean Code -> Dry Run -> Scale"
+              style={{
+                background: "linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.22))",
+                border: "1px solid rgba(16, 185, 129, 0.55)",
+                color: "#a7f3d0",
+                borderRadius: "12px",
+                padding: "3px 9px",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              💻 Two Sum
+            </button>
+            <button
               onClick={() => handleTriggerQuestion("What is your experience with AWS CodePipeline?")}
               style={{
                 background: "rgba(99, 102, 241, 0.15)",
