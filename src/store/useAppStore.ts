@@ -1,3 +1,4 @@
+import { DEFAULT_RESUME, DEFAULT_JOB_DESCRIPTION, DEFAULT_TARGET_ROLE } from '../services/candidatePersona';
 import { create } from 'zustand';
 import { InterviewEngine } from '../services/InterviewEngine';
 
@@ -57,6 +58,17 @@ interface InterviewState {
     toggleRecording: () => void;
     analyzeTranscript: () => void;
     
+    // Candidate Persona: Resume & Job Description
+    resumeText: string;
+    jobDescriptionText: string;
+    targetRole: string;
+    resumeModalOpen: boolean;
+    setResumeText: (text: string) => void;
+    setJobDescriptionText: (text: string) => void;
+    setTargetRole: (role: string) => void;
+    setResumeModalOpen: (open: boolean) => void;
+    setToast: (msg: string | null) => void;
+
     // UI states
     settingsOpen: boolean;
     sessionsOpen: boolean;
@@ -98,6 +110,29 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     isGenerating: false,
     isRecording: false,
     
+    resumeText: DEFAULT_RESUME,
+    jobDescriptionText: DEFAULT_JOB_DESCRIPTION,
+    targetRole: DEFAULT_TARGET_ROLE,
+    resumeModalOpen: false,
+
+    setResumeText: (resumeText: string) => {
+        try { localStorage.setItem('candidate_resume', resumeText); } catch (_) {}
+        set({ resumeText });
+    },
+    setJobDescriptionText: (jobDescriptionText: string) => {
+        try { localStorage.setItem('target_job_description', jobDescriptionText); } catch (_) {}
+        set({ jobDescriptionText });
+    },
+    setTargetRole: (targetRole: string) => {
+        try { localStorage.setItem('target_role', targetRole); } catch (_) {}
+        set({ targetRole });
+    },
+    setResumeModalOpen: (resumeModalOpen: boolean) => set({ resumeModalOpen }),
+    setToast: (toast: string | null) => {
+        set({ toast });
+        if (toast) setTimeout(() => set({ toast: null }), 3000);
+    },
+
     settingsOpen: false,
     sessionsOpen: false,
     
@@ -144,7 +179,18 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         }
     },
     
-    loadSettings: () => {},
+    loadSettings: () => {
+        try {
+            const savedResume = localStorage.getItem('candidate_resume');
+            const savedJD = localStorage.getItem('target_job_description');
+            const savedRole = localStorage.getItem('target_role');
+            set({
+                resumeText: savedResume || DEFAULT_RESUME,
+                jobDescriptionText: savedJD || DEFAULT_JOB_DESCRIPTION,
+                targetRole: savedRole || DEFAULT_TARGET_ROLE
+            });
+        } catch (_) {}
+    },
     loadSessionHistory: () => {},
 
     copyAnswer: () => {

@@ -1,3 +1,4 @@
+import ResumeAndJobModal from './components/ResumeAndJobModal';
 import React, { useEffect, useCallback } from 'react';
 import { useAppStore } from './store/useAppStore';
 import TeleprompterView from './components/teleprompter/TeleprompterView';
@@ -15,6 +16,7 @@ export default function App() {
     copyAnswer,
     settingsOpen,
     sessionsOpen,
+    resumeModalOpen,
     isRecording,
     isGenerating,
   } = useAppStore();
@@ -56,6 +58,7 @@ export default function App() {
   return (
     <div style={{ height: '100vh', width: '100vw', background: 'transparent', overflow: 'hidden' }}>
       <TeleprompterView />
+      {resumeModalOpen && <ResumeAndJobModal />}
       {settingsOpen && <SettingsPanel />}
       {sessionsOpen && <SessionsPanel />}
       <Toast />

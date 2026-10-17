@@ -431,10 +431,10 @@ export async function streamAnswer(
     callbacks: AIStreamCallbacks,
     signal?: AbortSignal
 ): Promise<void> {
-    const systemPrompt = createSystemPrompt(config, 'interview', 'General', language, null);
+    const systemPrompt = config.systemPrompt || createSystemPrompt(config, 'interview', 'General', language, null);
     
-    // Low latency prompt override
-    const lowLatencyPrompt = systemPrompt + "\n\nPRODUCE ONLY SHORT CONVERSATIONAL SENTENCES. 8-18 words per sentence. NO markdown. NO code blocks. NO headings.";
+    // Low latency prompt override for live teleprompter delivery
+    const lowLatencyPrompt = systemPrompt + "\n\nDELIVERY FORMAT: Speak naturally in the first person. 12-25 words per sentence. Clear, articulate phrasing suitable for live speech reading on a teleprompter.";
     
     const url = config.type === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' :
                 config.type === 'openai' ? 'https://api.openai.com/v1/chat/completions' :

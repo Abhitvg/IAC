@@ -12,7 +12,8 @@ import {
   History,
   Sparkles,
   Loader2,
-  Send
+  Send,
+  Target
 } from "lucide-react";
 
 export default function TeleprompterView() {
@@ -32,7 +33,9 @@ export default function TeleprompterView() {
     toggleRecording,
     copyAnswer,
     setSettingsOpen,
-    setSessionsOpen
+    setSessionsOpen,
+    targetRole,
+    setResumeModalOpen
   } = useAppStore();
 
   const isListening =
@@ -276,6 +279,28 @@ export default function TeleprompterView() {
           </select>
 
           <button
+            onClick={() => setResumeModalOpen(true)}
+            title="Configure Candidate Resume & Target Job Description"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2))',
+              color: '#e0e7ff',
+              border: '1px solid rgba(168, 85, 247, 0.45)',
+              borderRadius: '4px',
+              padding: '3px 8px',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Target size={12} style={{ color: '#a855f7' }} />
+            <span>🎯 {targetRole || 'Resume & JD'}</span>
+          </button>
+
+          <button
             onClick={() => setSettingsOpen(true)}
             title="AI & Whisper Settings"
             style={{
@@ -465,11 +490,55 @@ export default function TeleprompterView() {
             </button>
           </form>
 
-          {/* Quick Test Question Pills */}
-          <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
+          {/* Quick Test Question Pills (Resume & JD Grounded) */}
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
             <span style={{ color: "#64748b", fontSize: "11px" }}>Quick:</span>
             <button
-              onClick={() => handleTriggerQuestion("What is AWS CodePipeline?")}
+              onClick={() => handleTriggerQuestion("Tell me about yourself and your background.")}
+              title="Answers in 1st-person matching your Resume and target JD"
+              style={{
+                background: "rgba(168, 85, 247, 0.18)",
+                border: "1px solid rgba(168, 85, 247, 0.35)",
+                color: "#e9d5ff",
+                borderRadius: "12px",
+                padding: "3px 8px",
+                fontSize: "11px",
+                cursor: "pointer"
+              }}
+            >
+              ⚡ About Me
+            </button>
+            <button
+              onClick={() => handleTriggerQuestion("Why are you a good fit for this role?")}
+              title="Answers matching your Resume experience to the Job Description"
+              style={{
+                background: "rgba(168, 85, 247, 0.18)",
+                border: "1px solid rgba(168, 85, 247, 0.35)",
+                color: "#e9d5ff",
+                borderRadius: "12px",
+                padding: "3px 8px",
+                fontSize: "11px",
+                cursor: "pointer"
+              }}
+            >
+              ⚡ Fit for Role
+            </button>
+            <button
+              onClick={() => handleTriggerQuestion("Can you describe a challenging production issue you resolved?")}
+              style={{
+                background: "rgba(99, 102, 241, 0.15)",
+                border: "1px solid rgba(99, 102, 241, 0.3)",
+                color: "#c7d2fe",
+                borderRadius: "12px",
+                padding: "3px 8px",
+                fontSize: "11px",
+                cursor: "pointer"
+              }}
+            >
+              ⚡ Challenge
+            </button>
+            <button
+              onClick={() => handleTriggerQuestion("What is your experience with AWS CodePipeline?")}
               style={{
                 background: "rgba(99, 102, 241, 0.15)",
                 border: "1px solid rgba(99, 102, 241, 0.3)",
@@ -481,34 +550,6 @@ export default function TeleprompterView() {
               }}
             >
               ⚡ CodePipeline
-            </button>
-            <button
-              onClick={() => handleTriggerQuestion("Explain CI/CD in DevOps")}
-              style={{
-                background: "rgba(99, 102, 241, 0.15)",
-                border: "1px solid rgba(99, 102, 241, 0.3)",
-                color: "#c7d2fe",
-                borderRadius: "12px",
-                padding: "3px 8px",
-                fontSize: "11px",
-                cursor: "pointer"
-              }}
-            >
-              ⚡ CI/CD
-            </button>
-            <button
-              onClick={() => handleTriggerQuestion("Explain Kubernetes architecture and pods")}
-              style={{
-                background: "rgba(99, 102, 241, 0.15)",
-                border: "1px solid rgba(99, 102, 241, 0.3)",
-                color: "#c7d2fe",
-                borderRadius: "12px",
-                padding: "3px 8px",
-                fontSize: "11px",
-                cursor: "pointer"
-              }}
-            >
-              ⚡ K8s
             </button>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { buildCandidateSystemPrompt } from './candidatePersona';
 import { globalLatencyTracker } from './LatencyTracker';
 import { useAppStore } from "../store/useAppStore";
 import { AudioRecorder } from "./audio";
@@ -111,17 +112,25 @@ export class InterviewEngine {
             throw new Error("VITE_GROQ_API_KEY not configured in .env.local");
           }
 
+          const currentStore = useAppStore.getState();
+          const candidateSystemPrompt = buildCandidateSystemPrompt(
+            currentStore.resumeText,
+            currentStore.jobDescriptionText,
+            currentStore.targetRole,
+            currentStore.settings?.preferredLanguage || 'JavaScript'
+          );
+
           await streamAnswer(
             event.text,
             {
               type: "groq",
               apiKey: groqKey,
               model: "qwen/qwen3.8-27b",
-              temperature: store.settings?.temperature || 0.7,
+              temperature: store.settings?.temperature || 0.6,
               maxTokens: store.settings?.maxTokens || 1000,
-              systemPrompt: "You are an expert technical interviewer and candidate co-pilot."
+              systemPrompt: candidateSystemPrompt
             },
-            "javascript",
+            (currentStore.settings?.preferredLanguage || 'javascript') as any,
             {
               onToken: (token) => {
                 if (useAppStore.getState().generationId === currentGen) {
