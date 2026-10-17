@@ -39,19 +39,20 @@ export class InterviewEngine {
                 try {
                     const result = await transcribeAudio(event.blob, store.settings);
                     globalLatencyTracker.mark('transcriptionEnd');
-                    store.updateDiagnostics({ latestTranscript: result.text || '(empty)', whisperStatus: result.text ? 'success' : 'empty' });
+                    const text = (result?.text || '').trim();
+                    store.updateDiagnostics({ latestTranscript: text || '(empty)', whisperStatus: text ? 'success' : 'empty' });
                     
-                    if (result && result.text.length > 5) {
+                    if (text && text.length > 2) {
                         // "D. Display the transcript as soon as transcription succeeds, even if question classification fails."
                         
-                        store.addTranscript({ id: Date.now().toString(), speaker: 'unknown', text: result.text, timestamp: Date.now() });
+                        store.addTranscript({ id: Date.now().toString(), speaker: 'interviewer', text: text, timestamp: Date.now() });
                         
-                        const extracted = extractQuestions(result.text);
-                        const matched = extracted.length > 0 || result.text.length > 20;
+                        const extracted = extractQuestions(text);
+                        const matched = extracted.length > 0 || text.length > 15;
                         store.updateDiagnostics({ questionMatched: matched });
                         
                         if (matched) {
-                             InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: result.text });
+                             InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: text });
                         } else {
                              store.setStatus('listening');
                         }

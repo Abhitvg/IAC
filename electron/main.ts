@@ -45,6 +45,10 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
+  mainWindow.webContents.on('console-message', (_event, level, message) => {
+    console.log('[Renderer Log]', message);
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -55,7 +59,14 @@ function registerGlobalShortcuts() {
   // Most shortcuts are handled in the renderer for better UX
 }
 
+import { session } from 'electron';
+
 app.whenReady().then(() => {
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    callback(true);
+  });
+  session.defaultSession.setPermissionCheckHandler(() => true);
+
   ensureDirectories();
   createWindow();
   setupIpcHandlers(mainWindow);
