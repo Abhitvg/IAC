@@ -3,6 +3,8 @@ const electron = require("electron");
 const path = require("path");
 const fs = require("fs");
 const ws = require("ws");
+const child_process = require("child_process");
+const util = require("util");
 let wsServer = null;
 let mainWindowRef = null;
 function setupIpcHandlers(mainWindow2) {
@@ -282,4 +284,51 @@ electron.ipcMain.handle("fs:parse-docx", async (_event, arrayBuffer) => {
   const buffer = Buffer.from(arrayBuffer);
   const result = await mammoth.extractRawText({ buffer });
   return result.value || "";
+});
+const execAsync = util.promisify(child_process.exec);
+electron.ipcMain.handle("screen:capture-and-ocr", async (_event, mode = "fullscreen") => {
+  const tmpImg = path.join(electron.app.getPath("temp"), `iac_screen_${Date.now()}.jpg`);
+  const ocrBin = path.join(__dirname, "../bin/mac-ocr");
+  try {
+    const captureFlag = mode === "snip" ? "-i -x" : "-x";
+    await execAsync(`screencapture ${captureFlag} "${tmpImg}"`);
+    if (!fs.existsSync(tmpImg)) {
+      return { success: false, cancelled: true, error: "Screen capture was cancelled." };
+    }
+    const { stdout } = await execAsync(`"${ocrBin}" "${tmpImg}"`);
+    try {
+      fs.unlinkSync(tmpImg);
+    } catch (_) {
+    }
+    const text = stdout.trim();
+    if (!text) {
+      return { success: false, error: "No text or code could be detected on the screen." };
+    }
+    return { success: true, text };
+  } catch (err) {
+    console.error("[Electron] Screen OCR error:", err);
+    try {
+      if (fs.existsSync(tmpImg)) fs.unlinkSync(tmpImg);
+    } catch (_) {
+    }
+    return { success: false, error: err.message || String(err) };
+  }
+});
+electron.ipcMain.handle("screen:ocr-image", async (_event, filePath) => {
+  const ocrBin = path.join(__dirname, "../bin/mac-ocr");
+  try {
+    const resolvedPath = path.resolve(filePath);
+    if (!fs.existsSync(resolvedPath)) {
+      return { success: false, error: "File not found." };
+    }
+    const { stdout } = await execAsync(`"${ocrBin}" "${resolvedPath}"`);
+    const text = stdout.trim();
+    if (!text) {
+      return { success: false, error: "No text could be extracted from image." };
+    }
+    return { success: true, text };
+  } catch (err) {
+    console.error("[Electron] Image OCR error:", err);
+    return { success: false, error: err.message || String(err) };
+  }
 });

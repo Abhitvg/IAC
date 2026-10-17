@@ -39,6 +39,9 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
     electron.ipcRenderer.on("browser-context", (_event, data) => callback(data));
     return () => electron.ipcRenderer.removeAllListeners("browser-context");
   },
+  // Screen Capture & Neural OCR
+  captureScreenAndOCR: (mode = "fullscreen") => electron.ipcRenderer.invoke("screen:capture-and-ocr", mode),
+  ocrImageFile: (filePath) => electron.ipcRenderer.invoke("screen:ocr-image", filePath),
   // Platform
   platform: process.platform
 });

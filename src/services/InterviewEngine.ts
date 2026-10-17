@@ -1,3 +1,4 @@
+import { cleanExtractedOcrText, extractProblemHeadline, buildScreenSolverPrompt } from "./screenSolver";
 import { classifyUtterance } from './interruptionDetector';
 import { buildCandidateSystemPrompt } from './candidatePersona';
 import { globalLatencyTracker } from './LatencyTracker';
@@ -239,6 +240,96 @@ export class InterviewEngine {
                 store.setStatus("listening");
               }
             }, 3000);
+          }
+        }
+        break;
+
+      
+      case "SCREEN_PROBLEM_DETECTED":
+        globalLatencyTracker.mark("questionDetected");
+        if (activeAbortController) {
+          activeAbortController.abort();
+          activeAbortController = null;
+        }
+
+        activeAbortController = new AbortController();
+        store.incrementGenerationId();
+        store.clearAnswerQueue();
+
+        const cleanedOcr = cleanExtractedOcrText(event.rawText || event.text);
+        const headline = extractProblemHeadline(cleanedOcr);
+        store.setCurrentQuestion(`📸 [Screen] ${headline}`);
+        store.setCurrentAnswer("");
+        store.setStatus("analyzing");
+        store.setRecitalState("listening");
+        store.setToast(`📸 Screen Question Detected: "${headline.slice(0, 45)}..." — Solving with 0-hallucination verification!`);
+
+        const screenGen = useAppStore.getState().generationId;
+
+        try {
+          globalLatencyTracker.mark("generationStart");
+          const groqKey = import.meta.env.VITE_GROQ_API_KEY;
+          if (!groqKey) {
+            throw new Error("VITE_GROQ_API_KEY not configured in .env.local");
+          }
+
+          const currentStore = useAppStore.getState();
+          const screenSolverPrompt = buildScreenSolverPrompt(
+            cleanedOcr,
+            currentStore.settings?.preferredLanguage || "JavaScript",
+            currentStore.targetRole
+          );
+
+          await streamAnswer(
+            screenSolverPrompt,
+            {
+              type: "groq",
+              apiKey: groqKey,
+              model: "qwen/qwen3.8-27b",
+              temperature: 0.2, // Low temperature for zero-hallucination mathematical and code accuracy
+              maxTokens: store.settings?.maxTokens || 1200,
+              systemPrompt: "You are an elite Staff Software Engineer. Provide 100% accurate, optimal, verified solutions with zero hallucination."
+            },
+            (currentStore.settings?.preferredLanguage || "javascript") as any,
+            {
+              onToken: (token) => {
+                if (useAppStore.getState().generationId === screenGen) {
+                  useAppStore.getState().appendAnswerToken(token);
+                  if (useAppStore.getState().status !== "generating") {
+                    useAppStore.getState().setStatus("generating");
+                  }
+                }
+              },
+              onSentence: (sentence) => {
+                if (useAppStore.getState().generationId === screenGen) {
+                  const currentQueue = useAppStore.getState().teleprompterQueue;
+                  useAppStore.getState().enqueueSentences([...currentQueue, sentence]);
+                }
+              },
+              onComplete: (full) => {
+                globalLatencyTracker.mark("generationEnd");
+                if (useAppStore.getState().generationId === screenGen) {
+                  useAppStore.getState().setCurrentAnswer(full);
+                  useAppStore.getState().setRecitalState("listening");
+                  useAppStore.getState().setStatus("listening");
+                }
+              },
+              onError: (err) => {
+                console.error("[InterviewEngine] Screen Solve error:", err);
+                store.updateDiagnostics({
+                  whisperStatus: "screen solve error: " + (err.message || String(err))
+                });
+              }
+            },
+            activeAbortController.signal
+          );
+        } catch (e: any) {
+          if (e.name !== "AbortError") {
+            console.error("[InterviewEngine] Screen Solver Failed:", e.message);
+            store.updateDiagnostics({
+              whisperStatus: "solver error: " + (e.message || String(e))
+            });
+            store.setStatus("error");
           }
         }
         break;

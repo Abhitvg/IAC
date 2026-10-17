@@ -210,6 +210,8 @@ export interface ElectronAPI {
   startWsServer: () => Promise<{ port: number }>;
   stopWsServer: () => Promise<boolean>;
   onBrowserContext: (callback: (data: BrowserContext) => void) => () => void;
+  captureScreenAndOCR?: (mode?: "fullscreen" | "snip") => Promise<{ success: boolean; text?: string; cancelled?: boolean; error?: string }>;
+  ocrImageFile?: (filePath: string) => Promise<{ success: boolean; text?: string; error?: string }>;
   platform: string;
 }
 

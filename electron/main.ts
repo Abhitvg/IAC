@@ -238,3 +238,56 @@ ipcMain.handle('fs:parse-docx', async (_event, arrayBuffer: ArrayBuffer) => {
   const result = await mammoth.extractRawText({ buffer });
   return result.value || '';
 });
+
+
+// ─── Screen Capture & Apple Vision Neural OCR ───
+import { exec } from "child_process";
+import util from "util";
+const execAsync = util.promisify(exec);
+
+ipcMain.handle("screen:capture-and-ocr", async (_event, mode: "fullscreen" | "snip" = "fullscreen") => {
+  const tmpImg = path.join(app.getPath("temp"), `iac_screen_${Date.now()}.jpg`);
+  const ocrBin = path.join(__dirname, "../bin/mac-ocr");
+
+  try {
+    const captureFlag = mode === "snip" ? "-i -x" : "-x";
+    await execAsync(`screencapture ${captureFlag} "${tmpImg}"`);
+
+    if (!fs.existsSync(tmpImg)) {
+      return { success: false, cancelled: true, error: "Screen capture was cancelled." };
+    }
+
+    const { stdout } = await execAsync(`"${ocrBin}" "${tmpImg}"`);
+    try { fs.unlinkSync(tmpImg); } catch (_) {}
+
+    const text = stdout.trim();
+    if (!text) {
+      return { success: false, error: "No text or code could be detected on the screen." };
+    }
+
+    return { success: true, text };
+  } catch (err: any) {
+    console.error("[Electron] Screen OCR error:", err);
+    try { if (fs.existsSync(tmpImg)) fs.unlinkSync(tmpImg); } catch (_) {}
+    return { success: false, error: err.message || String(err) };
+  }
+});
+
+ipcMain.handle("screen:ocr-image", async (_event, filePath: string) => {
+  const ocrBin = path.join(__dirname, "../bin/mac-ocr");
+  try {
+    const resolvedPath = path.resolve(filePath);
+    if (!fs.existsSync(resolvedPath)) {
+      return { success: false, error: "File not found." };
+    }
+    const { stdout } = await execAsync(`"${ocrBin}" "${resolvedPath}"`);
+    const text = stdout.trim();
+    if (!text) {
+      return { success: false, error: "No text could be extracted from image." };
+    }
+    return { success: true, text };
+  } catch (err: any) {
+    console.error("[Electron] Image OCR error:", err);
+    return { success: false, error: err.message || String(err) };
+  }
+});
