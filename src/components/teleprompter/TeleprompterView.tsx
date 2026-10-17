@@ -772,18 +772,52 @@ export default function TeleprompterView() {
               💻 Two Sum
             </button>
             <button
-              onClick={() => handleTriggerQuestion("What is your experience with AWS CodePipeline?")}
+              onClick={() => handleTriggerQuestion("How do you troubleshoot a CrashLoopBackOff pod in Kubernetes and ensure zero-downtime deployments?")}
+              title="GFG DevOps: Kubernetes, Pod lifecycles, HPA, and Zero-Downtime Rollouts"
               style={{
-                background: "rgba(99, 102, 241, 0.15)",
-                border: "1px solid rgba(99, 102, 241, 0.3)",
-                color: "#c7d2fe",
+                background: "linear-gradient(135deg, rgba(59, 130, 246, 0.22), rgba(37, 99, 235, 0.22))",
+                border: "1px solid rgba(96, 165, 250, 0.5)",
+                color: "#bfdbfe",
                 borderRadius: "12px",
                 padding: "3px 8px",
                 fontSize: "11px",
+                fontWeight: 600,
                 cursor: "pointer"
               }}
             >
-              ⚡ CodePipeline
+              ☸️ K8s DevOps
+            </button>
+            <button
+              onClick={() => handleTriggerQuestion("Can you explain how CORS works, what causes preflight OPTIONS requests, and how to fix CORS issues?")}
+              title="GFG Web Tech: HTTP protocols, CORS, Web Security & REST APIs"
+              style={{
+                background: "linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.2))",
+                border: "1px solid rgba(244, 114, 182, 0.5)",
+                color: "#fbcfe8",
+                borderRadius: "12px",
+                padding: "3px 8px",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              🌐 Web CORS
+            </button>
+            <button
+              onClick={() => handleTriggerQuestion("What are the Coffman deadlock conditions in Operating Systems and how does Banker algorithm prevent them?")}
+              title="GFG Core CS: Operating Systems, Deadlocks, Process Synchronization"
+              style={{
+                background: "linear-gradient(135deg, rgba(139, 92, 246, 0.22), rgba(124, 58, 237, 0.22))",
+                border: "1px solid rgba(167, 139, 250, 0.5)",
+                color: "#ddd6fe",
+                borderRadius: "12px",
+                padding: "3px 8px",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              🧠 Core CS
             </button>
           </div>
         </div>

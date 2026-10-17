@@ -1,3 +1,5 @@
+import { getGfgKnowledgePromptSection } from '../data/gfgCurriculum';
+
 /**
  * Candidate Persona & Resume/JD Grounding Service
  *
@@ -13,6 +15,12 @@
  *    - Phase 2: Approach & Big-O Trade-Offs (brute force vs. optimal data structure)
  *    - Phase 3: Clean, Idiomatic Implementation (meaningful names, guard clauses)
  *    - Phase 4: Dry-Run Walkthrough & Scale Extensions (stepping through test cases)
+ *
+ * 3. GeeksforGeeks Complete Interview Preparation Knowledge Base
+ *    - DSA & Coding Patterns (Arrays, Strings, Trees, Graphs, DP, Heap, Backtracking)
+ *    - DevOps & Cloud Architecture (Linux, CI/CD, Docker, Kubernetes, Terraform, AWS, SRE)
+ *    - Web Technologies & System Design (HTTP/2/3, REST, Microservices, Caching, DBs, Auth)
+ *    - Core CS Subjects (Operating Systems, DBMS, Computer Networks, OOP/LLD)
  */
 
 export const DEFAULT_TARGET_ROLE = "Senior DevOps & Cloud Engineer";
@@ -174,7 +182,9 @@ PHASE 3 — PRODUCTION-GRADE CODE BLOCK:
 
 PHASE 4 — DRY-RUN WALKTHROUGH & SCALE EXTENSION (Spoken 3rd):
 - Explain a 1-sentence dry run stepping through a sample input like a debugger.
-- Conclude with a 1-sentence note on scale/extension (e.g., "If the dataset exceeds RAM, we can use external merge sort or stream processing via chunking.").
+- Conclude with a 1-sentence note on scale/extension (e.g., "If the dataset exceeds RAM, we can stream chunks or use external sorting.").
+
+${getGfgKnowledgePromptSection()}
 
 ════════════ MANDATORY TELEPROMPTER DELIVERY RULES ════════════
 1. SPOKEN TELEPROMPTER READABILITY:
