@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   close: () => ipcRenderer.send('window:close'),
   toggleAlwaysOnTop: () => ipcRenderer.send('window:toggle-always-on-top'),
   isAlwaysOnTop: () => ipcRenderer.invoke('window:is-always-on-top'),
+  setContentProtection: (enable: boolean) => ipcRenderer.invoke('window:set-content-protection', enable),
+  isContentProtected: () => ipcRenderer.invoke('window:is-content-protected'),
+  toggleContentProtection: () => ipcRenderer.send('window:toggle-content-protection'),
 
   // Paths
   getRecordingsDir: () => ipcRenderer.invoke('get-recordings-dir'),

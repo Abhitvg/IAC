@@ -15,7 +15,8 @@ import {
   Loader2,
   Send,
   Target,
-  FileUp
+  FileUp,
+  Shield
 } from "lucide-react";
 
 export default function TeleprompterView() {
@@ -52,6 +53,20 @@ export default function TeleprompterView() {
 
   // Manual Question Input
   const [manualInput, setManualInput] = useState("");
+
+  // Screen Share Stealth State (Invisible in Zoom, Meet, Teams, OBS)
+  const [isStealthActive, setIsStealthActive] = useState(true);
+
+  const handleToggleStealth = async () => {
+    const next = !isStealthActive;
+    setIsStealthActive(next);
+    await window.electronAPI?.setContentProtection?.(next);
+    setToast(
+      next
+        ? '🛡️ Screen Stealth ON: Window is completely invisible in screen share (Zoom, Meet, Teams)'
+        : '⚠️ Screen Stealth OFF: Window is now visible in screen share'
+    );
+  };
 
   // Window-level Drag and Drop support
   const [isWindowDragging, setIsWindowDragging] = useState(false);
@@ -350,6 +365,33 @@ export default function TeleprompterView() {
             <option value={0.9} style={{ background: "#111827" }}>90% Glass</option>
             <option value={0.98} style={{ background: "#111827" }}>Solid</option>
           </select>
+
+          <button
+            onClick={handleToggleStealth}
+            title={
+              isStealthActive
+                ? "Screen Stealth ON: Teleprompter is 100% invisible to Zoom, Google Meet, Teams, Discord & recordings"
+                : "Screen Stealth OFF: Teleprompter is visible to screen share"
+            }
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              background: isStealthActive ? 'rgba(16, 185, 129, 0.16)' : 'rgba(239, 68, 68, 0.16)',
+              border: isStealthActive ? '1px solid rgba(52, 211, 153, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+              color: isStealthActive ? '#6ee7b7' : '#fca5a5',
+              borderRadius: '4px',
+              padding: '3px 8px',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Shield size={12} style={{ color: isStealthActive ? '#34d399' : '#f87171' }} />
+            <span>{isStealthActive ? 'Stealth ON' : 'Stealth OFF'}</span>
+          </button>
 
           <button
             onClick={() => setResumeModalOpen(true)}

@@ -4,6 +4,7 @@ import fs from 'fs';
 import { setupIpcHandlers } from './ipc/handlers';
 
 let mainWindow: BrowserWindow | null = null;
+let isContentProtected = true;
 
 const RECORDINGS_DIR = path.join(app.getPath('userData'), 'recordings');
 const SESSIONS_DIR = path.join(app.getPath('userData'), 'sessions');
@@ -48,6 +49,13 @@ function createWindow() {
     console.log('[Renderer Log]', message);
   });
 
+  // Make window invisible to screen share (Zoom, Meet, Teams, QuickTime, OBS)
+  mainWindow.setContentProtection(true);
+  if (process.platform === 'darwin') {
+    mainWindow.setHiddenInMissionControl(true);
+    mainWindow.excludedFromShownWindowsMenu = true;
+  }
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -70,6 +78,7 @@ app.whenReady().then(() => {
   createWindow();
   setupIpcHandlers(mainWindow);
   if (mainWindow) {
+    mainWindow.setContentProtection(true);
     mainWindow.setAlwaysOnTop(true, 'floating');
     if (process.platform === 'darwin') {
       mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -114,6 +123,29 @@ ipcMain.on('window:toggle-always-on-top', () => {
 
 ipcMain.handle('window:is-always-on-top', () => {
   return mainWindow?.isAlwaysOnTop() ?? false;
+});
+
+// Content protection IPC (invisible in screen sharing)
+ipcMain.handle('window:set-content-protection', (_event, enable: boolean) => {
+  if (mainWindow) {
+    mainWindow.setContentProtection(enable);
+    isContentProtected = enable;
+    console.log('[Electron] Content protection (screen stealth):', enable);
+    return true;
+  }
+  return false;
+});
+
+ipcMain.handle('window:is-content-protected', () => {
+  return isContentProtected;
+});
+
+ipcMain.on('window:toggle-content-protection', () => {
+  if (mainWindow) {
+    isContentProtected = !isContentProtected;
+    mainWindow.setContentProtection(isContentProtected);
+    console.log('[Electron] Toggled content protection (screen stealth):', isContentProtected);
+  }
 });
 
 // File system paths

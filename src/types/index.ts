@@ -188,6 +188,9 @@ export interface ElectronAPI {
   close: () => void;
   toggleAlwaysOnTop: () => void;
   isAlwaysOnTop: () => Promise<boolean>;
+  setContentProtection?: (enable: boolean) => Promise<boolean>;
+  isContentProtected?: () => Promise<boolean>;
+  toggleContentProtection?: () => void;
   getRecordingsDir: () => Promise<string>;
   getSessionsDir: () => Promise<string>;
   getUserDataPath: () => Promise<string>;
