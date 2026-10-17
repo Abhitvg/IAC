@@ -166,10 +166,10 @@ export default function TeleprompterView() {
   };
 
   const fontSizes: Record<TeleprompterFontSize, { label: string; size: string; line: string }> = {
-    small: { label: "Small font", size: "16px", line: "1.75" },
-    medium: { label: "Medium font", size: "20px", line: "1.8" },
-    large: { label: "Large font", size: "26px", line: "1.85" },
-    xlarge: { label: "X-Large font", size: "32px", line: "1.9" },
+    small: { label: "Small", size: "16px", line: "1.75" },
+    medium: { label: "Medium", size: "20px", line: "1.8" },
+    large: { label: "Large", size: "26px", line: "1.85" },
+    xlarge: { label: "XL", size: "32px", line: "1.9" },
   };
 
   const handleExit = () => {
@@ -209,8 +209,7 @@ export default function TeleprompterView() {
         height: "100vh",
         width: "100vw",
         background: `rgba(8, 10, 20, ${windowOpacity})`,
-        backdropFilter: "blur(24px) saturate(180%)",
-        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        
         color: "#f8fafc",
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         overflow: "hidden",
@@ -228,7 +227,7 @@ export default function TeleprompterView() {
             inset: 0,
             zIndex: 100,
             background: "rgba(15, 15, 30, 0.94)",
-            backdropFilter: "blur(12px)",
+            
             border: "2px dashed #818cf8",
             borderRadius: "10px",
             display: "flex",
@@ -259,11 +258,10 @@ export default function TeleprompterView() {
           justifyContent: "space-between",
           padding: "6px 12px",
           background: `rgba(16, 18, 30, ${Math.min(0.68, windowOpacity * 0.75 + 0.14)})`,
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
+          
           borderBottom: "1px solid rgba(255, 255, 255, 0.10)",
           gap: "6px",
-          flexWrap: "nowrap"
+          flexWrap: "wrap"
         }}
       >
         {/* Left: Font Size Buttons */}
@@ -697,8 +695,7 @@ export default function TeleprompterView() {
           display: "flex",
           flexDirection: "column",
           background: `rgba(12, 14, 24, ${Math.min(0.75, windowOpacity * 0.75 + 0.18)})`,
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
+          
           borderTop: "1px solid rgba(255, 255, 255, 0.10)",
           padding: "8px 14px",
           gap: "8px"

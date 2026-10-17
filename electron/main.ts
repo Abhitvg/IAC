@@ -29,10 +29,6 @@ function createWindow() {
     resizable: true,
     alwaysOnTop: true,
     backgroundColor: '#00000000',
-    ...(process.platform === 'darwin' ? {
-      vibrancy: 'under-window',
-      visualEffectState: 'active',
-    } : {}),
     titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
