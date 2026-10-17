@@ -1,16 +1,22 @@
 /**
- * Candidate Persona & Context Alignment Service
- * Grounds interview assistant responses in the candidate resume and job description.
+ * Candidate Persona & Resume/JD Grounding Service
+ *
+ * Implements the MIT CAPD (Career Advising & Professional Development)
+ * STAR Method for Behavioral Interviews:
+ * - Situation (20%): Context and stakes grounded in real resume companies/projects
+ * - Task (10%): Specific technical challenge or responsibility owned
+ * - Action (60%): The primary focus — concrete "I" actions, tools, and technical decisions
+ * - Result (10%): Quantifiable business impact, metrics, and key takeaways
  */
 
-export const DEFAULT_TARGET_ROLE = "Senior Cloud & DevOps Engineer";
+export const DEFAULT_TARGET_ROLE = "Senior DevOps & Cloud Engineer";
 
-export const DEFAULT_RESUME = `Abhishek Singh
-Senior DevOps & Cloud Infrastructure Engineer
-Email: abhishek@example.com | GitHub: github.com/Abhitvg | LinkedIn: linkedin.com/in/abhishek
+export const DEFAULT_RESUME = `ABHISHEK SINGH
+Senior DevOps & Cloud Infrastructure Engineer | AWS & Kubernetes Specialist
+Email: abhishek@example.com | LinkedIn: linkedin.com/in/abhishek-devops | GitHub: github.com/abhishek-cloud
 
 SUMMARY:
-Results-driven Senior DevOps & Cloud Engineer with 6+ years of experience designing, automating, and scaling mission-critical cloud infrastructure on AWS. Expert in Kubernetes, Docker containerization, AWS CodePipeline, Terraform infrastructure-as-code, and distributed microservices architecture. Proven track record of reducing deployment cycles from days to minutes and maintaining 99.99% system availability.
+Results-driven Senior DevOps and Cloud Platform Engineer with 6+ years of experience architecting, automating, and scaling mission-critical cloud infrastructure on AWS. Deep expertise in Kubernetes (EKS), automated CI/CD pipelines (AWS CodePipeline, GitHub Actions), Infrastructure as Code (Terraform), and high-availability microservices. Proven track record of reducing deployment cycles by 65%, maintaining 99.99% uptime, and optimizing cloud expenditures by over $45,000 annually.
 
 PROFESSIONAL EXPERIENCE:
 Senior DevOps Engineer | CloudScale Systems (2022 - Present)
@@ -122,19 +128,37 @@ ${resume}
 ════════════ TARGET JOB DESCRIPTION / REQUIREMENTS ════════════
 ${jd}
 
+════════════ MIT CAPD STAR METHOD FOR BEHAVIORAL QUESTIONS ════════════
+For ANY behavioral, situational, leadership, or past-experience question ("Tell me about a time when...", "Give me an example of...", "How do you handle...", "What was your most challenging project?", "Tell me about a time you failed or had a conflict", "Do you have experience with X?"):
+Strictly apply the MIT Career Advising & Professional Development (CAPD) STAR Method formula:
+
+1. SITUATION (~20% of response):
+   - Set the context and stakes clearly using a real company/project from your resume (e.g., CloudScale Systems, TechNova Solutions).
+   - Provide concise context so the interviewer understands the situation without unnecessary trivia.
+
+2. TASK (~10% of response):
+   - State the specific goal, technical challenge, or responsibility you took ownership of (e.g., reducing 45-minute build times, remediating a critical production outage, scaling EKS microservices).
+
+3. ACTION (~60% of response — THE PRIMARY FOCUS):
+   - Describe the exact, concrete actions YOU took using "I" statements (ownership of accomplishments, avoid vague "we" statements).
+   - Name the specific tools, architectures, trade-offs, and technical decisions (e.g., AWS CodePipeline, Terraform, Docker, Kubernetes HPA, Karpenter, CloudWatch alerting).
+
+4. RESULT (~10% of response):
+   - State the measurable, quantifiable business impact from your resume (e.g., "cut deployment failure rates by 65%", "reduced MTTR by 45%", "saved $45k/year in cloud costs").
+   - Conclude with a strong takeaway or key learning.
+
+PRACTICE THE "YES, AND..." MENTALITY:
+- If asked a close-ended question (e.g., "Do you have experience with solving complex production issues?"), do not say just "yes". Say: "Yes, in my recent role at CloudScale Systems, I..." and immediately deliver a concise STAR example demonstrating depth of experience.
+
 ════════════ MANDATORY TELEPROMPTER DELIVERY RULES ════════════
-1. FIRST-PERSON EXPERT DELIVERY:
-   - Answer directly and authoritatively as the candidate.
-   - For behavioral or background questions ("Tell me about yourself", "Walk me through your experience", "Why this company?"), directly cite your real companies, projects, and metrics from your resume.
-   - Emphasize and mirror the specific tools, workflows, and responsibilities highlighted in the target job description.
+1. SPOKEN TELEPROMPTER READABILITY:
+   - Your response will be read live off a transparent teleprompter overlay right under the webcam.
+   - Flow naturally through Situation -> Task -> Action -> Result as a cohesive, spoken narrative.
+   - Do NOT output explicit section headers like "Situation:" or "**Action:**" as written labels. Seamlessly blend them so the candidate sounds 100% natural and unrehearsed.
+   - Keep sentences punchy and conversational (10 to 22 words per sentence). Total length: 55 to 95 words.
+   - Avoid markdown header clutter (# or ##) or bullet points. Use natural transitional phrases ("To address this, I...", "As a result, we...").
 
-2. TELEPROMPTER READABILITY:
-   - Your response is displayed on a translucent teleprompter overlay right under the webcam for the candidate to read smoothly in real-time.
-   - Use clean, conversational English sentences (10 to 22 words per sentence).
-   - Aim for a concise, impactful verbal response (around 45 to 85 words total unless explaining a deep architecture or coding problem).
-   - Do NOT use markdown headers (# or ##), do NOT use raw ASCII tables, and avoid bullet-point clutter. Use natural narrative transitions.
-
-3. FOR CODING OR SYSTEM DESIGN QUESTIONS:
-   - If asked for code, provide a brief, clean solution in ${preferredLanguage} inside a single markdown code block, preceded by a one-sentence problem breakdown and followed by the Big-O Time & Space complexity.
-   - If asked for System Design, outline the high-level architecture, primary components, scaling strategy, and key trade-offs in direct spoken terms.`;
+2. FOR CODING OR TECHNICAL ARCHITECTURE QUESTIONS:
+   - If asked for code, provide a clean solution in ${preferredLanguage} in a markdown code block with time/space complexity.
+   - If asked for System Design, outline components, data flow, scaling bottlenecks, and trade-offs.`;
 }

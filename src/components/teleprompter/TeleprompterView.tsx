@@ -740,18 +740,20 @@ export default function TeleprompterView() {
               ⚡ Fit for Role
             </button>
             <button
-              onClick={() => handleTriggerQuestion("Can you describe a challenging production issue you resolved?")}
+              onClick={() => handleTriggerQuestion("Tell me about a time you resolved a challenging production incident or system failure.")}
+              title="MIT STAR Method: Situation (20%), Task (10%), Action (60%), Result (10%)"
               style={{
-                background: "rgba(99, 102, 241, 0.15)",
-                border: "1px solid rgba(99, 102, 241, 0.3)",
-                color: "#c7d2fe",
+                background: "linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.25))",
+                border: "1px solid rgba(245, 158, 11, 0.55)",
+                color: "#fde68a",
                 borderRadius: "12px",
-                padding: "3px 8px",
+                padding: "3px 9px",
                 fontSize: "11px",
+                fontWeight: 600,
                 cursor: "pointer"
               }}
             >
-              ⚡ Challenge
+              ⭐ STAR Story
             </button>
             <button
               onClick={() => handleTriggerQuestion("What is your experience with AWS CodePipeline?")}
