@@ -19,18 +19,17 @@ function ensureDirectories() {
 }
 function createWindow() {
     mainWindow = new electron_1.BrowserWindow({
-        width: 520,
-        height: 780,
-        minWidth: 400,
-        minHeight: 600,
+        width: 660,
+        height: 480,
+        minWidth: 420,
+        minHeight: 280,
         frame: false,
-        transparent: false,
+        transparent: true,
+        hasShadow: true,
         resizable: true,
-        alwaysOnTop: false,
+        alwaysOnTop: true,
+        backgroundColor: '#00000000',
         titleBarStyle: 'hidden',
-        trafficLightPosition: { x: 12, y: 12 },
-        vibrancy: 'under-window',
-        backgroundColor: '#0a0a0f',
         webPreferences: {
             preload: path_1.default.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -45,6 +44,9 @@ function createWindow() {
     else {
         mainWindow.loadFile(path_1.default.join(__dirname, '../dist/index.html'));
     }
+    mainWindow.webContents.on('console-message', (_event, level, message) => {
+        console.log('[Renderer Log]', message);
+    });
     mainWindow.on('closed', () => {
         mainWindow = null;
     });
@@ -53,10 +55,21 @@ function registerGlobalShortcuts() {
     // These are app-level shortcuts that work even when minimized
     // Most shortcuts are handled in the renderer for better UX
 }
+const electron_2 = require("electron");
 electron_1.app.whenReady().then(() => {
+    electron_2.session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+        callback(true);
+    });
+    electron_2.session.defaultSession.setPermissionCheckHandler(() => true);
     ensureDirectories();
     createWindow();
     (0, handlers_1.setupIpcHandlers)(mainWindow);
+    if (mainWindow) {
+        mainWindow.setAlwaysOnTop(true, 'floating');
+        if (process.platform === 'darwin') {
+            mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+        }
+    }
     registerGlobalShortcuts();
     electron_1.app.on('activate', () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0) {

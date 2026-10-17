@@ -104,7 +104,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     setStatus: (s) => {
         set({ 
             status: s, 
-            isRecording: s === 'listening',
+            isRecording: s === 'listening' || s === 'transcribing' || s === 'analyzing' || s === 'generating',
             isGenerating: s === 'analyzing' || s === 'generating'
         });
     },
@@ -126,7 +126,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     
     toggleRecording: () => {
         const { status } = get();
-        if (status === 'listening') {
+        if (status === 'listening' || status === 'transcribing' || status === 'analyzing' || status === 'generating') {
             InterviewEngine.handleEvent({ type: 'STOP_LISTENING' });
             get().setStatus('idle');
         } else {

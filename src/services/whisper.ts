@@ -133,7 +133,7 @@ async function transcribeLocal(
 }
 
 function postProcessTranscript(text: string): string {
-  let processed = text;
+  let processed = text.replace(/\[[^\]]+\]|\([^)]+\)/g, '').trim();
   const corrections: Record<string, string> = {
     'aws code pipeline': 'AWS CodePipeline',
     'aws codepipeline': 'AWS CodePipeline',
