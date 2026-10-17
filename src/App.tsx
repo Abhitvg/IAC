@@ -1,7 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { useAppStore } from './store/useAppStore';
-import TitleBar from './components/TitleBar';
-import InterviewWorkspace from './components/interview/InterviewWorkspace';
+import TeleprompterView from './components/teleprompter/TeleprompterView';
 import SettingsPanel from './components/SettingsPanel';
 import SessionsPanel from './components/SessionsPanel';
 import Toast from './components/Toast';
@@ -14,8 +13,6 @@ export default function App() {
     toggleRecording,
     analyzeTranscript,
     copyAnswer,
-    setResponseMode,
-    regenerateAnswer,
     settingsOpen,
     sessionsOpen,
     isRecording,
@@ -57,9 +54,8 @@ export default function App() {
   }, [handleKeyDown]);
 
   return (
-    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0a0a0f' }}>
-      <TitleBar />
-      <InterviewWorkspace />
+    <div style={{ height: '100vh', width: '100vw', background: 'transparent', overflow: 'hidden' }}>
+      <TeleprompterView />
       {settingsOpen && <SettingsPanel />}
       {sessionsOpen && <SessionsPanel />}
       <Toast />

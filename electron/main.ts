@@ -18,18 +18,17 @@ function ensureDirectories() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 520,
-    height: 780,
-    minWidth: 400,
-    minHeight: 600,
+    width: 660,
+    height: 480,
+    minWidth: 420,
+    minHeight: 280,
     frame: false,
-    transparent: false,
+    transparent: true,
+    hasShadow: true,
     resizable: true,
-    alwaysOnTop: false,
+    alwaysOnTop: true,
+    backgroundColor: '#00000000',
     titleBarStyle: 'hidden',
-    trafficLightPosition: { x: 12, y: 12 },
-    vibrancy: 'under-window',
-    backgroundColor: '#0a0a0f',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -70,6 +69,12 @@ app.whenReady().then(() => {
   ensureDirectories();
   createWindow();
   setupIpcHandlers(mainWindow);
+  if (mainWindow) {
+    mainWindow.setAlwaysOnTop(true, 'floating');
+    if (process.platform === 'darwin') {
+      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    }
+  }
   registerGlobalShortcuts();
 
   app.on('activate', () => {

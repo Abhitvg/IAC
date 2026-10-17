@@ -21,7 +21,17 @@ export interface TranscriptMessage {
     timestamp: number;
 }
 
+export type TeleprompterFontSize = 'small' | 'medium' | 'large' | 'xlarge';
+
 interface InterviewState {
+    teleprompterFontSize: TeleprompterFontSize;
+    setTeleprompterFontSize: (size: TeleprompterFontSize) => void;
+    isAutoScrolling: boolean;
+    setIsAutoScrolling: (scrolling: boolean) => void;
+    scrollSpeed: number;
+    setScrollSpeed: (speed: number) => void;
+    windowOpacity: number;
+    setWindowOpacity: (opacity: number) => void;
     status: InterviewStatus;
     currentQuestion: string | null;
     currentAnswer: string | null;
@@ -71,6 +81,14 @@ interface InterviewState {
 }
 
 export const useAppStore = create<InterviewState>((set, get) => ({
+    teleprompterFontSize: 'medium',
+    setTeleprompterFontSize: (teleprompterFontSize) => set({ teleprompterFontSize }),
+    isAutoScrolling: true,
+    setIsAutoScrolling: (isAutoScrolling) => set({ isAutoScrolling }),
+    scrollSpeed: 1.0,
+    setScrollSpeed: (scrollSpeed) => set({ scrollSpeed }),
+    windowOpacity: 0.78,
+    setWindowOpacity: (windowOpacity) => set({ windowOpacity }),
     status: "idle",
     currentQuestion: null,
     currentAnswer: null,

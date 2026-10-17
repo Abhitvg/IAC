@@ -1,8 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+
+.teleprompter-draggable {
+  -webkit-app-region: drag;
+}
+
+.teleprompter-nodrag {
+  -webkit-app-region: no-drag;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    AI Interview Assistant — Design System
    ═══════════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 
 :root {
   /* ─── Color Palette ─── */
