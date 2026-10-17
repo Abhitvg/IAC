@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // File system
   readFile: (path: string) => ipcRenderer.invoke('fs:read-file', path),
+  parsePdf: (arrayBuffer: ArrayBuffer) => ipcRenderer.invoke('fs:parse-pdf', arrayBuffer),
+  parseDocx: (arrayBuffer: ArrayBuffer) => ipcRenderer.invoke('fs:parse-docx', arrayBuffer),
   writeFile: (path: string, data: any) => ipcRenderer.invoke('fs:write-file', path, data),
   listDir: (path: string) => ipcRenderer.invoke('fs:list-dir', path),
   deleteFile: (path: string) => ipcRenderer.invoke('fs:delete', path),

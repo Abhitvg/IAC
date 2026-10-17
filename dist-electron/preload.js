@@ -16,6 +16,8 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     openFileDialog: (options) => electron_1.ipcRenderer.invoke('dialog:open-file', options),
     // File system
     readFile: (path) => electron_1.ipcRenderer.invoke('fs:read-file', path),
+    parsePdf: (arrayBuffer) => electron_1.ipcRenderer.invoke('fs:parse-pdf', arrayBuffer),
+    parseDocx: (arrayBuffer) => electron_1.ipcRenderer.invoke('fs:parse-docx', arrayBuffer),
     writeFile: (path, data) => electron_1.ipcRenderer.invoke('fs:write-file', path, data),
     listDir: (path) => electron_1.ipcRenderer.invoke('fs:list-dir', path),
     deleteFile: (path) => electron_1.ipcRenderer.invoke('fs:delete', path),

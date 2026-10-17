@@ -1,3 +1,4 @@
+import { readAndParseFile } from '../../services/resume';
 import React, { useEffect, useRef, useState } from "react";
 import { useAppStore, TeleprompterFontSize } from "../../store/useAppStore";
 import { InterviewEngine } from "../../services/InterviewEngine";
@@ -13,7 +14,8 @@ import {
   Sparkles,
   Loader2,
   Send,
-  Target
+  Target,
+  FileUp
 } from "lucide-react";
 
 export default function TeleprompterView() {
@@ -35,7 +37,10 @@ export default function TeleprompterView() {
     setSettingsOpen,
     setSessionsOpen,
     targetRole,
-    setResumeModalOpen
+    setResumeModalOpen,
+    setResumeText,
+    setJobDescriptionText,
+    setToast
   } = useAppStore();
 
   const isListening =
@@ -47,6 +52,37 @@ export default function TeleprompterView() {
 
   // Manual Question Input
   const [manualInput, setManualInput] = useState("");
+
+  // Window-level Drag and Drop support
+  const [isWindowDragging, setIsWindowDragging] = useState(false);
+
+  const handleWindowDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsWindowDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    try {
+      setToast(`Reading ${file.name}...`);
+      const text = await readAndParseFile(file);
+      if (!text || !text.trim()) {
+        setToast(`Could not extract text from ${file.name}`);
+        return;
+      }
+
+      const lower = file.name.toLowerCase();
+      if (lower.includes('jd') || lower.includes('job') || lower.includes('description')) {
+        setJobDescriptionText(text.trim());
+        setToast(`🎯 Loaded ${file.name} as Target Job Description!`);
+      } else {
+        setResumeText(text.trim());
+        setToast(`📄 Loaded ${file.name} as Candidate Resume!`);
+      }
+    } catch (err: any) {
+      console.error('File drop error:', err);
+      setToast(`Error parsing file: ${err?.message || err}`);
+    }
+  };
 
   // Session Timer
   const [seconds, setSeconds] = useState(45);
@@ -118,7 +154,15 @@ export default function TeleprompterView() {
 
   return (
     <div
+      onDragOver={(e) => { e.preventDefault(); setIsWindowDragging(true); }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setIsWindowDragging(false);
+        }
+      }}
+      onDrop={handleWindowDrop}
       style={{
+        position: "relative",
         display: "flex",
         flexDirection: "column",
         height: "100vh",
@@ -126,13 +170,42 @@ export default function TeleprompterView() {
         background: `rgba(12, 12, 20, ${windowOpacity})`,
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
-        border: "1px solid rgba(255, 255, 255, 0.12)",
+        border: isWindowDragging ? "2px dashed #818cf8" : "1px solid rgba(255, 255, 255, 0.12)",
         borderRadius: "10px",
         overflow: "hidden",
         boxShadow: "0 20px 50px rgba(0, 0, 0, 0.75)",
         userSelect: "none"
       }}
     >
+      {/* Drag & Drop Visual Overlay */}
+      {isWindowDragging && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 100,
+            background: "rgba(15, 15, 30, 0.94)",
+            backdropFilter: "blur(12px)",
+            border: "2px dashed #818cf8",
+            borderRadius: "10px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+            color: "#f8fafc",
+            pointerEvents: "none"
+          }}
+        >
+          <FileUp size={44} style={{ color: "#818cf8" }} />
+          <div style={{ fontSize: "16px", fontWeight: 700, color: "#e0e7ff" }}>
+            Drop File to Load Candidate Resume or Job Description
+          </div>
+          <div style={{ fontSize: "12px", color: "#a5b4fc" }}>
+            Supports PDF, Word DOCX, Markdown, Text (.pdf, .docx, .txt, .md)
+          </div>
+        </div>
+      )}
       {/* ════════════ TOP TELEPROMPTER CONTROL BAR (Matches Reference Photo) ════════════ */}
       <div
         className="teleprompter-draggable"

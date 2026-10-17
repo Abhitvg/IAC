@@ -190,3 +190,19 @@ ipcMain.handle('shell:open-external', async (_event, url: string) => {
     await shell.openExternal(url);
   }
 });
+
+// PDF parsing
+ipcMain.handle('fs:parse-pdf', async (_event, arrayBuffer: ArrayBuffer) => {
+  const pdfParse = require('pdf-parse');
+  const buffer = Buffer.from(arrayBuffer);
+  const data = await pdfParse(buffer);
+  return data.text || '';
+});
+
+// DOCX parsing
+ipcMain.handle('fs:parse-docx', async (_event, arrayBuffer: ArrayBuffer) => {
+  const mammoth = require('mammoth');
+  const buffer = Buffer.from(arrayBuffer);
+  const result = await mammoth.extractRawText({ buffer });
+  return result.value || '';
+});

@@ -182,3 +182,40 @@ async function extractDocxText(buffer: Buffer | ArrayBuffer): Promise<string> {
     return 'Could not parse DOCX. Please try TXT or MD format.';
   }
 }
+
+/**
+ * Read and parse any File object (dropped or selected)
+ * Supports PDF, DOCX, TXT, MD, JSON
+ */
+export async function readAndParseFile(file: File): Promise<string> {
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+
+  if (extension === 'pdf') {
+    const arrayBuffer = await file.arrayBuffer();
+    if (window.electronAPI?.parsePdf) {
+      try {
+        const text = await window.electronAPI.parsePdf(arrayBuffer);
+        if (text && text.trim()) return text.trim();
+      } catch (err) {
+        console.warn('Electron parsePdf error, falling back to browser extractor:', err);
+      }
+    }
+    return await extractPdfText(arrayBuffer);
+  }
+
+  if (extension === 'docx' || extension === 'doc') {
+    const arrayBuffer = await file.arrayBuffer();
+    if (window.electronAPI?.parseDocx) {
+      try {
+        const text = await window.electronAPI.parseDocx(arrayBuffer);
+        if (text && text.trim()) return text.trim();
+      } catch (err) {
+        console.warn('Electron parseDocx error, falling back to browser extractor:', err);
+      }
+    }
+    return await extractDocxText(arrayBuffer);
+  }
+
+  // Plain text formats (.txt, .md, .json, .csv, etc.)
+  return await file.text();
+}

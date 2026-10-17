@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { 
   DEFAULT_RESUME, 
@@ -6,6 +6,7 @@ import {
   DEFAULT_TARGET_ROLE, 
   analyzeAlignment 
 } from '../services/candidatePersona';
+import { readAndParseFile } from '../services/resume';
 import { 
   X, 
   Upload, 
@@ -16,7 +17,9 @@ import {
   RefreshCw, 
   Target, 
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  FileUp,
+  Check
 } from 'lucide-react';
 
 export default function ResumeAndJobModal() {
@@ -35,6 +38,14 @@ export default function ResumeAndJobModal() {
   const [localRole, setLocalRole] = useState(targetRole || DEFAULT_TARGET_ROLE);
   const [localResume, setLocalResume] = useState(resumeText || DEFAULT_RESUME);
   const [localJD, setLocalJD] = useState(jobDescriptionText || DEFAULT_JOB_DESCRIPTION);
+
+  // Drag and drop states
+  const [isResumeDragging, setIsResumeDragging] = useState(false);
+  const [isJdDragging, setIsJdDragging] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+
+  const resumeFileInputRef = useRef<HTMLInputElement>(null);
+  const jdFileInputRef = useRef<HTMLInputElement>(null);
 
   const alignment = useMemo(() => {
     return analyzeAlignment(localResume, localJD);
@@ -56,19 +67,58 @@ export default function ResumeAndJobModal() {
     setResumeModalOpen(false);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (text) {
-        setLocalResume(text);
-        setToast(`Loaded ${file.name} successfully!`);
+  const processResumeFile = async (file: File) => {
+    setIsParsing(true);
+    try {
+      setToast(`Extracting text from ${file.name}...`);
+      const text = await readAndParseFile(file);
+      if (text && text.trim()) {
+        setLocalResume(text.trim());
+        setToast(`✅ Loaded ${file.name} successfully!`);
+      } else {
+        setToast(`Could not extract text from ${file.name}`);
       }
-    };
-    reader.readAsText(file);
+    } catch (err: any) {
+      console.error('File parsing error:', err);
+      setToast(`Error parsing file: ${err?.message || err}`);
+    } finally {
+      setIsParsing(false);
+      setIsResumeDragging(false);
+    }
+  };
+
+  const processJdFile = async (file: File) => {
+    setIsParsing(true);
+    try {
+      setToast(`Extracting text from ${file.name}...`);
+      const text = await readAndParseFile(file);
+      if (text && text.trim()) {
+        setLocalJD(text.trim());
+        setToast(`✅ Loaded ${file.name} successfully!`);
+      } else {
+        setToast(`Could not extract text from ${file.name}`);
+      }
+    } catch (err: any) {
+      console.error('File parsing error:', err);
+      setToast(`Error parsing file: ${err?.message || err}`);
+    } finally {
+      setIsParsing(false);
+      setIsJdDragging(false);
+    }
+  };
+
+  const handleResumeDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsResumeDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processResumeFile(file);
+  };
+
+  const handleJdDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsJdDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processJdFile(file);
   };
 
   return (
@@ -89,8 +139,8 @@ export default function ResumeAndJobModal() {
       <div
         style={{
           width: '100%',
-          maxWidth: '820px',
-          maxHeight: '90vh',
+          maxWidth: '840px',
+          maxHeight: '92vh',
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: '#0f0f18',
@@ -132,7 +182,7 @@ export default function ResumeAndJobModal() {
                 Candidate Persona: Resume & Job Description
               </h2>
               <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0' }}>
-                Answers will automatically speak in the 1st-person, citing your actual projects and matching the target JD.
+                Drop your resume or JD here — answers will speak in the 1st person citing your actual projects and metrics.
               </p>
             </div>
           </div>
@@ -263,35 +313,52 @@ export default function ResumeAndJobModal() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 22px' }}>
           {activeTab === 'resume' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Drag and Drop Zone */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsResumeDragging(true); }}
+                onDragLeave={() => setIsResumeDragging(false)}
+                onDrop={handleResumeDrop}
+                onClick={() => resumeFileInputRef.current?.click()}
+                style={{
+                  border: isResumeDragging ? '2px dashed #818cf8' : '2px dashed rgba(255, 255, 255, 0.16)',
+                  backgroundColor: isResumeDragging ? 'rgba(99, 102, 241, 0.18)' : 'rgba(255, 255, 255, 0.02)',
+                  borderRadius: '10px',
+                  padding: '18px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <FileUp size={26} style={{ color: isResumeDragging ? '#818cf8' : '#94a3b8' }} />
+                <div style={{ fontSize: '13px', fontWeight: 600, color: isResumeDragging ? '#e0e7ff' : '#f1f5f9' }}>
+                  {isParsing ? 'Extracting resume text...' : isResumeDragging ? 'Drop Resume File Here!' : 'Drop your resume file here (or click to browse)'}
+                </div>
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  Supports PDF (.pdf), Word (.docx), Markdown (.md), Plain Text (.txt)
+                </div>
+                <input
+                  ref={resumeFileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.doc,.txt,.md,.json"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) processResumeFile(file);
+                  }}
+                  style={{ display: 'none' }}
+                />
+              </div>
+
+              {/* Action Toolbar */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                  Paste your resume text below or upload a plain text / markdown file:
+                  Or review/edit the extracted resume text directly below:
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <label
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '6px',
-                      padding: '4px 10px',
-                      fontSize: '11px',
-                      color: '#cbd5e1',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Upload size={12} />
-                    <span>Upload File</span>
-                    <input
-                      type="file"
-                      accept=".txt,.md,.json"
-                      onChange={handleFileUpload}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-
                   <button
                     onClick={() => setLocalResume(DEFAULT_RESUME)}
                     style={{
@@ -330,8 +397,8 @@ export default function ResumeAndJobModal() {
               <textarea
                 value={localResume}
                 onChange={(e) => setLocalResume(e.target.value)}
-                placeholder="Paste your full resume here (Summary, Work History, Projects, Tech Stack, Education)..."
-                rows={14}
+                placeholder="Paste or edit your resume text here (Summary, Work History, Projects, Skills)..."
+                rows={10}
                 style={{
                   width: '100%',
                   background: 'rgba(0, 0, 0, 0.35)',
@@ -351,9 +418,50 @@ export default function ResumeAndJobModal() {
 
           {activeTab === 'jd' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Drag and Drop Zone for JD */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsJdDragging(true); }}
+                onDragLeave={() => setIsJdDragging(false)}
+                onDrop={handleJdDrop}
+                onClick={() => jdFileInputRef.current?.click()}
+                style={{
+                  border: isJdDragging ? '2px dashed #818cf8' : '2px dashed rgba(255, 255, 255, 0.16)',
+                  backgroundColor: isJdDragging ? 'rgba(99, 102, 241, 0.18)' : 'rgba(255, 255, 255, 0.02)',
+                  borderRadius: '10px',
+                  padding: '18px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Briefcase size={26} style={{ color: isJdDragging ? '#818cf8' : '#94a3b8' }} />
+                <div style={{ fontSize: '13px', fontWeight: 600, color: isJdDragging ? '#e0e7ff' : '#f1f5f9' }}>
+                  {isParsing ? 'Extracting job posting text...' : isJdDragging ? 'Drop Job Description File Here!' : 'Drop Job Description file here (or click to browse)'}
+                </div>
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  Supports PDF, Word DOCX, Markdown, Text files
+                </div>
+                <input
+                  ref={jdFileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.doc,.txt,.md,.json"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) processJdFile(file);
+                  }}
+                  style={{ display: 'none' }}
+                />
+              </div>
+
+              {/* Action Toolbar */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                  Paste the job posting description from LinkedIn, Indeed, Greenhouse, or email:
+                  Or paste and edit the job description text directly below:
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
@@ -395,7 +503,7 @@ export default function ResumeAndJobModal() {
                 value={localJD}
                 onChange={(e) => setLocalJD(e.target.value)}
                 placeholder="Paste target Job Description here (Role summary, responsibilities, required qualifications)..."
-                rows={14}
+                rows={10}
                 style={{
                   width: '100%',
                   background: 'rgba(0, 0, 0, 0.35)',

@@ -193,6 +193,8 @@ export interface ElectronAPI {
   getUserDataPath: () => Promise<string>;
   openFileDialog: (options: any) => Promise<string | null>;
   readFile: (path: string) => Promise<Buffer>;
+  parsePdf: (arrayBuffer: ArrayBuffer) => Promise<string>;
+  parseDocx: (arrayBuffer: ArrayBuffer) => Promise<string>;
   writeFile: (path: string, data: any) => Promise<boolean>;
   listDir: (path: string) => Promise<Array<{ name: string; isDirectory: boolean; path: string }>>;
   deleteFile: (path: string) => Promise<boolean>;
