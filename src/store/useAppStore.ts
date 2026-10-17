@@ -109,8 +109,17 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     setIsAutoScrolling: (isAutoScrolling) => set({ isAutoScrolling }),
     scrollSpeed: 1.0,
     setScrollSpeed: (scrollSpeed) => set({ scrollSpeed }),
-    windowOpacity: 0.78,
-    setWindowOpacity: (windowOpacity) => set({ windowOpacity }),
+    windowOpacity: (() => {
+        try {
+            const saved = localStorage.getItem("teleprompter_opacity");
+            if (saved) return parseFloat(saved);
+        } catch (_) {}
+        return 0.35;
+    })(),
+    setWindowOpacity: (windowOpacity) => {
+        try { localStorage.setItem("teleprompter_opacity", String(windowOpacity)); } catch (_) {}
+        set({ windowOpacity });
+    },
     status: "idle",
     currentQuestion: null,
     currentAnswer: null,

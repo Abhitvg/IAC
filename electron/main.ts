@@ -19,16 +19,20 @@ function ensureDirectories() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 660,
-    height: 480,
+    width: 680,
+    height: 500,
     minWidth: 420,
     minHeight: 280,
     frame: false,
     transparent: true,
-    hasShadow: true,
+    hasShadow: false,
     resizable: true,
     alwaysOnTop: true,
     backgroundColor: '#00000000',
+    ...(process.platform === 'darwin' ? {
+      vibrancy: 'under-window',
+      visualEffectState: 'active',
+    } : {}),
     titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

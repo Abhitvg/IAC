@@ -94,11 +94,12 @@
 html, body, #root {
   height: 100%;
   overflow: hidden;
+  background: transparent !important;
 }
 
 body {
   font-family: var(--font-sans);
-  background: var(--bg-primary);
+  background: transparent !important;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

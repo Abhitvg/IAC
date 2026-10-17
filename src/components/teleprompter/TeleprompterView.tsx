@@ -208,9 +208,9 @@ export default function TeleprompterView() {
         flexDirection: "column",
         height: "100vh",
         width: "100vw",
-        background: `rgba(10, 10, 18, ${windowOpacity})`,
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
+        background: `rgba(8, 10, 20, ${windowOpacity})`,
+        backdropFilter: "blur(24px) saturate(180%)",
+        WebkitBackdropFilter: "blur(24px) saturate(180%)",
         color: "#f8fafc",
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         overflow: "hidden",
@@ -258,8 +258,10 @@ export default function TeleprompterView() {
           alignItems: "center",
           justifyContent: "space-between",
           padding: "6px 12px",
-          background: "rgba(18, 18, 28, 0.92)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          background: `rgba(16, 18, 30, ${Math.min(0.68, windowOpacity * 0.75 + 0.14)})`,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.10)",
           gap: "6px",
           flexWrap: "nowrap"
         }}
@@ -374,26 +376,64 @@ export default function TeleprompterView() {
 
         {/* Right: Opacity Selector, Stealth, Resume Modal, Settings, History, Exit */}
         <div className="teleprompter-nodrag" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-          <select
-            value={windowOpacity}
-            onChange={(e) => setWindowOpacity(parseFloat(e.target.value))}
-            title="Teleprompter Overlay Transparency"
-            style={{
-              background: "rgba(255, 255, 255, 0.06)",
-              color: "#cbd5e1",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-              borderRadius: "4px",
-              padding: "3px 6px",
-              fontSize: "11px",
-              cursor: "pointer",
-              outline: "none"
-            }}
-          >
-            <option value={0.55} style={{ background: "#111827" }}>55% Glass</option>
-            <option value={0.78} style={{ background: "#111827" }}>78% Glass</option>
-            <option value={0.9} style={{ background: "#111827" }}>90% Glass</option>
-            <option value={0.98} style={{ background: "#111827" }}>Solid</option>
-          </select>
+          <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+            <button
+              onClick={() => setWindowOpacity(Math.max(0.12, Math.round((windowOpacity - 0.1) * 100) / 100))}
+              title="More transparent (Clearer glass)"
+              style={{
+                background: "rgba(255, 255, 255, 0.08)",
+                color: "#e2e8f0",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                borderRadius: "4px",
+                padding: "2px 6px",
+                fontSize: "11px",
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              -
+            </button>
+            <select
+              value={windowOpacity}
+              onChange={(e) => setWindowOpacity(parseFloat(e.target.value))}
+              title="Teleprompter Overlay Transparency"
+              style={{
+                background: "rgba(255, 255, 255, 0.08)",
+                color: "#e0e7ff",
+                border: "1px solid rgba(255, 255, 255, 0.14)",
+                borderRadius: "4px",
+                padding: "3px 6px",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer",
+                outline: "none"
+              }}
+            >
+              <option value={0.15} style={{ background: "#111827" }}>15% Ultra Clear</option>
+              <option value={0.25} style={{ background: "#111827" }}>25% Clear Glass</option>
+              <option value={0.35} style={{ background: "#111827" }}>35% Frosted Glass</option>
+              <option value={0.50} style={{ background: "#111827" }}>50% Medium Glass</option>
+              <option value={0.70} style={{ background: "#111827" }}>70% Deep Glass</option>
+              <option value={0.88} style={{ background: "#111827" }}>88% High Contrast</option>
+              <option value={0.98} style={{ background: "#111827" }}>98% Solid Dark</option>
+            </select>
+            <button
+              onClick={() => setWindowOpacity(Math.min(0.98, Math.round((windowOpacity + 0.1) * 100) / 100))}
+              title="Less transparent (More solid)"
+              style={{
+                background: "rgba(255, 255, 255, 0.08)",
+                color: "#e2e8f0",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                borderRadius: "4px",
+                padding: "2px 6px",
+                fontSize: "11px",
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              +
+            </button>
+          </div>
 
           <button
             onClick={handleToggleStealth}
@@ -610,7 +650,7 @@ export default function TeleprompterView() {
             color: "#f8fafc",
             fontWeight: 450,
             letterSpacing: "0.25px",
-            textShadow: "0 2px 4px rgba(0, 0, 0, 0.95)",
+            textShadow: "0 1px 3px rgba(0, 0, 0, 0.98), 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 16px rgba(0, 0, 0, 0.7)",
             whiteSpace: "pre-wrap"
           }}
         >
@@ -656,8 +696,10 @@ export default function TeleprompterView() {
         style={{
           display: "flex",
           flexDirection: "column",
-          background: "rgba(12, 12, 20, 0.96)",
-          borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+          background: `rgba(12, 14, 24, ${Math.min(0.75, windowOpacity * 0.75 + 0.18)})`,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderTop: "1px solid rgba(255, 255, 255, 0.10)",
           padding: "8px 14px",
           gap: "8px"
         }}
