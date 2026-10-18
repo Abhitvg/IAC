@@ -226,8 +226,8 @@ export const useAppStore = create<InterviewState>((set, get) => ({
 
             set({
                 resumeText: activeResume,
-                jobDescriptionText: savedJD || DEFAULT_JOB_DESCRIPTION,
-                targetRole: savedRole || DEFAULT_TARGET_ROLE
+                jobDescriptionText: (!savedJD || savedJD.includes('IBM Consulting') || savedJD.includes('Global Enterprise Cloud')) ? DEFAULT_JOB_DESCRIPTION : savedJD,
+                targetRole: (!savedRole || savedRole === 'Application Developer' || savedRole === 'Senior DevOps & Cloud Engineer') ? DEFAULT_TARGET_ROLE : savedRole
             });
         } catch (_) {}
     },

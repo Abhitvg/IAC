@@ -23,7 +23,7 @@ import { getGfgKnowledgePromptSection } from '../data/gfgCurriculum';
  *    - Core CS Subjects (Operating Systems, DBMS, Computer Networks, OOP/LLD)
  */
 
-export const DEFAULT_TARGET_ROLE = "Application Developer";
+export const DEFAULT_TARGET_ROLE = "Software Developer (Alignerr — AI Assisted Coding)";
 
 export const DEFAULT_RESUME = `ABHISHEK SINGH
 Software Development Engineer — Java & Spring Boot — Distributed Systems — Full Stack
@@ -97,15 +97,22 @@ TECHNICAL SKILLS:
 - Data & Messaging: MongoDB, PostgreSQL, Oracle SQL, Apache Kafka, Apache Solr, Apache Spark, ActiveMQ/JMS, SQLite, Cassandra
 - DevOps & Testing: Docker, Jenkins, GitHub Actions, Git, Linux, AWS, JUnit, Mockito, Postman, Swagger/OpenAPI`;
 
-export const DEFAULT_JOB_DESCRIPTION = `Role: Application Developer (Cloud & Microservices)
-Company: IBM Consulting / Global Delivery Services (Colombia / Americas)
+export const DEFAULT_JOB_DESCRIPTION = `Role: Software Developer — Build Your Own Project with an AI Coding Assistant
+Organization: Alignerr
+Type: Hourly Contract / Fully Remote / Flexible
+About the Role:
+Work on a software project you personally own while evaluating a state-of-the-art AI coding assistant. You write real code on real projects, compare two candidate AI model responses side-by-side (Model A vs Model B), choose the superior response, and write concise, expert technical justifications.
+
 Key Responsibilities:
-- Design, build, and deploy high-performance enterprise microservices and RESTful APIs using clean code and SOLID principles.
-- Containerization and orchestration with Docker, Kubernetes, and Red Hat OpenShift.
-- Event-driven architecture integration using Apache Kafka or message brokers.
-- Database modeling, query tuning, and caching with PostgreSQL, Oracle, MongoDB, and Redis.
-- Automated CI/CD pipelines with Jenkins and GitHub Actions, enforcing automated unit/integration testing (JUnit, Mockito).
-- Collaborative problem solving in Agile/Scrum teams dedicated to client digital transformation success.`;
+- Bring an eligible, personally-owned software repository (e.g., DocFlow collaborative document editor or Quorum full-stack monorepo).
+- Build features, fix bugs, refactor code, write documentation, and add test suites using the AI coding assistant.
+- Conduct rigorous side-by-side evaluations of AI model responses: evaluate correctness, edge cases, Big-O complexity, syntax, API accuracy, security, and idiomatic conventions.
+- Write clear, decisive developer justifications explaining why one model output is superior to the other.
+- Work independently in your own terminal and git-based environment on macOS.
+
+Eligibility Criteria:
+- Must solely own the project in a personal git repository (DocFlow at github.com/Abhitvg/docflow).
+- NOT owned by employer, client, university, or company; no NDAs; no security exploit tooling; no personal data processing.`;
 
 const COMMON_TECH_SKILLS = [
   "AWS", "Kubernetes", "Docker", "CodePipeline", "CI/CD", "Terraform",
