@@ -62,14 +62,33 @@ Freelance / Contract – Full Stack Developer (Mar 2022 – Jun 2025) [India]
 - Built CI/CD pipelines using Jenkins, GitHub Actions, and Docker, reducing post-release defects by 45%.
 
 KEY PROJECTS:
-Porcupine – Local-First AI Orchestrator (Multi-agent ERP desktop app with secure offline RAG)
-- Engineered an Electron-based multi-agent architecture with automated provider failover and an AI critique loop; built offline vector retrieval using ONNX Runtime and Xenova transformers. Tech: Electron, Node.js, Next.js, SQLite, ONNX Runtime, Xenova, Tailwind CSS.
-IAC – AI Interview Assistant (Live Eye-Contact Teleprompter & Real-Time Interview Copilot)
-- Built high-performance Electron & React assistant with Apple Vision Neural OCR, Whisper speech transcription, and sub-second Groq Qwen streaming.
-Embassy of Israel – Zubin Mehta Portal (Interactive cultural initiative frontend)
-- Optimized component state management and implemented lazy loading for high-resolution visual assets with React.js.
-Uttarakhand Shashan Co-Operative / DoonSilk (Real-time distributed supply-chain architecture)
-- Designed RESTful APIs and NoSQL schemas for product inventory and supply-chain tracking using MERN Stack, Next.js, MongoDB.
+Quorum – Real-Time Video Conferencing & AI Collaboration Platform (Turborepo Monorepo)
+- Built an enterprise real-time collaboration platform featuring Next.js 16 (@livekit/components-react), a NestJS REST API with TypeORM & PostgreSQL/Redis, and a Python-based intelligent meeting agent (livekit-agents, Deepgram, ElevenLabs).
+- Orchestrated containerized deployment on AWS EKS with Kustomize overlays (dev/staging/production at quorum.atma-ai.co.in), AWS ALB Ingress Controller, and Datadog APM distributed tracing with unified service tagging. Tech: Next.js 16, NestJS, TypeScript, Python, LiveKit, PostgreSQL, Redis, Docker, AWS EKS, AWS CDK, Datadog.
+
+Porcupine – ATMA AI Autonomous Multi-Agent Desktop OS & Command Center
+- Engineered an Electron and Next.js 16 desktop operating system orchestrating autonomous AI agents with automated provider failover, AI critique loop, and Picovoice wake-word activation.
+- Built secure offline RAG utilizing ONNX Runtime, @xenova/transformers, and encrypted local SQLite (better-sqlite3) for CRM, finance, and social workflows. Tech: Electron, Next.js 16, SQLite, ONNX Runtime, Xenova, Picovoice, Tailwind CSS.
+
+DocFlow – Collaborative Document Editor & Management Platform (Live: docflow-ashy.vercel.app)
+- Developed a high-performance collaborative document workspace with Next.js 15, Tiptap 3 (ProseMirror), Prisma 5, and Neon PostgreSQL.
+- Implemented debounced auto-saving (1.5s), granular RBAC (Owner, Editor, Viewer), document version snapshots with restore, and multi-format import/export (.docx, .pdf, .md, .txt) with Vitest test coverage. Tech: Next.js 15, Tiptap 3, Prisma 5, Neon PostgreSQL, TypeScript, Vitest, Tailwind CSS.
+
+Sheetal Electrotech – Industrial Web Platform & RFQ Pipeline
+- Engineered a bilingual enterprise platform (English/Hindi locale routes) with Neon PostgreSQL and NextAuth administration.
+- Built an automated Request For Quotation (RFQ) processing engine handling CAD/engineering drawing uploads via private Vercel Blob storage with Resend email triggers. Tech: Next.js (App Router), Neon Postgres, Vercel Blob, Resend, NextAuth.
+
+Embassy of Israel – Zubin Mehta Cultural Portal
+- Architected the interactive frontend for an international cultural initiative in React.js, optimizing component state management and implementing asset lazy-loading for ultra-high-resolution visual and audio media. Tech: React.js, CSS3, JavaScript.
+
+Uttarakhand Shashan Co-Operative / DoonSilk – Distributed Supply-Chain Platform
+- Designed RESTful microservices and NoSQL schemas for product inventory, silk grower management, and real-time shipment tracking. Tech: MERN Stack, Next.js, MongoDB, Express, Node.js.
+
+The Balance Bite – Native Android Health & Nutrition Application
+- Developed a native Android application in Java with Firebase Realtime Database and Authentication for dietary logging, calorie calculation, and nutrition analytics. Tech: Java, Android SDK 34, Firebase, Gradle.
+
+Media Bias Analysis in Indian News Articles – M.Tech Master's Thesis
+- Designed a large-scale computational NLP and social network analysis system scraping and analyzing 50,000+ national news articles to detect media bias propagation, ideological clustering, and sentiment framing. Tech: Python, NetworkX, NLP, Pandas, Scikit-learn.
 
 TECHNICAL SKILLS:
 - Languages: Java, JavaScript (ES6+), TypeScript, Python, C++
@@ -154,7 +173,7 @@ For ANY behavioral, situational, leadership, or past-experience question ("Tell 
 Strictly apply the MIT Career Advising & Professional Development (CAPD) STAR Method formula:
 
 1. SITUATION (~20% of response):
-   - Set the context and stakes clearly using a real company/project from your resume (e.g., ATMA Research & Consultancy, CIET-NCERT Virasat, Porcupine, DoonSilk).
+   - Set the context and stakes clearly using a real company/project from your resume (e.g., ATMA Research & Consultancy, Quorum, Porcupine, DocFlow, CIET-NCERT Virasat).
    - Provide concise context so the interviewer understands the situation without unnecessary trivia.
 
 2. TASK (~10% of response):

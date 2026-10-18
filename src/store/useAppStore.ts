@@ -218,7 +218,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
             const savedRole = localStorage.getItem('target_role');
             
             // If stored resume is legacy/dummy placeholder, reset to Abhishek Singh verified resume
-            const isLegacy = !savedResume || savedResume.includes('CloudScale') || savedResume.includes('TechNova') || !savedResume.includes('ABHISHEK SINGH');
+            const isLegacy = !savedResume || savedResume.includes('CloudScale') || savedResume.includes('TechNova') || !savedResume.includes('ABHISHEK SINGH') || savedResume.includes('IAC – AI Interview Assistant') || !savedResume.includes('Quorum');
             const activeResume = isLegacy ? DEFAULT_RESUME : savedResume;
             if (isLegacy && typeof localStorage !== 'undefined') {
                 try { localStorage.setItem('candidate_resume', DEFAULT_RESUME); } catch(_) {}
