@@ -23,7 +23,7 @@ import { getGfgKnowledgePromptSection } from '../data/gfgCurriculum';
  *    - Core CS Subjects (Operating Systems, DBMS, Computer Networks, OOP/LLD)
  */
 
-export const DEFAULT_TARGET_ROLE = "Senior DevOps & Cloud Engineer";
+export const DEFAULT_TARGET_ROLE = "Application Developer";
 
 export const DEFAULT_RESUME = `ABHISHEK SINGH
 Senior DevOps & Cloud Infrastructure Engineer | AWS & Kubernetes Specialist
