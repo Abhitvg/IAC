@@ -298,7 +298,7 @@ export class InterviewEngine {
               apiKey: groqKey,
               model: "qwen/qwen3.8-27b",
               temperature: 0.2, // Low temperature for zero-hallucination mathematical and code accuracy
-              maxTokens: store.settings?.maxTokens || 1200,
+              maxTokens: store.settings?.maxTokens || 2000,
               systemPrompt: "You are an elite Staff Software Engineer. Provide 100% accurate, optimal, verified solutions with zero hallucination."
             },
             (currentStore.settings?.preferredLanguage || "javascript") as any,

@@ -107,7 +107,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     setTeleprompterFontSize: (teleprompterFontSize) => set({ teleprompterFontSize }),
     isAutoScrolling: true,
     setIsAutoScrolling: (isAutoScrolling) => set({ isAutoScrolling }),
-    scrollSpeed: 1.0,
+    scrollSpeed: 0.6,
     setScrollSpeed: (scrollSpeed) => set({ scrollSpeed }),
     windowOpacity: (() => {
         try {
@@ -246,7 +246,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     sessionHistory: [],
     currentPerformance: null,
     setSessionsOpen: (o) => set({sessionsOpen: o}),
-    settings: { temperature: 0.7, maxTokens: 1000, type: 'local', endpoint: 'http://localhost:8080/inference' },
+    settings: { temperature: 0.7, maxTokens: 2000, type: 'local', endpoint: 'http://localhost:8080/inference' },
     updateSetting: () => {},
     setSettingsOpen: (o) => set({settingsOpen: o}),
     clearAllData: () => {},

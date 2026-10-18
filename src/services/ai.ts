@@ -212,7 +212,7 @@ async function callOpenAI(config: AIProviderConfig, systemPrompt: string, userMe
         { role: 'user', content: userMessage },
       ],
       temperature: config.temperature,
-      max_tokens: Math.min(config.maxTokens || 1000, 1000),
+      max_tokens: Math.min(config.maxTokens || 1800, 2500),
     }),
   });
 
@@ -241,7 +241,7 @@ async function callOpenRouter(config: AIProviderConfig, systemPrompt: string, us
       ],
       stream: !!config.onChunk,
       temperature: config.temperature,
-      max_tokens: Math.min(config.maxTokens || 1000, 1000),
+      max_tokens: Math.min(config.maxTokens || 1800, 2500),
     }),
   });
 
@@ -357,7 +357,7 @@ async function callCustomAPI(config: AIProviderConfig, systemPrompt: string, use
         { role: 'user', content: userMessage },
       ],
       temperature: config.temperature,
-      max_tokens: Math.min(config.maxTokens || 1000, 1000),
+      max_tokens: Math.min(config.maxTokens || 1800, 2500),
     }),
   });
 
@@ -434,7 +434,7 @@ export async function streamAnswer(
     const systemPrompt = config.systemPrompt || createSystemPrompt(config, 'interview', 'General', language, null);
     
     // Low latency prompt override for live teleprompter delivery
-    const lowLatencyPrompt = systemPrompt + "\n\nDELIVERY FORMAT: Speak naturally in the first person. 12-25 words per sentence. Clear, articulate phrasing suitable for live speech reading on a teleprompter.";
+    const lowLatencyPrompt = systemPrompt + "\n\nDELIVERY FORMAT: Speak naturally in the first person. This is a 3-minute spoken answer interview (~380-430 words total across 3 minutes). Clear, articulate phrasing with natural paragraph breaks, suitable for continuous live speech reading on a teleprompter over 3 minutes.";
     
     const url = config.type === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' :
                 config.type === 'openai' ? 'https://api.openai.com/v1/chat/completions' :

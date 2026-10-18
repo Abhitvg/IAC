@@ -184,7 +184,7 @@ export default function TeleprompterView() {
   };
 
   // Session Timer
-  const [seconds, setSeconds] = useState(45);
+  const [seconds, setSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(true);
 
   useEffect(() => {
@@ -216,10 +216,14 @@ export default function TeleprompterView() {
     return () => clearInterval(interval);
   }, [isAutoScrolling, scrollSpeed, isHovered]);
 
-  // When a new question is detected, automatically reset teleprompter scroll to top!
+  // When a new question is detected, automatically reset teleprompter scroll to top and timer to 0!
   useEffect(() => {
-    if (currentQuestion && scrollRef.current) {
-      scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    if (currentQuestion) {
+      setSeconds(0);
+      setTimerRunning(true);
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+      }
     }
   }, [currentQuestion]);
 
@@ -269,6 +273,9 @@ export default function TeleprompterView() {
       text: q.trim()
     });
   };
+
+  const wordCount = currentAnswer ? currentAnswer.trim().split(/\s+/).filter(Boolean).length : 0;
+  const estMinutes = (wordCount / 135).toFixed(1);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -419,7 +426,7 @@ export default function TeleprompterView() {
           <button
             onClick={() =>
               setScrollSpeed(
-                scrollSpeed === 0.7 ? 1.0 : scrollSpeed === 1.0 ? 1.5 : scrollSpeed === 1.5 ? 2.0 : 0.7
+                scrollSpeed === 0.4 ? 0.6 : scrollSpeed === 0.6 ? 0.8 : scrollSpeed === 0.8 ? 1.0 : scrollSpeed === 1.0 ? 1.5 : 0.4
               )
             }
             title="Scroll Speed"
@@ -436,26 +443,51 @@ export default function TeleprompterView() {
             {scrollSpeed}x
           </button>
 
-          {/* Running Timer Badge */}
+          {/* 3-Minute Interview Timer Badge */}
           <div
             onClick={() => setTimerRunning(!timerRunning)}
-            title="Click to pause or resume timer"
+            title="Click to pause or restart 3-minute interview timer"
             style={{
               display: "flex",
               alignItems: "center",
-              background: "#1e1b4b",
-              border: "1px solid #4338ca",
+              gap: "4px",
+              background: seconds > 165 ? "rgba(239, 68, 68, 0.25)" : seconds > 135 ? "rgba(245, 158, 11, 0.22)" : "#1e1b4b",
+              border: `1px solid ${seconds > 165 ? "#ef4444" : seconds > 135 ? "#f59e0b" : "#4338ca"}`,
               borderRadius: "4px",
               padding: "4px 8px",
               fontSize: "11px",
               fontWeight: 700,
-              color: "#a5b4fc",
+              color: seconds > 165 ? "#fca5a5" : seconds > 135 ? "#fde68a" : "#a5b4fc",
               letterSpacing: "0.5px",
-              cursor: "pointer"
+              cursor: "pointer",
+              transition: "all 0.3s ease"
             }}
           >
-            {formatTimer(seconds)}
+            <span>⏱️</span>
+            <span>{formatTimer(seconds)} / 03:00</span>
           </div>
+
+          {/* Word Count & Read Time Badge */}
+          {currentAnswer && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "4px",
+                padding: "4px 7px",
+                fontSize: "11px",
+                color: "#cbd5e1",
+                whiteSpace: "nowrap"
+              }}
+              title="Target: ~380-430 words for a standard 3-minute spoken response"
+            >
+              <span>📊</span>
+              <span>{wordCount} words (~{estMinutes}m)</span>
+            </div>
+          )}
         </div>
 
         {/* Right: Opacity Selector, Stealth, Resume Modal, Settings, History, Exit */}

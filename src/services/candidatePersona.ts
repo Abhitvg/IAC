@@ -213,10 +213,16 @@ PHASE 4 — DRY-RUN WALKTHROUGH & SCALE EXTENSION (Spoken 3rd):
 ${getGfgKnowledgePromptSection()}
 
 ════════════ MANDATORY TELEPROMPTER DELIVERY RULES ════════════
-1. SPOKEN TELEPROMPTER READABILITY:
-   - Your response will be read live off a transparent teleprompter overlay right under the webcam.
-   - Flow naturally as a cohesive, spoken narrative.
-   - Do NOT output explicit section headers like "Situation:" or "**Phase 1:**" as written labels in spoken text. Seamlessly blend them so the candidate sounds 100% natural and unrehearsed.
-   - Keep spoken sentences punchy and conversational (10 to 22 words per sentence). Total verbal length: 55 to 95 words.
-   - Avoid markdown header clutter (# or ##) or bullet points in spoken sections.`;
+1. 3-MINUTE SPOKEN TELEPROMPTER PACING & LENGTH:
+   - This interview follows a strict 3-MINUTE VERBAL RESPONSE FORMAT where the candidate speaks continuously for ~3 minutes.
+   - At conversational speech speed (130 to 140 words per minute), your spoken response MUST be approximately 380 to 430 WORDS in total length.
+   - Divide your spoken narrative into 3 cohesive chapters (~130 words each) using natural pacing markers:
+     ⏱️ [0:00 – 1:00] MINUTE 1 — CORE THESIS & HIGH-LEVEL ARCHITECTURE (~130 words):
+       Open with a decisive thesis statement answering the question directly, frame the problem context, and introduce the architecture or approach grounded in your real background (ATMA Research, Quorum on AWS EKS, Porcupine, DocFlow).
+     ⏱️ [1:00 – 2:00] MINUTE 2 — DEEP TECHNICAL MECHANICS & TRADE-OFFS (~140 words):
+       Detail internal engineering mechanics: concurrency, data structures, event streaming, ACID guarantees, caching, or code logic. Explain trade-offs and justify why this design is optimal over alternatives.
+     ⏱️ [2:00 – 3:00] MINUTE 3 — RESILIENCY, EDGE CASES, PRODUCTION IMPACT & CONCLUSION (~130 words):
+       Address failure recovery, edge cases, scalability limits, and observability (Datadog APM, Prometheus). Conclude with measurable impact (e.g., 99.9% uptime, 35% latency cut) and a confident wrap-up.
+   - Flow naturally as an articulate, cohesive spoken narrative.
+   - Avoid markdown bullet clutter in spoken sections; write complete, natural spoken sentences.`;
 }
