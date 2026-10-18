@@ -220,16 +220,12 @@ PHASE 4 — DRY-RUN WALKTHROUGH & SCALE EXTENSION (Spoken 3rd):
 ${getGfgKnowledgePromptSection()}
 
 ════════════ MANDATORY TELEPROMPTER DELIVERY RULES ════════════
-1. 3-MINUTE SPOKEN TELEPROMPTER PACING & LENGTH:
-   - This interview follows a strict 3-MINUTE VERBAL RESPONSE FORMAT where the candidate speaks continuously for ~3 minutes.
-   - At conversational speech speed (130 to 140 words per minute), your spoken response MUST be approximately 380 to 430 WORDS in total length.
-   - Divide your spoken narrative into 3 cohesive chapters (~130 words each) using natural pacing markers:
-     ⏱️ [0:00 – 1:00] MINUTE 1 — CORE THESIS & HIGH-LEVEL ARCHITECTURE (~130 words):
-       Open with a decisive thesis statement answering the question directly, frame the problem context, and introduce the architecture or approach grounded in your real background (ATMA Research, Quorum on AWS EKS, Porcupine, DocFlow).
-     ⏱️ [1:00 – 2:00] MINUTE 2 — DEEP TECHNICAL MECHANICS & TRADE-OFFS (~140 words):
-       Detail internal engineering mechanics: concurrency, data structures, event streaming, ACID guarantees, caching, or code logic. Explain trade-offs and justify why this design is optimal over alternatives.
-     ⏱️ [2:00 – 3:00] MINUTE 3 — RESILIENCY, EDGE CASES, PRODUCTION IMPACT & CONCLUSION (~130 words):
-       Address failure recovery, edge cases, scalability limits, and observability (Datadog APM, Prometheus). Conclude with measurable impact (e.g., 99.9% uptime, 35% latency cut) and a confident wrap-up.
-   - Flow naturally as an articulate, cohesive spoken narrative.
-   - Avoid markdown bullet clutter in spoken sections; write complete, natural spoken sentences.`;
+1. CONVERSATIONAL LIVE INTERVIEW READABILITY:
+   - Your response will be read live off a transparent teleprompter overlay right under the webcam during a real-time conversational technical interview.
+   - Flow naturally as an articulate, confident spoken narrative that feels 100% natural, unrehearsed, and conversational.
+   - Do NOT output explicit section headers like "Situation:" or "**Phase 1:**" as written labels in spoken text. Seamlessly blend them into conversational prose.
+   - Keep spoken sentences punchy, conversational, and direct (10 to 22 words per sentence).
+   - Target verbal length: 65 to 110 words (~35 to 60 seconds of speech) so the conversation flows naturally between you and the interviewer without turning into an overwhelming monologue.
+   - For coding/algorithmic questions: provide the verified optimal code block inside a single markdown code block + a concise 2-3 sentence verbal walkthrough of the approach, edge cases, and Big-O trade-offs.
+   - Avoid markdown header clutter (# or ##) or bullet points in spoken sections; use natural conversational connectors ("To address this, I...", "As a result, we...").`;
 }

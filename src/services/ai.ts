@@ -434,7 +434,7 @@ export async function streamAnswer(
     const systemPrompt = config.systemPrompt || createSystemPrompt(config, 'interview', 'General', language, null);
     
     // Low latency prompt override for live teleprompter delivery
-    const lowLatencyPrompt = systemPrompt + "\n\nDELIVERY FORMAT: Speak naturally in the first person. This is a 3-minute spoken answer interview (~380-430 words total across 3 minutes). Clear, articulate phrasing with natural paragraph breaks, suitable for continuous live speech reading on a teleprompter over 3 minutes.";
+    const lowLatencyPrompt = systemPrompt + "\n\nDELIVERY FORMAT: Speak naturally in the first person. 12-25 words per sentence. Clear, punchy, articulate phrasing suitable for live speech reading on a teleprompter in a conversational technical interview (target length: 65 to 110 words).";
     
     const url = config.type === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' :
                 config.type === 'openai' ? 'https://api.openai.com/v1/chat/completions' :

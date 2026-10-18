@@ -426,7 +426,7 @@ export default function TeleprompterView() {
           <button
             onClick={() =>
               setScrollSpeed(
-                scrollSpeed === 0.4 ? 0.6 : scrollSpeed === 0.6 ? 0.8 : scrollSpeed === 0.8 ? 1.0 : scrollSpeed === 1.0 ? 1.5 : 0.4
+                scrollSpeed === 0.7 ? 1.0 : scrollSpeed === 1.0 ? 1.5 : scrollSpeed === 1.5 ? 2.0 : 0.7
               )
             }
             title="Scroll Speed"
@@ -443,28 +443,28 @@ export default function TeleprompterView() {
             {scrollSpeed}x
           </button>
 
-          {/* 3-Minute Interview Timer Badge */}
+          {/* Live Session Timer Badge */}
           <div
             onClick={() => setTimerRunning(!timerRunning)}
-            title="Click to pause or restart 3-minute interview timer"
+            title="Click to pause or reset session timer"
             style={{
               display: "flex",
               alignItems: "center",
               gap: "4px",
-              background: seconds > 165 ? "rgba(239, 68, 68, 0.25)" : seconds > 135 ? "rgba(245, 158, 11, 0.22)" : "#1e1b4b",
-              border: `1px solid ${seconds > 165 ? "#ef4444" : seconds > 135 ? "#f59e0b" : "#4338ca"}`,
+              background: "#1e1b4b",
+              border: "1px solid #4338ca",
               borderRadius: "4px",
               padding: "4px 8px",
               fontSize: "11px",
               fontWeight: 700,
-              color: seconds > 165 ? "#fca5a5" : seconds > 135 ? "#fde68a" : "#a5b4fc",
+              color: "#a5b4fc",
               letterSpacing: "0.5px",
               cursor: "pointer",
-              transition: "all 0.3s ease"
+              transition: "all 0.2s ease"
             }}
           >
             <span>⏱️</span>
-            <span>{formatTimer(seconds)} / 03:00</span>
+            <span>{formatTimer(seconds)}</span>
           </div>
 
           {/* Word Count & Read Time Badge */}
