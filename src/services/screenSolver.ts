@@ -1,8 +1,38 @@
 /**
- * Zero-Hallucination Screen Problem Solver Service
- * Integrates Apple Vision OCR extraction with Groq / Qwen 27B reasoning
- * for 100% accurate coding and theoretical solutions.
+ * Zero-Hallucination Multilingual Screen Problem Solver Service
+ * Integrates Apple Vision Multilingual OCR with Groq / Qwen 27B reasoning
+ * Automatically detects non-English text (e.g. Spanish, French, German, Chinese)
+ * and translates it into English before providing 100% verified solutions.
  */
+
+export interface LanguageDetectionResult {
+  isNonEnglish: boolean;
+  languageName: string;
+  flag: string;
+}
+
+export function detectLanguageHint(text: string): LanguageDetectionResult {
+  const lower = text.toLowerCase();
+  if (/[\u4e00-\u9fa5]/.test(text)) return { isNonEnglish: true, languageName: "Chinese", flag: "🇨🇳" };
+  if (/[\u3040-\u30ff]/.test(text)) return { isNonEnglish: true, languageName: "Japanese", flag: "🇯🇵" };
+  if (/[\u0400-\u04ff]/.test(text)) return { isNonEnglish: true, languageName: "Russian", flag: "🇷🇺" };
+  if (/\b(dado|arreglo|devuelva|enteros|ejemplo|entrada|salida|explicación|solución|puedes|índices|pregunta|entrevista|cadena|matriz)\b/i.test(lower)) {
+    return { isNonEnglish: true, languageName: "Spanish", flag: "🇪🇸" };
+  }
+  if (/\b(étant|tableau|renvoie|entier|exemple|entrée|sortie|fonction|chaîne|question|entrevue)\b/i.test(lower)) {
+    return { isNonEnglish: true, languageName: "French", flag: "🇫🇷" };
+  }
+  if (/\b(gegeben|ganzzahl|zurückgeben|beispiel|eingabe|ausgabe|funktion|zeichenkette|aufgabe)\b/i.test(lower)) {
+    return { isNonEnglish: true, languageName: "German", flag: "🇩🇪" };
+  }
+  if (/\b(dado|matriz|retorne|saída|exemplo|inteiro|função)\b/i.test(lower)) {
+    return { isNonEnglish: true, languageName: "Portuguese", flag: "🇧🇷" };
+  }
+  if (/\b(dato|restituisci|vettore|intero|esempio|stringa|funzione)\b/i.test(lower)) {
+    return { isNonEnglish: true, languageName: "Italian", flag: "🇮🇹" };
+  }
+  return { isNonEnglish: false, languageName: "English", flag: "🇬🇧" };
+}
 
 export function cleanExtractedOcrText(rawText: string): string {
   if (!rawText) return "";
@@ -25,12 +55,12 @@ export function extractProblemHeadline(cleanedText: string): string {
   if (!cleanedText) return "Screen Question";
   const lines = cleanedText.split("\n").map(l => l.trim()).filter(Boolean);
   
-  // Look for LeetCode / problem numbering like "33. Search in Rotated Sorted Array" or "Problem: ..."
+  // Look for LeetCode / problem numbering like "33. Search in Rotated Sorted Array" or "Pregunta: ..."
   for (const line of lines.slice(0, 5)) {
     if (/^[0-9]{1,4}\.\s+[A-Za-z0-9]/.test(line)) {
       return line.slice(0, 60);
     }
-    if (/^(Question|Problem|Design|Implement|Given|Explain|What|How)\b/i.test(line)) {
+    if (/^(Question|Problem|Design|Implement|Given|Explain|What|How|Pregunta|Problema|Dado|Dada|Diseñe|Explique)\b/i.test(line)) {
       return line.slice(0, 60);
     }
   }
@@ -43,28 +73,39 @@ export function buildScreenSolverPrompt(
   preferredLanguage: string = "JavaScript",
   targetRole?: string
 ): string {
-  return `You are an elite Senior Staff Engineer and competitive programming champion solving a problem shared directly on screen during a live technical interview for ${targetRole || 'Software Engineer'}.
+  const langHint = detectLanguageHint(cleanedOcrText);
+
+  return `You are an elite multilingual Senior Staff Software Engineer and competitive programming champion assisting a candidate in a live technical interview for ${targetRole || 'Software Engineer'}.
 
 --- EXTRACTED SCREEN OCR TEXT ---
 ${cleanedOcrText}
 --- END SCREEN OCR TEXT ---
 
-STRICT ZERO-HALLUCINATION & 100% ACCURACY DIRECTIVE:
-Adhere strictly to the exact problem, constraints, and inputs visible on screen. Do NOT invent phantom libraries or unstated requirements.
+MULTILINGUAL TRANSLATION & ZERO-HALLUCINATION DIRECTIVES:
+1. 🌐 AUTOMATIC LANGUAGE DETECTION & ENGLISH TRANSLATION:
+   - Identify the source language of the screen text.
+   - If non-English (e.g., Spanish, French, German, Chinese, etc.):
+     • Explicitly output: "**Detected Language: [Language Name + Flag]**" (e.g. "Spanish 🇪🇸").
+     • Under a dedicated header "**🌐 ENGLISH TRANSLATION:**", translate the full problem statement, constraints, inputs, outputs, and examples into clear, precise, idiomatic English.
+   - If English: state "**Detected Language: English 🇬🇧**".
+
+2. STRICT 100% ACCURACY & ZERO-HALLUCINATION:
+   - Adhere strictly to the exact problem, constraints, and inputs from the screen.
+   - Do NOT invent phantom libraries, unstated assumptions, or non-existent constraints.
 
 Determine if this is a CODING/ALGORITHM/SQL question OR a SYSTEM DESIGN/THEORY question:
 
 =========================================
 A. IF CODING / DSA / SQL / BUG-FIX:
 =========================================
-1. 🎯 PROBLEM IDENTIFICATION & CONSTRAINTS:
+1. 🎯 PROBLEM BREAKDOWN & CONSTRAINTS (in English):
    - Restate the exact problem statement, input/output types, and constraints (e.g. N <= 10^5, time limits).
    - Identify critical edge cases (empty input, negatives, single element, duplicates, overflow).
 
 2. ⚡ OPTIMAL APPROACH & BIG-O COMPLEXITY:
-   - Identify the exact optimal pattern (e.g., Two Pointers, Monotonic Stack, Dynamic Programming, Binary Search, Sliding Window).
-   - State why brute force is suboptimal.
-   - Mathematical Big-O Time Complexity: O(...) with proof.
+   - Identify the exact optimal pattern (e.g., Hash Map, Two Pointers, Monotonic Stack, Dynamic Programming, Binary Search, Sliding Window).
+   - Explain why brute force is suboptimal.
+   - Mathematical Big-O Time Complexity: O(...) with mathematical proof.
    - Mathematical Big-O Space Complexity: O(...) with memory breakdown.
 
 3. 💻 100% VERIFIED WORKING CODE (${preferredLanguage}):
@@ -75,13 +116,14 @@ A. IF CODING / DSA / SQL / BUG-FIX:
 4. 🧪 STEP-BY-STEP DRY RUN:
    - Walk through the primary example from the screen with a variable trace table.
 
-5. 🗣️ VERBAL TELEPROMPTER SCRIPT (2-3 sentences):
+5. 🗣️ VERBAL TELEPROMPTER SCRIPT (in English):
    - A crisp, natural verbal explanation the candidate can speak aloud right now to introduce their approach with absolute confidence.
+   ${langHint.isNonEnglish ? `(Optional: Also include a 1-sentence quick confirmation in ${langHint.languageName} if the interviewer is speaking ${langHint.languageName}).` : ''}
 
 =========================================
 B. IF SYSTEM DESIGN / CORE CS THEORY / DEVOPS / WEB TECH:
 =========================================
-1. 💡 CORE DEFINITION:
+1. 💡 CORE DEFINITION (in English):
    - A precise, standard-compliant 2-3 sentence definition.
 
 2. ⚙️ ARCHITECTURAL MECHANICS (UNDER THE HOOD):

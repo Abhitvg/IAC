@@ -1,3 +1,4 @@
+import { detectLanguageHint } from '../../services/screenSolver';
 import { readAndParseFile } from '../../services/resume';
 import React, { useEffect, useRef, useState } from "react";
 import { useAppStore, TeleprompterFontSize } from "../../store/useAppStore";
@@ -102,7 +103,12 @@ export default function TeleprompterView() {
         return;
       }
 
-      setToast("🧠 Problem extracted from screen! Generating 100% verified, zero-hallucination solution...");
+      const lang = detectLanguageHint(res.text);
+      if (lang.isNonEnglish) {
+        setToast(`🌐 Screen is in ${lang.languageName} ${lang.flag}! Translating to English & solving...`);
+      } else {
+        setToast("🧠 Problem extracted from screen! Generating 100% verified, zero-hallucination solution...");
+      }
       InterviewEngine.handleEvent({
         type: "SCREEN_PROBLEM_DETECTED",
         rawText: res.text,
@@ -132,7 +138,12 @@ export default function TeleprompterView() {
         setToast(`📸 Reading ${file.name} with Apple Vision Neural OCR...`);
         const res = await window.electronAPI?.ocrImageFile?.((file as any).path);
         if (res?.success && res.text) {
-          setToast(`🧠 Extracted problem from ${file.name}! Solving with 0-hallucination verification...`);
+          const lang = detectLanguageHint(res.text);
+          if (lang.isNonEnglish) {
+            setToast(`🌐 Detected ${lang.languageName} ${lang.flag} in ${file.name}! Translating to English & solving...`);
+          } else {
+            setToast(`🧠 Extracted problem from ${file.name}! Solving with 0-hallucination verification...`);
+          }
           InterviewEngine.handleEvent({
             type: "SCREEN_PROBLEM_DETECTED",
             rawText: res.text,
@@ -916,6 +927,26 @@ export default function TeleprompterView() {
               }}
             >
               🌐 Web CORS
+            </button>
+            <button
+              onClick={() => InterviewEngine.handleEvent({
+                type: "SCREEN_PROBLEM_DETECTED",
+                rawText: "Pregunta: Dado un arreglo de números enteros nums y un valor entero target, devuelva los índices de los dos elementos que sumados sean iguales a target. Asuma que cada entrada tiene exactamente una solución y no use el mismo elemento dos veces. Ejemplo: nums = [2, 7, 11, 15], target = 9 -> Salida: [0, 1]",
+                mode: "fullscreen"
+              })}
+              title="Test Automatic Spanish Detection, English Translation & Code Solution"
+              style={{
+                background: "linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.25))",
+                border: "1px solid rgba(248, 113, 113, 0.55)",
+                color: "#fecaca",
+                borderRadius: "12px",
+                padding: "3px 8px",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              🇪🇸 Spanish Test
             </button>
             <button
               onClick={() => handleTriggerQuestion("What are the Coffman deadlock conditions in Operating Systems and how does Banker algorithm prevent them?")}

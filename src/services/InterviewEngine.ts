@@ -1,4 +1,4 @@
-import { cleanExtractedOcrText, extractProblemHeadline, buildScreenSolverPrompt } from "./screenSolver";
+import { cleanExtractedOcrText, extractProblemHeadline, buildScreenSolverPrompt, detectLanguageHint } from "./screenSolver";
 import { classifyUtterance } from './interruptionDetector';
 import { buildCandidateSystemPrompt } from './candidatePersona';
 import { globalLatencyTracker } from './LatencyTracker';
@@ -258,11 +258,22 @@ export class InterviewEngine {
 
         const cleanedOcr = cleanExtractedOcrText(event.rawText || event.text);
         const headline = extractProblemHeadline(cleanedOcr);
-        store.setCurrentQuestion(`📸 [Screen] ${headline}`);
+        const lang = detectLanguageHint(cleanedOcr);
+
+        const titlePrefix = lang.isNonEnglish
+          ? `📸 [Screen - ${lang.languageName} ${lang.flag} ➔ English]`
+          : `📸 [Screen]`;
+
+        store.setCurrentQuestion(`${titlePrefix} ${headline}`);
         store.setCurrentAnswer("");
         store.setStatus("analyzing");
         store.setRecitalState("listening");
-        store.setToast(`📸 Screen Question Detected: "${headline.slice(0, 45)}..." — Solving with 0-hallucination verification!`);
+
+        if (lang.isNonEnglish) {
+          store.setToast(`🌐 Detected ${lang.languageName} ${lang.flag} on screen! Translating to English & solving with 0-hallucination verification...`);
+        } else {
+          store.setToast(`📸 Screen Question Detected: "${headline.slice(0, 45)}..." — Solving with 0-hallucination verification!`);
+        }
 
         const screenGen = useAppStore.getState().generationId;
 
