@@ -464,16 +464,38 @@ export async function streamAnswer(
             signal
         });
         
-        if (!response.ok) {
-            if (response.status === 429) {
-                const retryAfter = response.headers.get('retry-after') || response.headers.get('x-ratelimit-reset-requests');
-                throw new Error(`Rate limit exceeded (HTTP 429). Retry after ${retryAfter || 'a few'} seconds.`);
+        let activeResponse = response;
+        if (!activeResponse.ok) {
+            if (activeResponse.status === 429 && config.type === "groq") {
+                console.warn("[AI] Groq rate limit reached, auto-switching to fallback model openai/gpt-oss-20b...");
+                const fallbackRes = await fetch(url, {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify({
+                        model: "openai/gpt-oss-20b",
+                        messages: [
+                            { role: "system", content: lowLatencyPrompt },
+                            { role: "user", content: question }
+                        ],
+                        stream: true,
+                        temperature: config.temperature,
+                        max_tokens: config.maxTokens
+                    }),
+                    signal
+                });
+                if (fallbackRes.ok && fallbackRes.body) {
+                    activeResponse = fallbackRes;
+                } else {
+                    const retryAfter = activeResponse.headers.get("retry-after") || activeResponse.headers.get("x-ratelimit-reset-requests");
+                    throw new Error(`Rate limit exceeded (HTTP 429). Retry after ${retryAfter || "a few"} seconds.`);
+                }
+            } else {
+                throw new Error(`Stream Error: ${activeResponse.status}`);
             }
-            throw new Error(`Stream Error: ${response.status}`);
         }
-        if (!response.body) throw new Error(`No response body`);
+        if (!activeResponse.body) throw new Error(`No response body`);
         
-        const reader = response.body.getReader();
+        const reader = activeResponse.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let fullResponse = '';
         
