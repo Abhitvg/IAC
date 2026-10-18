@@ -216,8 +216,16 @@ export const useAppStore = create<InterviewState>((set, get) => ({
             const savedResume = localStorage.getItem('candidate_resume');
             const savedJD = localStorage.getItem('target_job_description');
             const savedRole = localStorage.getItem('target_role');
+            
+            // If stored resume is legacy/dummy placeholder, reset to Abhishek Singh verified resume
+            const isLegacy = !savedResume || savedResume.includes('CloudScale') || savedResume.includes('TechNova') || !savedResume.includes('ABHISHEK SINGH');
+            const activeResume = isLegacy ? DEFAULT_RESUME : savedResume;
+            if (isLegacy && typeof localStorage !== 'undefined') {
+                try { localStorage.setItem('candidate_resume', DEFAULT_RESUME); } catch(_) {}
+            }
+
             set({
-                resumeText: savedResume || DEFAULT_RESUME,
+                resumeText: activeResume,
                 jobDescriptionText: savedJD || DEFAULT_JOB_DESCRIPTION,
                 targetRole: savedRole || DEFAULT_TARGET_ROLE
             });

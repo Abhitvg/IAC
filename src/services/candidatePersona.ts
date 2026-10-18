@@ -26,60 +26,67 @@ import { getGfgKnowledgePromptSection } from '../data/gfgCurriculum';
 export const DEFAULT_TARGET_ROLE = "Application Developer";
 
 export const DEFAULT_RESUME = `ABHISHEK SINGH
-Senior DevOps & Cloud Infrastructure Engineer | AWS & Kubernetes Specialist
-Email: abhishek@example.com | LinkedIn: linkedin.com/in/abhishek-devops | GitHub: github.com/abhishek-cloud
-
-SUMMARY:
-Results-driven Senior DevOps and Cloud Platform Engineer with 6+ years of experience architecting, automating, and scaling mission-critical cloud infrastructure on AWS. Deep expertise in Kubernetes (EKS), automated CI/CD pipelines (AWS CodePipeline, GitHub Actions), Infrastructure as Code (Terraform), and high-availability microservices. Proven track record of reducing deployment cycles by 65%, maintaining 99.99% uptime, and optimizing cloud expenditures by over $45,000 annually.
-
-PROFESSIONAL EXPERIENCE:
-Senior DevOps Engineer | CloudScale Systems (2022 - Present)
-- Architected enterprise CI/CD pipelines using AWS CodePipeline, CodeBuild, and CodeDeploy, cutting deployment failure rates by 65% and reducing deployment time from 45 minutes to 7 minutes.
-- Designed and managed production Kubernetes (EKS) clusters hosting 80+ microservices with automated Horizontal Pod Autoscaling (HPA) and Karpenter node provisioning.
-- Implemented Infrastructure as Code using Terraform and CloudFormation to automate provisioning of multi-region VPCs, RDS Aurora clusters, DynamoDB, and Redis caches.
-- Led migration of monolithic application into Dockerized microservices on AWS ECS/Fargate, cutting cloud infrastructure costs by 32% ($45k/year).
-- Established end-to-end observability using Prometheus, Grafana, and AWS CloudWatch with automated alerting and incident escalation policies.
-
-Cloud Engineer | TechNova Solutions (2019 - 2022)
-- Built automated release pipelines using Jenkins, GitHub Actions, and AWS CodePipeline for high-traffic Node.js and Python microservices.
-- Automated server provisioning and configuration using Ansible and Docker, eliminating configuration drift across staging and production environments.
-- Enforced zero-trust security architecture with AWS IAM least-privilege roles, KMS encryption at rest and in transit, and secret management via AWS Secrets Manager.
-- Collaborated with software engineering teams to resolve complex production incidents, reducing Mean Time to Recovery (MTTR) by 45%.
-
-TECHNICAL SKILLS:
-- Cloud: AWS (EC2, S3, CodePipeline, CodeBuild, CodeDeploy, ECS, EKS, Lambda, RDS, DynamoDB, VPC, CloudFront, Route53, IAM)
-- Containers & Orchestration: Docker, Kubernetes, Helm, EKS, ECS, Containerd
-- CI/CD & Automation: AWS CodePipeline, GitHub Actions, Jenkins, GitLab CI, ArgoCD
-- Infrastructure as Code: Terraform, AWS CloudFormation, Ansible
-- Monitoring & Logging: Prometheus, Grafana, CloudWatch, Datadog, ELK Stack
-- Programming & Scripting: TypeScript, JavaScript, Python, Bash, Go, SQL
-- Networking & Security: TCP/IP, DNS, SSL/TLS, OAuth2, JWT, VPC Peering, Transit Gateway
+Software Development Engineer — Java & Spring Boot — Distributed Systems — Full Stack
+Email: Abhisheksingh1thakur@gmail.com | Phone: +91-8850970898 | GitHub: github.com/Abhitvg | LinkedIn: linkedin.com/in/abhisheksingh22141
+New Delhi, India
 
 EDUCATION:
-Bachelor of Technology in Computer Science & Engineering`;
+Jawaharlal Nehru University (JNU), New Delhi (2020 – 2025)
+B.Tech and M.Tech in Computer Science and Engineering (GPA: 7.1/10)
+- M.Tech Thesis: Social Network Analysis on Media Bias in News Articles (Computational NLP bias detection across 50,000+ articles)
+- GATE CS/IT Qualified (2024)
+- JEE MAINS AIR 6126 (2020)
+- Joint Secretary — JNU Alumni Association (2025 – Present) | JNUSU Councillor (SoE) (2024)
 
-export const DEFAULT_JOB_DESCRIPTION = `Job Title: Senior Cloud & DevOps Engineer
-Company: Global Enterprise Cloud Solutions
-Location: Remote / Hybrid
+PROFESSIONAL EXPERIENCE:
+ATMA Research & Consultancy | Software Development Engineer – Java Full Stack (Jul 2025 – Present) [Remote]
+- Own backend services for three production platforms using Java 8, Spring Boot, and REST APIs, serving 10K+ daily users at 99.9% uptime.
+- Architected MongoDB data models and reworked compound indexes, reducing average read latency by 35%.
+- Implemented Apache Solr for full-text search, faceted filtering, and type-ahead, improving search click-through by 20%.
+- Replaced hourly batch synchronization with Kafka-based event pipelines for real-time inventory and promotion updates across microservices.
+- Optimized Oracle SQL for executive dashboards by rewriting execution plans and adding materialized views, reducing report time by 40%.
+- Built responsive Angular 8+ interfaces from Figma specifications and maintained 85%+ test coverage using JUnit and Mockito.
 
-ABOUT THE ROLE:
-We are looking for a Senior DevOps & Cloud Engineer to join our infrastructure platform team. You will lead the design, implementation, and optimization of our AWS cloud platform, automated CI/CD release pipelines, and containerized Kubernetes environments.
+CIET-NCERT Virasat – PAC Project 20.09 | Project Associate (Nov 2025 – Jun 2026) [New Delhi]
+- Engineered a fully local architecture using a 100% local JSON pipeline, eliminating external API dependencies and network round trips.
+- Developed a Survey of India-compliant SVG drill-down map engine with three-tier zoom logic and integrated @react-three/fiber for browser-based 3D historical artifact rendering.
+- Validated TopoJSON boundaries and executed load simulations to support fast rendering on low-bandwidth networks.
 
-KEY RESPONSIBILITIES:
-- Architect and maintain highly scalable, fault-tolerant cloud infrastructure on AWS.
-- Build and optimize CI/CD automation pipelines using AWS CodePipeline, GitHub Actions, and modern continuous delivery tools.
-- Manage and scale containerized workloads using Kubernetes (EKS) and Docker.
-- Write robust, reusable Infrastructure as Code (Terraform / CloudFormation).
-- Collaborate with engineering teams to ensure high reliability, performance, security, and low-latency response times.
-- Participate in on-call rotations and lead root cause analysis for production incidents.
+Indian Eurasia Research Forum | Technical Lead (Part-time) (Oct 2025 – Jul 2026) [New Delhi]
+- Led technical initiatives and digital infrastructure for international research collaborations and data dissemination.
 
-REQUIRED QUALIFICATIONS:
-- 5+ years of hands-on experience with AWS cloud services (EC2, EKS, CodePipeline, Lambda, RDS, VPC).
-- Deep expertise in Kubernetes cluster management, containerization, and microservices architecture.
-- Extensive experience designing CI/CD pipelines (AWS CodePipeline, Jenkins, or GitHub Actions).
-- Strong proficiency in Terraform for Infrastructure as Code.
-- Solid background in scripting with Python, Bash, or TypeScript/Go.
-- Strong understanding of cloud security, networking protocols, and zero-downtime deployment strategies.`;
+Freelance / Contract – Full Stack Developer (Mar 2022 – Jun 2025) [India]
+- Delivered four end-to-end web applications spanning Spring Boot APIs, MongoDB/Cassandra schema design, Angular frontends, and cloud deployment.
+- Implemented Solr-powered search across a 50K-SKU catalog with custom tokenizers and sub-200ms query times.
+- Integrated Kafka and ActiveMQ for order processing and notification dispatch, keeping services decoupled.
+- Built CI/CD pipelines using Jenkins, GitHub Actions, and Docker, reducing post-release defects by 45%.
+
+KEY PROJECTS:
+Porcupine – Local-First AI Orchestrator (Multi-agent ERP desktop app with secure offline RAG)
+- Engineered an Electron-based multi-agent architecture with automated provider failover and an AI critique loop; built offline vector retrieval using ONNX Runtime and Xenova transformers. Tech: Electron, Node.js, Next.js, SQLite, ONNX Runtime, Xenova, Tailwind CSS.
+IAC – AI Interview Assistant (Live Eye-Contact Teleprompter & Real-Time Interview Copilot)
+- Built high-performance Electron & React assistant with Apple Vision Neural OCR, Whisper speech transcription, and sub-second Groq Qwen streaming.
+Embassy of Israel – Zubin Mehta Portal (Interactive cultural initiative frontend)
+- Optimized component state management and implemented lazy loading for high-resolution visual assets with React.js.
+Uttarakhand Shashan Co-Operative / DoonSilk (Real-time distributed supply-chain architecture)
+- Designed RESTful APIs and NoSQL schemas for product inventory and supply-chain tracking using MERN Stack, Next.js, MongoDB.
+
+TECHNICAL SKILLS:
+- Languages: Java, JavaScript (ES6+), TypeScript, Python, C++
+- Backend: Spring Boot, Spring MVC, Spring Data, Spring Security, Hibernate/JPA, REST APIs, Node.js, Express
+- Frontend: Angular (8+), React, Next.js, Redux, HTML5, CSS3, Tailwind CSS
+- Data & Messaging: MongoDB, PostgreSQL, Oracle SQL, Apache Kafka, Apache Solr, Apache Spark, ActiveMQ/JMS, SQLite, Cassandra
+- DevOps & Testing: Docker, Jenkins, GitHub Actions, Git, Linux, AWS, JUnit, Mockito, Postman, Swagger/OpenAPI`;
+
+export const DEFAULT_JOB_DESCRIPTION = `Role: Application Developer (Cloud & Microservices)
+Company: IBM Consulting / Global Delivery Services (Colombia / Americas)
+Key Responsibilities:
+- Design, build, and deploy high-performance enterprise microservices and RESTful APIs using clean code and SOLID principles.
+- Containerization and orchestration with Docker, Kubernetes, and Red Hat OpenShift.
+- Event-driven architecture integration using Apache Kafka or message brokers.
+- Database modeling, query tuning, and caching with PostgreSQL, Oracle, MongoDB, and Redis.
+- Automated CI/CD pipelines with Jenkins and GitHub Actions, enforcing automated unit/integration testing (JUnit, Mockito).
+- Collaborative problem solving in Agile/Scrum teams dedicated to client digital transformation success.`;
 
 const COMMON_TECH_SKILLS = [
   "AWS", "Kubernetes", "Docker", "CodePipeline", "CI/CD", "Terraform",
@@ -147,22 +154,22 @@ For ANY behavioral, situational, leadership, or past-experience question ("Tell 
 Strictly apply the MIT Career Advising & Professional Development (CAPD) STAR Method formula:
 
 1. SITUATION (~20% of response):
-   - Set the context and stakes clearly using a real company/project from your resume (e.g., CloudScale Systems, TechNova Solutions).
+   - Set the context and stakes clearly using a real company/project from your resume (e.g., ATMA Research & Consultancy, CIET-NCERT Virasat, Porcupine, DoonSilk).
    - Provide concise context so the interviewer understands the situation without unnecessary trivia.
 
 2. TASK (~10% of response):
-   - State the specific goal, technical challenge, or responsibility you took ownership of (e.g., reducing 45-minute build times, remediating a critical production outage, scaling EKS microservices).
+   - State the specific goal, technical challenge, or responsibility you took ownership of (e.g., eliminating latency spikes on MongoDB, replacing batch sync with real-time Kafka streams, scaling Spring Boot services to 10K+ users at 99.9% uptime).
 
 3. ACTION (~60% of response — THE PRIMARY FOCUS):
    - Describe the exact, concrete actions YOU took using "I" statements (ownership of accomplishments, avoid vague "we" statements).
-   - Name the specific tools, architectures, trade-offs, and technical decisions (e.g., AWS CodePipeline, Terraform, Docker, Kubernetes HPA, Karpenter, CloudWatch alerting).
+   - Name the specific tools, architectures, trade-offs, and technical decisions (e.g., Java 8, Spring Boot, Apache Kafka, Apache Solr, MongoDB compound indexing, Oracle SQL materialized views, Angular, Docker).
 
 4. RESULT (~10% of response):
-   - State the measurable, quantifiable business impact from your resume (e.g., "cut deployment failure rates by 65%", "reduced MTTR by 45%", "saved $45k/year in cloud costs").
+   - State the measurable, quantifiable business impact from your resume (e.g., "reduced average read latency by 35%", "improved search CTR by 20%", "cut post-release defects by 45%", "maintained 99.9% uptime for 10K+ users").
    - Conclude with a strong takeaway or key learning.
 
 PRACTICE THE "YES, AND..." MENTALITY:
-- If asked a close-ended question (e.g., "Do you have experience with solving complex production issues?"), do not say just "yes". Say: "Yes, in my recent role at CloudScale Systems, I..." and immediately deliver a concise STAR example demonstrating depth of experience.
+- If asked a close-ended question (e.g., "Do you have experience with solving complex production issues?"), do not say just "yes". Say: "Yes, in my recent role at ATMA Research, I..." and immediately deliver a concise STAR example demonstrating depth of experience.
 
 ════════════ 2. FREECODECAMP / TECH INTERVIEW HANDBOOK CODING FRAMEWORK ════════════
 For ANY algorithmic, data structure, or coding implementation question ("Write a function to...", "How would you solve...", "Implement...", "Find the...", "Given an array/string/tree..."):
