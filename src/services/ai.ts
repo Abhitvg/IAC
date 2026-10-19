@@ -433,8 +433,10 @@ export async function streamAnswer(
 ): Promise<void> {
     const systemPrompt = config.systemPrompt || createSystemPrompt(config, 'interview', 'General', language, null);
     
-    // Low latency prompt override for live teleprompter delivery
-    const lowLatencyPrompt = systemPrompt + "\n\nDELIVERY FORMAT: Speak naturally in the first person. 12-25 words per sentence. Clear, punchy, articulate phrasing suitable for live speech reading on a teleprompter in a conversational technical interview (target length: 65 to 110 words).";
+    // Use tailored system prompt if explicitly provided; otherwise append default conversational delivery rules
+    const lowLatencyPrompt = config.systemPrompt
+        ? config.systemPrompt
+        : systemPrompt + "\n\nDELIVERY FORMAT: Speak naturally in the first person. 12-25 words per sentence. Clear, punchy, articulate phrasing suitable for live speech reading on a teleprompter in a conversational technical interview (target length: 65 to 110 words).";
     
     const url = config.type === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' :
                 config.type === 'openai' ? 'https://api.openai.com/v1/chat/completions' :
@@ -465,33 +467,44 @@ export async function streamAnswer(
         });
         
         let activeResponse = response;
-        if (!activeResponse.ok) {
-            if (activeResponse.status === 429 && config.type === "groq") {
-                console.warn("[AI] Groq rate limit reached, auto-switching to fallback model openai/gpt-oss-20b...");
-                const fallbackRes = await fetch(url, {
-                    method: "POST",
-                    headers,
-                    body: JSON.stringify({
-                        model: "openai/gpt-oss-20b",
-                        messages: [
-                            { role: "system", content: lowLatencyPrompt },
-                            { role: "user", content: question }
-                        ],
-                        stream: true,
-                        temperature: config.temperature,
-                        max_tokens: config.maxTokens
-                    }),
-                    signal
-                });
-                if (fallbackRes.ok && fallbackRes.body) {
-                    activeResponse = fallbackRes;
-                } else {
-                    const retryAfter = activeResponse.headers.get("retry-after") || activeResponse.headers.get("x-ratelimit-reset-requests");
-                    throw new Error(`Rate limit exceeded (HTTP 429). Retry after ${retryAfter || "a few"} seconds.`);
+        if (!activeResponse.ok && config.type === "groq") {
+            // Robust multi-tier fallback chain for Groq models
+            const fallbackModels = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
+                .filter(m => m !== config.model);
+            
+            for (const fbModel of fallbackModels) {
+                console.warn(`[AI] Primary model ${config.model} returned ${activeResponse.status}. Auto-fallback to ${fbModel}...`);
+                try {
+                    const fallbackRes = await fetch(url, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify({
+                            model: fbModel,
+                            messages: [
+                                { role: "system", content: lowLatencyPrompt },
+                                { role: "user", content: question }
+                            ],
+                            stream: true,
+                            temperature: config.temperature,
+                            max_tokens: Math.min(config.maxTokens || 1500, 1500)
+                        }),
+                        signal
+                    });
+                    if (fallbackRes.ok && fallbackRes.body) {
+                        activeResponse = fallbackRes;
+                        break;
+                    }
+                } catch (fbErr) {
+                    console.warn(`[AI] Fallback to ${fbModel} failed:`, fbErr);
                 }
-            } else {
-                throw new Error(`Stream Error: ${activeResponse.status}`);
             }
+
+            if (!activeResponse.ok) {
+                const retryAfter = activeResponse.headers.get("retry-after") || activeResponse.headers.get("x-ratelimit-reset-requests");
+                throw new Error(`Stream Error: ${activeResponse.status}. ${retryAfter ? `Retry after ${retryAfter}` : ''}`);
+            }
+        } else if (!activeResponse.ok) {
+            throw new Error(`Stream Error: ${activeResponse.status}`);
         }
         if (!activeResponse.body) throw new Error(`No response body`);
         

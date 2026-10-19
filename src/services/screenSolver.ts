@@ -130,12 +130,15 @@ Provide a direct, articulate first-person spoken script (~65 to 110 words) ready
 3. 💻 100% VERIFIED WORKING CODE (${preferredLanguage}):
    - Provide complete, production-grade, syntactically flawless ${preferredLanguage} code inside a single markdown code block:
    \`\`\`${preferredLanguage.toLowerCase()}
-   // Clean, complete, optimal solution in ${preferredLanguage}
+   // Complete, optimal, 100% verified solution in ${preferredLanguage}
    \`\`\`
-   - Include guard clauses for edge cases and clean, descriptive variable names. MUST compile and run.
+   - STRICT ZERO-PLACEHOLDERS: NEVER use '// TODO', '...', or leave any helper methods/comparators unwritten. Every line must be 100% implemented.
+   - ONLINE ASSESSMENT & COMPILER READY: Include all necessary standard library imports (e.g., 'import java.util.*;' in Java, 'from typing import List, Optional, Dict; from collections import deque, defaultdict; import heapq' in Python, standard includes in C++) and wrap in standard class (e.g., 'class Solution') ready to copy-paste directly into LeetCode / HackerRank / IDE with 0 compilation errors.
+   - DEFENSIVE GUARDS: Guard against null/empty inputs, single elements, negative numbers, and 64-bit integer overflow (use 'long' in Java/C++ when sums or multiplications can exceed 2*10^9).
+   - OPTIMALITY: Strictly adhere to the guaranteed optimal Big-O time and space complexity (e.g. O(N) or O(N log N)).
 
 4. 🧪 STEP-BY-STEP DRY RUN:
-   - Concise variable trace table stepping through the primary example from the screen.
+   - Concise variable trace table stepping through the primary example from the screen to mathematically verify correctness.
 
 5. 🗣️ VERBAL EXPLANATION (Spoken script):
    - A crisp, natural first-person verbal explanation (~65 to 90 words) the candidate can speak aloud to the interviewer while typing the solution.`}`;

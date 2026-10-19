@@ -248,7 +248,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     copyCodeOnly: () => {
         const ans = get().currentAnswer;
         if (!ans) return false;
-        const match = ans.match(/```[a-zA-Z0-9_-]*\n([\s\S]*?)```/);
+        const match = ans.match(/```[a-zA-Z0-9_#+-]*[^\n\r]*\r?\n([\s\S]*?)(?:```|$)/);
         if (match && match[1]) {
             navigator.clipboard.writeText(match[1].trim());
             set({ toast: '💻 Code copied to clipboard!' });

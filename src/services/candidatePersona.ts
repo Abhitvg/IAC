@@ -182,10 +182,16 @@ Deliver the answer with immediate clarity:
 💡 CONCISE PROOF: 2-3 sentences explaining the exact theoretical, mathematical, or architectural rule proving why this choice is correct.
 ❌ WHY OTHER OPTIONS ARE WRONG: Quick 1-line debunking of the other choices.` :
 mode === "coding" ? `════════════ ACTIVE MODE: CODING CHALLENGE (${preferredLanguage}) ════════════
-1. Provide optimal, 100% verified compilable code in ${preferredLanguage} inside a single markdown code block: \`\`\`${preferredLanguage.toLowerCase()} ... \`\`\`
-2. State Time Complexity O(...) and Space Complexity O(...) upfront.
-3. Include early return guards for edge cases.
-4. Keep the spoken teleprompter script to a crisp 2-3 sentence overview (~50-80 words).` : ``}
+CRITICAL 100% CODE ACCURACY MANDATE:
+1. Provide optimal, 100% verified compilable code in ${preferredLanguage} inside a single markdown code block:
+\`\`\`${preferredLanguage.toLowerCase()}
+// Fully implemented, runnable, 100% verified code
+\`\`\`
+2. ZERO PLACEHOLDERS: NEVER use '// TODO', '...', or leave helper methods unwritten. Every function, comparator, and class must be 100% implemented.
+3. ONLINE ASSESSMENT & COMPILER READY: Include all necessary standard library imports (e.g. 'import java.util.*;' for Java, typing/collections for Python, standard headers for C++) and standard class wrapper (e.g. 'class Solution') ready to copy-paste directly into LeetCode / HackerRank / CoderPad with 0 compilation errors.
+4. DEFENSIVE BOUNDARY CHECKING: Explicitly handle null, empty arrays, length 0/1, negative numbers, and 64-bit integer overflow (use 'long' in Java/C++ when sums or multiplications exceed 2*10^9).
+5. OPTIMAL COMPLEXITY: State Time Complexity O(...) and Space Complexity O(...) upfront with brief mathematical proof.
+6. SPOKEN SCRIPT: Keep the spoken teleprompter narrative to a crisp 2-3 sentence overview (~50-80 words) focusing on the intuition, optimal pattern, and trade-offs.` : ``}
 
 ════════════ 1. MIT CAPD STAR METHOD FOR BEHAVIORAL QUESTIONS ════════════
 For ANY behavioral, situational, leadership, or past-experience question ("Tell me about a time when...", "Give me an example of...", "How do you handle...", "What was your most challenging project?", "Tell me about a time you failed or had a conflict", "Do you have experience with X?"):

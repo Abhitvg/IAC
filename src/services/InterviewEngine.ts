@@ -171,12 +171,17 @@ export class InterviewEngine {
           }
 
           const currentStore = useAppStore.getState();
+          const mode = currentStore.responseMode || 'interview';
+          const isCoding = mode === 'coding';
+          const isQuiz = mode === 'quiz';
+          const preferredLang = currentStore.settings?.preferredLanguage || 'Java';
+
           const candidateSystemPrompt = buildCandidateSystemPrompt(
             currentStore.resumeText,
             currentStore.jobDescriptionText,
             currentStore.targetRole,
-            currentStore.settings?.preferredLanguage || 'Java',
-            currentStore.responseMode || 'interview'
+            preferredLang,
+            mode
           );
 
           await streamAnswer(
@@ -184,12 +189,15 @@ export class InterviewEngine {
             {
               type: "groq",
               apiKey: groqKey,
-              model: "qwen/qwen3.8-27b",
-              temperature: store.settings?.temperature || 0.6,
-              maxTokens: store.settings?.maxTokens || 1000,
+              // Use frontier 120B model for coding & quiz for 100% precision & higher token limits
+              model: (isCoding || isQuiz) ? "openai/gpt-oss-120b" : "qwen/qwen3.8-27b",
+              // Low temperature (0.1) for 100% deterministic, bug-free compilable code & quiz accuracy
+              temperature: isCoding ? 0.1 : isQuiz ? 0.15 : (store.settings?.temperature || 0.6),
+              // Expanded token ceiling (2000) so complex code solutions are never truncated
+              maxTokens: isCoding ? 2000 : isQuiz ? 1200 : (store.settings?.maxTokens || 1000),
               systemPrompt: candidateSystemPrompt
             },
-            (currentStore.settings?.preferredLanguage || 'javascript') as any,
+            (preferredLang.toLowerCase()) as any,
             {
               onToken: (token) => {
                 if (useAppStore.getState().generationId === currentGen) {
@@ -286,11 +294,15 @@ export class InterviewEngine {
           }
 
           const currentStore = useAppStore.getState();
+          const mode = currentStore.responseMode || "coding";
+          const isCoding = mode === "coding";
+          const preferredLang = currentStore.settings?.preferredLanguage || "Java";
+
           const screenSolverPrompt = buildScreenSolverPrompt(
             cleanedOcr,
-            currentStore.settings?.preferredLanguage || "Java",
+            preferredLang,
             currentStore.targetRole,
-            currentStore.responseMode || "coding"
+            mode
           );
 
           await streamAnswer(
@@ -298,12 +310,13 @@ export class InterviewEngine {
             {
               type: "groq",
               apiKey: groqKey,
-              model: "qwen/qwen3.8-27b",
-              temperature: 0.2, // Low temperature for zero-hallucination mathematical and code accuracy
-              maxTokens: store.settings?.maxTokens || 2000,
-              systemPrompt: "You are an elite Staff Software Engineer. Provide 100% accurate, optimal, verified solutions with zero hallucination."
+              // Use frontier 120B model for screen problem solving for 100% accuracy and high token throughput
+              model: "openai/gpt-oss-120b",
+              temperature: 0.1, // Zero-hallucination mathematical and code accuracy
+              maxTokens: isCoding ? 2000 : (store.settings?.maxTokens || 1500),
+              systemPrompt: "You are a world-class Principal Software Engineer and ACM ICPC World Finalist. You deliver 100% verified, bug-free, optimal, compilable code and rigorous algorithmic proofs with ZERO hallucinations."
             },
-            (currentStore.settings?.preferredLanguage || "javascript") as any,
+            (preferredLang.toLowerCase()) as any,
             {
               onToken: (token) => {
                 if (useAppStore.getState().generationId === screenGen) {

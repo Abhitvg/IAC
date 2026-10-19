@@ -439,7 +439,7 @@ export default function TeleprompterView() {
     if (!currentAnswer) return [];
 
     const segments: Array<{ type: "text" | "code"; content?: string; language?: string; code?: string }> = [];
-    const codeBlockRegex = new RegExp("```([a-zA-Z0-9_-]*)\\n([\\s\\S]*?)(?:```|$)", "g");
+    const codeBlockRegex = /```([a-zA-Z0-9_#+-]*)[^\n\r]*\r?\n([\s\S]*?)(?:```|$)/g;
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
