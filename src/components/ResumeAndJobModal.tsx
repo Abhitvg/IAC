@@ -374,7 +374,7 @@ export default function ResumeAndJobModal() {
                       cursor: 'pointer'
                     }}
                   >
-                    <RefreshCw size={11} /> Load DevOps Sample
+                    <RefreshCw size={11} /> Reset to Default Resume
                   </button>
 
                   <button
@@ -479,7 +479,7 @@ export default function ResumeAndJobModal() {
                       cursor: 'pointer'
                     }}
                   >
-                    <RefreshCw size={11} /> Load Sample JD
+                    <RefreshCw size={11} /> Reset to Default JD
                   </button>
 
                   <button
