@@ -175,7 +175,8 @@ export class InterviewEngine {
             currentStore.resumeText,
             currentStore.jobDescriptionText,
             currentStore.targetRole,
-            currentStore.settings?.preferredLanguage || 'JavaScript'
+            currentStore.settings?.preferredLanguage || 'Java',
+            currentStore.responseMode || 'interview'
           );
 
           await streamAnswer(
@@ -287,8 +288,9 @@ export class InterviewEngine {
           const currentStore = useAppStore.getState();
           const screenSolverPrompt = buildScreenSolverPrompt(
             cleanedOcr,
-            currentStore.settings?.preferredLanguage || "JavaScript",
-            currentStore.targetRole
+            currentStore.settings?.preferredLanguage || "Java",
+            currentStore.targetRole,
+            currentStore.responseMode || "coding"
           );
 
           await streamAnswer(

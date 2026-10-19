@@ -87,7 +87,9 @@ interface InterviewState {
     loadSessionHistory: () => void;
 
     copyAnswer: () => void;
-    setResponseMode: (mode: string) => void;
+    copyCodeOnly: () => boolean;
+    responseMode: 'coding' | 'interview' | 'quiz';
+    setResponseMode: (mode: 'coding' | 'interview' | 'quiz') => void;
     regenerateAnswer: () => void;
     sessionHistory: any[];
     currentPerformance: any;
@@ -216,6 +218,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
             const savedResume = localStorage.getItem('candidate_resume');
             const savedJD = localStorage.getItem('target_job_description');
             const savedRole = localStorage.getItem('target_role');
+            const savedMode = localStorage.getItem('interview_response_mode');
             
             // If stored resume is legacy/dummy placeholder, reset to Abhishek Singh verified resume
             const isLegacy = !savedResume || savedResume.includes('CloudScale') || savedResume.includes('TechNova') || !savedResume.includes('ABHISHEK SINGH') || savedResume.includes('IAC – AI Interview Assistant') || !savedResume.includes('Quorum');
@@ -227,7 +230,8 @@ export const useAppStore = create<InterviewState>((set, get) => ({
             set({
                 resumeText: activeResume,
                 jobDescriptionText: (!savedJD || savedJD.includes('IBM Consulting') || savedJD.includes('Global Enterprise Cloud')) ? DEFAULT_JOB_DESCRIPTION : savedJD,
-                targetRole: (!savedRole || savedRole === 'Application Developer' || savedRole === 'Senior DevOps & Cloud Engineer') ? DEFAULT_TARGET_ROLE : savedRole
+                targetRole: (!savedRole || savedRole === 'Application Developer' || savedRole === 'Senior DevOps & Cloud Engineer') ? DEFAULT_TARGET_ROLE : savedRole,
+                responseMode: (savedMode === 'coding' || savedMode === 'interview' || savedMode === 'quiz') ? savedMode : 'coding'
             });
         } catch (_) {}
     },
@@ -241,7 +245,33 @@ export const useAppStore = create<InterviewState>((set, get) => ({
             setTimeout(() => set({ toast: null }), 2500);
         }
     },
-    setResponseMode: () => {},
+    copyCodeOnly: () => {
+        const ans = get().currentAnswer;
+        if (!ans) return false;
+        const match = ans.match(/```[a-zA-Z0-9_-]*\n([\s\S]*?)```/);
+        if (match && match[1]) {
+            navigator.clipboard.writeText(match[1].trim());
+            set({ toast: '💻 Code copied to clipboard!' });
+            setTimeout(() => set({ toast: null }), 2500);
+            return true;
+        } else {
+            navigator.clipboard.writeText(ans);
+            set({ toast: 'Answer copied to clipboard!' });
+            setTimeout(() => set({ toast: null }), 2500);
+            return false;
+        }
+    },
+    responseMode: (() => {
+        try {
+            const saved = localStorage.getItem('interview_response_mode');
+            if (saved === 'coding' || saved === 'interview' || saved === 'quiz') return saved;
+        } catch (_) {}
+        return 'coding';
+    })(),
+    setResponseMode: (responseMode) => {
+        try { localStorage.setItem('interview_response_mode', responseMode); } catch (_) {}
+        set({ responseMode: responseMode as any });
+    },
     regenerateAnswer: () => {},
     sessionHistory: [],
     currentPerformance: null,

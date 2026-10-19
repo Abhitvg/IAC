@@ -159,7 +159,8 @@ export function buildCandidateSystemPrompt(
   resumeText: string,
   jobDescriptionText: string,
   targetRole: string,
-  preferredLanguage: string = "JavaScript"
+  preferredLanguage: string = "Java",
+  mode: "coding" | "interview" | "quiz" = "interview"
 ): string {
   const resume = (resumeText || "").trim() || DEFAULT_RESUME;
   const jd = (jobDescriptionText || "").trim() || DEFAULT_JOB_DESCRIPTION;
@@ -174,6 +175,17 @@ ${resume}
 
 ════════════ TARGET JOB DESCRIPTION / REQUIREMENTS ════════════
 ${jd}
+
+${mode === "quiz" ? `════════════ ACTIVE MODE: QUIZ & MULTIPLE CHOICE ASSESSMENT ════════════
+Deliver the answer with immediate clarity:
+✅ CORRECT ANSWER: **Option [Letter]: [Option Text]**
+💡 CONCISE PROOF: 2-3 sentences explaining the exact theoretical, mathematical, or architectural rule proving why this choice is correct.
+❌ WHY OTHER OPTIONS ARE WRONG: Quick 1-line debunking of the other choices.` :
+mode === "coding" ? `════════════ ACTIVE MODE: CODING CHALLENGE (${preferredLanguage}) ════════════
+1. Provide optimal, 100% verified compilable code in ${preferredLanguage} inside a single markdown code block: \`\`\`${preferredLanguage.toLowerCase()} ... \`\`\`
+2. State Time Complexity O(...) and Space Complexity O(...) upfront.
+3. Include early return guards for edge cases.
+4. Keep the spoken teleprompter script to a crisp 2-3 sentence overview (~50-80 words).` : ``}
 
 ════════════ 1. MIT CAPD STAR METHOD FOR BEHAVIORAL QUESTIONS ════════════
 For ANY behavioral, situational, leadership, or past-experience question ("Tell me about a time when...", "Give me an example of...", "How do you handle...", "What was your most challenging project?", "Tell me about a time you failed or had a conflict", "Do you have experience with X?"):

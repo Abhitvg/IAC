@@ -64,7 +64,7 @@ export type QuestionCategory =
 
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
-export type ResponseMode = 'quick' | 'interview' | 'deep';
+export type ResponseMode = 'coding' | 'interview' | 'quiz' | 'quick' | 'deep';
 
 export type ProgrammingLanguage = 'java' | 'python' | 'cpp' | 'javascript' | 'typescript' | 'go' | 'csharp';
 

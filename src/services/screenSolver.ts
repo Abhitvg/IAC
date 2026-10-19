@@ -70,12 +70,13 @@ export function extractProblemHeadline(cleanedText: string): string {
 
 export function buildScreenSolverPrompt(
   cleanedOcrText: string,
-  preferredLanguage: string = "JavaScript",
-  targetRole?: string
+  preferredLanguage: string = "Java",
+  targetRole?: string,
+  mode: "coding" | "interview" | "quiz" = "coding"
 ): string {
   const langHint = detectLanguageHint(cleanedOcrText);
 
-  return `You are an elite multilingual Senior Staff Software Engineer assisting a candidate in a live technical interview for "${targetRole || 'Software Engineer'}".
+  return `You are an elite multilingual Senior Staff Software Engineer and competitive programming champion assisting a candidate in a live technical evaluation for "${targetRole || 'Software Engineer'}".
 
 --- EXTRACTED SCREEN OCR TEXT ---
 ${cleanedOcrText}
@@ -93,47 +94,49 @@ MULTILINGUAL TRANSLATION & ZERO-HALLUCINATION DIRECTIVES:
    - Adhere strictly to the exact problem, constraints, and inputs from the screen.
    - Do NOT invent phantom libraries, unstated assumptions, or non-existent constraints.
 
-Determine if this is a CODING/ALGORITHM/SQL question OR a SYSTEM DESIGN/THEORY/BEHAVIORAL question:
+${mode === "quiz" ? `======================================================================
+🚨 ACTIVE MODE: QUIZ & MULTIPLE CHOICE ASSESSMENT (MCQ)
+======================================================================
+Deliver the answer with immediate, crystal-clear precision:
 
+✅ CORRECT ANSWER:
+**Option [A / B / C / D]: [Exact Text of Correct Option]**
+
+💡 DIRECT PROOF & REASONING:
+[2-3 sentences explaining the exact theoretical, mathematical, or architectural rule proving why this choice is correct]
+
+❌ WHY OTHER OPTIONS ARE INCORRECT:
+- [Option]: [Why it is false or misleading]
+- [Option]: [Why it is false or misleading]
+` : mode === "interview" ? `======================================================================
+🚨 ACTIVE MODE: CONVERSATIONAL TECHNICAL INTERVIEW
 ======================================================================
-A. IF CODING / DSA / SQL / BUG-FIX:
+Provide a direct, articulate first-person spoken script (~65 to 110 words) ready to read aloud live off the teleprompter:
+- Open with a decisive answer.
+- Explain the architectural mechanics, trade-offs, and failure recovery.
+- Ground the answer in real production experience (e.g., ATMA Research, Quorum on AWS EKS, Porcupine).
+` : `======================================================================
+🚨 ACTIVE MODE: CODING CHALLENGE (${preferredLanguage})
 ======================================================================
-1. 🎯 PROBLEM BREAKDOWN & CONSTRAINTS (in English):
-   - Restate the exact problem statement, input/output types, and constraints (e.g. N <= 10^5, time limits).
+1. 🎯 PROBLEM BREAKDOWN & CONSTRAINTS:
+   - Restate exact problem, input/output types, and constraints (e.g. N <= 10^5, time limits).
    - Identify critical edge cases (empty input, negatives, single element, duplicates, overflow).
 
 2. ⚡ OPTIMAL APPROACH & BIG-O COMPLEXITY:
    - Identify the exact optimal pattern (e.g., Hash Map, Two Pointers, Monotonic Stack, Dynamic Programming, Binary Search, Sliding Window).
-   - Explain why brute force is suboptimal.
-   - Mathematical Big-O Time Complexity: O(...) with mathematical proof.
-   - Mathematical Big-O Space Complexity: O(...) with memory breakdown.
+   - Time Complexity: O(...) with mathematical proof.
+   - Space Complexity: O(...) with auxiliary memory breakdown.
 
 3. 💻 100% VERIFIED WORKING CODE (${preferredLanguage}):
-   - Provide complete, production-grade, syntactically flawless ${preferredLanguage} code inside a single markdown code block.
+   - Provide complete, production-grade, syntactically flawless ${preferredLanguage} code inside a single markdown code block:
+   \`\`\`${preferredLanguage.toLowerCase()}
+   // Clean, complete, optimal solution in ${preferredLanguage}
+   \`\`\`
    - Include guard clauses for edge cases and clean, descriptive variable names. MUST compile and run.
 
 4. 🧪 STEP-BY-STEP DRY RUN:
    - Concise variable trace table stepping through the primary example from the screen.
 
-5. 🗣️ VERBAL TELEPROMPTER SCRIPT (in English):
-   - A crisp, natural, conversational first-person verbal explanation (~65 to 100 words) the candidate can read aloud immediately on call to introduce their approach with absolute confidence.
-   ${langHint.isNonEnglish ? `(Optional: Also include a 1-sentence quick confirmation in ${langHint.languageName} if the interviewer is speaking ${langHint.languageName}).` : ''}
-
-======================================================================
-B. IF SYSTEM DESIGN / CORE CS THEORY / DEVOPS / CLOUD / ARCHITECTURE:
-======================================================================
-1. 💡 CORE ARCHITECTURAL SUMMARY (in English):
-   - A precise, standard-compliant definition and purpose in 2-3 sentences.
-
-2. ⚙️ ARCHITECTURAL MECHANICS (UNDER THE HOOD):
-   - How it works internally (concurrency, data flow, protocols, ACID/BASE guarantees, consensus, or indexing).
-
-3. ⚖️ TRADEOFFS & ALTERNATIVES:
-   - Compare with 1-2 industry alternatives (e.g. Kafka vs SQS, Optimistic vs Pessimistic, Redis vs Memcached).
-
-4. 🚀 REAL-WORLD BEST PRACTICES:
-   - Production failure modes and mitigation strategies.
-
-5. 🗣️ VERBAL TELEPROMPTER SCRIPT:
-   - A punchy, conversational first-person spoken script (~75 to 110 words) ready to read naturally on call.`;
+5. 🗣️ VERBAL EXPLANATION (Spoken script):
+   - A crisp, natural first-person verbal explanation (~65 to 90 words) the candidate can speak aloud to the interviewer while typing the solution.`}`;
 }
