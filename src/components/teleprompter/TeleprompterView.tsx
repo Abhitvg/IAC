@@ -24,7 +24,8 @@ import {
   ScanText,
   Code,
   Check,
-  Terminal
+  Terminal,
+  EyeOff
 } from "lucide-react";
 
 interface CodeBlockCardProps {
@@ -381,6 +382,23 @@ export default function TeleprompterView() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Instant Stealth Hide / Panic Shortcut: Escape or Cmd+Shift+H or Cmd+\ or Cmd+Shift+Space
+      if (
+        e.key === "Escape" ||
+        ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.code === "KeyH" || e.key.toLowerCase() === "h")) ||
+        ((e.metaKey || e.ctrlKey) && (e.code === "Backslash" || e.key === "\\")) ||
+        ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === "Space")
+      ) {
+        const activeTag = document.activeElement?.tagName;
+        if (e.key === "Escape" && (activeTag === "INPUT" || activeTag === "TEXTAREA")) {
+          (document.activeElement as HTMLElement)?.blur();
+          return;
+        }
+        e.preventDefault();
+        window.electronAPI?.toggleVisibility?.();
+        return;
+      }
+
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.code === "KeyS" || e.key.toLowerCase() === "s")) {
         e.preventDefault();
         handleScreenCapture("fullscreen");
@@ -902,6 +920,28 @@ export default function TeleprompterView() {
             }}
           >
             <History size={13} />
+          </button>
+
+          <button
+            onClick={() => window.electronAPI?.toggleVisibility?.()}
+            title="Instant Stealth Toggle (0ms instant hide/show without any animation or visibility) — Shortcut: Cmd+Shift+H or Cmd+\"
+            style={{
+              background: "rgba(255, 255, 255, 0.08)",
+              color: "#cbd5e1",
+              border: "1px solid rgba(255, 255, 255, 0.14)",
+              borderRadius: "4px",
+              padding: "3px 8px",
+              fontSize: "11px",
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              transition: "all 0.15s ease"
+            }}
+          >
+            <EyeOff size={11} />
+            <span>Hide (⌘⇧H)</span>
           </button>
 
           <button

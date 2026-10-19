@@ -61,9 +61,43 @@ function createWindow() {
   });
 }
 
+function toggleWindowVisibility() {
+  if (!mainWindow) return;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+    console.log('[Electron] Stealth: Window hidden instantly (0ms, zero animation, zero trace)');
+  } else {
+    mainWindow.show();
+    mainWindow.setAlwaysOnTop(true, 'floating');
+    if (process.platform === 'darwin') {
+      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    }
+    mainWindow.focus();
+    console.log('[Electron] Stealth: Window restored instantly');
+  }
+}
+
 function registerGlobalShortcuts() {
-  // These are app-level shortcuts that work even when minimized
-  // Most shortcuts are handled in the renderer for better UX
+  // Global stealth toggle shortcuts that work system-wide even when inside Zoom / LeetCode / Chrome:
+  const stealthShortcuts = [
+    'CommandOrControl+Shift+H',     // Cmd+Shift+H (Mac) / Ctrl+Shift+H (Win)
+    'CommandOrControl+Shift+Space', // Cmd+Shift+Space
+    'CommandOrControl+\\',          // Cmd+\
+    'Alt+H'                         // Option+H
+  ];
+
+  stealthShortcuts.forEach((shortcut) => {
+    try {
+      const ok = globalShortcut.register(shortcut, () => {
+        toggleWindowVisibility();
+      });
+      if (ok) {
+        console.log(`[Electron] Registered global stealth shortcut: ${shortcut}`);
+      }
+    } catch (err) {
+      console.warn(`[Electron] Could not register shortcut ${shortcut}:`, err);
+    }
+  });
 }
 
 import { session } from 'electron';
@@ -105,6 +139,14 @@ app.on('will-quit', () => {
 });
 
 // IPC for window controls
+ipcMain.on('window:toggle-visibility', () => toggleWindowVisibility());
+ipcMain.on('window:hide', () => mainWindow?.hide());
+ipcMain.on('window:show', () => {
+  if (!mainWindow) return;
+  mainWindow.show();
+  mainWindow.setAlwaysOnTop(true, 'floating');
+  mainWindow.focus();
+});
 ipcMain.on('window:minimize', () => mainWindow?.minimize());
 ipcMain.on('window:maximize', () => {
   if (mainWindow?.isMaximized()) {

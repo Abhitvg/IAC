@@ -2,6 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Window controls
+  toggleVisibility: () => ipcRenderer.send('window:toggle-visibility'),
+  hideWindow: () => ipcRenderer.send('window:hide'),
+  showWindow: () => ipcRenderer.send('window:show'),
   minimize: () => ipcRenderer.send('window:minimize'),
   maximize: () => ipcRenderer.send('window:maximize'),
   close: () => ipcRenderer.send('window:close'),

@@ -183,6 +183,9 @@ export interface PipelineStatus {
 // ─── Electron API Types ───
 
 export interface ElectronAPI {
+  toggleVisibility?: () => void;
+  hideWindow?: () => void;
+  showWindow?: () => void;
   minimize: () => void;
   maximize: () => void;
   close: () => void;

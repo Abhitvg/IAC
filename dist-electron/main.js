@@ -1,275 +1,382 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const electron_1 = require("electron");
-const path_1 = __importDefault(require("path"));
-const fs_1 = __importDefault(require("fs"));
-const handlers_1 = require("./ipc/handlers");
+const electron = require("electron");
+const path = require("path");
+const fs = require("fs");
+const ws = require("ws");
+const child_process = require("child_process");
+const util = require("util");
+let wsServer = null;
+let mainWindowRef = null;
+function setupIpcHandlers(mainWindow2) {
+  mainWindowRef = mainWindow2;
+  const Store = require("electron-store");
+  const store = new Store({
+    name: "settings",
+    defaults: {
+      aiProvider: "openai",
+      aiModel: "gpt-4o-mini",
+      whisperModel: "base",
+      preferredLanguage: "python",
+      responseMode: "interview",
+      temperature: 0.7,
+      maxTokens: 2048,
+      theme: "dark",
+      audioFormat: "wav",
+      browserIntegration: false,
+      alwaysOnTop: false,
+      shortcuts: {
+        record: "R",
+        analyze: "A",
+        copyAnswer: "C",
+        quickAnswer: "Q",
+        detailedAnswer: "D",
+        minimize: "Escape",
+        regenerate: "CommandOrControl+Enter"
+      },
+      systemPrompt: `You are a technical interview assistant. Provide clear, concise, and accurate answers to interview questions. When answering coding questions, provide well-structured solutions with time and space complexity analysis. Format your responses in markdown.`,
+      customApiEndpoint: "",
+      ollamaEndpoint: "http://localhost:11434"
+    }
+  });
+  electron.ipcMain.handle("settings:get", () => store.store);
+  electron.ipcMain.handle("settings:set", (_event, key, value) => {
+    store.set(key, value);
+    return true;
+  });
+  electron.ipcMain.handle("credentials:get", async (_event, service) => {
+    try {
+      const keytar = require("keytar");
+      return await keytar.getPassword("ai-interview-assistant", service);
+    } catch {
+      return store.get(`credentials.${service}`, null);
+    }
+  });
+  electron.ipcMain.handle("credentials:set", async (_event, service, key) => {
+    try {
+      const keytar = require("keytar");
+      await keytar.setPassword("ai-interview-assistant", service, key);
+    } catch {
+      store.set(`credentials.${service}`, key);
+    }
+    return true;
+  });
+  electron.ipcMain.handle("credentials:delete", async (_event, service) => {
+    try {
+      const keytar = require("keytar");
+      await keytar.deletePassword("ai-interview-assistant", service);
+    } catch {
+      store.delete(`credentials.${service}`);
+    }
+    return true;
+  });
+  electron.ipcMain.handle("ws:start", () => {
+    var _a;
+    if (wsServer) return { port: (_a = wsServer.address()) == null ? void 0 : _a.port };
+    wsServer = new ws.WebSocketServer({ port: 0, host: "127.0.0.1" });
+    wsServer.on("connection", (ws2) => {
+      ws2.on("message", (message) => {
+        try {
+          const data = JSON.parse(message.toString());
+          if (data.type && data.content) {
+            mainWindowRef == null ? void 0 : mainWindowRef.webContents.send("browser-context", data);
+          }
+        } catch (e) {
+          console.error("Invalid WebSocket message:", e);
+        }
+      });
+    });
+    const address = wsServer.address();
+    const port = typeof address === "object" ? address == null ? void 0 : address.port : 0;
+    return { port };
+  });
+  electron.ipcMain.handle("ws:stop", () => {
+    if (wsServer) {
+      wsServer.close();
+      wsServer = null;
+    }
+    return true;
+  });
+}
 let mainWindow = null;
 let isContentProtected = true;
-const RECORDINGS_DIR = path_1.default.join(electron_1.app.getPath('userData'), 'recordings');
-const SESSIONS_DIR = path_1.default.join(electron_1.app.getPath('userData'), 'sessions');
+const RECORDINGS_DIR = path.join(electron.app.getPath("userData"), "recordings");
+const SESSIONS_DIR = path.join(electron.app.getPath("userData"), "sessions");
 function ensureDirectories() {
-    [RECORDINGS_DIR, SESSIONS_DIR].forEach((dir) => {
-        if (!fs_1.default.existsSync(dir)) {
-            fs_1.default.mkdirSync(dir, { recursive: true });
-        }
-    });
+  [RECORDINGS_DIR, SESSIONS_DIR].forEach((dir) => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  });
 }
 function createWindow() {
-    mainWindow = new electron_1.BrowserWindow({
-        width: 680,
-        height: 500,
-        minWidth: 420,
-        minHeight: 280,
-        frame: false,
-        transparent: true,
-        hasShadow: false,
-        resizable: true,
-        alwaysOnTop: true,
-        backgroundColor: '#00000000',
-        titleBarStyle: 'hidden',
-        webPreferences: {
-            preload: path_1.default.join(__dirname, 'preload.js'),
-            contextIsolation: true,
-            nodeIntegration: false,
-            sandbox: false,
-        },
-        icon: path_1.default.join(__dirname, '../public/icon.png'),
-    });
-    if (process.env.VITE_DEV_SERVER_URL) {
-        mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  mainWindow = new electron.BrowserWindow({
+    width: 680,
+    height: 500,
+    minWidth: 420,
+    minHeight: 280,
+    frame: false,
+    transparent: true,
+    hasShadow: false,
+    resizable: true,
+    alwaysOnTop: true,
+    backgroundColor: "#00000000",
+    titleBarStyle: "hidden",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    },
+    icon: path.join(__dirname, "../public/icon.png")
+  });
+  if (process.env.VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+  }
+  mainWindow.webContents.on("console-message", (_event, level, message) => {
+    console.log("[Renderer Log]", message);
+  });
+  mainWindow.setContentProtection(true);
+  if (process.platform === "darwin") {
+    mainWindow.setHiddenInMissionControl(true);
+    mainWindow.excludedFromShownWindowsMenu = true;
+  }
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+}
+function toggleWindowVisibility() {
+  if (!mainWindow) return;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+    console.log("[Electron] Stealth: Window hidden instantly (0ms, zero animation, zero trace)");
+  } else {
+    mainWindow.show();
+    mainWindow.setAlwaysOnTop(true, "floating");
+    if (process.platform === "darwin") {
+      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     }
-    else {
-        mainWindow.loadFile(path_1.default.join(__dirname, '../dist/index.html'));
-    }
-    mainWindow.webContents.on('console-message', (_event, level, message) => {
-        console.log('[Renderer Log]', message);
-    });
-    // Make window invisible to screen share (Zoom, Meet, Teams, QuickTime, OBS)
-    mainWindow.setContentProtection(true);
-    if (process.platform === 'darwin') {
-        mainWindow.setHiddenInMissionControl(true);
-        mainWindow.excludedFromShownWindowsMenu = true;
-    }
-    mainWindow.on('closed', () => {
-        mainWindow = null;
-    });
+    mainWindow.focus();
+    console.log("[Electron] Stealth: Window restored instantly");
+  }
 }
 function registerGlobalShortcuts() {
-    // These are app-level shortcuts that work even when minimized
-    // Most shortcuts are handled in the renderer for better UX
+  const stealthShortcuts = [
+    "CommandOrControl+Shift+H",
+    // Cmd+Shift+H (Mac) / Ctrl+Shift+H (Win)
+    "CommandOrControl+Shift+Space",
+    // Cmd+Shift+Space
+    "CommandOrControl+\\",
+    // Cmd+\
+    "Alt+H"
+    // Option+H
+  ];
+  stealthShortcuts.forEach((shortcut) => {
+    try {
+      const ok = electron.globalShortcut.register(shortcut, () => {
+        toggleWindowVisibility();
+      });
+      if (ok) {
+        console.log(`[Electron] Registered global stealth shortcut: ${shortcut}`);
+      }
+    } catch (err) {
+      console.warn(`[Electron] Could not register shortcut ${shortcut}:`, err);
+    }
+  });
 }
-const electron_2 = require("electron");
-electron_1.app.whenReady().then(() => {
-    electron_2.session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-        callback(true);
-    });
-    electron_2.session.defaultSession.setPermissionCheckHandler(() => true);
-    ensureDirectories();
-    createWindow();
-    (0, handlers_1.setupIpcHandlers)(mainWindow);
-    if (mainWindow) {
-        mainWindow.setContentProtection(true);
-        mainWindow.setAlwaysOnTop(true, 'floating');
-        if (process.platform === 'darwin') {
-            mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-        }
+electron.app.whenReady().then(() => {
+  electron.session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    callback(true);
+  });
+  electron.session.defaultSession.setPermissionCheckHandler(() => true);
+  ensureDirectories();
+  createWindow();
+  setupIpcHandlers(mainWindow);
+  if (mainWindow) {
+    mainWindow.setContentProtection(true);
+    mainWindow.setAlwaysOnTop(true, "floating");
+    if (process.platform === "darwin") {
+      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     }
-    registerGlobalShortcuts();
-    electron_1.app.on('activate', () => {
-        if (electron_1.BrowserWindow.getAllWindows().length === 0) {
-            createWindow();
-        }
-    });
-});
-electron_1.app.on('window-all-closed', () => {
-    electron_1.globalShortcut.unregisterAll();
-    if (process.platform !== 'darwin') {
-        electron_1.app.quit();
+  }
+  registerGlobalShortcuts();
+  electron.app.on("activate", () => {
+    if (electron.BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
     }
+  });
 });
-electron_1.app.on('will-quit', () => {
-    electron_1.globalShortcut.unregisterAll();
+electron.app.on("window-all-closed", () => {
+  electron.globalShortcut.unregisterAll();
+  if (process.platform !== "darwin") {
+    electron.app.quit();
+  }
 });
-// IPC for window controls
-electron_1.ipcMain.on('window:minimize', () => mainWindow?.minimize());
-electron_1.ipcMain.on('window:maximize', () => {
-    if (mainWindow?.isMaximized()) {
-        mainWindow.unmaximize();
-    }
-    else {
-        mainWindow?.maximize();
-    }
+electron.app.on("will-quit", () => {
+  electron.globalShortcut.unregisterAll();
 });
-electron_1.ipcMain.on('window:close', () => mainWindow?.close());
-electron_1.ipcMain.on('window:toggle-always-on-top', () => {
-    if (mainWindow) {
-        const isOnTop = mainWindow.isAlwaysOnTop();
-        mainWindow.setAlwaysOnTop(!isOnTop);
-    }
+electron.ipcMain.on("window:toggle-visibility", () => toggleWindowVisibility());
+electron.ipcMain.on("window:hide", () => mainWindow == null ? void 0 : mainWindow.hide());
+electron.ipcMain.on("window:show", () => {
+  if (!mainWindow) return;
+  mainWindow.show();
+  mainWindow.setAlwaysOnTop(true, "floating");
+  mainWindow.focus();
 });
-electron_1.ipcMain.handle('window:is-always-on-top', () => {
-    return mainWindow?.isAlwaysOnTop() ?? false;
+electron.ipcMain.on("window:minimize", () => mainWindow == null ? void 0 : mainWindow.minimize());
+electron.ipcMain.on("window:maximize", () => {
+  if (mainWindow == null ? void 0 : mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow == null ? void 0 : mainWindow.maximize();
+  }
 });
-// Content protection IPC (invisible in screen sharing)
-electron_1.ipcMain.handle('window:set-content-protection', (_event, enable) => {
-    if (mainWindow) {
-        mainWindow.setContentProtection(enable);
-        isContentProtected = enable;
-        console.log('[Electron] Content protection (screen stealth):', enable);
-        return true;
-    }
-    return false;
+electron.ipcMain.on("window:close", () => mainWindow == null ? void 0 : mainWindow.close());
+electron.ipcMain.on("window:toggle-always-on-top", () => {
+  if (mainWindow) {
+    const isOnTop = mainWindow.isAlwaysOnTop();
+    mainWindow.setAlwaysOnTop(!isOnTop);
+  }
 });
-electron_1.ipcMain.handle('window:is-content-protected', () => {
-    return isContentProtected;
+electron.ipcMain.handle("window:is-always-on-top", () => {
+  return (mainWindow == null ? void 0 : mainWindow.isAlwaysOnTop()) ?? false;
 });
-electron_1.ipcMain.on('window:toggle-content-protection', () => {
-    if (mainWindow) {
-        isContentProtected = !isContentProtected;
-        mainWindow.setContentProtection(isContentProtected);
-        console.log('[Electron] Toggled content protection (screen stealth):', isContentProtected);
-    }
-});
-// File system paths
-electron_1.ipcMain.handle('get-recordings-dir', () => RECORDINGS_DIR);
-electron_1.ipcMain.handle('get-sessions-dir', () => SESSIONS_DIR);
-electron_1.ipcMain.handle('get-user-data-path', () => electron_1.app.getPath('userData'));
-// File dialog
-electron_1.ipcMain.handle('dialog:open-file', async (_event, options) => {
-    if (!mainWindow)
-        return null;
-    const result = await electron_1.dialog.showOpenDialog(mainWindow, options);
-    if (result.canceled || result.filePaths.length === 0)
-        return null;
-    return result.filePaths[0];
-});
-// Read file
-electron_1.ipcMain.handle('fs:read-file', async (_event, filePath) => {
-    // Security: only allow reading from userData directory
-    const userDataPath = electron_1.app.getPath('userData');
-    const resolvedPath = path_1.default.resolve(filePath);
-    if (!resolvedPath.startsWith(userDataPath) && !resolvedPath.startsWith(electron_1.app.getPath('home'))) {
-        throw new Error('Access denied: Cannot read files outside allowed directories');
-    }
-    return fs_1.default.readFileSync(resolvedPath);
-});
-// Write file
-electron_1.ipcMain.handle('fs:write-file', async (_event, filePath, data) => {
-    const userDataPath = electron_1.app.getPath('userData');
-    const resolvedPath = path_1.default.resolve(filePath);
-    if (!resolvedPath.startsWith(userDataPath)) {
-        throw new Error('Access denied: Cannot write files outside user data directory');
-    }
-    const dir = path_1.default.dirname(resolvedPath);
-    if (!fs_1.default.existsSync(dir)) {
-        fs_1.default.mkdirSync(dir, { recursive: true });
-    }
-    fs_1.default.writeFileSync(resolvedPath, data);
+electron.ipcMain.handle("window:set-content-protection", (_event, enable) => {
+  if (mainWindow) {
+    mainWindow.setContentProtection(enable);
+    isContentProtected = enable;
+    console.log("[Electron] Content protection (screen stealth):", enable);
     return true;
+  }
+  return false;
 });
-// List directory
-electron_1.ipcMain.handle('fs:list-dir', async (_event, dirPath) => {
-    const resolvedPath = path_1.default.resolve(dirPath);
-    if (!fs_1.default.existsSync(resolvedPath))
-        return [];
-    return fs_1.default.readdirSync(resolvedPath, { withFileTypes: true }).map((entry) => ({
-        name: entry.name,
-        isDirectory: entry.isDirectory(),
-        path: path_1.default.join(resolvedPath, entry.name),
-    }));
+electron.ipcMain.handle("window:is-content-protected", () => {
+  return isContentProtected;
 });
-// Delete file/directory
-electron_1.ipcMain.handle('fs:delete', async (_event, targetPath) => {
-    const userDataPath = electron_1.app.getPath('userData');
-    const resolvedPath = path_1.default.resolve(targetPath);
-    if (!resolvedPath.startsWith(userDataPath)) {
-        throw new Error('Access denied');
+electron.ipcMain.on("window:toggle-content-protection", () => {
+  if (mainWindow) {
+    isContentProtected = !isContentProtected;
+    mainWindow.setContentProtection(isContentProtected);
+    console.log("[Electron] Toggled content protection (screen stealth):", isContentProtected);
+  }
+});
+electron.ipcMain.handle("get-recordings-dir", () => RECORDINGS_DIR);
+electron.ipcMain.handle("get-sessions-dir", () => SESSIONS_DIR);
+electron.ipcMain.handle("get-user-data-path", () => electron.app.getPath("userData"));
+electron.ipcMain.handle("dialog:open-file", async (_event, options) => {
+  if (!mainWindow) return null;
+  const result = await electron.dialog.showOpenDialog(mainWindow, options);
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+electron.ipcMain.handle("fs:read-file", async (_event, filePath) => {
+  const userDataPath = electron.app.getPath("userData");
+  const resolvedPath = path.resolve(filePath);
+  if (!resolvedPath.startsWith(userDataPath) && !resolvedPath.startsWith(electron.app.getPath("home"))) {
+    throw new Error("Access denied: Cannot read files outside allowed directories");
+  }
+  return fs.readFileSync(resolvedPath);
+});
+electron.ipcMain.handle("fs:write-file", async (_event, filePath, data) => {
+  const userDataPath = electron.app.getPath("userData");
+  const resolvedPath = path.resolve(filePath);
+  if (!resolvedPath.startsWith(userDataPath)) {
+    throw new Error("Access denied: Cannot write files outside user data directory");
+  }
+  const dir = path.dirname(resolvedPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.writeFileSync(resolvedPath, data);
+  return true;
+});
+electron.ipcMain.handle("fs:list-dir", async (_event, dirPath) => {
+  const resolvedPath = path.resolve(dirPath);
+  if (!fs.existsSync(resolvedPath)) return [];
+  return fs.readdirSync(resolvedPath, { withFileTypes: true }).map((entry) => ({
+    name: entry.name,
+    isDirectory: entry.isDirectory(),
+    path: path.join(resolvedPath, entry.name)
+  }));
+});
+electron.ipcMain.handle("fs:delete", async (_event, targetPath) => {
+  const userDataPath = electron.app.getPath("userData");
+  const resolvedPath = path.resolve(targetPath);
+  if (!resolvedPath.startsWith(userDataPath)) {
+    throw new Error("Access denied");
+  }
+  if (fs.existsSync(resolvedPath)) {
+    const stat = fs.statSync(resolvedPath);
+    if (stat.isDirectory()) {
+      fs.rmSync(resolvedPath, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(resolvedPath);
     }
-    if (fs_1.default.existsSync(resolvedPath)) {
-        const stat = fs_1.default.statSync(resolvedPath);
-        if (stat.isDirectory()) {
-            fs_1.default.rmSync(resolvedPath, { recursive: true, force: true });
-        }
-        else {
-            fs_1.default.unlinkSync(resolvedPath);
-        }
+  }
+  return true;
+});
+electron.ipcMain.handle("shell:open-external", async (_event, url) => {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    await electron.shell.openExternal(url);
+  }
+});
+electron.ipcMain.handle("fs:parse-pdf", async (_event, arrayBuffer) => {
+  const pdfParse = require("pdf-parse");
+  const buffer = Buffer.from(arrayBuffer);
+  const data = await pdfParse(buffer);
+  return data.text || "";
+});
+electron.ipcMain.handle("fs:parse-docx", async (_event, arrayBuffer) => {
+  const mammoth = require("mammoth");
+  const buffer = Buffer.from(arrayBuffer);
+  const result = await mammoth.extractRawText({ buffer });
+  return result.value || "";
+});
+const execAsync = util.promisify(child_process.exec);
+electron.ipcMain.handle("screen:capture-and-ocr", async (_event, mode = "fullscreen") => {
+  const tmpImg = path.join(electron.app.getPath("temp"), `iac_screen_${Date.now()}.jpg`);
+  const ocrBin = path.join(__dirname, "../bin/mac-ocr");
+  try {
+    const captureFlag = mode === "snip" ? "-i -x" : "-x";
+    await execAsync(`screencapture ${captureFlag} "${tmpImg}"`);
+    if (!fs.existsSync(tmpImg)) {
+      return { success: false, cancelled: true, error: "Screen capture was cancelled." };
     }
-    return true;
-});
-// Open external URL
-electron_1.ipcMain.handle('shell:open-external', async (_event, url) => {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-        await electron_1.shell.openExternal(url);
-    }
-});
-// PDF parsing
-electron_1.ipcMain.handle('fs:parse-pdf', async (_event, arrayBuffer) => {
-    const pdfParse = require('pdf-parse');
-    const buffer = Buffer.from(arrayBuffer);
-    const data = await pdfParse(buffer);
-    return data.text || '';
-});
-// DOCX parsing
-electron_1.ipcMain.handle('fs:parse-docx', async (_event, arrayBuffer) => {
-    const mammoth = require('mammoth');
-    const buffer = Buffer.from(arrayBuffer);
-    const result = await mammoth.extractRawText({ buffer });
-    return result.value || '';
-});
-// ─── Screen Capture & Apple Vision Neural OCR ───
-const child_process_1 = require("child_process");
-const util_1 = __importDefault(require("util"));
-const execAsync = util_1.default.promisify(child_process_1.exec);
-electron_1.ipcMain.handle("screen:capture-and-ocr", async (_event, mode = "fullscreen") => {
-    const tmpImg = path_1.default.join(electron_1.app.getPath("temp"), `iac_screen_${Date.now()}.jpg`);
-    const ocrBin = path_1.default.join(__dirname, "../bin/mac-ocr");
+    const { stdout } = await execAsync(`"${ocrBin}" "${tmpImg}"`);
     try {
-        const captureFlag = mode === "snip" ? "-i -x" : "-x";
-        await execAsync(`screencapture ${captureFlag} "${tmpImg}"`);
-        if (!fs_1.default.existsSync(tmpImg)) {
-            return { success: false, cancelled: true, error: "Screen capture was cancelled." };
-        }
-        const { stdout } = await execAsync(`"${ocrBin}" "${tmpImg}"`);
-        try {
-            fs_1.default.unlinkSync(tmpImg);
-        }
-        catch (_) { }
-        const text = stdout.trim();
-        if (!text) {
-            return { success: false, error: "No text or code could be detected on the screen." };
-        }
-        return { success: true, text };
+      fs.unlinkSync(tmpImg);
+    } catch (_) {
     }
-    catch (err) {
-        console.error("[Electron] Screen OCR error:", err);
-        try {
-            if (fs_1.default.existsSync(tmpImg))
-                fs_1.default.unlinkSync(tmpImg);
-        }
-        catch (_) { }
-        return { success: false, error: err.message || String(err) };
+    const text = stdout.trim();
+    if (!text) {
+      return { success: false, error: "No text or code could be detected on the screen." };
     }
-});
-electron_1.ipcMain.handle("screen:ocr-image", async (_event, filePath) => {
-    const ocrBin = path_1.default.join(__dirname, "../bin/mac-ocr");
+    return { success: true, text };
+  } catch (err) {
+    console.error("[Electron] Screen OCR error:", err);
     try {
-        const resolvedPath = path_1.default.resolve(filePath);
-        if (!fs_1.default.existsSync(resolvedPath)) {
-            return { success: false, error: "File not found." };
-        }
-        const { stdout } = await execAsync(`"${ocrBin}" "${resolvedPath}"`);
-        const text = stdout.trim();
-        if (!text) {
-            return { success: false, error: "No text could be extracted from image." };
-        }
-        return { success: true, text };
+      if (fs.existsSync(tmpImg)) fs.unlinkSync(tmpImg);
+    } catch (_) {
     }
-    catch (err) {
-        console.error("[Electron] Image OCR error:", err);
-        return { success: false, error: err.message || String(err) };
+    return { success: false, error: err.message || String(err) };
+  }
+});
+electron.ipcMain.handle("screen:ocr-image", async (_event, filePath) => {
+  const ocrBin = path.join(__dirname, "../bin/mac-ocr");
+  try {
+    const resolvedPath = path.resolve(filePath);
+    if (!fs.existsSync(resolvedPath)) {
+      return { success: false, error: "File not found." };
     }
+    const { stdout } = await execAsync(`"${ocrBin}" "${resolvedPath}"`);
+    const text = stdout.trim();
+    if (!text) {
+      return { success: false, error: "No text could be extracted from image." };
+    }
+    return { success: true, text };
+  } catch (err) {
+    console.error("[Electron] Image OCR error:", err);
+    return { success: false, error: err.message || String(err) };
+  }
 });
