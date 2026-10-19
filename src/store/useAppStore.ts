@@ -246,8 +246,28 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     sessionHistory: [],
     currentPerformance: null,
     setSessionsOpen: (o) => set({sessionsOpen: o}),
-    settings: { temperature: 0.7, maxTokens: 2000, type: 'local', endpoint: 'http://localhost:8080/inference' },
-    updateSetting: () => {},
+    settings: (() => {
+        let lang = "Java";
+        try {
+            const saved = localStorage.getItem("preferred_coding_language");
+            if (saved) lang = saved;
+        } catch (_) {}
+        return {
+            temperature: 0.2,
+            maxTokens: 2000,
+            type: "groq",
+            preferredLanguage: lang,
+            endpoint: "https://api.groq.com/openai/v1/chat/completions"
+        };
+    })(),
+    updateSetting: (key: string, val: any) => {
+        if (key === "preferredLanguage") {
+            try { localStorage.setItem("preferred_coding_language", String(val)); } catch (_) {}
+        }
+        set((state) => ({
+            settings: { ...state.settings, [key]: val }
+        }));
+    },
     setSettingsOpen: (o) => set({settingsOpen: o}),
     clearAllData: () => {},
     toast: null,

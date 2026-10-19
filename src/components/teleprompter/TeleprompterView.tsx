@@ -50,7 +50,9 @@ export default function TeleprompterView() {
     setToast,
     recitalState,
     lastInterruption,
-    doneAnswering
+    doneAnswering,
+    settings,
+    updateSetting
   } = useAppStore();
 
   const isListening =
@@ -357,7 +359,38 @@ export default function TeleprompterView() {
           flexWrap: "wrap"
         }}
       >
-        {/* Left: Font Size Buttons */}
+        {/* Left: Coding Language Selector & Font Size Buttons */}
+        <div className="teleprompter-nodrag" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <select
+            value={settings?.preferredLanguage || "Java"}
+            onChange={(e) => {
+              updateSetting("preferredLanguage", e.target.value);
+              setToast(`💻 Coding Language: ${e.target.value}`);
+            }}
+            title="Coding Language for Screen Solver & Code Generation"
+            style={{
+              background: "rgba(99, 102, 241, 0.22)",
+              color: "#e0e7ff",
+              border: "1px solid rgba(129, 140, 248, 0.45)",
+              borderRadius: "4px",
+              padding: "3px 6px",
+              fontSize: "11px",
+              fontWeight: 650,
+              cursor: "pointer",
+              outline: "none"
+            }}
+          >
+            <option value="Java" style={{ background: "#0f172a", color: "#fff" }}>☕ Java</option>
+            <option value="Python" style={{ background: "#0f172a", color: "#fff" }}>🐍 Python</option>
+            <option value="TypeScript" style={{ background: "#0f172a", color: "#fff" }}>🔷 TypeScript</option>
+            <option value="JavaScript" style={{ background: "#0f172a", color: "#fff" }}>⚡ JavaScript</option>
+            <option value="C++" style={{ background: "#0f172a", color: "#fff" }}>⚙️ C++</option>
+            <option value="Go" style={{ background: "#0f172a", color: "#fff" }}>🐹 Go</option>
+            <option value="SQL" style={{ background: "#0f172a", color: "#fff" }}>🗄️ SQL</option>
+          </select>
+        </div>
+
+        {/* Font Size Buttons */}
         <div className="teleprompter-nodrag" style={{ display: "flex", alignItems: "center", gap: "3px" }}>
           {(["small", "medium", "large", "xlarge"] as TeleprompterFontSize[]).map((f) => (
             <button
