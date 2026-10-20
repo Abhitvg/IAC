@@ -23,7 +23,7 @@ export class AudioRecorder {
   private silenceThreshold = -52; // dB threshold for silence
   private lastSpeechTime = 0;
   private speechStartDetectedTime = 0;
-  private speechSilenceDuration = 850; // ms silence before finalizing utterance
+  private speechSilenceDuration = 550; // ms silence before finalizing utterance (optimized for 300ms faster response)
   private minUtteranceSamples = 16000 * 0.35; // minimum 0.35s of speech
   private maxUtteranceSamples = 16000 * 35; // 35s max duration guard
   private lastDbUpdate = 0;

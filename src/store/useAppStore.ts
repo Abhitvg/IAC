@@ -106,6 +106,9 @@ interface InterviewState {
     setSelectedAudioDeviceId: (id: string) => void;
 }
 
+let _pendingTokens = "";
+let _tokenBatchTimeout: any = null;
+
 export const useAppStore = create<InterviewState>((set, get) => ({
     teleprompterFontSize: 'medium',
     setTeleprompterFontSize: (teleprompterFontSize) => set({ teleprompterFontSize }),
@@ -192,8 +195,25 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     },
     
     setCurrentQuestion: (q) => set({ currentQuestion: q }),
-    setCurrentAnswer: (a) => set({ currentAnswer: a }),
-    appendAnswerToken: (token) => set(state => ({ currentAnswer: (state.currentAnswer || '') + token })),
+    setCurrentAnswer: (a) => {
+        _pendingTokens = "";
+        if (_tokenBatchTimeout) {
+            clearTimeout(_tokenBatchTimeout);
+            _tokenBatchTimeout = null;
+        }
+        set({ currentAnswer: a });
+    },
+    appendAnswerToken: (token) => {
+        _pendingTokens += token;
+        if (!_tokenBatchTimeout) {
+            _tokenBatchTimeout = setTimeout(() => {
+                const batch = _pendingTokens;
+                _pendingTokens = "";
+                _tokenBatchTimeout = null;
+                set(state => ({ currentAnswer: (state.currentAnswer || "") + batch }));
+            }, 25);
+        }
+    },
     
     addTranscript: (msg) => set(state => ({ transcript: [...state.transcript, msg] })),
     

@@ -517,24 +517,31 @@ export async function streamAnswer(
         
         const parser = new AIStreamParser();
         const buffer = new SentenceBuffer();
+        let sseBuffer = '';
         
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
             
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n').filter(l => l.trim() !== '');
+            sseBuffer += decoder.decode(value, { stream: true });
+            const lines = sseBuffer.split('\n');
+            sseBuffer = lines.pop() || '';
             
-            for (const line of lines) {
-                if (line === 'data: [DONE]') continue;
+            for (const rawLine of lines) {
+                const line = rawLine.trim();
+                if (!line || line === 'data: [DONE]') continue;
                 if (line.startsWith('data: ')) {
                     try {
                         const data = JSON.parse(line.slice(6));
                         const token = data.choices[0]?.delta?.content || '';
+                        if (!token) continue;
                         
                         fullResponse += token;
                         callbacks.onToken?.(token);
-                        if (!(callbacks as any)._firstTokenFired) { (callbacks as any)._firstTokenFired = true; globalLatencyTracker.mark('firstToken'); }
+                        if (!(callbacks as any)._firstTokenFired) { 
+                            (callbacks as any)._firstTokenFired = true; 
+                            globalLatencyTracker.mark('firstToken'); 
+                        }
                         
                         const parsedToken = parser.parseChunk(token);
                         if (parsedToken) {

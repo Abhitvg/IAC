@@ -342,6 +342,18 @@ export default function TeleprompterView() {
 
   const [isScreenReading, setIsScreenReading] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 900
+  );
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isCompact = windowWidth < 920;
+  const isUltraCompact = windowWidth < 660;
 
   useEffect(() => {
     const unsub = window.electronAPI?.onTriggerScreenCapture?.(() => {
@@ -716,11 +728,12 @@ export default function TeleprompterView() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "6px 12px",
+          padding: isCompact ? "6px 8px" : "6px 12px",
           background: `rgba(16, 18, 30, ${Math.min(0.72, windowOpacity * 0.75 + 0.15)})`,
           borderBottom: "1px solid rgba(255, 255, 255, 0.10)",
-          gap: "8px",
-          flexWrap: "nowrap"
+          gap: "6px",
+          rowGap: "6px",
+          flexWrap: isCompact ? "wrap" : "nowrap"
         }}
       >
         {/* Left: Mode Selector Pills (Coding / Interview / Quiz) */}
@@ -826,7 +839,7 @@ export default function TeleprompterView() {
                   transition: "all 0.15s ease"
                 }}
               >
-                {fontSizes[f].label}
+                {isCompact ? fontSizes[f].label.charAt(0) : fontSizes[f].label}
               </button>
             ))}
           </div>
@@ -845,13 +858,13 @@ export default function TeleprompterView() {
               color: "#e2e8f0",
               border: "1px solid rgba(255, 255, 255, 0.08)",
               borderRadius: "4px",
-              padding: "4px 8px",
+              padding: isUltraCompact ? "4px 6px" : "4px 8px",
               fontSize: "11px",
               fontWeight: 500,
               cursor: "pointer"
             }}
           >
-            <RotateCcw size={11} /> Restart
+            <RotateCcw size={11} /> {!isUltraCompact && "Restart"}
           </button>
 
           <button
@@ -918,8 +931,8 @@ export default function TeleprompterView() {
             <span>{formatTimer(seconds)}</span>
           </div>
 
-          {/* Word Count & Read Time Badge */}
-          {currentAnswer && (
+          {/* Word Count & Read Time Badge (Responsive) */}
+          {currentAnswer && !isCompact && (
             <div
               style={{
                 display: "flex",
@@ -936,7 +949,7 @@ export default function TeleprompterView() {
               title="Target: ~380-430 words for a standard 3-minute spoken response"
             >
               <span>📊</span>
-              <span>{wordCount} words (~{estMinutes}m)</span>
+              <span>{wordCount}w (~{estMinutes}m)</span>
             </div>
           )}
         </div>
@@ -1021,7 +1034,7 @@ export default function TeleprompterView() {
             }}
           >
             <Keyboard size={12} />
-            <span>Shortcuts</span>
+            {!isUltraCompact && <span>Shortcuts</span>}
           </button>
 
           <button
@@ -1048,7 +1061,7 @@ export default function TeleprompterView() {
             }}
           >
             <Shield size={12} style={{ color: isStealthActive ? "#34d399" : "#f87171" }} />
-            <span>{isStealthActive ? "Stealth ON" : "Stealth OFF"}</span>
+            {!isUltraCompact && <span>{isStealthActive ? "Stealth ON" : "Stealth OFF"}</span>}
           </button>
 
           <button
@@ -1070,7 +1083,7 @@ export default function TeleprompterView() {
             }}
           >
             <Target size={12} style={{ color: "#a855f7" }} />
-            <span>🎯 {targetRole || "Resume & JD"}</span>
+            {!isCompact && <span>🎯 {targetRole ? (targetRole.length > 15 ? targetRole.slice(0, 15) + "..." : targetRole) : "Role"}</span>}
           </button>
 
           <button
@@ -1589,11 +1602,11 @@ export default function TeleprompterView() {
           gap: "8px"
         }}
       >
-        {/* Row 1: Direct Question Input Box & Quick Pills */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%" }}>
+        {/* Row 1: Direct Question Input Box (Full-width Responsive) & Quick Pills */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
           <form
             onSubmit={handleFormSubmit}
-            style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1 }}
+            style={{ display: "flex", alignItems: "center", gap: "6px", width: "100%" }}
           >
             <input
               type="text"
@@ -1602,6 +1615,7 @@ export default function TeleprompterView() {
               placeholder="Type or paste any interview / coding question & press Enter..."
               style={{
                 flex: 1,
+                minWidth: 0,
                 background: "rgba(255, 255, 255, 0.07)",
                 border: "1px solid rgba(255, 255, 255, 0.14)",
                 borderRadius: "6px",
@@ -1625,7 +1639,8 @@ export default function TeleprompterView() {
                 padding: "6px 12px",
                 fontWeight: 600,
                 fontSize: "12px",
-                cursor: manualInput.trim() ? "pointer" : "default"
+                cursor: manualInput.trim() ? "pointer" : "default",
+                flexShrink: 0
               }}
             >
               <Send size={12} />
@@ -1633,8 +1648,21 @@ export default function TeleprompterView() {
             </button>
           </form>
 
-          {/* Quick-Test Buttons tailored to Coding, Quiz & Interview */}
-          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+          {/* Quick-Test Buttons Bar (Horizontally scrollable, never squishes input) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              overflowX: "auto",
+              whiteSpace: "nowrap",
+              paddingBottom: "2px",
+              scrollbarWidth: "none"
+            }}
+          >
+            <span style={{ fontSize: "10px", color: "#64748b", fontWeight: 700, flexShrink: 0, textTransform: "uppercase" }}>
+              ⚡ Quick Tests:
+            </span>
             <button
               onClick={() => {
                 setResponseMode("coding");
@@ -1715,14 +1743,17 @@ export default function TeleprompterView() {
           </div>
         </div>
 
-        {/* Row 2: Mic Status & Live Audio Diagnostics */}
+        {/* Row 2: Mic Status & Live Audio Diagnostics (Responsive Wrap) */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             fontSize: "11px",
-            color: "#94a3b8"
+            color: "#94a3b8",
+            gap: "8px",
+            rowGap: "6px",
+            flexWrap: "wrap"
           }}
         >
           {/* Screen OCR & Solve Buttons */}
