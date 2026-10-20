@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, globalShortcut, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, globalShortcut, dialog, shell, Menu } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { setupIpcHandlers } from './ipc/handlers';
@@ -77,6 +77,85 @@ function toggleWindowVisibility() {
   }
 }
 
+function setupNativeApplicationMenu() {
+  const isMac = process.platform === 'darwin';
+
+  const template: Electron.MenuItemConstructorOptions[] = [
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about' as const },
+              { type: 'separator' as const },
+              {
+                label: 'Toggle Stealth Overlay',
+                accelerator: 'CmdOrCtrl+Shift+H',
+                click: () => toggleWindowVisibility()
+              },
+              { type: 'separator' as const },
+              { role: 'services' as const },
+              { type: 'separator' as const },
+              { role: 'hide' as const },
+              { role: 'hideOthers' as const },
+              { role: 'unhide' as const },
+              { type: 'separator' as const },
+              { role: 'quit' as const }
+            ]
+          }
+        ]
+      : []),
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' as const },
+        { role: 'redo' as const },
+        { type: 'separator' as const },
+        { role: 'cut' as const },
+        { role: 'copy' as const },
+        { role: 'paste' as const },
+        { role: 'selectAll' as const }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' as const },
+        { role: 'forceReload' as const },
+        { role: 'toggleDevTools' as const },
+        { type: 'separator' as const },
+        { role: 'resetZoom' as const },
+        { role: 'zoomIn' as const },
+        { role: 'zoomOut' as const },
+        { type: 'separator' as const },
+        {
+          label: 'Toggle Stealth Overlay (Backslash)',
+          accelerator: 'CmdOrCtrl+\\',
+          click: () => toggleWindowVisibility()
+        }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' as const },
+        { role: 'zoom' as const },
+        ...(isMac
+          ? [
+              { type: 'separator' as const },
+              { role: 'front' as const },
+              { type: 'separator' as const },
+              { role: 'window' as const }
+            ]
+          : [{ role: 'close' as const }])
+      ]
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
 function registerGlobalShortcuts() {
   // Global stealth toggle shortcuts that work system-wide even when inside Zoom / LeetCode / Chrome:
   const stealthShortcuts = [
@@ -118,6 +197,7 @@ app.whenReady().then(() => {
       mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     }
   }
+  setupNativeApplicationMenu();
   registerGlobalShortcuts();
 
   app.on('activate', () => {

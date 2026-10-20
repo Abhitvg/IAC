@@ -36,17 +36,64 @@ async function readErrorBody(response: Response): Promise<string> {
   }
 }
 
-/** Transcribe audio using the configured local server or OpenAI API. */
+/** Transcribe audio using Groq Whisper Large V3 Turbo, OpenAI, or local server. */
 export async function transcribeAudio(
   audioBlob: Blob,
   config: WhisperConfig
 ): Promise<TranscriptionResult> {
-  if (config.endpoint) return transcribeLocal(audioBlob, config);
-  if (config.apiKey) return transcribeOpenAI(audioBlob, config);
+  const groqKey = import.meta.env.VITE_GROQ_API_KEY || ((config as any).apiKey || null);
+  if (groqKey) {
+    return transcribeGroq(audioBlob, groqKey, config);
+  }
+  if (config.endpoint && !config.endpoint.includes('groq.com')) {
+    return transcribeLocal(audioBlob, config);
+  }
+  if (config.apiKey) {
+    return transcribeOpenAI(audioBlob, config);
+  }
 
   throw new Error(
-    'No Whisper configuration found. Set up a local Whisper server or provide an OpenAI API key.'
+    'No Whisper configuration found. Ensure VITE_GROQ_API_KEY is configured in .env.local.'
   );
+}
+
+async function transcribeGroq(
+  audioBlob: Blob,
+  apiKey: string,
+  config?: WhisperConfig
+): Promise<TranscriptionResult> {
+  const wavBlob = await convertBlobToWav(audioBlob);
+  const formData = new FormData();
+  formData.append('file', wavBlob, 'recording.wav');
+  formData.append('model', 'whisper-large-v3-turbo');
+  formData.append('response_format', 'verbose_json');
+
+  if (config?.language) formData.append('language', config.language);
+  const techPrompt = TECH_TERMS.slice(0, 50).join(', ');
+  formData.append('prompt', `Technical interview: Java, Spring Boot, AWS, Docker, Kubernetes, SQL, LeetCode, ${techPrompt}`);
+
+  const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const detail = await readErrorBody(response);
+    throw new Error(`Groq Whisper error: HTTP ${response.status} — ${detail}`);
+  }
+
+  const data = await response.json();
+  return {
+    text: postProcessTranscript(data.text || ''),
+    language: data.language,
+    duration: data.duration,
+    segments: data.segments?.map((seg: any) => ({
+      start: seg.start,
+      end: seg.end,
+      text: seg.text,
+    })),
+  };
 }
 
 async function transcribeOpenAI(

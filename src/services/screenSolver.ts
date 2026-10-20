@@ -111,9 +111,10 @@ Deliver the answer with immediate, crystal-clear precision:
 ` : mode === "interview" ? `======================================================================
 🚨 ACTIVE MODE: CONVERSATIONAL TECHNICAL INTERVIEW
 ======================================================================
-Provide a direct, articulate first-person spoken script (~65 to 110 words) ready to read aloud live off the teleprompter:
-- Open with a decisive answer.
-- Explain the architectural mechanics, trade-offs, and failure recovery.
+Provide a direct, articulate first-person spoken script (~65 to 110 words) structured with the 3-Beat Framework:
+• Beat 1: Decisive executive answer & core architectural principle stated in sentence 1.
+• Beat 2: Concrete chronological phase ordering (Phase 1 Ingestion ➔ Phase 2 In-flight Processing ➔ Phase 3 Teardown/Recovery).
+• Beat 3: Production trade-off (memory vs CPU, backpressure, or debugging diagnostics).
 - Ground the answer in real production experience (e.g., ATMA Research, Quorum on AWS EKS, Porcupine).
 ` : `======================================================================
 🚨 ACTIVE MODE: CODING CHALLENGE (${preferredLanguage})

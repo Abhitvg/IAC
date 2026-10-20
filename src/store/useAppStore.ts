@@ -286,8 +286,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
             temperature: 0.2,
             maxTokens: 2000,
             type: "groq",
-            preferredLanguage: lang,
-            endpoint: "https://api.groq.com/openai/v1/chat/completions"
+            preferredLanguage: lang
         };
     })(),
     updateSetting: (key: string, val: any) => {
