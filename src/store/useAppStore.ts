@@ -102,6 +102,8 @@ interface InterviewState {
     currentResponse: any;
     diagnosticState: DiagnosticState;
     updateDiagnostics: (updates: Partial<DiagnosticState>) => void;
+    selectedAudioDeviceId: string;
+    setSelectedAudioDeviceId: (id: string) => void;
 }
 
 export const useAppStore = create<InterviewState>((set, get) => ({
@@ -121,6 +123,18 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     setWindowOpacity: (windowOpacity) => {
         try { localStorage.setItem("teleprompter_opacity", String(windowOpacity)); } catch (_) {}
         set({ windowOpacity });
+    },
+    selectedAudioDeviceId: (() => {
+        try {
+            return localStorage.getItem("interview_audio_device_id") || "";
+        } catch (_) {}
+        return "";
+    })(),
+    setSelectedAudioDeviceId: (selectedAudioDeviceId: string) => {
+        try {
+            localStorage.setItem("interview_audio_device_id", selectedAudioDeviceId);
+        } catch (_) {}
+        set({ selectedAudioDeviceId });
     },
     status: "idle",
     currentQuestion: null,

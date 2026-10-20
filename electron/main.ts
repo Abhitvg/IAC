@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, globalShortcut, dialog, shell, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, globalShortcut, dialog, shell, Menu, Tray, nativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { setupIpcHandlers } from './ipc/handlers';
@@ -74,6 +74,48 @@ function toggleWindowVisibility() {
     }
     mainWindow.focus();
     console.log('[Electron] Stealth: Window restored instantly');
+  }
+}
+
+let tray: Tray | null = null;
+
+function setupTray() {
+  if (tray) return;
+
+  const iconPath = path.join(__dirname, '../public/icon.png');
+  let icon = fs.existsSync(iconPath)
+    ? nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+    : nativeImage.createEmpty();
+
+  try {
+    tray = new Tray(icon);
+    tray.setToolTip('AI Interview Assistant (Cmd+Shift+H to toggle)');
+
+    const trayMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show / Hide Overlay',
+        accelerator: 'CmdOrCtrl+Shift+H',
+        click: () => toggleWindowVisibility()
+      },
+      {
+        label: 'Solve Screen Problem',
+        accelerator: 'CmdOrCtrl+Shift+S',
+        click: () => {
+          if (!mainWindow?.isVisible()) mainWindow?.show();
+          mainWindow?.webContents.send('trigger-screen-capture');
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        role: 'quit'
+      }
+    ]);
+
+    tray.setContextMenu(trayMenu);
+    tray.on('click', () => toggleWindowVisibility());
+  } catch (err) {
+    console.warn('[Electron] Could not initialize tray:', err);
   }
 }
 
@@ -198,6 +240,7 @@ app.whenReady().then(() => {
     }
   }
   setupNativeApplicationMenu();
+  setupTray();
   registerGlobalShortcuts();
 
   app.on('activate', () => {

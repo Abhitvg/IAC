@@ -3,7 +3,21 @@ import { useAppStore } from '../store/useAppStore';
 import { X, Save, AlertTriangle } from 'lucide-react';
 
 export default function SettingsPanel() {
-  const { settings, updateSetting, setSettingsOpen, clearAllData } = useAppStore();
+  const { settings, updateSetting, setSettingsOpen, clearAllData, selectedAudioDeviceId, setSelectedAudioDeviceId } = useAppStore();
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+
+  useEffect(() => {
+    const fetchDevices = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const inputs = devices.filter((d) => d.kind === "audioinput");
+        setAudioDevices(inputs);
+      } catch (e) {
+        console.error("Failed to enumerate audio devices:", e);
+      }
+    };
+    fetchDevices();
+  }, []);
   const [apiKey, setApiKey] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -125,6 +139,23 @@ export default function SettingsPanel() {
           <div className="settings-section">
             <h3 className="settings-section__title">Preferences</h3>
             
+            <div className="field">
+              <label className="field__label">🎙️ Audio Input Device (Microphone / Loopback)</label>
+              <select 
+                className="field__select"
+                value={selectedAudioDeviceId || ""}
+                onChange={(e) => setSelectedAudioDeviceId(e.target.value)}
+              >
+                <option value="">Default System Microphone</option>
+                {audioDevices.map((d, idx) => (
+                  <option key={d.deviceId || idx} value={d.deviceId}>
+                    {d.label || `Microphone ${idx + 1}`}
+                  </option>
+                ))}
+              </select>
+              <span className="field__hint">Directly route AirPods, USB headset, or BlackHole virtual audio loopback.</span>
+            </div>
+
             <div className="field">
               <label className="field__label">Preferred Programming Language</label>
               <select 

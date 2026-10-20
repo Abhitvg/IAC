@@ -25,7 +25,9 @@ import {
   Code,
   Check,
   Terminal,
-  EyeOff
+  EyeOff,
+  Keyboard,
+  Zap
 } from "lucide-react";
 
 interface CodeBlockCardProps {
@@ -34,6 +36,107 @@ interface CodeBlockCardProps {
   index: number;
   onCopy: (code: string, index: number) => void;
   isCopied: boolean;
+}
+
+// Dedicated High-Contrast MCQ / Quiz Answer Card
+function QuizAnswerCard({
+  answerText,
+  onCopy
+}: {
+  answerText: string;
+  onCopy: (text: string) => void;
+}) {
+  const match = answerText.match(/(?:✅\s*)?CORRECT ANSWER:\s*(?:[\*_]*Option\s*[\*_]*)?([A-D0-9][^\r\n\*_]*)/i);
+  const correctOptionText = match ? match[1].replace(/[\*_]/g, "").trim() : "";
+
+  const proofMatch = answerText.match(/(?:💡\s*)?(?:DIRECT PROOF|CONCISE PROOF|PROOF)[^\r\n]*:?\s*([\s\S]*?)(?=(?:❌|WHY OTHER|OTHER OPTIONS|$))/i);
+  const proofText = proofMatch ? proofMatch[1].trim() : "";
+
+  const distractorsMatch = answerText.match(/(?:❌\s*)?(?:WHY OTHER OPTIONS ARE|WHY OTHER|OTHER OPTIONS)[^\r\n]*:?\s*([\s\S]*?)$/i);
+  const distractorsText = distractorsMatch ? distractorsMatch[1].trim() : "";
+
+  return (
+    <div
+      style={{
+        margin: "12px 0 16px 0",
+        padding: "16px",
+        background: "linear-gradient(135deg, rgba(6, 78, 59, 0.55), rgba(15, 23, 42, 0.85))",
+        border: "1.5px solid rgba(52, 211, 153, 0.6)",
+        borderRadius: "10px",
+        boxShadow: "0 8px 28px rgba(6, 78, 59, 0.4)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "18px" }}>🎯</span>
+          <span style={{ fontSize: "14px", fontWeight: 800, color: "#a7f3d0", letterSpacing: "0.5px", textTransform: "uppercase" }}>
+            Verified Correct Option
+          </span>
+        </div>
+        {correctOptionText && (
+          <button
+            onClick={() => onCopy(correctOptionText)}
+            title="Copy correct option immediately to clipboard"
+            style={{
+              background: "rgba(16, 185, 129, 0.3)",
+              color: "#6ee7b7",
+              border: "1px solid rgba(52, 211, 153, 0.6)",
+              borderRadius: "5px",
+              padding: "4px 10px",
+              fontSize: "11px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px"
+            }}
+          >
+            <Copy size={12} />
+            <span>Copy Option</span>
+          </button>
+        )}
+      </div>
+
+      {correctOptionText && (
+        <div
+          style={{
+            padding: "10px 14px",
+            background: "rgba(16, 185, 129, 0.22)",
+            border: "1px solid rgba(52, 211, 153, 0.45)",
+            borderRadius: "6px",
+            fontSize: "16px",
+            fontWeight: 750,
+            color: "#ecfdf5",
+            marginBottom: "12px"
+          }}
+        >
+          {correctOptionText}
+        </div>
+      )}
+
+      {proofText && (
+        <div style={{ marginBottom: "10px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 700, color: "#34d399", marginBottom: "4px" }}>
+            💡 Core Proof & Verification:
+          </div>
+          <div style={{ fontSize: "13px", color: "#e2e8f0", lineHeight: "1.55" }}>
+            {proofText}
+          </div>
+        </div>
+      )}
+
+      {distractorsText && (
+        <div>
+          <div style={{ fontSize: "12px", fontWeight: 700, color: "#f87171", marginBottom: "4px" }}>
+            ❌ Why Other Options Are Wrong:
+          </div>
+          <div style={{ fontSize: "12px", color: "#cbd5e1", lineHeight: "1.5" }}>
+            {distractorsText}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function CodeBlockCard({ language, code, index, onCopy, isCopied }: CodeBlockCardProps) {
@@ -238,6 +341,27 @@ export default function TeleprompterView() {
   };
 
   const [isScreenReading, setIsScreenReading] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  useEffect(() => {
+    const unsub = window.electronAPI?.onTriggerScreenCapture?.(() => {
+      handleScreenCapture("fullscreen");
+    });
+    return () => { unsub?.(); };
+  }, []);
+
+  const handleSteerAnswer = (instruction: string) => {
+    if (!currentQuestion) return;
+    const combinedPrompt = `[Follow-up on: "${currentQuestion}"]\nRequirement: ${instruction}\nProvide an immediate, focused, production-grade response.`;
+    handleTriggerQuestion(combinedPrompt);
+    setToast("✨ Refining answer with targeted focus...");
+  };
+
+  const handleRegenerateCurrentAnswer = () => {
+    if (!currentQuestion) return;
+    handleTriggerQuestion(currentQuestion);
+    setToast("🔄 Regenerating answer from scratch...");
+  };
 
   const handleScreenCapture = async (mode: "fullscreen" | "snip" = "fullscreen") => {
     if (isScreenReading) return;
@@ -402,6 +526,41 @@ export default function TeleprompterView() {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.code === "KeyS" || e.key.toLowerCase() === "s")) {
         e.preventDefault();
         handleScreenCapture("fullscreen");
+        return;
+      }
+
+      // Mode switching shortcuts
+      if ((e.metaKey || e.ctrlKey) && e.key === "1") {
+        e.preventDefault();
+        setResponseMode("coding");
+        setToast("Mode: 💻 Coding");
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "2") {
+        e.preventDefault();
+        setResponseMode("interview");
+        setToast("Mode: 🎙️ Interview");
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "3") {
+        e.preventDefault();
+        setResponseMode("quiz");
+        setToast("Mode: 📝 Quiz");
+        return;
+      }
+
+      // Quick Copy Code shortcut: Cmd+K
+      if ((e.metaKey || e.ctrlKey) && (e.code === "KeyK" || e.key.toLowerCase() === "k")) {
+        e.preventDefault();
+        handleCopyPrimaryCode();
+        return;
+      }
+
+      // Auto-scroll toggle: Cmd+J
+      if ((e.metaKey || e.ctrlKey) && (e.code === "KeyJ" || e.key.toLowerCase() === "j")) {
+        e.preventDefault();
+        setIsAutoScrolling(!isAutoScrolling);
+        setToast(!isAutoScrolling ? "📜 Auto-Scroll: Resumed" : "⏸️ Auto-Scroll: Paused");
         return;
       }
 
@@ -843,6 +1002,28 @@ export default function TeleprompterView() {
             </button>
           </div>
 
+          {/* Shortcuts Quick Reference Button */}
+          <button
+            onClick={() => setShowShortcuts(!showShortcuts)}
+            title="View Stealth & OCR Keyboard Shortcuts"
+            style={{
+              background: showShortcuts ? "rgba(99, 102, 241, 0.3)" : "rgba(255, 255, 255, 0.08)",
+              color: showShortcuts ? "#a5b4fc" : "#cbd5e1",
+              border: showShortcuts ? "1px solid rgba(129, 140, 248, 0.5)" : "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "4px",
+              padding: "3px 7px",
+              fontSize: "11px",
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px"
+            }}
+          >
+            <Keyboard size={12} />
+            <span>Shortcuts</span>
+          </button>
+
           <button
             onClick={handleToggleStealth}
             title={
@@ -1134,6 +1315,166 @@ export default function TeleprompterView() {
         >
           {currentAnswer ? (
             <div>
+              {/* Live Answer Steering Actions */}
+              {!isGenerating && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    margin: "4px 0 16px 0",
+                    flexWrap: "wrap",
+                    padding: "6px 10px",
+                    background: "rgba(255, 255, 255, 0.03)",
+                    borderRadius: "8px",
+                    border: "1px solid rgba(255, 255, 255, 0.07)"
+                  }}
+                >
+                  <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 650, marginRight: "2px" }}>
+                    ✨ Steering:
+                  </span>
+
+                  <button
+                    onClick={() => handleSteerAnswer("Condense this into a punchy 30-40 second executive answer covering core intuition, approach, and Big-O complexity.")}
+                    title="Condense into an ultra-punchy 30-40s answer"
+                    style={{
+                      background: "rgba(99, 102, 241, 0.18)",
+                      color: "#c7d2fe",
+                      border: "1px solid rgba(129, 140, 248, 0.35)",
+                      borderRadius: "14px",
+                      padding: "3px 10px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <span>⚡ 30s Summary</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleSteerAnswer("Provide 2-3 sharp, senior-level clarifying questions to ask the interviewer before writing code or designing (e.g. scale, concurrency, duplicate handling, and edge cases).")}
+                    title="Generate sharp clarifying questions to ask the interviewer first"
+                    style={{
+                      background: "rgba(234, 179, 8, 0.18)",
+                      color: "#fde047",
+                      border: "1px solid rgba(250, 204, 21, 0.35)",
+                      borderRadius: "14px",
+                      padding: "3px 10px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <span>❓ Clarify First</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleSteerAnswer("Explain the core intuition and pattern in 2 clear conversational sentences without writing code.")}
+                    title="Explain intuition without writing code"
+                    style={{
+                      background: "rgba(56, 189, 248, 0.18)",
+                      color: "#bae6fd",
+                      border: "1px solid rgba(56, 189, 248, 0.35)",
+                      borderRadius: "14px",
+                      padding: "3px 10px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <span>💡 Intuition Only</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleSteerAnswer("Drill down deeply into the system architecture, memory overhead, backpressure limits, and failure recovery using the 3-Beat framework.")}
+                    title="Expand on architectural mechanics and trade-offs"
+                    style={{
+                      background: "rgba(168, 85, 247, 0.18)",
+                      color: "#e9d5ff",
+                      border: "1px solid rgba(192, 132, 252, 0.35)",
+                      borderRadius: "14px",
+                      padding: "3px 10px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <span>🏛️ Architecture & Trade-Offs</span>
+                  </button>
+
+                  {responseMode === "coding" && (
+                    <button
+                      onClick={() => handleSteerAnswer("Provide a step-by-step trace/dry-run table of the code with a concrete example input, showing index, pointer, and variable state transitions.")}
+                      title="Show step-by-step variable dry run"
+                      style={{
+                        background: "rgba(16, 185, 129, 0.18)",
+                        color: "#a7f3d0",
+                        border: "1px solid rgba(52, 211, 153, 0.35)",
+                        borderRadius: "14px",
+                        padding: "3px 10px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        transition: "all 0.15s ease"
+                      }}
+                    >
+                      <span>🧪 Variable Dry-Run</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => handleRegenerateCurrentAnswer()}
+                    title="Regenerate alternative answer from scratch"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.06)",
+                      color: "#cbd5e1",
+                      border: "1px solid rgba(255, 255, 255, 0.12)",
+                      borderRadius: "14px",
+                      padding: "3px 10px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <RotateCcw size={10} />
+                    <span>Regenerate</span>
+                  </button>
+                </div>
+              )}
+
+              {(responseMode === "quiz" || currentAnswer?.includes("CORRECT ANSWER:")) && (
+                <QuizAnswerCard
+                  answerText={currentAnswer}
+                  onCopy={(text) => {
+                    navigator.clipboard.writeText(text);
+                    setToast("🎯 Correct Option copied to clipboard!");
+                  }}
+                />
+              )}
+
               {parsedSegments.map((segment, idx) => {
                 if (segment.type === "code" && segment.code) {
                   return (
@@ -1469,6 +1810,37 @@ export default function TeleprompterView() {
               )}
             </button>
 
+            {/* Live 5-Bar Audio Level VU Meter */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-end",
+                gap: "2px",
+                height: "14px",
+                padding: "0 2px"
+              }}
+              title={`Microphone input level: ${diagnosticState.currentDb} dB (Threshold: -46 dB)`}
+            >
+              {[1, 2, 3, 4, 5].map((bar) => {
+                const minThreshold = -62 + bar * 6; // -56, -50, -44, -38, -32
+                const active = isListening && diagnosticState.currentDb > minThreshold;
+                const color = bar >= 5 ? "#ef4444" : bar >= 4 ? "#f59e0b" : "#10b981";
+                return (
+                  <span
+                    key={bar}
+                    style={{
+                      width: "3px",
+                      height: `${4 + bar * 2}px`,
+                      borderRadius: "1px",
+                      background: active ? color : "rgba(255, 255, 255, 0.15)",
+                      boxShadow: active ? `0 0 6px ${color}` : "none",
+                      transition: "background 0.08s ease"
+                    }}
+                  />
+                );
+              })}
+            </div>
+
             {/* Status explanation */}
             <span
               style={{
@@ -1535,6 +1907,113 @@ export default function TeleprompterView() {
           )}
         </div>
       </div>
+
+      {/* Shortcuts Quick-Ref Modal */}
+      {showShortcuts && (
+        <div
+          onClick={() => setShowShortcuts(false)}
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 90,
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px"
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#0f172a",
+              border: "1px solid rgba(129, 140, 248, 0.35)",
+              borderRadius: "10px",
+              padding: "20px",
+              maxWidth: "460px",
+              width: "100%",
+              boxShadow: "0 12px 36px rgba(0, 0, 0, 0.8)",
+              color: "#f8fafc"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, fontSize: "15px", color: "#e0e7ff" }}>
+                <Keyboard size={16} style={{ color: "#818cf8" }} />
+                <span>Stealth & Global Keyboard Shortcuts</span>
+              </div>
+              <button
+                onClick={() => setShowShortcuts(false)}
+                style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "14px" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12px" }}>
+              {[
+                { key: "⌘ + ⇧ + H", desc: "Instant Stealth: Vanish / Reveal overlay window with 0ms delay and zero animation." },
+                { key: "⌘ + \\", desc: "One-handed quick stealth toggle." },
+                { key: "⌘ + ⇧ + Space", desc: "Panic stealth toggle anywhere across macOS." },
+                { key: "⌘ + ⇧ + S", desc: "Capture & Solve Interviewer's Shared Screen (OCR & Multilingual)." },
+                { key: "⌘ + 1 / 2 / 3", desc: "Instant Mode Switch: 1 = Coding, 2 = Interview, 3 = Quiz / MCQ." },
+                { key: "⌘ + K", desc: "Copy clean compilable code directly to clipboard." },
+                { key: "⌘ + J", desc: "Toggle smooth hands-free auto-scrolling." },
+                { key: "Space", desc: "Done reciting: advance teleprompter and resume listening." },
+                { key: "Escape", desc: "Instantly dismiss overlay window." },
+              ].map((item, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "8px 10px",
+                    background: "rgba(255, 255, 255, 0.04)",
+                    borderRadius: "6px",
+                    border: "1px solid rgba(255, 255, 255, 0.06)"
+                  }}
+                >
+                  <span style={{ color: "#cbd5e1" }}>{item.desc}</span>
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      background: "rgba(99, 102, 241, 0.25)",
+                      color: "#a5b4fc",
+                      border: "1px solid rgba(129, 140, 248, 0.4)",
+                      borderRadius: "4px",
+                      padding: "2px 7px",
+                      fontWeight: 700,
+                      whiteSpace: "nowrap",
+                      marginLeft: "12px"
+                    }}
+                  >
+                    {item.key}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowShortcuts(false)}
+              style={{
+                marginTop: "16px",
+                width: "100%",
+                background: "#4f46e5",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "8px",
+                fontWeight: 650,
+                fontSize: "12px",
+                cursor: "pointer"
+              }}
+            >
+              Got It
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

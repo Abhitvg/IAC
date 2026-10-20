@@ -75,6 +75,45 @@ function toggleWindowVisibility() {
         console.log('[Electron] Stealth: Window restored instantly');
     }
 }
+let tray = null;
+function setupTray() {
+    if (tray)
+        return;
+    const iconPath = path_1.default.join(__dirname, '../public/icon.png');
+    let icon = fs_1.default.existsSync(iconPath)
+        ? electron_1.nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+        : electron_1.nativeImage.createEmpty();
+    try {
+        tray = new electron_1.Tray(icon);
+        tray.setToolTip('AI Interview Assistant (Cmd+Shift+H to toggle)');
+        const trayMenu = electron_1.Menu.buildFromTemplate([
+            {
+                label: 'Show / Hide Overlay',
+                accelerator: 'CmdOrCtrl+Shift+H',
+                click: () => toggleWindowVisibility()
+            },
+            {
+                label: 'Solve Screen Problem',
+                accelerator: 'CmdOrCtrl+Shift+S',
+                click: () => {
+                    if (!mainWindow?.isVisible())
+                        mainWindow?.show();
+                    mainWindow?.webContents.send('trigger-screen-capture');
+                }
+            },
+            { type: 'separator' },
+            {
+                label: 'Quit',
+                role: 'quit'
+            }
+        ]);
+        tray.setContextMenu(trayMenu);
+        tray.on('click', () => toggleWindowVisibility());
+    }
+    catch (err) {
+        console.warn('[Electron] Could not initialize tray:', err);
+    }
+}
 function setupNativeApplicationMenu() {
     const isMac = process.platform === 'darwin';
     const template = [
@@ -190,6 +229,7 @@ electron_1.app.whenReady().then(() => {
         }
     }
     setupNativeApplicationMenu();
+    setupTray();
     registerGlobalShortcuts();
     electron_1.app.on('activate', () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0) {

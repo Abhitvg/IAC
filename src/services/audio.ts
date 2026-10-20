@@ -39,12 +39,16 @@ export class AudioRecorder {
     this.preRollIndex = 0;
 
     try {
+      const selectedDeviceId = useAppStore.getState().selectedAudioDeviceId;
+      const audioConstraints: MediaTrackConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : {})
+      };
+
       this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        }
+        audio: audioConstraints
       });
 
       const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;

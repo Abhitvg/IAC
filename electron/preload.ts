@@ -52,6 +52,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
   // Screen Capture & Neural OCR
+  onTriggerScreenCapture: (callback: () => void) => {
+    ipcRenderer.on('trigger-screen-capture', () => callback());
+    return () => ipcRenderer.removeAllListeners('trigger-screen-capture');
+  },
   captureScreenAndOCR: (mode: "fullscreen" | "snip" = "fullscreen") => ipcRenderer.invoke("screen:capture-and-ocr", mode),
   ocrImageFile: (filePath: string) => ipcRenderer.invoke("screen:ocr-image", filePath),
 
