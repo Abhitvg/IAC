@@ -10,7 +10,6 @@ import {
 import { RubricScorer } from "./RubricScorer";
 import { DeliveryCoach } from "./DeliveryCoach";
 import { CoachingEngine } from "./CoachingEngine";
-import { SpacedScheduler } from "./SpacedScheduler";
 
 export class MockInterviewerEngine {
   /**
@@ -240,7 +239,6 @@ export class MockInterviewerEngine {
         const progression = this.advanceRehearsalPhase(session.rehearsalPhase);
         nextPhase = progression.nextPhase;
         nextQuestion = progression.question;
-        nextCategory = progression.category;
 
         if (nextPhase === "wrapup") {
           // Rehearsal complete! Compile consolidated scorecard
@@ -287,7 +285,7 @@ export class MockInterviewerEngine {
         ? Math.round((deliveries.reduce((sum, d) => sum + d.deliveryScore, 0) / deliveries.length) * 10) / 10
         : 3.5;
 
-    let finalRating: "Strong No Hire" | "No Hire" | "Leaning Hire" | "Hire" | "Strong Hire" = "Hire";
+    let finalRating: "Strong No Hire" | "No Hire" | "Leaning Hire" | "Hire" | "Strong Hire";
     if (avgScore >= 4.5 && avgDeliveryScore >= 4.0) finalRating = "Strong Hire";
     else if (avgScore >= 3.8 && avgDeliveryScore >= 3.5) finalRating = "Hire";
     else if (avgScore >= 3.0) finalRating = "Leaning Hire";

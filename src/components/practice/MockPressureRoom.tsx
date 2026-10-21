@@ -19,7 +19,7 @@ export const MockPressureRoom: React.FC = () => {
   } = usePracticeStore();
 
   const { isRecording, toggleRecording, transcript } = useAppStore();
-  const [typedScratchpad, setTypedScratchpad] = useState("");
+  // scratchpad
 
   // Running visible timer
   useEffect(() => {

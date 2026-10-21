@@ -7,8 +7,6 @@ import {
   TopicMastery,
   CompanyPracticePlan,
   TieredHint,
-  RubricEvaluation,
-  DeliveryMetrics,
 } from "../services/practice/types";
 import { MockInterviewerEngine } from "../services/practice/MockInterviewerEngine";
 import { CoachingEngine } from "../services/practice/CoachingEngine";
@@ -79,7 +77,7 @@ function loadStored<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
-  } catch (e) {
+  } catch (_e) {
     return fallback;
   }
 }

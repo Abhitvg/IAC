@@ -45,7 +45,7 @@ export class StoryBank {
         line.includes("Project:") ||
         line.includes("Lead")
       ) {
-        currentCompanyOrProject = line.replace(/^[#*\-]+\s*/, "").slice(0, 45);
+        currentCompanyOrProject = line.replace(/^[#*-]+\s*/, "").slice(0, 45);
         continue;
       }
 

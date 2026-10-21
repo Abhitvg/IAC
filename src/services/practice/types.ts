@@ -1,3 +1,4 @@
+import { DeterministicSignals } from "./scoring/DeterministicSignals";
 export type InterviewPersona = "strict_big_tech" | "startup_pragmatist" | "friendly_recruiter";
 
 export type MockRoundType =
@@ -23,6 +24,8 @@ export interface RubricDimension {
   feedback: string;
   evidenceQuote?: string; // Exact quote from candidate answer
   missingAspect?: string;
+  penaltyDeduction?: number;
+  matchType?: string;
 }
 
 export interface RubricEvaluation {
@@ -33,6 +36,10 @@ export interface RubricEvaluation {
   modelAnswer: string;
   diffMissingPoints: string[];
   assessedAt: number;
+  uncertainty?: string;
+  isHeuristicEstimate?: boolean;
+  confidenceBanner?: string;
+  signals?: DeterministicSignals;
 }
 
 export interface DeliveryMetrics {

@@ -33,7 +33,7 @@ export class CompanyPlanGenerator {
     }
 
     // 2. Determine Seniority
-    let seniority: "Junior" | "Mid" | "Senior" | "Staff/Lead" = "Senior";
+    let seniority: "Junior" | "Mid" | "Senior" | "Staff/Lead";
     if (jdLower.includes("staff") || jdLower.includes("principal") || jdLower.includes("architect") || jdLower.includes("director")) {
       seniority = "Staff/Lead";
     } else if (jdLower.includes("senior") || jdLower.includes("lead") || jdLower.includes("sr.")) {
@@ -155,9 +155,9 @@ export class CompanyPlanGenerator {
     } else {
       // 14-day comprehensive roadmap
       for (let d = 1; d <= 14; d++) {
-        let title = `Day ${d} Training`;
-        let cat = "DSA";
-        let ex = "Targeted practice drill.";
+        let title: string;
+        let cat: string;
+        let ex: string;
 
         if (d === 1) {
           title = "Company Alignment & Story Bank Extraction";
