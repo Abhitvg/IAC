@@ -40,6 +40,8 @@ export interface RubricEvaluation {
   isHeuristicEstimate?: boolean;
   confidenceBanner?: string;
   signals?: DeterministicSignals;
+  estimatedCostUsd?: number;
+  latencyMs?: number;
 }
 
 export interface DeliveryMetrics {
