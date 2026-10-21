@@ -99,8 +99,8 @@ interface InterviewState {
 
     copyAnswer: () => void;
     copyCodeOnly: () => boolean;
-    responseMode: 'coding' | 'interview' | 'quiz';
-    setResponseMode: (mode: 'coding' | 'interview' | 'quiz') => void;
+    responseMode: 'coding' | 'interview';
+    setResponseMode: (mode: 'coding' | 'interview') => void;
     regenerateAnswer: () => void;
     sessionHistory: any[];
     currentPerformance: any;
@@ -291,7 +291,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
                 resumeText: activeResume,
                 jobDescriptionText: (!savedJD || savedJD.includes('IBM Consulting') || savedJD.includes('Global Enterprise Cloud')) ? DEFAULT_JOB_DESCRIPTION : savedJD,
                 targetRole: (!savedRole || savedRole === 'Application Developer' || savedRole === 'Senior DevOps & Cloud Engineer') ? DEFAULT_TARGET_ROLE : savedRole,
-                responseMode: (savedMode === 'coding' || savedMode === 'interview' || savedMode === 'quiz') ? savedMode : 'coding'
+                responseMode: (savedMode === 'coding' || savedMode === 'interview') ? savedMode : 'coding'
             });
         } catch (_) {}
     },
@@ -324,7 +324,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     responseMode: (() => {
         try {
             const saved = localStorage.getItem('interview_response_mode');
-            if (saved === 'coding' || saved === 'interview' || saved === 'quiz') return saved;
+            if (saved === 'coding' || saved === 'interview') return saved;
         } catch (_) {}
         return 'coding';
     })(),

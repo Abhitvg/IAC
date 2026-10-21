@@ -315,7 +315,7 @@ export function buildCandidateSystemPrompt(
   jobDescriptionText: string,
   targetRole: string,
   preferredLanguage: string = "Java",
-  mode: "coding" | "interview" | "quiz" = "interview",
+  mode: "coding" | "interview" = "interview",
   conversationHistory: Array<{ question: string; answer: string; category: string }> = [],
   detectedCategory: string = "General"
 ): string {
@@ -341,12 +341,7 @@ ${memoryContext}
 ${systemDesignSection}
 ${hrSection}
 
-${mode === "quiz" ? `════════════ ACTIVE MODE: QUIZ & MULTIPLE CHOICE ASSESSMENT ════════════
-Deliver the answer with immediate clarity:
-✅ CORRECT ANSWER: **Option [Letter]: [Option Text]**
-💡 CONCISE PROOF: 2-3 sentences explaining the exact theoretical, mathematical, or architectural rule proving why this choice is correct.
-❌ WHY OTHER OPTIONS ARE WRONG: Quick 1-line debunking of the other choices.` :
-mode === "coding" ? `════════════ ACTIVE MODE: CODING CHALLENGE (${preferredLanguage}) ════════════
+${mode === "coding" ? `════════════ ACTIVE MODE: CODING CHALLENGE (${preferredLanguage}) ════════════
 CRITICAL 100% CODE ACCURACY MANDATE:
 1. Provide optimal, 100% verified compilable code in ${preferredLanguage} inside a single markdown code block:
 \`\`\`${preferredLanguage.toLowerCase()}

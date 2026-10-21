@@ -1,4 +1,3 @@
-import { detectLanguageHint } from "../../services/screenSolver";
 import { readAndParseFile } from "../../services/resume";
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useAppStore, TeleprompterFontSize } from "../../store/useAppStore";
@@ -38,106 +37,6 @@ interface CodeBlockCardProps {
   isCopied: boolean;
 }
 
-// Dedicated High-Contrast MCQ / Quiz Answer Card
-function QuizAnswerCard({
-  answerText,
-  onCopy
-}: {
-  answerText: string;
-  onCopy: (text: string) => void;
-}) {
-  const match = answerText.match(/(?:✅\s*)?CORRECT ANSWER:\s*(?:[\*_]*Option\s*[\*_]*)?([A-D0-9][^\r\n\*_]*)/i);
-  const correctOptionText = match ? match[1].replace(/[\*_]/g, "").trim() : "";
-
-  const proofMatch = answerText.match(/(?:💡\s*)?(?:DIRECT PROOF|CONCISE PROOF|PROOF)[^\r\n]*:?\s*([\s\S]*?)(?=(?:❌|WHY OTHER|OTHER OPTIONS|$))/i);
-  const proofText = proofMatch ? proofMatch[1].trim() : "";
-
-  const distractorsMatch = answerText.match(/(?:❌\s*)?(?:WHY OTHER OPTIONS ARE|WHY OTHER|OTHER OPTIONS)[^\r\n]*:?\s*([\s\S]*?)$/i);
-  const distractorsText = distractorsMatch ? distractorsMatch[1].trim() : "";
-
-  return (
-    <div
-      style={{
-        margin: "12px 0 16px 0",
-        padding: "16px",
-        background: "linear-gradient(135deg, rgba(6, 78, 59, 0.55), rgba(15, 23, 42, 0.85))",
-        border: "1.5px solid rgba(52, 211, 153, 0.6)",
-        borderRadius: "10px",
-        boxShadow: "0 8px 28px rgba(6, 78, 59, 0.4)",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "18px" }}>🎯</span>
-          <span style={{ fontSize: "14px", fontWeight: 800, color: "#a7f3d0", letterSpacing: "0.5px", textTransform: "uppercase" }}>
-            Verified Correct Option
-          </span>
-        </div>
-        {correctOptionText && (
-          <button
-            onClick={() => onCopy(correctOptionText)}
-            title="Copy correct option immediately to clipboard"
-            style={{
-              background: "rgba(16, 185, 129, 0.3)",
-              color: "#6ee7b7",
-              border: "1px solid rgba(52, 211, 153, 0.6)",
-              borderRadius: "5px",
-              padding: "4px 10px",
-              fontSize: "11px",
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-          >
-            <Copy size={12} />
-            <span>Copy Option</span>
-          </button>
-        )}
-      </div>
-
-      {correctOptionText && (
-        <div
-          style={{
-            padding: "10px 14px",
-            background: "rgba(16, 185, 129, 0.22)",
-            border: "1px solid rgba(52, 211, 153, 0.45)",
-            borderRadius: "6px",
-            fontSize: "16px",
-            fontWeight: 750,
-            color: "#ecfdf5",
-            marginBottom: "12px"
-          }}
-        >
-          {correctOptionText}
-        </div>
-      )}
-
-      {proofText && (
-        <div style={{ marginBottom: "10px" }}>
-          <div style={{ fontSize: "12px", fontWeight: 700, color: "#34d399", marginBottom: "4px" }}>
-            💡 Core Proof & Verification:
-          </div>
-          <div style={{ fontSize: "13px", color: "#e2e8f0", lineHeight: "1.55" }}>
-            {proofText}
-          </div>
-        </div>
-      )}
-
-      {distractorsText && (
-        <div>
-          <div style={{ fontSize: "12px", fontWeight: 700, color: "#f87171", marginBottom: "4px" }}>
-            ❌ Why Other Options Are Wrong:
-          </div>
-          <div style={{ fontSize: "12px", color: "#cbd5e1", lineHeight: "1.5" }}>
-            {distractorsText}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 
 /* ═══ Layer 5: Answer Confidence Badge ═══ */
@@ -437,20 +336,6 @@ export default function TeleprompterView() {
     }
   };
 
-  const [isStealthActive, setIsStealthActive] = useState(true);
-
-  const handleToggleStealth = async () => {
-    const next = !isStealthActive;
-    setIsStealthActive(next);
-    await window.electronAPI?.setContentProtection?.(next);
-    setToast(
-      next
-        ? "🛡️ Screen Stealth ON: Window is completely invisible in screen share (Zoom, Meet, Teams)"
-        : "⚠️ Screen Stealth OFF: Window is now visible in screen share"
-    );
-  };
-
-  const [isScreenReading, setIsScreenReading] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 900
@@ -465,12 +350,7 @@ export default function TeleprompterView() {
   const isCompact = windowWidth < 920;
   const isUltraCompact = windowWidth < 660;
 
-  useEffect(() => {
-    const unsub = window.electronAPI?.onTriggerScreenCapture?.(() => {
-      handleScreenCapture("fullscreen");
-    });
-    return () => { unsub?.(); };
-  }, []);
+
 
   const handleSteerAnswer = (instruction: string) => {
     if (!currentQuestion) return;
@@ -485,46 +365,6 @@ export default function TeleprompterView() {
     setToast("🔄 Regenerating answer from scratch...");
   };
 
-  const handleScreenCapture = async (mode: "fullscreen" | "snip" = "fullscreen") => {
-    if (isScreenReading) return;
-    setIsScreenReading(true);
-    setToast(
-      mode === "snip"
-        ? "✂️ Snip Active: Drag a rectangle directly over the question or code on screen"
-        : "📸 Reading interviewer screen via Apple Vision Neural OCR..."
-    );
-
-    try {
-      const res = await window.electronAPI?.captureScreenAndOCR?.(mode);
-      if (res?.cancelled) {
-        setToast("Screen capture cancelled.");
-        setIsScreenReading(false);
-        return;
-      }
-      if (!res?.success || !res?.text) {
-        setToast(res?.error || "No readable text or code found on screen.");
-        setIsScreenReading(false);
-        return;
-      }
-
-      const lang = detectLanguageHint(res.text);
-      if (lang.isNonEnglish) {
-        setToast(`🌐 Screen is in ${lang.languageName} ${lang.flag}! Translating to English & solving...`);
-      } else {
-        setToast("🧠 Problem extracted from screen! Generating 100% verified solution...");
-      }
-      InterviewEngine.handleEvent({
-        type: "SCREEN_PROBLEM_DETECTED",
-        rawText: res.text,
-        mode
-      });
-    } catch (err: any) {
-      console.error("[TeleprompterView] Screen capture error:", err);
-      setToast("Screen capture error: " + (err?.message || err));
-    } finally {
-      setIsScreenReading(false);
-    }
-  };
 
   const [isWindowDragging, setIsWindowDragging] = useState(false);
 
@@ -533,35 +373,6 @@ export default function TeleprompterView() {
     setIsWindowDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
-
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    if (["png", "jpg", "jpeg", "webp", "bmp", "tiff"].includes(ext || "")) {
-      try {
-        setToast(`📸 Reading ${file.name} with Apple Vision Neural OCR...`);
-        const res = await window.electronAPI?.ocrImageFile?.((file as any).path);
-        if (res?.success && res.text) {
-          const lang = detectLanguageHint(res.text);
-          if (lang.isNonEnglish) {
-            setToast(`🌐 Detected ${lang.languageName} ${lang.flag} in ${file.name}! Translating to English & solving...`);
-          } else {
-            setToast(`🧠 Extracted problem from ${file.name}! Solving with 0-hallucination verification...`);
-          }
-          InterviewEngine.handleEvent({
-            type: "SCREEN_PROBLEM_DETECTED",
-            rawText: res.text,
-            mode: "fullscreen"
-          });
-          return;
-        } else {
-          setToast(res?.error || "No readable text found in dropped image.");
-          return;
-        }
-      } catch (err: any) {
-        console.error("Image OCR error:", err);
-        setToast("Image OCR error: " + (err?.message || err));
-        return;
-      }
-    }
 
     try {
       setToast(`Reading ${file.name}...`);
@@ -628,46 +439,17 @@ export default function TeleprompterView() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Instant Stealth Hide / Panic Shortcut: Escape or Cmd+Shift+H or Cmd+\ or Cmd+Shift+Space
-      if (
-        e.key === "Escape" ||
-        ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.code === "KeyH" || e.key.toLowerCase() === "h")) ||
-        ((e.metaKey || e.ctrlKey) && (e.code === "Backslash" || e.key === "\\")) ||
-        ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === "Space")
-      ) {
-        const activeTag = document.activeElement?.tagName;
-        if (e.key === "Escape" && (activeTag === "INPUT" || activeTag === "TEXTAREA")) {
-          (document.activeElement as HTMLElement)?.blur();
-          return;
-        }
-        e.preventDefault();
-        window.electronAPI?.toggleVisibility?.();
-        return;
-      }
-
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.code === "KeyS" || e.key.toLowerCase() === "s")) {
-        e.preventDefault();
-        handleScreenCapture("fullscreen");
-        return;
-      }
-
       // Mode switching shortcuts
       if ((e.metaKey || e.ctrlKey) && e.key === "1") {
         e.preventDefault();
         setResponseMode("coding");
-        setToast("Mode: 💻 Coding");
+        setToast("Mode: 💻 Coding Practice");
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "2") {
         e.preventDefault();
         setResponseMode("interview");
-        setToast("Mode: 🎙️ Interview");
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === "3") {
-        e.preventDefault();
-        setResponseMode("quiz");
-        setToast("Mode: 📝 Quiz");
+        setToast("Mode: 🎙️ Interview Practice");
         return;
       }
 
@@ -1147,32 +929,7 @@ export default function TeleprompterView() {
             {!isUltraCompact && <span>Shortcuts</span>}
           </button>
 
-          <button
-            onClick={handleToggleStealth}
-            title={
-              isStealthActive
-                ? "Screen Stealth ON: Teleprompter is 100% invisible to Zoom, Google Meet, Teams, Discord & recordings"
-                : "Screen Stealth OFF: Teleprompter is visible to screen share"
-            }
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              background: isStealthActive ? "rgba(16, 185, 129, 0.16)" : "rgba(239, 68, 68, 0.16)",
-              border: isStealthActive ? "1px solid rgba(52, 211, 153, 0.4)" : "1px solid rgba(239, 68, 68, 0.4)",
-              color: isStealthActive ? "#6ee7b7" : "#fca5a5",
-              borderRadius: "4px",
-              padding: "3px 8px",
-              fontSize: "11px",
-              fontWeight: 600,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              transition: "all 0.15s ease"
-            }}
-          >
-            <Shield size={12} style={{ color: isStealthActive ? "#34d399" : "#f87171" }} />
-            {!isUltraCompact && <span>{isStealthActive ? "Stealth ON" : "Stealth OFF"}</span>}
-          </button>
+          
 
           <button
             onClick={() => setResumeModalOpen(true)}
@@ -1226,27 +983,7 @@ export default function TeleprompterView() {
             <History size={13} />
           </button>
 
-          <button
-            onClick={() => window.electronAPI?.toggleVisibility?.()}
-            title="Instant Stealth Toggle (0ms instant hide/show without any animation or visibility) — Shortcut: Cmd+Shift+H or Cmd+\"
-            style={{
-              background: "rgba(255, 255, 255, 0.08)",
-              color: "#cbd5e1",
-              border: "1px solid rgba(255, 255, 255, 0.14)",
-              borderRadius: "4px",
-              padding: "3px 8px",
-              fontSize: "11px",
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              transition: "all 0.15s ease"
-            }}
-          >
-            <EyeOff size={11} />
-            <span>Hide (⌘⇧H)</span>
-          </button>
+          
 
           <button
             onClick={handleExit}
@@ -1594,15 +1331,7 @@ export default function TeleprompterView() {
                 </div>
               )}
 
-              {(responseMode === "quiz" || currentAnswer?.includes("CORRECT ANSWER:")) && (
-                <QuizAnswerCard
-                  answerText={currentAnswer}
-                  onCopy={(text) => {
-                    navigator.clipboard.writeText(text);
-                    setToast("🎯 Correct Option copied to clipboard!");
-                  }}
-                />
-              )}
+              
 
               {parsedSegments.map((segment, idx) => {
                 if (segment.type === "code" && segment.code) {
@@ -1808,10 +1537,10 @@ export default function TeleprompterView() {
             </button>
             <button
               onClick={() => {
-                setResponseMode("quiz");
-                handleTriggerQuestion("Question: Which of the following is true regarding Inodes in Unix filesystems?\nA) They store file name and data\nB) They store file metadata and data block pointers\nC) They reside in MBR\nD) They are only used in FAT32\nSelect the single correct option and justify.");
+                setResponseMode("interview");
+                handleTriggerQuestion("Design a distributed rate limiter that handles 100,000 requests per second across multiple data centers.");
               }}
-              title="Test Quiz / MCQ Mode (Highlight correct answer + proof)"
+              title="Practice System Design Architecture Challenge"
               style={{
                 background: "linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.25))",
                 border: "1px solid rgba(52, 211, 153, 0.55)",
@@ -1823,7 +1552,7 @@ export default function TeleprompterView() {
                 cursor: "pointer"
               }}
             >
-              📝 MCQ Quiz
+              🏛️ System Design
             </button>
             <button
               onClick={() => {
@@ -1880,165 +1609,6 @@ export default function TeleprompterView() {
             flexWrap: "wrap"
           }}
         >
-          {/* Screen OCR & Solve Buttons */}
-          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-            <button
-              onClick={() => handleScreenCapture("fullscreen")}
-              disabled={isScreenReading}
-              title="Capture Interviewer's Shared Screen & Solve 100% accurately (Shortcut: Cmd+Shift+S)"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "5px",
-                background: isScreenReading
-                  ? "rgba(245, 158, 11, 0.3)"
-                  : "linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(5, 150, 105, 0.28))",
-                color: isScreenReading ? "#fde68a" : "#6ee7b7",
-                border: isScreenReading ? "1px solid #f59e0b" : "1px solid rgba(52, 211, 153, 0.45)",
-                borderRadius: "6px",
-                padding: "4px 10px",
-                fontWeight: 650,
-                fontSize: "11px",
-                cursor: isScreenReading ? "wait" : "pointer",
-                transition: "all 0.15s ease",
-                whiteSpace: "nowrap"
-              }}
-            >
-              {isScreenReading ? <Loader2 size={12} className="spin" /> : <ScanText size={12} />}
-              <span>{isScreenReading ? "Reading Screen..." : "📸 Solve Screen (⌘⇧S)"}</span>
-            </button>
-
-            <button
-              onClick={() => handleScreenCapture("snip")}
-              disabled={isScreenReading}
-              title="Snip specific question box / code snippet on screen"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                background: "rgba(99, 102, 241, 0.2)",
-                color: "#c7d2fe",
-                border: "1px solid rgba(129, 140, 248, 0.35)",
-                borderRadius: "6px",
-                padding: "4px 8px",
-                fontWeight: 600,
-                fontSize: "11px",
-                cursor: isScreenReading ? "wait" : "pointer",
-                transition: "all 0.15s ease",
-                whiteSpace: "nowrap"
-              }}
-            >
-              <Crop size={11} />
-              <span>✂️ Snip Box</span>
-            </button>
-          </div>
-
-          {/* Left: Mic toggle button & Live Hearing Indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <button
-              onClick={toggleRecording}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                background: isListening ? "#dc2626" : "#4f46e5",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "6px",
-                padding: "4px 10px",
-                fontWeight: 600,
-                fontSize: "11px",
-                cursor: "pointer",
-                boxShadow: isListening ? "0 0 10px rgba(220, 38, 38, 0.5)" : "none"
-              }}
-            >
-              {isListening ? (
-                <>
-                  <MicOff size={12} />
-                  <span>Listening ({diagnosticState.currentDb} dB)</span>
-                </>
-              ) : (
-                <>
-                  <Mic size={12} />
-                  <span>Start Listening</span>
-                </>
-              )}
-            </button>
-
-            {/* Live 5-Bar Audio Level VU Meter */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-end",
-                gap: "2px",
-                height: "14px",
-                padding: "0 2px"
-              }}
-              title={`Microphone input level: ${diagnosticState.currentDb} dB (Threshold: -46 dB)`}
-            >
-              {[1, 2, 3, 4, 5].map((bar) => {
-                const minThreshold = -62 + bar * 6; // -56, -50, -44, -38, -32
-                const active = isListening && diagnosticState.currentDb > minThreshold;
-                const color = bar >= 5 ? "#ef4444" : bar >= 4 ? "#f59e0b" : "#10b981";
-                return (
-                  <span
-                    key={bar}
-                    style={{
-                      width: "3px",
-                      height: `${4 + bar * 2}px`,
-                      borderRadius: "1px",
-                      background: active ? color : "rgba(255, 255, 255, 0.15)",
-                      boxShadow: active ? `0 0 6px ${color}` : "none",
-                      transition: "background 0.08s ease"
-                    }}
-                  />
-                );
-              })}
-            </div>
-
-            {/* Status explanation */}
-            <span
-              style={{
-                color:
-                  recitalState === "reciting"
-                    ? "#93c5fd"
-                    : recitalState === "interrupted"
-                    ? "#fca5a5"
-                    : isListening
-                    ? "#86efac"
-                    : "#94a3b8"
-              }}
-            >
-              {status === "transcribing"
-                ? "🎙️ Transcribing speech..."
-                : status === "analyzing" || status === "generating"
-                ? "⚡ Streaming answer..."
-                : recitalState === "reciting"
-                ? "🗣️ Candidate answering (mic echo paused • listening for third person)"
-                : recitalState === "interrupted"
-                ? "⚡ Interviewer interrupted! Reacting live..."
-                : isListening
-                ? "● Continuous mic active (auto echo-filtering)"
-                : "Mic paused"}
-            </span>
-
-            {/* Live heard ticker */}
-            {diagnosticState.latestTranscript && diagnosticState.latestTranscript !== "(empty)" && (
-              <span
-                style={{
-                  maxWidth: "240px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  color: "#cbd5e1"
-                }}
-                title={diagnosticState.latestTranscript}
-              >
-                Heard: "{diagnosticState.latestTranscript}"
-              </span>
-            )}
-          </div>
-
           {/* Right: Copy Full Answer Button */}
           {currentAnswer && (
             <button
