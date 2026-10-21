@@ -2097,7 +2097,7 @@ export default function TeleprompterView() {
               onClick={() => {
                 setResponseMode('interview');
                 handleTriggerQuestion(
-                  'Tell me about a challenging distributed systems backend issue you solved at ATMA Research or Quorum.'
+                  'Tell me about a challenging distributed systems backend issue you solved in past production systems.'
                 );
               }}
               title="Test Behavioral / STAR Interview Response Mode"

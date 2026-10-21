@@ -140,7 +140,10 @@ export interface MockSessionState {
     evaluation?: RubricEvaluation;
     delivery?: DeliveryMetrics;
     hintsUsed: TieredHint[];
+    interruptionCount?: number;
+    probeCount?: number;
   }>;
+  isOfflineInterviewer?: boolean;
   overallScorecard?: {
     finalRating: "Strong No Hire" | "No Hire" | "Leaning Hire" | "Hire" | "Strong Hire";
     averageScore: number;

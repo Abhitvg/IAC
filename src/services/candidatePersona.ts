@@ -25,77 +25,7 @@ import { getGfgKnowledgePromptSection } from '../data/gfgCurriculum';
 
 export const DEFAULT_TARGET_ROLE = 'Software Developer (Alignerr — AI Assisted Coding)';
 
-export const DEFAULT_RESUME = `ABHISHEK SINGH
-Software Development Engineer — Java & Spring Boot — Distributed Systems — Full Stack
-Email: Abhisheksingh1thakur@gmail.com | Phone: +91-8850970898 | GitHub: github.com/Abhitvg | LinkedIn: linkedin.com/in/abhisheksingh22141
-New Delhi, India
-
-EDUCATION:
-Jawaharlal Nehru University (JNU), New Delhi (2020 – 2025)
-B.Tech and M.Tech in Computer Science and Engineering (GPA: 7.1/10)
-- M.Tech Thesis: Social Network Analysis on Media Bias in News Articles (Computational NLP bias detection across 50,000+ articles)
-- GATE CS/IT Qualified (2024)
-- JEE MAINS AIR 6126 (2020)
-- Joint Secretary — JNU Alumni Association (2025 – Present) | JNUSU Councillor (SoE) (2024)
-
-PROFESSIONAL EXPERIENCE:
-ATMA Research & Consultancy | Software Development Engineer – Java Full Stack (Jul 2025 – Present) [Remote]
-- Own backend services for three production platforms using Java 8, Spring Boot, and REST APIs, serving 10K+ daily users at 99.9% uptime.
-- Architected MongoDB data models and reworked compound indexes, reducing average read latency by 35%.
-- Implemented Apache Solr for full-text search, faceted filtering, and type-ahead, improving search click-through by 20%.
-- Replaced hourly batch synchronization with Kafka-based event pipelines for real-time inventory and promotion updates across microservices.
-- Optimized Oracle SQL for executive dashboards by rewriting execution plans and adding materialized views, reducing report time by 40%.
-- Built responsive Angular 8+ interfaces from Figma specifications and maintained 85%+ test coverage using JUnit and Mockito.
-
-CIET-NCERT Virasat – PAC Project 20.09 | Project Associate (Nov 2025 – Jun 2026) [New Delhi]
-- Engineered a fully local architecture using a 100% local JSON pipeline, eliminating external API dependencies and network round trips.
-- Developed a Survey of India-compliant SVG drill-down map engine with three-tier zoom logic and integrated @react-three/fiber for browser-based 3D historical artifact rendering.
-- Validated TopoJSON boundaries and executed load simulations to support fast rendering on low-bandwidth networks.
-
-Indian Eurasia Research Forum | Technical Lead (Part-time) (Oct 2025 – Jul 2026) [New Delhi]
-- Led technical initiatives and digital infrastructure for international research collaborations and data dissemination.
-
-Freelance / Contract – Full Stack Developer (Mar 2022 – Jun 2025) [India]
-- Delivered four end-to-end web applications spanning Spring Boot APIs, MongoDB/Cassandra schema design, Angular frontends, and cloud deployment.
-- Implemented Solr-powered search across a 50K-SKU catalog with custom tokenizers and sub-200ms query times.
-- Integrated Kafka and ActiveMQ for order processing and notification dispatch, keeping services decoupled.
-- Built CI/CD pipelines using Jenkins, GitHub Actions, and Docker, reducing post-release defects by 45%.
-
-KEY PROJECTS:
-Quorum – Real-Time Video Conferencing & AI Collaboration Platform (Turborepo Monorepo)
-- Built an enterprise real-time collaboration platform featuring Next.js 16 (@livekit/components-react), a NestJS REST API with TypeORM & PostgreSQL/Redis, and a Python-based intelligent meeting agent (livekit-agents, Deepgram, ElevenLabs).
-- Orchestrated containerized deployment on AWS EKS with Kustomize overlays (dev/staging/production at quorum.atma-ai.co.in), AWS ALB Ingress Controller, and Datadog APM distributed tracing with unified service tagging. Tech: Next.js 16, NestJS, TypeScript, Python, LiveKit, PostgreSQL, Redis, Docker, AWS EKS, AWS CDK, Datadog.
-
-Porcupine – ATMA AI Autonomous Multi-Agent Desktop OS & Command Center
-- Engineered an Electron and Next.js 16 desktop operating system orchestrating autonomous AI agents with automated provider failover, AI critique loop, and Picovoice wake-word activation.
-- Built secure offline RAG utilizing ONNX Runtime, @xenova/transformers, and encrypted local SQLite (better-sqlite3) for CRM, finance, and social workflows. Tech: Electron, Next.js 16, SQLite, ONNX Runtime, Xenova, Picovoice, Tailwind CSS.
-
-DocFlow – Collaborative Document Editor & Management Platform (Live: docflow-ashy.vercel.app)
-- Developed a high-performance collaborative document workspace with Next.js 15, Tiptap 3 (ProseMirror), Prisma 5, and Neon PostgreSQL.
-- Implemented debounced auto-saving (1.5s), granular RBAC (Owner, Editor, Viewer), document version snapshots with restore, and multi-format import/export (.docx, .pdf, .md, .txt) with Vitest test coverage. Tech: Next.js 15, Tiptap 3, Prisma 5, Neon PostgreSQL, TypeScript, Vitest, Tailwind CSS.
-
-Sheetal Electrotech – Industrial Web Platform & RFQ Pipeline
-- Engineered a bilingual enterprise platform (English/Hindi locale routes) with Neon PostgreSQL and NextAuth administration.
-- Built an automated Request For Quotation (RFQ) processing engine handling CAD/engineering drawing uploads via private Vercel Blob storage with Resend email triggers. Tech: Next.js (App Router), Neon Postgres, Vercel Blob, Resend, NextAuth.
-
-Embassy of Israel – Zubin Mehta Cultural Portal
-- Architected the interactive frontend for an international cultural initiative in React.js, optimizing component state management and implementing asset lazy-loading for ultra-high-resolution visual and audio media. Tech: React.js, CSS3, JavaScript.
-
-Uttarakhand Shashan Co-Operative / DoonSilk – Distributed Supply-Chain Platform
-- Designed RESTful microservices and NoSQL schemas for product inventory, silk grower management, and real-time shipment tracking. Tech: MERN Stack, Next.js, MongoDB, Express, Node.js.
-
-The Balance Bite – Native Android Health & Nutrition Application
-- Developed a native Android application in Java with Firebase Realtime Database and Authentication for dietary logging, calorie calculation, and nutrition analytics. Tech: Java, Android SDK 34, Firebase, Gradle.
-
-Media Bias Analysis in Indian News Articles – M.Tech Master's Thesis
-- Designed a large-scale computational NLP and social network analysis system scraping and analyzing 50,000+ national news articles to detect media bias propagation, ideological clustering, and sentiment framing. Tech: Python, NetworkX, NLP, Pandas, Scikit-learn.
-
-TECHNICAL SKILLS:
-- Languages: Java, JavaScript (ES6+), TypeScript, Python, C++
-- Backend: Spring Boot, Spring MVC, Spring Data, Spring Security, Hibernate/JPA, REST APIs, Node.js, Express
-- Frontend: Angular (8+), React, Next.js, Redux, HTML5, CSS3, Tailwind CSS
-- Data & Messaging: MongoDB, PostgreSQL, Oracle SQL, Apache Kafka, Apache Solr, Apache Spark, ActiveMQ/JMS, SQLite, Cassandra
-- DevOps & Testing: Docker, Jenkins, GitHub Actions, Git, Linux, AWS, JUnit, Mockito, Postman, Swagger/OpenAPI`;
+export const DEFAULT_RESUME = "";
 
 export const DEFAULT_JOB_DESCRIPTION = `Role: Software Developer — Build Your Own Project with an AI Coding Assistant
 Organization: Alignerr
@@ -476,7 +406,7 @@ export function getDynamicWhisperVocab(
   // Extract resume-specific terms
   const resumeTerms: string[] = [];
   const resumeMatches = (resumeText || '').match(
-    /\b(ATMA|Quorum|DocFlow|Porcupine|Virasat|JNU|Alignerr|MongoDB|Apache Kafka|Apache Solr|Oracle SQL|Angular|Spring Boot|Firebase)\b/gi
+    /\b(MongoDB|Apache Kafka|Apache Solr|Oracle SQL|Angular|Spring Boot|Firebase|PostgreSQL|Redis|Docker|Kubernetes|AWS)\b/gi
   );
   if (resumeMatches) {
     resumeTerms.push(...[...new Set(resumeMatches)].slice(0, 10));
@@ -496,7 +426,7 @@ For ANY system design, architecture, or "Design a..." question, follow this rigo
 
 PHASE 1 — REQUIREMENTS & SCOPE CLARIFICATION (10%):
 - State functional requirements: "The system needs to support X users doing Y at Z scale."
-- State non-functional requirements: availability (99.9%), latency (<200ms p99), throughput, consistency model.
+- State non-functional requirements: availability targets, latency percentiles, throughput, consistency model.
 - Clarify scope: "For this discussion, I'll focus on the core [read/write] path and defer [analytics/admin] to a follow-up."
 
 PHASE 2 — CAPACITY ESTIMATION & BACK-OF-ENVELOPE MATH (10%):
@@ -595,22 +525,22 @@ For ANY behavioral, situational, leadership, or past-experience question ("Tell 
 Strictly apply the MIT Career Advising & Professional Development (CAPD) STAR Method formula:
 
 1. SITUATION (~20% of response):
-   - Set the context and stakes clearly using a real company/project from your resume (e.g., ATMA Research & Consultancy, Quorum, Porcupine, DocFlow, CIET-NCERT Virasat).
+   - Set the context and stakes clearly using a verified company/project from your resume. Never invent companies or projects.
    - Provide concise context so the interviewer understands the situation without unnecessary trivia.
 
 2. TASK (~10% of response):
-   - State the specific goal, technical challenge, or responsibility you took ownership of (e.g., eliminating latency spikes on MongoDB, replacing batch sync with real-time Kafka streams, scaling Spring Boot services to 10K+ users at 99.9% uptime).
+   - State the specific goal, technical challenge, or responsibility you took ownership of based on your verified background.
 
 3. ACTION (~60% of response — THE PRIMARY FOCUS):
    - Describe the exact, concrete actions YOU took using "I" statements (ownership of accomplishments, avoid vague "we" statements).
    - Name the specific tools, architectures, trade-offs, and technical decisions (e.g., Java 8, Spring Boot, Apache Kafka, Apache Solr, MongoDB compound indexing, Oracle SQL materialized views, Angular, Docker).
 
 4. RESULT (~10% of response):
-   - State the measurable, quantifiable business impact from your resume (e.g., "reduced average read latency by 35%", "improved search CTR by 20%", "cut post-release defects by 45%", "maintained 99.9% uptime for 10K+ users").
+   - State the measurable, quantifiable business impact from your resume from your resume or story bank. Never fabricate metrics.
    - Conclude with a strong takeaway or key learning.
 
 PRACTICE THE "YES, AND..." MENTALITY:
-- If asked a close-ended question (e.g., "Do you have experience with solving complex production issues?"), do not say just "yes". Say: "Yes, in my recent role at ATMA Research, I..." and immediately deliver a concise STAR example demonstrating depth of experience.
+- If asked a close-ended question (e.g., "Do you have experience with solving complex production issues?"), do not say just "yes". Say: "Yes, in my experience, I..." and immediately deliver a concise STAR example demonstrating depth of experience based on your actual projects.
 
 ════════════ 2. FREECODECAMP / TECH INTERVIEW HANDBOOK CODING FRAMEWORK ════════════
 For ANY algorithmic, data structure, or coding implementation question ("Write a function to...", "How would you solve...", "Implement...", "Find the...", "Given an array/string/tree..."):

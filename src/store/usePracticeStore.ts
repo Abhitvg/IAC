@@ -112,7 +112,7 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   setActiveView: (view) => set({ activeView: view }),
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  startMockSession: (roundType, persona = "strict_big_tech", interruptionEnabled = true) => {
+  startMockSession: (roundType, persona = "strict_big_tech", interruptionEnabled = false) => {
     const session = MockInterviewerEngine.createSession(roundType, persona, interruptionEnabled);
     const category = session.questionHistory[0]?.category || "behavioral";
     const availableHints = CoachingEngine.getTieredHints(session.currentQuestion, category);

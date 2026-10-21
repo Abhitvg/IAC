@@ -18,7 +18,7 @@ export class MockInterviewerEngine {
   public static createSession(
     roundType: MockRoundType,
     persona: InterviewPersona = "strict_big_tech",
-    interruptionEnabled: boolean = true
+    interruptionEnabled: boolean = false
   ): MockSessionState {
     const totalTimeSeconds = roundType === "dress_rehearsal" ? 45 * 60 : 30 * 60;
     const initialQuestion = this.getInitialQuestion(roundType);
@@ -41,6 +41,8 @@ export class MockInterviewerEngine {
           isFollowUp: false,
           candidateTranscript: "",
           hintsUsed: [],
+          interruptionCount: 0,
+          probeCount: 0,
         },
       ],
     };
@@ -69,13 +71,17 @@ export class MockInterviewerEngine {
   public static checkInterruptionTrigger(
     speakingSeconds: number,
     candidateCurrentTranscript: string,
-    persona: InterviewPersona
+    persona: InterviewPersona,
+    alreadyInterrupted: boolean = false
   ): { shouldInterrupt: boolean; promptText: string } {
+    if (alreadyInterrupted) {
+      return { shouldInterrupt: false, promptText: "" };
+    }
     const clean = (candidateCurrentTranscript || "").trim();
     const lower = clean.toLowerCase();
 
-    // Trigger after ~20-30s of speaking if candidate uses buzzwords or general statements
-    if (speakingSeconds >= 15 && clean.split(/\s+/).length >= 10) {
+    // Minimum 30 seconds of speech before first interruption and at most one interruption per answer
+    if (speakingSeconds >= 30 && clean.split(/\s+/).length >= 10) {
       if (lower.includes("cache") && !lower.includes("invalidation")) {
         return {
           shouldInterrupt: true,

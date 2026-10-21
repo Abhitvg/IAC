@@ -217,13 +217,21 @@ describe("MockInterviewerEngine", () => {
     expect(probe).toContain("invalidation");
   });
 
-  it("triggers mid-answer interruption when candidate speaks without specifics", () => {
-    const result = MockInterviewerEngine.checkInterruptionTrigger(
-      25,
+  it("triggers mid-answer interruption when candidate speaks without specifics after 30s threshold", () => {
+    // Under 30s: no interruption
+    const early = MockInterviewerEngine.checkInterruptionTrigger(
+      20,
       "We decided to use microservices and we put a cache everywhere to make it optimal and fast.",
       "strict_big_tech"
     );
+    expect(early.shouldInterrupt).toBe(false);
 
+    // Over 30s: triggers interruption
+    const result = MockInterviewerEngine.checkInterruptionTrigger(
+      35,
+      "We decided to use microservices and we put a cache everywhere to make it optimal and fast.",
+      "strict_big_tech"
+    );
     expect(result.shouldInterrupt).toBe(true);
     expect(result.promptText).toContain("specific");
   });

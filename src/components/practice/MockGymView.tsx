@@ -16,7 +16,7 @@ export const MockGymView: React.FC = () => {
   } = usePracticeStore();
 
   const [selectedPersona, setSelectedPersona] = useState<InterviewPersona>("strict_big_tech");
-  const [interruptionEnabled, setInterruptionEnabled] = useState(true);
+  const [interruptionEnabled, setInterruptionEnabled] = useState(false);
   const [showLauncher, setShowLauncher] = useState(false);
 
   const handleLaunch = (roundType: MockRoundType) => {

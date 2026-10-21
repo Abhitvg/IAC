@@ -223,7 +223,7 @@ export class CoachingEngine {
       {
         tier: 3,
         title: "Near-Solution Approach",
-        content: "Anchor your result in 2 quantifiable metrics: e.g. 'This dropped p99 latency by 35% and saved the engineering org 8 hours of on-call toil per week.'",
+        content: "Anchor your result in 2 quantifiable metrics: e.g. 'This dropped p99 latency by 40% and saved 8 hours of engineering toil per week.'",
         penaltyPoints: 2.0,
       },
     ];

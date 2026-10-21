@@ -141,7 +141,7 @@ Provide a direct, articulate first-person spoken script (~65 to 110 words) struc
 • Beat 1: Decisive executive answer & core architectural principle stated in sentence 1.
 • Beat 2: Concrete chronological phase ordering (Phase 1 Ingestion ➔ Phase 2 In-flight Processing ➔ Phase 3 Teardown/Recovery).
 • Beat 3: Production trade-off (memory vs CPU, backpressure, or debugging diagnostics).
-- Ground the answer in real production experience (e.g., ATMA Research, Quorum on AWS EKS, Porcupine).
+- Ground the answer in verified production experience from the candidate's resume.
 `
       : `======================================================================
 🚨 ACTIVE MODE: CODING CHALLENGE (${preferredLanguage})
