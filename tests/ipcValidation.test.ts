@@ -32,6 +32,7 @@ import { validateSetting } from '../electron/ipc/handlers';
 
 describe('IPC Settings Validation', () => {
   it('allows valid setting keys and values', () => {
+    expect(() => validateSetting('responseMode', 'quiz')).not.toThrow();
     expect(() => validateSetting('aiProvider', 'groq')).not.toThrow();
     expect(() => validateSetting('aiProvider', 'openai')).not.toThrow();
     expect(() => validateSetting('aiProvider', 'openrouter')).not.toThrow();

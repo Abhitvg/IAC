@@ -117,8 +117,8 @@ interface InterviewState {
 
   copyAnswer: () => void;
   copyCodeOnly: () => boolean;
-  responseMode: 'coding' | 'interview';
-  setResponseMode: (mode: 'coding' | 'interview') => void;
+  responseMode: 'coding' | 'interview' | 'quiz';
+  setResponseMode: (mode: 'coding' | 'interview' | 'quiz') => void;
   regenerateAnswer: () => void;
   sessionHistory: any[];
   currentPerformance: any;
@@ -349,7 +349,10 @@ export const useAppStore = create<InterviewState>((set, get) => ({
           savedRole === 'Senior DevOps & Cloud Engineer'
             ? DEFAULT_TARGET_ROLE
             : savedRole,
-        responseMode: savedMode === 'coding' || savedMode === 'interview' ? savedMode : 'coding',
+        responseMode:
+          savedMode === 'coding' || savedMode === 'interview' || savedMode === 'quiz'
+            ? savedMode
+            : 'coding',
       });
     } catch (_) {}
   },
@@ -382,7 +385,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   responseMode: (() => {
     try {
       const saved = localStorage.getItem('interview_response_mode');
-      if (saved === 'coding' || saved === 'interview') return saved;
+      if (saved === 'coding' || saved === 'interview' || saved === 'quiz') return saved;
     } catch (_) {}
     return 'coding';
   })(),

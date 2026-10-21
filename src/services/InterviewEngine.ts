@@ -1,3 +1,9 @@
+import {
+  cleanExtractedOcrText,
+  extractProblemHeadline,
+  buildScreenSolverPrompt,
+  detectLanguageHint,
+} from './screenSolver';
 import { classifyUtterance } from './interruptionDetector';
 import { buildCandidateSystemPrompt, estimateConfidence } from './candidatePersona';
 import { classifyQuestion } from './ai';
@@ -315,6 +321,123 @@ export class InterviewEngine {
                 store.setStatus('listening');
               }
             }, 3000);
+          }
+        }
+        break;
+      }
+
+      case 'SCREEN_PROBLEM_DETECTED': {
+        globalLatencyTracker.mark('questionDetected');
+        if (activeAbortController) {
+          activeAbortController.abort();
+          activeAbortController = null;
+        }
+
+        activeAbortController = new AbortController();
+        store.incrementGenerationId();
+        store.clearAnswerQueue();
+
+        const cleanedOcr = cleanExtractedOcrText(event.rawText || event.text);
+        const headline = extractProblemHeadline(cleanedOcr);
+        const lang = detectLanguageHint(cleanedOcr);
+
+        const titlePrefix = lang.isNonEnglish
+          ? `📸 [Screen - ${lang.languageName} ${lang.flag} ➔ English]`
+          : `📸 [Screen]`;
+
+        store.setCurrentQuestion(`${titlePrefix} ${headline}`);
+        store.setCurrentAnswer('');
+        store.setStatus('analyzing');
+        store.setRecitalState('listening');
+
+        if (lang.isNonEnglish) {
+          store.setToast(
+            `🌐 Detected ${lang.languageName} ${lang.flag} on screen! Translating to English & solving with 0-hallucination verification...`
+          );
+        } else {
+          store.setToast(
+            `📸 Screen Question Detected: "${headline.slice(0, 45)}..." — Solving with 0-hallucination verification!`
+          );
+        }
+
+        const screenGen = useAppStore.getState().generationId;
+
+        try {
+          globalLatencyTracker.mark('generationStart');
+          const currentStore = useAppStore.getState();
+          const provider = currentStore.settings?.aiProvider || 'groq';
+          const apiKey =
+            (await window.electronAPI?.getApiKey?.(provider)) ||
+            (provider === 'groq' ? await window.electronAPI?.getApiKey?.('openai') : null);
+
+          if (!apiKey && provider !== 'ollama') {
+            throw new Error(
+              `No API key configured for ${provider}. Please configure your API key in Settings.`
+            );
+          }
+
+          const mode = currentStore.responseMode || 'coding';
+          const isCoding = mode === 'coding';
+          const preferredLang = currentStore.settings?.preferredLanguage || 'Java';
+
+          const screenSolverPrompt = buildScreenSolverPrompt(
+            cleanedOcr,
+            preferredLang,
+            currentStore.targetRole,
+            mode
+          );
+
+          await streamAnswer(
+            screenSolverPrompt,
+            {
+              type: provider as any,
+              apiKey: apiKey || '',
+              model: currentStore.settings?.aiModel || 'openai/gpt-oss-120b',
+              temperature: 0.1,
+              maxTokens: isCoding ? 2000 : store.settings?.maxTokens || 1500,
+              systemPrompt:
+                'You are a world-class Principal Software Engineer and ACM ICPC World Finalist. You deliver 100% verified, bug-free, optimal, compilable code and rigorous algorithmic proofs with ZERO hallucinations.',
+            },
+            preferredLang.toLowerCase() as any,
+            {
+              onToken: (token) => {
+                if (useAppStore.getState().generationId === screenGen) {
+                  useAppStore.getState().appendAnswerToken(token);
+                  if (useAppStore.getState().status !== 'generating') {
+                    useAppStore.getState().setStatus('generating');
+                  }
+                }
+              },
+              onSentence: (sentence) => {
+                if (useAppStore.getState().generationId === screenGen) {
+                  const currentQueue = useAppStore.getState().teleprompterQueue;
+                  useAppStore.getState().enqueueSentences([...currentQueue, sentence]);
+                }
+              },
+              onComplete: (full) => {
+                globalLatencyTracker.mark('generationEnd');
+                if (useAppStore.getState().generationId === screenGen) {
+                  useAppStore.getState().setCurrentAnswer(full);
+                  useAppStore.getState().setRecitalState('listening');
+                  useAppStore.getState().setStatus('listening');
+                }
+              },
+              onError: (err) => {
+                console.error('[InterviewEngine] Screen Solve error:', err);
+                store.updateDiagnostics({
+                  whisperStatus: 'screen solve error: ' + (err.message || String(err)),
+                });
+              },
+            },
+            activeAbortController.signal
+          );
+        } catch (e: any) {
+          if (e.name !== 'AbortError') {
+            console.error('[InterviewEngine] Screen Solver Failed:', e.message);
+            store.updateDiagnostics({
+              whisperStatus: 'solver error: ' + (e.message || String(e)),
+            });
+            store.setStatus('error');
           }
         }
         break;

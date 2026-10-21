@@ -178,11 +178,17 @@ export interface PipelineStatus {
 // ─── Electron API Types ───
 
 export interface ElectronAPI {
+  toggleVisibility?: () => void;
+  hideWindow?: () => void;
+  showWindow?: () => void;
   minimize: () => void;
   maximize: () => void;
   close: () => void;
   toggleAlwaysOnTop: () => void;
   isAlwaysOnTop: () => Promise<boolean>;
+  setContentProtection?: (enable: boolean) => Promise<boolean>;
+  isContentProtected?: () => Promise<boolean>;
+  toggleContentProtection?: () => void;
   getRecordingsDir: () => Promise<string>;
   getSessionsDir: () => Promise<string>;
   getUserDataPath: () => Promise<string>;
@@ -205,6 +211,11 @@ export interface ElectronAPI {
   startWsServer: () => Promise<{ port: number; token?: string }>;
   stopWsServer: () => Promise<boolean>;
   onBrowserContext: (callback: (data: BrowserContext) => void) => () => void;
+  onTriggerScreenCapture?: (callback: () => void) => () => void;
+  captureScreenAndOCR?: (
+    mode?: 'fullscreen' | 'snip'
+  ) => Promise<{ success: boolean; text?: string; cancelled?: boolean; error?: string }>;
+  ocrImageFile?: (filePath: string) => Promise<{ success: boolean; text?: string; error?: string }>;
   platform: string;
 }
 

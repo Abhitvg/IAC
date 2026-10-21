@@ -541,7 +541,7 @@ export function buildCandidateSystemPrompt(
   jobDescriptionText: string,
   targetRole: string,
   preferredLanguage: string = 'Java',
-  mode: 'coding' | 'interview' = 'interview',
+  mode: 'coding' | 'interview' | 'quiz' = 'interview',
   conversationHistory: Array<{ question: string; answer: string; category: string }> = [],
   detectedCategory: string = 'General'
 ): string {

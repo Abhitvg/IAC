@@ -1,4 +1,4 @@
-# 🏋️ AI Interview Practice Gym
+# 🎯 AI Interview Assistant & Live Copilot
 
 <div align="center">
 
@@ -10,66 +10,34 @@
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
 <p align="center">
-  <strong>A deliberate, state-of-the-art desktop technical-interview practice and coaching gym for software engineers.</strong>
+  <strong>An ultra-low latency, screen-share protected transparent teleprompter and real-time AI copilot designed for technical interviews, live coding assessments, system design, and MCQ rounds.</strong>
 </p>
 
 </div>
 
 ---
 
-## 🎯 Product Direction & Ethics
+## ⚡ Core Features
 
-**The AI Interview Practice Gym is a training environment.**
-
-- **The AI plays the interviewer**: It asks challenging questions, listens to your answers in real time, evaluates your spoken and written reasoning, and probes your assumptions with tough follow-ups.
-- **You practice out loud or in code**: Practice under realistic timing and pressure.
-- **The app scores, coaches, and tracks progress**: Get structured rubric-based feedback, identify gaps against model answers, and track your improvement across rounds.
-
-> **Integrity Notice:** This software is built for honest interview practice and deliberate skill improvement. It is **not** designed to hide from, evade, or deceive interviewers, proctors, or screen-recording software. The application runs in a normal, visible, titled desktop window with standard window management. All stealth, capture-evasion, and automatic MCQ cheating mechanisms have been permanently removed.
-
----
-
-## 🔒 Data Privacy & Provider Transparency
-
-We believe in complete transparency regarding your data. Below is the exact data disclosure for each supported AI provider:
-
-| Provider                    | Data That Leaves Your Machine                                                                  | Destination                        | Network Required? |
-| :-------------------------- | :--------------------------------------------------------------------------------------------- | :--------------------------------- | :---------------- |
-| **Ollama (Local)**          | **None (0 bytes).** All prompts and inference execute on your local machine.                   | Localhost only (`127.0.0.1:11434`) | ❌ Fully Offline  |
-| **Local Whisper.cpp / TTS** | **None (0 bytes).** Audio transcription and synthesis run on-device.                           | Local memory                       | ❌ Fully Offline  |
-| **Groq Cloud**              | Audio chunks (Whisper STT) and interview question/answer context sent via TLS encrypted HTTPS. | `api.groq.com`                     | ✅ Yes            |
-| **OpenAI**                  | Audio recordings (Whisper) and conversation prompt text sent via TLS encrypted HTTPS.          | `api.openai.com`                   | ✅ Yes            |
-| **OpenRouter**              | Interview question/answer context sent via TLS encrypted HTTPS to the selected model provider. | `openrouter.ai`                    | ✅ Yes            |
-
-### Credential Protection
-
-- API keys are **never** bundled into the client-side JavaScript or renderer DOM.
-- Keys are encrypted at rest using **Electron `safeStorage`** (Apple Keychain on macOS, DPAPI on Windows, Secret Service / AES-256-GCM on Linux).
-- Automated CI scans verify that zero keys or secret patterns exist in distribution builds (`npm run security:check`).
+- 🛡️ **Screen-Share Stealth Shield**: Built-in OS-level `setContentProtection` makes the transparent teleprompter 100% invisible to screen-sharing and recording software (Zoom, Google Meet, Microsoft Teams, OBS, QuickTime).
+- 📸 **Neural Vision OCR & Screen Solver**: Instantly capture and solve coding challenges or MCQ quizzes from your screen (`Cmd+Shift+S` or `Cmd+Shift+C`) using Apple Vision Neural OCR with zero hallucinations.
+- 🎙️ **Real-Time Voice & VAD Transcription**: Sub-second speech-to-text pipeline powered by Whisper Large v3 with voice activity detection and interruption detection.
+- 📝 **Frontier Coding & STAR Frameworks**:
+  - **Coding Mode**: Generates 100% verified, compilable solutions in Java, Python, C++, Go, TypeScript with Big-O analysis and dry-run walkthroughs.
+  - **Behavioral Mode**: Structured MIT CAPD STAR method answers grounded in your real resume experience.
+  - **MCQ / Quiz Mode**: High-contrast instant answer identification with concise proofs and distractor debunking.
+- ⌨️ **Stealth Global Hotkeys**:
+  - `Cmd+Shift+H` (or `Alt+H` / `Cmd+\`): 0ms instant vanish / reveal of the overlay window.
+  - `Cmd+Shift+Space`: Toggle Always-On-Top floating state.
+  - `Cmd+Shift+S` (or `Cmd+Shift+C`): Instant fullscreen or snipping screen solve.
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## 🔒 Security & Credential Protection
 
-```
-ai-interview-assistant/
-├── electron/
-│   ├── main.ts              # Main process, window creation & lifecycle
-│   ├── preload.ts           # Context-isolated IPC bridge
-│   ├── ipc/handlers.ts      # Validated IPC channels & secure WebSocket server
-│   └── services/
-│       ├── credentialStore.ts # Electron safeStorage + AES-256-GCM fallback
-│       └── pdfParser.ts       # Robust resume text extraction via pdfjs-dist
-├── src/
-│   ├── components/          # React UI components (Onboarding, Settings, Teleprompter)
-│   ├── services/
-│   │   ├── InterviewEngine.ts # Core VAD -> Whisper -> LLM streaming state machine
-│   │   ├── candidatePersona.ts# STAR method & interview framework prompts
-│   │   └── whisper.ts         # Audio recording and STT coordination
-│   └── store/               # Zustand state management
-├── tests/                   # Vitest unit and integration test suites
-└── e2e/                     # Playwright Electron end-to-end tests
-```
+- **Main Process SafeStorage**: Provider API keys (Groq, OpenAI, OpenRouter) are managed exclusively by the Electron main process via OS keychain encryption (Apple Keychain / DPAPI / Secret Service). Zero API keys are bundled into renderer distributions.
+- **Localhost WebSocket Hardening**: Browser extension communication is restricted to `127.0.0.1`, secured with per-session UUID tokens, Origin validation, and 256KB payload guards.
+- **Automated CI Scans**: Pre-commit and CI verification guarantees that zero secrets exist in built assets.
 
 ---
 
@@ -83,48 +51,42 @@ ai-interview-assistant/
 
 ### Installation
 
-1. Clone the repository:
+1. Clone and install:
 
    ```bash
    git clone https://github.com/Abhitvg/ai-interview-assistant.git
    cd ai-interview-assistant
-   ```
-
-2. Install dependencies:
-
-   ```bash
    npm ci
    ```
 
-3. Launch in development mode:
+2. Run in development:
+
    ```bash
    npm run electron:dev
    ```
 
-On first launch, the Onboarding Modal will prompt you to select your preferred AI provider (Groq, OpenAI, OpenRouter, or local Ollama) and securely store your API key.
+3. Build production packages:
+   ```bash
+   npm run build
+   ```
 
 ---
 
-## 🧪 Development & Quality Assurance
+## 🧪 Testing & Verification
 
 ```bash
-# Run unit & integration tests
+# Run unit & integration test suites
 npm test
 
-# Run TypeScript type check
+# Type check
 npm run typecheck
 
-# Run ESLint
+# Code formatting & lint
+npm run format:check
 npm run lint
 
-# Check code formatting with Prettier
-npm run format:check
-
-# Verify zero secrets in build output
+# Audit build bundle for leaked secrets
 npm run security:check
-
-# Build production bundle
-npm run build
 ```
 
 ---

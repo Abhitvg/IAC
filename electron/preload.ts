@@ -1,12 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Window controls
+  // Window controls & Stealth
+  toggleVisibility: () => ipcRenderer.send('window:toggle-visibility'),
+  hideWindow: () => ipcRenderer.send('window:hide'),
+  showWindow: () => ipcRenderer.send('window:show'),
   minimize: () => ipcRenderer.send('window:minimize'),
   maximize: () => ipcRenderer.send('window:maximize'),
   close: () => ipcRenderer.send('window:close'),
   toggleAlwaysOnTop: () => ipcRenderer.send('window:toggle-always-on-top'),
   isAlwaysOnTop: () => ipcRenderer.invoke('window:is-always-on-top'),
+  setContentProtection: (enable: boolean) =>
+    ipcRenderer.invoke('window:set-content-protection', enable),
+  isContentProtected: () => ipcRenderer.invoke('window:is-content-protected'),
+  toggleContentProtection: () => ipcRenderer.send('window:toggle-content-protection'),
 
   // Paths
   getRecordingsDir: () => ipcRenderer.invoke('get-recordings-dir'),
@@ -14,7 +21,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getUserDataPath: () => ipcRenderer.invoke('get-user-data-path'),
 
   // File dialogs
-  openFileDialog: (options: any) => ipcRenderer.invoke('dialog:open-file', options),
+  openFileDialog: (options?: any) => ipcRenderer.invoke('dialog:open-file', options),
 
   // File system
   readFile: (path: string) => ipcRenderer.invoke('fs:read-file', path),
@@ -46,6 +53,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('browser-context', (_event, data) => callback(data));
     return () => ipcRenderer.removeAllListeners('browser-context');
   },
+
+  // Screen Capture & Neural OCR
+  onTriggerScreenCapture: (callback: () => void) => {
+    ipcRenderer.on('trigger-screen-capture', () => callback());
+    return () => ipcRenderer.removeAllListeners('trigger-screen-capture');
+  },
+  captureScreenAndOCR: (mode: 'fullscreen' | 'snip' = 'fullscreen') =>
+    ipcRenderer.invoke('screen:capture-and-ocr', mode),
+  ocrImageFile: (filePath: string) => ipcRenderer.invoke('screen:ocr-image', filePath),
 
   // Platform
   platform: process.platform,

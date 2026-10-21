@@ -41,7 +41,7 @@ export function validateSetting(key: string, value: any): boolean {
       }
       break;
     case 'responseMode':
-      if (!['coding', 'interview'].includes(value)) {
+      if (!['coding', 'interview', 'quiz'].includes(value)) {
         throw new Error(`Invalid responseMode: "${value}"`);
       }
       break;
