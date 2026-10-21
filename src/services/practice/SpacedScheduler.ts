@@ -1,4 +1,5 @@
 import { TopicMastery } from "./types";
+import { QuestionBank, QuestionEntry } from "./QuestionBank";
 
 export class SpacedScheduler {
   public static readonly DEFAULT_TOPICS: Array<{
@@ -119,7 +120,72 @@ export class SpacedScheduler {
   /**
    * Maps a question string to the best matching Topic ID.
    */
-  public static identifyTopicForQuestion(question: string): string {
+  public static selectTomorrowPracticeSet(
+    records: TopicMastery[],
+    count: number = 3
+  ): QuestionEntry[] {
+    const prioritizedTopics = this.getDailyPracticeQueue(records, count);
+    const chosenQuestions: QuestionEntry[] = [];
+    const chosenIds = new Set<string>();
+
+    for (const topic of prioritizedTopics) {
+      const type =
+        topic.category === "DSA"
+          ? "coding"
+          : topic.category === "System Design"
+          ? "system_design"
+          : "behavioral";
+
+      const q = QuestionBank.selectAdaptiveQuestion({
+        type,
+        excludedIds: Array.from(chosenIds),
+        topicMasteries: records,
+      });
+
+      if (q && !chosenIds.has(q.id)) {
+        chosenIds.add(q.id);
+        chosenQuestions.push(q);
+      }
+    }
+
+    // Fill remaining if needed
+    while (chosenQuestions.length < count) {
+      const fallback = QuestionBank.selectAdaptiveQuestion({
+        type: "coding",
+        excludedIds: Array.from(chosenIds),
+        topicMasteries: records,
+      });
+      if (fallback && !chosenIds.has(fallback.id)) {
+        chosenIds.add(fallback.id);
+        chosenQuestions.push(fallback);
+      } else {
+        break;
+      }
+    }
+
+    return chosenQuestions;
+  }
+
+  public static identifyTopicForQuestion(question: string | QuestionEntry): string {
+    if (typeof question !== "string") {
+      const allTags = [question.topic, ...(question.tags || [])].map((t) => t.toLowerCase());
+      for (const tag of allTags) {
+        if (tag.includes("sliding_window") || tag.includes("two_pointers")) return "dsa_arrays_pointers";
+        if (tag.includes("binary_search") || tag.includes("monotonic_stack")) return "dsa_binary_search";
+        if (tag.includes("tree") || tag.includes("graph") || tag.includes("bfs") || tag.includes("dfs")) return "dsa_trees_graphs";
+        if (tag.includes("dynamic_programming") || tag.includes("dp")) return "dsa_dp";
+        if (tag.includes("heap") || tag.includes("priority_queue") || tag.includes("topological")) return "dsa_heaps_topo";
+        if (tag.includes("rate_limiting") || tag.includes("circuit_breaker") || tag.includes("resilience")) return "sd_resilience";
+        if (tag.includes("caching") || tag.includes("redis")) return "sd_caching";
+        if (tag.includes("queue") || tag.includes("kafka") || tag.includes("stream")) return "sd_queues_async";
+        if (tag.includes("sharding") || tag.includes("storage") || tag.includes("nosql")) return "sd_sharding_repl";
+        if (tag.includes("conflict")) return "beh_conflict";
+        if (tag.includes("ambiguity")) return "beh_ambiguity";
+        if (tag.includes("failure") || tag.includes("postmortem") || tag.includes("incident")) return "beh_failure";
+        if (tag.includes("leadership") || tag.includes("mentorship")) return "beh_leadership";
+      }
+      return question.type === "coding" ? "dsa_arrays_pointers" : question.type === "system_design" ? "sd_caching" : "beh_conflict";
+    }
     const qLower = (question || "").toLowerCase();
 
     if (qLower.includes("two sum") || qLower.includes("pointer") || qLower.includes("sliding window")) {

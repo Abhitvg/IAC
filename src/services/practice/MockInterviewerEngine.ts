@@ -10,6 +10,7 @@ import {
 import { RubricScorer } from "./RubricScorer";
 import { DeliveryCoach } from "./DeliveryCoach";
 import { CoachingEngine } from "./CoachingEngine";
+import { QuestionBank } from "./QuestionBank";
 
 export class MockInterviewerEngine {
   /**
@@ -18,10 +19,17 @@ export class MockInterviewerEngine {
   public static createSession(
     roundType: MockRoundType,
     persona: InterviewPersona = "strict_big_tech",
-    interruptionEnabled: boolean = false
+    interruptionEnabled: boolean = false,
+    topicMasteries?: any[]
   ): MockSessionState {
     const totalTimeSeconds = roundType === "dress_rehearsal" ? 45 * 60 : 30 * 60;
-    const initialQuestion = this.getInitialQuestion(roundType);
+    const initialCategory = this.getCategoryForRound(roundType, "icebreaker");
+    const initialEntry = QuestionBank.selectAdaptiveQuestion({
+      type: initialCategory as "coding" | "system_design" | "behavioral",
+      currentDifficulty: roundType === "dress_rehearsal" ? 2 : 3,
+      topicMasteries,
+    });
+    const initialQuestion = initialEntry.prompt;
 
     return {
       isActive: true,
@@ -43,6 +51,7 @@ export class MockInterviewerEngine {
           hintsUsed: [],
           interruptionCount: 0,
           probeCount: 0,
+          questionId: initialEntry.id,
         },
       ],
     };
@@ -227,7 +236,6 @@ export class MockInterviewerEngine {
     const shouldProbe = !activeItem.isFollowUp && evaluation.overallScore < 4.8;
     let nextQuestion = "";
     let nextPhase = session.rehearsalPhase;
-    let nextCategory = activeItem.category;
 
     if (shouldProbe) {
       // Generate follow-up probe targeting the weakest claim
@@ -242,7 +250,8 @@ export class MockInterviewerEngine {
     } else {
       // Transition to next phase in dress rehearsal or next question
       if (session.roundType === "dress_rehearsal") {
-        const progression = this.advanceRehearsalPhase(session.rehearsalPhase);
+        const usedIds = session.questionHistory.map((q: any) => q.questionId).filter(Boolean);
+        const progression = this.advanceRehearsalPhase(session.rehearsalPhase, usedIds, evaluation.overallScore);
         nextPhase = progression.nextPhase;
         nextQuestion = progression.question;
 
@@ -253,10 +262,11 @@ export class MockInterviewerEngine {
         } else {
           session.questionHistory.push({
             question: nextQuestion,
-            category: nextCategory,
+            category: progression.category,
             isFollowUp: false,
             candidateTranscript: "",
             hintsUsed: [],
+            questionId: progression.questionId,
           });
         }
       } else {
@@ -345,11 +355,72 @@ export class MockInterviewerEngine {
     return "behavioral";
   }
 
-  private static advanceRehearsalPhase(currentPhase?: RehearsalPhase): {
+  public static advanceRehearsalPhase(
+    currentPhase?: RehearsalPhase,
+    excludedIds: string[] = [],
+    previousScore?: number,
+    topicMasteries?: any[]
+  ): {
     nextPhase: RehearsalPhase;
     question: string;
     category: string;
+    questionId: string;
   } {
+    switch (currentPhase) {
+      case "icebreaker": {
+        const q = QuestionBank.selectAdaptiveQuestion({
+          type: "behavioral",
+          previousScore,
+          excludedIds,
+          topicMasteries,
+        });
+        return {
+          nextPhase: "behavioral",
+          question: q.prompt,
+          category: "behavioral",
+          questionId: q.id,
+        };
+      }
+      case "behavioral": {
+        const q = QuestionBank.selectAdaptiveQuestion({
+          type: "coding",
+          previousScore,
+          excludedIds,
+          topicMasteries,
+        });
+        return {
+          nextPhase: "technical",
+          question: q.prompt,
+          category: "coding",
+          questionId: q.id,
+        };
+      }
+      case "technical": {
+        const q = QuestionBank.selectAdaptiveQuestion({
+          type: "system_design",
+          previousScore,
+          excludedIds,
+          topicMasteries,
+        });
+        return {
+          nextPhase: "candidate_qa",
+          question: q.prompt,
+          category: "system_design",
+          questionId: q.id,
+        };
+      }
+      case "candidate_qa":
+      default:
+        return {
+          nextPhase: "wrapup",
+          question: "That concludes our 45-minute dress rehearsal. Let's review your overall rubric breakdown.",
+          category: "behavioral",
+          questionId: "wrapup",
+        };
+    }
+  }
+
+  private static _legacyAdvance(currentPhase?: RehearsalPhase) {
     switch (currentPhase) {
       case "icebreaker":
         return {

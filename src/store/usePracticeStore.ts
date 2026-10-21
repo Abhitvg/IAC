@@ -12,6 +12,7 @@ import { MockInterviewerEngine } from "../services/practice/MockInterviewerEngin
 import { CoachingEngine } from "../services/practice/CoachingEngine";
 import { StoryBank } from "../services/practice/StoryBank";
 import { SpacedScheduler } from "../services/practice/SpacedScheduler";
+import { QuestionBank } from "../services/practice/QuestionBank";
 import { CompanyPlanGenerator } from "../services/practice/CompanyPlanGenerator";
 
 interface PracticeState {
@@ -50,6 +51,7 @@ interface PracticeState {
   loadStoryBankFromResume: (resumeText: string) => void;
   saveStory: (story: BehavioralStory) => void;
   deleteStory: (id: string) => void;
+  importCustomQuestionPack: (pack: string | unknown[]) => { success: boolean; importedCount: number; errors?: string[] };
 
   // Spaced scheduler actions
   recordTopicScore: (topicId: string, score: number) => void;
@@ -113,7 +115,7 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   startMockSession: (roundType, persona = "strict_big_tech", interruptionEnabled = false) => {
-    const session = MockInterviewerEngine.createSession(roundType, persona, interruptionEnabled);
+    const session = MockInterviewerEngine.createSession(roundType, persona, interruptionEnabled, get().topicMasteries);
     const category = session.questionHistory[0]?.category || "behavioral";
     const availableHints = CoachingEngine.getTieredHints(session.currentQuestion, category);
 
@@ -276,6 +278,10 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     const updated = get().storyBank.filter((s) => s.id !== id);
     persist(STORAGE_KEYS.STORIES, updated);
     set({ storyBank: updated });
+  },
+
+  importCustomQuestionPack: (pack) => {
+    return QuestionBank.importCustomPack(pack);
   },
 
   recordTopicScore: (topicId, score) => {

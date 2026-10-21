@@ -142,6 +142,7 @@ export interface MockSessionState {
     hintsUsed: TieredHint[];
     interruptionCount?: number;
     probeCount?: number;
+    questionId?: string;
   }>;
   isOfflineInterviewer?: boolean;
   overallScorecard?: {

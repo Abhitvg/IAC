@@ -1,0 +1,664 @@
+[
+  {
+    "id": "beh_01",
+    "type": "behavioral",
+    "topic": "Technical Conflict",
+    "tags": [
+      "conflict",
+      "collaboration",
+      "architecture"
+    ],
+    "difficulty": 3,
+    "prompt": "Tell me about a time you had a strong technical disagreement with a peer or senior engineer regarding an architecture decision. How did you handle it?",
+    "clarifyingInfo": "Focus on how you evaluated trade-offs objectively, communicated with empathy, and reached consensus.",
+    "expectedPoints": [
+      "STAR framework structured presentation",
+      "Empirical approach using benchmarks, POCs, or telemetry data over personal ego",
+      "Active listening and articulating the other engineer's perspective accurately",
+      "Measurable technical or delivery outcome",
+      "Reflective takeaway on collaborative persuasion"
+    ],
+    "commonMistakes": [
+      "Attacking the peer or displaying lingering resentment",
+      "Claiming you immediately won the argument without compromise",
+      "Vague narrative lacking specific technical trade-offs"
+    ],
+    "followUps": [
+      "What would you have done if the team had decided to move forward with their approach instead of yours?"
+    ],
+    "rubricHooks": [
+      "structure",
+      "specificity",
+      "ownership",
+      "reflection"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_02",
+    "type": "behavioral",
+    "topic": "Production Outage Postmortem",
+    "tags": [
+      "failure_postmortem",
+      "production",
+      "incident"
+    ],
+    "difficulty": 3,
+    "prompt": "Describe a situation where a code deployment or database change you authored caused a major production outage. How did you react and what followed?",
+    "clarifyingInfo": "Highlight incident triage, blast-radius mitigation, transparency, and lasting preventative safeguards.",
+    "expectedPoints": [
+      "Radical accountability without deflecting blame to teammates or tools",
+      "Immediate blast-radius containment (rollback over live debugging)",
+      "Clear, calm stakeholder and status-page communication",
+      "Blameless root cause investigation (5 Whys)",
+      "Permanent systemic safeguards (automated linting, canary deployments, integration tests)"
+    ],
+    "commonMistakes": [
+      "Minimizing the severity or claiming 'it was QA's fault for not catching it'",
+      "Describing a trivial bug rather than a genuine high-stakes failure"
+    ],
+    "followUps": [
+      "How did this experience change the way you review code for other engineers on your team?"
+    ],
+    "rubricHooks": [
+      "ownership",
+      "impact",
+      "reflection"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_03",
+    "type": "behavioral",
+    "topic": "Navigating Ambiguity",
+    "tags": [
+      "ambiguity",
+      "product_discovery",
+      "leadership"
+    ],
+    "difficulty": 4,
+    "prompt": "Tell me about a project where the business requirements were vague, contradictory, or constantly shifting. How did you drive clarity and deliver results?",
+    "clarifyingInfo": "Focus on how you broke down the ambiguous problem, aligned stakeholders, and created structured milestones.",
+    "expectedPoints": [
+      "Proactive discovery interviewing customers, product managers, and engineers",
+      "Creating structured technical decision documents (RFCs, user story mappings)",
+      "Proposing phased milestones and an MVP to validate assumptions early",
+      "Quantified delivery success and business adoption",
+      "Reflection on leading when nobody has all the answers"
+    ],
+    "commonMistakes": [
+      "Complaining about management's inability to write specs",
+      "Freezing and waiting for someone else to define the plan"
+    ],
+    "followUps": [
+      "How did you know when you had gathered enough information to stop researching and start coding?"
+    ],
+    "rubricHooks": [
+      "structure",
+      "ownership",
+      "impact"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_04",
+    "type": "behavioral",
+    "topic": "Engineering Mentorship",
+    "tags": [
+      "leadership",
+      "mentorship",
+      "culture"
+    ],
+    "difficulty": 2,
+    "prompt": "Describe an experience where you mentored a struggling junior engineer or intern. How did you assess their needs and help them level up?",
+    "clarifyingInfo": "Demonstrate pedagogical empathy, pairing techniques, and how you empowered their autonomy.",
+    "expectedPoints": [
+      "Identifying the root cause of the struggle (confidence, conceptual gaps, tooling)",
+      "Structured pairing and providing code review feedback with explanatory context",
+      "Fostering independence rather than writing the solutions for them",
+      "Tangible milestone achieved by the mentee (e.g. shipping feature independently, promotion)",
+      "Reciprocal learning for the mentor"
+    ],
+    "commonMistakes": [
+      "Rewriting their code for them",
+      "Lack of measurable evidence that the mentee grew"
+    ],
+    "followUps": [
+      "How do you balance spending time mentoring others with your own individual delivery commitments?"
+    ],
+    "rubricHooks": [
+      "specificity",
+      "ownership",
+      "reflection"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_05",
+    "type": "behavioral",
+    "topic": "Tight Deadlines & Scoping",
+    "tags": [
+      "high_impact_scale",
+      "prioritization",
+      "project_management"
+    ],
+    "difficulty": 3,
+    "prompt": "Tell me about a time you were faced with an aggressive delivery deadline that seemed impossible to meet. How did you prioritize and execute?",
+    "clarifyingInfo": "Focus on pragmatic scope triage, transparent stakeholder negotiation, and sustainable team execution.",
+    "expectedPoints": [
+      "Auditing backlog and categorizing into P0 must-haves vs P1/P2 deferrals",
+      "Negotiating scope directly with product management and executive stakeholders",
+      "Protecting engineering standards without accumulating unmanaged technical debt",
+      "Delivering on schedule with verified client/business impact",
+      "Reflecting on sprint planning to prevent recurring crunches"
+    ],
+    "commonMistakes": [
+      "Glorifying 80-hour workweeks and hero burnout culture",
+      "Cutting corners on testing or security without a debt-payback plan"
+    ],
+    "followUps": [
+      "How did you track and pay down the deferred features in subsequent sprints?"
+    ],
+    "rubricHooks": [
+      "structure",
+      "ownership",
+      "impact"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_06",
+    "type": "behavioral",
+    "topic": "Cross-Functional Collaboration",
+    "tags": [
+      "collaboration",
+      "stakeholders",
+      "communication"
+    ],
+    "difficulty": 2,
+    "prompt": "Give an example of a project where you had to collaborate closely with non-technical stakeholders (e.g. Sales, Legal, or Customer Support). How did you bridge the communication gap?",
+    "clarifyingInfo": "Highlight translating technical complexity into user value and aligning on shared business goals.",
+    "expectedPoints": [
+      "Active listening to understand the non-technical team's workflow and pain points",
+      "Translating architectural trade-offs into business impact without jargon",
+      "Establishing shared feedback cadences and prototype walkthroughs",
+      "Successful product rollout benefiting both teams",
+      "Building lasting inter-departmental trust"
+    ],
+    "commonMistakes": [
+      "Condescending tone regarding non-engineers' technical knowledge",
+      "Failing to articulate the non-technical team's actual objectives"
+    ],
+    "followUps": [
+      "How did you resolve situations where their business request was technically unfeasible?"
+    ],
+    "rubricHooks": [
+      "specificity",
+      "ownership",
+      "reflection"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_07",
+    "type": "behavioral",
+    "topic": "Customer Focus & Empathy",
+    "tags": [
+      "customer_empathy",
+      "product",
+      "debugging"
+    ],
+    "difficulty": 3,
+    "prompt": "Tell me about a time you advocated for the customer or end-user against team consensus or established technical plans.",
+    "clarifyingInfo": "Show customer empathy, user feedback analysis, and courage to challenge internal assumptions.",
+    "expectedPoints": [
+      "Identifying customer friction through support tickets, user interviews, or telemetry",
+      "Challenging engineering assumptions that optimized for developer convenience over user UX",
+      "Building consensus around customer-centric metrics (latency, error clarity, workflow clicks)",
+      "Measurable improvement in user retention or customer satisfaction (CSAT/NPS)",
+      "Balancing customer needs with technical maintainability"
+    ],
+    "commonMistakes": [
+      "Relying on personal intuition without user data or customer quotes",
+      "Ignoring engineering effort and feasibility"
+    ],
+    "followUps": [
+      "How do you distinguish between a vocal minority of power users and the broader customer base?"
+    ],
+    "rubricHooks": [
+      "structure",
+      "specificity",
+      "impact"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_08",
+    "type": "behavioral",
+    "topic": "Pushing Back on Leadership",
+    "tags": [
+      "leadership",
+      "disagreement",
+      "courage"
+    ],
+    "difficulty": 4,
+    "prompt": "Describe a situation where you had to tell an executive, VP, or major client 'no' regarding an unrealistic feature request or timeline.",
+    "clarifyingInfo": "Demonstrate emotional intelligence, data-driven reasoning, and proposing viable alternatives.",
+    "expectedPoints": [
+      "Framing the pushback around company risk and resource trade-offs rather than defiance",
+      "Using hard data, capacity models, and architecture benchmarks",
+      "Offering alternative constructive solutions that achieved the core business objective",
+      "Respectful, private stakeholder alignment",
+      "Outcome that protected team velocity and business goals"
+    ],
+    "commonMistakes": [
+      "Being combative in a public meeting",
+      "Saying 'no' without offering alternatives or data"
+    ],
+    "followUps": [
+      "How do you apply 'disagree and commit' when leadership decides to proceed despite your warning?"
+    ],
+    "rubricHooks": [
+      "ownership",
+      "impact",
+      "reflection"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_09",
+    "type": "behavioral",
+    "topic": "Managing Technical Debt",
+    "tags": [
+      "tech_debt",
+      "refactoring",
+      "strategy"
+    ],
+    "difficulty": 3,
+    "prompt": "Tell me about a time you successfully championed paying down a legacy codebase or critical technical debt that product managers were hesitant to prioritize.",
+    "clarifyingInfo": "Focus on translating code health into business terms (developer velocity, incident frequency, latency).",
+    "expectedPoints": [
+      "Quantifying the cost of the technical debt (hours lost per sprint, on-call toil, cloud costs)",
+      "Pitching refactoring as an enabler for upcoming product roadmap features",
+      "Executing the refactor incrementally without freezing feature development",
+      "Measurable engineering outcome (reduced deployment frequency, dropped error rates)",
+      "Setting up tooling to prevent the debt from reappearing"
+    ],
+    "commonMistakes": [
+      "Demanding a multi-month rewrite from scratch",
+      "Failing to tie code health to business revenue or velocity"
+    ],
+    "followUps": [
+      "How do you decide when technical debt is acceptable to take on during early prototyping?"
+    ],
+    "rubricHooks": [
+      "structure",
+      "specificity",
+      "ownership"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_10",
+    "type": "behavioral",
+    "topic": "Adapting to Rapid Change",
+    "tags": [
+      "adaptability",
+      "pivot",
+      "resilience"
+    ],
+    "difficulty": 2,
+    "prompt": "Describe a time when a company pivot, reorganization, or sudden market shift rendered weeks of your engineering work obsolete. How did you adapt?",
+    "clarifyingInfo": "Demonstrate emotional resilience, professional maturity, and pivoting focus to the new priority.",
+    "expectedPoints": [
+      "Managing initial disappointment professionally and seeking context on the business decision",
+      "Extracting reusable components, learnings, or architectural patterns from the cancelled work",
+      "Rallying team morale around the new strategic direction",
+      "Fast ramp-up and execution on the new priority",
+      "Perspective on aligning individual engineering with company survival"
+    ],
+    "commonMistakes": [
+      "Dwelling on frustration or complaining about wasted effort",
+      "Passively disengaging from the team"
+    ],
+    "followUps": [
+      "How did you document or preserve the cancelled work in case it became relevant later?"
+    ],
+    "rubricHooks": [
+      "ownership",
+      "reflection"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_11",
+    "type": "behavioral",
+    "topic": "Innovating with Low Resources",
+    "tags": [
+      "scrappiness",
+      "innovation",
+      "cost_optimization"
+    ],
+    "difficulty": 3,
+    "prompt": "Tell me about a time you solved a complex engineering problem with significant budget, tooling, or headcount constraints.",
+    "clarifyingInfo": "Highlight creative thinking, open-source adoption, and maximizing resource efficiency.",
+    "expectedPoints": [
+      "Clearly stating the constraints (zero budget for enterprise SaaS, limited compute)",
+      "Creative architectural solution utilizing existing infrastructure or lightweight open-source tools",
+      "Overcoming bottlenecks through profiling and code optimization rather than buying bigger servers",
+      "Quantified dollar or performance savings",
+      "Reflecting on the value of constraint-driven engineering"
+    ],
+    "commonMistakes": [
+      "Claiming you built an entire custom database because you didn't want to buy an AWS service",
+      "Lacking quantifiable ROI metrics"
+    ],
+    "followUps": [
+      "When is it smarter to buy an established SaaS solution versus building in-house?"
+    ],
+    "rubricHooks": [
+      "structure",
+      "specificity",
+      "impact"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_12",
+    "type": "behavioral",
+    "topic": "Unpopular Decision Leadership",
+    "tags": [
+      "leadership",
+      "decision_making",
+      "culture"
+    ],
+    "difficulty": 4,
+    "prompt": "Describe an unpopular decision you had to make or enforce on your team (e.g. deprecating a beloved tool, enforcing stricter on-call standards, or rejecting a PR).",
+    "clarifyingInfo": "Focus on transparency, empathy for dissenting viewpoints, and holding the standard.",
+    "expectedPoints": [
+      "Explaining the strategic context and necessity behind the difficult decision",
+      "Creating space for team members to voice concerns and acknowledge disruption",
+      "Setting clear criteria and providing hands-on transition support",
+      "Holding firm on engineering standards while maintaining team respect",
+      "Long-term positive team or organizational outcome"
+    ],
+    "commonMistakes": [
+      "Enforcing top-down edicts without explaining the 'why'",
+      "Apologizing or wavering when facing immediate pushback"
+    ],
+    "followUps": [
+      "How did you re-engage team members who were most resistant to the change?"
+    ],
+    "rubricHooks": [
+      "structure",
+      "ownership",
+      "reflection"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_13",
+    "type": "behavioral",
+    "topic": "Handling Incomplete Information",
+    "tags": [
+      "debugging",
+      "investigation",
+      "systems"
+    ],
+    "difficulty": 3,
+    "prompt": "Tell me about a time you had to diagnose and fix a severe, intermittent bug in production that could not be reproduced locally.",
+    "clarifyingInfo": "Show methodical debugging methodology, telemetry instrumentation, and hypothesis validation.",
+    "expectedPoints": [
+      "Resisting guessing or random code changes in production",
+      "Adding structured logging, distributed tracing spans, and metric counters to isolate the issue",
+      "Formulating testable hypotheses and ruling them out systematically",
+      "Identifying the root cause (race condition, memory leak, network partition)",
+      "Deploying the fix with verified telemetry proof"
+    ],
+    "commonMistakes": [
+      "Claiming you immediately fixed it on a hunch without telemetry",
+      "Leaving debug logs permanently running in production"
+    ],
+    "followUps": [
+      "How did you prevent similar heisenbugs from reaching production in the future?"
+    ],
+    "rubricHooks": [
+      "specificity",
+      "ownership",
+      "impact"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_14",
+    "type": "behavioral",
+    "topic": "Fostering Diversity & Inclusion",
+    "tags": [
+      "inclusion",
+      "team_dynamics",
+      "empathy"
+    ],
+    "difficulty": 2,
+    "prompt": "Give an example of how you actively contributed to creating an inclusive, psychologically safe environment within your engineering team.",
+    "clarifyingInfo": "Focus on concrete behaviors: meeting facilitation, amplifying quieter voices, blameless culture.",
+    "expectedPoints": [
+      "Recognizing subtle exclusion or uneven speaking time in design reviews",
+      "Implementing actionable practices (silent reading of design docs, blameless postmortems)",
+      "Actively soliciting feedback from quiet or underrepresented team members",
+      "Observable increase in team engagement and junior participation",
+      "Reflection on personal role in psychological safety"
+    ],
+    "commonMistakes": [
+      "Speaking in high-level generalities without specific team examples",
+      "Performative claims without concrete behavioral changes"
+    ],
+    "followUps": [
+      "How do you handle situations where a peer interrupts or talks over others in meetings?"
+    ],
+    "rubricHooks": [
+      "ownership",
+      "reflection"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_15",
+    "type": "behavioral",
+    "topic": "Balancing Speed vs Perfection",
+    "tags": [
+      "pragmatism",
+      "shipping",
+      "quality"
+    ],
+    "difficulty": 3,
+    "prompt": "Tell me about a time you knowingly shipped an imperfect or hacky solution to meet a critical business objective. How did you balance risk?",
+    "clarifyingInfo": "Demonstrate engineering pragmatism, risk containment, and deliberate tech debt tracking.",
+    "expectedPoints": [
+      "Evaluating the business imperative that justified the tactical shortcut",
+      "Containing the blast radius (feature flags, isolated adapter layer)",
+      "Documenting known limitations, creating follow-up tickets, and setting an expiration date",
+      "Immediate business value captured (closing customer deal, meeting compliance)",
+      "Following through on refactoring or retiring the shortcut"
+    ],
+    "commonMistakes": [
+      "Shipping sloppy code with zero safeguards or documentation",
+      "Pretending that perfect code is always the right answer"
+    ],
+    "followUps": [
+      "What criteria do you use to draw the line where code is too compromised to ship, regardless of urgency?"
+    ],
+    "rubricHooks": [
+      "structure",
+      "ownership",
+      "tradeoffs"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_16",
+    "type": "behavioral",
+    "topic": "Receiving Harsh Feedback",
+    "tags": [
+      "growth_mindset",
+      "feedback",
+      "humility"
+    ],
+    "difficulty": 3,
+    "prompt": "Describe an instance where you received critical or harsh feedback on your code, design, or working style during a performance review or PR review. How did you process it?",
+    "clarifyingInfo": "Demonstrate emotional maturity, separating self-worth from work, and tangible self-improvement.",
+    "expectedPoints": [
+      "Managing natural defensiveness and seeking clarifying examples calmly",
+      "Identifying valid core truths within the feedback",
+      "Creating an actionable personal development plan",
+      "Checking in periodically with the reviewer to track progress",
+      "Noticeable improvement in working relationships and output"
+    ],
+    "commonMistakes": [
+      "Blaming the reviewer for having unfair expectations",
+      "Claiming you never receive negative feedback"
+    ],
+    "followUps": [
+      "How do you give constructive feedback to peers who tend to get defensive?"
+    ],
+    "rubricHooks": [
+      "ownership",
+      "reflection"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_17",
+    "type": "behavioral",
+    "topic": "Leading Without Authority",
+    "tags": [
+      "influence",
+      "leadership",
+      "initiative"
+    ],
+    "difficulty": 4,
+    "prompt": "Tell me about a time you led an initiative across multiple engineering teams where none of the engineers reported to you. How did you drive alignment?",
+    "clarifyingInfo": "Highlight influence through technical credibility, shared vision, empathy, and clear coordination.",
+    "expectedPoints": [
+      "Defining a compelling shared vision and business problem to solve",
+      "Understanding each team's conflicting priorities and roadmaps",
+      "Structuring cross-team RFCs, pilot milestones, and lightweight governance",
+      "Empowering other engineers rather than dictating implementation",
+      "Successful company-wide delivery (e.g. library migration, security standard)"
+    ],
+    "commonMistakes": [
+      "Attempting to mandate rules without building consensus",
+      "Escalating to VP/management immediately when facing friction"
+    ],
+    "followUps": [
+      "How did you keep teams motivated when their own sprint deliverables conflicted with your initiative?"
+    ],
+    "rubricHooks": [
+      "structure",
+      "specificity",
+      "ownership",
+      "impact"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_18",
+    "type": "behavioral",
+    "topic": "Handling Burnout & High Pressure",
+    "tags": [
+      "wellbeing",
+      "resilience",
+      "team_health"
+    ],
+    "difficulty": 2,
+    "prompt": "Describe a period where you or your team were facing severe burnout or sustained high pressure. How did you manage it?",
+    "clarifyingInfo": "Show self-awareness, workload boundaries, communication with management, and sustainable habits.",
+    "expectedPoints": [
+      "Recognizing early warning signs of burnout (exhaustion, cynicisms, dropped velocity)",
+      "Proactively communicating with leadership with realistic capacity forecasts",
+      "Auditing and pausing non-critical tasks to create breathing room",
+      "Instituting sustainable team practices (on-call rotation tuning, focus days)",
+      "Long-term restoration of morale and retention"
+    ],
+    "commonMistakes": [
+      "Boasting that you never experience burnout and just push through",
+      "Blaming coworkers without taking proactive steps"
+    ],
+    "followUps": [
+      "What specific signals do you look for in your peers to catch burnout before it leads to resignation?"
+    ],
+    "rubricHooks": [
+      "ownership",
+      "reflection"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_19",
+    "type": "behavioral",
+    "topic": "Improving Team Engineering Standards",
+    "tags": [
+      "engineering_excellence",
+      "standards",
+      "ci_cd"
+    ],
+    "difficulty": 3,
+    "prompt": "Tell me about a time you identified a systemic weakness in your team's engineering practices and introduced a new tool, testing strategy, or process to fix it.",
+    "clarifyingInfo": "Focus on bottom-up change management, demonstrating ROI, and low-friction adoption.",
+    "expectedPoints": [
+      "Pinpointing a recurrent pain point (slow CI pipelines, missing integration tests, flaky deployments)",
+      "Prototyping a lightweight solution and gathering early feedback from teammates",
+      "Automating the standard through CI guardrails rather than manual enforcement",
+      "Measurable engineering gain (e.g. 50% faster PR reviews, 80% reduction in regression bugs)",
+      "Creating documentation and mentoring the team on the new tool"
+    ],
+    "commonMistakes": [
+      "Introducing heavy bureaucracy that slowed the team down",
+      "Not measuring the before-and-after outcome"
+    ],
+    "followUps": [
+      "How did you handle teammates who resisted changing their local development habits?"
+    ],
+    "rubricHooks": [
+      "structure",
+      "specificity",
+      "ownership",
+      "impact"
+    ],
+    "timeBudgetMinutes": 15
+  },
+  {
+    "id": "beh_20",
+    "type": "behavioral",
+    "topic": "Significant Professional Accomplishment",
+    "tags": [
+      "high_impact_scale",
+      "pride",
+      "career_highlight"
+    ],
+    "difficulty": 3,
+    "prompt": "Walk me through the project you are most proud of in your engineering career. Why was it meaningful to you, and what was your individual contribution?",
+    "clarifyingInfo": "Highlight technical depth, personal ownership, business impact, and what made the achievement memorable.",
+    "expectedPoints": [
+      "Compelling narrative framing technical complexity and business stakes",
+      "Clear distinction of candidate's individual architecture and implementation role",
+      "Overcoming unexpected technical hurdles during development",
+      "Quantified business, user, or financial impact",
+      "Deep reflection on why this project shaped their engineering growth"
+    ],
+    "commonMistakes": [
+      "Describing a generic team project without isolating personal ownership",
+      "Listing technologies without explaining the problem or impact"
+    ],
+    "followUps": [
+      "If you had to build that same system again today with modern tooling, what would you do differently?"
+    ],
+    "rubricHooks": [
+      "structure",
+      "specificity",
+      "ownership",
+      "impact",
+      "reflection"
+    ],
+    "timeBudgetMinutes": 15
+  }
+]
