@@ -1,6 +1,7 @@
 import { cleanExtractedOcrText, extractProblemHeadline, buildScreenSolverPrompt, detectLanguageHint } from "./screenSolver";
 import { classifyUtterance } from './interruptionDetector';
-import { buildCandidateSystemPrompt } from './candidatePersona';
+import { buildCandidateSystemPrompt, estimateConfidence, getDynamicWhisperVocab } from './candidatePersona';
+import { classifyQuestion } from './ai';
 import { globalLatencyTracker } from './LatencyTracker';
 import { useAppStore } from "../store/useAppStore";
 import { AudioRecorder } from "./audio";
@@ -176,12 +177,28 @@ export class InterviewEngine {
           const isQuiz = mode === 'quiz';
           const preferredLang = currentStore.settings?.preferredLanguage || 'Java';
 
+          // Classify question for smart routing & category-specific prompts
+          const { category: detectedCategory } = classifyQuestion(event.text);
+          
+          // Estimate answer confidence
+          const confidence = estimateConfidence(detectedCategory, currentStore.resumeText, event.text);
+          useAppStore.getState().setAnswerConfidence(confidence);
+          
+          // Smart Model Router: Route to optimal model based on question complexity
+          const isHardQuestion = ['System Design', 'Coding', 'DSA'].includes(detectedCategory) || event.text.length > 100;
+          const smartModel = (isCoding || isQuiz || isHardQuestion) ? "openai/gpt-oss-120b" : "qwen/qwen3.8-27b";
+          const smartTemperature = isCoding ? 0.1 : isQuiz ? 0.15 : isHardQuestion ? 0.2 : (store.settings?.temperature || 0.45);
+          const smartMaxTokens = isCoding ? 2500 : isQuiz ? 1200 : isHardQuestion ? 1800 : (store.settings?.maxTokens || 1200);
+
+          // Build system prompt with conversation memory + category context
           const candidateSystemPrompt = buildCandidateSystemPrompt(
             currentStore.resumeText,
             currentStore.jobDescriptionText,
             currentStore.targetRole,
             preferredLang,
-            mode
+            mode as any,
+            currentStore.conversationHistory || [],
+            detectedCategory
           );
 
           await streamAnswer(
@@ -190,11 +207,9 @@ export class InterviewEngine {
               type: "groq",
               apiKey: groqKey,
               // Use frontier 120B model for coding & quiz for 100% precision & higher token limits
-              model: (isCoding || isQuiz) ? "openai/gpt-oss-120b" : "qwen/qwen3.8-27b",
-              // Low temperature (0.1) for 100% deterministic, bug-free compilable code & quiz accuracy
-              temperature: isCoding ? 0.1 : isQuiz ? 0.15 : (store.settings?.temperature || 0.6),
-              // Expanded token ceiling (2000) so complex code solutions are never truncated
-              maxTokens: isCoding ? 2000 : isQuiz ? 1200 : (store.settings?.maxTokens || 1000),
+              model: smartModel,
+              temperature: smartTemperature,
+              maxTokens: smartMaxTokens,
               systemPrompt: candidateSystemPrompt
             },
             (preferredLang.toLowerCase()) as any,
@@ -221,8 +236,29 @@ export class InterviewEngine {
                 globalLatencyTracker.mark("generationEnd");
                 console.log("Latency Report:", globalLatencyTracker.getReport());
                 if (useAppStore.getState().generationId === currentGen) {
-                  useAppStore.getState().setCurrentAnswer(full);
-                  // Transition back to listening for third person / candidate speech
+                  // Parse and extract follow-up predictions from AI response
+                  let cleanedAnswer = full;
+                  const followUpMatch = full.match(/FOLLOW_UPS:\s*(.+?)(?:\n|$)/i);
+                  if (followUpMatch && followUpMatch[1]) {
+                    const followUps = followUpMatch[1].split('|').map((f: string) => f.trim()).filter((f: string) => f.length > 5);
+                    useAppStore.getState().setPredictedFollowUps(followUps.slice(0, 3));
+                    // Remove the FOLLOW_UPS line from displayed answer
+                    cleanedAnswer = full.replace(/FOLLOW_UPS:\s*.+?(?:\n|$)/i, '').trim();
+                  }
+                  
+                  useAppStore.getState().setCurrentAnswer(cleanedAnswer);
+                  
+                  // Add to conversation memory for context threading
+                  const currentQ = useAppStore.getState().currentQuestion;
+                  if (currentQ) {
+                    useAppStore.getState().addToConversationHistory({
+                      question: currentQ,
+                      answer: cleanedAnswer.slice(0, 300),
+                      category: detectedCategory
+                    });
+                  }
+                  
+                  // Transition back to listening
                   useAppStore.getState().setRecitalState("listening");
                   useAppStore.getState().setStatus("listening");
                 }

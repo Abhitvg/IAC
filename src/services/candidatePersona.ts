@@ -155,16 +155,178 @@ export function analyzeAlignment(resumeText: string, jobDescriptionText: string)
   return { score, matchedSkills, missingSkills };
 }
 
+/**
+ * Build conversation memory context from rolling history.
+ * Threads the last N Q&A pairs into the prompt so the AI can reference
+ * "as I mentioned earlier..." and maintain continuity.
+ */
+export function buildConversationMemoryContext(
+  history: Array<{ question: string; answer: string; category: string }>
+): string {
+  if (!history || history.length === 0) return "";
+  
+  const contextPairs = history.slice(-4).map((h, i) => 
+    `[Q${i + 1}]: ${h.question.slice(0, 120)}\n[A${i + 1} Summary]: ${h.answer.slice(0, 200)}...`
+  ).join("\n\n");
+  
+  return `
+════════════ PRIOR CONVERSATION CONTEXT ════════════
+The following questions have already been discussed in this interview session.
+Reference them naturally when relevant (e.g., "as I mentioned earlier when discussing [topic]..."):
+
+${contextPairs}
+
+IMPORTANT: Do NOT repeat information already given. Build on prior answers. If a follow-up relates to a previous answer, explicitly connect them.
+════════════════════════════════════════════════════
+`;
+}
+
+/**
+ * Build the follow-up prediction prompt suffix.
+ * After answering, predict the 3 most likely follow-up questions.
+ */
+export function buildFollowUpPredictionSuffix(): string {
+  return `
+
+═══ FOLLOW-UP PREDICTION ═══
+After your main answer, on a new line output exactly:
+FOLLOW_UPS: [question1] | [question2] | [question3]
+where each is a likely follow-up the interviewer may ask based on your answer.
+Keep each follow-up under 15 words. Do NOT explain them.`;
+}
+
+/**
+ * Estimate answer confidence based on question classification.
+ */
+export function estimateConfidence(
+  category: string,
+  resumeText: string,
+  question: string
+): 'high' | 'medium' | 'low' {
+  const questionLower = question.toLowerCase();
+  const resumeLower = (resumeText || "").toLowerCase();
+  
+  // High confidence: Question directly maps to resume experience
+  const resumeKeywords = ['atma', 'quorum', 'docflow', 'porcupine', 'virasat', 'kafka', 'spring boot', 'mongodb', 'angular', 'react', 'java', 'node.js'];
+  const directMatch = resumeKeywords.filter(k => questionLower.includes(k) && resumeLower.includes(k));
+  if (directMatch.length >= 2) return 'high';
+  
+  // High confidence: Standard coding/DSA with known patterns
+  if (['Coding', 'DSA'].includes(category)) return 'high';
+  
+  // High confidence: Behavioral with STAR method
+  if (['Behavioral', 'Resume', 'Project'].includes(category)) return 'high';
+  
+  // Medium: System design, theory, specific tech
+  if (['System Design', 'DBMS', 'Operating Systems', 'Computer Networks', 'OOP'].includes(category)) return 'medium';
+  
+  // Medium: General/HR
+  if (['HR', 'General'].includes(category)) return 'medium';
+  
+  return 'medium';
+}
+
+/**
+ * Get dynamic Whisper vocabulary priming based on active context.
+ * Layer 4: Feeds context-specific terms to Whisper for better transcription.
+ */
+export function getDynamicWhisperVocab(
+  category: string,
+  resumeText: string,
+  targetRole: string
+): string[] {
+  const baseTerms = ['interview', 'technical', 'explain', 'implement', 'design'];
+  
+  const categoryTerms: Record<string, string[]> = {
+    'Coding': ['algorithm', 'array', 'hash map', 'two pointers', 'sliding window', 'dynamic programming', 'binary search', 'linked list', 'tree', 'graph', 'DFS', 'BFS', 'heap', 'stack', 'queue', 'recursion', 'backtracking', 'greedy', 'Big O', 'time complexity', 'space complexity', 'LeetCode', 'optimal', 'brute force'],
+    'DSA': ['array', 'linked list', 'binary tree', 'BST', 'graph', 'trie', 'segment tree', 'hash table', 'priority queue', 'monotonic stack', 'disjoint set', 'topological sort', 'Dijkstra', 'Floyd Warshall', 'Kruskal', 'Prim'],
+    'System Design': ['microservices', 'load balancer', 'caching', 'Redis', 'CDN', 'database sharding', 'consistent hashing', 'rate limiting', 'message queue', 'Kafka', 'RabbitMQ', 'API gateway', 'service mesh', 'circuit breaker', 'event sourcing', 'CQRS', 'CAP theorem', 'horizontal scaling', 'vertical scaling'],
+    'Java': ['Spring Boot', 'Spring MVC', 'Hibernate', 'JPA', 'Maven', 'Gradle', 'JVM', 'garbage collection', 'multithreading', 'synchronized', 'volatile', 'Stream API', 'CompletableFuture', 'Collections framework', 'generics', 'annotations'],
+    'AWS': ['EC2', 'S3', 'Lambda', 'DynamoDB', 'RDS', 'CloudFront', 'Route 53', 'SQS', 'SNS', 'ECS', 'EKS', 'IAM', 'VPC', 'CloudWatch', 'CodePipeline', 'CodeBuild', 'CodeDeploy', 'Terraform', 'CloudFormation'],
+    'DevOps': ['Docker', 'Kubernetes', 'CI/CD', 'Jenkins', 'GitHub Actions', 'GitLab CI', 'Terraform', 'Ansible', 'Helm', 'ArgoCD', 'Prometheus', 'Grafana', 'monitoring', 'deployment', 'container', 'orchestration'],
+    'Behavioral': ['situation', 'task', 'action', 'result', 'challenge', 'teamwork', 'leadership', 'conflict', 'deadline', 'prioritize', 'communicate', 'collaborate'],
+    'React': ['component', 'hooks', 'useState', 'useEffect', 'useCallback', 'useMemo', 'context', 'Redux', 'virtual DOM', 'reconciliation', 'server side rendering', 'Next.js', 'hydration'],
+    'Node.js': ['event loop', 'Express', 'middleware', 'stream', 'buffer', 'cluster', 'worker threads', 'child process', 'npm', 'async await', 'callback', 'promise'],
+  };
+  
+  // Extract resume-specific terms
+  const resumeTerms: string[] = [];
+  const resumeMatches = (resumeText || '').match(/\b(ATMA|Quorum|DocFlow|Porcupine|Virasat|JNU|Alignerr|MongoDB|Apache Kafka|Apache Solr|Oracle SQL|Angular|Spring Boot|Firebase)\b/gi);
+  if (resumeMatches) {
+    resumeTerms.push(...[...new Set(resumeMatches)].slice(0, 10));
+  }
+  
+  const categoryVocab = categoryTerms[category] || [];
+  return [...new Set([...baseTerms, ...categoryVocab, ...resumeTerms])].slice(0, 60);
+}
+
+/**
+ * System Design Expert Prompt — dedicated prompt for architecture questions
+ */
+function buildSystemDesignExpertSection(): string {
+  return `
+════════════ SYSTEM DESIGN EXPERT FRAMEWORK ════════════
+For ANY system design, architecture, or "Design a..." question, follow this rigorous 5-phase framework:
+
+PHASE 1 — REQUIREMENTS & SCOPE CLARIFICATION (10%):
+- State functional requirements: "The system needs to support X users doing Y at Z scale."
+- State non-functional requirements: availability (99.9%), latency (<200ms p99), throughput, consistency model.
+- Clarify scope: "For this discussion, I'll focus on the core [read/write] path and defer [analytics/admin] to a follow-up."
+
+PHASE 2 — CAPACITY ESTIMATION & BACK-OF-ENVELOPE MATH (10%):
+- Daily active users → QPS → peak QPS (3-5x average)
+- Storage estimation: objects × size × retention period
+- Bandwidth: QPS × object size
+
+PHASE 3 — HIGH-LEVEL DESIGN (30%):
+- Draw the architecture mentally: Client → CDN → Load Balancer → API Gateway → Services → Database
+- Identify core services, data stores, and communication patterns (sync REST vs async message queue)
+
+PHASE 4 — DEEP DIVE INTO CORE COMPONENTS (40%):
+- Database schema design with indexing strategy
+- API design (endpoints, request/response formats)
+- Data partitioning / sharding strategy with partition key justification
+- Caching strategy (read-through, write-behind, TTL policies)
+
+PHASE 5 — TRADE-OFFS, BOTTLENECKS & SCALING (10%):
+- Identify single points of failure and mitigation (replication, failover)
+- Discuss trade-offs: consistency vs availability (CAP), latency vs throughput
+- Mention monitoring, alerting, and operational readiness
+`;
+}
+
+/**
+ * HR & Salary Negotiation Expert Section
+ */
+function buildHRExpertSection(): string {
+  return `
+════════════ HR & SALARY NEGOTIATION STRATEGY ════════════
+For ANY HR, salary, notice period, relocation, or offer-related question:
+1. NEVER give a specific number first. Frame with: "I'm flexible and open to discussing compensation that reflects the role's scope and market standards."
+2. If pressed for current CTC: "My current compensation is confidential, but I'm targeting a package that aligns with [market rate for this role and experience level]."
+3. For notice period: State actual notice period, then add: "However, I'm open to discussing an earlier start if needed, and I can begin knowledge transfer immediately."
+4. For "Why this company?": Connect company mission/product to your specific technical interests and career trajectory.
+5. For "Where do you see yourself in 5 years?": Frame as growth within the company: "I see myself growing into a senior/principal engineering role, leading architectural decisions and mentoring junior engineers."
+`;
+}
+
 export function buildCandidateSystemPrompt(
   resumeText: string,
   jobDescriptionText: string,
   targetRole: string,
   preferredLanguage: string = "Java",
-  mode: "coding" | "interview" | "quiz" = "interview"
+  mode: "coding" | "interview" | "quiz" = "interview",
+  conversationHistory: Array<{ question: string; answer: string; category: string }> = [],
+  detectedCategory: string = "General"
 ): string {
   const resume = (resumeText || "").trim() || DEFAULT_RESUME;
   const jd = (jobDescriptionText || "").trim() || DEFAULT_JOB_DESCRIPTION;
   const role = (targetRole || "").trim() || DEFAULT_TARGET_ROLE;
+
+  const memoryContext = buildConversationMemoryContext(conversationHistory);
+  const systemDesignSection = ['System Design'].includes(detectedCategory) ? buildSystemDesignExpertSection() : '';
+  const hrSection = ['HR'].includes(detectedCategory) ? buildHRExpertSection() : '';
+  const followUpSuffix = buildFollowUpPredictionSuffix();
 
   return `You are an elite, highly articulate software and DevOps engineer acting as the candidate in a live interview for the role of "${role}".
 You are speaking directly to the interviewer in the FIRST PERSON ("I", "in my recent project", "at my previous company", "my approach").
@@ -175,6 +337,9 @@ ${resume}
 
 ════════════ TARGET JOB DESCRIPTION / REQUIREMENTS ════════════
 ${jd}
+${memoryContext}
+${systemDesignSection}
+${hrSection}
 
 ${mode === "quiz" ? `════════════ ACTIVE MODE: QUIZ & MULTIPLE CHOICE ASSESSMENT ════════════
 Deliver the answer with immediate clarity:
@@ -277,5 +442,17 @@ When discussing Electron.js desktop architecture, weave in these concrete, battl
    - Keep spoken sentences punchy, conversational, and direct (10 to 22 words per sentence).
    - Target verbal length: 65 to 110 words (~35 to 60 seconds of speech) so the conversation flows naturally between you and the interviewer without turning into an overwhelming monologue.
    - For coding/algorithmic questions: provide the verified optimal code block inside a single markdown code block + a concise 2-3 sentence verbal walkthrough of the approach, edge cases, and Big-O trade-offs.
-   - Avoid markdown header clutter (# or ##) or bullet points in spoken sections; use natural conversational connectors ("To address this, I...", "As a result, we...").`;
+   - Avoid markdown header clutter (# or ##) or bullet points in spoken sections; use natural conversational connectors ("To address this, I...", "As a result, we...").
+
+════════════ ADAPTIVE RESPONSE CALIBRATION ════════════
+DYNAMIC LENGTH & DEPTH CALIBRATION:
+- Simple definition/concept questions ("What is X?"): Deliver 50-70 words. Be crisp and decisive.
+- Medium complexity (behavioral, explain, compare): Deliver 80-120 words with 1 concrete example.
+- Complex questions (system design, coding, multi-part): Deliver 120-160 words with structured phases.
+- NEVER exceed 160 spoken words unless the question explicitly asks for deep detail.
+
+TONE MATCHING:
+- Mirror the interviewer's formality level. Casual question → conversational answer. Precise question → precise answer.
+- Always sound confident and natural, never rehearsed or robotic.
+${followUpSuffix}`;
 }

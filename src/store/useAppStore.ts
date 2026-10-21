@@ -62,6 +62,17 @@ interface InterviewState {
     toggleRecording: () => void;
     analyzeTranscript: () => void;
     
+    // Conversation Memory (rolling context window)
+    conversationHistory: Array<{ question: string; answer: string; category: string; timestamp: number }>;
+    addToConversationHistory: (entry: { question: string; answer: string; category: string }) => void;
+    clearConversationHistory: () => void;
+    
+    // Answer Confidence & Follow-Up Predictions
+    answerConfidence: 'high' | 'medium' | 'low' | null;
+    setAnswerConfidence: (c: 'high' | 'medium' | 'low' | null) => void;
+    predictedFollowUps: string[];
+    setPredictedFollowUps: (followUps: string[]) => void;
+    
     // Candidate Recital & Interruption State
     recitalState: RecitalState;
     lastInterruption: string | null;
@@ -148,6 +159,21 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     isGenerating: false,
     isRecording: false,
 
+    // Conversation Memory — rolling last 5 Q&A pairs for context threading
+    conversationHistory: [],
+    addToConversationHistory: (entry) => set((state) => {
+        const history = [...state.conversationHistory, { ...entry, timestamp: Date.now() }];
+        // Keep only last 5 for context window efficiency
+        return { conversationHistory: history.slice(-5) };
+    }),
+    clearConversationHistory: () => set({ conversationHistory: [] }),
+    
+    // Answer Confidence & Follow-Up Predictions
+    answerConfidence: null,
+    setAnswerConfidence: (answerConfidence) => set({ answerConfidence }),
+    predictedFollowUps: [],
+    setPredictedFollowUps: (predictedFollowUps) => set({ predictedFollowUps }),
+    
     recitalState: "idle",
     lastInterruption: null,
     setRecitalState: (recitalState) => set({ recitalState }),

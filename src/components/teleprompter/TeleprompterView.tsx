@@ -139,6 +139,113 @@ function QuizAnswerCard({
   );
 }
 
+
+/* ═══ Layer 5: Answer Confidence Badge ═══ */
+function ConfidenceBadge({ confidence }: { confidence: 'high' | 'medium' | 'low' | null }) {
+  if (!confidence) return null;
+  
+  const config = {
+    high: { emoji: '🟢', label: 'High Confidence', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(52, 211, 153, 0.4)' },
+    medium: { emoji: '🟡', label: 'Verified', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(251, 191, 36, 0.4)' },
+    low: { emoji: '🔴', label: 'Best Effort', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(248, 113, 113, 0.4)' },
+  }[confidence];
+  
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '2px 8px',
+        borderRadius: '12px',
+        fontSize: '11px',
+        fontWeight: 700,
+        color: config.color,
+        background: config.bg,
+        border: `1px solid ${config.border}`,
+        letterSpacing: '0.3px',
+      }}
+    >
+      {config.emoji} {config.label}
+    </span>
+  );
+}
+
+/* ═══ Layer 6: Follow-Up Predictions Panel ═══ */
+function FollowUpPredictions({ followUps, onSelect }: { followUps: string[]; onSelect: (q: string) => void }) {
+  if (!followUps || followUps.length === 0) return null;
+  
+  return (
+    <div
+      style={{
+        margin: '10px 0',
+        padding: '10px 14px',
+        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08))',
+        border: '1px solid rgba(129, 140, 248, 0.25)',
+        borderRadius: '8px',
+      }}
+    >
+      <div style={{ fontSize: '11px', fontWeight: 700, color: '#a5b4fc', marginBottom: '6px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+        🔮 Predicted Follow-Ups
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {followUps.map((fu, i) => (
+          <button
+            key={i}
+            onClick={() => onSelect(fu)}
+            style={{
+              background: 'rgba(99, 102, 241, 0.1)',
+              border: '1px solid rgba(129, 140, 248, 0.2)',
+              borderRadius: '6px',
+              padding: '5px 10px',
+              color: '#c7d2fe',
+              fontSize: '12px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLElement).style.background = 'rgba(99, 102, 241, 0.25)';
+              (e.target as HTMLElement).style.borderColor = 'rgba(129, 140, 248, 0.5)';
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLElement).style.background = 'rgba(99, 102, 241, 0.1)';
+              (e.target as HTMLElement).style.borderColor = 'rgba(129, 140, 248, 0.2)';
+            }}
+          >
+            <span style={{ color: '#818cf8', marginRight: '6px' }}>→</span>
+            {fu}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══ Conversation Memory Indicator ═══ */
+function MemoryIndicator({ historyCount }: { historyCount: number }) {
+  if (historyCount === 0) return null;
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '3px',
+        padding: '2px 7px',
+        borderRadius: '10px',
+        fontSize: '10px',
+        fontWeight: 600,
+        color: '#a78bfa',
+        background: 'rgba(139, 92, 246, 0.12)',
+        border: '1px solid rgba(139, 92, 246, 0.25)',
+      }}
+    >
+      🧠 {historyCount}/5 Context
+    </span>
+  );
+}
+
 function CodeBlockCard({ language, code, index, onCopy, isCopied }: CodeBlockCardProps) {
   const cleanCode = code.trim();
   const lines = cleanCode.split("\n");
@@ -296,7 +403,10 @@ export default function TeleprompterView() {
     lastInterruption,
     doneAnswering,
     settings,
-    updateSetting
+    updateSetting,
+    answerConfidence,
+    predictedFollowUps,
+    conversationHistory
   } = useAppStore();
 
   const isListening =
@@ -1172,6 +1282,12 @@ export default function TeleprompterView() {
       >
         {/* Active Detected Question Header & Done Answering Button */}
         {currentQuestion && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+            <ConfidenceBadge confidence={answerConfidence} />
+            <MemoryIndicator historyCount={(conversationHistory || []).length} />
+          </div>
+        )}
+        {currentQuestion && (
           <div
             style={{
               display: "flex",
@@ -1543,6 +1659,14 @@ export default function TeleprompterView() {
                     verticalAlign: "middle",
                     animation: "pulse 1s infinite"
                   }}
+                />
+              )}
+
+              {/* Layer 6: Predicted Follow-Ups Panel */}
+              {predictedFollowUps && predictedFollowUps.length > 0 && !isGenerating && (
+                <FollowUpPredictions
+                  followUps={predictedFollowUps}
+                  onSelect={(fu) => handleTriggerQuestion(fu)}
                 />
               )}
             </div>

@@ -4,6 +4,8 @@
  */
 
 import { TECH_TERMS } from './ai';
+import { getDynamicWhisperVocab } from './candidatePersona';
+import { useAppStore } from '../store/useAppStore';
 import { convertBlobToWav } from '../utils/audioConversion';
 
 export interface WhisperConfig {
@@ -69,8 +71,14 @@ async function transcribeGroq(
   formData.append('response_format', 'verbose_json');
 
   if (config?.language) formData.append('language', config.language);
-  const techPrompt = TECH_TERMS.slice(0, 50).join(', ');
-  formData.append('prompt', `Technical interview: Java, Spring Boot, AWS, Docker, Kubernetes, SQL, LeetCode, ${techPrompt}`);
+  // Layer 4: Dynamic Whisper Priming — context-aware vocabulary injection
+  const store = useAppStore.getState();
+  const lastCategory = store.conversationHistory?.length > 0 
+    ? store.conversationHistory[store.conversationHistory.length - 1].category 
+    : 'General';
+  const dynamicVocab = getDynamicWhisperVocab(lastCategory, store.resumeText || '', store.targetRole || '');
+  const techPrompt = [...new Set([...dynamicVocab, ...TECH_TERMS.slice(0, 30)])].slice(0, 60).join(', ');
+  formData.append('prompt', `Technical interview discussion: ${techPrompt}`);
 
   const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
     method: 'POST',
