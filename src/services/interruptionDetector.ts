@@ -99,7 +99,7 @@ export function extractBigrams(tokens: string[]): Set<string> {
   return bigrams;
 }
 
-/** Calculate token and n-gram overlap between heard speech and teleprompter text */
+/** Calculate token and n-gram overlap between heard speech and reference answer text */
 export function calculateOverlap(
   heardText: string,
   referenceText: string
@@ -175,7 +175,7 @@ const FILLER_PATTERNS = [
 export function classifyUtterance(
   heardText: string,
   currentAnswer: string | null,
-  teleprompterQueue: string[] = []
+  referenceSentenceQueue: string[] = []
 ): UtteranceClassification {
   const trimmed = (heardText || '').trim();
   if (!trimmed) {
@@ -194,7 +194,7 @@ export function classifyUtterance(
   }
 
   // Combine full answer content and queue for reference
-  const fullReferenceText = [currentAnswer || '', ...(teleprompterQueue || [])]
+  const fullReferenceText = [currentAnswer || '', ...(referenceSentenceQueue || [])]
     .filter(Boolean)
     .join(' ');
 
@@ -212,17 +212,17 @@ export function classifyUtterance(
     }
   }
 
-  // 3. When an answer is active on the teleprompter:
+  // 3. When a reference answer is active:
   if (hasActiveAnswer) {
     const { tokenOverlap, compositeScore } = calculateOverlap(trimmed, fullReferenceText);
 
-    // A. Direct candidate recital: high token overlap with teleprompter answer
+    // A. Direct candidate recital: high token overlap with reference answer
     if (compositeScore >= 0.22 || tokenOverlap >= 0.25) {
       return {
         type: 'CANDIDATE_RECITAL',
         confidence: Math.min(0.99, compositeScore + 0.3),
         overlapScore: compositeScore,
-        reason: `Words match ${Math.round(compositeScore * 100)}% of teleprompted answer`,
+        reason: `Words match ${Math.round(compositeScore * 100)}% of reference answer`,
       };
     }
 
@@ -264,7 +264,7 @@ export function classifyUtterance(
       };
     }
 
-    // Fallback while answer is active: default to candidate reciting to avoid ruining teleprompter
+    // Fallback while answer is active: default to candidate reciting
     return {
       type: 'CANDIDATE_RECITAL',
       confidence: 0.65,

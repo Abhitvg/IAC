@@ -32,7 +32,9 @@ import { validateSetting } from '../electron/ipc/handlers';
 
 describe('IPC Settings Validation', () => {
   it('allows valid setting keys and values', () => {
-    expect(() => validateSetting('responseMode', 'quiz')).not.toThrow();
+    expect(() => validateSetting('responseMode', 'interview')).not.toThrow();
+    expect(() => validateSetting('responseMode', 'coding')).not.toThrow();
+    expect(() => validateSetting('responseMode', 'quiz')).toThrow('Invalid responseMode');
     expect(() => validateSetting('aiProvider', 'groq')).not.toThrow();
     expect(() => validateSetting('aiProvider', 'openai')).not.toThrow();
     expect(() => validateSetting('aiProvider', 'openrouter')).not.toThrow();

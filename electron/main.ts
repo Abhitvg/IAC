@@ -3,18 +3,13 @@ import {
   app,
   BrowserWindow,
   ipcMain,
-  globalShortcut,
   dialog,
   shell,
   Menu,
-  Tray,
-  nativeImage,
   session,
 } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { execFile } from 'child_process';
-import util from 'util';
 import mammoth from 'mammoth';
 import { setupIpcHandlers } from './ipc/handlers';
 import {
@@ -26,10 +21,7 @@ import {
   getSandboxConfig,
 } from './services/security';
 
-const execFileAsync = util.promisify(execFile);
-
 let mainWindow: BrowserWindow | null = null;
-let isContentProtected = true;
 
 const RECORDINGS_DIR = path.join(app.getPath('userData'), 'recordings');
 const SESSIONS_DIR = path.join(app.getPath('userData'), 'sessions');
@@ -49,18 +41,19 @@ function createWindow() {
   const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
   const isProduction = !isDev || app.isPackaged || process.env.NODE_ENV === 'production';
 
+  // Standard visible, titled desktop window with native OS title bar and frame controls
   mainWindow = new BrowserWindow({
-    width: 680,
-    height: 500,
-    minWidth: 420,
-    minHeight: 280,
-    frame: false,
-    transparent: true,
-    hasShadow: false,
+    width: 1024,
+    height: 720,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'AI Interview Practice Gym',
+    frame: true,
+    transparent: false,
+    hasShadow: true,
     resizable: true,
-    alwaysOnTop: true,
-    backgroundColor: '#00000000',
-    titleBarStyle: 'hidden',
+    alwaysOnTop: false,
+    backgroundColor: '#0f172a',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -80,84 +73,9 @@ function createWindow() {
     console.log('[Renderer Log]', message);
   });
 
-  // Screen-share stealth: Make window completely invisible to screen share (Zoom, Meet, Teams, OBS)
-  mainWindow.setContentProtection(isContentProtected);
-  if (process.platform === 'darwin') {
-    mainWindow.setHiddenInMissionControl(true);
-    mainWindow.excludedFromShownWindowsMenu = true;
-  }
-
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
-}
-
-function toggleWindowVisibility() {
-  if (!mainWindow) return;
-  if (mainWindow.isVisible()) {
-    mainWindow.hide();
-    console.log('[Electron] Stealth: Window hidden instantly (0ms, zero animation, zero trace)');
-  } else {
-    mainWindow.show();
-    mainWindow.setAlwaysOnTop(true, 'floating');
-    if (process.platform === 'darwin') {
-      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    }
-    mainWindow.focus();
-    console.log('[Electron] Stealth: Window restored instantly');
-  }
-}
-
-let tray: Tray | null = null;
-
-function setupTray() {
-  if (tray) return;
-
-  const iconPath = path.join(__dirname, '../public/icon.png');
-  const icon = fs.existsSync(iconPath)
-    ? nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
-    : nativeImage.createEmpty();
-
-  try {
-    tray = new Tray(icon);
-    tray.setToolTip('AI Interview Assistant (Cmd+Shift+H to toggle)');
-
-    const trayMenu = Menu.buildFromTemplate([
-      {
-        label: 'Show / Hide Overlay',
-        accelerator: 'CmdOrCtrl+Shift+H',
-        click: () => toggleWindowVisibility(),
-      },
-      {
-        label: 'Solve Screen Problem',
-        accelerator: 'CmdOrCtrl+Shift+S',
-        click: () => {
-          if (!mainWindow?.isVisible()) mainWindow?.show();
-          mainWindow?.webContents.send('trigger-screen-capture');
-        },
-      },
-      { type: 'separator' },
-      {
-        label: 'Toggle Screen Stealth',
-        type: 'checkbox',
-        checked: isContentProtected,
-        click: () => {
-          isContentProtected = !isContentProtected;
-          mainWindow?.setContentProtection(isContentProtected);
-        },
-      },
-      { type: 'separator' },
-      {
-        label: 'Quit',
-        role: 'quit',
-      },
-    ]);
-
-    tray.setContextMenu(trayMenu);
-    tray.on('click', () => toggleWindowVisibility());
-  } catch (err) {
-    console.warn('[Electron] Could not initialize tray:', err);
-  }
 }
 
 function setupNativeApplicationMenu() {
@@ -170,12 +88,6 @@ function setupNativeApplicationMenu() {
             label: app.name,
             submenu: [
               { role: 'about' as const },
-              { type: 'separator' as const },
-              {
-                label: 'Toggle Stealth Overlay',
-                accelerator: 'CmdOrCtrl+Shift+H',
-                click: () => toggleWindowVisibility(),
-              },
               { type: 'separator' as const },
               { role: 'services' as const },
               { type: 'separator' as const },
@@ -210,12 +122,6 @@ function setupNativeApplicationMenu() {
         { role: 'resetZoom' as const },
         { role: 'zoomIn' as const },
         { role: 'zoomOut' as const },
-        { type: 'separator' as const },
-        {
-          label: 'Toggle Stealth Overlay (Backslash)',
-          accelerator: 'CmdOrCtrl+\\',
-          click: () => toggleWindowVisibility(),
-        },
       ],
     },
     {
@@ -237,37 +143,6 @@ function setupNativeApplicationMenu() {
 
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
-}
-
-function registerGlobalShortcuts() {
-  const stealthShortcuts = [
-    'CommandOrControl+Shift+H',
-    'CommandOrControl+Shift+Space',
-    'CommandOrControl+\\',
-    'Alt+H',
-  ];
-
-  stealthShortcuts.forEach((shortcut) => {
-    try {
-      const ok = globalShortcut.register(shortcut, () => {
-        toggleWindowVisibility();
-      });
-      if (ok) {
-        console.log(`[Electron] Registered global stealth shortcut: ${shortcut}`);
-      }
-    } catch (err) {
-      console.warn(`[Electron] Could not register shortcut ${shortcut}:`, err);
-    }
-  });
-
-  try {
-    globalShortcut.register('CommandOrControl+Shift+S', () => {
-      if (!mainWindow?.isVisible()) mainWindow?.show();
-      mainWindow?.webContents.send('trigger-screen-capture');
-    });
-  } catch (err) {
-    console.warn('[Electron] Could not register screen capture shortcut:', err);
-  }
 }
 
 app.whenReady().then(() => {
@@ -300,16 +175,7 @@ app.whenReady().then(() => {
   ensureDirectories();
   createWindow();
   setupIpcHandlers(mainWindow);
-  if (mainWindow) {
-    mainWindow.setContentProtection(true);
-    mainWindow.setAlwaysOnTop(true, 'floating');
-    if (process.platform === 'darwin') {
-      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    }
-  }
   setupNativeApplicationMenu();
-  setupTray();
-  registerGlobalShortcuts();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -319,25 +185,12 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  globalShortcut.unregisterAll();
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
-});
-
-// IPC for window controls & stealth
-ipcMain.on('window:toggle-visibility', () => toggleWindowVisibility());
-ipcMain.on('window:hide', () => mainWindow?.hide());
-ipcMain.on('window:show', () => {
-  if (!mainWindow) return;
-  mainWindow.show();
-  mainWindow.setAlwaysOnTop(true, 'floating');
-  mainWindow.focus();
-});
+// Window controls IPC
 ipcMain.on('window:minimize', () => mainWindow?.minimize());
 ipcMain.on('window:maximize', () => {
   if (mainWindow?.isMaximized()) {
@@ -354,30 +207,6 @@ ipcMain.on('window:toggle-always-on-top', () => {
   }
 });
 ipcMain.handle('window:is-always-on-top', () => mainWindow?.isAlwaysOnTop() ?? false);
-
-// Content protection IPC (invisible in screen sharing)
-ipcMain.handle('window:set-content-protection', (_event, enable: boolean) => {
-  if (typeof enable !== 'boolean') {
-    throw new Error('Invalid argument: enable must be a boolean');
-  }
-  if (mainWindow) {
-    mainWindow.setContentProtection(enable);
-    isContentProtected = enable;
-    console.log('[Electron] Content protection (screen stealth):', enable);
-    return true;
-  }
-  return false;
-});
-
-ipcMain.handle('window:is-content-protected', () => isContentProtected);
-
-ipcMain.on('window:toggle-content-protection', () => {
-  if (mainWindow) {
-    isContentProtected = !isContentProtected;
-    mainWindow.setContentProtection(isContentProtected);
-    console.log('[Electron] Toggled content protection (screen stealth):', isContentProtected);
-  }
-});
 
 // File system paths
 ipcMain.handle('get-recordings-dir', () => RECORDINGS_DIR);
@@ -515,111 +344,4 @@ ipcMain.handle('fs:parse-docx', async (_event, arrayBuffer: ArrayBuffer) => {
   const buffer = Buffer.from(arrayBuffer);
   const result = await mammoth.extractRawText({ buffer });
   return result.value || '';
-});
-
-// Screen Capture & Apple Vision Neural OCR using execFile with argument arrays
-ipcMain.handle(
-  'screen:capture-and-ocr',
-  async (_event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
-    const tmpImg = path.join(app.getPath('temp'), `iac_screen_${Date.now()}.jpg`);
-    const isMac = process.platform === 'darwin';
-    const ocrBin = path.join(__dirname, '../bin/mac-ocr');
-
-    try {
-      if (isMac) {
-        const captureArgs = mode === 'snip' ? ['-i', '-x', tmpImg] : ['-x', tmpImg];
-        await execFileAsync('screencapture', captureArgs);
-      } else {
-        const maimArgs = mode === 'snip' ? ['-s', tmpImg] : [tmpImg];
-        await execFileAsync('maim', maimArgs);
-      }
-
-      if (!fs.existsSync(tmpImg)) {
-        return {
-          success: false,
-          cancelled: true,
-          error:
-            'Screen capture was cancelled or capture tool missing (install: sudo apt install maim / scrot).',
-        };
-      }
-
-      let text = '';
-      if (isMac && fs.existsSync(ocrBin)) {
-        const { stdout } = await execFileAsync(ocrBin, [tmpImg]);
-        text = stdout.trim();
-      } else {
-        try {
-          const { stdout } = await execFileAsync('tesseract', [
-            tmpImg,
-            'stdout',
-            '--oem',
-            '1',
-            '-l',
-            'eng',
-          ]);
-          text = stdout.trim();
-        } catch (err) {
-          throw new Error(
-            'OCR engine not found. On Linux, please install tesseract: sudo apt install tesseract-ocr',
-            { cause: err }
-          );
-        }
-      }
-
-      try {
-        fs.unlinkSync(tmpImg);
-      } catch (_) {}
-
-      if (!text) {
-        return { success: false, error: 'No text or code could be detected on the screen.' };
-      }
-
-      return { success: true, text };
-    } catch (err: any) {
-      console.error('[Electron] Screen OCR error:', err);
-      try {
-        if (fs.existsSync(tmpImg)) fs.unlinkSync(tmpImg);
-      } catch (_) {}
-      return { success: false, error: err.message || String(err) };
-    }
-  }
-);
-
-ipcMain.handle('screen:ocr-image', async (_event, filePath: string) => {
-  if (typeof filePath !== 'string') {
-    return { success: false, error: 'Invalid file path' };
-  }
-
-  const isMac = process.platform === 'darwin';
-  const ocrBin = path.join(__dirname, '../bin/mac-ocr');
-  try {
-    const resolvedPath = path.resolve(filePath);
-    if (!fs.existsSync(resolvedPath)) {
-      return { success: false, error: 'File not found.' };
-    }
-
-    let text = '';
-    if (isMac && fs.existsSync(ocrBin)) {
-      const { stdout } = await execFileAsync(ocrBin, [resolvedPath]);
-      text = stdout.trim();
-    } else {
-      const { stdout } = await execFileAsync('tesseract', [
-        resolvedPath,
-        'stdout',
-        '--oem',
-        '1',
-        '-l',
-        'eng',
-      ]);
-      text = stdout.trim();
-    }
-
-    if (!text) {
-      return { success: false, error: 'No text could be extracted from image.' };
-    }
-    return { success: true, text };
-  } catch (err: any) {
-    console.error('[Electron] Image OCR error:', err);
-    return { success: false, error: err.message || String(err) };
-  }
 });

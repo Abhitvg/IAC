@@ -16,7 +16,7 @@ import { QuestionBank } from "../services/practice/QuestionBank";
 import { CompanyPlanGenerator } from "../services/practice/CompanyPlanGenerator";
 
 interface PracticeState {
-  activeView: "teleprompter" | "mock_gym";
+  activeView: "mock_gym";
   activeTab: "arena" | "story_bank" | "spaced_drills" | "company_prep" | "delivery_trends";
   activeSession: MockSessionState | null;
   sessionHistory: MockSessionState[];
@@ -33,7 +33,7 @@ interface PracticeState {
   interruptionBanner: string | null;
 
   // Actions
-  setActiveView: (view: "teleprompter" | "mock_gym") => void;
+  setActiveView: (view: "mock_gym") => void;
   setActiveTab: (tab: "arena" | "story_bank" | "spaced_drills" | "company_prep" | "delivery_trends") => void;
   startMockSession: (
     roundType: MockRoundType,
@@ -93,7 +93,7 @@ function persist<T>(key: string, data: T) {
 }
 
 export const usePracticeStore = create<PracticeState>((set, get) => ({
-  activeView: "teleprompter",
+  activeView: "mock_gym",
   activeTab: "arena",
   activeSession: null,
   sessionHistory: loadStored<MockSessionState[]>(STORAGE_KEYS.SESSIONS, []),

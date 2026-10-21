@@ -4,7 +4,6 @@ import DetectedQuestion from './DetectedQuestion';
 import LiveTranscript from './LiveTranscript';
 import FollowUpPanel from './FollowUpPanel';
 import SessionControls from './SessionControls';
-import Teleprompter from '../Teleprompter'; // from phase 1
 import { useAppStore } from '../../store/useAppStore';
 
 export default function InterviewWorkspace() {
@@ -20,8 +19,7 @@ export default function InterviewWorkspace() {
         overflow: 'hidden',
       }}
     >
-      <Teleprompter />
-      <LiveStatusBar />
+            <LiveStatusBar />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <div

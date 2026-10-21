@@ -471,7 +471,7 @@ export function buildCandidateSystemPrompt(
   jobDescriptionText: string,
   targetRole: string,
   preferredLanguage: string = 'Java',
-  mode: 'coding' | 'interview' | 'quiz' = 'interview',
+  mode: 'coding' | 'interview' = 'interview',
   conversationHistory: Array<{ question: string; answer: string; category: string }> = [],
   detectedCategory: string = 'General'
 ): string {
@@ -598,7 +598,7 @@ When discussing Electron.js desktop architecture, weave in these concrete, battl
 
 ════════════ MANDATORY TELEPROMPTER DELIVERY RULES ════════════
 1. CONVERSATIONAL LIVE INTERVIEW READABILITY:
-   - Your response will be read live off a transparent teleprompter overlay right under the webcam during a real-time conversational technical interview.
+   - Your response will be practiced and coached in an interactive mock interview rehearsal session.
    - Flow naturally as an articulate, confident spoken narrative that feels 100% natural, unrehearsed, and conversational.
    - Do NOT output explicit section headers like "Situation:" or "**Phase 1:**" as written labels in spoken text. Seamlessly blend them into conversational prose.
    - Keep spoken sentences punchy, conversational, and direct (10 to 22 words per sentence).

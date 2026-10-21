@@ -867,7 +867,7 @@ export async function streamAnswer(
   const lowLatencyPrompt = config.systemPrompt
     ? config.systemPrompt
     : systemPrompt +
-      '\n\nDELIVERY FORMAT: Speak naturally in the first person. 12-25 words per sentence. Clear, punchy, articulate phrasing suitable for live speech reading on a teleprompter in a conversational technical interview (target length: 65 to 110 words).';
+      '\n\nDELIVERY FORMAT: Speak naturally in the first person. 12-25 words per sentence. Clear, punchy, articulate phrasing suitable for spoken conversational technical interview practice and coaching (target length: 65 to 110 words).';
 
   const url =
     config.type === 'openrouter'
