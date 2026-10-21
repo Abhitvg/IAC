@@ -1,7 +1,7 @@
 {
   "name": "ai-interview-assistant",
   "version": "1.0.0",
-  "description": "AI-powered technical interview practice assistant",
+  "description": "AI technical interview practice gym and mock interview coaching desktop app",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
@@ -72,8 +72,24 @@
         "AppImage",
         "deb"
       ],
-      "maintainer": "Abhishek Singh <abhishek@example.com>"
+      "maintainer": "Abhishek Singh"
     }
   },
-  "author": "Abhishek Singh <abhishek@example.com>"
+  "author": "Abhishek Singh",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Abhitvg/IAC.git"
+  },
+  "keywords": [
+    "interview-practice",
+    "technical-interview",
+    "mock-interview",
+    "ai-coach",
+    "leetcode",
+    "system-design",
+    "electron",
+    "react",
+    "typescript"
+  ]
 }
