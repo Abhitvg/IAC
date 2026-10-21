@@ -387,19 +387,41 @@ const util_1 = __importDefault(require("util"));
 const execAsync = util_1.default.promisify(child_process_1.exec);
 electron_1.ipcMain.handle("screen:capture-and-ocr", async (_event, mode = "fullscreen") => {
     const tmpImg = path_1.default.join(electron_1.app.getPath("temp"), `iac_screen_${Date.now()}.jpg`);
+    const isMac = process.platform === "darwin";
     const ocrBin = path_1.default.join(__dirname, "../bin/mac-ocr");
     try {
-        const captureFlag = mode === "snip" ? "-i -x" : "-x";
-        await execAsync(`screencapture ${captureFlag} "${tmpImg}"`);
-        if (!fs_1.default.existsSync(tmpImg)) {
-            return { success: false, cancelled: true, error: "Screen capture was cancelled." };
+        if (isMac) {
+            const captureFlag = mode === "snip" ? "-i -x" : "-x";
+            await execAsync(`screencapture ${captureFlag} "${tmpImg}"`);
         }
-        const { stdout } = await execAsync(`"${ocrBin}" "${tmpImg}"`);
+        else {
+            // Linux cross-platform capture (maim / scrot / ImageMagick import)
+            const snipCmd = `maim -s "${tmpImg}" || scrot -s "${tmpImg}" || import "${tmpImg}"`;
+            const fullCmd = `maim "${tmpImg}" || scrot "${tmpImg}" || import -window root "${tmpImg}"`;
+            await execAsync(mode === "snip" ? snipCmd : fullCmd);
+        }
+        if (!fs_1.default.existsSync(tmpImg)) {
+            return { success: false, cancelled: true, error: "Screen capture was cancelled or capture tool missing (install: sudo apt install maim / scrot)." };
+        }
+        let text = "";
+        if (isMac && fs_1.default.existsSync(ocrBin)) {
+            const { stdout } = await execAsync(`"${ocrBin}" "${tmpImg}"`);
+            text = stdout.trim();
+        }
+        else {
+            // Linux OCR fallback via Tesseract
+            try {
+                const { stdout } = await execAsync(`tesseract "${tmpImg}" stdout --oem 1 -l eng 2>/dev/null || tesseract "${tmpImg}" stdout 2>/dev/null`);
+                text = stdout.trim();
+            }
+            catch (_) {
+                throw new Error("OCR engine not found. On Linux, please install tesseract: sudo apt install tesseract-ocr");
+            }
+        }
         try {
             fs_1.default.unlinkSync(tmpImg);
         }
         catch (_) { }
-        const text = stdout.trim();
         if (!text) {
             return { success: false, error: "No text or code could be detected on the screen." };
         }
@@ -416,14 +438,22 @@ electron_1.ipcMain.handle("screen:capture-and-ocr", async (_event, mode = "fulls
     }
 });
 electron_1.ipcMain.handle("screen:ocr-image", async (_event, filePath) => {
+    const isMac = process.platform === "darwin";
     const ocrBin = path_1.default.join(__dirname, "../bin/mac-ocr");
     try {
         const resolvedPath = path_1.default.resolve(filePath);
         if (!fs_1.default.existsSync(resolvedPath)) {
             return { success: false, error: "File not found." };
         }
-        const { stdout } = await execAsync(`"${ocrBin}" "${resolvedPath}"`);
-        const text = stdout.trim();
+        let text = "";
+        if (isMac && fs_1.default.existsSync(ocrBin)) {
+            const { stdout } = await execAsync(`"${ocrBin}" "${resolvedPath}"`);
+            text = stdout.trim();
+        }
+        else {
+            const { stdout } = await execAsync(`tesseract "${resolvedPath}" stdout --oem 1 -l eng 2>/dev/null || tesseract "${resolvedPath}" stdout 2>/dev/null`);
+            text = stdout.trim();
+        }
         if (!text) {
             return { success: false, error: "No text could be extracted from image." };
         }
