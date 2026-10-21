@@ -1,0 +1,147 @@
+export type InterviewPersona = "strict_big_tech" | "startup_pragmatist" | "friendly_recruiter";
+
+export type MockRoundType =
+  | "dress_rehearsal" // Complete 45-minute loop
+  | "dsa_coding"
+  | "system_design"
+  | "behavioral"
+  | "role_specific";
+
+export type RehearsalPhase =
+  | "icebreaker" // 3 min
+  | "behavioral" // 10 min
+  | "technical" // 22 min
+  | "candidate_qa" // 5 min
+  | "wrapup"; // 5 min
+
+export interface RubricDimension {
+  name: string;
+  category: "coding" | "system_design" | "behavioral";
+  score: number; // 1 to 5
+  maxScore: number;
+  weight: number;
+  feedback: string;
+  evidenceQuote?: string; // Exact quote from candidate answer
+  missingAspect?: string;
+}
+
+export interface RubricEvaluation {
+  overallScore: number; // 1.0 to 5.0
+  percentage: number; // 0 to 100
+  dimensions: RubricDimension[];
+  topLeverageFixes: string[];
+  modelAnswer: string;
+  diffMissingPoints: string[];
+  assessedAt: number;
+}
+
+export interface DeliveryMetrics {
+  durationSeconds: number;
+  wordCount: number;
+  speakingPaceWpm: number;
+  paceCategory: "slow" | "optimal" | "fast";
+  fillerWordsCount: number;
+  fillerPercentage: number;
+  fillerBreakdown: Record<string, number>;
+  timeToFirstSentenceSeconds: number;
+  isRambling: boolean; // Answer > 120 seconds without structured milestones
+  deliveryScore: number; // 1 to 5
+  deliveryFeedback: string;
+}
+
+export type HintTier = 1 | 2 | 3;
+
+export interface TieredHint {
+  tier: HintTier;
+  title: "Gentle Nudge" | "Specific Hint" | "Near-Solution Approach";
+  content: string;
+  penaltyPoints: number; // e.g. 0.5, 1.0, 2.0
+}
+
+export type BehavioralCompetency =
+  | "leadership"
+  | "conflict"
+  | "failure_postmortem"
+  | "ambiguity"
+  | "high_impact_scale";
+
+export interface BehavioralStory {
+  id: string;
+  title: string;
+  companyProject: string;
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+  metrics: string[];
+  competencies: BehavioralCompetency[];
+  lastUsedTimestamp?: number;
+}
+
+export interface TopicMastery {
+  topicId: string;
+  topicName: string;
+  category: "DSA" | "System Design" | "Behavioral" | "Core CS";
+  easeFactor: number; // SM-2 ease factor, initial 2.5
+  intervalDays: number;
+  repetitions: number;
+  masteryScore: number; // 0 - 100%
+  lastReviewedDate?: number;
+  nextReviewDate: number;
+}
+
+export interface CompanyPracticePlan {
+  companyName: string;
+  targetRole: string;
+  jobDescriptionText: string;
+  extractedStack: string[];
+  seniority: "Junior" | "Mid" | "Senior" | "Staff/Lead";
+  likelyRoundThemes: string[];
+  resumeGapAnalysis: {
+    matchedStrengths: string[];
+    missingCompetencies: string[];
+    recommendedFocusAreas: string[];
+  };
+  durationDays: 7 | 14;
+  dailyDrills: Array<{
+    day: number;
+    title: string;
+    focusCategory: string;
+    targetExercise: string;
+    completed: boolean;
+  }>;
+  persistentNotes: string[];
+  createdAt: number;
+}
+
+export interface MockSessionState {
+  isActive: boolean;
+  roundType: MockRoundType;
+  rehearsalPhase?: RehearsalPhase;
+  persona: InterviewPersona;
+  totalTimeSeconds: number;
+  timeRemainingSeconds: number;
+  interruptionEnabled: boolean;
+  isInterviewerSpeaking: boolean;
+  interviewerThinkingSeconds: number; // Simulated pause after candidate finishes
+  currentQuestion: string;
+  questionHistory: Array<{
+    question: string;
+    category: string;
+    isFollowUp: boolean;
+    candidateTranscript: string;
+    evaluation?: RubricEvaluation;
+    delivery?: DeliveryMetrics;
+    hintsUsed: TieredHint[];
+  }>;
+  overallScorecard?: {
+    finalRating: "Strong No Hire" | "No Hire" | "Leaning Hire" | "Hire" | "Strong Hire";
+    averageScore: number;
+    codingScore?: number;
+    systemDesignScore?: number;
+    behavioralScore?: number;
+    deliveryScore: number;
+    keyStrengths: string[];
+    topImprovementPriorities: string[];
+  };
+}
