@@ -1,0 +1,53 @@
+{
+  "id": "coding_strong_1",
+  "type": "coding",
+  "tier": "strong",
+  "question": {
+    "id": "q_lru_cache",
+    "type": "coding",
+    "prompt": "Design a data structure that follows the constraints of a Least Recently Used (LRU) cache. Implement LRUCache with get(key) and put(key, value) in O(1) average time complexity.",
+    "expectedPoints": [
+      "Identify combination of Doubly Linked List and Hash Map",
+      "Hash Map stores key -> Node pointer for O(1) lookup",
+      "Doubly Linked List maintains access order with dummy head and tail sentinel nodes",
+      "get: move accessed node to head, return value or -1",
+      "put: update existing or add new to head; evict from tail if exceeding capacity",
+      "Thorough edge case analysis (capacity 1, updating existing key without evicting)"
+    ],
+    "commonMistakes": [
+      "Using array or singly linked list resulting in O(N) removals",
+      "Forgetting to update node value when key already exists in put",
+      "Pointer bugs during removal and insertion without sentinels"
+    ]
+  },
+  "transcript": "Candidate: To achieve O(1) time complexity for both get and put operations, we need two data structures working in tandem: a Hash Map for O(1) key-to-node lookup, and a Doubly Linked List to maintain the recency order in O(1) time. Using dummy head and tail sentinel nodes avoids tricky null pointer checks during node additions and removals. When get(key) is invoked, we check the map; if absent, return -1. If present, we detach the node from its current position in the list and splice it directly right after head, marking it most recently used, then return its value. For put(key, value), if the key exists, we update its value and move it to head. If it is new, we instantiate a node, insert after head, and add to the map. If the map size exceeds capacity, we evict tail.prev from both the linked list and the hash map. Time complexity is strictly O(1) for both operations since hash map lookups and pointer updates are constant time. Space complexity is O(C) where C is the maximum cache capacity. For tests: capacity of 1, overwriting an existing key without increasing size, and eviction order under repeated gets.",
+  "hints": [],
+  "expectedScoreRanges": {
+    "problem_understanding": [
+      4.5,
+      5
+    ],
+    "approach": [
+      4.5,
+      5
+    ],
+    "correctness": [
+      4.5,
+      5
+    ],
+    "complexity": [
+      4.5,
+      5
+    ],
+    "testing": [
+      4,
+      5
+    ],
+    "communication": [
+      4.5,
+      5
+    ]
+  },
+  "notes": "Flawless design, sentinel node pattern articulated, thorough complexity and edge case analysis.",
+  "recordedLLMResponse": "{\"questions\":[{\"id\":\"q_lru_cache\",\"type\":\"coding\",\"dimensions\":{\"problem_understanding\":{\"score\":5,\"evidence\":\"To achieve O(1) time complexity for both get and put operations, we need two data structures working in tandem\",\"note\":\"Immediate grasp of constraints.\"},\"approach\":{\"score\":5,\"evidence\":\"Using dummy head and tail sentinel nodes avoids tricky null pointer checks\",\"note\":\"Best-in-class architectural choice.\"},\"correctness\":{\"score\":5,\"evidence\":\"we evict tail.prev from both the linked list and the hash map\",\"note\":\"Completely handles bidirectional synchronization.\"},\"complexity\":{\"score\":5,\"evidence\":\"strictly O(1) for both operations since hash map lookups and pointer updates are constant time\",\"note\":\"Rigorous complexity breakdown.\"},\"testing\":{\"score\":4.5,\"evidence\":\"For tests: capacity of 1, overwriting an existing key without increasing size, and eviction order under repeated gets\",\"note\":\"High value edge cases covered.\"},\"communication\":{\"score\":5,\"evidence\":\"detach the node from its current position in the list and splice it directly right after head\",\"note\":\"Crisp, technical, precise language.\"}},\"missed_points\":[],\"model_answer_outline\":[\"HashMap + DoublyLinkedList\",\"Sentinel head and tail\",\"O(1) get/put verified\"]}],\"overall\":{\"score\":4.9,\"summary\":\"Exceptional response. The candidate selected the optimal Doubly Linked List and Hash Map architecture, used sentinel nodes to eliminate pointer edge cases, and rigorously analyzed time and space bounds.\",\"top_fixes\":[],\"strengths\":[\"Identified sentinel dummy nodes to eliminate boundary bugs\",\"Thorough edge case testing plan including capacity 1\",\"Precise O(1) invariant justification\"]},\"uncertainty\":\"None.\"}"
+}

@@ -1,0 +1,47 @@
+{
+  "id": "behavioral_avg_2",
+  "type": "behavioral",
+  "tier": "average",
+  "question": {
+    "id": "beh_mentorship",
+    "type": "behavioral",
+    "prompt": "Tell me about a time you mentored a junior engineer or helped a colleague level up their skills.",
+    "expectedPoints": [
+      "Identifying specific technical or professional growth opportunities for the mentee",
+      "Structured pedagogical approach (pairing, code reviews with context, delegating ownership)",
+      "Fostering independence rather than providing quick answers",
+      "Tangible evidence of mentee development and reciprocal learnings for the mentor"
+    ],
+    "commonMistakes": [
+      "Describing simple code reviews without pedagogical depth",
+      "Doing the work for the mentee",
+      "No evidence of mentee's subsequent growth or self-sufficiency"
+    ]
+  },
+  "transcript": "Candidate: Last year, an associate engineer joined our team who was struggling with asynchronous programming and React hooks in TypeScript. During code reviews, I noticed they were frequently encountering stale closures and race conditions. Instead of just rewriting the code in their PRs, I set up a weekly 45-minute pairing session. We walked through the JavaScript event loop, built custom hooks together from scratch, and created a team guide on useEffect dependencies. Over the next three months, their PR rejection rate dropped significantly, and they independently designed and shipped our new search autocomplete component with zero major bugs. Helping them also forced me to clarify my own mental models of React internals.",
+  "hints": [],
+  "expectedScoreRanges": {
+    "structure": [
+      3.5,
+      4.5
+    ],
+    "specificity": [
+      3.5,
+      4
+    ],
+    "ownership": [
+      3.5,
+      4
+    ],
+    "impact": [
+      3,
+      4
+    ],
+    "reflection": [
+      3,
+      4
+    ]
+  },
+  "notes": "Well-articulated mentorship story. Shows patience, pedagogical pairing, concrete mentee milestone (search autocomplete), and reciprocal learning.",
+  "recordedLLMResponse": "{\"questions\":[{\"id\":\"beh_mentorship\",\"type\":\"behavioral\",\"dimensions\":{\"structure\":{\"score\":4,\"evidence\":\"Last year, an associate engineer joined our team who was struggling with asynchronous programming\",\"note\":\"Clean STAR flow.\"},\"specificity\":{\"score\":3.5,\"evidence\":\"stale closures and race conditions. Instead of just rewriting the code in their PRs, I set up a weekly 45-minute pairing session\",\"note\":\"Concrete teaching intervention.\"},\"ownership\":{\"score\":4,\"evidence\":\"built custom hooks together from scratch, and created a team guide on useEffect dependencies\",\"note\":\"Created shared team artifacts.\"},\"impact\":{\"score\":3.5,\"evidence\":\"independently designed and shipped our new search autocomplete component with zero major bugs\",\"note\":\"Mentee achieved independence.\"},\"reflection\":{\"score\":3.5,\"evidence\":\"Helping them also forced me to clarify my own mental models of React internals\",\"note\":\"Recognized reciprocal value of teaching.\"}},\"missed_points\":[\"Quantitative PR review rejection percentages\",\"Long-term promotion or career progression of the mentee\"],\"model_answer_outline\":[\"Identify mentee skill gap\",\"Establish weekly pairing framework\",\"Track independent delivery milestone\"]}],\"overall\":{\"score\":3.7,\"summary\":\"Strong example of empathetic technical leadership. The candidate instituted regular pairing, created team documentation, enabled the junior engineer to ship independently, and reflected on personal growth.\",\"top_fixes\":[\"Incorporate specific quantitative metrics regarding review turnaround time or bug counts\",\"Discuss how this mentorship model was scaled across the wider engineering team\"],\"strengths\":[\"Resisted rewriting code for mentee\",\"Enabled mentee to ship autonomous feature\"]},\"uncertainty\":\"None.\"}"
+}

@@ -1,0 +1,51 @@
+{
+  "id": "coding_weak_2",
+  "type": "coding",
+  "tier": "weak",
+  "question": {
+    "id": "q_valid_palindrome",
+    "type": "coding",
+    "prompt": "A phrase is a palindrome if, after converting all uppercase letters into lowercase letters and removing all non-alphanumeric characters, it reads the same forward and backward. Given a string s, return true if it is a palindrome, or false otherwise.",
+    "expectedPoints": [
+      "Two pointer approach moving inwards from both ends",
+      "Skipping non-alphanumeric characters without allocating extra strings",
+      "Case-insensitive character comparison",
+      "O(N) time and O(1) space complexity"
+    ],
+    "commonMistakes": [
+      "RegEx allocation creating large unnecessary string copies",
+      "Off-by-one errors with pointers crossing",
+      "Failing on empty strings or strings with only punctuation"
+    ]
+  },
+  "transcript": "Candidate: For palindrome, I will take the string and reverse it into a new string using string concatenation in a loop. Then I do if s equals reversed return true. Interviewer: How do you handle punctuation and uppercase letters? Candidate: Oh I forgot about spaces and commas. Maybe I can replace them manually or just ignore it. I am not sure about alphanumeric checks in standard library. Time complexity is O(1) because string reversal is instant.",
+  "hints": [],
+  "expectedScoreRanges": {
+    "problem_understanding": [
+      1.5,
+      2.5
+    ],
+    "approach": [
+      1,
+      2
+    ],
+    "correctness": [
+      1,
+      2
+    ],
+    "complexity": [
+      1,
+      1.5
+    ],
+    "testing": [
+      1,
+      1.5
+    ],
+    "communication": [
+      1.5,
+      2.5
+    ]
+  },
+  "notes": "Incorrect complexity assertion (reversal is instant), missed core punctuation requirement, allocates unnecessary memory.",
+  "recordedLLMResponse": "{\"questions\":[{\"id\":\"q_valid_palindrome\",\"type\":\"coding\",\"dimensions\":{\"problem_understanding\":{\"score\":2,\"evidence\":\"Oh I forgot about spaces and commas\",\"note\":\"Missed non-alphanumeric filtering requirements.\"},\"approach\":{\"score\":2,\"evidence\":\"reverse it into a new string using string concatenation in a loop\",\"note\":\"Inefficient string concatenation.\"},\"correctness\":{\"score\":1,\"evidence\":\"Then I do if s equals reversed return true\",\"note\":\"Will fail on any string with spaces or punctuation.\"},\"complexity\":{\"score\":1,\"evidence\":\"Time complexity is O(1) because string reversal is instant\",\"note\":\"Fundamentally incorrect complexity analysis.\"},\"testing\":{\"score\":1,\"evidence\":\"\",\"note\":\"no evidence of test planning\"},\"communication\":{\"score\":2,\"evidence\":\"Maybe I can replace them manually or just ignore it\",\"note\":\"Hesitant and imprecise.\"}},\"missed_points\":[\"Two-pointer O(1) space approach\",\"Correct O(N) time analysis\",\"Alphanumeric filtering\"],\"model_answer_outline\":[\"Left and right pointers skipping non-alphanumeric\",\"Compare lowercased characters until left >= right\"]}],\"overall\":{\"score\":1.5,\"summary\":\"Candidate suggested string concatenation reversal while missing non-alphanumeric filtering. Claimed string reversal was O(1) time complexity.\",\"top_fixes\":[\"Review two-pointer in-place string algorithms\",\"Understand string immutability and concatenation complexity\",\"Consider edge cases like symbols and mixed casing\"],\"strengths\":[\"Understood definition of basic palindrome\"]},\"uncertainty\":\"Candidate did not provide written code, but spoken logic was thoroughly evaluated.\"}"
+}

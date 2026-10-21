@@ -1,0 +1,52 @@
+{
+  "id": "system_design_avg_1",
+  "type": "system_design",
+  "tier": "average",
+  "question": {
+    "id": "sd_notification_system",
+    "type": "system_design",
+    "prompt": "Design a scalable multi-channel notification system capable of sending billions of push notifications, SMS, and emails daily.",
+    "expectedPoints": [
+      "Channel segregation (APNs/FCM for push, Twilio for SMS, Sendgrid/SES for email)",
+      "Asynchronous queueing via message brokers (Kafka or RabbitMQ)",
+      "User notification preferences and opt-out rate limits",
+      "Idempotency and deduplication to avoid double sends",
+      "Priority queues for critical notifications (2FA OTP) vs marketing campaigns"
+    ],
+    "commonMistakes": [
+      "Synchronous calls to third-party providers causing gateway timeout",
+      "No rate limiting on marketing blasts causing third-party throttling",
+      "Lack of deduplication keys"
+    ]
+  },
+  "transcript": "Candidate: A notification system needs to support multiple channels: mobile push, SMS, and email. The core challenge is decoupling notification requests from actual delivery because third-party providers like APNs or Twilio can have latency or outages. We should put an API service behind a load balancer that validates incoming requests and checks user preferences in a database. Then the API publishes messages to Kafka topics partitioned by channel: push-topic, email-topic, sms-topic. Background worker pools consume from these topics and call the respective vendor APIs. If a vendor call fails, the worker retries with exponential backoff and sends persistent failures to a dead-letter queue. We also need priority queues so that urgent OTP codes aren't stuck behind bulk promotional emails. However, I haven't fully worked out deduplication if Kafka produces duplicate messages.",
+  "hints": [],
+  "expectedScoreRanges": {
+    "requirements": [
+      3.5,
+      4.5
+    ],
+    "estimation": [
+      2.5,
+      3.5
+    ],
+    "architecture": [
+      3.5,
+      4.5
+    ],
+    "tradeoffs": [
+      3,
+      4
+    ],
+    "failure_modes": [
+      3,
+      4
+    ],
+    "communication": [
+      3.5,
+      4.5
+    ]
+  },
+  "notes": "Good asynchronous queue architecture with dead-letter queue and priority separation. Acknowledged gap in message deduplication / idempotency.",
+  "recordedLLMResponse": "{\"questions\":[{\"id\":\"sd_notification_system\",\"type\":\"system_design\",\"dimensions\":{\"requirements\":{\"score\":4,\"evidence\":\"A notification system needs to support multiple channels: mobile push, SMS, and email\",\"note\":\"Clear scope and channel definition.\"},\"estimation\":{\"score\":3,\"evidence\":\"decoupling notification requests from actual delivery because third-party providers\",\"note\":\"Identified scale latency concerns.\"},\"architecture\":{\"score\":4,\"evidence\":\"publishes messages to Kafka topics partitioned by channel: push-topic, email-topic, sms-topic\",\"note\":\"Sound asynchronous queue architecture.\"},\"tradeoffs\":{\"score\":3.5,\"evidence\":\"priority queues so that urgent OTP codes aren't stuck behind bulk promotional emails\",\"note\":\"Good priority separation rationale.\"},\"failure_modes\":{\"score\":3.5,\"evidence\":\"retries with exponential backoff and sends persistent failures to a dead-letter queue\",\"note\":\"Proper DLQ and retry strategy.\"},\"communication\":{\"score\":3.5,\"evidence\":\"However, I haven't fully worked out deduplication if Kafka produces duplicate messages\",\"note\":\"Honest about technical limitation.\"}},\"missed_points\":[\"Idempotency keys and Redis deduplication hashes\",\"Numerical throughput and storage capacity calculations\"],\"model_answer_outline\":[\"Channel-segregated message brokers\",\"Deduplication cache with idempotency keys\",\"Worker pools with rate limit backpressure\"]}],\"overall\":{\"score\":3.6,\"summary\":\"Solid system design presentation. The candidate leveraged Kafka message topics, dead-letter queues, and priority lanes effectively, though explicit throughput math and idempotency keys were missing.\",\"top_fixes\":[\"Incorporate Redis-backed deduplication windows to ensure exactly-once delivery semantics\",\"Perform back-of-the-envelope capacity estimation for peak notification volume\"],\"strengths\":[\"Segregated topics by notification channel\",\"Implemented DLQ and exponential backoff retry patterns\"]},\"uncertainty\":\"None.\"}"
+}

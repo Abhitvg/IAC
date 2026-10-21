@@ -103,6 +103,10 @@ export class LLMScorer {
    * Invokes LLM with strict JSON schema validation, retry mechanism, evidence verification, and code-based hint penalties.
    */
   public static async evaluate(input: ScorerInput): Promise<FinalScoredReport> {
+    return LLMScorer._evaluateImpl(input);
+  }
+  public static score = LLMScorer.evaluate;
+  private static async _evaluateImpl(input: ScorerInput): Promise<FinalScoredReport> {
     const transcript = (input.transcript || "").trim();
     const signals = DeterministicSignalsExtractor.extract(transcript);
 

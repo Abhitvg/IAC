@@ -1,0 +1,52 @@
+{
+  "id": "system_design_weak_2",
+  "type": "system_design",
+  "tier": "weak",
+  "question": {
+    "id": "sd_rate_limiter",
+    "type": "system_design",
+    "prompt": "Design an API Rate Limiter to protect public endpoints from abuse and DoS attacks.",
+    "expectedPoints": [
+      "Functional requirements (client identifier, throttling rules, headers returned)",
+      "Rate limiting algorithms (Token Bucket, Leaky Bucket, Sliding Window Counter)",
+      "Low-latency distributed storage (Redis with sorted sets or Lua scripts for atomicity)",
+      "Multi-node synchronization and race conditions",
+      "Graceful degradation when rate limiter fails (fail-open vs fail-closed)"
+    ],
+    "commonMistakes": [
+      "Querying SQL database on every incoming HTTP request",
+      "Ignoring race conditions between parallel requests",
+      "Not specifying return codes (HTTP 429 Too Many Requests)"
+    ]
+  },
+  "transcript": "Candidate: To limit requests, every time a request comes into our API gateway, we insert a row into a Postgres table with user_id and timestamp. Then we run SELECT COUNT(*) FROM requests WHERE user_id = ? AND timestamp > NOW() - INTERVAL 1 MINUTE. If the count is over 100, we throw an error. Interviewer: How does this perform under 50,000 requests per second across 10 regions? Candidate: Postgres is very fast. We can add an index on user_id. If Postgres gets slow, maybe we can put a cache in front of it somehow, but I don't know how the cache would count requests.",
+  "hints": [],
+  "expectedScoreRanges": {
+    "requirements": [
+      1.5,
+      2.5
+    ],
+    "estimation": [
+      1,
+      1.5
+    ],
+    "architecture": [
+      1,
+      2
+    ],
+    "tradeoffs": [
+      1,
+      1.5
+    ],
+    "failure_modes": [
+      1,
+      1.5
+    ],
+    "communication": [
+      1.5,
+      2.5
+    ]
+  },
+  "notes": "Catastrophic architecture: SQL insert and count per request on high-throughput gateway. No knowledge of Token Bucket or Redis Lua scripts.",
+  "recordedLLMResponse": "{\"questions\":[{\"id\":\"sd_rate_limiter\",\"type\":\"system_design\",\"dimensions\":{\"requirements\":{\"score\":2,\"evidence\":\"every time a request comes into our API gateway\",\"note\":\"Basic rate limit context.\"},\"estimation\":{\"score\":1,\"evidence\":\"\",\"note\":\"no evidence of estimation\"},\"architecture\":{\"score\":1.5,\"evidence\":\"insert a row into a Postgres table with user_id and timestamp. Then we run SELECT COUNT(*)\",\"note\":\"Disastrous database bottleneck on gateway.\"},\"tradeoffs\":{\"score\":1,\"evidence\":\"I don't know how the cache would count requests\",\"note\":\"Unaware of in-memory sliding window or token bucket counters.\"},\"failure_modes\":{\"score\":1,\"evidence\":\"Postgres is very fast. We can add an index on user_id\",\"note\":\"Fails under multi-region scale.\"},\"communication\":{\"score\":2,\"evidence\":\"If the count is over 100, we throw an error\",\"note\":\"Did not specify HTTP 429 response or headers.\"}},\"missed_points\":[\"Token Bucket or Sliding Window algorithm\",\"Redis in-memory counters with Lua script atomicity\",\"HTTP 429 Retry-After headers\"],\"model_answer_outline\":[\"Token Bucket algorithm\",\"In-memory Redis sorted sets\",\"Fail-open vs fail-closed policies\"]}],\"overall\":{\"score\":1.4,\"summary\":\"Candidate proposed writing and counting SQL records on every API request. Lacked familiarity with distributed caching, in-memory rate limiting algorithms, or concurrency primitives.\",\"top_fixes\":[\"Learn standard rate limiting algorithms (Token Bucket, Sliding Window)\",\"Use Redis INCR with EXPIRE or Redis Lua scripts for atomic counting\",\"Define clear HTTP status codes like 429 Too Many Requests\"],\"strengths\":[\"Identified client identifier based on user_id\"]},\"uncertainty\":\"None.\"}"
+}

@@ -1,0 +1,47 @@
+{
+  "id": "behavioral_strong_2",
+  "type": "behavioral",
+  "tier": "strong",
+  "question": {
+    "id": "beh_production_incident",
+    "type": "behavioral",
+    "prompt": "Tell me about a high-severity production incident you caused or were called to resolve. How did you handle the crisis, and what systemic changes did you implement?",
+    "expectedPoints": [
+      "Radical ownership without deflection or defensiveness",
+      "Rapid incident triage, blast radius containment, and cross-team communication",
+      "Blameless root cause investigation (5 Whys)",
+      "Preventative system-level safeguards (automated rollbacks, canarying, static analysis rules)"
+    ],
+    "commonMistakes": [
+      "Minimizing severity or shifting blame to automated systems",
+      "Panicking without methodical debugging",
+      "Failing to establish long-term safeguards against recurrence"
+    ]
+  },
+  "transcript": "Candidate: During a high-traffic Tuesday morning release, a database schema migration I authored introduced an exclusive table lock on our primary payment transactions table, instantly causing API request queues to back up and throwing 504 gateway timeouts for 15,000 active checkout sessions. The P0 alert fired within 90 seconds. My first priority was blast radius mitigation: rather than debugging on the live master, I immediately triggered our automated rollback pipeline, terminating the lock within 3 minutes and restoring transaction flow. Simultaneously, I took ownership as Incident Commander in our war room, updating our customer status page and notifying executive stakeholders every 15 minutes with verified impact metrics. Once systems stabilized, I led a blameless post-mortem analyzing how the migration passed CI. We discovered our local and staging environments lacked representative table volume to reveal lock escalation. To eliminate this class of failure permanently, I introduced three guardrails: first, I integrated a migration linter into our CI that blocks table-rewriting DDL statements. Second, we mandated gh-ost and pt-online-schema-change for all zero-downtime table modifications on datasets over 100,000 rows. Third, we established automated canary schema dry-runs against anonymized production clones. In the two years following, our team performed over 140 schema migrations without a single second of lock-induced downtime.",
+  "hints": [],
+  "expectedScoreRanges": {
+    "structure": [
+      4.5,
+      5
+    ],
+    "specificity": [
+      4.5,
+      5
+    ],
+    "ownership": [
+      4.5,
+      5
+    ],
+    "impact": [
+      4.5,
+      5
+    ],
+    "reflection": [
+      4.5,
+      5
+    ]
+  },
+  "notes": "Exemplar incident handling: 3-minute rollback, clear stakeholder communication, blameless post-mortem, and robust automated guardrails.",
+  "recordedLLMResponse": "{\"questions\":[{\"id\":\"beh_production_incident\",\"type\":\"behavioral\",\"dimensions\":{\"structure\":{\"score\":5,\"evidence\":\"During a high-traffic Tuesday morning release, a database schema migration I authored introduced an exclusive table lock\",\"note\":\"Immediate honest ownership.\"},\"specificity\":{\"score\":5,\"evidence\":\"causing API request queues to back up and throwing 504 gateway timeouts for 15,000 active checkout sessions\",\"note\":\"Precise metrics and blast radius detail.\"},\"ownership\":{\"score\":5,\"evidence\":\"took ownership as Incident Commander in our war room, updating our customer status page and notifying executive stakeholders\",\"note\":\"Exemplary crisis stewardship.\"},\"impact\":{\"score\":5,\"evidence\":\"In the two years following, our team performed over 140 schema migrations without a single second of lock-induced downtime\",\"note\":\"Enduring long-term systemic reliability.\"},\"reflection\":{\"score\":5,\"evidence\":\"discovered our local and staging environments lacked representative table volume to reveal lock escalation\",\"note\":\"Systemic root cause analysis.\"}},\"missed_points\":[],\"model_answer_outline\":[\"Radical ownership of lock bug\",\"Immediate 3-min rollback\",\"War room communication\",\"Long-term migration linter & gh-ost guardrails\"]}],\"overall\":{\"score\":5,\"summary\":\"Masterclass in incident response and engineering ownership. The candidate mitigated an active checkout outage in under 3 minutes, managed executive communication transparently, and instituted permanent tooling guardrails that prevented recurrence across 140 subsequent releases.\",\"top_fixes\":[],\"strengths\":[\"Immediate blast-radius containment over live debugging\",\"Blameless post-mortem methodology\",\"Implemented permanent CI linting and online schema tooling\"]},\"uncertainty\":\"None.\"}"
+}

@@ -1,0 +1,52 @@
+{
+  "id": "system_design_weak_1",
+  "type": "system_design",
+  "tier": "weak",
+  "question": {
+    "id": "sd_url_shortener",
+    "type": "system_design",
+    "prompt": "Design a scalable URL shortening service like TinyURL or Bitly.",
+    "expectedPoints": [
+      "Requirements and traffic estimations (read/write ratio, QPS, storage over 5-10 years)",
+      "Key generation mechanism (Base62 encoding of counter vs MD5/SHA256 with collision check)",
+      "Database choice (NoSQL key-value store or RDBMS) and indexing",
+      "Caching strategy (Redis/Memcached for top 20% URLs)",
+      "Handling redirects (301 permanent vs 302 temporary for analytics)"
+    ],
+    "commonMistakes": [
+      "No capacity estimation or traffic math",
+      "Using auto-increment integer IDs without encoding (guessable, leak business volume)",
+      "Ignoring cache and database scaling bottlenecks"
+    ]
+  },
+  "transcript": "Candidate: For TinyURL, I will use a React frontend, Node.js backend with Express, and a MySQL database. When the user pastes a long URL, the backend saves it in a table with columns id, long_url, and short_url. Then it returns localhost:3000/id. When someone clicks the link, we do SELECT long_url FROM urls WHERE id = ? and redirect them. Interviewer: How would you handle 100 million requests per day? Candidate: We can just buy a bigger AWS server. If it gets slow, we can add more Node.js instances. MySQL can handle lots of rows so that should be fine. We do not need anything complicated like caching.",
+  "hints": [],
+  "expectedScoreRanges": {
+    "requirements": [
+      1,
+      2
+    ],
+    "estimation": [
+      1,
+      1.5
+    ],
+    "architecture": [
+      1,
+      2
+    ],
+    "tradeoffs": [
+      1,
+      1.5
+    ],
+    "failure_modes": [
+      1,
+      1.5
+    ],
+    "communication": [
+      1.5,
+      2.5
+    ]
+  },
+  "notes": "No scale awareness, vertical scaling only, exposes internal IDs, rejects caching, zero capacity estimation.",
+  "recordedLLMResponse": "{\"questions\":[{\"id\":\"sd_url_shortener\",\"type\":\"system_design\",\"dimensions\":{\"requirements\":{\"score\":2,\"evidence\":\"When the user pastes a long URL, the backend saves it in a table\",\"note\":\"Understands toy requirements only.\"},\"estimation\":{\"score\":1,\"evidence\":\"\",\"note\":\"no evidence of estimation\"},\"architecture\":{\"score\":1.5,\"evidence\":\"React frontend, Node.js backend with Express, and a MySQL database\",\"note\":\"Basic monolithic 3-tier architecture.\"},\"tradeoffs\":{\"score\":1,\"evidence\":\"We do not need anything complicated like caching.\",\"note\":\"Dismisses essential caching tier.\"},\"failure_modes\":{\"score\":1,\"evidence\":\"We can just buy a bigger AWS server\",\"note\":\"Fails to consider distributed bottlenecks or database SPOF.\"},\"communication\":{\"score\":2,\"evidence\":\"MySQL can handle lots of rows so that should be fine\",\"note\":\"Overly casual and ungrounded assertions.\"}},\"missed_points\":[\"Capacity calculations\",\"Base62 key generation\",\"Redis caching\",\"301 vs 302 HTTP redirects\"],\"model_answer_outline\":[\"Estimate QPS and storage\",\"Base62 key generator service\",\"Redis caching tier\",\"Distributed key-value store\"]}],\"overall\":{\"score\":1.4,\"summary\":\"Candidate approached the problem as a single-server school project. Refused caching, provided zero capacity estimations, and suggested vertical scaling as the only strategy.\",\"top_fixes\":[\"Perform explicit read/write QPS and 5-year storage estimates\",\"Study Base62 encoding techniques for unique IDs\",\"Introduce Redis caching and database read replicas\"],\"strengths\":[\"Identified primary database table columns\"]},\"uncertainty\":\"None.\"}"
+}

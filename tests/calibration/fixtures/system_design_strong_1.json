@@ -1,0 +1,52 @@
+{
+  "id": "system_design_strong_1",
+  "type": "system_design",
+  "tier": "strong",
+  "question": {
+    "id": "sd_metrics_service",
+    "type": "system_design",
+    "prompt": "Design a large-scale real-time Metrics and Monitoring System like Datadog or Prometheus.",
+    "expectedPoints": [
+      "Capacity estimation: write-heavy workload (e.g., 1M metrics/sec, metric structure: name, tags, timestamp, value)",
+      "Ingestion pipeline: lightweight agents, Kafka/Pulsar buffering to handle telemetry spikes",
+      "Time-Series Database (TSDB) architecture: in-memory buffers, Gorilla compression (delta-of-deltas, XOR float compression)",
+      "Storage tiering: hot data in SSD/memory, warm/cold downsampled rollups (1m, 1h, 1d) in object storage (S3)",
+      "Alerting and evaluation engine: pull/push query worker pools with deduplication and notification routing"
+    ],
+    "commonMistakes": [
+      "Using traditional relational databases for high-cardinality time-series data",
+      "Not accounting for metric cardinality explosion caused by dynamic tags",
+      "Failing to specify downsampling strategies for long-term retention"
+    ]
+  },
+  "transcript": "Candidate: Let us begin with requirements and scale estimation. We are designing for 50,000 servers each emitting 100 metrics every 10 seconds. That yields 500,000 metric writes per second. Each metric payload is roughly 64 bytes: metric name, tag hash, 64-bit timestamp, and 64-bit float value. This generates 32 MB/s ingress throughput, or ~2.7 TB of raw uncompressed telemetry per day. Because metrics are append-only with strict time locality, a standard RDBMS will degrade under index contention. The architecture consists of four tiers: First, a local daemon agent on client hosts buffers and aggregates metrics over a 10s window to smooth spikes. Second, an Ingestion Gateway validates schemas and pushes to a partitioned Kafka cluster keyed by tenant_id:metric_name. Third, the TSDB Storage Engine uses an LSM-based time-series layout inspired by Prometheus and Gorilla. It compresses timestamps using delta-of-delta encoding and values using XOR floating-point compression, reducing the footprint by up to 90%. Recent data (past 2 hours) is held in memory blocks. Once closed, blocks are flushed to persistent SSDs as immutable chunks. Fourth, a Retention & Rollup service runs asynchronous background compaction, aggregating raw 10-second data into 1-minute summaries after 7 days, and 1-hour summaries after 30 days before moving to cold object storage. For query performance, an inverted index maps tag key-value pairs to series IDs, and we protect against high-cardinality explosion by capping unique tag combinations per tenant.",
+  "hints": [],
+  "expectedScoreRanges": {
+    "requirements": [
+      4.5,
+      5
+    ],
+    "estimation": [
+      4.5,
+      5
+    ],
+    "architecture": [
+      4.5,
+      5
+    ],
+    "tradeoffs": [
+      4.5,
+      5
+    ],
+    "failure_modes": [
+      4.5,
+      5
+    ],
+    "communication": [
+      4.5,
+      5
+    ]
+  },
+  "notes": "Outstanding system design answer. Rigorous mathematical estimation, Gorilla time-series compression, storage tiering, downsampling, and cardinality mitigation.",
+  "recordedLLMResponse": "{\"questions\":[{\"id\":\"sd_metrics_service\",\"type\":\"system_design\",\"dimensions\":{\"requirements\":{\"score\":5,\"evidence\":\"We are designing for 50,000 servers each emitting 100 metrics every 10 seconds. That yields 500,000 metric writes per second\",\"note\":\"Precise capacity estimation.\"},\"estimation\":{\"score\":5,\"evidence\":\"generates 32 MB/s ingress throughput, or ~2.7 TB of raw uncompressed telemetry per day\",\"note\":\"Accurate storage and bandwidth derivations.\"},\"architecture\":{\"score\":5,\"evidence\":\"uses an LSM-based time-series layout inspired by Prometheus and Gorilla. It compresses timestamps using delta-of-delta encoding\",\"note\":\"State of the art time-series architecture.\"},\"tradeoffs\":{\"score\":5,\"evidence\":\"aggregating raw 10-second data into 1-minute summaries after 7 days, and 1-hour summaries after 30 days\",\"note\":\"Pragmatic storage tiering and downsampling.\"},\"failure_modes\":{\"score\":4.5,\"evidence\":\"protect against high-cardinality explosion by capping unique tag combinations per tenant\",\"note\":\"Mitigates the #1 operational failure mode of TSDBs.\"},\"communication\":{\"score\":5,\"evidence\":\"The architecture consists of four tiers: First, a local daemon agent on client hosts\",\"note\":\"Masterful narrative structure.\"}},\"missed_points\":[],\"model_answer_outline\":[\"Capacity math (500k writes/s)\",\"Kafka ingestion tier\",\"Gorilla compression TSDB\",\"Compaction and downsampling\"]}],\"overall\":{\"score\":4.9,\"summary\":\"Exemplary system design. The candidate combined accurate back-of-the-envelope calculations with industry-standard time-series engineering patterns like Gorilla compression, retention tiering, and cardinality caps.\",\"top_fixes\":[],\"strengths\":[\"Rigorous quantitative calculations\",\"Leveraged Gorilla XOR and delta-of-delta compression\",\"Proactively addressed metric cardinality explosion\"]},\"uncertainty\":\"None.\"}"
+}

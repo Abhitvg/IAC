@@ -1,0 +1,52 @@
+{
+  "id": "coding_weak_1",
+  "type": "coding",
+  "tier": "weak",
+  "question": {
+    "id": "q_two_sum",
+    "type": "coding",
+    "prompt": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume each input would have exactly one solution, and you may not use the same element twice.",
+    "expectedPoints": [
+      "Clarify constraints (negative numbers, array size, memory constraints)",
+      "Suggest linear time approach using a Hash Map tracking complement",
+      "Analyze O(N) time complexity and O(N) auxiliary space complexity",
+      "Handle edge cases like duplicate values that sum to target",
+      "Provide unit test cases (e.g., negative numbers, minimum array length)"
+    ],
+    "commonMistakes": [
+      "Defaulting to O(N^2) brute force nested loops without optimization",
+      "Returning values instead of indices",
+      "Using the same element index twice"
+    ]
+  },
+  "transcript": "Candidate: Uh, okay. Two sum. I guess I will just loop through the array twice with two for loops, like for i from 0 to n and for j from 0 to n. If nums[i] plus nums[j] equals target, I return [i, j]. That should work for everything, right? Interviewer: What happens if target is 6 and nums[0] is 3? Candidate: Oh, it might return [0, 0]. I can just check if i is not equal to j. Complexity? I don't know, it's just two loops so maybe O(N) or O(N squared)? I don't think we need a hash table, nested loops are simpler. No tests needed.",
+  "hints": [],
+  "expectedScoreRanges": {
+    "problem_understanding": [
+      1.5,
+      2.5
+    ],
+    "approach": [
+      1,
+      2
+    ],
+    "correctness": [
+      1.5,
+      2.5
+    ],
+    "complexity": [
+      1,
+      2
+    ],
+    "testing": [
+      1,
+      1.5
+    ],
+    "communication": [
+      1.5,
+      2.5
+    ]
+  },
+  "notes": "Brute force O(N^2), failed to prevent duplicate index until prompted, dismissive of tests and hash map optimization.",
+  "recordedLLMResponse": "{\"questions\":[{\"id\":\"q_two_sum\",\"type\":\"coding\",\"dimensions\":{\"problem_understanding\":{\"score\":2,\"evidence\":\"If nums[i] plus nums[j] equals target, I return [i, j]\",\"note\":\"Understands basic goal but misses edge cases.\"},\"approach\":{\"score\":2,\"evidence\":\"I guess I will just loop through the array twice with two for loops\",\"note\":\"Brute force approach only.\"},\"correctness\":{\"score\":2,\"evidence\":\"I can just check if i is not equal to j\",\"note\":\"Prone to self-pairing bug without patch.\"},\"complexity\":{\"score\":1,\"evidence\":\"Complexity? I don't know, it's just two loops so maybe O(N) or O(N squared)?\",\"note\":\"Uncertain about complexity.\"},\"testing\":{\"score\":1,\"evidence\":\"No tests needed.\",\"note\":\"Refuses to write test cases.\"},\"communication\":{\"score\":2,\"evidence\":\"That should work for everything, right?\",\"note\":\"Lacks confidence and rigor.\"}},\"missed_points\":[\"Hash map complement lookup\",\"O(N) time complexity\",\"Unit testing edge cases\"],\"model_answer_outline\":[\"Maintain map of target - num to index\",\"Single pass O(N) time and O(N) space\"]}],\"overall\":{\"score\":1.7,\"summary\":\"Candidate proposed an O(N^2) brute force solution without exploring optimal hash map patterns. Complexity reasoning was uncertain and testing was omitted.\",\"top_fixes\":[\"Learn one-pass hash map complement technique\",\"Practice calculating time complexity for nested iterations\",\"Proactively test boundaries\"],\"strengths\":[\"Identified that indices should be returned\"]},\"uncertainty\":\"None; candidate clearly articulated their brute-force approach.\"}"
+}

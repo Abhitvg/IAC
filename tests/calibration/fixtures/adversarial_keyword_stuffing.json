@@ -1,0 +1,49 @@
+{
+  "id": "adversarial_keyword_stuffing",
+  "type": "coding",
+  "tier": "adversarial",
+  "question": {
+    "id": "adv_q_keywords",
+    "type": "coding",
+    "prompt": "Implement a function to find the maximum depth of a binary tree.",
+    "expectedPoints": [
+      "Recursive DFS checking max(left, right) + 1 with base case null root returning 0",
+      "Iterative BFS alternative using queue",
+      "O(N) time and O(H) space complexity where H is tree height"
+    ],
+    "commonMistakes": [
+      "Stack overflow on skewed tree",
+      "Off by one on leaf count"
+    ]
+  },
+  "transcript": "Candidate: Big-O notation, O(1) time complexity, dynamic programming, quicksort, hash map, binary search tree, Dijkstra algorithm, recursion, return, return, return. Situation, Task, Action, Result, 99.9% uptime, 10,000 users, AWS microservices, Docker, Kubernetes, situational leadership, metrics, high impact, optimal solution.",
+  "hints": [],
+  "expectedScoreRanges": {
+    "problem_understanding": [
+      1,
+      2
+    ],
+    "approach": [
+      1,
+      2
+    ],
+    "correctness": [
+      1,
+      2
+    ],
+    "complexity": [
+      1,
+      2
+    ],
+    "testing": [
+      1,
+      1.5
+    ],
+    "communication": [
+      1,
+      2
+    ]
+  },
+  "notes": "Adversarial keyword stuffing test. Scorer must not reward empty jargon. Core dimensions must cap at <= 2.",
+  "recordedLLMResponse": "{\"questions\":[{\"id\":\"adv_q_keywords\",\"type\":\"coding\",\"dimensions\":{\"problem_understanding\":{\"score\":1,\"evidence\":\"\",\"note\":\"no verifiable evidence of problem understanding\"},\"approach\":{\"score\":1,\"evidence\":\"\",\"note\":\"no verifiable evidence of algorithmic approach\"},\"correctness\":{\"score\":1,\"evidence\":\"\",\"note\":\"no verifiable evidence of solution correctness\"},\"complexity\":{\"score\":1,\"evidence\":\"O(1) time complexity\",\"note\":\"Claimed O(1) without context or code; invalid.\"},\"testing\":{\"score\":1,\"evidence\":\"\",\"note\":\"no evidence of testing\"},\"communication\":{\"score\":1,\"evidence\":\"\",\"note\":\"Coherent communication absent; disconnected keywords only.\"}},\"missed_points\":[\"Recursive DFS depth logic\",\"Base cases for null root\",\"Tree height space analysis\"],\"model_answer_outline\":[\"if (!root) return 0;\",\"return 1 + Math.max(depth(left), depth(right));\"]}],\"overall\":{\"score\":1,\"summary\":\"Candidate recited technical buzzwords without articulating any logic, algorithm, or solution for binary tree depth.\",\"top_fixes\":[\"Focus on solving the specific question asked\",\"Provide actual algorithmic logic rather than keyword recitations\"],\"strengths\":[]},\"uncertainty\":\"The transcript contains no algorithmic code or reasoning; only disconnected keywords.\"}"
+}

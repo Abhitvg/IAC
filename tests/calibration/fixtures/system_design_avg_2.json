@@ -1,0 +1,52 @@
+{
+  "id": "system_design_avg_2",
+  "type": "system_design",
+  "tier": "average",
+  "question": {
+    "id": "sd_kv_store",
+    "type": "system_design",
+    "prompt": "Design a distributed Key-Value Store with high availability and fault tolerance.",
+    "expectedPoints": [
+      "Consistent hashing with virtual nodes to distribute keys across nodes",
+      "Data replication strategy across N nodes (preference lists)",
+      "Quorum consensus (R + W > N) for tunable consistency",
+      "Gossip protocol for decentralized node failure detection",
+      "Storage engine (LSM-tree / SSTable vs B-Tree)"
+    ],
+    "commonMistakes": [
+      "Centralized coordinator creating a single point of failure",
+      "Not discussing network partitions or CAP theorem trade-offs",
+      "Ignoring conflict resolution for concurrent writes"
+    ]
+  },
+  "transcript": "Candidate: For a distributed key-value store, we want horizontal scalability and high availability. To distribute keys evenly across cluster nodes without re-hashing everything when nodes join or leave, we use consistent hashing with virtual nodes on a hash ring. For replication, each key is replicated across the next N physical nodes clockwise on the ring. For consistency, we use quorum reads and writes: with replication factor N=3, we can configure R=2 and W=2 so R + W > N guarantees at least one node in the read quorum has the latest write. We can use a gossip protocol between nodes to detect heartbeat failures. For disk storage on each node, an LSM-tree with write-ahead log gives fast write performance. The part I am less certain about is how to resolve split-brain conflicts if two writes happen during a network partition—probably vector clocks or last-write-wins with timestamps.",
+  "hints": [],
+  "expectedScoreRanges": {
+    "requirements": [
+      3.5,
+      4.5
+    ],
+    "estimation": [
+      2.5,
+      3.5
+    ],
+    "architecture": [
+      4,
+      4.5
+    ],
+    "tradeoffs": [
+      3.5,
+      4
+    ],
+    "failure_modes": [
+      3.5,
+      4
+    ],
+    "communication": [
+      3.5,
+      4.5
+    ]
+  },
+  "notes": "Well-structured Dynamo-style architecture. Explains consistent hashing, quorum formula, and LSM-tree. Weak on conflict resolution specifics.",
+  "recordedLLMResponse": "{\"questions\":[{\"id\":\"sd_kv_store\",\"type\":\"system_design\",\"dimensions\":{\"requirements\":{\"score\":4,\"evidence\":\"we want horizontal scalability and high availability\",\"note\":\"Identified core non-functional requirements.\"},\"estimation\":{\"score\":3,\"evidence\":\"with replication factor N=3, we can configure R=2 and W=2\",\"note\":\"Standard quorum ratio referenced.\"},\"architecture\":{\"score\":4,\"evidence\":\"consistent hashing with virtual nodes on a hash ring. For replication, each key is replicated across the next N physical nodes\",\"note\":\"Clean Dynamo ring architecture.\"},\"tradeoffs\":{\"score\":3.5,\"evidence\":\"an LSM-tree with write-ahead log gives fast write performance\",\"note\":\"Good storage engine selection rationale.\"},\"failure_modes\":{\"score\":3.5,\"evidence\":\"use a gossip protocol between nodes to detect heartbeat failures\",\"note\":\"Decentralized failure detection.\"},\"communication\":{\"score\":3.5,\"evidence\":\"The part I am less certain about is how to resolve split-brain conflicts\",\"note\":\"Transparent communication of limits.\"}},\"missed_points\":[\"Deep dive into vector clock conflict reconciliation\",\"SSTable compaction and read amplification trade-offs\"],\"model_answer_outline\":[\"Consistent hashing with virtual nodes\",\"Quorum consensus R+W>N\",\"Vector clocks for divergent writes\"]}],\"overall\":{\"score\":3.6,\"summary\":\"Strong grasp of decentralized distributed storage principles including consistent hashing, tunable quorum consensus, and LSM-trees. Conflict resolution under network partitions was mentioned but not deeply explored.\",\"top_fixes\":[\"Detail vector clock resolution algorithms and client-side reconciliation\",\"Discuss read amplification mitigation with Bloom filters on SSTables\"],\"strengths\":[\"Accurate explanation of consistent hashing ring\",\"Applied R+W > N quorum consensus formula correctly\"]},\"uncertainty\":\"None.\"}"
+}
