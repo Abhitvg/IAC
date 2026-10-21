@@ -34,24 +34,30 @@ export default function SessionsPanel() {
           {currentPerformance && (
             <div className="performance-card" style={{ marginBottom: '24px' }}>
               <h3 className="performance-card__title">Latest Session Performance</h3>
-              
+
               <div className="performance-grid">
                 <div className="performance-stat">
                   <div className="performance-stat__value">{currentPerformance.totalQuestions}</div>
                   <div className="performance-stat__label">Questions</div>
                 </div>
                 <div className="performance-stat">
-                  <div className="performance-stat__value">{currentPerformance.averageResponseTime}s</div>
+                  <div className="performance-stat__value">
+                    {currentPerformance.averageResponseTime}s
+                  </div>
                   <div className="performance-stat__label">Avg. Response Time</div>
                 </div>
               </div>
 
               {currentPerformance.strongAreas.length > 0 && (
                 <div style={{ marginBottom: '16px' }}>
-                  <div className="card__label" style={{ marginBottom: '8px' }}>Strong Areas</div>
+                  <div className="card__label" style={{ marginBottom: '8px' }}>
+                    Strong Areas
+                  </div>
                   <div className="performance-tags">
                     {currentPerformance.strongAreas.map((area: any) => (
-                      <span key={area} className="performance-tag performance-tag--strong">{area}</span>
+                      <span key={area} className="performance-tag performance-tag--strong">
+                        {area}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -59,10 +65,14 @@ export default function SessionsPanel() {
 
               {currentPerformance.weakAreas.length > 0 && (
                 <div style={{ marginBottom: '16px' }}>
-                  <div className="card__label" style={{ marginBottom: '8px' }}>Areas to Improve</div>
+                  <div className="card__label" style={{ marginBottom: '8px' }}>
+                    Areas to Improve
+                  </div>
                   <div className="performance-tags">
                     {currentPerformance.weakAreas.map((area: any) => (
-                      <span key={area} className="performance-tag performance-tag--weak">{area}</span>
+                      <span key={area} className="performance-tag performance-tag--weak">
+                        {area}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -70,10 +80,21 @@ export default function SessionsPanel() {
 
               {currentPerformance.recommendations.length > 0 && (
                 <div>
-                  <div className="card__label" style={{ marginBottom: '8px' }}>Recommendations</div>
-                  <ul style={{ paddingLeft: '20px', margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  <div className="card__label" style={{ marginBottom: '8px' }}>
+                    Recommendations
+                  </div>
+                  <ul
+                    style={{
+                      paddingLeft: '20px',
+                      margin: 0,
+                      fontSize: '12px',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
                     {currentPerformance.recommendations.map((rec: any, i: number) => (
-                      <li key={i} style={{ marginBottom: '4px' }}>{rec}</li>
+                      <li key={i} style={{ marginBottom: '4px' }}>
+                        {rec}
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -83,7 +104,7 @@ export default function SessionsPanel() {
 
           <div className="settings-section">
             <h3 className="settings-section__title">Past Sessions</h3>
-            
+
             {sessionHistory.length === 0 ? (
               <div className="empty-state" style={{ padding: '40px 0' }}>
                 <Calendar size={32} className="empty-state__icon" />
@@ -96,8 +117,8 @@ export default function SessionsPanel() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {sessionHistory.map((session) => {
                   const date = new Date(session.startTime);
-                  const duration = session.endTime 
-                    ? Math.round((new Date(session.endTime).getTime() - date.getTime()) / 60000) 
+                  const duration = session.endTime
+                    ? Math.round((new Date(session.endTime).getTime() - date.getTime()) / 60000)
                     : 0;
 
                   // Group questions by category
@@ -108,11 +129,24 @@ export default function SessionsPanel() {
 
                   return (
                     <div key={session.id} className="session-item">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
                         <div className="session-item__date">
-                          {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                          {date.toLocaleDateString(undefined, {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
                         </div>
-                        <div className="session-item__meta" style={{ display: 'flex', gap: '12px' }}>
+                        <div
+                          className="session-item__meta"
+                          style={{ display: 'flex', gap: '12px' }}
+                        >
                           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <Target size={10} /> {session.questions.length} Qs
                           </span>
@@ -121,15 +155,23 @@ export default function SessionsPanel() {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="session-item__stats">
-                        {Object.entries(categories).slice(0, 4).map(([cat, count]) => (
-                          <span key={cat} className="session-item__stat" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {getCategoryIcon(cat)} {cat} ({count})
-                          </span>
-                        ))}
+                        {Object.entries(categories)
+                          .slice(0, 4)
+                          .map(([cat, count]) => (
+                            <span
+                              key={cat}
+                              className="session-item__stat"
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              {getCategoryIcon(cat)} {cat} ({count})
+                            </span>
+                          ))}
                         {Object.keys(categories).length > 4 && (
-                          <span className="session-item__stat">+{Object.keys(categories).length - 4} more</span>
+                          <span className="session-item__stat">
+                            +{Object.keys(categories).length - 4} more
+                          </span>
                         )}
                       </div>
                     </div>

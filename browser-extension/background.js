@@ -1,83 +1,97 @@
 let ws = null;
 let reconnectInterval = null;
-let port = 0;
+const DEFAULT_PORT = 31415;
 
-// Try to discover the app's WebSocket port
-async function discoverPort() {
-  // In a real implementation, the app could write its port to a known local file
-  // or use a fixed port like 31415. For simplicity, we'll try a list of ports.
-  const portsToTry = [31415, 31416, 31417, 31418];
-  
-  for (const p of portsToTry) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${p}/ping`);
-      if (response.ok) {
-        port = p;
-        return true;
-      }
-    } catch (e) {
-      // Ignore connection refused
+async function getToken() {
+  return new Promise((resolve) => {
+    if (chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['extensionToken'], (result) => {
+        resolve(result?.extensionToken || '');
+      });
+    } else {
+      resolve('');
     }
-  }
-  return false;
+  });
 }
 
-function connectWebSocket() {
+async function connectWebSocket() {
   if (ws && ws.readyState !== WebSocket.CLOSED) return;
 
-  // Assuming the app runs its WS server on a fixed port for simplicity,
-  // or the user configures it. Let's use 31415 as a default convention.
-  ws = new WebSocket('ws://127.0.0.1:31415');
+  const token = await getToken();
+  const wsUrl = token
+    ? `ws://127.0.0.1:${DEFAULT_PORT}?token=${encodeURIComponent(token)}`
+    : `ws://127.0.0.1:${DEFAULT_PORT}`;
 
-  ws.onopen = () => {
-    console.log('Connected to AI Interview Assistant');
-    if (reconnectInterval) {
-      clearInterval(reconnectInterval);
-      reconnectInterval = null;
-    }
-  };
+  try {
+    ws = new WebSocket(wsUrl);
 
-  ws.onclose = () => {
-    console.log('Disconnected from AI Interview Assistant');
-    ws = null;
-    if (!reconnectInterval) {
-      reconnectInterval = setInterval(connectWebSocket, 5000);
-    }
-  };
+    ws.onopen = () => {
+      console.log('[Extension] Connected securely to AI Interview Practice Gym');
+      if (token) {
+        ws.send(JSON.stringify({ type: 'auth', token }));
+      }
+      if (reconnectInterval) {
+        clearInterval(reconnectInterval);
+        reconnectInterval = null;
+      }
+    };
 
-  ws.onerror = (error) => {
-    console.error('WebSocket error:', error);
-  };
+    ws.onclose = () => {
+      ws = null;
+      if (!reconnectInterval) {
+        reconnectInterval = setInterval(connectWebSocket, 5000);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('[Extension] WebSocket error:', error);
+    };
+  } catch (err) {
+    console.error('[Extension] Failed to create WebSocket connection:', err);
+  }
 }
 
-// Initial connection
 connectWebSocket();
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: 'send-to-assistant',
-    title: 'Send to AI Interview Assistant',
-    contexts: ['selection', 'page']
+    title: 'Send Question to Practice Gym',
+    contexts: ['selection', 'page'],
   });
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'send-to-assistant') {
+    const rawContent = (info.selectionText || tab.url || '').trim();
+    if (!rawContent) return;
+
     const payload = {
       type: info.selectionText ? 'selected-text' : 'page-url',
-      content: info.selectionText || tab.url,
-      source: new URL(tab.url).hostname,
-      timestamp: new Date().toISOString()
+      content: rawContent.slice(0, 8000), // Enforce length boundary
+      source: tab?.url ? new URL(tab.url).hostname : 'unknown',
+      timestamp: new Date().toISOString(),
     };
 
     sendToApp(payload);
   }
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'sendContext') {
     sendToApp(message.payload);
     sendResponse({ success: true });
+  } else if (message.action === 'updateToken') {
+    if (chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ extensionToken: message.token }, () => {
+        if (ws) {
+          ws.close();
+        }
+        connectWebSocket();
+        sendResponse({ success: true });
+      });
+      return true;
+    }
   }
 });
 
@@ -85,6 +99,6 @@ function sendToApp(payload) {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(payload));
   } else {
-    console.log('Cannot send: App not connected', payload);
+    console.log('[Extension] Cannot send: App not connected', payload);
   }
 }

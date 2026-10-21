@@ -1,10 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: http: wss: ws: data: blob:;" />
-    <title>AI Interview Assistant</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.groq.com https://api.openai.com https://openrouter.ai http://127.0.0.1:* http://localhost:* ws://127.0.0.1:*; media-src 'self' blob: data:; object-src 'none'; base-uri 'self';"
+    />
+    <title>AI Interview Practice Gym</title>
   </head>
   <body>
     <div id="root"></div>

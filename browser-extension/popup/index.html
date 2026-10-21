@@ -1,59 +1,90 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <style>
-    body {
-      width: 250px;
-      padding: 16px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      margin: 0;
-      background: #08080d;
-      color: #e8e6f0;
-    }
-    h3 { margin: 0 0 12px 0; font-size: 14px; color: #a78bfa; }
-    p { margin: 0 0 16px 0; font-size: 12px; color: #9b97b0; line-height: 1.4; }
-    button {
-      width: 100%;
-      padding: 8px;
-      background: #7c5cfc;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      font-size: 13px;
-    }
-    button:hover { background: #6b4fe0; }
-    .status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(120, 100, 255, 0.15);
-      color: #6b6880;
-    }
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #f87171;
-    }
-    .dot.connected { background: #34d399; }
-  </style>
-</head>
-<body>
-  <h3>AI Interview Assistant</h3>
-  <p>Select text on any page, right-click, and choose "Send to AI Interview Assistant".</p>
-  <p>Shortcut: <code>Alt + A</code></p>
-  <button id="send-url">Send Page URL</button>
-  
-  <div class="status">
-    <div class="dot" id="status-dot"></div>
-    <span id="status-text">Checking connection...</span>
-  </div>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        width: 270px;
+        padding: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 0;
+        background: #0f172a;
+        color: #f8fafc;
+      }
+      h3 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        color: #818cf8;
+      }
+      p {
+        margin: 0 0 12px 0;
+        font-size: 12px;
+        color: #94a3b8;
+        line-height: 1.4;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px 8px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 4px;
+        color: #f8fafc;
+        font-size: 11px;
+        margin-bottom: 8px;
+      }
+      button {
+        width: 100%;
+        padding: 7px;
+        background: #4f46e5;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+      button:hover {
+        background: #4338ca;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        color: #94a3b8;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #f87171;
+      }
+      .dot.connected {
+        background: #10b981;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>AI Interview Practice Gym</h3>
+    <p>Select problem text on LeetCode / HackerRank and choose "Send Question to Practice Gym".</p>
 
-  <script src="popup.js"></script>
-</body>
+    <label style="font-size: 11px; color: #cbd5e1; display: block; margin-bottom: 4px"
+      >Pairing Token:</label
+    >
+    <input type="password" id="token-input" placeholder="Paste token from app Settings" />
+    <button id="save-token">Save Token & Connect</button>
+    <button id="send-url" style="background: #334155">Send Current URL</button>
+
+    <div class="status">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">Checking connection...</span>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
 </html>

@@ -9,8 +9,11 @@ import { ResumeContext } from '../types';
  * Parse resume text into structured context
  */
 export function parseResumeText(text: string): ResumeContext {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  
+  const lines = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+
   const context: ResumeContext = {
     raw: text,
     projects: [],
@@ -56,29 +59,99 @@ export function parseResumeText(text: string): ResumeContext {
 
   // Extract technologies from the entire text
   const techKeywords = [
-    'React', 'Angular', 'Vue', 'Node.js', 'Express', 'Next.js', 'TypeScript',
-    'JavaScript', 'Python', 'Java', 'C++', 'C#', 'Go', 'Rust', 'Ruby',
-    'Swift', 'Kotlin', 'PHP', 'Dart', 'Flutter', 'React Native',
-    'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'DynamoDB', 'Firebase',
-    'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Jenkins', 'Terraform',
-    'Git', 'GitHub', 'GitLab', 'CI/CD', 'Agile', 'Scrum',
-    'REST', 'GraphQL', 'gRPC', 'WebSocket', 'Kafka', 'RabbitMQ',
-    'TensorFlow', 'PyTorch', 'Scikit-learn', 'Pandas', 'NumPy',
-    'Spring Boot', 'Hibernate', 'Django', 'Flask', 'FastAPI',
-    'HTML', 'CSS', 'SASS', 'Tailwind', 'Bootstrap',
-    'Linux', 'Unix', 'Bash', 'PowerShell',
-    'SQL', 'NoSQL', 'Elasticsearch', 'Cassandra',
-    'OAuth', 'JWT', 'HTTPS', 'SSL', 'TLS',
-    'Webpack', 'Vite', 'Babel', 'ESLint',
-    'Jest', 'Mocha', 'Cypress', 'Selenium',
-    'Figma', 'Sketch', 'Adobe XD',
-    'Jira', 'Confluence', 'Notion', 'Slack',
+    'React',
+    'Angular',
+    'Vue',
+    'Node.js',
+    'Express',
+    'Next.js',
+    'TypeScript',
+    'JavaScript',
+    'Python',
+    'Java',
+    'C++',
+    'C#',
+    'Go',
+    'Rust',
+    'Ruby',
+    'Swift',
+    'Kotlin',
+    'PHP',
+    'Dart',
+    'Flutter',
+    'React Native',
+    'MongoDB',
+    'PostgreSQL',
+    'MySQL',
+    'Redis',
+    'DynamoDB',
+    'Firebase',
+    'AWS',
+    'Azure',
+    'GCP',
+    'Docker',
+    'Kubernetes',
+    'Jenkins',
+    'Terraform',
+    'Git',
+    'GitHub',
+    'GitLab',
+    'CI/CD',
+    'Agile',
+    'Scrum',
+    'REST',
+    'GraphQL',
+    'gRPC',
+    'WebSocket',
+    'Kafka',
+    'RabbitMQ',
+    'TensorFlow',
+    'PyTorch',
+    'Scikit-learn',
+    'Pandas',
+    'NumPy',
+    'Spring Boot',
+    'Hibernate',
+    'Django',
+    'Flask',
+    'FastAPI',
+    'HTML',
+    'CSS',
+    'SASS',
+    'Tailwind',
+    'Bootstrap',
+    'Linux',
+    'Unix',
+    'Bash',
+    'PowerShell',
+    'SQL',
+    'NoSQL',
+    'Elasticsearch',
+    'Cassandra',
+    'OAuth',
+    'JWT',
+    'HTTPS',
+    'SSL',
+    'TLS',
+    'Webpack',
+    'Vite',
+    'Babel',
+    'ESLint',
+    'Jest',
+    'Mocha',
+    'Cypress',
+    'Selenium',
+    'Figma',
+    'Sketch',
+    'Adobe XD',
+    'Jira',
+    'Confluence',
+    'Notion',
+    'Slack',
   ];
 
   const lowerText = text.toLowerCase();
-  context.technologies = techKeywords.filter(tech => 
-    lowerText.includes(tech.toLowerCase())
-  );
+  context.technologies = techKeywords.filter((tech) => lowerText.includes(tech.toLowerCase()));
 
   return context;
 }
@@ -90,7 +163,7 @@ export function parseResumeText(text: string): ResumeContext {
 export async function loadResume(filePath: string): Promise<ResumeContext> {
   const extension = filePath.split('.').pop()?.toLowerCase();
 
-  let text = '';
+  let text: string;
 
   switch (extension) {
     case 'txt':
@@ -130,27 +203,32 @@ async function extractPdfText(buffer: Buffer | ArrayBuffer): Promise<string> {
   try {
     const uint8 = new Uint8Array(buffer instanceof ArrayBuffer ? buffer : buffer.buffer);
     const text = new TextDecoder('utf-8', { fatal: false }).decode(uint8);
-    
+
     // Try to extract readable text from PDF
     const textParts: string[] = [];
     const streamRegex = /stream\s*([\s\S]*?)endstream/g;
     let match;
-    
+
     while ((match = streamRegex.exec(text)) !== null) {
       const content = match[1];
       // Extract text between parentheses (PDF text objects)
       const textRegex = /\(([^)]*)\)/g;
       let textMatch;
       while ((textMatch = textRegex.exec(content)) !== null) {
-        const decoded = textMatch[1].replace(/\\n/g, '\n').replace(/\\\(/g, '(').replace(/\\\)/g, ')');
+        const decoded = textMatch[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\\(/g, '(')
+          .replace(/\\\)/g, ')');
         if (decoded.length > 1) {
           textParts.push(decoded);
         }
       }
     }
 
-    return textParts.join(' ').replace(/\s+/g, ' ').trim() || 
-      'PDF parsing limited in browser. Please use TXT or MD format for best results.';
+    return (
+      textParts.join(' ').replace(/\s+/g, ' ').trim() ||
+      'PDF parsing limited in browser. Please use TXT or MD format for best results.'
+    );
   } catch {
     return 'Could not parse PDF. Please try TXT or MD format.';
   }
@@ -164,20 +242,22 @@ async function extractDocxText(buffer: Buffer | ArrayBuffer): Promise<string> {
     // Basic XML extraction from DOCX
     const uint8 = new Uint8Array(buffer instanceof ArrayBuffer ? buffer : buffer.buffer);
     const text = new TextDecoder('utf-8', { fatal: false }).decode(uint8);
-    
+
     // DOCX files are ZIP archives containing XML
     // In a full implementation, we'd use JSZip + xml parsing
     // For now, extract any readable text
     const textParts: string[] = [];
     const textRegex = /<w:t[^>]*>([^<]+)<\/w:t>/g;
     let match;
-    
+
     while ((match = textRegex.exec(text)) !== null) {
       textParts.push(match[1]);
     }
 
-    return textParts.join(' ').trim() || 
-      'DOCX parsing limited. Please use TXT or MD format for best results.';
+    return (
+      textParts.join(' ').trim() ||
+      'DOCX parsing limited. Please use TXT or MD format for best results.'
+    );
   } catch {
     return 'Could not parse DOCX. Please try TXT or MD format.';
   }

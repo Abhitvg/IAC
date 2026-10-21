@@ -1,3 +1,4 @@
+import { parsePdfBuffer } from './services/pdfParser';
 import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, nativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
@@ -77,13 +78,13 @@ function setupTray() {
             mainWindow.show();
             mainWindow.focus();
           }
-        }
+        },
       },
       { type: 'separator' },
       {
         label: 'Quit',
-        role: 'quit'
-      }
+        role: 'quit',
+      },
     ]);
 
     tray.setContextMenu(trayMenu);
@@ -116,9 +117,9 @@ function setupNativeApplicationMenu() {
               { role: 'hideOthers' as const },
               { role: 'unhide' as const },
               { type: 'separator' as const },
-              { role: 'quit' as const }
-            ]
-          }
+              { role: 'quit' as const },
+            ],
+          },
         ]
       : []),
     {
@@ -130,8 +131,8 @@ function setupNativeApplicationMenu() {
         { role: 'cut' as const },
         { role: 'copy' as const },
         { role: 'paste' as const },
-        { role: 'selectAll' as const }
-      ]
+        { role: 'selectAll' as const },
+      ],
     },
     {
       label: 'View',
@@ -144,8 +145,8 @@ function setupNativeApplicationMenu() {
         { role: 'zoomIn' as const },
         { role: 'zoomOut' as const },
         { type: 'separator' as const },
-        { role: 'togglefullscreen' as const }
-      ]
+        { role: 'togglefullscreen' as const },
+      ],
     },
     {
       label: 'Window',
@@ -157,11 +158,11 @@ function setupNativeApplicationMenu() {
               { type: 'separator' as const },
               { role: 'front' as const },
               { type: 'separator' as const },
-              { role: 'window' as const }
+              { role: 'window' as const },
             ]
-          : [{ role: 'close' as const }])
-      ]
-    }
+          : [{ role: 'close' as const }]),
+      ],
+    },
   ];
 
   const menu = Menu.buildFromTemplate(template);
@@ -284,12 +285,9 @@ ipcMain.handle('shell:open-external', async (_event, url: string) => {
   }
 });
 
-// PDF parsing
+// PDF parsing via modern pdfjs-dist with pdf-parse fallback
 ipcMain.handle('fs:parse-pdf', async (_event, arrayBuffer: ArrayBuffer) => {
-  const pdfParse = require('pdf-parse');
-  const buffer = Buffer.from(arrayBuffer);
-  const data = await pdfParse(buffer);
-  return data.text || '';
+  return parsePdfBuffer(arrayBuffer);
 });
 
 // DOCX parsing

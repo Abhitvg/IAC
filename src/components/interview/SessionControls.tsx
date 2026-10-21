@@ -16,16 +16,18 @@ export default function SessionControls() {
   };
 
   return (
-    <div style={{
-      borderTop: '1px solid #1f1d2e',
-      background: '#0d0c14',
-      padding: '12px 24px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '16px',
-      flexWrap: 'wrap'
-    }}>
+    <div
+      style={{
+        borderTop: '1px solid #1f1d2e',
+        background: '#0d0c14',
+        padding: '12px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16px',
+        flexWrap: 'wrap',
+      }}
+    >
       {/* Primary Action Buttons */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button
@@ -43,7 +45,7 @@ export default function SessionControls() {
             fontSize: '13px',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
-            boxShadow: isListening ? '0 0 12px rgba(220, 38, 38, 0.5)' : 'none'
+            boxShadow: isListening ? '0 0 12px rgba(220, 38, 38, 0.5)' : 'none',
           }}
         >
           {isListening ? (
@@ -70,7 +72,7 @@ export default function SessionControls() {
             padding: '8px 14px',
             fontSize: '13px',
             fontWeight: 500,
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           <Play size={14} /> Analyze Last
@@ -78,13 +80,17 @@ export default function SessionControls() {
       </div>
 
       {/* Quick Test Prompt & Manual Input */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '520px' }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '520px' }}
+      >
         <input
           type="text"
           placeholder="Or type a test question (e.g. What is AWS CodePipeline?)"
           value={customQuery}
           onChange={(e) => setCustomQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSendCustom(); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSendCustom();
+          }}
           style={{
             flex: 1,
             background: '#161523',
@@ -93,7 +99,7 @@ export default function SessionControls() {
             borderRadius: '6px',
             padding: '7px 12px',
             fontSize: '12px',
-            outline: 'none'
+            outline: 'none',
           }}
         />
         <button
@@ -110,7 +116,7 @@ export default function SessionControls() {
             padding: '7px 12px',
             fontSize: '12px',
             fontWeight: 600,
-            cursor: customQuery.trim() ? 'pointer' : 'default'
+            cursor: customQuery.trim() ? 'pointer' : 'default',
           }}
         >
           <Send size={13} /> Ask
@@ -128,7 +134,7 @@ export default function SessionControls() {
             borderRadius: '12px',
             padding: '4px 10px',
             fontSize: '11px',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           ⚡ AWS CodePipeline
@@ -142,7 +148,7 @@ export default function SessionControls() {
             borderRadius: '12px',
             padding: '4px 10px',
             fontSize: '11px',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           ⚡ CI/CD

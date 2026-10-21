@@ -1,25 +1,24 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { 
-  DEFAULT_RESUME, 
-  DEFAULT_JOB_DESCRIPTION, 
-  DEFAULT_TARGET_ROLE, 
-  analyzeAlignment 
+import {
+  DEFAULT_RESUME,
+  DEFAULT_JOB_DESCRIPTION,
+  DEFAULT_TARGET_ROLE,
+  analyzeAlignment,
 } from '../services/candidatePersona';
 import { readAndParseFile } from '../services/resume';
-import { 
-  X, 
-  Upload, 
-  FileText, 
-  Briefcase, 
-  CheckCircle2, 
-  Sparkles, 
-  RefreshCw, 
-  Target, 
+import {
+  X,
+  FileText,
+  Briefcase,
+  CheckCircle2,
+  Sparkles,
+  RefreshCw,
+  Target,
   TrendingUp,
   AlertCircle,
   FileUp,
-  Check
+  Check,
 } from 'lucide-react';
 
 export default function ResumeAndJobModal() {
@@ -31,7 +30,7 @@ export default function ResumeAndJobModal() {
     setJobDescriptionText,
     setTargetRole,
     setResumeModalOpen,
-    setToast
+    setToast,
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'resume' | 'jd' | 'alignment'>('resume');
@@ -133,7 +132,7 @@ export default function ResumeAndJobModal() {
         backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
-        padding: '20px'
+        padding: '20px',
       }}
     >
       <div
@@ -148,7 +147,7 @@ export default function ResumeAndJobModal() {
           borderRadius: '14px',
           boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(124, 92, 252, 0.15)',
           overflow: 'hidden',
-          color: '#e8e6f0'
+          color: '#e8e6f0',
         }}
       >
         {/* Modal Header */}
@@ -159,7 +158,7 @@ export default function ResumeAndJobModal() {
             justifyContent: 'space-between',
             padding: '16px 22px',
             borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            backgroundColor: 'rgba(20, 20, 32, 0.8)'
+            backgroundColor: 'rgba(20, 20, 32, 0.8)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -172,7 +171,7 @@ export default function ResumeAndJobModal() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fff'
+                color: '#fff',
               }}
             >
               <Target size={18} />
@@ -182,7 +181,8 @@ export default function ResumeAndJobModal() {
                 Candidate Persona: Resume & Job Description
               </h2>
               <p style={{ fontSize: '11px', color: '#94a3b8', margin: '2px 0 0' }}>
-                Drop your resume or JD here — answers will speak in the 1st person citing your actual projects and metrics.
+                Drop your resume or JD here — answers will speak in the 1st person citing your
+                actual projects and metrics.
               </p>
             </div>
           </div>
@@ -198,7 +198,7 @@ export default function ResumeAndJobModal() {
               borderRadius: '6px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
             }}
           >
             <X size={18} />
@@ -213,10 +213,12 @@ export default function ResumeAndJobModal() {
             borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
             display: 'flex',
             alignItems: 'center',
-            gap: '12px'
+            gap: '12px',
           }}
         >
-          <span style={{ fontSize: '12px', fontWeight: 600, color: '#c7d2fe', whiteSpace: 'nowrap' }}>
+          <span
+            style={{ fontSize: '12px', fontWeight: 600, color: '#c7d2fe', whiteSpace: 'nowrap' }}
+          >
             🎯 Target Role Title:
           </span>
           <input
@@ -232,7 +234,7 @@ export default function ResumeAndJobModal() {
               padding: '6px 12px',
               color: '#ffffff',
               fontSize: '12px',
-              outline: 'none'
+              outline: 'none',
             }}
           />
         </div>
@@ -245,7 +247,7 @@ export default function ResumeAndJobModal() {
             gap: '4px',
             padding: '8px 22px 0',
             backgroundColor: 'rgba(15, 15, 25, 0.6)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
           }}
         >
           <button
@@ -261,7 +263,7 @@ export default function ResumeAndJobModal() {
               background: activeTab === 'resume' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
               border: 'none',
               borderBottom: activeTab === 'resume' ? '2px solid #6366f1' : '2px solid transparent',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             <FileText size={14} />
@@ -281,7 +283,7 @@ export default function ResumeAndJobModal() {
               background: activeTab === 'jd' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
               border: 'none',
               borderBottom: activeTab === 'jd' ? '2px solid #6366f1' : '2px solid transparent',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             <Briefcase size={14} />
@@ -300,8 +302,9 @@ export default function ResumeAndJobModal() {
               color: activeTab === 'alignment' ? '#34d399' : '#94a3b8',
               background: activeTab === 'alignment' ? 'rgba(52, 211, 153, 0.15)' : 'transparent',
               border: 'none',
-              borderBottom: activeTab === 'alignment' ? '2px solid #34d399' : '2px solid transparent',
-              cursor: 'pointer'
+              borderBottom:
+                activeTab === 'alignment' ? '2px solid #34d399' : '2px solid transparent',
+              cursor: 'pointer',
             }}
           >
             <TrendingUp size={14} />
@@ -315,13 +318,20 @@ export default function ResumeAndJobModal() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {/* Drag and Drop Zone */}
               <div
-                onDragOver={(e) => { e.preventDefault(); setIsResumeDragging(true); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsResumeDragging(true);
+                }}
                 onDragLeave={() => setIsResumeDragging(false)}
                 onDrop={handleResumeDrop}
                 onClick={() => resumeFileInputRef.current?.click()}
                 style={{
-                  border: isResumeDragging ? '2px dashed #818cf8' : '2px dashed rgba(255, 255, 255, 0.16)',
-                  backgroundColor: isResumeDragging ? 'rgba(99, 102, 241, 0.18)' : 'rgba(255, 255, 255, 0.02)',
+                  border: isResumeDragging
+                    ? '2px dashed #818cf8'
+                    : '2px dashed rgba(255, 255, 255, 0.16)',
+                  backgroundColor: isResumeDragging
+                    ? 'rgba(99, 102, 241, 0.18)'
+                    : 'rgba(255, 255, 255, 0.02)',
                   borderRadius: '10px',
                   padding: '18px',
                   textAlign: 'center',
@@ -331,12 +341,22 @@ export default function ResumeAndJobModal() {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px'
+                  gap: '6px',
                 }}
               >
                 <FileUp size={26} style={{ color: isResumeDragging ? '#818cf8' : '#94a3b8' }} />
-                <div style={{ fontSize: '13px', fontWeight: 600, color: isResumeDragging ? '#e0e7ff' : '#f1f5f9' }}>
-                  {isParsing ? 'Extracting resume text...' : isResumeDragging ? 'Drop Resume File Here!' : 'Drop your resume file here (or click to browse)'}
+                <div
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: isResumeDragging ? '#e0e7ff' : '#f1f5f9',
+                  }}
+                >
+                  {isParsing
+                    ? 'Extracting resume text...'
+                    : isResumeDragging
+                      ? 'Drop Resume File Here!'
+                      : 'Drop your resume file here (or click to browse)'}
                 </div>
                 <div style={{ fontSize: '11px', color: '#94a3b8' }}>
                   Supports PDF (.pdf), Word (.docx), Markdown (.md), Plain Text (.txt)
@@ -354,7 +374,9 @@ export default function ResumeAndJobModal() {
               </div>
 
               {/* Action Toolbar */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
                 <span style={{ fontSize: '12px', color: '#94a3b8' }}>
                   Or review/edit the extracted resume text directly below:
                 </span>
@@ -371,7 +393,7 @@ export default function ResumeAndJobModal() {
                       padding: '4px 10px',
                       fontSize: '11px',
                       color: '#c7d2fe',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
                     }}
                   >
                     <RefreshCw size={11} /> Reset to Default Resume
@@ -386,7 +408,7 @@ export default function ResumeAndJobModal() {
                       padding: '4px 8px',
                       fontSize: '11px',
                       color: '#94a3b8',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
                     }}
                   >
                     Clear
@@ -410,7 +432,7 @@ export default function ResumeAndJobModal() {
                   lineHeight: '1.6',
                   fontFamily: 'monospace',
                   resize: 'vertical',
-                  outline: 'none'
+                  outline: 'none',
                 }}
               />
             </div>
@@ -420,13 +442,20 @@ export default function ResumeAndJobModal() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {/* Drag and Drop Zone for JD */}
               <div
-                onDragOver={(e) => { e.preventDefault(); setIsJdDragging(true); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsJdDragging(true);
+                }}
                 onDragLeave={() => setIsJdDragging(false)}
                 onDrop={handleJdDrop}
                 onClick={() => jdFileInputRef.current?.click()}
                 style={{
-                  border: isJdDragging ? '2px dashed #818cf8' : '2px dashed rgba(255, 255, 255, 0.16)',
-                  backgroundColor: isJdDragging ? 'rgba(99, 102, 241, 0.18)' : 'rgba(255, 255, 255, 0.02)',
+                  border: isJdDragging
+                    ? '2px dashed #818cf8'
+                    : '2px dashed rgba(255, 255, 255, 0.16)',
+                  backgroundColor: isJdDragging
+                    ? 'rgba(99, 102, 241, 0.18)'
+                    : 'rgba(255, 255, 255, 0.02)',
                   borderRadius: '10px',
                   padding: '18px',
                   textAlign: 'center',
@@ -436,12 +465,22 @@ export default function ResumeAndJobModal() {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px'
+                  gap: '6px',
                 }}
               >
                 <Briefcase size={26} style={{ color: isJdDragging ? '#818cf8' : '#94a3b8' }} />
-                <div style={{ fontSize: '13px', fontWeight: 600, color: isJdDragging ? '#e0e7ff' : '#f1f5f9' }}>
-                  {isParsing ? 'Extracting job posting text...' : isJdDragging ? 'Drop Job Description File Here!' : 'Drop Job Description file here (or click to browse)'}
+                <div
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: isJdDragging ? '#e0e7ff' : '#f1f5f9',
+                  }}
+                >
+                  {isParsing
+                    ? 'Extracting job posting text...'
+                    : isJdDragging
+                      ? 'Drop Job Description File Here!'
+                      : 'Drop Job Description file here (or click to browse)'}
                 </div>
                 <div style={{ fontSize: '11px', color: '#94a3b8' }}>
                   Supports PDF, Word DOCX, Markdown, Text files
@@ -459,7 +498,9 @@ export default function ResumeAndJobModal() {
               </div>
 
               {/* Action Toolbar */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
                 <span style={{ fontSize: '12px', color: '#94a3b8' }}>
                   Or paste and edit the job description text directly below:
                 </span>
@@ -476,7 +517,7 @@ export default function ResumeAndJobModal() {
                       padding: '4px 10px',
                       fontSize: '11px',
                       color: '#c7d2fe',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
                     }}
                   >
                     <RefreshCw size={11} /> Reset to Default JD
@@ -491,7 +532,7 @@ export default function ResumeAndJobModal() {
                       padding: '4px 8px',
                       fontSize: '11px',
                       color: '#94a3b8',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
                     }}
                   >
                     Clear
@@ -515,7 +556,7 @@ export default function ResumeAndJobModal() {
                   lineHeight: '1.6',
                   fontFamily: 'monospace',
                   resize: 'vertical',
-                  outline: 'none'
+                  outline: 'none',
                 }}
               />
             </div>
@@ -530,9 +571,10 @@ export default function ResumeAndJobModal() {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '14px 20px',
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(99, 102, 241, 0.15))',
+                  background:
+                    'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(99, 102, 241, 0.15))',
                   border: '1px solid rgba(52, 211, 153, 0.3)',
-                  borderRadius: '10px'
+                  borderRadius: '10px',
                 }}
               >
                 <div>
@@ -543,7 +585,8 @@ export default function ResumeAndJobModal() {
                     </span>
                   </div>
                   <p style={{ fontSize: '11px', color: '#94a3b8', margin: '4px 0 0' }}>
-                    Calculated by analyzing technical skill overlap between your resume and the target role description.
+                    Calculated by analyzing technical skill overlap between your resume and the
+                    target role description.
                   </p>
                 </div>
 
@@ -552,7 +595,7 @@ export default function ResumeAndJobModal() {
                     fontSize: '24px',
                     fontWeight: 800,
                     color: alignment.score >= 70 ? '#34d399' : '#fbbf24',
-                    fontFamily: 'monospace'
+                    fontFamily: 'monospace',
                   }}
                 >
                   {alignment.score}%
@@ -561,11 +604,21 @@ export default function ResumeAndJobModal() {
 
               {/* Matched Skills */}
               <div>
-                <h4 style={{ fontSize: '12px', fontWeight: 600, color: '#34d399', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h4
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#34d399',
+                    margin: '0 0 8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
                   <CheckCircle2 size={13} /> Matched Core Skills ({alignment.matchedSkills.length})
                 </h4>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {alignment.matchedSkills.map(skill => (
+                  {alignment.matchedSkills.map((skill) => (
                     <span
                       key={skill}
                       style={{
@@ -575,14 +628,16 @@ export default function ResumeAndJobModal() {
                         borderRadius: '6px',
                         padding: '3px 8px',
                         fontSize: '11px',
-                        fontWeight: 500
+                        fontWeight: 500,
                       }}
                     >
                       ✓ {skill}
                     </span>
                   ))}
                   {alignment.matchedSkills.length === 0 && (
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>No direct skill matches detected yet.</span>
+                    <span style={{ fontSize: '11px', color: '#64748b' }}>
+                      No direct skill matches detected yet.
+                    </span>
                   )}
                 </div>
               </div>
@@ -590,11 +645,22 @@ export default function ResumeAndJobModal() {
               {/* Missing or Target Emphasis Skills */}
               {alignment.missingSkills.length > 0 && (
                 <div>
-                  <h4 style={{ fontSize: '12px', fontWeight: 600, color: '#fbbf24', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <AlertCircle size={13} /> JD Keywords to Emphasize ({alignment.missingSkills.length})
+                  <h4
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#fbbf24',
+                      margin: '0 0 8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <AlertCircle size={13} /> JD Keywords to Emphasize (
+                    {alignment.missingSkills.length})
                   </h4>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {alignment.missingSkills.map(skill => (
+                    {alignment.missingSkills.map((skill) => (
                       <span
                         key={skill}
                         style={{
@@ -604,7 +670,7 @@ export default function ResumeAndJobModal() {
                           borderRadius: '6px',
                           padding: '3px 8px',
                           fontSize: '11px',
-                          fontWeight: 500
+                          fontWeight: 500,
                         }}
                       >
                         + {skill}
@@ -623,13 +689,18 @@ export default function ResumeAndJobModal() {
                   padding: '12px',
                   fontSize: '11px',
                   color: '#cbd5e1',
-                  lineHeight: '1.6'
+                  lineHeight: '1.6',
                 }}
               >
                 <div style={{ fontWeight: 600, color: '#a5b4fc', marginBottom: '4px' }}>
                   💡 Teleprompter Behavior Guarantee:
                 </div>
-                The AI co-pilot will speak exclusively as you, referencing your past work at {localResume.includes('CloudScale') ? 'CloudScale Systems' : 'your previous companies'}, highlighting your metrics, and positioning your answers directly for the {localRole} opening.
+                The AI co-pilot will speak exclusively as you, referencing your past work at{' '}
+                {localResume.includes('CloudScale')
+                  ? 'CloudScale Systems'
+                  : 'your previous companies'}
+                , highlighting your metrics, and positioning your answers directly for the{' '}
+                {localRole} opening.
               </div>
             </div>
           )}
@@ -643,7 +714,7 @@ export default function ResumeAndJobModal() {
             justifyContent: 'space-between',
             padding: '12px 22px',
             borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            backgroundColor: 'rgba(20, 20, 32, 0.9)'
+            backgroundColor: 'rgba(20, 20, 32, 0.9)',
           }}
         >
           <span style={{ fontSize: '11px', color: '#94a3b8' }}>
@@ -660,7 +731,7 @@ export default function ResumeAndJobModal() {
                 borderRadius: '6px',
                 padding: '6px 14px',
                 fontSize: '12px',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               Cancel
@@ -680,7 +751,7 @@ export default function ResumeAndJobModal() {
                 fontSize: '12px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(79, 70, 229, 0.4)'
+                boxShadow: '0 4px 12px rgba(79, 70, 229, 0.4)',
               }}
             >
               <Sparkles size={13} />

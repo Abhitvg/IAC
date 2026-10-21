@@ -81,10 +81,11 @@ export function analyzePerformance(questions: SessionQuestion[]): SessionPerform
   }
 
   // Calculate average response time
-  const validTimes = questions.filter(q => q.responseTime > 0);
-  const averageResponseTime = validTimes.length > 0
-    ? validTimes.reduce((sum, q) => sum + q.responseTime, 0) / validTimes.length
-    : 0;
+  const validTimes = questions.filter((q) => q.responseTime > 0);
+  const averageResponseTime =
+    validTimes.length > 0
+      ? validTimes.reduce((sum, q) => sum + q.responseTime, 0) / validTimes.length
+      : 0;
 
   // Identify strong/weak areas based on frequency and response times
   const categoryTimes: Record<string, number[]> = {};
@@ -93,26 +94,31 @@ export function analyzePerformance(questions: SessionQuestion[]): SessionPerform
     if (q.responseTime > 0) categoryTimes[q.category].push(q.responseTime);
   }
 
-  const sortedCategories = Object.entries(categoryCounts)
-    .sort((a, b) => b[1] - a[1]);
+  const sortedCategories = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]);
 
-  const strongAreas = sortedCategories
-    .slice(0, 3)
-    .map(([cat]) => cat);
+  const strongAreas = sortedCategories.slice(0, 3).map(([cat]) => cat);
 
   // Categories with fewer questions or higher response times are weak areas
   const allCategories: QuestionCategory[] = [
-    'Coding', 'DSA', 'System Design', 'DBMS', 'Operating Systems',
-    'Computer Networks', 'OOP', 'JavaScript', 'React', 'Node.js',
+    'Coding',
+    'DSA',
+    'System Design',
+    'DBMS',
+    'Operating Systems',
+    'Computer Networks',
+    'OOP',
+    'JavaScript',
+    'React',
+    'Node.js',
   ];
-  
+
   const weakAreas = allCategories
-    .filter(cat => !categoryCounts[cat] || categoryCounts[cat] <= 1)
+    .filter((cat) => !categoryCounts[cat] || categoryCounts[cat] <= 1)
     .slice(0, 3);
 
   // Generate recommendations
   const recommendations: string[] = [];
-  
+
   if (weakAreas.length > 0) {
     recommendations.push(`Focus on: ${weakAreas.join(', ')}`);
   }
@@ -122,7 +128,9 @@ export function analyzePerformance(questions: SessionQuestion[]): SessionPerform
   }
 
   if (!categoryCounts['System Design']) {
-    recommendations.push('Practice system design questions — they are common in senior-level interviews.');
+    recommendations.push(
+      'Practice system design questions — they are common in senior-level interviews.'
+    );
   }
 
   if (!categoryCounts['Behavioral']) {
@@ -148,7 +156,7 @@ export function analyzePerformance(questions: SessionQuestion[]): SessionPerform
  */
 export async function saveSession(session: InterviewSession, sessionsDir: string): Promise<void> {
   const sessionDir = `${sessionsDir}/${session.date}`;
-  
+
   // Save full session data
   const sessionData = JSON.stringify(session, null, 2);
   await window.electronAPI.writeFile(`${sessionDir}/session_${session.id}.json`, sessionData);
@@ -172,10 +180,10 @@ export async function loadSessions(sessionsDir: string): Promise<InterviewSessio
 
   try {
     const dirs = await window.electronAPI.listDir(sessionsDir);
-    
+
     for (const dir of dirs) {
       if (!dir.isDirectory) continue;
-      
+
       const files = await window.electronAPI.listDir(dir.path);
       for (const file of files) {
         if (file.name.startsWith('session_') && file.name.endsWith('.json')) {
@@ -194,9 +202,7 @@ export async function loadSessions(sessionsDir: string): Promise<InterviewSessio
     console.error('Failed to load sessions:', e);
   }
 
-  return sessions.sort((a, b) => 
-    new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-  );
+  return sessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
 }
 
 /**

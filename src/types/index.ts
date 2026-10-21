@@ -66,7 +66,8 @@ export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
 export type ResponseMode = 'coding' | 'interview' | 'quiz' | 'quick' | 'deep';
 
-export type ProgrammingLanguage = 'java' | 'python' | 'cpp' | 'javascript' | 'typescript' | 'go' | 'csharp';
+export type ProgrammingLanguage =
+  'java' | 'python' | 'cpp' | 'javascript' | 'typescript' | 'go' | 'csharp';
 
 // ─── Recording Types ───
 
@@ -165,13 +166,7 @@ export interface ShortcutMap {
 // ─── Pipeline Status Types ───
 
 export type PipelineStage =
-  | 'idle'
-  | 'recording'
-  | 'transcribing'
-  | 'understanding'
-  | 'generating'
-  | 'ready'
-  | 'error';
+  'idle' | 'recording' | 'transcribing' | 'understanding' | 'generating' | 'ready' | 'error';
 
 export interface PipelineStatus {
   stage: PipelineStage;
@@ -191,7 +186,7 @@ export interface ElectronAPI {
   getRecordingsDir: () => Promise<string>;
   getSessionsDir: () => Promise<string>;
   getUserDataPath: () => Promise<string>;
-  openFileDialog: (options: any) => Promise<string | null>;
+  openFileDialog: (options?: any) => Promise<string | null>;
   readFile: (path: string) => Promise<Buffer>;
   parsePdf: (arrayBuffer: ArrayBuffer) => Promise<string>;
   parseDocx: (arrayBuffer: ArrayBuffer) => Promise<string>;
@@ -203,8 +198,11 @@ export interface ElectronAPI {
   setSettings: (key: string, value: any) => Promise<boolean>;
   getApiKey: (service: string) => Promise<string | null>;
   setApiKey: (service: string, key: string) => Promise<boolean>;
+  hasApiKey: (service: string) => Promise<boolean>;
   deleteApiKey: (service: string) => Promise<boolean>;
-  startWsServer: () => Promise<{ port: number }>;
+  listConfiguredKeys: () => Promise<Record<string, boolean>>;
+  getWsInfo: () => Promise<{ port: number; token: string }>;
+  startWsServer: () => Promise<{ port: number; token?: string }>;
   stopWsServer: () => Promise<boolean>;
   onBrowserContext: (callback: (data: BrowserContext) => void) => () => void;
   platform: string;

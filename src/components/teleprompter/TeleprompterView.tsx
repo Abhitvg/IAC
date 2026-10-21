@@ -1,13 +1,11 @@
-import { readAndParseFile } from "../../services/resume";
-import React, { useEffect, useRef, useState, useMemo } from "react";
-import { useAppStore, TeleprompterFontSize } from "../../store/useAppStore";
-import { InterviewEngine } from "../../services/InterviewEngine";
+import { readAndParseFile } from '../../services/resume';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
+import { InterviewEngine } from '../../services/InterviewEngine';
 import {
   Play,
   Pause,
   RotateCcw,
-  Mic,
-  MicOff,
   Copy,
   Settings,
   History,
@@ -16,18 +14,12 @@ import {
   Send,
   Target,
   FileUp,
-  Shield,
   CheckCircle2,
   Volume2,
-  Crop,
-  ScanText,
-  Code,
   Check,
   Terminal,
-  EyeOff,
   Keyboard,
-  Zap
-} from "lucide-react";
+} from 'lucide-react';
 
 interface CodeBlockCardProps {
   language: string;
@@ -37,18 +29,34 @@ interface CodeBlockCardProps {
   isCopied: boolean;
 }
 
-
-
 /* ═══ Layer 5: Answer Confidence Badge ═══ */
 function ConfidenceBadge({ confidence }: { confidence: 'high' | 'medium' | 'low' | null }) {
   if (!confidence) return null;
-  
+
   const config = {
-    high: { emoji: '🟢', label: 'High Confidence', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(52, 211, 153, 0.4)' },
-    medium: { emoji: '🟡', label: 'Verified', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(251, 191, 36, 0.4)' },
-    low: { emoji: '🔴', label: 'Best Effort', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(248, 113, 113, 0.4)' },
+    high: {
+      emoji: '🟢',
+      label: 'High Confidence',
+      color: '#10b981',
+      bg: 'rgba(16, 185, 129, 0.15)',
+      border: 'rgba(52, 211, 153, 0.4)',
+    },
+    medium: {
+      emoji: '🟡',
+      label: 'Verified',
+      color: '#f59e0b',
+      bg: 'rgba(245, 158, 11, 0.15)',
+      border: 'rgba(251, 191, 36, 0.4)',
+    },
+    low: {
+      emoji: '🔴',
+      label: 'Best Effort',
+      color: '#ef4444',
+      bg: 'rgba(239, 68, 68, 0.15)',
+      border: 'rgba(248, 113, 113, 0.4)',
+    },
   }[confidence];
-  
+
   return (
     <span
       style={{
@@ -71,9 +79,15 @@ function ConfidenceBadge({ confidence }: { confidence: 'high' | 'medium' | 'low'
 }
 
 /* ═══ Layer 6: Follow-Up Predictions Panel ═══ */
-function FollowUpPredictions({ followUps, onSelect }: { followUps: string[]; onSelect: (q: string) => void }) {
+function FollowUpPredictions({
+  followUps,
+  onSelect,
+}: {
+  followUps: string[];
+  onSelect: (q: string) => void;
+}) {
   if (!followUps || followUps.length === 0) return null;
-  
+
   return (
     <div
       style={{
@@ -84,7 +98,16 @@ function FollowUpPredictions({ followUps, onSelect }: { followUps: string[]; onS
         borderRadius: '8px',
       }}
     >
-      <div style={{ fontSize: '11px', fontWeight: 700, color: '#a5b4fc', marginBottom: '6px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+      <div
+        style={{
+          fontSize: '11px',
+          fontWeight: 700,
+          color: '#a5b4fc',
+          marginBottom: '6px',
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
+        }}
+      >
         🔮 Predicted Follow-Ups
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -147,51 +170,51 @@ function MemoryIndicator({ historyCount }: { historyCount: number }) {
 
 function CodeBlockCard({ language, code, index, onCopy, isCopied }: CodeBlockCardProps) {
   const cleanCode = code.trim();
-  const lines = cleanCode.split("\n");
+  const lines = cleanCode.split('\n');
   const lineCount = lines.length;
-  const displayLang = (language || "code").toUpperCase();
+  const displayLang = (language || 'code').toUpperCase();
 
   return (
     <div
       style={{
-        margin: "14px 0",
-        borderRadius: "8px",
-        overflow: "hidden",
-        border: "1px solid rgba(99, 102, 241, 0.4)",
-        background: "#080c16",
-        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.7)",
+        margin: '14px 0',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        border: '1px solid rgba(99, 102, 241, 0.4)',
+        background: '#080c16',
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.7)',
         fontFamily: "'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace",
       }}
     >
       {/* Code Header Bar */}
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "7px 12px",
-          background: "rgba(255, 255, 255, 0.05)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-          fontSize: "11px",
-          color: "#94a3b8"
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '7px 12px',
+          background: 'rgba(255, 255, 255, 0.05)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          fontSize: '11px',
+          color: '#94a3b8',
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span
             style={{
-              display: "inline-block",
-              width: "8px",
-              height: "8px",
-              borderRadius: "50%",
-              background: "#38bdf8",
-              boxShadow: "0 0 8px #38bdf8"
+              display: 'inline-block',
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#38bdf8',
+              boxShadow: '0 0 8px #38bdf8',
             }}
           />
-          <span style={{ fontWeight: 700, color: "#e2e8f0", letterSpacing: "0.5px" }}>
+          <span style={{ fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.5px' }}>
             {displayLang}
           </span>
-          <span style={{ color: "#64748b", fontSize: "10px" }}>
-            ({lineCount} {lineCount === 1 ? "line" : "lines"})
+          <span style={{ color: '#64748b', fontSize: '10px' }}>
+            ({lineCount} {lineCount === 1 ? 'line' : 'lines'})
           </span>
         </div>
 
@@ -199,51 +222,51 @@ function CodeBlockCard({ language, code, index, onCopy, isCopied }: CodeBlockCar
           onClick={() => onCopy(cleanCode, index)}
           title="Copy ONLY this clean code directly to clipboard (ready to paste into LeetCode / HackerRank / Editor)"
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "5px",
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
             background: isCopied
-              ? "rgba(16, 185, 129, 0.3)"
-              : "linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(79, 70, 229, 0.5))",
-            color: isCopied ? "#6ee7b7" : "#e0e7ff",
+              ? 'rgba(16, 185, 129, 0.3)'
+              : 'linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(79, 70, 229, 0.5))',
+            color: isCopied ? '#6ee7b7' : '#e0e7ff',
             border: isCopied
-              ? "1px solid rgba(52, 211, 153, 0.7)"
-              : "1px solid rgba(129, 140, 248, 0.5)",
-            borderRadius: "5px",
-            padding: "4px 10px",
-            fontSize: "11px",
+              ? '1px solid rgba(52, 211, 153, 0.7)'
+              : '1px solid rgba(129, 140, 248, 0.5)',
+            borderRadius: '5px',
+            padding: '4px 10px',
+            fontSize: '11px',
             fontWeight: 700,
-            cursor: "pointer",
-            transition: "all 0.15s ease",
-            boxShadow: isCopied ? "0 0 10px rgba(16, 185, 129, 0.4)" : "none"
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            boxShadow: isCopied ? '0 0 10px rgba(16, 185, 129, 0.4)' : 'none',
           }}
         >
           {isCopied ? <Check size={12} /> : <Copy size={12} />}
-          <span>{isCopied ? "✓ Copied Code!" : "📋 Copy Code Only"}</span>
+          <span>{isCopied ? '✓ Copied Code!' : '📋 Copy Code Only'}</span>
         </button>
       </div>
 
       {/* Code Body with Line Numbers */}
       <div
         style={{
-          display: "flex",
-          overflowX: "auto",
-          padding: "10px 0",
-          fontSize: "13px",
-          lineHeight: "1.65",
-          tabSize: 4
+          display: 'flex',
+          overflowX: 'auto',
+          padding: '10px 0',
+          fontSize: '13px',
+          lineHeight: '1.65',
+          tabSize: 4,
         }}
       >
         {/* Line numbers column */}
         <div
           style={{
-            padding: "0 12px 0 14px",
-            color: "#475569",
-            textAlign: "right",
-            userSelect: "none",
-            borderRight: "1px solid rgba(255, 255, 255, 0.06)",
-            fontSize: "12px",
-            lineHeight: "1.65"
+            padding: '0 12px 0 14px',
+            color: '#475569',
+            textAlign: 'right',
+            userSelect: 'none',
+            borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+            fontSize: '12px',
+            lineHeight: '1.65',
           }}
         >
           {lines.map((_, i) => (
@@ -255,14 +278,14 @@ function CodeBlockCard({ language, code, index, onCopy, isCopied }: CodeBlockCar
         <pre
           style={{
             margin: 0,
-            padding: "0 16px",
-            color: "#f8fafc",
-            fontFamily: "inherit",
-            fontSize: "inherit",
-            lineHeight: "inherit",
-            whiteSpace: "pre",
-            userSelect: "text",
-            flex: 1
+            padding: '0 16px',
+            color: '#f8fafc',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            lineHeight: 'inherit',
+            whiteSpace: 'pre',
+            userSelect: 'text',
+            flex: 1,
           }}
         >
           {cleanCode}
@@ -277,7 +300,6 @@ export default function TeleprompterView() {
     currentQuestion,
     currentAnswer,
     status,
-    diagnosticState,
     teleprompterFontSize,
     setTeleprompterFontSize,
     isAutoScrolling,
@@ -286,7 +308,6 @@ export default function TeleprompterView() {
     setScrollSpeed,
     windowOpacity,
     setWindowOpacity,
-    toggleRecording,
     copyAnswer,
     copyCodeOnly,
     responseMode,
@@ -305,26 +326,21 @@ export default function TeleprompterView() {
     updateSetting,
     answerConfidence,
     predictedFollowUps,
-    conversationHistory
+    conversationHistory,
   } = useAppStore();
 
-  const isListening =
-    status === "listening" ||
-    status === "transcribing" ||
-    status === "analyzing" ||
-    status === "generating";
-  const isGenerating = status === "analyzing" || status === "generating";
+  const isGenerating = status === 'analyzing' || status === 'generating';
 
-  const [manualInput, setManualInput] = useState("");
+  const [manualInput, setManualInput] = useState('');
   const [copiedCodeIndices, setCopiedCodeIndices] = useState<Record<number, boolean>>({});
   const [copiedPrimary, setCopiedPrimary] = useState(false);
 
   const handleCopyCodeBlock = (code: string, index: number) => {
     navigator.clipboard.writeText(code);
-    setCopiedCodeIndices(prev => ({ ...prev, [index]: true }));
-    setToast("💻 Clean code copied to clipboard!");
+    setCopiedCodeIndices((prev) => ({ ...prev, [index]: true }));
+    setToast('💻 Clean code copied to clipboard!');
     setTimeout(() => {
-      setCopiedCodeIndices(prev => ({ ...prev, [index]: false }));
+      setCopiedCodeIndices((prev) => ({ ...prev, [index]: false }));
     }, 2500);
   };
 
@@ -338,33 +354,30 @@ export default function TeleprompterView() {
 
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [windowWidth, setWindowWidth] = useState(
-    typeof window !== "undefined" ? window.innerWidth : 900
+    typeof window !== 'undefined' ? window.innerWidth : 900
   );
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const isCompact = windowWidth < 920;
   const isUltraCompact = windowWidth < 660;
 
-
-
   const handleSteerAnswer = (instruction: string) => {
     if (!currentQuestion) return;
     const combinedPrompt = `[Follow-up on: "${currentQuestion}"]\nRequirement: ${instruction}\nProvide an immediate, focused, production-grade response.`;
     handleTriggerQuestion(combinedPrompt);
-    setToast("✨ Refining answer with targeted focus...");
+    setToast('✨ Refining answer with targeted focus...');
   };
 
   const handleRegenerateCurrentAnswer = () => {
     if (!currentQuestion) return;
     handleTriggerQuestion(currentQuestion);
-    setToast("🔄 Regenerating answer from scratch...");
+    setToast('🔄 Regenerating answer from scratch...');
   };
-
 
   const [isWindowDragging, setIsWindowDragging] = useState(false);
 
@@ -383,7 +396,7 @@ export default function TeleprompterView() {
       }
 
       const lower = file.name.toLowerCase();
-      if (lower.includes("jd") || lower.includes("job") || lower.includes("description")) {
+      if (lower.includes('jd') || lower.includes('job') || lower.includes('description')) {
         setJobDescriptionText(text.trim());
         setToast(`🎯 Loaded ${file.name} as Target Job Description!`);
       } else {
@@ -391,7 +404,7 @@ export default function TeleprompterView() {
         setToast(`📄 Loaded ${file.name} as Candidate Resume!`);
       }
     } catch (err: any) {
-      console.error("File drop error:", err);
+      console.error('File drop error:', err);
       setToast(`Error parsing file: ${err?.message || err}`);
     }
   };
@@ -408,7 +421,7 @@ export default function TeleprompterView() {
   const formatTimer = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
-    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -432,7 +445,7 @@ export default function TeleprompterView() {
       setSeconds(0);
       setTimerRunning(true);
       if (scrollRef.current) {
-        scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+        scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
   }, [currentQuestion]);
@@ -440,57 +453,57 @@ export default function TeleprompterView() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Mode switching shortcuts
-      if ((e.metaKey || e.ctrlKey) && e.key === "1") {
+      if ((e.metaKey || e.ctrlKey) && e.key === '1') {
         e.preventDefault();
-        setResponseMode("coding");
-        setToast("Mode: 💻 Coding Practice");
+        setResponseMode('coding');
+        setToast('Mode: 💻 Coding Practice');
         return;
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === "2") {
+      if ((e.metaKey || e.ctrlKey) && e.key === '2') {
         e.preventDefault();
-        setResponseMode("interview");
-        setToast("Mode: 🎙️ Interview Practice");
+        setResponseMode('interview');
+        setToast('Mode: 🎙️ Interview Practice');
         return;
       }
 
       // Quick Copy Code shortcut: Cmd+K
-      if ((e.metaKey || e.ctrlKey) && (e.code === "KeyK" || e.key.toLowerCase() === "k")) {
+      if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyK' || e.key.toLowerCase() === 'k')) {
         e.preventDefault();
         handleCopyPrimaryCode();
         return;
       }
 
       // Auto-scroll toggle: Cmd+J
-      if ((e.metaKey || e.ctrlKey) && (e.code === "KeyJ" || e.key.toLowerCase() === "j")) {
+      if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyJ' || e.key.toLowerCase() === 'j')) {
         e.preventDefault();
         setIsAutoScrolling(!isAutoScrolling);
-        setToast(!isAutoScrolling ? "📜 Auto-Scroll: Resumed" : "⏸️ Auto-Scroll: Paused");
+        setToast(!isAutoScrolling ? '📜 Auto-Scroll: Resumed' : '⏸️ Auto-Scroll: Paused');
         return;
       }
 
-      if (e.code === "Space" && currentAnswer) {
+      if (e.code === 'Space' && currentAnswer) {
         const activeTag = document.activeElement?.tagName;
-        if (activeTag !== "INPUT" && activeTag !== "TEXTAREA") {
+        if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
           e.preventDefault();
           doneAnswering();
         }
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentAnswer, doneAnswering]);
 
   const handleRestartScrolling = () => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const fontSizes: Record<TeleprompterFontSize, { label: string; size: string; line: string }> = {
-    small: { label: "Small", size: "15px", line: "1.7" },
-    medium: { label: "Medium", size: "18px", line: "1.75" },
-    large: { label: "Large", size: "23px", line: "1.8" },
-    xlarge: { label: "XL", size: "28px", line: "1.85" },
+    small: { label: 'Small', size: '15px', line: '1.7' },
+    medium: { label: 'Medium', size: '18px', line: '1.75' },
+    large: { label: 'Large', size: '23px', line: '1.8' },
+    xlarge: { label: 'XL', size: '28px', line: '1.85' },
   };
 
   const handleExit = () => {
@@ -500,8 +513,8 @@ export default function TeleprompterView() {
   const handleTriggerQuestion = (q: string) => {
     if (!q || !q.trim()) return;
     InterviewEngine.handleEvent({
-      type: "QUESTION_DETECTED",
-      text: q.trim()
+      type: 'QUESTION_DETECTED',
+      text: q.trim(),
     });
   };
 
@@ -512,14 +525,19 @@ export default function TeleprompterView() {
     e.preventDefault();
     if (!manualInput.trim()) return;
     handleTriggerQuestion(manualInput.trim());
-    setManualInput("");
+    setManualInput('');
   };
 
   // Parse Answer into Structured Segments (Text vs. Code Blocks vs. Quiz Highlights)
   const parsedSegments = useMemo(() => {
     if (!currentAnswer) return [];
 
-    const segments: Array<{ type: "text" | "code"; content?: string; language?: string; code?: string }> = [];
+    const segments: Array<{
+      type: 'text' | 'code';
+      content?: string;
+      language?: string;
+      code?: string;
+    }> = [];
     const codeBlockRegex = /```([a-zA-Z0-9_#+-]*)[^\n\r]*\r?\n([\s\S]*?)(?:```|$)/g;
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -528,16 +546,16 @@ export default function TeleprompterView() {
       if (match.index > lastIndex) {
         const text = currentAnswer.slice(lastIndex, match.index).trim();
         if (text) {
-          segments.push({ type: "text", content: text });
+          segments.push({ type: 'text', content: text });
         }
       }
 
-      const lang = match[1] || settings?.preferredLanguage?.toLowerCase() || "code";
-      const code = match[2] || "";
+      const lang = match[1] || settings?.preferredLanguage?.toLowerCase() || 'code';
+      const code = match[2] || '';
       segments.push({
-        type: "code",
+        type: 'code',
         language: lang,
-        code: code
+        code: code,
       });
 
       lastIndex = match.index + match[0].length;
@@ -546,7 +564,7 @@ export default function TeleprompterView() {
     if (lastIndex < currentAnswer.length) {
       const remainingText = currentAnswer.slice(lastIndex).trim();
       if (remainingText) {
-        segments.push({ type: "text", content: remainingText });
+        segments.push({ type: 'text', content: remainingText });
       }
     }
 
@@ -554,7 +572,7 @@ export default function TeleprompterView() {
   }, [currentAnswer, settings?.preferredLanguage]);
 
   const hasCodeBlock = useMemo(() => {
-    return parsedSegments.some(s => s.type === "code" && s.code && s.code.trim().length > 0);
+    return parsedSegments.some((s) => s.type === 'code' && s.code && s.code.trim().length > 0);
   }, [parsedSegments]);
 
   return (
@@ -570,44 +588,44 @@ export default function TeleprompterView() {
       }}
       onDrop={handleWindowDrop}
       style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        width: "100vw",
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: '100vw',
         background: `rgba(8, 10, 20, ${windowOpacity})`,
-        color: "#f8fafc",
+        color: '#f8fafc',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        overflow: "hidden",
-        border: "1px solid rgba(255, 255, 255, 0.12)",
-        borderRadius: "8px",
-        boxSizing: "border-box",
-        position: "relative"
+        overflow: 'hidden',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        borderRadius: '8px',
+        boxSizing: 'border-box',
+        position: 'relative',
       }}
     >
       {/* Drag & Drop Overlay */}
       {isWindowDragging && (
         <div
           style={{
-            position: "absolute",
+            position: 'absolute',
             inset: 0,
             zIndex: 100,
-            background: "rgba(15, 15, 30, 0.94)",
-            border: "2px dashed #818cf8",
-            borderRadius: "10px",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "10px",
-            color: "#f8fafc",
-            pointerEvents: "none"
+            background: 'rgba(15, 15, 30, 0.94)',
+            border: '2px dashed #818cf8',
+            borderRadius: '10px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            color: '#f8fafc',
+            pointerEvents: 'none',
           }}
         >
-          <FileUp size={44} style={{ color: "#818cf8" }} />
-          <div style={{ fontSize: "16px", fontWeight: 700, color: "#e0e7ff" }}>
+          <FileUp size={44} style={{ color: '#818cf8' }} />
+          <div style={{ fontSize: '16px', fontWeight: 700, color: '#e0e7ff' }}>
             Drop File to Load Resume, Job Description, or Question Image
           </div>
-          <div style={{ fontSize: "12px", color: "#a5b4fc" }}>
+          <div style={{ fontSize: '12px', color: '#a5b4fc' }}>
             Supports PDF, Word DOCX, Text, and Screenshots (.png, .jpg, .webp, .pdf, .docx)
           </div>
         </div>
@@ -617,34 +635,50 @@ export default function TeleprompterView() {
       <div
         className="teleprompter-draggable"
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: isCompact ? "6px 8px" : "6px 12px",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: isCompact ? '6px 8px' : '6px 12px',
           background: `rgba(16, 18, 30, ${Math.min(0.72, windowOpacity * 0.75 + 0.15)})`,
-          borderBottom: "1px solid rgba(255, 255, 255, 0.10)",
-          gap: "6px",
-          rowGap: "6px",
-          flexWrap: isCompact ? "wrap" : "nowrap"
+          borderBottom: '1px solid rgba(255, 255, 255, 0.10)',
+          gap: '6px',
+          rowGap: '6px',
+          flexWrap: isCompact ? 'wrap' : 'nowrap',
         }}
       >
         {/* Left: Mode Selector Pills (Coding / Interview / Quiz) */}
-        <div className="teleprompter-nodrag" style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+        <div
+          className="teleprompter-nodrag"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}
+        >
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              background: "rgba(0, 0, 0, 0.45)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-              borderRadius: "6px",
-              padding: "2px",
-              gap: "2px"
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(0, 0, 0, 0.45)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: '6px',
+              padding: '2px',
+              gap: '2px',
             }}
           >
             {[
-              { id: "coding", label: "💻 Coding", title: "Coding Mode: 100% verified compilable code, syntax card, Big-O & 1-click copy" },
-              { id: "interview", label: "🎙️ Interview", title: "Interview Mode: Spoken STAR answers, eye-contact teleprompter flow" },
-              { id: "quiz", label: "📝 Quiz", title: "Quiz / MCQ Mode: High-contrast correct answer banner + 1-sentence proof" }
+              {
+                id: 'coding',
+                label: '💻 Coding',
+                title:
+                  'Coding Mode: 100% verified compilable code, syntax card, Big-O & 1-click copy',
+              },
+              {
+                id: 'interview',
+                label: '🎙️ Interview',
+                title: 'Interview Mode: Spoken STAR answers, eye-contact teleprompter flow',
+              },
+              {
+                id: 'quiz',
+                label: '📝 Quiz',
+                title: 'Quiz / MCQ Mode: High-contrast correct answer banner + 1-sentence proof',
+              },
             ].map((m) => {
               const active = responseMode === m.id;
               return (
@@ -657,22 +691,22 @@ export default function TeleprompterView() {
                   title={m.title}
                   style={{
                     background: active
-                      ? m.id === "coding"
-                        ? "linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(79, 70, 229, 0.95))"
-                        : m.id === "quiz"
-                        ? "linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.95))"
-                        : "linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(147, 51, 234, 0.95))"
-                      : "transparent",
-                    color: active ? "#ffffff" : "#94a3b8",
-                    border: active ? "1px solid rgba(255, 255, 255, 0.3)" : "1px solid transparent",
-                    borderRadius: "4px",
-                    padding: "3px 8px",
-                    fontSize: "11px",
+                      ? m.id === 'coding'
+                        ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(79, 70, 229, 0.95))'
+                        : m.id === 'quiz'
+                          ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.95))'
+                          : 'linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(147, 51, 234, 0.95))'
+                      : 'transparent',
+                    color: active ? '#ffffff' : '#94a3b8',
+                    border: active ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid transparent',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '11px',
                     fontWeight: active ? 700 : 500,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    transition: "all 0.15s ease",
-                    boxShadow: active ? "0 2px 6px rgba(0, 0, 0, 0.4)" : "none"
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                    boxShadow: active ? '0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
                   }}
                 >
                   {m.label}
@@ -682,53 +716,70 @@ export default function TeleprompterView() {
           </div>
 
           {/* If in Coding Mode: Show Language Selector Dropdown */}
-          {responseMode === "coding" && (
+          {responseMode === 'coding' && (
             <select
-              value={settings?.preferredLanguage || "Java"}
+              value={settings?.preferredLanguage || 'Java'}
               onChange={(e) => {
-                updateSetting("preferredLanguage", e.target.value);
+                updateSetting('preferredLanguage', e.target.value);
                 setToast(`💻 Coding Language: ${e.target.value}`);
               }}
               title="Preferred programming language for coding challenge solutions"
               style={{
-                background: "rgba(99, 102, 241, 0.25)",
-                color: "#e0e7ff",
-                border: "1px solid rgba(129, 140, 248, 0.45)",
-                borderRadius: "4px",
-                padding: "3px 6px",
-                fontSize: "11px",
+                background: 'rgba(99, 102, 241, 0.25)',
+                color: '#e0e7ff',
+                border: '1px solid rgba(129, 140, 248, 0.45)',
+                borderRadius: '4px',
+                padding: '3px 6px',
+                fontSize: '11px',
                 fontWeight: 650,
-                cursor: "pointer",
-                outline: "none"
+                cursor: 'pointer',
+                outline: 'none',
               }}
             >
-              <option value="Java" style={{ background: "#0f172a", color: "#fff" }}>☕ Java</option>
-              <option value="Python" style={{ background: "#0f172a", color: "#fff" }}>🐍 Python</option>
-              <option value="TypeScript" style={{ background: "#0f172a", color: "#fff" }}>🔷 TypeScript</option>
-              <option value="JavaScript" style={{ background: "#0f172a", color: "#fff" }}>⚡ JavaScript</option>
-              <option value="C++" style={{ background: "#0f172a", color: "#fff" }}>⚙️ C++</option>
-              <option value="Go" style={{ background: "#0f172a", color: "#fff" }}>🐹 Go</option>
-              <option value="SQL" style={{ background: "#0f172a", color: "#fff" }}>🗄️ SQL</option>
+              <option value="Java" style={{ background: '#0f172a', color: '#fff' }}>
+                ☕ Java
+              </option>
+              <option value="Python" style={{ background: '#0f172a', color: '#fff' }}>
+                🐍 Python
+              </option>
+              <option value="TypeScript" style={{ background: '#0f172a', color: '#fff' }}>
+                🔷 TypeScript
+              </option>
+              <option value="JavaScript" style={{ background: '#0f172a', color: '#fff' }}>
+                ⚡ JavaScript
+              </option>
+              <option value="C++" style={{ background: '#0f172a', color: '#fff' }}>
+                ⚙️ C++
+              </option>
+              <option value="Go" style={{ background: '#0f172a', color: '#fff' }}>
+                🐹 Go
+              </option>
+              <option value="SQL" style={{ background: '#0f172a', color: '#fff' }}>
+                🗄️ SQL
+              </option>
             </select>
           )}
 
           {/* Font Size Buttons */}
-          <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
-            {(["small", "medium", "large", "xlarge"] as TeleprompterFontSize[]).map((f) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+            {(['small', 'medium', 'large', 'xlarge'] as TeleprompterFontSize[]).map((f) => (
               <button
                 key={f}
                 onClick={() => setTeleprompterFontSize(f)}
                 style={{
-                  background: teleprompterFontSize === f ? "#3730a3" : "rgba(255, 255, 255, 0.06)",
-                  color: teleprompterFontSize === f ? "#ffffff" : "#94a3b8",
-                  border: teleprompterFontSize === f ? "1px solid #6366f1" : "1px solid rgba(255, 255, 255, 0.08)",
-                  borderRadius: "4px",
-                  padding: "3px 6px",
-                  fontSize: "10px",
+                  background: teleprompterFontSize === f ? '#3730a3' : 'rgba(255, 255, 255, 0.06)',
+                  color: teleprompterFontSize === f ? '#ffffff' : '#94a3b8',
+                  border:
+                    teleprompterFontSize === f
+                      ? '1px solid #6366f1'
+                      : '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '4px',
+                  padding: '3px 6px',
+                  fontSize: '10px',
                   fontWeight: teleprompterFontSize === f ? 700 : 400,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  transition: "all 0.15s ease"
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 {isCompact ? fontSizes[f].label.charAt(0) : fontSizes[f].label}
@@ -738,62 +789,71 @@ export default function TeleprompterView() {
         </div>
 
         {/* Center: Scroll Controls & Timer */}
-        <div className="teleprompter-nodrag" style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
+        <div
+          className="teleprompter-nodrag"
+          style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
+        >
           <button
             onClick={handleRestartScrolling}
             title="Restart scrolling from the top"
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              background: "rgba(255, 255, 255, 0.06)",
-              color: "#e2e8f0",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-              borderRadius: "4px",
-              padding: isUltraCompact ? "4px 6px" : "4px 8px",
-              fontSize: "11px",
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              color: '#e2e8f0',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '4px',
+              padding: isUltraCompact ? '4px 6px' : '4px 8px',
+              fontSize: '11px',
               fontWeight: 500,
-              cursor: "pointer"
+              cursor: 'pointer',
             }}
           >
-            <RotateCcw size={11} /> {!isUltraCompact && "Restart"}
+            <RotateCcw size={11} /> {!isUltraCompact && 'Restart'}
           </button>
 
           <button
             onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-            title={isAutoScrolling ? "Pause scrolling" : "Resume auto-scroll"}
+            title={isAutoScrolling ? 'Pause scrolling' : 'Resume auto-scroll'}
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "3px",
-              background: isAutoScrolling ? "#1e1b4b" : "rgba(255, 255, 255, 0.06)",
-              color: isAutoScrolling ? "#a5b4fc" : "#94a3b8",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-              borderRadius: "4px",
-              padding: "4px 8px",
-              fontSize: "11px",
-              cursor: "pointer"
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              background: isAutoScrolling ? '#1e1b4b' : 'rgba(255, 255, 255, 0.06)',
+              color: isAutoScrolling ? '#a5b4fc' : '#94a3b8',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              fontSize: '11px',
+              cursor: 'pointer',
             }}
           >
             {isAutoScrolling ? <Pause size={11} /> : <Play size={11} />}
-            <span>{isAutoScrolling ? "Pause" : "Scroll"}</span>
+            <span>{isAutoScrolling ? 'Pause' : 'Scroll'}</span>
           </button>
 
           <button
             onClick={() =>
               setScrollSpeed(
-                scrollSpeed === 0.7 ? 1.0 : scrollSpeed === 1.0 ? 1.5 : scrollSpeed === 1.5 ? 2.0 : 0.7
+                scrollSpeed === 0.7
+                  ? 1.0
+                  : scrollSpeed === 1.0
+                    ? 1.5
+                    : scrollSpeed === 1.5
+                      ? 2.0
+                      : 0.7
               )
             }
             title="Scroll Speed"
             style={{
-              background: "rgba(255, 255, 255, 0.06)",
-              color: "#c7d2fe",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-              borderRadius: "4px",
-              padding: "4px 6px",
-              fontSize: "11px",
-              cursor: "pointer"
+              background: 'rgba(255, 255, 255, 0.06)',
+              color: '#c7d2fe',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '4px',
+              padding: '4px 6px',
+              fontSize: '11px',
+              cursor: 'pointer',
             }}
           >
             {scrollSpeed}x
@@ -804,19 +864,19 @@ export default function TeleprompterView() {
             onClick={() => setTimerRunning(!timerRunning)}
             title="Click to pause or reset session timer"
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              background: "#1e1b4b",
-              border: "1px solid #4338ca",
-              borderRadius: "4px",
-              padding: "4px 8px",
-              fontSize: "11px",
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              background: '#1e1b4b',
+              border: '1px solid #4338ca',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              fontSize: '11px',
               fontWeight: 700,
-              color: "#a5b4fc",
-              letterSpacing: "0.5px",
-              cursor: "pointer",
-              transition: "all 0.2s ease"
+              color: '#a5b4fc',
+              letterSpacing: '0.5px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
             }}
           >
             <span>⏱️</span>
@@ -827,40 +887,47 @@ export default function TeleprompterView() {
           {currentAnswer && !isCompact && (
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "4px",
-                padding: "4px 7px",
-                fontSize: "11px",
-                color: "#cbd5e1",
-                whiteSpace: "nowrap"
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '4px',
+                padding: '4px 7px',
+                fontSize: '11px',
+                color: '#cbd5e1',
+                whiteSpace: 'nowrap',
               }}
               title="Target: ~380-430 words for a standard 3-minute spoken response"
             >
               <span>📊</span>
-              <span>{wordCount}w (~{estMinutes}m)</span>
+              <span>
+                {wordCount}w (~{estMinutes}m)
+              </span>
             </div>
           )}
         </div>
 
         {/* Right: Opacity Selector, Stealth, Resume Modal, Settings, History, Exit */}
-        <div className="teleprompter-nodrag" style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+        <div
+          className="teleprompter-nodrag"
+          style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
             <button
-              onClick={() => setWindowOpacity(Math.max(0.12, Math.round((windowOpacity - 0.1) * 100) / 100))}
+              onClick={() =>
+                setWindowOpacity(Math.max(0.12, Math.round((windowOpacity - 0.1) * 100) / 100))
+              }
               title="More transparent (Clearer glass)"
               style={{
-                background: "rgba(255, 255, 255, 0.08)",
-                color: "#e2e8f0",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-                borderRadius: "4px",
-                padding: "2px 6px",
-                fontSize: "11px",
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: '#e2e8f0',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: '4px',
+                padding: '2px 6px',
+                fontSize: '11px',
                 fontWeight: 700,
-                cursor: "pointer"
+                cursor: 'pointer',
               }}
             >
               -
@@ -870,37 +937,53 @@ export default function TeleprompterView() {
               onChange={(e) => setWindowOpacity(parseFloat(e.target.value))}
               title="Teleprompter Overlay Transparency"
               style={{
-                background: "rgba(255, 255, 255, 0.08)",
-                color: "#e0e7ff",
-                border: "1px solid rgba(255, 255, 255, 0.14)",
-                borderRadius: "4px",
-                padding: "3px 6px",
-                fontSize: "11px",
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: '#e0e7ff',
+                border: '1px solid rgba(255, 255, 255, 0.14)',
+                borderRadius: '4px',
+                padding: '3px 6px',
+                fontSize: '11px',
                 fontWeight: 600,
-                cursor: "pointer",
-                outline: "none"
+                cursor: 'pointer',
+                outline: 'none',
               }}
             >
-              <option value={0.15} style={{ background: "#111827" }}>15% Ultra Clear</option>
-              <option value={0.25} style={{ background: "#111827" }}>25% Clear Glass</option>
-              <option value={0.35} style={{ background: "#111827" }}>35% Frosted Glass</option>
-              <option value={0.50} style={{ background: "#111827" }}>50% Medium Glass</option>
-              <option value={0.70} style={{ background: "#111827" }}>70% Deep Glass</option>
-              <option value={0.88} style={{ background: "#111827" }}>88% High Contrast</option>
-              <option value={0.98} style={{ background: "#111827" }}>98% Solid Dark</option>
+              <option value={0.15} style={{ background: '#111827' }}>
+                15% Ultra Clear
+              </option>
+              <option value={0.25} style={{ background: '#111827' }}>
+                25% Clear Glass
+              </option>
+              <option value={0.35} style={{ background: '#111827' }}>
+                35% Frosted Glass
+              </option>
+              <option value={0.5} style={{ background: '#111827' }}>
+                50% Medium Glass
+              </option>
+              <option value={0.7} style={{ background: '#111827' }}>
+                70% Deep Glass
+              </option>
+              <option value={0.88} style={{ background: '#111827' }}>
+                88% High Contrast
+              </option>
+              <option value={0.98} style={{ background: '#111827' }}>
+                98% Solid Dark
+              </option>
             </select>
             <button
-              onClick={() => setWindowOpacity(Math.min(0.98, Math.round((windowOpacity + 0.1) * 100) / 100))}
+              onClick={() =>
+                setWindowOpacity(Math.min(0.98, Math.round((windowOpacity + 0.1) * 100) / 100))
+              }
               title="Less transparent (More solid)"
               style={{
-                background: "rgba(255, 255, 255, 0.08)",
-                color: "#e2e8f0",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-                borderRadius: "4px",
-                padding: "2px 6px",
-                fontSize: "11px",
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: '#e2e8f0',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: '4px',
+                padding: '2px 6px',
+                fontSize: '11px',
                 fontWeight: 700,
-                cursor: "pointer"
+                cursor: 'pointer',
               }}
             >
               +
@@ -912,57 +995,67 @@ export default function TeleprompterView() {
             onClick={() => setShowShortcuts(!showShortcuts)}
             title="View Stealth & OCR Keyboard Shortcuts"
             style={{
-              background: showShortcuts ? "rgba(99, 102, 241, 0.3)" : "rgba(255, 255, 255, 0.08)",
-              color: showShortcuts ? "#a5b4fc" : "#cbd5e1",
-              border: showShortcuts ? "1px solid rgba(129, 140, 248, 0.5)" : "1px solid rgba(255, 255, 255, 0.12)",
-              borderRadius: "4px",
-              padding: "3px 7px",
-              fontSize: "11px",
+              background: showShortcuts ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255, 255, 255, 0.08)',
+              color: showShortcuts ? '#a5b4fc' : '#cbd5e1',
+              border: showShortcuts
+                ? '1px solid rgba(129, 140, 248, 0.5)'
+                : '1px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: '4px',
+              padding: '3px 7px',
+              fontSize: '11px',
               fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
             }}
           >
             <Keyboard size={12} />
             {!isUltraCompact && <span>Shortcuts</span>}
           </button>
 
-          
-
           <button
             onClick={() => setResumeModalOpen(true)}
             title="Configure Candidate Resume & Target Job Description"
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-              background: "linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2))",
-              color: "#e0e7ff",
-              border: "1px solid rgba(168, 85, 247, 0.45)",
-              borderRadius: "4px",
-              padding: "3px 8px",
-              fontSize: "11px",
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              background:
+                'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2))',
+              color: '#e0e7ff',
+              border: '1px solid rgba(168, 85, 247, 0.45)',
+              borderRadius: '4px',
+              padding: '3px 8px',
+              fontSize: '11px',
               fontWeight: 600,
-              cursor: "pointer",
-              whiteSpace: "nowrap"
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}
           >
-            <Target size={12} style={{ color: "#a855f7" }} />
-            {!isCompact && <span>🎯 {targetRole ? (targetRole.length > 15 ? targetRole.slice(0, 15) + "..." : targetRole) : "Role"}</span>}
+            <Target size={12} style={{ color: '#a855f7' }} />
+            {!isCompact && (
+              <span>
+                🎯{' '}
+                {targetRole
+                  ? targetRole.length > 15
+                    ? targetRole.slice(0, 15) + '...'
+                    : targetRole
+                  : 'Role'}
+              </span>
+            )}
           </button>
 
           <button
             onClick={() => setSettingsOpen(true)}
             title="AI & Whisper Settings"
             style={{
-              background: "transparent",
-              color: "#94a3b8",
-              border: "none",
-              padding: "4px",
-              borderRadius: "4px",
-              cursor: "pointer"
+              background: 'transparent',
+              color: '#94a3b8',
+              border: 'none',
+              padding: '4px',
+              borderRadius: '4px',
+              cursor: 'pointer',
             }}
           >
             <Settings size={13} />
@@ -972,31 +1065,29 @@ export default function TeleprompterView() {
             onClick={() => setSessionsOpen(true)}
             title="Session History"
             style={{
-              background: "transparent",
-              color: "#94a3b8",
-              border: "none",
-              padding: "4px",
-              borderRadius: "4px",
-              cursor: "pointer"
+              background: 'transparent',
+              color: '#94a3b8',
+              border: 'none',
+              padding: '4px',
+              borderRadius: '4px',
+              cursor: 'pointer',
             }}
           >
             <History size={13} />
           </button>
 
-          
-
           <button
             onClick={handleExit}
             style={{
-              background: "#e11d48",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "4px",
-              padding: "4px 10px",
-              fontSize: "11px",
+              background: '#e11d48',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '4px 10px',
+              fontSize: '11px',
               fontWeight: 600,
-              cursor: "pointer",
-              transition: "background 0.15s ease"
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
             }}
           >
             Exit
@@ -1011,15 +1102,23 @@ export default function TeleprompterView() {
         onMouseLeave={() => setIsHovered(false)}
         style={{
           flex: 1,
-          overflowY: "auto",
-          padding: "20px 28px",
-          scrollBehavior: "smooth",
-          userSelect: "text"
+          overflowY: 'auto',
+          padding: '20px 28px',
+          scrollBehavior: 'smooth',
+          userSelect: 'text',
         }}
       >
         {/* Active Detected Question Header & Done Answering Button */}
         {currentQuestion && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '6px',
+              flexWrap: 'wrap',
+            }}
+          >
             <ConfidenceBadge confidence={answerConfidence} />
             <MemoryIndicator historyCount={(conversationHistory || []).length} />
           </div>
@@ -1027,24 +1126,32 @@ export default function TeleprompterView() {
         {currentQuestion && (
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "8px",
-              background: "rgba(99, 102, 241, 0.22)",
-              border: "1px solid rgba(129, 140, 248, 0.4)",
-              borderRadius: "6px",
-              padding: "6px 12px",
-              marginBottom: "10px",
-              color: "#e0e7ff",
-              fontSize: "13px",
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              background: 'rgba(99, 102, 241, 0.22)',
+              border: '1px solid rgba(129, 140, 248, 0.4)',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              marginBottom: '10px',
+              color: '#e0e7ff',
+              fontSize: '13px',
               fontWeight: 600,
-              letterSpacing: "0.2px"
+              letterSpacing: '0.2px',
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1, overflow: "hidden" }}>
-              <Sparkles size={13} style={{ color: "#818cf8", flexShrink: 0 }} />
-              <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                flex: 1,
+                overflow: 'hidden',
+              }}
+            >
+              <Sparkles size={13} style={{ color: '#818cf8', flexShrink: 0 }} />
+              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                 Q: {currentQuestion}
               </span>
             </div>
@@ -1054,19 +1161,19 @@ export default function TeleprompterView() {
                 onClick={doneAnswering}
                 title="Mark answer complete and listen for next question (or press Space)"
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  background: "rgba(34, 197, 94, 0.2)",
-                  border: "1px solid rgba(74, 222, 128, 0.5)",
-                  color: "#86efac",
-                  borderRadius: "4px",
-                  padding: "3px 8px",
-                  fontSize: "11px",
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'rgba(34, 197, 94, 0.2)',
+                  border: '1px solid rgba(74, 222, 128, 0.5)',
+                  color: '#86efac',
+                  borderRadius: '4px',
+                  padding: '3px 8px',
+                  fontSize: '11px',
                   fontWeight: 600,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
                 }}
               >
                 <CheckCircle2 size={12} />
@@ -1080,91 +1187,109 @@ export default function TeleprompterView() {
         {hasCodeBlock && (
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "8px",
-              background: "linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.2))",
-              border: "1px solid rgba(129, 140, 248, 0.45)",
-              borderRadius: "6px",
-              padding: "6px 12px",
-              marginBottom: "12px",
-              boxShadow: "0 2px 10px rgba(0, 0, 0, 0.3)"
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              background:
+                'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.2))',
+              border: '1px solid rgba(129, 140, 248, 0.45)',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              marginBottom: '12px',
+              boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#c7d2fe", fontWeight: 600 }}>
-              <Terminal size={14} style={{ color: "#818cf8" }} />
-              <span>💻 Optimal Compilable Code Solution Ready ({settings?.preferredLanguage || "Java"})</span>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                color: '#c7d2fe',
+                fontWeight: 600,
+              }}
+            >
+              <Terminal size={14} style={{ color: '#818cf8' }} />
+              <span>
+                💻 Optimal Compilable Code Solution Ready ({settings?.preferredLanguage || 'Java'})
+              </span>
             </div>
 
             <button
               onClick={handleCopyPrimaryCode}
               title="Copy the code solution directly to clipboard (ready for LeetCode / HackerRank / IDE)"
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
                 background: copiedPrimary
-                  ? "rgba(16, 185, 129, 0.35)"
-                  : "linear-gradient(135deg, #4f46e5, #4338ca)",
-                color: copiedPrimary ? "#6ee7b7" : "#ffffff",
-                border: copiedPrimary ? "1px solid #10b981" : "1px solid #6366f1",
-                borderRadius: "5px",
-                padding: "4px 12px",
-                fontSize: "11px",
+                  ? 'rgba(16, 185, 129, 0.35)'
+                  : 'linear-gradient(135deg, #4f46e5, #4338ca)',
+                color: copiedPrimary ? '#6ee7b7' : '#ffffff',
+                border: copiedPrimary ? '1px solid #10b981' : '1px solid #6366f1',
+                borderRadius: '5px',
+                padding: '4px 12px',
+                fontSize: '11px',
                 fontWeight: 700,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                boxShadow: "0 2px 8px rgba(79, 70, 229, 0.4)",
-                transition: "all 0.15s ease"
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 2px 8px rgba(79, 70, 229, 0.4)',
+                transition: 'all 0.15s ease',
               }}
             >
               {copiedPrimary ? <Check size={12} /> : <Copy size={12} />}
-              <span>{copiedPrimary ? "✓ Code Copied!" : "📋 Copy Code (1-Click)"}</span>
+              <span>{copiedPrimary ? '✓ Code Copied!' : '📋 Copy Code (1-Click)'}</span>
             </button>
           </div>
         )}
 
         {/* Dynamic Recital / Interruption Banner */}
-        {recitalState === "reciting" && (
+        {recitalState === 'reciting' && (
           <div
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              background: "rgba(59, 130, 246, 0.18)",
-              border: "1px solid rgba(96, 165, 250, 0.4)",
-              borderRadius: "6px",
-              padding: "6px 12px",
-              marginBottom: "14px",
-              color: "#93c5fd",
-              fontSize: "12px",
-              fontWeight: 600
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'rgba(59, 130, 246, 0.18)',
+              border: '1px solid rgba(96, 165, 250, 0.4)',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              marginBottom: '14px',
+              color: '#93c5fd',
+              fontSize: '12px',
+              fontWeight: 600,
             }}
           >
-            <Volume2 size={13} style={{ color: "#60a5fa" }} />
-            <span>🗣️ Reciting Answer: Mic is automatically paused for your speech • Auto-listening for interruptions</span>
+            <Volume2 size={13} style={{ color: '#60a5fa' }} />
+            <span>
+              🗣️ Reciting Answer: Mic is automatically paused for your speech • Auto-listening for
+              interruptions
+            </span>
           </div>
         )}
 
-        {recitalState === "interrupted" && (
+        {recitalState === 'interrupted' && (
           <div
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              background: "rgba(239, 68, 68, 0.24)",
-              border: "1px solid rgba(248, 113, 113, 0.55)",
-              borderRadius: "6px",
-              padding: "6px 12px",
-              marginBottom: "14px",
-              color: "#fca5a5",
-              fontSize: "12px",
-              fontWeight: 600
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'rgba(239, 68, 68, 0.24)',
+              border: '1px solid rgba(248, 113, 113, 0.55)',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              marginBottom: '14px',
+              color: '#fca5a5',
+              fontSize: '12px',
+              fontWeight: 600,
             }}
           >
-            <span style={{ fontSize: "14px" }}>⚡</span>
-            <span>Interviewer Interruption Detected: "{lastInterruption || currentQuestion}" — Reacting live</span>
+            <span style={{ fontSize: '14px' }}>⚡</span>
+            <span>
+              Interviewer Interruption Detected: "{lastInterruption || currentQuestion}" — Reacting
+              live
+            </span>
           </div>
         )}
 
@@ -1173,10 +1298,11 @@ export default function TeleprompterView() {
           style={{
             fontSize: fontSizes[teleprompterFontSize].size,
             lineHeight: fontSizes[teleprompterFontSize].line,
-            color: "#f8fafc",
+            color: '#f8fafc',
             fontWeight: 450,
-            letterSpacing: "0.2px",
-            textShadow: "0 1px 3px rgba(0, 0, 0, 0.98), 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 16px rgba(0, 0, 0, 0.7)"
+            letterSpacing: '0.2px',
+            textShadow:
+              '0 1px 3px rgba(0, 0, 0, 0.98), 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 16px rgba(0, 0, 0, 0.7)',
           }}
         >
           {currentAnswer ? (
@@ -1185,122 +1311,149 @@ export default function TeleprompterView() {
               {!isGenerating && (
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    margin: "4px 0 16px 0",
-                    flexWrap: "wrap",
-                    padding: "6px 10px",
-                    background: "rgba(255, 255, 255, 0.03)",
-                    borderRadius: "8px",
-                    border: "1px solid rgba(255, 255, 255, 0.07)"
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    margin: '4px 0 16px 0',
+                    flexWrap: 'wrap',
+                    padding: '6px 10px',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.07)',
                   }}
                 >
-                  <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 650, marginRight: "2px" }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: '#94a3b8',
+                      fontWeight: 650,
+                      marginRight: '2px',
+                    }}
+                  >
                     ✨ Steering:
                   </span>
 
                   <button
-                    onClick={() => handleSteerAnswer("Condense this into a punchy 30-40 second executive answer covering core intuition, approach, and Big-O complexity.")}
+                    onClick={() =>
+                      handleSteerAnswer(
+                        'Condense this into a punchy 30-40 second executive answer covering core intuition, approach, and Big-O complexity.'
+                      )
+                    }
                     title="Condense into an ultra-punchy 30-40s answer"
                     style={{
-                      background: "rgba(99, 102, 241, 0.18)",
-                      color: "#c7d2fe",
-                      border: "1px solid rgba(129, 140, 248, 0.35)",
-                      borderRadius: "14px",
-                      padding: "3px 10px",
-                      fontSize: "11px",
+                      background: 'rgba(99, 102, 241, 0.18)',
+                      color: '#c7d2fe',
+                      border: '1px solid rgba(129, 140, 248, 0.35)',
+                      borderRadius: '14px',
+                      padding: '3px 10px',
+                      fontSize: '11px',
                       fontWeight: 600,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      transition: "all 0.15s ease"
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.15s ease',
                     }}
                   >
                     <span>⚡ 30s Summary</span>
                   </button>
 
                   <button
-                    onClick={() => handleSteerAnswer("Provide 2-3 sharp, senior-level clarifying questions to ask the interviewer before writing code or designing (e.g. scale, concurrency, duplicate handling, and edge cases).")}
+                    onClick={() =>
+                      handleSteerAnswer(
+                        'Provide 2-3 sharp, senior-level clarifying questions to ask the interviewer before writing code or designing (e.g. scale, concurrency, duplicate handling, and edge cases).'
+                      )
+                    }
                     title="Generate sharp clarifying questions to ask the interviewer first"
                     style={{
-                      background: "rgba(234, 179, 8, 0.18)",
-                      color: "#fde047",
-                      border: "1px solid rgba(250, 204, 21, 0.35)",
-                      borderRadius: "14px",
-                      padding: "3px 10px",
-                      fontSize: "11px",
+                      background: 'rgba(234, 179, 8, 0.18)',
+                      color: '#fde047',
+                      border: '1px solid rgba(250, 204, 21, 0.35)',
+                      borderRadius: '14px',
+                      padding: '3px 10px',
+                      fontSize: '11px',
                       fontWeight: 600,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      transition: "all 0.15s ease"
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.15s ease',
                     }}
                   >
                     <span>❓ Clarify First</span>
                   </button>
 
                   <button
-                    onClick={() => handleSteerAnswer("Explain the core intuition and pattern in 2 clear conversational sentences without writing code.")}
+                    onClick={() =>
+                      handleSteerAnswer(
+                        'Explain the core intuition and pattern in 2 clear conversational sentences without writing code.'
+                      )
+                    }
                     title="Explain intuition without writing code"
                     style={{
-                      background: "rgba(56, 189, 248, 0.18)",
-                      color: "#bae6fd",
-                      border: "1px solid rgba(56, 189, 248, 0.35)",
-                      borderRadius: "14px",
-                      padding: "3px 10px",
-                      fontSize: "11px",
+                      background: 'rgba(56, 189, 248, 0.18)',
+                      color: '#bae6fd',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      borderRadius: '14px',
+                      padding: '3px 10px',
+                      fontSize: '11px',
                       fontWeight: 600,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      transition: "all 0.15s ease"
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.15s ease',
                     }}
                   >
                     <span>💡 Intuition Only</span>
                   </button>
 
                   <button
-                    onClick={() => handleSteerAnswer("Drill down deeply into the system architecture, memory overhead, backpressure limits, and failure recovery using the 3-Beat framework.")}
+                    onClick={() =>
+                      handleSteerAnswer(
+                        'Drill down deeply into the system architecture, memory overhead, backpressure limits, and failure recovery using the 3-Beat framework.'
+                      )
+                    }
                     title="Expand on architectural mechanics and trade-offs"
                     style={{
-                      background: "rgba(168, 85, 247, 0.18)",
-                      color: "#e9d5ff",
-                      border: "1px solid rgba(192, 132, 252, 0.35)",
-                      borderRadius: "14px",
-                      padding: "3px 10px",
-                      fontSize: "11px",
+                      background: 'rgba(168, 85, 247, 0.18)',
+                      color: '#e9d5ff',
+                      border: '1px solid rgba(192, 132, 252, 0.35)',
+                      borderRadius: '14px',
+                      padding: '3px 10px',
+                      fontSize: '11px',
                       fontWeight: 600,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      transition: "all 0.15s ease"
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.15s ease',
                     }}
                   >
                     <span>🏛️ Architecture & Trade-Offs</span>
                   </button>
 
-                  {responseMode === "coding" && (
+                  {responseMode === 'coding' && (
                     <button
-                      onClick={() => handleSteerAnswer("Provide a step-by-step trace/dry-run table of the code with a concrete example input, showing index, pointer, and variable state transitions.")}
+                      onClick={() =>
+                        handleSteerAnswer(
+                          'Provide a step-by-step trace/dry-run table of the code with a concrete example input, showing index, pointer, and variable state transitions.'
+                        )
+                      }
                       title="Show step-by-step variable dry run"
                       style={{
-                        background: "rgba(16, 185, 129, 0.18)",
-                        color: "#a7f3d0",
-                        border: "1px solid rgba(52, 211, 153, 0.35)",
-                        borderRadius: "14px",
-                        padding: "3px 10px",
-                        fontSize: "11px",
+                        background: 'rgba(16, 185, 129, 0.18)',
+                        color: '#a7f3d0',
+                        border: '1px solid rgba(52, 211, 153, 0.35)',
+                        borderRadius: '14px',
+                        padding: '3px 10px',
+                        fontSize: '11px',
                         fontWeight: 600,
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        transition: "all 0.15s ease"
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.15s ease',
                       }}
                     >
                       <span>🧪 Variable Dry-Run</span>
@@ -1311,18 +1464,18 @@ export default function TeleprompterView() {
                     onClick={() => handleRegenerateCurrentAnswer()}
                     title="Regenerate alternative answer from scratch"
                     style={{
-                      background: "rgba(255, 255, 255, 0.06)",
-                      color: "#cbd5e1",
-                      border: "1px solid rgba(255, 255, 255, 0.12)",
-                      borderRadius: "14px",
-                      padding: "3px 10px",
-                      fontSize: "11px",
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      color: '#cbd5e1',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      borderRadius: '14px',
+                      padding: '3px 10px',
+                      fontSize: '11px',
                       fontWeight: 600,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      transition: "all 0.15s ease"
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.15s ease',
                     }}
                   >
                     <RotateCcw size={10} />
@@ -1331,15 +1484,13 @@ export default function TeleprompterView() {
                 </div>
               )}
 
-              
-
               {parsedSegments.map((segment, idx) => {
-                if (segment.type === "code" && segment.code) {
+                if (segment.type === 'code' && segment.code) {
                   return (
                     <CodeBlockCard
                       key={idx}
                       index={idx}
-                      language={segment.language || settings?.preferredLanguage || "code"}
+                      language={segment.language || settings?.preferredLanguage || 'code'}
                       code={segment.code}
                       onCopy={handleCopyCodeBlock}
                       isCopied={!!copiedCodeIndices[idx]}
@@ -1347,22 +1498,24 @@ export default function TeleprompterView() {
                   );
                 }
 
-                const text = segment.content || "";
-                const isQuizHighlight = text.includes("CORRECT ANSWER:") || text.includes("CORRECT OPTION:");
+                const text = segment.content || '';
+                const isQuizHighlight =
+                  text.includes('CORRECT ANSWER:') || text.includes('CORRECT OPTION:');
 
                 if (isQuizHighlight) {
                   return (
                     <div
                       key={idx}
                       style={{
-                        margin: "12px 0 16px 0",
-                        padding: "12px 16px",
-                        background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.15))",
-                        border: "2px solid rgba(52, 211, 153, 0.7)",
-                        borderRadius: "8px",
-                        boxShadow: "0 0 20px rgba(16, 185, 129, 0.25)",
-                        color: "#f0fdf4",
-                        whiteSpace: "pre-wrap"
+                        margin: '12px 0 16px 0',
+                        padding: '12px 16px',
+                        background:
+                          'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.15))',
+                        border: '2px solid rgba(52, 211, 153, 0.7)',
+                        borderRadius: '8px',
+                        boxShadow: '0 0 20px rgba(16, 185, 129, 0.25)',
+                        color: '#f0fdf4',
+                        whiteSpace: 'pre-wrap',
                       }}
                     >
                       {text}
@@ -1371,7 +1524,7 @@ export default function TeleprompterView() {
                 }
 
                 return (
-                  <div key={idx} style={{ whiteSpace: "pre-wrap", marginBottom: "12px" }}>
+                  <div key={idx} style={{ whiteSpace: 'pre-wrap', marginBottom: '12px' }}>
                     {text}
                   </div>
                 );
@@ -1380,13 +1533,13 @@ export default function TeleprompterView() {
               {isGenerating && (
                 <span
                   style={{
-                    display: "inline-block",
-                    width: "8px",
-                    height: "18px",
-                    background: "#6366f1",
-                    marginLeft: "4px",
-                    verticalAlign: "middle",
-                    animation: "pulse 1s infinite"
+                    display: 'inline-block',
+                    width: '8px',
+                    height: '18px',
+                    background: '#6366f1',
+                    marginLeft: '4px',
+                    verticalAlign: 'middle',
+                    animation: 'pulse 1s infinite',
                   }}
                 />
               )}
@@ -1400,44 +1553,83 @@ export default function TeleprompterView() {
               )}
             </div>
           ) : isGenerating ? (
-            <div style={{ color: "#94a3b8", display: "flex", alignItems: "center", gap: "8px", fontSize: "18px" }}>
+            <div
+              style={{
+                color: '#94a3b8',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '18px',
+              }}
+            >
               <Loader2 size={18} className="spin" /> Generating answer live with Groq Qwen 27B...
             </div>
           ) : (
-            <div style={{ color: "#cbd5e1", fontSize: "18px", lineHeight: "1.8" }}>
-              <p style={{ marginBottom: "10px", color: "#93c5fd", fontWeight: 600 }}>
+            <div style={{ color: '#cbd5e1', fontSize: '18px', lineHeight: '1.8' }}>
+              <p style={{ marginBottom: '10px', color: '#93c5fd', fontWeight: 600 }}>
                 ● Teleprompter & Code Assistant Ready
               </p>
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "10px",
-                  margin: "14px 0",
-                  fontSize: "13px"
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '10px',
+                  margin: '14px 0',
+                  fontSize: '13px',
                 }}
               >
-                <div style={{ background: "rgba(99, 102, 241, 0.12)", border: "1px solid rgba(129, 140, 248, 0.3)", borderRadius: "6px", padding: "10px" }}>
-                  <div style={{ fontWeight: 700, color: "#a5b4fc", marginBottom: "4px" }}>💻 Coding Mode</div>
-                  <div style={{ color: "#94a3b8", fontSize: "12px", lineHeight: "1.5" }}>
-                    Verified, runnable code in your language with line numbers, Big-O proof, and 1-click clipboard copy.
+                <div
+                  style={{
+                    background: 'rgba(99, 102, 241, 0.12)',
+                    border: '1px solid rgba(129, 140, 248, 0.3)',
+                    borderRadius: '6px',
+                    padding: '10px',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: '#a5b4fc', marginBottom: '4px' }}>
+                    💻 Coding Mode
+                  </div>
+                  <div style={{ color: '#94a3b8', fontSize: '12px', lineHeight: '1.5' }}>
+                    Verified, runnable code in your language with line numbers, Big-O proof, and
+                    1-click clipboard copy.
                   </div>
                 </div>
-                <div style={{ background: "rgba(168, 85, 247, 0.12)", border: "1px solid rgba(192, 132, 252, 0.3)", borderRadius: "6px", padding: "10px" }}>
-                  <div style={{ fontWeight: 700, color: "#d8b4fe", marginBottom: "4px" }}>🎙️ Interview Mode</div>
-                  <div style={{ color: "#94a3b8", fontSize: "12px", lineHeight: "1.5" }}>
-                    Natural first-person spoken STAR responses tailored to your candidate persona (Abhishek Singh).
+                <div
+                  style={{
+                    background: 'rgba(168, 85, 247, 0.12)',
+                    border: '1px solid rgba(192, 132, 252, 0.3)',
+                    borderRadius: '6px',
+                    padding: '10px',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: '#d8b4fe', marginBottom: '4px' }}>
+                    🎙️ Interview Mode
+                  </div>
+                  <div style={{ color: '#94a3b8', fontSize: '12px', lineHeight: '1.5' }}>
+                    Natural first-person spoken STAR responses tailored to your candidate persona
+                    (Abhishek Singh).
                   </div>
                 </div>
-                <div style={{ background: "rgba(16, 185, 129, 0.12)", border: "1px solid rgba(52, 211, 153, 0.3)", borderRadius: "6px", padding: "10px" }}>
-                  <div style={{ fontWeight: 700, color: "#86efac", marginBottom: "4px" }}>📝 Quiz / MCQ Mode</div>
-                  <div style={{ color: "#94a3b8", fontSize: "12px", lineHeight: "1.5" }}>
-                    Instant highlighted correct option with 1-line proof and brief explanation of why other options are wrong.
+                <div
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.12)',
+                    border: '1px solid rgba(52, 211, 153, 0.3)',
+                    borderRadius: '6px',
+                    padding: '10px',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: '#86efac', marginBottom: '4px' }}>
+                    📝 Quiz / MCQ Mode
+                  </div>
+                  <div style={{ color: '#94a3b8', fontSize: '12px', lineHeight: '1.5' }}>
+                    Instant highlighted correct option with 1-line proof and brief explanation of
+                    why other options are wrong.
                   </div>
                 </div>
               </div>
-              <p style={{ color: "#94a3b8", fontSize: "14px" }}>
-                Use <strong>📸 Solve Screen (⌘⇧S)</strong> or <strong>✂️ Snip Box</strong> to solve any question on your screen instantly.
+              <p style={{ color: '#94a3b8', fontSize: '14px' }}>
+                Use <strong>📸 Solve Screen (⌘⇧S)</strong> or <strong>✂️ Snip Box</strong> to solve
+                any question on your screen instantly.
               </p>
             </div>
           )}
@@ -1447,19 +1639,19 @@ export default function TeleprompterView() {
       {/* ════════════ BOTTOM STEALTH TOOLBAR & INPUT BAR ════════════ */}
       <div
         style={{
-          display: "flex",
-          flexDirection: "column",
+          display: 'flex',
+          flexDirection: 'column',
           background: `rgba(12, 14, 24, ${Math.min(0.78, windowOpacity * 0.75 + 0.18)})`,
-          borderTop: "1px solid rgba(255, 255, 255, 0.10)",
-          padding: "8px 14px",
-          gap: "8px"
+          borderTop: '1px solid rgba(255, 255, 255, 0.10)',
+          padding: '8px 14px',
+          gap: '8px',
         }}
       >
         {/* Row 1: Direct Question Input Box (Full-width Responsive) & Quick Pills */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
           <form
             onSubmit={handleFormSubmit}
-            style={{ display: "flex", alignItems: "center", gap: "6px", width: "100%" }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%' }}
           >
             <input
               type="text"
@@ -1469,31 +1661,31 @@ export default function TeleprompterView() {
               style={{
                 flex: 1,
                 minWidth: 0,
-                background: "rgba(255, 255, 255, 0.07)",
-                border: "1px solid rgba(255, 255, 255, 0.14)",
-                borderRadius: "6px",
-                padding: "6px 10px",
-                fontSize: "12px",
-                color: "#f8fafc",
-                outline: "none"
+                background: 'rgba(255, 255, 255, 0.07)',
+                border: '1px solid rgba(255, 255, 255, 0.14)',
+                borderRadius: '6px',
+                padding: '6px 10px',
+                fontSize: '12px',
+                color: '#f8fafc',
+                outline: 'none',
               }}
             />
             <button
               type="submit"
               disabled={!manualInput.trim()}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                background: manualInput.trim() ? "#4f46e5" : "rgba(255, 255, 255, 0.08)",
-                color: manualInput.trim() ? "#ffffff" : "#64748b",
-                border: "none",
-                borderRadius: "6px",
-                padding: "6px 12px",
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: manualInput.trim() ? '#4f46e5' : 'rgba(255, 255, 255, 0.08)',
+                color: manualInput.trim() ? '#ffffff' : '#64748b',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 12px',
                 fontWeight: 600,
-                fontSize: "12px",
-                cursor: manualInput.trim() ? "pointer" : "default",
-                flexShrink: 0
+                fontSize: '12px',
+                cursor: manualInput.trim() ? 'pointer' : 'default',
+                flexShrink: 0,
               }}
             >
               <Send size={12} />
@@ -1504,91 +1696,112 @@ export default function TeleprompterView() {
           {/* Quick-Test Buttons Bar (Horizontally scrollable, never squishes input) */}
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              overflowX: "auto",
-              whiteSpace: "nowrap",
-              paddingBottom: "2px",
-              scrollbarWidth: "none"
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              overflowX: 'auto',
+              whiteSpace: 'nowrap',
+              paddingBottom: '2px',
+              scrollbarWidth: 'none',
             }}
           >
-            <span style={{ fontSize: "10px", color: "#64748b", fontWeight: 700, flexShrink: 0, textTransform: "uppercase" }}>
+            <span
+              style={{
+                fontSize: '10px',
+                color: '#64748b',
+                fontWeight: 700,
+                flexShrink: 0,
+                textTransform: 'uppercase',
+              }}
+            >
               ⚡ Quick Tests:
             </span>
             <button
               onClick={() => {
-                setResponseMode("coding");
-                handleTriggerQuestion("Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. Provide optimal O(N) solution with Hash Table.");
+                setResponseMode('coding');
+                handleTriggerQuestion(
+                  'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. Provide optimal O(N) solution with Hash Table.'
+                );
               }}
               title="Test Coding Challenge Mode (Two Sum in preferred language)"
               style={{
-                background: "linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(79, 70, 229, 0.25))",
-                border: "1px solid rgba(129, 140, 248, 0.55)",
-                color: "#c7d2fe",
-                borderRadius: "12px",
-                padding: "3px 8px",
-                fontSize: "11px",
+                background:
+                  'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(79, 70, 229, 0.25))',
+                border: '1px solid rgba(129, 140, 248, 0.55)',
+                color: '#c7d2fe',
+                borderRadius: '12px',
+                padding: '3px 8px',
+                fontSize: '11px',
                 fontWeight: 600,
-                cursor: "pointer"
+                cursor: 'pointer',
               }}
             >
               💻 Two Sum
             </button>
             <button
               onClick={() => {
-                setResponseMode("interview");
-                handleTriggerQuestion("Design a distributed rate limiter that handles 100,000 requests per second across multiple data centers.");
+                setResponseMode('interview');
+                handleTriggerQuestion(
+                  'Design a distributed rate limiter that handles 100,000 requests per second across multiple data centers.'
+                );
               }}
               title="Practice System Design Architecture Challenge"
               style={{
-                background: "linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.25))",
-                border: "1px solid rgba(52, 211, 153, 0.55)",
-                color: "#a7f3d0",
-                borderRadius: "12px",
-                padding: "3px 8px",
-                fontSize: "11px",
+                background:
+                  'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.25))',
+                border: '1px solid rgba(52, 211, 153, 0.55)',
+                color: '#a7f3d0',
+                borderRadius: '12px',
+                padding: '3px 8px',
+                fontSize: '11px',
                 fontWeight: 600,
-                cursor: "pointer"
+                cursor: 'pointer',
               }}
             >
               🏛️ System Design
             </button>
             <button
               onClick={() => {
-                setResponseMode("interview");
-                handleTriggerQuestion("Tell me about a challenging distributed systems backend issue you solved at ATMA Research or Quorum.");
+                setResponseMode('interview');
+                handleTriggerQuestion(
+                  'Tell me about a challenging distributed systems backend issue you solved at ATMA Research or Quorum.'
+                );
               }}
               title="Test Behavioral / STAR Interview Response Mode"
               style={{
-                background: "linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(147, 51, 234, 0.25))",
-                border: "1px solid rgba(192, 132, 252, 0.55)",
-                color: "#e9d5ff",
-                borderRadius: "12px",
-                padding: "3px 8px",
-                fontSize: "11px",
+                background:
+                  'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(147, 51, 234, 0.25))',
+                border: '1px solid rgba(192, 132, 252, 0.55)',
+                color: '#e9d5ff',
+                borderRadius: '12px',
+                padding: '3px 8px',
+                fontSize: '11px',
                 fontWeight: 600,
-                cursor: "pointer"
+                cursor: 'pointer',
               }}
             >
               🎙️ Behavioral
             </button>
             <button
-              onClick={() => InterviewEngine.handleEvent({
-                type: "SCREEN_PROBLEM_DETECTED",
-                rawText: "Pregunta: Dado un arreglo de números enteros nums y un valor entero target, devuelva los índices de los dos elementos que sumados sean iguales a target. Asuma que cada entrada tiene exactamente una solución y no use el mismo elemento dos veces. Ejemplo: nums = [2, 7, 11, 15], target = 9 -> Salida: [0, 1]",
-                mode: "fullscreen"
-              })}
+              onClick={() =>
+                InterviewEngine.handleEvent({
+                  type: 'SCREEN_PROBLEM_DETECTED',
+                  rawText:
+                    'Pregunta: Dado un arreglo de números enteros nums y un valor entero target, devuelva los índices de los dos elementos que sumados sean iguales a target. Asuma que cada entrada tiene exactamente una solución y no use el mismo elemento dos veces. Ejemplo: nums = [2, 7, 11, 15], target = 9 -> Salida: [0, 1]',
+                  mode: 'fullscreen',
+                })
+              }
               title="Test Automatic Spanish Detection, English Translation & Code Solution"
               style={{
-                background: "linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.25))",
-                border: "1px solid rgba(248, 113, 113, 0.55)",
-                color: "#fecaca",
-                borderRadius: "12px",
-                padding: "3px 8px",
-                fontSize: "11px",
+                background:
+                  'linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.25))',
+                border: '1px solid rgba(248, 113, 113, 0.55)',
+                color: '#fecaca',
+                borderRadius: '12px',
+                padding: '3px 8px',
+                fontSize: '11px',
                 fontWeight: 600,
-                cursor: "pointer"
+                cursor: 'pointer',
               }}
             >
               🇪🇸 Spanish
@@ -1599,14 +1812,14 @@ export default function TeleprompterView() {
         {/* Row 2: Mic Status & Live Audio Diagnostics (Responsive Wrap) */}
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            fontSize: "11px",
-            color: "#94a3b8",
-            gap: "8px",
-            rowGap: "6px",
-            flexWrap: "wrap"
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '11px',
+            color: '#94a3b8',
+            gap: '8px',
+            rowGap: '6px',
+            flexWrap: 'wrap',
           }}
         >
           {/* Right: Copy Full Answer Button */}
@@ -1615,16 +1828,16 @@ export default function TeleprompterView() {
               onClick={copyAnswer}
               title="Copy entire answer including explanations to clipboard"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                background: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-                color: "#cbd5e1",
-                borderRadius: "4px",
-                padding: "3px 8px",
-                fontSize: "11px",
-                cursor: "pointer"
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                color: '#cbd5e1',
+                borderRadius: '4px',
+                padding: '3px 8px',
+                fontSize: '11px',
+                cursor: 'pointer',
               }}
             >
               <Copy size={11} /> Copy Full Answer
@@ -1638,79 +1851,112 @@ export default function TeleprompterView() {
         <div
           onClick={() => setShowShortcuts(false)}
           style={{
-            position: "absolute",
+            position: 'absolute',
             inset: 0,
             zIndex: 90,
-            background: "rgba(0, 0, 0, 0.75)",
-            backdropFilter: "blur(6px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "20px"
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#0f172a",
-              border: "1px solid rgba(129, 140, 248, 0.35)",
-              borderRadius: "10px",
-              padding: "20px",
-              maxWidth: "460px",
-              width: "100%",
-              boxShadow: "0 12px 36px rgba(0, 0, 0, 0.8)",
-              color: "#f8fafc"
+              background: '#0f172a',
+              border: '1px solid rgba(129, 140, 248, 0.35)',
+              borderRadius: '10px',
+              padding: '20px',
+              maxWidth: '460px',
+              width: '100%',
+              boxShadow: '0 12px 36px rgba(0, 0, 0, 0.8)',
+              color: '#f8fafc',
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, fontSize: "15px", color: "#e0e7ff" }}>
-                <Keyboard size={16} style={{ color: "#818cf8" }} />
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '14px',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontWeight: 700,
+                  fontSize: '15px',
+                  color: '#e0e7ff',
+                }}
+              >
+                <Keyboard size={16} style={{ color: '#818cf8' }} />
                 <span>Stealth & Global Keyboard Shortcuts</span>
               </div>
               <button
                 onClick={() => setShowShortcuts(false)}
-                style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "14px" }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
               >
                 ✕
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12px" }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px' }}
+            >
               {[
-                { key: "⌘ + ⇧ + H", desc: "Instant Stealth: Vanish / Reveal overlay window with 0ms delay and zero animation." },
-                { key: "⌘ + \\", desc: "One-handed quick stealth toggle." },
-                { key: "⌘ + ⇧ + Space", desc: "Panic stealth toggle anywhere across macOS." },
-                { key: "⌘ + ⇧ + S", desc: "Capture & Solve Interviewer's Shared Screen (OCR & Multilingual)." },
-                { key: "⌘ + 1 / 2 / 3", desc: "Instant Mode Switch: 1 = Coding, 2 = Interview, 3 = Quiz / MCQ." },
-                { key: "⌘ + K", desc: "Copy clean compilable code directly to clipboard." },
-                { key: "⌘ + J", desc: "Toggle smooth hands-free auto-scrolling." },
-                { key: "Space", desc: "Done reciting: advance teleprompter and resume listening." },
-                { key: "Escape", desc: "Instantly dismiss overlay window." },
+                {
+                  key: '⌘ + ⇧ + H',
+                  desc: 'Instant Stealth: Vanish / Reveal overlay window with 0ms delay and zero animation.',
+                },
+                { key: '⌘ + \\', desc: 'One-handed quick stealth toggle.' },
+                { key: '⌘ + ⇧ + Space', desc: 'Panic stealth toggle anywhere across macOS.' },
+                {
+                  key: '⌘ + ⇧ + S',
+                  desc: "Capture & Solve Interviewer's Shared Screen (OCR & Multilingual).",
+                },
+                {
+                  key: '⌘ + 1 / 2 / 3',
+                  desc: 'Instant Mode Switch: 1 = Coding, 2 = Interview, 3 = Quiz / MCQ.',
+                },
+                { key: '⌘ + K', desc: 'Copy clean compilable code directly to clipboard.' },
+                { key: '⌘ + J', desc: 'Toggle smooth hands-free auto-scrolling.' },
+                { key: 'Space', desc: 'Done reciting: advance teleprompter and resume listening.' },
+                { key: 'Escape', desc: 'Instantly dismiss overlay window.' },
               ].map((item, i) => (
                 <div
                   key={i}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 10px",
-                    background: "rgba(255, 255, 255, 0.04)",
-                    borderRadius: "6px",
-                    border: "1px solid rgba(255, 255, 255, 0.06)"
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 10px',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
                   }}
                 >
-                  <span style={{ color: "#cbd5e1" }}>{item.desc}</span>
+                  <span style={{ color: '#cbd5e1' }}>{item.desc}</span>
                   <span
                     style={{
-                      fontFamily: "monospace",
-                      background: "rgba(99, 102, 241, 0.25)",
-                      color: "#a5b4fc",
-                      border: "1px solid rgba(129, 140, 248, 0.4)",
-                      borderRadius: "4px",
-                      padding: "2px 7px",
+                      fontFamily: 'monospace',
+                      background: 'rgba(99, 102, 241, 0.25)',
+                      color: '#a5b4fc',
+                      border: '1px solid rgba(129, 140, 248, 0.4)',
+                      borderRadius: '4px',
+                      padding: '2px 7px',
                       fontWeight: 700,
-                      whiteSpace: "nowrap",
-                      marginLeft: "12px"
+                      whiteSpace: 'nowrap',
+                      marginLeft: '12px',
                     }}
                   >
                     {item.key}
@@ -1722,16 +1968,16 @@ export default function TeleprompterView() {
             <button
               onClick={() => setShowShortcuts(false)}
               style={{
-                marginTop: "16px",
-                width: "100%",
-                background: "#4f46e5",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "6px",
-                padding: "8px",
+                marginTop: '16px',
+                width: '100%',
+                background: '#4f46e5',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '8px',
                 fontWeight: 650,
-                fontSize: "12px",
-                cursor: "pointer"
+                fontSize: '12px',
+                cursor: 'pointer',
               }}
             >
               Got It

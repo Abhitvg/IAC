@@ -1,5 +1,5 @@
-import { useAppStore } from "../store/useAppStore";
-import { downsampleBuffer, encodeWav } from "../utils/audioConversion";
+import { useAppStore } from '../store/useAppStore';
+import { downsampleBuffer, encodeWav } from '../utils/audioConversion';
 
 export class AudioRecorder {
   private audioContext: AudioContext | null = null;
@@ -44,16 +44,16 @@ export class AudioRecorder {
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
-        ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : {})
+        ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : {}),
       };
 
       this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: audioConstraints
+        audio: audioConstraints,
       });
 
       const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
       this.audioContext = new AudioContextCtor();
-      if (this.audioContext.state === "suspended") {
+      if (this.audioContext.state === 'suspended') {
         await this.audioContext.resume();
       }
 
@@ -77,13 +77,13 @@ export class AudioRecorder {
 
       useAppStore.getState().updateDiagnostics({
         micActive: true,
-        mimeType: "audio/wav (16kHz mono PCM)"
+        mimeType: 'audio/wav (16kHz mono PCM)',
       });
     } catch (e: any) {
       this.isListening = false;
       useAppStore.getState().updateDiagnostics({
         micActive: false,
-        whisperStatus: "Mic error: " + (e?.message || e)
+        whisperStatus: 'Mic error: ' + (e?.message || e),
       });
       throw e;
     }
@@ -154,10 +154,8 @@ export class AudioRecorder {
       this.totalUtteranceSamples += resampled.length;
 
       const isSilenceTimeout =
-        db < this.silenceThreshold &&
-        now - this.lastSpeechTime >= this.speechSilenceDuration;
-      const isMaxDurationReached =
-        this.totalUtteranceSamples >= this.maxUtteranceSamples;
+        db < this.silenceThreshold && now - this.lastSpeechTime >= this.speechSilenceDuration;
+      const isMaxDurationReached = this.totalUtteranceSamples >= this.maxUtteranceSamples;
 
       if (isSilenceTimeout || isMaxDurationReached) {
         this.finalizeUtterance();
@@ -170,10 +168,7 @@ export class AudioRecorder {
     this.speechStartDetectedTime = 0;
     useAppStore.getState().updateDiagnostics({ speechDetected: false });
 
-    if (
-      this.totalUtteranceSamples >= this.minUtteranceSamples &&
-      this.onUtteranceCb
-    ) {
+    if (this.totalUtteranceSamples >= this.minUtteranceSamples && this.onUtteranceCb) {
       const fullAudio = new Float32Array(this.totalUtteranceSamples);
       let offset = 0;
       for (const chunk of this.utteranceChunks) {
@@ -184,7 +179,7 @@ export class AudioRecorder {
       const wavBlob = encodeWav(fullAudio, this.TARGET_SAMPLE_RATE);
       useAppStore.getState().updateDiagnostics({
         blobSize: wavBlob.size,
-        whisperStatus: "WAV recorded: " + wavBlob.size + " bytes"
+        whisperStatus: 'WAV recorded: ' + wavBlob.size + ' bytes',
       });
 
       this.onUtteranceCb(wavBlob);
@@ -202,17 +197,23 @@ export class AudioRecorder {
 
     if (this.processorNode) {
       this.processorNode.onaudioprocess = null;
-      try { this.processorNode.disconnect(); } catch (_) {}
+      try {
+        this.processorNode.disconnect();
+      } catch (_) {}
       this.processorNode = null;
     }
 
     if (this.sourceNode) {
-      try { this.sourceNode.disconnect(); } catch (_) {}
+      try {
+        this.sourceNode.disconnect();
+      } catch (_) {}
       this.sourceNode = null;
     }
 
     if (this.gainNode) {
-      try { this.gainNode.disconnect(); } catch (_) {}
+      try {
+        this.gainNode.disconnect();
+      } catch (_) {}
       this.gainNode = null;
     }
 
@@ -221,14 +222,14 @@ export class AudioRecorder {
       this.mediaStream = null;
     }
 
-    if (this.audioContext && this.audioContext.state !== "closed") {
+    if (this.audioContext && this.audioContext.state !== 'closed') {
       await this.audioContext.close().catch(() => undefined);
       this.audioContext = null;
     }
 
     useAppStore.getState().updateDiagnostics({
       micActive: false,
-      speechDetected: false
+      speechDetected: false,
     });
   }
 }

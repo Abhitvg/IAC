@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Minus, Square, X, Pin, Settings, History } from 'lucide-react';
 
@@ -16,7 +16,14 @@ export default function TitleBar() {
     <div className="title-bar">
       <div className="title-bar__left">
         <div className="title-bar__logo">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            strokeWidth="2.5"
+          >
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
         </div>
@@ -38,11 +45,7 @@ export default function TitleBar() {
         >
           <History size={13} />
         </button>
-        <button
-          className="title-bar__btn"
-          onClick={() => setSettingsOpen(true)}
-          title="Settings"
-        >
+        <button className="title-bar__btn" onClick={() => setSettingsOpen(true)} title="Settings">
           <Settings size={13} />
         </button>
         <button

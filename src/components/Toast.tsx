@@ -6,9 +6,5 @@ export default function Toast() {
 
   if (!toast) return null;
 
-  return (
-    <div className="toast">
-      {toast}
-    </div>
-  );
+  return <div className="toast">{toast}</div>;
 }

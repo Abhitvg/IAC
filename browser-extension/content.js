@@ -10,10 +10,10 @@ document.addEventListener('keydown', (e) => {
           type: 'selected-text',
           content: selectedText,
           source: window.location.hostname,
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       });
-      
+
       // Visual feedback
       showFeedback('Sent to Assistant');
     }
@@ -37,9 +37,9 @@ function showFeedback(message) {
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     transition: opacity 0.3s;
   `;
-  
+
   document.body.appendChild(toast);
-  
+
   setTimeout(() => {
     toast.style.opacity = '0';
     setTimeout(() => toast.remove(), 300);

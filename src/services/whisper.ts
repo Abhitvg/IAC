@@ -43,19 +43,28 @@ export async function transcribeAudio(
   audioBlob: Blob,
   config: WhisperConfig
 ): Promise<TranscriptionResult> {
-  const groqKey = import.meta.env.VITE_GROQ_API_KEY || ((config as any).apiKey || null);
-  if (groqKey) {
-    return transcribeGroq(audioBlob, groqKey, config);
-  }
-  if (config.endpoint && !config.endpoint.includes('groq.com')) {
+  const apiKey =
+    config.apiKey ||
+    (await window.electronAPI?.getApiKey?.('groq')) ||
+    (await window.electronAPI?.getApiKey?.('openai'));
+
+  if (
+    config.endpoint &&
+    !config.endpoint.includes('groq.com') &&
+    !config.endpoint.includes('openai.com')
+  ) {
     return transcribeLocal(audioBlob, config);
   }
-  if (config.apiKey) {
-    return transcribeOpenAI(audioBlob, config);
+
+  if (apiKey) {
+    if (apiKey.startsWith('gsk_')) {
+      return transcribeGroq(audioBlob, apiKey, config);
+    }
+    return transcribeOpenAI(audioBlob, { ...config, apiKey });
   }
 
   throw new Error(
-    'No Whisper configuration found. Ensure VITE_GROQ_API_KEY is configured in .env.local.'
+    'No speech-to-text API key found. Please configure your Groq or OpenAI API key in Settings.'
   );
 }
 
@@ -73,11 +82,18 @@ async function transcribeGroq(
   if (config?.language) formData.append('language', config.language);
   // Layer 4: Dynamic Whisper Priming — context-aware vocabulary injection
   const store = useAppStore.getState();
-  const lastCategory = store.conversationHistory?.length > 0 
-    ? store.conversationHistory[store.conversationHistory.length - 1].category 
-    : 'General';
-  const dynamicVocab = getDynamicWhisperVocab(lastCategory, store.resumeText || '', store.targetRole || '');
-  const techPrompt = [...new Set([...dynamicVocab, ...TECH_TERMS.slice(0, 30)])].slice(0, 60).join(', ');
+  const lastCategory =
+    store.conversationHistory?.length > 0
+      ? store.conversationHistory[store.conversationHistory.length - 1].category
+      : 'General';
+  const dynamicVocab = getDynamicWhisperVocab(
+    lastCategory,
+    store.resumeText || '',
+    store.targetRole || ''
+  );
+  const techPrompt = [...new Set([...dynamicVocab, ...TECH_TERMS.slice(0, 30)])]
+    .slice(0, 60)
+    .join(', ');
   formData.append('prompt', `Technical interview discussion: ${techPrompt}`);
 
   const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
@@ -116,7 +132,10 @@ async function transcribeOpenAI(
 
   if (config.language) formData.append('language', config.language);
   const techPrompt = TECH_TERMS.slice(0, 50).join(', ');
-  formData.append('prompt', `Technical interview discussion about: AWS CodePipeline, AWS, Kubernetes, Docker, CI/CD, DevOps, ${techPrompt}`);
+  formData.append(
+    'prompt',
+    `Technical interview discussion about: AWS CodePipeline, AWS, Kubernetes, Docker, CI/CD, DevOps, ${techPrompt}`
+  );
 
   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
@@ -154,7 +173,10 @@ async function transcribeLocal(
 
   // Pass technical vocabulary prompt and greedy temperature to prime Whisper
   const techPrompt = TECH_TERMS.slice(0, 50).join(', ');
-  formData.append('prompt', `Technical interview discussion: AWS CodePipeline, AWS, Kubernetes, Docker, CI/CD, DevOps, ${techPrompt}`);
+  formData.append(
+    'prompt',
+    `Technical interview discussion: AWS CodePipeline, AWS, Kubernetes, Docker, CI/CD, DevOps, ${techPrompt}`
+  );
   formData.append('temperature', '0.0');
   formData.append('response_format', 'json');
 
@@ -176,9 +198,8 @@ async function transcribeLocal(
     data = { text };
   }
 
-  const transcript = typeof data === 'string'
-    ? data
-    : (data.text || data.transcription || data.result || '');
+  const transcript =
+    typeof data === 'string' ? data : data.text || data.transcription || data.result || '';
 
   return {
     text: postProcessTranscript(String(transcript)),
@@ -203,95 +224,95 @@ function postProcessTranscript(text: string): string {
     'cold pipeline': 'CodePipeline',
     'call pipeline': 'CodePipeline',
     'code pipeline': 'CodePipeline',
-    'codepipeline': 'CodePipeline',
+    codepipeline: 'CodePipeline',
     'code build': 'CodeBuild',
-    'codebuild': 'CodeBuild',
+    codebuild: 'CodeBuild',
     'code deploy': 'CodeDeploy',
-    'codedeploy': 'CodeDeploy',
+    codedeploy: 'CodeDeploy',
     'code commit': 'CodeCommit',
-    'codecommit': 'CodeCommit',
+    codecommit: 'CodeCommit',
     'amazon web services': 'AWS',
-    'aws': 'AWS',
+    aws: 'AWS',
     'node js': 'Node.js',
-    'nodejs': 'Node.js',
+    nodejs: 'Node.js',
     'next js': 'Next.js',
-    'nextjs': 'Next.js',
+    nextjs: 'Next.js',
     'react js': 'React',
-    'reactjs': 'React',
+    reactjs: 'React',
     'vue js': 'Vue.js',
-    'mongodb': 'MongoDB',
+    mongodb: 'MongoDB',
     'mongo db': 'MongoDB',
-    'postgres': 'PostgreSQL',
+    postgres: 'PostgreSQL',
     'my sequel': 'MySQL',
     'my sql': 'MySQL',
     'dynamo db': 'DynamoDB',
-    'dynamodb': 'DynamoDB',
-    'redis': 'Redis',
+    dynamodb: 'DynamoDB',
+    redis: 'Redis',
     'elastic search': 'Elasticsearch',
-    'graphql': 'GraphQL',
+    graphql: 'GraphQL',
     'graph ql': 'GraphQL',
     'rest api': 'REST API',
-    'restful': 'RESTful',
-    'typescript': 'TypeScript',
+    restful: 'RESTful',
+    typescript: 'TypeScript',
     'type script': 'TypeScript',
-    'javascript': 'JavaScript',
+    javascript: 'JavaScript',
     'java script': 'JavaScript',
-    'docker': 'Docker',
-    'kubernetes': 'Kubernetes',
-    'k8s': 'Kubernetes',
+    docker: 'Docker',
+    kubernetes: 'Kubernetes',
+    k8s: 'Kubernetes',
     'ci cd': 'CI/CD',
-    'cicd': 'CI/CD',
-    'ec2': 'EC2',
-    's3': 'S3',
-    'lambda': 'Lambda',
-    'oop': 'OOP',
-    'sql': 'SQL',
-    'nosql': 'NoSQL',
-    'api': 'API',
-    'sdk': 'SDK',
-    'jwt': 'JWT',
-    'oauth': 'OAuth',
-    'cors': 'CORS',
-    'http': 'HTTP',
-    'https': 'HTTPS',
-    'tcp': 'TCP',
-    'udp': 'UDP',
-    'dns': 'DNS',
-    'cdn': 'CDN',
-    'html': 'HTML',
-    'css': 'CSS',
-    'json': 'JSON',
-    'xml': 'XML',
-    'yaml': 'YAML',
-    'ide': 'IDE',
-    'git': 'Git',
-    'github': 'GitHub',
-    'gitlab': 'GitLab',
-    'devops': 'DevOps',
+    cicd: 'CI/CD',
+    ec2: 'EC2',
+    s3: 'S3',
+    lambda: 'Lambda',
+    oop: 'OOP',
+    sql: 'SQL',
+    nosql: 'NoSQL',
+    api: 'API',
+    sdk: 'SDK',
+    jwt: 'JWT',
+    oauth: 'OAuth',
+    cors: 'CORS',
+    http: 'HTTP',
+    https: 'HTTPS',
+    tcp: 'TCP',
+    udp: 'UDP',
+    dns: 'DNS',
+    cdn: 'CDN',
+    html: 'HTML',
+    css: 'CSS',
+    json: 'JSON',
+    xml: 'XML',
+    yaml: 'YAML',
+    ide: 'IDE',
+    git: 'Git',
+    github: 'GitHub',
+    gitlab: 'GitLab',
+    devops: 'DevOps',
     'big o': 'Big O',
     'o of n': 'O(n)',
     'o of n squared': 'O(n²)',
     'o of log n': 'O(log n)',
     'o of n log n': 'O(n log n)',
-    'hashmap': 'HashMap',
+    hashmap: 'HashMap',
     'hash map': 'HashMap',
-    'treemap': 'TreeMap',
+    treemap: 'TreeMap',
     'linked list': 'LinkedList',
     'binary tree': 'Binary Tree',
     'binary search tree': 'Binary Search Tree',
-    'bfs': 'BFS',
-    'dfs': 'DFS',
-    'dijkstra': 'Dijkstra',
-    'dbms': 'DBMS',
-    'rdbms': 'RDBMS',
-    'acid': 'ACID',
+    bfs: 'BFS',
+    dfs: 'DFS',
+    dijkstra: 'Dijkstra',
+    dbms: 'DBMS',
+    rdbms: 'RDBMS',
+    acid: 'ACID',
     'cap theorem': 'CAP Theorem',
-    'solid': 'SOLID',
-    'mvc': 'MVC',
-    'mvvm': 'MVVM',
-    'jvm': 'JVM',
-    'jdk': 'JDK',
-    'jre': 'JRE',
+    solid: 'SOLID',
+    mvc: 'MVC',
+    mvvm: 'MVVM',
+    jvm: 'JVM',
+    jdk: 'JDK',
+    jre: 'JRE',
   };
 
   for (const [wrong, right] of Object.entries(corrections)) {
@@ -303,7 +324,10 @@ function postProcessTranscript(text: string): string {
 
 /** Extract likely interview questions from a finalized transcript. */
 export function extractQuestions(transcript: string): string[] {
-  const sentences = transcript.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+  const sentences = transcript
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   const questions: string[] = [];
 
   for (const sentence of sentences) {
@@ -315,7 +339,7 @@ export function extractQuestions(transcript: string): string[] {
     const questionPatterns = [
       /^(explain|describe|tell me|walk me through|what is|what are|how do|how does|how would|can you|could you|why|when|where|which|define|compare|differentiate|implement|write|design|solve|optimize|give|list|discuss)\b/i,
     ];
-    if (sentence.length >= 8 && questionPatterns.some(pattern => pattern.test(sentence))) {
+    if (sentence.length >= 8 && questionPatterns.some((pattern) => pattern.test(sentence))) {
       questions.push(sentence);
     }
   }

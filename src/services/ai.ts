@@ -1,58 +1,422 @@
 import { AIStreamParser } from './AIStreamParser';
 import { SentenceBuffer } from './SentenceBuffer';
 import { globalLatencyTracker } from './LatencyTracker';
-import { AIProviderConfig, AIResponse, CodingSolution, ProgrammingLanguage, QuestionCategory, Difficulty, ResumeContext } from '../types';
+import {
+  AIProviderConfig,
+  AIResponse,
+  CodingSolution,
+  ProgrammingLanguage,
+  QuestionCategory,
+  Difficulty,
+  ResumeContext,
+} from '../types';
 
 // ─── Technical Term Dictionary ───
 
 const TECH_TERMS = [
-  'React', 'Node.js', 'Next.js', 'MongoDB', 'PostgreSQL', 'AWS', 'Docker',
-  'Kubernetes', 'Java', 'Python', 'C++', 'TypeScript', 'CodePipeline',
-  'Lambda', 'EC2', 'S3', 'DynamoDB', 'Redis', 'GraphQL', 'REST', 'API',
-  'OAuth', 'JWT', 'CORS', 'HTTPS', 'TCP', 'UDP', 'DNS', 'CDN',
-  'CI/CD', 'DevOps', 'Git', 'GitHub', 'GitLab', 'Jenkins', 'Terraform',
-  'Ansible', 'NGINX', 'Apache', 'Express', 'NestJS', 'Spring Boot',
-  'Hibernate', 'JPA', 'JDBC', 'MySQL', 'SQLite', 'Cassandra',
-  'Elasticsearch', 'Kafka', 'RabbitMQ', 'gRPC', 'WebSocket',
-  'HashMap', 'TreeMap', 'LinkedList', 'Binary Tree', 'Graph',
-  'Dynamic Programming', 'Greedy', 'BFS', 'DFS', 'Dijkstra',
-  'Quick Sort', 'Merge Sort', 'Heap Sort', 'Binary Search',
-  'Normalization', 'ACID', 'BASE', 'CAP Theorem', 'Sharding',
-  'Microservices', 'Monolith', 'Load Balancer', 'Rate Limiting',
-  'Caching', 'Memcached', 'Pub/Sub', 'Event Driven',
-  'Virtual Memory', 'Process', 'Thread', 'Mutex', 'Semaphore',
-  'Deadlock', 'Race Condition', 'Context Switch',
-  'Polymorphism', 'Encapsulation', 'Inheritance', 'Abstraction',
-  'SOLID', 'Design Patterns', 'Singleton', 'Factory', 'Observer',
-  'Strategy', 'MVC', 'MVVM', 'Redux', 'Zustand', 'Vue', 'Angular',
-  'Svelte', 'Tailwind', 'Bootstrap', 'Webpack', 'Vite', 'Babel',
+  'React',
+  'Node.js',
+  'Next.js',
+  'MongoDB',
+  'PostgreSQL',
+  'AWS',
+  'Docker',
+  'Kubernetes',
+  'Java',
+  'Python',
+  'C++',
+  'TypeScript',
+  'CodePipeline',
+  'Lambda',
+  'EC2',
+  'S3',
+  'DynamoDB',
+  'Redis',
+  'GraphQL',
+  'REST',
+  'API',
+  'OAuth',
+  'JWT',
+  'CORS',
+  'HTTPS',
+  'TCP',
+  'UDP',
+  'DNS',
+  'CDN',
+  'CI/CD',
+  'DevOps',
+  'Git',
+  'GitHub',
+  'GitLab',
+  'Jenkins',
+  'Terraform',
+  'Ansible',
+  'NGINX',
+  'Apache',
+  'Express',
+  'NestJS',
+  'Spring Boot',
+  'Hibernate',
+  'JPA',
+  'JDBC',
+  'MySQL',
+  'SQLite',
+  'Cassandra',
+  'Elasticsearch',
+  'Kafka',
+  'RabbitMQ',
+  'gRPC',
+  'WebSocket',
+  'HashMap',
+  'TreeMap',
+  'LinkedList',
+  'Binary Tree',
+  'Graph',
+  'Dynamic Programming',
+  'Greedy',
+  'BFS',
+  'DFS',
+  'Dijkstra',
+  'Quick Sort',
+  'Merge Sort',
+  'Heap Sort',
+  'Binary Search',
+  'Normalization',
+  'ACID',
+  'BASE',
+  'CAP Theorem',
+  'Sharding',
+  'Microservices',
+  'Monolith',
+  'Load Balancer',
+  'Rate Limiting',
+  'Caching',
+  'Memcached',
+  'Pub/Sub',
+  'Event Driven',
+  'Virtual Memory',
+  'Process',
+  'Thread',
+  'Mutex',
+  'Semaphore',
+  'Deadlock',
+  'Race Condition',
+  'Context Switch',
+  'Polymorphism',
+  'Encapsulation',
+  'Inheritance',
+  'Abstraction',
+  'SOLID',
+  'Design Patterns',
+  'Singleton',
+  'Factory',
+  'Observer',
+  'Strategy',
+  'MVC',
+  'MVVM',
+  'Redux',
+  'Zustand',
+  'Vue',
+  'Angular',
+  'Svelte',
+  'Tailwind',
+  'Bootstrap',
+  'Webpack',
+  'Vite',
+  'Babel',
 ];
 
 // ─── Question Classification ───
 
 const CATEGORY_KEYWORDS: Record<QuestionCategory, string[]> = {
-  'Coding': ['code', 'write a function', 'implement', 'algorithm', 'solve', 'program', 'write code', 'coding'],
-  'DSA': ['array', 'linked list', 'tree', 'graph', 'stack', 'queue', 'hash', 'sort', 'search', 'dynamic programming', 'greedy', 'two pointer', 'sliding window', 'binary search', 'recursion', 'backtracking', 'BFS', 'DFS', 'heap', 'trie', 'time complexity', 'space complexity', 'Big O'],
-  'System Design': ['design', 'architecture', 'scalable', 'distributed', 'microservices', 'load balancer', 'cache', 'database design', 'API design', 'URL shortener', 'chat system', 'notification', 'rate limiter', 'high availability', 'fault tolerant', 'scale'],
-  'DBMS': ['database', 'SQL', 'normalization', 'ACID', 'transaction', 'index', 'join', 'primary key', 'foreign key', 'relational', 'query', 'schema', 'NoSQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'aggregate', 'group by', 'stored procedure', 'trigger', 'view'],
-  'Operating Systems': ['process', 'thread', 'deadlock', 'memory', 'virtual memory', 'paging', 'scheduling', 'semaphore', 'mutex', 'file system', 'kernel', 'interrupt', 'context switch', 'race condition', 'operating system', 'OS'],
-  'Computer Networks': ['TCP', 'UDP', 'HTTP', 'HTTPS', 'DNS', 'OSI', 'IP address', 'subnet', 'routing', 'firewall', 'proxy', 'VPN', 'bandwidth', 'latency', 'packet', 'socket', 'port', 'protocol', 'network'],
-  'OOP': ['object oriented', 'OOP', 'class', 'inheritance', 'polymorphism', 'encapsulation', 'abstraction', 'interface', 'abstract class', 'SOLID', 'design pattern', 'singleton', 'factory', 'observer', 'strategy'],
-  'Java': ['Java', 'JVM', 'JDK', 'Spring', 'Spring Boot', 'Hibernate', 'JPA', 'Maven', 'Gradle', 'Collections', 'Stream API', 'Multithreading in Java', 'Garbage Collection'],
-  'Python': ['Python', 'Django', 'Flask', 'FastAPI', 'pip', 'virtualenv', 'decorator', 'generator', 'list comprehension', 'GIL', 'Pythonic'],
-  'JavaScript': ['JavaScript', 'JS', 'ES6', 'closure', 'prototype', 'async await', 'promise', 'callback', 'event loop', 'hoisting', 'scope', 'this keyword', 'arrow function'],
-  'React': ['React', 'hooks', 'useState', 'useEffect', 'component', 'JSX', 'Redux', 'context', 'virtual DOM', 'reconciliation', 'Next.js', 'SSR', 'SSG'],
-  'Node.js': ['Node', 'Node.js', 'Express', 'NestJS', 'middleware', 'event loop', 'stream', 'buffer', 'cluster', 'npm', 'package'],
-  'AWS': ['AWS', 'EC2', 'S3', 'Lambda', 'DynamoDB', 'CloudFront', 'SQS', 'SNS', 'ECS', 'EKS', 'IAM', 'VPC', 'RDS', 'CodePipeline', 'CloudWatch', 'Route 53'],
-  'DevOps': ['Docker', 'Kubernetes', 'CI/CD', 'Jenkins', 'GitLab CI', 'GitHub Actions', 'Terraform', 'Ansible', 'monitoring', 'deployment', 'container', 'orchestration', 'pipeline'],
-  'Behavioral': ['tell me about', 'describe a time', 'challenging', 'conflict', 'teamwork', 'leadership', 'failure', 'mistake', 'strength', 'weakness', 'why do you want', 'where do you see', 'motivation'],
-  'Resume': ['resume', 'your project', 'your experience', 'tell me about your', 'walk me through', 'your background', 'your role', 'your contribution'],
-  'Project': ['project', 'what did you build', 'architecture of your', 'tech stack', 'challenges in your', 'your application'],
-  'HR': ['salary', 'notice period', 'relocation', 'joining', 'CTC', 'benefits', 'work from home', 'remote', 'hybrid', 'shift'],
-  'General': [],
+  Coding: [
+    'code',
+    'write a function',
+    'implement',
+    'algorithm',
+    'solve',
+    'program',
+    'write code',
+    'coding',
+  ],
+  DSA: [
+    'array',
+    'linked list',
+    'tree',
+    'graph',
+    'stack',
+    'queue',
+    'hash',
+    'sort',
+    'search',
+    'dynamic programming',
+    'greedy',
+    'two pointer',
+    'sliding window',
+    'binary search',
+    'recursion',
+    'backtracking',
+    'BFS',
+    'DFS',
+    'heap',
+    'trie',
+    'time complexity',
+    'space complexity',
+    'Big O',
+  ],
+  'System Design': [
+    'design',
+    'architecture',
+    'scalable',
+    'distributed',
+    'microservices',
+    'load balancer',
+    'cache',
+    'database design',
+    'API design',
+    'URL shortener',
+    'chat system',
+    'notification',
+    'rate limiter',
+    'high availability',
+    'fault tolerant',
+    'scale',
+  ],
+  DBMS: [
+    'database',
+    'SQL',
+    'normalization',
+    'ACID',
+    'transaction',
+    'index',
+    'join',
+    'primary key',
+    'foreign key',
+    'relational',
+    'query',
+    'schema',
+    'NoSQL',
+    'MongoDB',
+    'PostgreSQL',
+    'MySQL',
+    'aggregate',
+    'group by',
+    'stored procedure',
+    'trigger',
+    'view',
+  ],
+  'Operating Systems': [
+    'process',
+    'thread',
+    'deadlock',
+    'memory',
+    'virtual memory',
+    'paging',
+    'scheduling',
+    'semaphore',
+    'mutex',
+    'file system',
+    'kernel',
+    'interrupt',
+    'context switch',
+    'race condition',
+    'operating system',
+    'OS',
+  ],
+  'Computer Networks': [
+    'TCP',
+    'UDP',
+    'HTTP',
+    'HTTPS',
+    'DNS',
+    'OSI',
+    'IP address',
+    'subnet',
+    'routing',
+    'firewall',
+    'proxy',
+    'VPN',
+    'bandwidth',
+    'latency',
+    'packet',
+    'socket',
+    'port',
+    'protocol',
+    'network',
+  ],
+  OOP: [
+    'object oriented',
+    'OOP',
+    'class',
+    'inheritance',
+    'polymorphism',
+    'encapsulation',
+    'abstraction',
+    'interface',
+    'abstract class',
+    'SOLID',
+    'design pattern',
+    'singleton',
+    'factory',
+    'observer',
+    'strategy',
+  ],
+  Java: [
+    'Java',
+    'JVM',
+    'JDK',
+    'Spring',
+    'Spring Boot',
+    'Hibernate',
+    'JPA',
+    'Maven',
+    'Gradle',
+    'Collections',
+    'Stream API',
+    'Multithreading in Java',
+    'Garbage Collection',
+  ],
+  Python: [
+    'Python',
+    'Django',
+    'Flask',
+    'FastAPI',
+    'pip',
+    'virtualenv',
+    'decorator',
+    'generator',
+    'list comprehension',
+    'GIL',
+    'Pythonic',
+  ],
+  JavaScript: [
+    'JavaScript',
+    'JS',
+    'ES6',
+    'closure',
+    'prototype',
+    'async await',
+    'promise',
+    'callback',
+    'event loop',
+    'hoisting',
+    'scope',
+    'this keyword',
+    'arrow function',
+  ],
+  React: [
+    'React',
+    'hooks',
+    'useState',
+    'useEffect',
+    'component',
+    'JSX',
+    'Redux',
+    'context',
+    'virtual DOM',
+    'reconciliation',
+    'Next.js',
+    'SSR',
+    'SSG',
+  ],
+  'Node.js': [
+    'Node',
+    'Node.js',
+    'Express',
+    'NestJS',
+    'middleware',
+    'event loop',
+    'stream',
+    'buffer',
+    'cluster',
+    'npm',
+    'package',
+  ],
+  AWS: [
+    'AWS',
+    'EC2',
+    'S3',
+    'Lambda',
+    'DynamoDB',
+    'CloudFront',
+    'SQS',
+    'SNS',
+    'ECS',
+    'EKS',
+    'IAM',
+    'VPC',
+    'RDS',
+    'CodePipeline',
+    'CloudWatch',
+    'Route 53',
+  ],
+  DevOps: [
+    'Docker',
+    'Kubernetes',
+    'CI/CD',
+    'Jenkins',
+    'GitLab CI',
+    'GitHub Actions',
+    'Terraform',
+    'Ansible',
+    'monitoring',
+    'deployment',
+    'container',
+    'orchestration',
+    'pipeline',
+  ],
+  Behavioral: [
+    'tell me about',
+    'describe a time',
+    'challenging',
+    'conflict',
+    'teamwork',
+    'leadership',
+    'failure',
+    'mistake',
+    'strength',
+    'weakness',
+    'why do you want',
+    'where do you see',
+    'motivation',
+  ],
+  Resume: [
+    'resume',
+    'your project',
+    'your experience',
+    'tell me about your',
+    'walk me through',
+    'your background',
+    'your role',
+    'your contribution',
+  ],
+  Project: [
+    'project',
+    'what did you build',
+    'architecture of your',
+    'tech stack',
+    'challenges in your',
+    'your application',
+  ],
+  HR: [
+    'salary',
+    'notice period',
+    'relocation',
+    'joining',
+    'CTC',
+    'benefits',
+    'work from home',
+    'remote',
+    'hybrid',
+    'shift',
+  ],
+  General: [],
 };
 
-export function classifyQuestion(question: string): { category: QuestionCategory; difficulty: Difficulty } {
+export function classifyQuestion(question: string): {
+  category: QuestionCategory;
+  difficulty: Difficulty;
+} {
   const lowerQ = question.toLowerCase();
   let maxScore = 0;
   let bestCategory: QuestionCategory = 'General';
@@ -72,12 +436,31 @@ export function classifyQuestion(question: string): { category: QuestionCategory
 
   // Difficulty estimation
   let difficulty: Difficulty = 'Medium';
-  const hardIndicators = ['optimize', 'most efficient', 'design a system', 'distributed', 'at scale', 'real-time', 'concurrent', 'advanced', 'complex'];
-  const easyIndicators = ['what is', 'define', 'explain', 'difference between', 'list', 'types of', 'basic', 'simple'];
+  const hardIndicators = [
+    'optimize',
+    'most efficient',
+    'design a system',
+    'distributed',
+    'at scale',
+    'real-time',
+    'concurrent',
+    'advanced',
+    'complex',
+  ];
+  const easyIndicators = [
+    'what is',
+    'define',
+    'explain',
+    'difference between',
+    'list',
+    'types of',
+    'basic',
+    'simple',
+  ];
 
-  if (hardIndicators.some(ind => lowerQ.includes(ind))) {
+  if (hardIndicators.some((ind) => lowerQ.includes(ind))) {
     difficulty = 'Hard';
-  } else if (easyIndicators.some(ind => lowerQ.includes(ind))) {
+  } else if (easyIndicators.some((ind) => lowerQ.includes(ind))) {
     difficulty = 'Easy';
   }
 
@@ -94,10 +477,12 @@ export function createSystemPrompt(
   resumeContext?: ResumeContext | null
 ): string {
   const basePrompt = config.systemPrompt || 'You are a technical interview assistant.';
-  
+
   const modeInstructions: Record<string, string> = {
-    quick: 'Provide a concise 2-5 sentence answer suitable for speaking aloud in an interview. Be direct and clear.',
-    interview: 'Provide a natural, well-structured answer that a candidate could explain verbally in an interview. Include key points, brief examples, and be conversational yet technical. Aim for 1-2 minutes of speaking time.',
+    quick:
+      'Provide a concise 2-5 sentence answer suitable for speaking aloud in an interview. Be direct and clear.',
+    interview:
+      'Provide a natural, well-structured answer that a candidate could explain verbally in an interview. Include key points, brief examples, and be conversational yet technical. Aim for 1-2 minutes of speaking time.',
     deep: 'Provide a comprehensive technical explanation including: concept explanation, detailed examples, tradeoffs, edge cases, architecture considerations, and potential follow-up questions the interviewer might ask.',
   };
 
@@ -140,13 +525,37 @@ export async function generateAIResponse(
   let quickAnswer = "Click 'Regenerate Answer' to generate this mode.";
   let interviewAnswer = "Click 'Regenerate Answer' to generate this mode.";
   let detailedAnswer = "Click 'Regenerate Answer' to generate this mode.";
-  
+
   if (activeMode === 'quick') {
-    quickAnswer = await callAI(question, config, 'quick', category, language, resumeContext, additionalContext);
+    quickAnswer = await callAI(
+      question,
+      config,
+      'quick',
+      category,
+      language,
+      resumeContext,
+      additionalContext
+    );
   } else if (activeMode === 'interview') {
-    interviewAnswer = await callAI(question, config, 'interview', category, language, resumeContext, additionalContext);
+    interviewAnswer = await callAI(
+      question,
+      config,
+      'interview',
+      category,
+      language,
+      resumeContext,
+      additionalContext
+    );
   } else if (activeMode === 'deep') {
-    detailedAnswer = await callAI(question, config, 'deep', category, language, resumeContext, additionalContext);
+    detailedAnswer = await callAI(
+      question,
+      config,
+      'deep',
+      category,
+      language,
+      resumeContext,
+      additionalContext
+    );
   }
 
   // Extract follow-up questions from detailed answer
@@ -198,12 +607,16 @@ async function callAI(
   }
 }
 
-async function callOpenAI(config: AIProviderConfig, systemPrompt: string, userMessage: string): Promise<string> {
+async function callOpenAI(
+  config: AIProviderConfig,
+  systemPrompt: string,
+  userMessage: string
+): Promise<string> {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
+      Authorization: `Bearer ${config.apiKey}`,
     },
     body: JSON.stringify({
       model: config.model,
@@ -225,12 +638,16 @@ async function callOpenAI(config: AIProviderConfig, systemPrompt: string, userMe
   return data.choices?.[0]?.message?.content || 'No response generated.';
 }
 
-async function callOpenRouter(config: AIProviderConfig, systemPrompt: string, userMessage: string): Promise<string> {
+async function callOpenRouter(
+  config: AIProviderConfig,
+  systemPrompt: string,
+  userMessage: string
+): Promise<string> {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
+      Authorization: `Bearer ${config.apiKey}`,
       'HTTP-Referer': 'ai-interview-assistant',
     },
     body: JSON.stringify({
@@ -274,7 +691,7 @@ async function callOpenRouter(config: AIProviderConfig, systemPrompt: string, us
               }
               if (delta.content) {
                 if (fullContent.includes('<think>') && !fullContent.includes('</think>')) {
-                   fullContent += '</think>\n\n';
+                  fullContent += '</think>\n\n';
                 }
                 fullContent += delta.content;
               }
@@ -291,7 +708,11 @@ async function callOpenRouter(config: AIProviderConfig, systemPrompt: string, us
   return data.choices?.[0]?.message?.content || 'No response generated.';
 }
 
-async function callOllama(config: AIProviderConfig, systemPrompt: string, userMessage: string): Promise<string> {
+async function callOllama(
+  config: AIProviderConfig,
+  systemPrompt: string,
+  userMessage: string
+): Promise<string> {
   const endpoint = config.ollamaEndpoint || 'http://localhost:11434';
   const response = await fetch(`${endpoint}/api/chat`, {
     method: 'POST',
@@ -341,14 +762,18 @@ async function callOllama(config: AIProviderConfig, systemPrompt: string, userMe
   return data.message?.content || 'No response generated.';
 }
 
-async function callCustomAPI(config: AIProviderConfig, systemPrompt: string, userMessage: string): Promise<string> {
+async function callCustomAPI(
+  config: AIProviderConfig,
+  systemPrompt: string,
+  userMessage: string
+): Promise<string> {
   if (!config.customEndpoint) throw new Error('Custom API endpoint not configured');
-  
+
   const response = await fetch(config.customEndpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {}),
+      ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
     },
     body: JSON.stringify({
       model: config.model,
@@ -372,15 +797,17 @@ async function callCustomAPI(config: AIProviderConfig, systemPrompt: string, use
 function extractFollowUps(text: string): string[] {
   const followUpSection = text.split(/\*\*Possible Follow-ups?:\*\*/i)[1];
   if (!followUpSection) return [];
-  
+
   return followUpSection
     .split('\n')
-    .map(line => line.replace(/^[-*•\d.)\s]+/, '').trim())
-    .filter(line => line.length > 5 && line.endsWith('?'));
+    .map((line) => line.replace(/^[-*•\d.)\s]+/, '').trim())
+    .filter((line) => line.length > 5 && line.endsWith('?'));
 }
 
 function extractCodingSolution(text: string, language: ProgrammingLanguage): CodingSolution {
-  const codeMatch = text.match(/```(?:java|python|cpp|javascript|typescript|go|csharp|c\+\+|js|ts)?\n([\s\S]*?)```/);
+  const codeMatch = text.match(
+    /```(?:java|python|cpp|javascript|typescript|go|csharp|c\+\+|js|ts)?\n([\s\S]*?)```/
+  );
   const timeMatch = text.match(/Time[:\s]*O\([^)]+\)/i);
   const spaceMatch = text.match(/Space[:\s]*O\([^)]+\)/i);
 
@@ -400,7 +827,10 @@ function extractCodingSolution(text: string, language: ProgrammingLanguage): Cod
 }
 
 function extractSection(text: string, heading: string): string | null {
-  const regex = new RegExp(`(?:#{1,4}\\s*)?${heading}[:\\s]*\\n([\\s\\S]*?)(?=\\n#{1,4}|\\n\\*\\*|$)`, 'i');
+  const regex = new RegExp(
+    `(?:#{1,4}\\s*)?${heading}[:\\s]*\\n([\\s\\S]*?)(?=\\n#{1,4}|\\n\\*\\*|$)`,
+    'i'
+  );
   const match = text.match(regex);
   return match?.[1]?.trim() || null;
 }
@@ -410,162 +840,173 @@ function extractListItems(text: string, heading: string): string[] {
   if (!section) return [];
   return section
     .split('\n')
-    .map(line => line.replace(/^[-*•\d.)\s]+/, '').trim())
-    .filter(line => line.length > 0);
+    .map((line) => line.replace(/^[-*•\d.)\s]+/, '').trim())
+    .filter((line) => line.length > 0);
 }
 
 export { TECH_TERMS };
 
-
 export interface AIStreamCallbacks {
-    onToken?: (token: string) => void;
-    onSentence?: (sentence: string) => void;
-    onComplete?: (fullResponse: string) => void;
-    onError?: (error: Error) => void;
+  onToken?: (token: string) => void;
+  onSentence?: (sentence: string) => void;
+  onComplete?: (fullResponse: string) => void;
+  onError?: (error: Error) => void;
 }
 
 export async function streamAnswer(
-    question: string,
-    config: AIProviderConfig,
-    language: ProgrammingLanguage,
-    callbacks: AIStreamCallbacks,
-    signal?: AbortSignal
+  question: string,
+  config: AIProviderConfig,
+  language: ProgrammingLanguage,
+  callbacks: AIStreamCallbacks,
+  signal?: AbortSignal
 ): Promise<void> {
-    const systemPrompt = config.systemPrompt || createSystemPrompt(config, 'interview', 'General', language, null);
-    
-    // Use tailored system prompt if explicitly provided; otherwise append default conversational delivery rules
-    const lowLatencyPrompt = config.systemPrompt
-        ? config.systemPrompt
-        : systemPrompt + "\n\nDELIVERY FORMAT: Speak naturally in the first person. 12-25 words per sentence. Clear, punchy, articulate phrasing suitable for live speech reading on a teleprompter in a conversational technical interview (target length: 65 to 110 words).";
-    
-    const url = config.type === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' :
-                config.type === 'openai' ? 'https://api.openai.com/v1/chat/completions' :
-                config.type === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' :
-                config.customEndpoint || 'https://api.openai.com/v1/chat/completions';
-                
-    const headers: any = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
-    };
-    if (config.type === 'openrouter') headers['HTTP-Referer'] = 'ai-interview-assistant';
+  const systemPrompt =
+    config.systemPrompt || createSystemPrompt(config, 'interview', 'General', language, null);
 
-    try {
-        const response = await fetch(url, {
+  // Use tailored system prompt if explicitly provided; otherwise append default conversational delivery rules
+  const lowLatencyPrompt = config.systemPrompt
+    ? config.systemPrompt
+    : systemPrompt +
+      '\n\nDELIVERY FORMAT: Speak naturally in the first person. 12-25 words per sentence. Clear, punchy, articulate phrasing suitable for live speech reading on a teleprompter in a conversational technical interview (target length: 65 to 110 words).';
+
+  const url =
+    config.type === 'openrouter'
+      ? 'https://openrouter.ai/api/v1/chat/completions'
+      : config.type === 'openai'
+        ? 'https://api.openai.com/v1/chat/completions'
+        : config.type === 'groq'
+          ? 'https://api.groq.com/openai/v1/chat/completions'
+          : config.customEndpoint || 'https://api.openai.com/v1/chat/completions';
+
+  const headers: any = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${config.apiKey}`,
+  };
+  if (config.type === 'openrouter') headers['HTTP-Referer'] = 'ai-interview-assistant';
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: 'system', content: lowLatencyPrompt },
+          { role: 'user', content: question },
+        ],
+        stream: true,
+        temperature: config.temperature,
+        max_tokens: config.maxTokens,
+      }),
+      signal,
+    });
+
+    let activeResponse = response;
+    if (!activeResponse.ok && config.type === 'groq') {
+      // Robust multi-tier fallback chain for Groq models
+      const fallbackModels = [
+        'openai/gpt-oss-120b',
+        'qwen/qwen3.8-27b',
+        'openai/gpt-oss-20b',
+      ].filter((m) => m !== config.model);
+
+      for (const fbModel of fallbackModels) {
+        console.warn(
+          `[AI] Primary model ${config.model} returned ${activeResponse.status}. Auto-fallback to ${fbModel}...`
+        );
+        try {
+          const fallbackRes = await fetch(url, {
             method: 'POST',
             headers,
             body: JSON.stringify({
-                model: config.model,
-                messages: [
-                    { role: 'system', content: lowLatencyPrompt },
-                    { role: 'user', content: question }
-                ],
-                stream: true,
-                temperature: config.temperature,
-                max_tokens: config.maxTokens
+              model: fbModel,
+              messages: [
+                { role: 'system', content: lowLatencyPrompt },
+                { role: 'user', content: question },
+              ],
+              stream: true,
+              temperature: config.temperature,
+              max_tokens: Math.min(config.maxTokens || 1500, 1500),
             }),
-            signal
-        });
-        
-        let activeResponse = response;
-        if (!activeResponse.ok && config.type === "groq") {
-            // Robust multi-tier fallback chain for Groq models
-            const fallbackModels = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
-                .filter(m => m !== config.model);
-            
-            for (const fbModel of fallbackModels) {
-                console.warn(`[AI] Primary model ${config.model} returned ${activeResponse.status}. Auto-fallback to ${fbModel}...`);
-                try {
-                    const fallbackRes = await fetch(url, {
-                        method: "POST",
-                        headers,
-                        body: JSON.stringify({
-                            model: fbModel,
-                            messages: [
-                                { role: "system", content: lowLatencyPrompt },
-                                { role: "user", content: question }
-                            ],
-                            stream: true,
-                            temperature: config.temperature,
-                            max_tokens: Math.min(config.maxTokens || 1500, 1500)
-                        }),
-                        signal
-                    });
-                    if (fallbackRes.ok && fallbackRes.body) {
-                        activeResponse = fallbackRes;
-                        break;
-                    }
-                } catch (fbErr) {
-                    console.warn(`[AI] Fallback to ${fbModel} failed:`, fbErr);
-                }
+            signal,
+          });
+          if (fallbackRes.ok && fallbackRes.body) {
+            activeResponse = fallbackRes;
+            break;
+          }
+        } catch (fbErr) {
+          console.warn(`[AI] Fallback to ${fbModel} failed:`, fbErr);
+        }
+      }
+
+      if (!activeResponse.ok) {
+        const retryAfter =
+          activeResponse.headers.get('retry-after') ||
+          activeResponse.headers.get('x-ratelimit-reset-requests');
+        throw new Error(
+          `Stream Error: ${activeResponse.status}. ${retryAfter ? `Retry after ${retryAfter}` : ''}`
+        );
+      }
+    } else if (!activeResponse.ok) {
+      throw new Error(`Stream Error: ${activeResponse.status}`);
+    }
+    if (!activeResponse.body) throw new Error(`No response body`);
+
+    const reader = activeResponse.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let fullResponse = '';
+
+    const parser = new AIStreamParser();
+    const buffer = new SentenceBuffer();
+    let sseBuffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      sseBuffer += decoder.decode(value, { stream: true });
+      const lines = sseBuffer.split('\n');
+      sseBuffer = lines.pop() || '';
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line || line === 'data: [DONE]') continue;
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            const token = data.choices[0]?.delta?.content || '';
+            if (!token) continue;
+
+            fullResponse += token;
+            callbacks.onToken?.(token);
+            if (!(callbacks as any)._firstTokenFired) {
+              (callbacks as any)._firstTokenFired = true;
+              globalLatencyTracker.mark('firstToken');
             }
 
-            if (!activeResponse.ok) {
-                const retryAfter = activeResponse.headers.get("retry-after") || activeResponse.headers.get("x-ratelimit-reset-requests");
-                throw new Error(`Stream Error: ${activeResponse.status}. ${retryAfter ? `Retry after ${retryAfter}` : ''}`);
+            const parsedToken = parser.parseChunk(token);
+            if (parsedToken) {
+              const sentences = buffer.push(parsedToken);
+              for (const s of sentences) {
+                callbacks.onSentence?.(s);
+              }
             }
-        } else if (!activeResponse.ok) {
-            throw new Error(`Stream Error: ${activeResponse.status}`);
+          } catch (e) {
+            // ignore JSON parse errors for incomplete chunks
+          }
         }
-        if (!activeResponse.body) throw new Error(`No response body`);
-        
-        const reader = activeResponse.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let fullResponse = '';
-        
-        
-        
-        
-        const parser = new AIStreamParser();
-        const buffer = new SentenceBuffer();
-        let sseBuffer = '';
-        
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            
-            sseBuffer += decoder.decode(value, { stream: true });
-            const lines = sseBuffer.split('\n');
-            sseBuffer = lines.pop() || '';
-            
-            for (const rawLine of lines) {
-                const line = rawLine.trim();
-                if (!line || line === 'data: [DONE]') continue;
-                if (line.startsWith('data: ')) {
-                    try {
-                        const data = JSON.parse(line.slice(6));
-                        const token = data.choices[0]?.delta?.content || '';
-                        if (!token) continue;
-                        
-                        fullResponse += token;
-                        callbacks.onToken?.(token);
-                        if (!(callbacks as any)._firstTokenFired) { 
-                            (callbacks as any)._firstTokenFired = true; 
-                            globalLatencyTracker.mark('firstToken'); 
-                        }
-                        
-                        const parsedToken = parser.parseChunk(token);
-                        if (parsedToken) {
-                            const sentences = buffer.push(parsedToken);
-                            for (const s of sentences) {
-                                callbacks.onSentence?.(s);
-                            }
-                        }
-                    } catch (e) {
-                        // ignore JSON parse errors for incomplete chunks
-                    }
-                }
-            }
-        }
-        
-        // flush
-        const flushed = buffer.flush();
-        for (const s of flushed) callbacks.onSentence?.(s);
-        
-        callbacks.onComplete?.(fullResponse);
-    } catch (e: any) {
-        if (e.name !== 'AbortError') {
-            if (callbacks.onError) callbacks.onError(e);
-            else throw e;
-        }
+      }
     }
+
+    // flush
+    const flushed = buffer.flush();
+    for (const s of flushed) callbacks.onSentence?.(s);
+
+    callbacks.onComplete?.(fullResponse);
+  } catch (e: any) {
+    if (e.name !== 'AbortError') {
+      if (callbacks.onError) callbacks.onError(e);
+      else throw e;
+    }
+  }
 }

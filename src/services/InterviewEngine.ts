@@ -1,11 +1,11 @@
 import { classifyUtterance } from './interruptionDetector';
-import { buildCandidateSystemPrompt, estimateConfidence, getDynamicWhisperVocab } from './candidatePersona';
+import { buildCandidateSystemPrompt, estimateConfidence } from './candidatePersona';
 import { classifyQuestion } from './ai';
 import { globalLatencyTracker } from './LatencyTracker';
-import { useAppStore } from "../store/useAppStore";
-import { AudioRecorder } from "./audio";
-import { transcribeAudio } from "./whisper";
-import { streamAnswer } from "./ai";
+import { useAppStore } from '../store/useAppStore';
+import { AudioRecorder } from './audio';
+import { transcribeAudio } from './whisper';
+import { streamAnswer } from './ai';
 
 const audioService = new AudioRecorder();
 let activeAbortController: AbortController | null = null;
@@ -15,52 +15,52 @@ export class InterviewEngine {
     const store = useAppStore.getState();
 
     switch (event.type) {
-      case "START_LISTENING":
-        globalLatencyTracker.mark("speechStart");
-        store.setStatus("listening");
-        store.setRecitalState("listening");
+      case 'START_LISTENING':
+        globalLatencyTracker.mark('speechStart');
+        store.setStatus('listening');
+        store.setRecitalState('listening');
         try {
           await audioService.start(async (utteranceBlob: Blob) => {
             if (utteranceBlob.size < 500) {
-              store.updateDiagnostics({ whisperStatus: "empty (blob too small)" });
+              store.updateDiagnostics({ whisperStatus: 'empty (blob too small)' });
               return;
             }
-            store.updateDiagnostics({ whisperStatus: "transcribing..." });
+            store.updateDiagnostics({ whisperStatus: 'transcribing...' });
             InterviewEngine.handleEvent({
-              type: "UTTERANCE_FINALIZED",
-              blob: utteranceBlob
+              type: 'UTTERANCE_FINALIZED',
+              blob: utteranceBlob,
             });
           });
         } catch (e: any) {
-          store.updateDiagnostics({ whisperStatus: "Mic error: " + (e?.message || e) });
-          console.error("[InterviewEngine] Microphone start error:", e);
-          store.setStatus("idle");
-          store.setRecitalState("idle");
+          store.updateDiagnostics({ whisperStatus: 'Mic error: ' + (e?.message || e) });
+          console.error('[InterviewEngine] Microphone start error:', e);
+          store.setStatus('idle');
+          store.setRecitalState('idle');
         }
         break;
 
-      case "UTTERANCE_FINALIZED":
-        globalLatencyTracker.mark("speechEnd");
-        globalLatencyTracker.mark("transcriptionStart");
-        store.setStatus("transcribing");
+      case 'UTTERANCE_FINALIZED':
+        globalLatencyTracker.mark('speechEnd');
+        globalLatencyTracker.mark('transcriptionStart');
+        store.setStatus('transcribing');
         try {
           const result = await transcribeAudio(event.blob, store.settings);
-          globalLatencyTracker.mark("transcriptionEnd");
-          let text = (result?.text || "").trim();
+          globalLatencyTracker.mark('transcriptionEnd');
+          let text = (result?.text || '').trim();
 
           // Strip non-speech brackets like [BLANK_AUDIO], (beep), [MUSIC], etc.
-          text = text.replace(/\[[^\]]+\]|\([^)]+\)/g, "").trim();
+          text = text.replace(/\[[^\]]+\]|\([^)]+\)/g, '').trim();
 
           if (!text) {
             store.updateDiagnostics({
-              whisperStatus: "no speech detected in utterance"
+              whisperStatus: 'no speech detected in utterance',
             });
-            store.setStatus("listening");
+            store.setStatus('listening');
             return;
           }
 
           store.updateDiagnostics({
-            latestTranscript: text
+            latestTranscript: text,
           });
 
           // Intelligent Classification: Distinguish Candidate Recital vs. Third-Person Interruption
@@ -70,54 +70,62 @@ export class InterviewEngine {
             store.teleprompterQueue
           );
 
-          console.log("[InterviewEngine] Utterance classification:", classification.type, `(${classification.reason})`, `"${text}"`);
+          console.log(
+            '[InterviewEngine] Utterance classification:',
+            classification.type,
+            `(${classification.reason})`,
+            `"${text}"`
+          );
 
           // 1. CANDIDATE RECITAL: Candidate is repeating the teleprompted answer
           // -> Suppress mic echo so it does NOT wipe or re-trigger the teleprompter
-          if (classification.type === "CANDIDATE_RECITAL") {
-            store.setRecitalState("reciting");
+          if (classification.type === 'CANDIDATE_RECITAL') {
+            store.setRecitalState('reciting');
             store.updateDiagnostics({
               whisperStatus: `🗣️ Mic paused for self-speech: ${classification.reason}`,
-              recitalState: "reciting",
-              questionMatched: false
+              recitalState: 'reciting',
+              questionMatched: false,
             });
 
             store.addTranscript({
               id: Date.now().toString(),
-              speaker: "user",
+              speaker: 'user',
               text: text,
-              timestamp: Date.now()
+              timestamp: Date.now(),
             });
 
             // Keep the teleprompter answer completely active and visible!
-            store.setStatus("listening");
+            store.setStatus('listening');
             return;
           }
 
           // 2. CONVERSATIONAL FILLER ("Yeah", "Okay", "Right")
-          if (classification.type === "CONVERSATIONAL_FILLER") {
+          if (classification.type === 'CONVERSATIONAL_FILLER') {
             store.updateDiagnostics({
-              whisperStatus: `Conversational filler ignored ("${text}")`
+              whisperStatus: `Conversational filler ignored ("${text}")`,
             });
-            store.setStatus("listening");
+            store.setStatus('listening');
             return;
           }
 
           // 3. INTERVIEWER INTERRUPTION OR NEW QUESTION
           // -> Third person interrupted! Immediately react, capture question, and stream answer
-          if (classification.type === "INTERVIEWER_INTERRUPTION" || classification.type === "INTERVIEWER_QUESTION") {
+          if (
+            classification.type === 'INTERVIEWER_INTERRUPTION' ||
+            classification.type === 'INTERVIEWER_QUESTION'
+          ) {
             const questionText = classification.questionText || text;
-            const isInterruption = classification.type === "INTERVIEWER_INTERRUPTION";
+            const isInterruption = classification.type === 'INTERVIEWER_INTERRUPTION';
 
-            store.setRecitalState(isInterruption ? "interrupted" : "listening");
+            store.setRecitalState(isInterruption ? 'interrupted' : 'listening');
             store.setLastInterruption(questionText);
             store.updateDiagnostics({
               latestTranscript: questionText,
               whisperStatus: isInterruption
                 ? `⚡ Interviewer interruption: "${questionText.slice(0, 45)}..."`
-                : "Interviewer question received",
-              recitalState: isInterruption ? "interrupted" : "listening",
-              questionMatched: true
+                : 'Interviewer question received',
+              recitalState: isInterruption ? 'interrupted' : 'listening',
+              questionMatched: true,
             });
 
             if (isInterruption) {
@@ -126,27 +134,27 @@ export class InterviewEngine {
 
             store.addTranscript({
               id: Date.now().toString(),
-              speaker: "interviewer",
+              speaker: 'interviewer',
               text: questionText,
-              timestamp: Date.now()
+              timestamp: Date.now(),
             });
 
-            InterviewEngine.handleEvent({ type: "QUESTION_DETECTED", text: questionText });
+            InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: questionText });
             return;
           }
 
-          store.setStatus("listening");
+          store.setStatus('listening');
         } catch (e: any) {
           store.updateDiagnostics({
-            whisperStatus: "error: " + (e?.message || e)
+            whisperStatus: 'error: ' + (e?.message || e),
           });
-          console.error("[InterviewEngine] Transcription error:", e);
-          store.setStatus("listening");
+          console.error('[InterviewEngine] Transcription error:', e);
+          store.setStatus('listening');
         }
         break;
 
-      case "QUESTION_DETECTED":
-        globalLatencyTracker.mark("questionDetected");
+      case 'QUESTION_DETECTED': {
+        globalLatencyTracker.mark('questionDetected');
         // Abort previous running generation if another question arrives
         if (activeAbortController) {
           activeAbortController.abort();
@@ -157,36 +165,57 @@ export class InterviewEngine {
         store.incrementGenerationId();
         store.clearAnswerQueue();
         store.setCurrentQuestion(event.text);
-        store.setCurrentAnswer("");
-        store.setStatus("analyzing");
-        store.setRecitalState("listening");
+        store.setCurrentAnswer('');
+        store.setStatus('analyzing');
+        store.setRecitalState('listening');
 
         const currentGen = useAppStore.getState().generationId;
 
         try {
-          globalLatencyTracker.mark("generationStart");
-          const groqKey = import.meta.env.VITE_GROQ_API_KEY;
-          if (!groqKey) {
-            throw new Error("VITE_GROQ_API_KEY not configured in .env.local");
+          globalLatencyTracker.mark('generationStart');
+          const currentStore = useAppStore.getState();
+          const provider = currentStore.settings?.aiProvider || 'groq';
+          const apiKey =
+            (await window.electronAPI?.getApiKey?.(provider)) ||
+            (provider === 'groq' ? await window.electronAPI?.getApiKey?.('openai') : null);
+
+          if (!apiKey && provider !== 'ollama') {
+            throw new Error(
+              `No API key configured for ${provider}. Please configure your API key in Settings.`
+            );
           }
 
-          const currentStore = useAppStore.getState();
           const mode = currentStore.responseMode || 'interview';
           const isCoding = mode === 'coding';
           const preferredLang = currentStore.settings?.preferredLanguage || 'Java';
 
           // Classify question for smart routing & category-specific prompts
           const { category: detectedCategory } = classifyQuestion(event.text);
-          
+
           // Estimate answer confidence
-          const confidence = estimateConfidence(detectedCategory, currentStore.resumeText, event.text);
+          const confidence = estimateConfidence(
+            detectedCategory,
+            currentStore.resumeText,
+            event.text
+          );
           useAppStore.getState().setAnswerConfidence(confidence);
-          
+
           // Smart Model Router: Route to optimal model based on question complexity
-          const isHardQuestion = ['System Design', 'Coding', 'DSA'].includes(detectedCategory) || event.text.length > 100;
-          const smartModel = (isCoding || isHardQuestion) ? "openai/gpt-oss-120b" : "qwen/qwen3.8-27b";
-          const smartTemperature = isCoding ? 0.1 : isHardQuestion ? 0.2 : (store.settings?.temperature || 0.45);
-          const smartMaxTokens = isCoding ? 2500 : isHardQuestion ? 1800 : (store.settings?.maxTokens || 1200);
+          const isHardQuestion =
+            ['System Design', 'Coding', 'DSA'].includes(detectedCategory) ||
+            event.text.length > 100;
+          const smartModel =
+            isCoding || isHardQuestion ? 'openai/gpt-oss-120b' : 'qwen/qwen3.8-27b';
+          const smartTemperature = isCoding
+            ? 0.1
+            : isHardQuestion
+              ? 0.2
+              : store.settings?.temperature || 0.45;
+          const smartMaxTokens = isCoding
+            ? 2500
+            : isHardQuestion
+              ? 1800
+              : store.settings?.maxTokens || 1200;
 
           // Build system prompt with conversation memory + category context
           const candidateSystemPrompt = buildCandidateSystemPrompt(
@@ -202,28 +231,28 @@ export class InterviewEngine {
           await streamAnswer(
             event.text,
             {
-              type: "groq",
-              apiKey: groqKey,
+              type: (provider || 'groq') as any,
+              apiKey: apiKey || '',
               // Use frontier 120B model for coding & quiz for 100% precision & higher token limits
               model: smartModel,
               temperature: smartTemperature,
               maxTokens: smartMaxTokens,
-              systemPrompt: candidateSystemPrompt
+              systemPrompt: candidateSystemPrompt,
             },
-            (preferredLang.toLowerCase()) as any,
+            preferredLang.toLowerCase() as any,
             {
               onToken: (token) => {
                 if (useAppStore.getState().generationId === currentGen) {
                   useAppStore.getState().appendAnswerToken(token);
-                  if (useAppStore.getState().status !== "generating") {
-                    useAppStore.getState().setStatus("generating");
+                  if (useAppStore.getState().status !== 'generating') {
+                    useAppStore.getState().setStatus('generating');
                   }
                 }
               },
               onSentence: (sentence) => {
                 if (!(globalLatencyTracker as any)._firstSentenceFired) {
                   (globalLatencyTracker as any)._firstSentenceFired = true;
-                  globalLatencyTracker.mark("firstSentence");
+                  globalLatencyTracker.mark('firstSentence');
                 }
                 if (useAppStore.getState().generationId === currentGen) {
                   const currentQueue = useAppStore.getState().teleprompterQueue;
@@ -231,71 +260,74 @@ export class InterviewEngine {
                 }
               },
               onComplete: (full) => {
-                globalLatencyTracker.mark("generationEnd");
-                console.log("Latency Report:", globalLatencyTracker.getReport());
+                globalLatencyTracker.mark('generationEnd');
+                console.log('Latency Report:', globalLatencyTracker.getReport());
                 if (useAppStore.getState().generationId === currentGen) {
                   // Parse and extract follow-up predictions from AI response
                   let cleanedAnswer = full;
                   const followUpMatch = full.match(/FOLLOW_UPS:\s*(.+?)(?:\n|$)/i);
                   if (followUpMatch && followUpMatch[1]) {
-                    const followUps = followUpMatch[1].split('|').map((f: string) => f.trim()).filter((f: string) => f.length > 5);
+                    const followUps = followUpMatch[1]
+                      .split('|')
+                      .map((f: string) => f.trim())
+                      .filter((f: string) => f.length > 5);
                     useAppStore.getState().setPredictedFollowUps(followUps.slice(0, 3));
                     // Remove the FOLLOW_UPS line from displayed answer
                     cleanedAnswer = full.replace(/FOLLOW_UPS:\s*.+?(?:\n|$)/i, '').trim();
                   }
-                  
+
                   useAppStore.getState().setCurrentAnswer(cleanedAnswer);
-                  
+
                   // Add to conversation memory for context threading
                   const currentQ = useAppStore.getState().currentQuestion;
                   if (currentQ) {
                     useAppStore.getState().addToConversationHistory({
                       question: currentQ,
                       answer: cleanedAnswer.slice(0, 300),
-                      category: detectedCategory
+                      category: detectedCategory,
                     });
                   }
-                  
+
                   // Transition back to listening
-                  useAppStore.getState().setRecitalState("listening");
-                  useAppStore.getState().setStatus("listening");
+                  useAppStore.getState().setRecitalState('listening');
+                  useAppStore.getState().setStatus('listening');
                 }
               },
               onError: (err) => {
-                console.error("[InterviewEngine] Generation stream error:", err);
+                console.error('[InterviewEngine] Generation stream error:', err);
                 store.updateDiagnostics({
-                  whisperStatus: "gen error: " + (err.message || String(err))
+                  whisperStatus: 'gen error: ' + (err.message || String(err)),
                 });
-              }
+              },
             },
             activeAbortController.signal
           );
         } catch (e: any) {
-          if (e.name !== "AbortError") {
-            console.error("[InterviewEngine] Generation Failed:", e.message);
+          if (e.name !== 'AbortError') {
+            console.error('[InterviewEngine] Generation Failed:', e.message);
             store.updateDiagnostics({
-              whisperStatus: "generation error: " + (e.message || String(e))
+              whisperStatus: 'generation error: ' + (e.message || String(e)),
             });
-            store.setStatus("error");
+            store.setStatus('error');
             setTimeout(() => {
-              if (useAppStore.getState().status === "error") {
-                console.log("[InterviewEngine] Auto-recovering to listening state.");
-                store.setStatus("listening");
+              if (useAppStore.getState().status === 'error') {
+                console.log('[InterviewEngine] Auto-recovering to listening state.');
+                store.setStatus('listening');
               }
             }, 3000);
           }
         }
         break;
+      }
 
-      
-            case "STOP_LISTENING":
+      case 'STOP_LISTENING':
         if (activeAbortController) {
           activeAbortController.abort();
           activeAbortController = null;
         }
         await audioService.stop();
-        store.setStatus("idle");
-        store.setRecitalState("idle");
+        store.setStatus('idle');
+        store.setRecitalState('idle');
         break;
     }
   }

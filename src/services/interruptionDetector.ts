@@ -26,12 +26,58 @@ export interface UtteranceClassification {
 }
 
 const STOP_WORDS = new Set([
-  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
-  'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
-  'to', 'was', 'were', 'will', 'with', 'i', 'we', 'you', 'they', 'our',
-  'my', 'me', 'us', 'so', 'yeah', 'yes', 'right', 'ok', 'okay', 'like',
-  'well', 'just', 'also', 'then', 'there', 'this', 'these', 'those',
-  'um', 'uh', 'ah', 'er'
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'be',
+  'by',
+  'for',
+  'from',
+  'has',
+  'he',
+  'in',
+  'is',
+  'it',
+  'its',
+  'of',
+  'on',
+  'that',
+  'the',
+  'to',
+  'was',
+  'were',
+  'will',
+  'with',
+  'i',
+  'we',
+  'you',
+  'they',
+  'our',
+  'my',
+  'me',
+  'us',
+  'so',
+  'yeah',
+  'yes',
+  'right',
+  'ok',
+  'okay',
+  'like',
+  'well',
+  'just',
+  'also',
+  'then',
+  'there',
+  'this',
+  'these',
+  'those',
+  'um',
+  'uh',
+  'ah',
+  'er',
 ]);
 
 /** Extract meaningful lowercase word tokens */
@@ -41,7 +87,7 @@ export function extractTokens(text: string): string[] {
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
-    .filter(w => w.length > 1 && !STOP_WORDS.has(w));
+    .filter((w) => w.length > 1 && !STOP_WORDS.has(w));
 }
 
 /** Extract 2-gram word pairs for phrase similarity */
@@ -54,7 +100,10 @@ export function extractBigrams(tokens: string[]): Set<string> {
 }
 
 /** Calculate token and n-gram overlap between heard speech and teleprompter text */
-export function calculateOverlap(heardText: string, referenceText: string): {
+export function calculateOverlap(
+  heardText: string,
+  referenceText: string
+): {
   tokenOverlap: number;
   bigramOverlap: number;
   compositeScore: number;
@@ -86,7 +135,7 @@ export function calculateOverlap(heardText: string, referenceText: string): {
   const bigramOverlap = heardBigrams.size > 0 ? bigramMatches / heardBigrams.size : 0;
 
   // Composite: weighted combination giving high credit to phrase alignment
-  const compositeScore = (tokenOverlap * 0.7) + (bigramOverlap * 0.3);
+  const compositeScore = tokenOverlap * 0.7 + bigramOverlap * 0.3;
   return { tokenOverlap, bigramOverlap, compositeScore };
 }
 
@@ -101,7 +150,7 @@ const INTERRUPTION_PATTERNS = [
   /\b(can you explain|can you elaborate|can you clarify|can you give an example)\b/i,
   /\b(could you explain|could you elaborate|could you clarify|could you walk me through)\b/i,
   /\b(tell me more about|are you saying|do you mean|are you sure)\b/i,
-  /\b(what was the|which tool|which framework|which database)\b/i
+  /\b(what was the|which tool|which framework|which database)\b/i,
 ];
 
 /** First-person phrasing typically spoken by the candidate answering */
@@ -110,14 +159,14 @@ const CANDIDATE_NARRATIVE_PATTERNS = [
   /\b(my role was|my responsibility|i was responsible for|i designed|i built|i led)\b/i,
   /\b(what we did|we implemented|we deployed|we migrated|we architected)\b/i,
   /\b(our team|our infrastructure|our pipeline|our microservices)\b/i,
-  /\b(the approach i took|the reason i chose|so basically|to answer that)\b/i
+  /\b(the approach i took|the reason i chose|so basically|to answer that)\b/i,
 ];
 
 /** Short conversational fillers that shouldn't trigger questions */
 const FILLER_PATTERNS = [
   /^(yeah|yes|yep|right|ok|okay|sure|got it|cool|i see|uh huh|hmm|yup|alright|understood)[.!?]?$/i,
   /^(yeah exactly|yes exactly|okay sure|got it thanks|right exactly|understood thank you)[.!?]?$/i,
-  /^(let me see|let me think|give me a second)[.!?]?$/i
+  /^(let me see|let me think|give me a second)[.!?]?$/i,
 ];
 
 /**
@@ -139,16 +188,15 @@ export function classifyUtterance(
       return {
         type: 'CONVERSATIONAL_FILLER',
         confidence: 0.95,
-        reason: `Conversational acknowledgment ("${trimmed}")`
+        reason: `Conversational acknowledgment ("${trimmed}")`,
       };
     }
   }
 
   // Combine full answer content and queue for reference
-  const fullReferenceText = [
-    currentAnswer || '',
-    ...(teleprompterQueue || [])
-  ].filter(Boolean).join(' ');
+  const fullReferenceText = [currentAnswer || '', ...(teleprompterQueue || [])]
+    .filter(Boolean)
+    .join(' ');
 
   const hasActiveAnswer = fullReferenceText.trim().length > 15;
 
@@ -159,7 +207,7 @@ export function classifyUtterance(
         type: 'INTERVIEWER_INTERRUPTION',
         confidence: 0.95,
         reason: `Interruption marker matched: ${pattern}`,
-        questionText: trimmed
+        questionText: trimmed,
       };
     }
   }
@@ -174,20 +222,22 @@ export function classifyUtterance(
         type: 'CANDIDATE_RECITAL',
         confidence: Math.min(0.99, compositeScore + 0.3),
         overlapScore: compositeScore,
-        reason: `Words match ${Math.round(compositeScore * 100)}% of teleprompted answer`
+        reason: `Words match ${Math.round(compositeScore * 100)}% of teleprompted answer`,
       };
     }
 
     // B. First-person narrative phrasing without questions = Candidate speaking/answering
-    const isFirstPersonNarrative = CANDIDATE_NARRATIVE_PATTERNS.some(p => p.test(trimmed));
-    const hasQuestionSign = trimmed.includes('?') || /^(what|why|how|who|when|where|which|can|could|would)\b/i.test(trimmed);
+    const isFirstPersonNarrative = CANDIDATE_NARRATIVE_PATTERNS.some((p) => p.test(trimmed));
+    const hasQuestionSign =
+      trimmed.includes('?') ||
+      /^(what|why|how|who|when|where|which|can|could|would)\b/i.test(trimmed);
 
     if (isFirstPersonNarrative && !hasQuestionSign) {
       return {
         type: 'CANDIDATE_RECITAL',
         confidence: 0.85,
         overlapScore: compositeScore,
-        reason: `Candidate first-person narrative statement`
+        reason: `Candidate first-person narrative statement`,
       };
     }
 
@@ -198,7 +248,7 @@ export function classifyUtterance(
         confidence: 0.9,
         reason: `Third person asked question with low overlap (${Math.round(compositeScore * 100)}%)`,
         questionText: trimmed,
-        overlapScore: compositeScore
+        overlapScore: compositeScore,
       };
     }
 
@@ -210,7 +260,7 @@ export function classifyUtterance(
         confidence: 0.8,
         reason: `Third person speech with ${Math.round(compositeScore * 100)}% overlap to current answer`,
         questionText: trimmed,
-        overlapScore: compositeScore
+        overlapScore: compositeScore,
       };
     }
 
@@ -219,7 +269,7 @@ export function classifyUtterance(
       type: 'CANDIDATE_RECITAL',
       confidence: 0.65,
       overlapScore: compositeScore,
-      reason: `Defaulting to candidate speech while answer is active (overlap ${Math.round(compositeScore * 100)}%)`
+      reason: `Defaulting to candidate speech while answer is active (overlap ${Math.round(compositeScore * 100)}%)`,
     };
   }
 
@@ -228,6 +278,6 @@ export function classifyUtterance(
     type: 'INTERVIEWER_QUESTION',
     confidence: 0.9,
     reason: 'New question detected from interviewer',
-    questionText: trimmed
+    questionText: trimmed,
   };
 }

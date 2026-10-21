@@ -1,5 +1,3 @@
-import { useAppStore } from "../store/useAppStore";
-
 export function downsampleBuffer(
   buffer: Float32Array,
   inSampleRate: number,
@@ -39,19 +37,28 @@ export function encodeWav(samples: Float32Array, sampleRate = 16000): Blob {
     }
   };
 
-  writeString("RIFF");
-  view.setUint32(offset, 36 + dataLength, true); offset += 4;
-  writeString("WAVE");
-  writeString("fmt ");
-  view.setUint32(offset, 16, true); offset += 4;
-  view.setUint16(offset, 1, true); offset += 2; // PCM
-  view.setUint16(offset, 1, true); offset += 2; // Mono
-  view.setUint32(offset, sampleRate, true); offset += 4;
-  view.setUint32(offset, sampleRate * 2, true); offset += 4; // byte rate
-  view.setUint16(offset, 2, true); offset += 2; // block align
-  view.setUint16(offset, 16, true); offset += 2; // bits per sample
-  writeString("data");
-  view.setUint32(offset, dataLength, true); offset += 4;
+  writeString('RIFF');
+  view.setUint32(offset, 36 + dataLength, true);
+  offset += 4;
+  writeString('WAVE');
+  writeString('fmt ');
+  view.setUint32(offset, 16, true);
+  offset += 4;
+  view.setUint16(offset, 1, true);
+  offset += 2; // PCM
+  view.setUint16(offset, 1, true);
+  offset += 2; // Mono
+  view.setUint32(offset, sampleRate, true);
+  offset += 4;
+  view.setUint32(offset, sampleRate * 2, true);
+  offset += 4; // byte rate
+  view.setUint16(offset, 2, true);
+  offset += 2; // block align
+  view.setUint16(offset, 16, true);
+  offset += 2; // bits per sample
+  writeString('data');
+  view.setUint32(offset, dataLength, true);
+  offset += 4;
 
   for (let i = 0; i < samples.length; i++) {
     const clamped = Math.max(-1, Math.min(1, samples[i]));
@@ -60,12 +67,12 @@ export function encodeWav(samples: Float32Array, sampleRate = 16000): Blob {
     offset += 2;
   }
 
-  return new Blob([buffer], { type: "audio/wav" });
+  return new Blob([buffer], { type: 'audio/wav' });
 }
 
 export async function convertBlobToWav(blob: Blob): Promise<Blob> {
   // If already a valid WAV, return directly without unnecessary re-decoding
-  if (blob.type === "audio/wav") {
+  if (blob.type === 'audio/wav') {
     return blob;
   }
 
@@ -75,8 +82,8 @@ export async function convertBlobToWav(blob: Blob): Promise<Blob> {
     if (arrayBuffer.byteLength >= 12) {
       const u8 = new Uint8Array(arrayBuffer.slice(0, 4));
       const magic = String.fromCharCode(...u8);
-      if (magic === "RIFF") {
-        return new Blob([arrayBuffer], { type: "audio/wav" });
+      if (magic === 'RIFF') {
+        return new Blob([arrayBuffer], { type: 'audio/wav' });
       }
     }
 
@@ -89,12 +96,12 @@ export async function convertBlobToWav(blob: Blob): Promise<Blob> {
       const wav = encodeWav(resampled, 16000);
       return wav;
     } finally {
-      if (audioContext.state !== "closed") {
+      if (audioContext.state !== 'closed') {
         await audioContext.close().catch(() => undefined);
       }
     }
   } catch (e: any) {
-    console.error("convertBlobToWav error:", e);
+    console.error('convertBlobToWav error:', e);
     throw e;
   }
 }
