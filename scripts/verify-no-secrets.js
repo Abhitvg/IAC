@@ -13,7 +13,9 @@ function scanDir(dir) {
       (entry.name.endsWith('.js') || entry.name.endsWith('.html') || entry.name.endsWith('.css'))
     ) {
       const content = fs.readFileSync(fullPath, 'utf8');
-      const matches = content.match(/(gsk_[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,})/);
+      const matches = content.match(
+        /(gsk_[A-Za-z0-9_-]{20,}|sk-proj-[A-Za-z0-9_-]{20,}|sk-or-v1-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{24,}|ghp_[A-Za-z0-9]{20,})/
+      );
       if (matches) {
         console.error(`[SECURITY ERROR] Secret pattern leaked in build artifact: ${fullPath}`);
         console.error(`Matched token: ${matches[0].slice(0, 8)}...`);

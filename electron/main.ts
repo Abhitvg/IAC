@@ -13,18 +13,29 @@ import {
 } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import util from 'util';
 import mammoth from 'mammoth';
 import { setupIpcHandlers } from './ipc/handlers';
+import {
+  validateReadPath,
+  validateWritePath,
+  validateDeletePath,
+  isPermissionAllowed,
+  buildCspHeader,
+  getSandboxConfig,
+} from './services/security';
 
-const execAsync = util.promisify(exec);
+const execFileAsync = util.promisify(execFile);
 
 let mainWindow: BrowserWindow | null = null;
 let isContentProtected = true;
 
 const RECORDINGS_DIR = path.join(app.getPath('userData'), 'recordings');
 const SESSIONS_DIR = path.join(app.getPath('userData'), 'sessions');
+
+// In-memory set of explicitly user-approved file paths from dialog:open-file
+const approvedFilePaths = new Set<string>();
 
 function ensureDirectories() {
   [RECORDINGS_DIR, SESSIONS_DIR].forEach((dir) => {
@@ -35,6 +46,9 @@ function ensureDirectories() {
 }
 
 function createWindow() {
+  const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
+  const isProduction = !isDev || app.isPackaged || process.env.NODE_ENV === 'production';
+
   mainWindow = new BrowserWindow({
     width: 680,
     height: 500,
@@ -51,7 +65,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: getSandboxConfig(isProduction),
     },
     icon: path.join(__dirname, '../public/icon.png'),
   });
@@ -257,10 +271,31 @@ function registerGlobalShortcuts() {
 }
 
 app.whenReady().then(() => {
-  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
-    callback(true);
+  // Strict permission handler: only allow "media" (microphone) for the app's own origin
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    const url = webContents.getURL();
+    const allowed = isPermissionAllowed(permission, url, process.env.VITE_DEV_SERVER_URL);
+    callback(allowed);
   });
-  session.defaultSession.setPermissionCheckHandler(() => true);
+
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+    const origin = requestingOrigin || (webContents ? webContents.getURL() : '');
+    return isPermissionAllowed(permission, origin, process.env.VITE_DEV_SERVER_URL);
+  });
+
+  // Strict Content Security Policy (CSP) session header
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
+    const csp = buildCspHeader(isDev);
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp],
+        'X-Content-Type-Options': ['nosniff'],
+        'X-Frame-Options': ['DENY'],
+      },
+    });
+  });
 
   ensureDirectories();
   createWindow();
@@ -322,6 +357,9 @@ ipcMain.handle('window:is-always-on-top', () => mainWindow?.isAlwaysOnTop() ?? f
 
 // Content protection IPC (invisible in screen sharing)
 ipcMain.handle('window:set-content-protection', (_event, enable: boolean) => {
+  if (typeof enable !== 'boolean') {
+    throw new Error('Invalid argument: enable must be a boolean');
+  }
   if (mainWindow) {
     mainWindow.setContentProtection(enable);
     isContentProtected = enable;
@@ -346,88 +384,140 @@ ipcMain.handle('get-recordings-dir', () => RECORDINGS_DIR);
 ipcMain.handle('get-sessions-dir', () => SESSIONS_DIR);
 ipcMain.handle('get-user-data-path', () => app.getPath('userData'));
 
-// File dialog
+// File dialog with path approval registration
 ipcMain.handle('dialog:open-file', async (_event, options: Electron.OpenDialogOptions) => {
   if (!mainWindow) return null;
-  const result = await dialog.showOpenDialog(mainWindow, options);
+  const result = await dialog.showOpenDialog(mainWindow, options || {});
   if (result.canceled || result.filePaths.length === 0) return null;
-  return result.filePaths[0];
+  const chosenPath = result.filePaths[0];
+
+  try {
+    const realChosen = fs.realpathSync(chosenPath);
+    approvedFilePaths.add(realChosen);
+    approvedFilePaths.add(path.resolve(chosenPath));
+  } catch {
+    approvedFilePaths.add(path.resolve(chosenPath));
+  }
+
+  return chosenPath;
 });
 
-// Read file
+// Read file strictly restricted to userData and approved file dialog paths
 ipcMain.handle('fs:read-file', async (_event, filePath: string) => {
-  const userDataPath = app.getPath('userData');
-  const resolvedPath = path.resolve(filePath);
-  if (!resolvedPath.startsWith(userDataPath) && !resolvedPath.startsWith(app.getPath('home'))) {
-    throw new Error('Access denied: Cannot read files outside allowed directories');
+  if (typeof filePath !== 'string') {
+    throw new Error('Invalid argument: filePath must be a string');
   }
-  return fs.readFileSync(resolvedPath);
+
+  const validation = validateReadPath(filePath, app.getPath('userData'), approvedFilePaths);
+  if (!validation.allowed || !validation.resolvedPath) {
+    throw new Error(validation.reason || 'Access denied');
+  }
+
+  return fs.readFileSync(validation.resolvedPath);
 });
 
-// Write file
-ipcMain.handle('fs:write-file', async (_event, filePath: string, data: Buffer | string) => {
-  const userDataPath = app.getPath('userData');
-  const resolvedPath = path.resolve(filePath);
-  if (!resolvedPath.startsWith(userDataPath)) {
-    throw new Error('Access denied: Cannot write files outside user data directory');
+// Write file restricted strictly to userData with size limits
+ipcMain.handle('fs:write-file', async (_event, filePath: string, data: Buffer | string | ArrayBuffer) => {
+  if (typeof filePath !== 'string') {
+    throw new Error('Invalid argument: filePath must be a string');
   }
-  const dir = path.dirname(resolvedPath);
+
+  const byteLength = typeof data === 'string'
+    ? Buffer.byteLength(data)
+    : Buffer.isBuffer(data)
+    ? data.length
+    : data instanceof ArrayBuffer
+    ? data.byteLength
+    : 0;
+
+  const validation = validateWritePath(filePath, byteLength, app.getPath('userData'));
+  if (!validation.allowed || !validation.resolvedPath) {
+    throw new Error(validation.reason || 'Access denied');
+  }
+
+  const dir = path.dirname(validation.resolvedPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(resolvedPath, data);
+
+  fs.writeFileSync(validation.resolvedPath, data as any);
   return true;
 });
 
-// List directory
+// List directory restricted to userData
 ipcMain.handle('fs:list-dir', async (_event, dirPath: string) => {
+  if (typeof dirPath !== 'string') {
+    throw new Error('Invalid argument: dirPath must be a string');
+  }
+
+  const userDataPath = app.getPath('userData');
   const resolvedPath = path.resolve(dirPath);
-  if (!fs.existsSync(resolvedPath)) return [];
-  return fs.readdirSync(resolvedPath, { withFileTypes: true }).map((entry) => ({
-    name: entry.name,
-    isDirectory: entry.isDirectory(),
-    path: path.join(resolvedPath, entry.name),
-  }));
+
+  try {
+    const realTarget = fs.realpathSync(resolvedPath);
+    const realUserData = fs.realpathSync(userDataPath);
+    if (realTarget !== realUserData && !realTarget.startsWith(realUserData + path.sep)) {
+      throw new Error('Access denied: Cannot list directories outside userData');
+    }
+
+    return fs.readdirSync(realTarget, { withFileTypes: true }).map((entry) => ({
+      name: entry.name,
+      isDirectory: entry.isDirectory(),
+      path: path.join(realTarget, entry.name),
+    }));
+  } catch (err: any) {
+    throw new Error(`Directory listing failed: ${err.message || String(err)}`, { cause: err });
+  }
 });
 
-// Delete file/directory
+// Delete file/directory strictly restricted to userData
 ipcMain.handle('fs:delete', async (_event, targetPath: string) => {
-  const userDataPath = app.getPath('userData');
-  const resolvedPath = path.resolve(targetPath);
-  if (!resolvedPath.startsWith(userDataPath)) {
-    throw new Error('Access denied');
+  if (typeof targetPath !== 'string') {
+    throw new Error('Invalid argument: targetPath must be a string');
   }
-  if (fs.existsSync(resolvedPath)) {
-    const stat = fs.statSync(resolvedPath);
-    if (stat.isDirectory()) {
-      fs.rmSync(resolvedPath, { recursive: true, force: true });
-    } else {
-      fs.unlinkSync(resolvedPath);
-    }
+
+  const validation = validateDeletePath(targetPath, app.getPath('userData'));
+  if (!validation.allowed || !validation.resolvedPath) {
+    throw new Error(validation.reason || 'Access denied');
+  }
+
+  const stat = fs.statSync(validation.resolvedPath);
+  if (stat.isDirectory()) {
+    fs.rmSync(validation.resolvedPath, { recursive: true, force: true });
+  } else {
+    fs.unlinkSync(validation.resolvedPath);
   }
   return true;
 });
 
-// Open external URL
+// Open external URL strictly restricted to http/https
 ipcMain.handle('shell:open-external', async (_event, url: string) => {
-  if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
+  if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
     await shell.openExternal(url);
+  } else {
+    throw new Error('Invalid URL protocol. Only http: and https: are allowed.');
   }
 });
 
 // PDF parsing via modern pdfjs-dist with pdf-parse fallback
 ipcMain.handle('fs:parse-pdf', async (_event, arrayBuffer: ArrayBuffer) => {
+  if (!(arrayBuffer instanceof ArrayBuffer) && !Buffer.isBuffer(arrayBuffer)) {
+    throw new Error('Invalid argument: expected ArrayBuffer or Buffer');
+  }
   return parsePdfBuffer(arrayBuffer);
 });
 
 // DOCX parsing
 ipcMain.handle('fs:parse-docx', async (_event, arrayBuffer: ArrayBuffer) => {
+  if (!(arrayBuffer instanceof ArrayBuffer) && !Buffer.isBuffer(arrayBuffer)) {
+    throw new Error('Invalid argument: expected ArrayBuffer or Buffer');
+  }
   const buffer = Buffer.from(arrayBuffer);
   const result = await mammoth.extractRawText({ buffer });
   return result.value || '';
 });
 
-// Screen Capture & Apple Vision Neural OCR
+// Screen Capture & Apple Vision Neural OCR using execFile with argument arrays
 ipcMain.handle(
   'screen:capture-and-ocr',
   async (_event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
@@ -437,12 +527,11 @@ ipcMain.handle(
 
     try {
       if (isMac) {
-        const captureFlag = mode === 'snip' ? '-i -x' : '-x';
-        await execAsync(`screencapture ${captureFlag} "${tmpImg}"`);
+        const captureArgs = mode === 'snip' ? ['-i', '-x', tmpImg] : ['-x', tmpImg];
+        await execFileAsync('screencapture', captureArgs);
       } else {
-        const snipCmd = `maim -s "${tmpImg}" || scrot -s "${tmpImg}" || import "${tmpImg}"`;
-        const fullCmd = `maim "${tmpImg}" || scrot "${tmpImg}" || import -window root "${tmpImg}"`;
-        await execAsync(mode === 'snip' ? snipCmd : fullCmd);
+        const maimArgs = mode === 'snip' ? ['-s', tmpImg] : [tmpImg];
+        await execFileAsync('maim', maimArgs);
       }
 
       if (!fs.existsSync(tmpImg)) {
@@ -456,13 +545,18 @@ ipcMain.handle(
 
       let text = '';
       if (isMac && fs.existsSync(ocrBin)) {
-        const { stdout } = await execAsync(`"${ocrBin}" "${tmpImg}"`);
+        const { stdout } = await execFileAsync(ocrBin, [tmpImg]);
         text = stdout.trim();
       } else {
         try {
-          const { stdout } = await execAsync(
-            `tesseract "${tmpImg}" stdout --oem 1 -l eng 2>/dev/null || tesseract "${tmpImg}" stdout 2>/dev/null`
-          );
+          const { stdout } = await execFileAsync('tesseract', [
+            tmpImg,
+            'stdout',
+            '--oem',
+            '1',
+            '-l',
+            'eng',
+          ]);
           text = stdout.trim();
         } catch (err) {
           throw new Error(
@@ -492,6 +586,10 @@ ipcMain.handle(
 );
 
 ipcMain.handle('screen:ocr-image', async (_event, filePath: string) => {
+  if (typeof filePath !== 'string') {
+    return { success: false, error: 'Invalid file path' };
+  }
+
   const isMac = process.platform === 'darwin';
   const ocrBin = path.join(__dirname, '../bin/mac-ocr');
   try {
@@ -502,12 +600,17 @@ ipcMain.handle('screen:ocr-image', async (_event, filePath: string) => {
 
     let text = '';
     if (isMac && fs.existsSync(ocrBin)) {
-      const { stdout } = await execAsync(`"${ocrBin}" "${resolvedPath}"`);
+      const { stdout } = await execFileAsync(ocrBin, [resolvedPath]);
       text = stdout.trim();
     } else {
-      const { stdout } = await execAsync(
-        `tesseract "${resolvedPath}" stdout --oem 1 -l eng 2>/dev/null || tesseract "${resolvedPath}" stdout 2>/dev/null`
-      );
+      const { stdout } = await execFileAsync('tesseract', [
+        resolvedPath,
+        'stdout',
+        '--oem',
+        '1',
+        '-l',
+        'eng',
+      ]);
       text = stdout.trim();
     }
 
