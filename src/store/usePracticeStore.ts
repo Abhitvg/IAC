@@ -3,6 +3,7 @@ import {
   MockSessionState,
   MockRoundType,
   InterviewPersona,
+  InterviewPressure,
   BehavioralStory,
   TopicMastery,
   CompanyPracticePlan,
@@ -62,7 +63,8 @@ interface PracticeState {
   startMockSession: (
     roundType: MockRoundType,
     persona?: InterviewPersona,
-    interruptionEnabled?: boolean
+    interruptionEnabled?: boolean,
+    pressure?: InterviewPressure
   ) => void;
   tickTimer: () => void;
   setCurrentCandidateAnswer: (text: string) => void;
@@ -166,12 +168,19 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   setActiveView: (view) => set({ activeView: view }),
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  startMockSession: (roundType, persona = 'strict_big_tech', interruptionEnabled = false) => {
+  startMockSession: (
+    roundType,
+    persona = 'strict_big_tech',
+    interruptionEnabled = false,
+    pressure = 'normal'
+  ) => {
     const session = MockInterviewerEngine.createSession(
       roundType,
       persona,
       interruptionEnabled,
-      get().topicMasteries
+      get().topicMasteries,
+      pressure,
+      get().feedbackRecords
     );
     const category = session.questionHistory[0]?.category || 'behavioral';
     const availableHints = CoachingEngine.getTieredHints(session.currentQuestion, category);

@@ -6,7 +6,11 @@ import {
   TieredHint,
   RubricEvaluation,
   DeliveryMetrics,
+  InterviewPressure,
+  ExtractedWeakness,
+  FeedbackRecord,
 } from './types';
+import { WeaknessMap } from './feedback/WeaknessMap';
 import { RubricScorer } from './RubricScorer';
 import { DeliveryCoach } from './DeliveryCoach';
 import { CoachingEngine } from './CoachingEngine';
@@ -20,7 +24,9 @@ export class MockInterviewerEngine {
     roundType: MockRoundType,
     persona: InterviewPersona = 'strict_big_tech',
     interruptionEnabled: boolean = false,
-    topicMasteries?: any[]
+    topicMasteries?: any[],
+    pressure: InterviewPressure = 'normal',
+    feedbackRecords?: FeedbackRecord[]
   ): MockSessionState {
     const totalTimeSeconds = roundType === 'dress_rehearsal' ? 45 * 60 : 30 * 60;
     const initialCategory = this.getCategoryForRound(roundType, 'icebreaker');
@@ -30,12 +36,20 @@ export class MockInterviewerEngine {
       topicMasteries,
     });
     const initialQuestion = initialEntry.prompt;
+    const targetWeakness = this.findMatchingWeakness(
+      initialQuestion,
+      initialCategory,
+      feedbackRecords,
+      initialEntry.tags
+    );
 
     return {
       isActive: true,
       roundType,
       rehearsalPhase: roundType === 'dress_rehearsal' ? 'icebreaker' : undefined,
       persona,
+      pressure,
+      feedbackRecords,
       totalTimeSeconds,
       timeRemainingSeconds: totalTimeSeconds,
       interruptionEnabled,
@@ -51,6 +65,7 @@ export class MockInterviewerEngine {
           hintsUsed: [],
           interruptionCount: 0,
           probeCount: 0,
+          targetWeakness,
           questionId: initialEntry.id,
         },
       ],
@@ -60,17 +75,34 @@ export class MockInterviewerEngine {
   /**
    * Simulates the 2-4 second thoughtful pause real interviewers take before responding.
    */
-  public static getInterviewerThinkingDelay(persona: InterviewPersona): number {
+  public static getInterviewerThinkingDelay(
+    persona: InterviewPersona,
+    pressure: InterviewPressure = 'normal'
+  ): number {
+    let base: number;
     switch (persona) {
       case 'strict_big_tech':
-        return 3.5; // Takes thorough notes
+        base = 3.5; // Takes thorough notes
+        break;
       case 'startup_pragmatist':
-        return 2.0; // Fast cadence
+        base = 2.0; // Fast cadence
+        break;
       case 'friendly_recruiter':
-        return 2.5;
+        base = 2.5;
+        break;
       default:
-        return 3.0;
+        base = 3.0;
     }
+
+    if (pressure === 'high') {
+      // Rapid cadence under high pressure: 1.0s to 1.4s
+      return Math.max(1.0, Math.round(base * 0.4 * 10) / 10);
+    }
+    if (pressure === 'low') {
+      // Relaxed pause under low pressure: 3.0s to 5.2s
+      return Math.round(base * 1.5 * 10) / 10;
+    }
+    return base;
   }
 
   /**
@@ -141,11 +173,208 @@ export class MockInterviewerEngine {
    * REVERSED FOLLOW-UP ENGINE: Probes the weakest part of what the candidate actually said.
    * Real interviews are decided on the 2nd and 3rd follow-up.
    */
+
+  /**
+   * Identifies if a question or topic has a recorded depth or concreteness weakness from past feedback.
+   */
+  public static findMatchingWeakness(
+    questionText: string,
+    category: string,
+    feedbackRecords?: FeedbackRecord[],
+    questionTags: string[] = []
+  ): ExtractedWeakness | undefined {
+    if (!feedbackRecords || feedbackRecords.length === 0) {
+      return undefined;
+    }
+
+    const qTextLower = (questionText || '').toLowerCase();
+    const candidateWeaknesses: ExtractedWeakness[] = [];
+
+    for (const record of feedbackRecords) {
+      for (const w of record.weaknesses || []) {
+        if (w.skill !== 'depth' && w.skill !== 'concreteness') {
+          continue;
+        }
+
+        const topicLower = (w.topic || '').trim().toLowerCase();
+        if (!topicLower) continue;
+
+        // Check 1: direct substring in question text
+        if (qTextLower.includes(topicLower)) {
+          candidateWeaknesses.push(w);
+          continue;
+        }
+
+        // Check 2: Word boundary matching for short acronyms like 'OT'
+        if (topicLower.length <= 4) {
+          const regex = new RegExp(`\\b${topicLower}\\b`, 'i');
+          if (regex.test(questionText)) {
+            candidateWeaknesses.push(w);
+            continue;
+          }
+        }
+
+        // Check 3: Check question tags
+        if (questionTags.some((tag) => tag.toLowerCase() === topicLower)) {
+          candidateWeaknesses.push(w);
+          continue;
+        }
+
+        // Check 4: Check topic aliases (e.g. 'OT' -> 'ot' / 'collaborative_editing.ot')
+        const resolved = WeaknessMap.resolveTopic(w.topic);
+        const matchAlias = resolved.mappedTags.some(
+          (tag) =>
+            qTextLower.includes(tag.toLowerCase()) ||
+            questionTags.some((qt) => qt.toLowerCase() === tag.toLowerCase())
+        );
+        if (matchAlias) {
+          candidateWeaknesses.push(w);
+          continue;
+        }
+
+        // Check 5: Common expansions
+        if (topicLower === 'ot' && (qTextLower.includes('operational transformation') || qTextLower.includes('collaborative'))) {
+          candidateWeaknesses.push(w);
+          continue;
+        }
+      }
+    }
+
+    if (candidateWeaknesses.length === 0) {
+      return undefined;
+    }
+
+    // Sort by severity (highest first) then by presence of requestedFix
+    candidateWeaknesses.sort((a, b) => {
+      const fixA = a.requestedFix ? 1 : 0;
+      const fixB = b.requestedFix ? 1 : 0;
+      if (fixB !== fixA) return fixB - fixA;
+      return (b.severity || 1) - (a.severity || 1);
+    });
+
+    return candidateWeaknesses[0];
+  }
+
+  /**
+   * Generates a probe targeting a recorded depth or concreteness weakness,
+   * directly referencing the candidate's own words and asking for the requested fix.
+   */
+  public static generateTargetedWeaknessProbe(
+    candidateTranscript: string,
+    targetWeakness: { topic?: string; skill?: string; requestedFix?: string }
+  ): { spoken: string; evidence: string } {
+    const transcript = (candidateTranscript || '').trim();
+    const lowerTranscript = transcript.toLowerCase();
+
+    // 1. Find verbatim evidence from candidate's answer
+    let evidence = '';
+    const topic = (targetWeakness.topic || '').trim();
+    if (topic) {
+      const idx = lowerTranscript.indexOf(topic.toLowerCase());
+      if (idx !== -1) {
+        evidence = transcript.slice(idx, idx + topic.length);
+      }
+    }
+
+    if (!evidence && topic.toLowerCase() === 'ot') {
+      const idx = lowerTranscript.indexOf('operational transformation');
+      if (idx !== -1) {
+        evidence = transcript.slice(idx, idx + 'operational transformation'.length);
+      }
+    }
+
+    if (!evidence) {
+      // Find prominent technical terms mentioned in the answer
+      const commonTerms = [
+        'operational transformation',
+        'caching',
+        'cache',
+        'redis',
+        'event loop',
+        'database',
+        'microservices',
+        'concurrency',
+        'replication',
+        'partitioning',
+        'indexes',
+        'transactions',
+        'websockets',
+      ];
+      for (const term of commonTerms) {
+        const idx = lowerTranscript.indexOf(term);
+        if (idx !== -1) {
+          evidence = transcript.slice(idx, idx + term.length);
+          break;
+        }
+      }
+    }
+
+    if (!evidence) {
+      const words = transcript.split(/\s+/).filter(Boolean);
+      evidence = words.slice(0, Math.min(4, words.length)).join(' ');
+    }
+
+    // 2. Determine the requested fix requirement
+    const fixLower = (targetWeakness.requestedFix || '').toLowerCase();
+    let ask: string;
+
+    if (fixLower.includes('example') || fixLower.includes('concrete')) {
+      ask = 'Could you walk me through a concrete worked example showing step-by-step how that behaves in practice?';
+    } else if (
+      fixLower.includes('number') ||
+      fixLower.includes('metric') ||
+      fixLower.includes('threshold') ||
+      fixLower.includes('latency') ||
+      fixLower.includes('quantit')
+    ) {
+      ask = 'What specific numbers, throughput thresholds, or latency limits did you design for or measure?';
+    } else if (
+      fixLower.includes('tool') ||
+      fixLower.includes('technolog') ||
+      fixLower.includes('librar')
+    ) {
+      ask = 'What specific tools or technologies did you select for that component, and what were the key trade-offs?';
+    } else if (
+      fixLower.includes('state') ||
+      fixLower.includes('data model') ||
+      fixLower.includes('schema')
+    ) {
+      ask = 'Can you describe the specific state design and data models representing that flow?';
+    } else if (
+      fixLower.includes('failure') ||
+      fixLower.includes('crash') ||
+      fixLower.includes('fault') ||
+      fixLower.includes('error')
+    ) {
+      ask = 'How does your architecture handle failure handling and node recovery when that component crashes?';
+    } else if (
+      fixLower.includes('order') ||
+      fixLower.includes('sequence') ||
+      fixLower.includes('concurrent')
+    ) {
+      ask = 'What ordering guarantees and synchronization mechanisms do you enforce to handle concurrent mutations?';
+    } else if (targetWeakness.requestedFix) {
+      ask = `Could you provide a concrete worked example addressing: ${targetWeakness.requestedFix}?`;
+    } else {
+      ask = 'Could you walk me through a concrete worked example with specific numbers and failure handling?';
+    }
+
+    const spoken = evidence ? `You mentioned "${evidence}". ${ask}` : ask;
+
+    return { spoken, evidence };
+  }
+
   public static generateWeaknessProbe(
     candidateTranscript: string,
     currentQuestion: string,
-    category: string
+    category: string,
+    targetWeakness?: ExtractedWeakness | { topic?: string; skill?: string; requestedFix?: string }
   ): string {
+    if (targetWeakness && (targetWeakness.skill === 'depth' || targetWeakness.skill === 'concreteness')) {
+      const targeted = this.generateTargetedWeaknessProbe(candidateTranscript, targetWeakness);
+      return targeted.spoken;
+    }
+
     const lower = (candidateTranscript || '').toLowerCase();
 
     // 1. CODING / DSA PROBES
@@ -244,20 +473,70 @@ export class MockInterviewerEngine {
     activeItem.evaluation = evaluation;
     activeItem.delivery = delivery;
 
-    // Check if we should ask a probing follow-up or transition to next phase
-    const shouldProbe = !activeItem.isFollowUp && evaluation.overallScore < 4.8;
+    // Count how many probes have occurred for the current root question
+    let currentProbesCount = 0;
+    for (let i = session.questionHistory.length - 1; i >= 0; i--) {
+      if (session.questionHistory[i].isFollowUp) {
+        currentProbesCount++;
+      } else {
+        break;
+      }
+    }
+
+    const pressure = session.pressure || 'normal';
+    let shouldProbe = false;
+
+    // Strict cap: probe at most twice per question
+    if (currentProbesCount < 2) {
+      if (currentProbesCount === 0) {
+        if (pressure === 'low') {
+          shouldProbe = evaluation.overallScore < 2.4 || Boolean(activeItem.targetWeakness);
+        } else if (pressure === 'normal') {
+          shouldProbe = evaluation.overallScore < 4.8 || Boolean(activeItem.targetWeakness);
+        } else {
+          // High pressure: probe aggressively
+          shouldProbe = evaluation.overallScore < 4.95 || Boolean(activeItem.targetWeakness);
+        }
+      } else if (currentProbesCount === 1) {
+        // Second probe
+        if (pressure === 'low') {
+          shouldProbe = false; // Low pressure never asks a second probe
+        } else if (pressure === 'normal') {
+          shouldProbe = evaluation.overallScore < 4.0;
+        } else {
+          shouldProbe = evaluation.overallScore < 4.8;
+        }
+      }
+    }
+
     let nextQuestion = '';
     let nextPhase = session.rehearsalPhase;
 
     if (shouldProbe) {
-      // Generate follow-up probe targeting the weakest claim
-      nextQuestion = this.generateWeaknessProbe(candidateTranscript, activeItem.question, category);
+      let targetWeakness = activeItem.targetWeakness;
+      if (!targetWeakness && currentProbesCount === 0) {
+        targetWeakness = this.findMatchingWeakness(
+          activeItem.question,
+          category,
+          session.feedbackRecords
+        );
+      }
+
+      nextQuestion = this.generateWeaknessProbe(
+        candidateTranscript,
+        activeItem.question,
+        category,
+        currentProbesCount === 0 ? targetWeakness : undefined
+      );
+
       session.questionHistory.push({
         question: nextQuestion,
         category: activeItem.category,
         isFollowUp: true,
         candidateTranscript: '',
         hintsUsed: [],
+        probeCount: currentProbesCount + 1,
+        targetWeakness,
       });
     } else {
       // Transition to next phase in dress rehearsal or next question
@@ -276,12 +555,19 @@ export class MockInterviewerEngine {
           session.isActive = false;
           session.overallScorecard = this.generateConsolidatedScorecard(session);
         } else {
+          const nextTargetWeakness = this.findMatchingWeakness(
+            nextQuestion,
+            progression.category,
+            session.feedbackRecords
+          );
           session.questionHistory.push({
             question: nextQuestion,
             category: progression.category,
             isFollowUp: false,
             candidateTranscript: '',
             hintsUsed: [],
+            probeCount: 0,
+            targetWeakness: nextTargetWeakness,
             questionId: progression.questionId,
           });
         }
@@ -296,7 +582,7 @@ export class MockInterviewerEngine {
       ...session,
       rehearsalPhase: nextPhase,
       currentQuestion: nextQuestion || session.currentQuestion,
-      interviewerThinkingSeconds: this.getInterviewerThinkingDelay(session.persona),
+      interviewerThinkingSeconds: this.getInterviewerThinkingDelay(session.persona, session.pressure || 'normal'),
     };
   }
 

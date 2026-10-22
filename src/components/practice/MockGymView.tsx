@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePracticeStore } from '../../store/usePracticeStore';
-import { MockRoundType, InterviewPersona } from '../../services/practice/types';
+import { MockRoundType, InterviewPersona, InterviewPressure } from '../../services/practice/types';
 import { MockPressureRoom } from './MockPressureRoom';
 import { StoryBankView } from './StoryBankView';
 import { SpacedRepetitionView } from './SpacedRepetitionView';
@@ -14,11 +14,12 @@ export const MockGymView: React.FC = () => {
   const { activeTab, setActiveTab, activeSession, startMockSession } = usePracticeStore();
 
   const [selectedPersona, setSelectedPersona] = useState<InterviewPersona>('strict_big_tech');
+  const [selectedPressure, setSelectedPressure] = useState<InterviewPressure>('normal');
   const [interruptionEnabled, setInterruptionEnabled] = useState(false);
   const [showLauncher, setShowLauncher] = useState(false);
 
   const handleLaunch = (roundType: MockRoundType) => {
-    startMockSession(roundType, selectedPersona, interruptionEnabled);
+    startMockSession(roundType, selectedPersona, interruptionEnabled, selectedPressure);
     setShowLauncher(false);
   };
 
@@ -56,6 +57,20 @@ export const MockGymView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <span>Pressure:</span>
+            <select
+              value={selectedPressure}
+              onChange={(e) => setSelectedPressure(e.target.value as any)}
+              className="bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1 focus:ring-1 focus:ring-indigo-500"
+              aria-label="Select Interview Pressure"
+            >
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+
           <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
             <input
               type="checkbox"
@@ -212,6 +227,35 @@ export const MockGymView: React.FC = () => {
                       }`}
                     >
                       {p.replace(/_/g, ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-400 block mb-1">Interview Pressure</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: 'low', label: 'Low', desc: 'Relaxed pause, fewer probes' },
+                      { id: 'normal', label: 'Normal', desc: 'Standard interview pace' },
+                      { id: 'high', label: 'High', desc: 'Fast cadence, aggressive depth probes' },
+                    ] as const
+                  ).map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelectedPressure(p.id)}
+                      className={'p-2 rounded-lg border text-center transition ' + (
+                        selectedPressure === p.id
+                          ? 'bg-indigo-600 text-white border-indigo-500 shadow'
+                          : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+                      )}
+                    >
+                      <span className="block font-semibold text-xs">{p.label}</span>
+                      <span className="block text-[10px] text-slate-400 mt-0.5 leading-tight">
+                        {p.desc}
+                      </span>
                     </button>
                   ))}
                 </div>

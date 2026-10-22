@@ -1,5 +1,6 @@
 import { DeterministicSignals } from './scoring/DeterministicSignals';
 export type InterviewPersona = 'strict_big_tech' | 'startup_pragmatist' | 'friendly_recruiter';
+export type InterviewPressure = 'low' | 'normal' | 'high';
 
 export type MockRoundType =
   | 'dress_rehearsal' // Complete 45-minute loop
@@ -122,44 +123,6 @@ export interface CompanyPracticePlan {
   createdAt: number;
 }
 
-export interface MockSessionState {
-  isActive: boolean;
-  roundType: MockRoundType;
-  rehearsalPhase?: RehearsalPhase;
-  persona: InterviewPersona;
-  totalTimeSeconds: number;
-  timeRemainingSeconds: number;
-  interruptionEnabled: boolean;
-  isInterviewerSpeaking: boolean;
-  interviewerThinkingSeconds: number; // Simulated pause after candidate finishes
-  currentQuestion: string;
-  questionHistory: Array<{
-    question: string;
-    category: string;
-    isFollowUp: boolean;
-    candidateTranscript: string;
-    evaluation?: RubricEvaluation;
-    delivery?: DeliveryMetrics;
-    hintsUsed: TieredHint[];
-    interruptionCount?: number;
-    probeCount?: number;
-    questionId?: string;
-  }>;
-  isOfflineInterviewer?: boolean;
-  overallScorecard?: {
-    finalRating: 'Strong No Hire' | 'No Hire' | 'Leaning Hire' | 'Hire' | 'Strong Hire';
-    averageScore: number;
-    codingScore?: number;
-    systemDesignScore?: number;
-    behavioralScore?: number;
-    deliveryScore: number;
-    structureScore?: number;
-    concretenessScore?: number;
-    keyStrengths: string[];
-    topImprovementPriorities: string[];
-  };
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // Feedback Import & Weakness Analysis Types
 // ═══════════════════════════════════════════════════════════════════
@@ -181,6 +144,8 @@ export interface FeedbackWeakness {
   requestedFix: string;
 }
 
+export type ExtractedWeakness = FeedbackWeakness;
+
 export interface FeedbackRecord {
   id: string;
   date: string;
@@ -196,6 +161,48 @@ export interface FeedbackRecord {
   sourceHash: string;
   isEstimated?: boolean;
   createdAt: number;
+}
+
+
+export interface MockSessionState {
+  isActive: boolean;
+  roundType: MockRoundType;
+  rehearsalPhase?: RehearsalPhase;
+  persona: InterviewPersona;
+  pressure?: InterviewPressure;
+  feedbackRecords?: FeedbackRecord[];
+  totalTimeSeconds: number;
+  timeRemainingSeconds: number;
+  interruptionEnabled: boolean;
+  isInterviewerSpeaking: boolean;
+  interviewerThinkingSeconds: number; // Simulated pause after candidate finishes
+  currentQuestion: string;
+  questionHistory: Array<{
+    question: string;
+    category: string;
+    isFollowUp: boolean;
+    candidateTranscript: string;
+    evaluation?: RubricEvaluation;
+    delivery?: DeliveryMetrics;
+    hintsUsed: TieredHint[];
+    interruptionCount?: number;
+    probeCount?: number;
+    targetWeakness?: ExtractedWeakness;
+    questionId?: string;
+  }>;
+  isOfflineInterviewer?: boolean;
+  overallScorecard?: {
+    finalRating: 'Strong No Hire' | 'No Hire' | 'Leaning Hire' | 'Hire' | 'Strong Hire';
+    averageScore: number;
+    codingScore?: number;
+    systemDesignScore?: number;
+    behavioralScore?: number;
+    deliveryScore: number;
+    structureScore?: number;
+    concretenessScore?: number;
+    keyStrengths: string[];
+    topImprovementPriorities: string[];
+  };
 }
 
 export interface RankedWeakness {
