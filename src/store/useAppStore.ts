@@ -313,8 +313,18 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     }
   },
 
-  loadSettings: () => {
+  loadSettings: async () => {
     try {
+      if (window.electronAPI?.getSettings) {
+        try {
+          const electronSettings = await window.electronAPI.getSettings();
+          if (electronSettings && typeof electronSettings === 'object') {
+            set((state) => ({
+              settings: { ...state.settings, ...electronSettings },
+            }));
+          }
+        } catch (_) {}
+      }
       const savedResume = localStorage.getItem('candidate_resume');
       const savedJD = localStorage.getItem('target_job_description');
       const savedRole = localStorage.getItem('target_role');
@@ -406,6 +416,9 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       if (saved) lang = saved;
     } catch (_) {}
     return {
+      aiProvider: 'groq',
+      aiModel: 'openai/gpt-oss-120b',
+      whisperModel: 'whisper-large-v3-turbo',
       temperature: 0.2,
       maxTokens: 2000,
       type: 'groq',

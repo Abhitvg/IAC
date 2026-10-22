@@ -80,7 +80,14 @@ export class CredentialStore {
       throw new Error('API key exceeds maximum length of 2048 characters');
     }
 
-    const trimmed = key.trim();
+    let trimmed = key.trim();
+    if (service === 'groq') {
+      const m = trimmed.match(/gsk_[A-Za-z0-9_-]+/);
+      if (!m) {
+        throw new Error('Invalid Groq API key format. Groq API keys must begin with "gsk_".');
+      }
+      trimmed = m[0];
+    }
 
     // Check if safeStorage is available
     if (
@@ -112,29 +119,66 @@ export class CredentialStore {
     return true;
   }
 
+  private getEnvKey(service: string): string | null {
+    if (service === 'groq') {
+      const fromEnv = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+      if (fromEnv && fromEnv.startsWith('gsk_')) return fromEnv;
+      try {
+        const envPath = path.join(process.cwd(), '.env.local');
+        if (fs.existsSync(envPath)) {
+          const raw = fs.readFileSync(envPath, 'utf8');
+          const m = raw.match(/(?:VITE_)?GROQ_API_KEY\s*=\s*['"]?(gsk_[A-Za-z0-9_-]+)['"]?/);
+          if (m && m[1]) return m[1];
+        }
+      } catch {}
+    }
+    return null;
+  }
+
   public async getKey(service: string): Promise<string | null> {
     if (!this.isValidService(service)) {
       return null;
     }
 
     const record = this.store.get(`secure_credentials.${service}`, null);
-    if (!record || !record.data) {
-      return null;
+    if (record && record.data) {
+      try {
+        let decrypted: string | null = null;
+        if (record.type === 'safeStorage') {
+          if (safeStorage && typeof safeStorage.decryptString === 'function') {
+            const buffer = Buffer.from(record.data, 'base64');
+            decrypted = safeStorage.decryptString(buffer);
+          }
+        } else if (record.type === 'aes-gcm') {
+          const aesKey = getFallbackAesKey(this.userDataPath);
+          decrypted = aesDecrypt(record.data, aesKey);
+        }
+
+        if (decrypted) {
+          if (service === 'groq') {
+            const m = decrypted.match(/gsk_[A-Za-z0-9_-]+/);
+            if (m) return m[0];
+            console.warn(
+              '[CredentialStore] Stored Groq credential was invalid. Falling back to env key.'
+            );
+          } else {
+            return decrypted;
+          }
+        }
+      } catch (err) {
+        console.error(`[CredentialStore] Decryption failed for service ${service}:`, err);
+      }
     }
 
-    try {
-      if (record.type === 'safeStorage') {
-        if (safeStorage && typeof safeStorage.decryptString === 'function') {
-          const buffer = Buffer.from(record.data, 'base64');
-          return safeStorage.decryptString(buffer);
-        }
-      } else if (record.type === 'aes-gcm') {
-        const aesKey = getFallbackAesKey(this.userDataPath);
-        return aesDecrypt(record.data, aesKey);
+    // Robust fallback: check environment variables and .env.local
+    if (service === 'groq') {
+      const fallbackKey = this.getEnvKey('groq');
+      if (fallbackKey) {
+        const m = fallbackKey.match(/gsk_[A-Za-z0-9_-]+/);
+        const clean = m ? m[0] : fallbackKey;
+        this.setKey('groq', clean).catch(() => {});
+        return clean;
       }
-    } catch (err) {
-      console.error(`[CredentialStore] Decryption failed for service ${service}:`, err);
-      return null;
     }
 
     return null;

@@ -878,9 +878,15 @@ export async function streamAnswer(
           ? 'https://api.groq.com/openai/v1/chat/completions'
           : config.customEndpoint || 'https://api.openai.com/v1/chat/completions';
 
+  let cleanKey = (config.apiKey || '').trim();
+  if (config.type === 'groq') {
+    const match = cleanKey.match(/gsk_[A-Za-z0-9_-]+/);
+    if (match) cleanKey = match[0];
+  }
+
   const headers: any = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${config.apiKey}`,
+    Authorization: `Bearer ${cleanKey}`,
   };
   if (config.type === 'openrouter') headers['HTTP-Referer'] = 'ai-interview-assistant';
 

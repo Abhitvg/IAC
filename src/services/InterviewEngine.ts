@@ -190,9 +190,13 @@ export class InterviewEngine {
           globalLatencyTracker.mark('generationStart');
           const currentStore = useAppStore.getState();
           const provider = currentStore.settings?.aiProvider || 'groq';
-          const apiKey =
+          let apiKey =
             (await window.electronAPI?.getApiKey?.(provider)) ||
             (provider === 'groq' ? await window.electronAPI?.getApiKey?.('openai') : null);
+          if (apiKey && provider === 'groq') {
+            const m = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
+            if (m) apiKey = m[0];
+          }
 
           if (!apiKey && provider !== 'ollama') {
             throw new Error(
@@ -375,9 +379,13 @@ export class InterviewEngine {
           globalLatencyTracker.mark('generationStart');
           const currentStore = useAppStore.getState();
           const provider = currentStore.settings?.aiProvider || 'groq';
-          const apiKey =
+          let apiKey =
             (await window.electronAPI?.getApiKey?.(provider)) ||
             (provider === 'groq' ? await window.electronAPI?.getApiKey?.('openai') : null);
+          if (apiKey && provider === 'groq') {
+            const m = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
+            if (m) apiKey = m[0];
+          }
 
           if (!apiKey && provider !== 'ollama') {
             throw new Error(

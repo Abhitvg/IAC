@@ -57,10 +57,12 @@ export async function transcribeAudio(
   }
 
   if (apiKey) {
-    if (apiKey.startsWith('gsk_')) {
-      return transcribeGroq(audioBlob, apiKey, config);
+    const match = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
+    const cleanKey = match ? match[0] : apiKey.trim();
+    if (cleanKey.startsWith('gsk_')) {
+      return transcribeGroq(audioBlob, cleanKey, config);
     }
-    return transcribeOpenAI(audioBlob, { ...config, apiKey });
+    return transcribeOpenAI(audioBlob, { ...config, apiKey: cleanKey });
   }
 
   throw new Error(

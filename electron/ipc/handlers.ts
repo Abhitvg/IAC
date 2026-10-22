@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { ipcMain, BrowserWindow } from 'electron';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
@@ -112,27 +114,71 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
 
   const credentialStore = new CredentialStore(store);
 
-  // One-time automatic migration: migrate any legacy .env.local Groq key into safeStorage
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const envPath = path.join(process.cwd(), '.env.local');
-    if (fs.existsSync(envPath)) {
-      const envRaw = fs.readFileSync(envPath, 'utf8');
-      const match = envRaw.match(/VITE_GROQ_API_KEY=(gsk_[A-Za-z0-9_-]+)/);
-      if (match && match[1]) {
-        credentialStore.hasKey('groq').then((has) => {
-          if (!has) {
-            credentialStore.setKey('groq', match[1]);
-            console.log(
-              '[CredentialStore] Successfully migrated legacy API key to Electron safeStorage.'
-            );
-          }
+  // Validate Groq key on startup
+  credentialStore.getKey('groq').then(async (testKey) => {
+    console.log('[CredentialStore Startup Test] Validating Groq key configured:', !!testKey);
+    if (testKey) {
+      try {
+        const fetchRes = await fetch('https://api.groq.com/openai/v1/models', {
+          headers: { Authorization: `Bearer ${testKey}` },
         });
+        console.log('[CredentialStore Startup Test] Groq API HTTP Status:', fetchRes.status);
+        if (fetchRes.status === 401) {
+          console.warn(
+            '[CredentialStore Startup Test] 401 detected. Refreshing key from .env.local fallback...'
+          );
+          const envPath = require('path').join(process.cwd(), '.env.local');
+          if (fs.existsSync(envPath)) {
+            const raw = fs.readFileSync(envPath, 'utf8');
+            const m = raw.match(/(?:VITE_)?GROQ_API_KEY\s*=\s*['"]?(gsk_[A-Za-z0-9_-]+)['"]?/);
+            if (m && m[1]) {
+              await credentialStore.setKey('groq', m[1]);
+              console.log('[CredentialStore Startup Test] Key successfully re-synced.');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[CredentialStore Startup Test] Groq test error:', err);
       }
     }
+  });
+
+  // Automatic credential & model migration
+  try {
+    const envPath = path.join(process.cwd(), '.env.local');
+    let keyToMigrate = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+    if (!keyToMigrate && fs.existsSync(envPath)) {
+      const envRaw = fs.readFileSync(envPath, 'utf8');
+      const match = envRaw.match(/(?:VITE_)?GROQ_API_KEY\s*=\s*['"]?(gsk_[A-Za-z0-9_-]+)['"]?/);
+      if (match && match[1]) keyToMigrate = match[1];
+    }
+    if (keyToMigrate) {
+      credentialStore.hasKey('groq').then((has) => {
+        if (!has) {
+          credentialStore.setKey('groq', keyToMigrate);
+          console.log('[CredentialStore] Auto-configured Groq API key.');
+        }
+      });
+    }
+
+    // Auto-heal provider/model settings if set to broken or missing models
+    const curProvider = store.get('aiProvider');
+    if (!curProvider || curProvider === 'openrouter') {
+      store.set('aiProvider', 'groq');
+      store.set('aiModel', 'openai/gpt-oss-120b');
+      store.set('whisperModel', 'whisper-large-v3-turbo');
+    }
+    const curModel = store.get('aiModel');
+    if (
+      !curModel ||
+      curModel === 'openrouter/free' ||
+      curModel === 'llama-3.3-70b-versatile' ||
+      curModel === 'llama-3.1-8b-instant'
+    ) {
+      store.set('aiModel', 'openai/gpt-oss-120b');
+    }
   } catch (err) {
-    console.warn('[CredentialStore] Legacy key migration notice:', err);
+    console.warn('[CredentialStore] Migration notice:', err);
   }
 
   // Settings IPC with schema validation
@@ -145,7 +191,10 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
 
   // Secure safeStorage credential handlers
   ipcMain.handle('credentials:get', async (_event, service: string) => {
-    return credentialStore.getKey(service);
+    const k = await credentialStore.getKey(service);
+    // Key retrieved securely
+    console.log('[IPC credentials:get]', service, 'configured:', !!k);
+    return k;
   });
 
   ipcMain.handle('credentials:set', async (_event, service: string, key: string) => {
