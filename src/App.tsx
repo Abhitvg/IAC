@@ -20,6 +20,7 @@ export default function App() {
     toggleRecording,
     analyzeTranscript,
     copyAnswer,
+    clearAndResetToListen,
     settingsOpen,
     sessionsOpen,
     resumeModalOpen,
@@ -61,6 +62,12 @@ export default function App() {
         return;
       if (settingsOpen || sessionsOpen) return;
 
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        clearAndResetToListen();
+        return;
+      }
+
       switch (e.key.toLowerCase()) {
         case 'r':
           e.preventDefault();
@@ -76,7 +83,7 @@ export default function App() {
           break;
       }
     },
-    [settingsOpen, sessionsOpen, isRecording, isGenerating]
+    [settingsOpen, sessionsOpen, isRecording, isGenerating, clearAndResetToListen]
   );
 
   useEffect(() => {

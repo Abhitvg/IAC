@@ -442,6 +442,7 @@ export default function TeleprompterView() {
     toggleRecording,
     copyAnswer,
     copyCodeOnly,
+    clearAndResetToListen,
     responseMode,
     setResponseMode,
     setSettingsOpen,
@@ -704,6 +705,13 @@ export default function TeleprompterView() {
         }
         e.preventDefault();
         window.electronAPI?.toggleVisibility?.();
+        return;
+      }
+
+      // Clear / Next Question Shortcut: Cmd+K or Cmd+Backspace
+      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'k' || e.key === 'Backspace')) {
+        e.preventDefault();
+        clearAndResetToListen();
         return;
       }
 
@@ -1153,6 +1161,31 @@ export default function TeleprompterView() {
             <span>⏱️</span>
             <span>{formatTimer(seconds)}</span>
           </div>
+
+          {/* Quick Clear Button in Top Bar */}
+          {currentAnswer && (
+            <button
+              onClick={clearAndResetToListen}
+              title="Clear answer and listen for new question (Shortcut: ⌘K)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'rgba(239, 68, 68, 0.18)',
+                border: '1px solid rgba(248, 113, 113, 0.4)',
+                color: '#fca5a5',
+                borderRadius: '4px',
+                padding: '3px 7px',
+                fontSize: '11px',
+                fontWeight: 650,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>✨ Clear (⌘K)</span>
+            </button>
+          )}
 
           {/* Word Count & Read Time Badge (Responsive) */}
           {currentAnswer && !isCompact && (
@@ -2315,26 +2348,48 @@ export default function TeleprompterView() {
             )}
           </div>
 
-          {/* Right: Copy Full Answer Button */}
+          {/* Right: Action Buttons (Clear & Copy) */}
           {currentAnswer && (
-            <button
-              onClick={copyAnswer}
-              title="Copy entire answer including explanations to clipboard"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                color: '#cbd5e1',
-                borderRadius: '4px',
-                padding: '3px 8px',
-                fontSize: '11px',
-                cursor: 'pointer',
-              }}
-            >
-              <Copy size={11} /> Copy Full Answer
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={clearAndResetToListen}
+                title="Clear current answer and listen for new question (Shortcut: ⌘K)"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'rgba(239, 68, 68, 0.16)',
+                  border: '1px solid rgba(248, 113, 113, 0.35)',
+                  color: '#fca5a5',
+                  borderRadius: '4px',
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  fontWeight: 650,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span>✨ New Question (⌘K)</span>
+              </button>
+              <button
+                onClick={copyAnswer}
+                title="Copy entire answer including explanations to clipboard"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  color: '#cbd5e1',
+                  borderRadius: '4px',
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                }}
+              >
+                <Copy size={11} /> Copy Full Answer
+              </button>
+            </div>
           )}
         </div>
       </div>

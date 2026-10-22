@@ -43,6 +43,57 @@ export const MockPressureRoom: React.FC = () => {
     }
   }, [transcript, isRecording]);
 
+  const [autoReadQuestions, setAutoReadQuestions] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const speakText = (text: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    if (!text || !text.trim()) {
+      setIsSpeaking(false);
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    const voices = window.speechSynthesis.getVoices();
+    const naturalVoice = voices.find(
+      (v) =>
+        (v.lang.startsWith('en') &&
+          (v.name.includes('Daniel') || v.name.includes('Samantha') || v.name.includes('Karen'))) ||
+        v.lang === 'en-US'
+    );
+    if (naturalVoice) utterance.voice = naturalVoice;
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopSpeaking = () => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  };
+
+  // Auto-speak new questions when session advances
+  useEffect(() => {
+    if (autoReadQuestions && activeSession?.currentQuestion && activeSession.isActive) {
+      speakText(activeSession.currentQuestion);
+    }
+    return () => stopSpeaking();
+  }, [activeSession?.currentQuestion, autoReadQuestions, activeSession?.isActive]);
+
+  // Auto-speak interruptions
+  useEffect(() => {
+    if (autoReadQuestions && interruptionBanner) {
+      speakText(`Excuse me: ${interruptionBanner}`);
+    }
+  }, [interruptionBanner, autoReadQuestions]);
+
   if (!activeSession) {
     return null;
   }
@@ -153,7 +204,7 @@ export const MockPressureRoom: React.FC = () => {
       {/* Question Card */}
       {activeSession.isActive ? (
         <div className="p-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-2xl space-y-4">
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-center flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                 {currentHistoryItem?.category || 'Question'}
@@ -163,6 +214,34 @@ export const MockPressureRoom: React.FC = () => {
                   Targeted Weakness Follow-up
                 </span>
               )}
+            </div>
+
+            {/* Speech synthesis audio controls */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  isSpeaking ? stopSpeaking() : speakText(activeSession.currentQuestion)
+                }
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  isSpeaking
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse'
+                    : 'bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 border border-indigo-500/30'
+                }`}
+                title="Speak question using AI Voice"
+              >
+                <span>{isSpeaking ? '⏹️ Stop Voice' : '🔊 Read Aloud'}</span>
+              </button>
+
+              <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={autoReadQuestions}
+                  onChange={(e) => setAutoReadQuestions(e.target.checked)}
+                  className="rounded border-slate-700 bg-slate-900 text-indigo-500 focus:ring-0"
+                />
+                <span>Auto-read questions</span>
+              </label>
             </div>
           </div>
 

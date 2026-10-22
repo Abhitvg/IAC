@@ -223,8 +223,7 @@ export class InterviewEngine {
           const isHardQuestion =
             ['System Design', 'Coding', 'DSA'].includes(detectedCategory) ||
             event.text.length > 100;
-          const smartModel =
-            isCoding || isHardQuestion ? 'openai/gpt-oss-120b' : 'qwen/qwen3.8-27b';
+          const smartModel = 'openai/gpt-oss-120b';
           const smartTemperature = isCoding
             ? 0.1
             : isHardQuestion

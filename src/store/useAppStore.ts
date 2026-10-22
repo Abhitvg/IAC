@@ -72,6 +72,7 @@ interface InterviewState {
   incrementGenerationId: () => void;
 
   clearAnswerQueue: () => void;
+  clearAndResetToListen: () => void;
   toggleRecording: () => void;
   analyzeTranscript: () => void;
 
@@ -283,7 +284,19 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       currentSentenceIndex: 0,
       answerSentences: [],
       currentAnswer: null,
+      currentQuestion: null,
+      recitalState: 'listening',
     }),
+
+  clearAndResetToListen: () => {
+    get().clearAnswerQueue();
+    get().setToast('✨ Teleprompter cleared! Ready for next question.');
+    get().updateDiagnostics({
+      whisperStatus: 'Ready for question (mic active)',
+      latestTranscript: '',
+      questionMatched: false,
+    });
+  },
 
   toggleRecording: () => {
     const { status } = get();

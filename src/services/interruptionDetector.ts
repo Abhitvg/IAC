@@ -78,6 +78,7 @@ const STOP_WORDS = new Set([
   'uh',
   'ah',
   'er',
+  'across',
 ]);
 
 /** Extract meaningful lowercase word tokens */
@@ -85,7 +86,7 @@ export function extractTokens(text: string): string[] {
   if (!text) return [];
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .split(/\s+/)
     .filter((w) => w.length > 1 && !STOP_WORDS.has(w));
 }
@@ -151,6 +152,8 @@ const INTERRUPTION_PATTERNS = [
   /\b(could you explain|could you elaborate|could you clarify|could you walk me through)\b/i,
   /\b(tell me more about|are you saying|do you mean|are you sure)\b/i,
   /\b(what was the|which tool|which framework|which database)\b/i,
+  /\b(what is|what are|how to|tell me about|tell me something|difference between|compare|differentiate|define|explain to me)\b/i,
+  /\b(kya hai|kaise|batao|samjhao|bataiye|samjhaiye|kuch batao)\b/i,
 ];
 
 /** First-person phrasing typically spoken by the candidate answering */
@@ -200,20 +203,19 @@ export function classifyUtterance(
 
   const hasActiveAnswer = fullReferenceText.trim().length > 15;
 
-  // 2. Interruption Check: Did the interviewer use an interruption cue?
-  for (const pattern of INTERRUPTION_PATTERNS) {
-    if (pattern.test(trimmed)) {
-      return {
-        type: 'INTERVIEWER_INTERRUPTION',
-        confidence: 0.95,
-        reason: `Interruption marker matched: ${pattern}`,
-        questionText: trimmed,
-      };
-    }
-  }
-
-  // 3. When a reference answer is active:
+  // 2. When a reference answer is active:
   if (hasActiveAnswer) {
+    // A. Interruption Check: Did the interviewer use an explicit interruption cue?
+    for (const pattern of INTERRUPTION_PATTERNS) {
+      if (pattern.test(trimmed)) {
+        return {
+          type: 'INTERVIEWER_INTERRUPTION',
+          confidence: 0.95,
+          reason: `Interruption marker matched: ${pattern}`,
+          questionText: trimmed,
+        };
+      }
+    }
     const { tokenOverlap, compositeScore } = calculateOverlap(trimmed, fullReferenceText);
 
     // A. Direct candidate recital: high token overlap with reference answer
@@ -230,7 +232,10 @@ export function classifyUtterance(
     const isFirstPersonNarrative = CANDIDATE_NARRATIVE_PATTERNS.some((p) => p.test(trimmed));
     const hasQuestionSign =
       trimmed.includes('?') ||
-      /^(what|why|how|who|when|where|which|can|could|would)\b/i.test(trimmed);
+      /^(what|why|how|who|when|where|which|can|could|would|tell|explain|describe|define|compare|difference|implement|solve|write|give|walk)\b/i.test(
+        trimmed
+      ) ||
+      /^(kya|kaise|kyun|batao|samjhao)\b/i.test(trimmed);
 
     if (isFirstPersonNarrative && !hasQuestionSign) {
       return {
@@ -252,13 +257,13 @@ export function classifyUtterance(
       };
     }
 
-    // D. Low overlap (> 4 words, < 12% overlap) that isn't first person -> Third person speaking
+    // D. Low overlap (>= 2 words, < 8% overlap) that isn't first-person recital -> New prompt/question
     const wordCount = trimmed.split(/\s+/).length;
-    if (wordCount >= 4 && compositeScore < 0.12 && !isFirstPersonNarrative) {
+    if (wordCount >= 2 && compositeScore < 0.08 && !isFirstPersonNarrative) {
       return {
         type: 'INTERVIEWER_INTERRUPTION',
-        confidence: 0.8,
-        reason: `Third person speech with ${Math.round(compositeScore * 100)}% overlap to current answer`,
+        confidence: 0.88,
+        reason: `Distinct question detected (${Math.round(compositeScore * 100)}% overlap to active answer)`,
         questionText: trimmed,
         overlapScore: compositeScore,
       };

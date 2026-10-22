@@ -912,8 +912,8 @@ export async function streamAnswer(
       // Robust multi-tier fallback chain for Groq models
       const fallbackModels = [
         'openai/gpt-oss-120b',
-        'qwen/qwen3.8-27b',
         'openai/gpt-oss-20b',
+        'qwen/qwen3.8-27b',
       ].filter((m) => m !== config.model);
 
       for (const fbModel of fallbackModels) {
