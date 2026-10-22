@@ -68,7 +68,9 @@ export class StructureAnalyzer {
     transcript: string;
     question: string;
     durationSeconds?: number;
-    llmCaller?: ((prompt: string, model?: string) => Promise<string>) | ((prompt: string, model: string) => Promise<string>);
+    llmCaller?:
+      | ((prompt: string, model?: string) => Promise<string>)
+      | ((prompt: string, model: string) => Promise<string>);
   }): Promise<StructureAnalysisResult> {
     const rawTranscript = (params.transcript || '').trim();
     const words = rawTranscript.split(/\s+/).filter(Boolean);
@@ -378,7 +380,9 @@ export class StructureAnalyzer {
    */
   public static async generateRewrite(params: {
     paragraph: string;
-    llmCaller?: ((prompt: string, model?: string) => Promise<string>) | ((prompt: string, model: string) => Promise<string>);
+    llmCaller?:
+      | ((prompt: string, model?: string) => Promise<string>)
+      | ((prompt: string, model: string) => Promise<string>);
   }): Promise<SuggestedRewrite> {
     const original = (params.paragraph || '').trim();
 

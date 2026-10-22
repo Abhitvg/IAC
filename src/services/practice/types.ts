@@ -324,3 +324,41 @@ export interface SuggestedRewrite {
   extractedTools: string[];
   isGrounded: boolean;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// 90-Second Explainer Drill & Concept Cards
+// ═══════════════════════════════════════════════════════════════════
+
+export interface ExplainerAttempt {
+  id: string;
+  topic: string;
+  attemptNumber: number;
+  timestamp: number;
+  dateKey: string;
+  transcript: string;
+  timeLimitSeconds: 30 | 60 | 90;
+  elapsedSeconds: number;
+  stayedWithinTime: boolean;
+  structureScore: number;
+  concretenessScore: number;
+  compositeScore: number;
+  delivery: DeliveryMetrics;
+  improvementTarget: string;
+  scoreDelta?: {
+    structureDelta: number;
+    concretenessDelta: number;
+    compositeDelta: number;
+  };
+}
+
+export interface ConceptCard {
+  id: string;
+  topic: string;
+  coreIdea: string;
+  workedExample: string;
+  commonPitfall: string;
+  tradeOff: string;
+  isEditedByUser: boolean;
+  disclaimer: 'AI-generated, verify before relying on it';
+  updatedAt: number;
+}

@@ -9,7 +9,10 @@ import {
   TieredHint,
   FeedbackRecord,
   WeaknessPracticePlan,
+  ExplainerAttempt,
+  ConceptCard,
 } from '../services/practice/types';
+import { ExplainerDrillService } from '../services/practice/coach/ExplainerDrillService';
 import { WeaknessMap } from '../services/practice/feedback/WeaknessMap';
 import { MockInterviewerEngine } from '../services/practice/MockInterviewerEngine';
 import { CoachingEngine } from '../services/practice/CoachingEngine';
@@ -27,7 +30,8 @@ interface PracticeState {
     | 'company_prep'
     | 'delivery_trends'
     | 'feedback'
-    | 'weakness_map';
+    | 'weakness_map'
+    | 'explainer_drill';
   activeSession: MockSessionState | null;
   sessionHistory: MockSessionState[];
   storyBank: BehavioralStory[];
@@ -53,6 +57,7 @@ interface PracticeState {
       | 'delivery_trends'
       | 'feedback'
       | 'weakness_map'
+      | 'explainer_drill'
   ) => void;
   startMockSession: (
     roundType: MockRoundType,
@@ -98,6 +103,12 @@ interface PracticeState {
   setWeaknessPlan: (plan: WeaknessPracticePlan) => void;
   seedSchedulerFromWeaknesses: () => void;
   toggleWeaknessDrillCompleted: (day: number, drillId: string) => void;
+  explainerAttempts: ExplainerAttempt[];
+  conceptCards: Record<string, ConceptCard>;
+  activeExplainerTopic: string;
+  setActiveExplainerTopic: (topic: string) => void;
+  recordExplainerAttempt: (attempt: ExplainerAttempt) => void;
+  saveConceptCard: (card: ConceptCard) => void;
 }
 
 const STORAGE_KEYS = {
@@ -107,6 +118,8 @@ const STORAGE_KEYS = {
   PLANS: 'ai_practice_company_plans_v1',
   FEEDBACK: 'ai_practice_feedback_v1',
   WEAKNESS_PLAN: 'ai_practice_weakness_plan_v1',
+  EXPLAINER_ATTEMPTS: 'ai_practice_explainer_attempts_v1',
+  CONCEPT_CARDS: 'ai_practice_concept_cards_v1',
 };
 
 function loadStored<T>(key: string, fallback: T): T {
@@ -140,6 +153,9 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   activeCompanyPlan: null,
   feedbackRecords: loadStored<FeedbackRecord[]>(STORAGE_KEYS.FEEDBACK, []),
   weaknessPlan: loadStored<WeaknessPracticePlan | null>(STORAGE_KEYS.WEAKNESS_PLAN, null),
+  explainerAttempts: loadStored<ExplainerAttempt[]>(STORAGE_KEYS.EXPLAINER_ATTEMPTS, []),
+  conceptCards: loadStored<Record<string, ConceptCard>>(STORAGE_KEYS.CONCEPT_CARDS, {}),
+  activeExplainerTopic: 'Distributed Caching',
 
   currentCandidateAnswer: '',
   speakingStartTime: null,
@@ -410,6 +426,41 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     );
     persist(STORAGE_KEYS.TOPICS, updatedMasteries);
     set({ topicMasteries: updatedMasteries });
+  },
+
+  setActiveExplainerTopic: (topic) => set({ activeExplainerTopic: topic }),
+
+  recordExplainerAttempt: (attempt) => {
+    const attempts = [attempt, ...get().explainerAttempts];
+    persist(STORAGE_KEYS.EXPLAINER_ATTEMPTS, attempts);
+    set({ explainerAttempts: attempts });
+
+    // Feed into SpacedScheduler mastery upgrade rule (requires 2 consecutive attempts with structure >= 4 & concreteness >= 4)
+    const masteries = [...get().topicMasteries];
+    const topicLower = attempt.topic.toLowerCase();
+    const mIdx = masteries.findIndex(
+      (m) =>
+        m.topicName.toLowerCase() === topicLower || m.topicId.toLowerCase().includes(topicLower)
+    );
+
+    if (mIdx !== -1) {
+      const attemptsForTopic = attempts.filter((a) => a.topic.toLowerCase() === topicLower);
+      const { updatedMastery, improved } = ExplainerDrillService.updateMasteryFromAttempts(
+        masteries[mIdx],
+        attemptsForTopic
+      );
+      if (improved) {
+        masteries[mIdx] = updatedMastery;
+        persist(STORAGE_KEYS.TOPICS, masteries);
+        set({ topicMasteries: masteries });
+      }
+    }
+  },
+
+  saveConceptCard: (card) => {
+    const cards = { ...get().conceptCards, [card.topic.toLowerCase()]: card };
+    persist(STORAGE_KEYS.CONCEPT_CARDS, cards);
+    set({ conceptCards: cards });
   },
 
   toggleWeaknessDrillCompleted: (day, drillId) => {

@@ -57,7 +57,9 @@ export class ConcretenessAnalyzer {
   public static async analyze(params: {
     transcript: string;
     question: string;
-    llmCaller?: ((prompt: string, model?: string) => Promise<string>) | ((prompt: string, model: string) => Promise<string>);
+    llmCaller?:
+      | ((prompt: string, model?: string) => Promise<string>)
+      | ((prompt: string, model: string) => Promise<string>);
   }): Promise<ConcretenessAnalysisResult> {
     const rawTranscript = (params.transcript || '').trim();
 

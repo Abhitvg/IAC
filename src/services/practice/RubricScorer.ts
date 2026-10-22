@@ -41,7 +41,9 @@ export class RubricScorer {
       },
       hintsUsed: config.hintsUsed || [],
       config: config.config,
-      llmCaller: config.llmCaller ? (p: string, m?: string) => config.llmCaller!(p, m || 'gpt-4o-mini') : undefined,
+      llmCaller: config.llmCaller
+        ? (p: string, m?: string) => config.llmCaller!(p, m || 'gpt-4o-mini')
+        : undefined,
     });
 
     const questionEval = report.questions[0];
@@ -68,13 +70,17 @@ export class RubricScorer {
     const structureAnalysis = await StructureAnalyzer.analyze({
       transcript: cleanAnswer,
       question: config.question,
-      llmCaller: config.llmCaller ? (p: string, m?: string) => config.llmCaller!(p, m || 'gpt-4o-mini') : undefined,
+      llmCaller: config.llmCaller
+        ? (p: string, m?: string) => config.llmCaller!(p, m || 'gpt-4o-mini')
+        : undefined,
     });
 
     const concretenessAnalysis = await ConcretenessAnalyzer.analyze({
       transcript: cleanAnswer,
       question: config.question,
-      llmCaller: config.llmCaller ? (p: string, m?: string) => config.llmCaller!(p, m || 'gpt-4o-mini') : undefined,
+      llmCaller: config.llmCaller
+        ? (p: string, m?: string) => config.llmCaller!(p, m || 'gpt-4o-mini')
+        : undefined,
     });
 
     const paragraphs = cleanAnswer.split(/\n\s*\n/).filter((p) => p.trim().length > 20);
