@@ -28,21 +28,24 @@ The app simulates realistic interview sessions with an AI interviewer across mul
 ## ✨ Core Features
 
 ### 1. 🎙️ Realistic Mock Interview Sessions
+
 - **Multiple Interviewer Personas**:
-  - *Friendly*: Warm, encouraging, patient, ideal for initial warmups.
-  - *Rigorous (Big Tech)*: Neutral, precise, comfortable with silence, demands justification and probes trade-offs.
-  - *Startup*: Pragmatic, focused on shipping speed, ownership, and practical edge cases.
+  - _Friendly_: Warm, encouraging, patient, ideal for initial warmups.
+  - _Rigorous (Big Tech)_: Neutral, precise, comfortable with silence, demands justification and probes trade-offs.
+  - _Startup_: Pragmatic, focused on shipping speed, ownership, and practical edge cases.
 - **Dynamic Follow-Up Probes**: Probes candidate answers by directly quoting statements from the transcript (`"You mentioned caching; what is your invalidation strategy?"`) instead of generic scripted questions.
 - **Opt-In Interruption Practice**: Realistic mid-answer interruptions (off by default) that trigger only after 30 seconds of speech if an answer lacks specifics.
 - **Tiered Hint System**: Progressive help (Tier 1 Nudge, Tier 2 Approach, Tier 3 Near-Solution) with deterministic rubric penalties applied in code.
 
 ### 2. 📊 Evidence-Based Rubric Scoring
+
 - **LLM Scorer with Verbatim Evidence Quotes**: Every rubric score (Coding, System Design, Behavioral) requires verbatim transcript quotes. Claims without verifiable evidence are rejected and capped at 2/5.
 - **Deterministic Signal Separation**: WPM, filler word counts, Big-O mentions, and "I" vs. "we" pronoun usage are reported separately as deterministic speech signals, never conflated with rubric scores.
 - **Offline Heuristic Fallback**: Clear "Estimated, low confidence" labeling when offline, never declaring an unverified "Hire" verdict.
 - **Transparent Uncertainty Reporting**: Reports explicitly highlight topics where transcript evidence was too thin to evaluate reliably.
 
 ### 3. ⏱️ Speech & Delivery Coaching
+
 - **Pacing & WPM Tracking**: Real-time pace calculations calculated from audio segment timestamps without hardcoded fallbacks.
 - **Filler Word Detection**: Escaped word-boundary pattern matching for single-word (`um`, `uh`, `like`) and multi-word (`you know`, `i mean`) filler phrases.
 - **Hesitation & Pause Tracking**: Computes time-to-first-word and longest pause intervals directly from VAD and Whisper segment timestamps.
@@ -50,11 +53,13 @@ The app simulates realistic interview sessions with an AI interviewer across mul
 - **Three-Session Baseline Guard**: Delivery trend conclusions and aggregates require a minimum of three completed sessions before declaring trends.
 
 ### 4. 📚 Spaced Repetition & Weakness Scheduler
+
 - **SuperMemo (SM-2) Spaced Drills**: Tracks topic mastery across coding, algorithms, system design, and behavioral competencies.
 - **Weakest-Topic Prioritization**: Automatically schedules tomorrow's rehearsal queue targeting the user's lowest-scoring areas.
 - **Curriculum Question Bank**: Curated, original question bank across 60 technical topics with customizable JSON pack imports.
 
 ### 5. 💼 Resume Story Bank & Company Prep
+
 - **STAR Story Bank**: Extracts candidate experiences from resumes into structured Situation, Task, Action, and Result stories.
 - **Coverage Gap Alerts**: Highlights underrepresented competencies (such as conflict resolution or failure analysis) before real interviews.
 - **Company Plan Generator**: Analyzes job descriptions and generates targeted 7-day drill curricula tailored to company tech stacks.
@@ -65,13 +70,13 @@ The app simulates realistic interview sessions with an AI interviewer across mul
 
 We believe in complete transparency regarding what data leaves your machine:
 
-| Provider | Data Sent | Purpose | Network Endpoint |
-| :--- | :--- | :--- | :--- |
-| **OpenAI** (Optional) | Transcript text, question prompt, rubric definition | Scoring, interviewer probes, story extraction | `https://api.openai.com/v1/chat/completions` |
-| **Groq** (Optional) | Transcript text, question prompt, rubric definition | Ultra-low-latency interviewer responses | `https://api.groq.com/openai/v1/chat/completions` |
-| **OpenRouter** (Optional) | Transcript text, question prompt, rubric definition | Multi-model scoring | `https://openrouter.ai/api/v1/chat/completions` |
-| **Ollama** (Local Option) | Transcript text, question prompt | 100% local inference (no internet required) | `http://127.0.0.1:11434` |
-| **Local Whisper** | Audio samples | Local speech-to-text transcription | Stays on local machine |
+| Provider                  | Data Sent                                           | Purpose                                       | Network Endpoint                                  |
+| :------------------------ | :-------------------------------------------------- | :-------------------------------------------- | :------------------------------------------------ |
+| **OpenAI** (Optional)     | Transcript text, question prompt, rubric definition | Scoring, interviewer probes, story extraction | `https://api.openai.com/v1/chat/completions`      |
+| **Groq** (Optional)       | Transcript text, question prompt, rubric definition | Ultra-low-latency interviewer responses       | `https://api.groq.com/openai/v1/chat/completions` |
+| **OpenRouter** (Optional) | Transcript text, question prompt, rubric definition | Multi-model scoring                           | `https://openrouter.ai/api/v1/chat/completions`   |
+| **Ollama** (Local Option) | Transcript text, question prompt                    | 100% local inference (no internet required)   | `http://127.0.0.1:11434`                          |
+| **Local Whisper**         | Audio samples                                       | Local speech-to-text transcription            | Stays on local machine                            |
 
 - **API Key Security**: Provider API keys are stored in the Electron main process encrypted with OS keychain (`safeStorage`) or AES-256-GCM. Keys never touch renderer storage or client bundles.
 - **Local Storage**: User session recordings and practice histories remain strictly inside your operating system's `userData` application directory.
@@ -92,9 +97,11 @@ We believe in complete transparency regarding what data leaves your machine:
 ## 🛠️ Development & Building
 
 ### Prerequisites
+
 - Node.js v20+ and npm v10+
 
 ### Setup & Run
+
 ```bash
 # Install dependencies
 npm install

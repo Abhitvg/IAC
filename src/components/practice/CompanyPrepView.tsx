@@ -1,34 +1,48 @@
-import React, { useState } from "react";
-import { usePracticeStore } from "../../store/usePracticeStore";
-import { useAppStore } from "../../store/useAppStore";
+import React, { useState } from 'react';
+import { usePracticeStore } from '../../store/usePracticeStore';
+import { useAppStore } from '../../store/useAppStore';
 
 export const CompanyPrepView: React.FC = () => {
-  const { companyPlans, activeCompanyPlan, createCompanyPlan, toggleDrillCompleted, addCompanyNote } =
-    usePracticeStore();
+  const {
+    companyPlans,
+    activeCompanyPlan,
+    createCompanyPlan,
+    toggleDrillCompleted,
+    addCompanyNote,
+  } = usePracticeStore();
   const { resumeText } = useAppStore();
 
-  const [companyName, setCompanyName] = useState("");
-  const [role, setRole] = useState("");
-  const [jobDescription, setJobDescription] = useState("");
+  const [companyName, setCompanyName] = useState('');
+  const [role, setRole] = useState('');
+  const [jobDescription, setJobDescription] = useState('');
   const [durationDays, setDurationDays] = useState<7 | 14>(7);
   const [showCreator, setShowCreator] = useState(false);
-  const [newNote, setNewNote] = useState("");
-  const [roundName, setRoundName] = useState("Round 1: Technical Screen");
+  const [newNote, setNewNote] = useState('');
+  const [roundName, setRoundName] = useState('Round 1: Technical Screen');
+  const [formError, setFormError] = useState<string | null>(null);
 
   const currentPlan = activeCompanyPlan || companyPlans[0];
 
   const handleCreate = () => {
-    if (!companyName.trim() || !jobDescription.trim()) return;
-    createCompanyPlan(companyName, role, jobDescription, resumeText || "", durationDays);
+    if (!companyName.trim()) {
+      setFormError('Please provide a company name.');
+      return;
+    }
+    if (!jobDescription.trim()) {
+      setFormError('Please paste the job description.');
+      return;
+    }
+    setFormError(null);
+    createCompanyPlan(companyName, role, jobDescription, resumeText || '', durationDays);
     setShowCreator(false);
-    setCompanyName("");
-    setJobDescription("");
+    setCompanyName('');
+    setJobDescription('');
   };
 
   const handleAddNote = () => {
     if (!currentPlan || !newNote.trim()) return;
     addCompanyNote(currentPlan.companyName, roundName, newNote);
-    setNewNote("");
+    setNewNote('');
   };
 
   return (
@@ -40,7 +54,8 @@ export const CompanyPrepView: React.FC = () => {
             Company-Specific Preparation & Round Notes
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Paste a Job Description to generate a tailored 7- or 14-day study plan, gap analysis, and persist feedback across rounds.
+            Paste a Job Description to generate a tailored 7- or 14-day study plan, gap analysis,
+            and persist feedback across rounds.
           </p>
         </div>
         <button
@@ -57,24 +72,40 @@ export const CompanyPrepView: React.FC = () => {
           <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-400">
             Target Company & Job Description Parser
           </h3>
+          {formError && (
+            <div
+              role="alert"
+              className="p-2 rounded bg-rose-950/80 border border-rose-500/50 text-rose-300 text-xs font-medium"
+            >
+              {formError}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div>
-              <label className="text-slate-400 block mb-1">Company Name</label>
+              <label htmlFor="company-name-input" className="text-slate-400 block mb-1">
+                Company Name
+              </label>
               <input
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
+                id="company-name-input"
+                aria-label="Company Name"
                 placeholder="e.g. Stripe, Google, Meta, Datadog"
                 className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white"
               />
             </div>
             <div>
-              <label className="text-slate-400 block mb-1">Target Role / Seniority</label>
+              <label htmlFor="company-role-input" className="text-slate-400 block mb-1">
+                Target Role / Seniority
+              </label>
               <input
                 type="text"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
+                id="company-role-input"
+                aria-label="Target Role / Seniority"
                 placeholder="e.g. Senior Backend Engineer"
                 className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white"
               />
@@ -82,10 +113,14 @@ export const CompanyPrepView: React.FC = () => {
           </div>
 
           <div className="text-xs">
-            <label className="text-slate-400 block mb-1">Paste Job Description (JD)</label>
+            <label htmlFor="company-jd-textarea" className="text-slate-400 block mb-1">
+              Paste Job Description (JD)
+            </label>
             <textarea
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
+              id="company-jd-textarea"
+              aria-label="Job Description"
               placeholder="Paste requirements, stack, and responsibilities here..."
               className="w-full h-28 p-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-mono text-xs"
             />
@@ -99,8 +134,8 @@ export const CompanyPrepView: React.FC = () => {
                 onClick={() => setDurationDays(7)}
                 className={`px-3 py-1 rounded text-xs font-bold border ${
                   durationDays === 7
-                    ? "bg-indigo-600 text-white border-indigo-500"
-                    : "bg-slate-800 text-slate-400 border-slate-700"
+                    ? 'bg-indigo-600 text-white border-indigo-500'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
                 }`}
               >
                 7 Days
@@ -110,8 +145,8 @@ export const CompanyPrepView: React.FC = () => {
                 onClick={() => setDurationDays(14)}
                 className={`px-3 py-1 rounded text-xs font-bold border ${
                   durationDays === 14
-                    ? "bg-indigo-600 text-white border-indigo-500"
-                    : "bg-slate-800 text-slate-400 border-slate-700"
+                    ? 'bg-indigo-600 text-white border-indigo-500'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
                 }`}
               >
                 14 Days
@@ -150,7 +185,8 @@ export const CompanyPrepView: React.FC = () => {
                   {currentPlan.companyName}
                 </h3>
                 <span className="text-xs text-slate-400">
-                  {currentPlan.seniority} {currentPlan.targetRole} • {currentPlan.durationDays}-Day Preparation Plan
+                  {currentPlan.seniority} {currentPlan.targetRole} • {currentPlan.durationDays}-Day
+                  Preparation Plan
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5 max-w-sm justify-end">
@@ -185,13 +221,14 @@ export const CompanyPrepView: React.FC = () => {
               <div className="p-3 bg-emerald-950/20 border border-emerald-500/20 rounded-xl space-y-1">
                 <span className="font-bold text-emerald-400">Matched Strengths:</span>
                 <p className="text-emerald-200">
-                  {currentPlan.resumeGapAnalysis.matchedStrengths.join(", ") || "General software engineering fundamentals"}
+                  {currentPlan.resumeGapAnalysis.matchedStrengths.join(', ') ||
+                    'General software engineering fundamentals'}
                 </p>
               </div>
               <div className="p-3 bg-rose-950/20 border border-rose-500/20 rounded-xl space-y-1">
                 <span className="font-bold text-rose-400">JD Skills to Highlight / Study:</span>
                 <p className="text-rose-200">
-                  {currentPlan.resumeGapAnalysis.missingCompetencies.join(", ") || "None flagged"}
+                  {currentPlan.resumeGapAnalysis.missingCompetencies.join(', ') || 'None flagged'}
                 </p>
               </div>
             </div>
@@ -208,8 +245,8 @@ export const CompanyPrepView: React.FC = () => {
                   key={drill.day}
                   className={`p-3.5 rounded-xl border flex items-center justify-between transition ${
                     drill.completed
-                      ? "bg-slate-900/40 border-slate-800/50 text-slate-500"
-                      : "bg-slate-900 border-slate-800 text-slate-200"
+                      ? 'bg-slate-900/40 border-slate-800/50 text-slate-500'
+                      : 'bg-slate-900 border-slate-800 text-slate-200'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -221,19 +258,17 @@ export const CompanyPrepView: React.FC = () => {
                     />
                     <div>
                       <div className="flex gap-2 items-center">
-                        <span className="text-xs font-bold text-indigo-400">
-                          Day {drill.day}:
-                        </span>
-                        <span className={`text-xs font-bold ${drill.completed ? "line-through text-slate-500" : "text-white"}`}>
+                        <span className="text-xs font-bold text-indigo-400">Day {drill.day}:</span>
+                        <span
+                          className={`text-xs font-bold ${drill.completed ? 'line-through text-slate-500' : 'text-white'}`}
+                        >
                           {drill.title}
                         </span>
                         <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">
                           {drill.focusCategory}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {drill.targetExercise}
-                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{drill.targetExercise}</p>
                     </div>
                   </div>
                 </div>
@@ -245,11 +280,10 @@ export const CompanyPrepView: React.FC = () => {
           <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-sm font-bold text-white">
-                  Round-to-Round Continuity Notes
-                </h3>
+                <h3 className="text-sm font-bold text-white">Round-to-Round Continuity Notes</h3>
                 <p className="text-[11px] text-slate-400">
-                  Record feedback and weak spots from Round 1 so Round 2 preparation builds directly on what happened.
+                  Record feedback and weak spots from Round 1 so Round 2 preparation builds directly
+                  on what happened.
                 </p>
               </div>
             </div>

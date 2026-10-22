@@ -22,30 +22,12 @@
   "transcript": "Candidate: This problem maps directly to detecting a cycle in a directed graph, or determining if a valid topological ordering exists. If there is a directed cycle, it is impossible to finish all courses. I recommend Kahn's algorithm using BFS and an in-degree array. First, we initialize an adjacency list of size V and an inDegree array of size V initialized to 0. For every pair [course, prereq], we add course to adj[prereq] and increment inDegree[course]. Next, we push all nodes with inDegree 0 into a BFS queue. While the queue has elements, we pop a course, increment our visitedCount, and for each neighbor in adj[course], we decrement its inDegree. If inDegree drops to 0, we enqueue it. Finally, if visitedCount equals numCourses, return true; otherwise a cycle prevented all courses from resolving, so return false. Time complexity is O(V + E) because we process each vertex and edge once. Space complexity is O(V + E) for the adjacency list and queue. Edge cases: self-dependency [0, 0], disconnected DAG components, and empty prerequisites array.",
   "hints": [],
   "expectedScoreRanges": {
-    "problem_understanding": [
-      4.5,
-      5
-    ],
-    "approach": [
-      4.5,
-      5
-    ],
-    "correctness": [
-      4.5,
-      5
-    ],
-    "complexity": [
-      4.5,
-      5
-    ],
-    "testing": [
-      4,
-      5
-    ],
-    "communication": [
-      4.5,
-      5
-    ]
+    "problem_understanding": [4.5, 5],
+    "approach": [4.5, 5],
+    "correctness": [4.5, 5],
+    "complexity": [4.5, 5],
+    "testing": [4, 5],
+    "communication": [4.5, 5]
   },
   "notes": "Flawless execution of Kahn algorithm. Edge direction, in-degree logic, O(V+E) complexities, and edge cases all explicitly addressed.",
   "recordedLLMResponse": "{\"questions\":[{\"id\":\"q_course_schedule\",\"type\":\"coding\",\"dimensions\":{\"problem_understanding\":{\"score\":5,\"evidence\":\"This problem maps directly to detecting a cycle in a directed graph\",\"note\":\"Immediate formal reduction to graph cycle detection.\"},\"approach\":{\"score\":5,\"evidence\":\"I recommend Kahn's algorithm using BFS and an in-degree array\",\"note\":\"Optimal algorithm selected.\"},\"correctness\":{\"score\":5,\"evidence\":\"Finally, if visitedCount equals numCourses, return true; otherwise a cycle prevented all courses from resolving\",\"note\":\"Accurate termination condition.\"},\"complexity\":{\"score\":5,\"evidence\":\"Time complexity is O(V + E) because we process each vertex and edge once. Space complexity is O(V + E)\",\"note\":\"Accurate graph notation.\"},\"testing\":{\"score\":4.5,\"evidence\":\"Edge cases: self-dependency [0, 0], disconnected DAG components, and empty prerequisites array\",\"note\":\"Comprehensive edge cases.\"},\"communication\":{\"score\":5,\"evidence\":\"we push all nodes with inDegree 0 into a BFS queue\",\"note\":\"Concise, clear, and professional.\"}},\"missed_points\":[],\"model_answer_outline\":[\"Graph modeling\",\"Kahn BFS in-degree tracking\",\"O(V+E) time/space\"]}],\"overall\":{\"score\":4.9,\"summary\":\"Candidate delivered an exemplar explanation of topological sorting via Kahn's algorithm. Edge cases, algorithmic mechanics, and O(V + E) complexity were presented with zero hesitation.\",\"top_fixes\":[],\"strengths\":[\"Identified Kahn's algorithm cleanly\",\"Precise O(V + E) graph complexity notation\",\"Addressed self-loops and disconnected components\"]},\"uncertainty\":\"None.\"}"

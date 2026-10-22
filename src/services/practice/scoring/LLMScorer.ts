@@ -1,21 +1,21 @@
-import { z } from "zod";
-import { TieredHint } from "../types";
-import { buildScorerPrompt } from "../prompts/scorer";
-import { EvidenceValidator } from "./EvidenceValidator";
-import { DeterministicSignalsExtractor, DeterministicSignals } from "./DeterministicSignals";
-import { AIProviderConfig } from "../../../types";
+import { z } from 'zod';
+import { TieredHint } from '../types';
+import { buildScorerPrompt } from '../prompts/scorer';
+import { EvidenceValidator } from './EvidenceValidator';
+import { DeterministicSignalsExtractor, DeterministicSignals } from './DeterministicSignals';
+import { AIProviderConfig } from '../../../types';
 
 // ─── Zod Schemas for Strict JSON Output Validation ───
 
 export const ScorerDimensionOutputSchema = z.object({
   score: z.number().min(1).max(5),
-  evidence: z.string().optional().default(""),
-  note: z.string().optional().default(""),
+  evidence: z.string().optional().default(''),
+  note: z.string().optional().default(''),
 });
 
 export const ScorerQuestionOutputSchema = z.object({
-  id: z.string().optional().default(""),
-  type: z.string().optional().default(""),
+  id: z.string().optional().default(''),
+  type: z.string().optional().default(''),
   dimensions: z.record(ScorerDimensionOutputSchema),
   missed_points: z.array(z.string()).optional().default([]),
   model_answer_outline: z.array(z.string()).optional().default([]),
@@ -25,11 +25,11 @@ export const ScorerOutputSchema = z.object({
   questions: z.array(ScorerQuestionOutputSchema).min(1),
   overall: z.object({
     score: z.number().min(1).max(5),
-    summary: z.string().optional().default(""),
+    summary: z.string().optional().default(''),
     top_fixes: z.array(z.string()).optional().default([]),
     strengths: z.array(z.string()).optional().default([]),
   }),
-  uncertainty: z.string().optional().default(""),
+  uncertainty: z.string().optional().default(''),
 });
 
 export type ScorerOutput = z.infer<typeof ScorerOutputSchema>;
@@ -38,7 +38,7 @@ export interface ScorerInput {
   transcript: string;
   question: {
     id?: string;
-    type: "coding" | "system_design" | "behavioral";
+    type: 'coding' | 'system_design' | 'behavioral';
     prompt: string;
     expectedPoints?: string[];
     commonMistakes?: string[];
@@ -75,7 +75,13 @@ export interface FinalScoredReport {
   uncertainty: string;
   isHeuristicEstimate: boolean;
   confidenceBanner?: string;
-  verdict: "Strong Hire" | "Hire" | "Leaning Hire" | "No Hire" | "Strong No Hire" | "Uncalibrated (Heuristic Estimate)";
+  verdict:
+    | 'Strong Hire'
+    | 'Hire'
+    | 'Leaning Hire'
+    | 'No Hire'
+    | 'Strong No Hire'
+    | 'Uncalibrated (Heuristic Estimate)';
   signals: DeterministicSignals;
 }
 
@@ -83,18 +89,18 @@ export class LLMScorer {
   /**
    * Selects the larger, high-parameter reasoning model for scoring rather than fast conversational models.
    */
-  public static selectScoringModel(providerType: string = "groq", currentModel?: string): string {
+  public static selectScoringModel(providerType: string = 'groq', currentModel?: string): string {
     switch (providerType.toLowerCase()) {
-      case "groq":
-        return "llama-3.3-70b-versatile";
-      case "openai":
-        return "gpt-4o";
-      case "openrouter":
-        return "meta-llama/llama-3.3-70b-instruct";
-      case "ollama":
-        return currentModel && currentModel.includes("33") ? currentModel : "llama3.3:70b";
+      case 'groq':
+        return 'llama-3.3-70b-versatile';
+      case 'openai':
+        return 'gpt-4o';
+      case 'openrouter':
+        return 'meta-llama/llama-3.3-70b-instruct';
+      case 'ollama':
+        return currentModel && currentModel.includes('33') ? currentModel : 'llama3.3:70b';
       default:
-        return currentModel || "llama-3.3-70b-versatile";
+        return currentModel || 'llama-3.3-70b-versatile';
     }
   }
 
@@ -107,12 +113,12 @@ export class LLMScorer {
   }
   public static score = LLMScorer.evaluate;
   private static async _evaluateImpl(input: ScorerInput): Promise<FinalScoredReport> {
-    const transcript = (input.transcript || "").trim();
+    const transcript = (input.transcript || '').trim();
     const signals = DeterministicSignalsExtractor.extract(transcript);
 
     // Build question info payload
     const questionJson = {
-      id: input.question.id || "q1",
+      id: input.question.id || 'q1',
       type: input.question.type,
       prompt: input.question.prompt,
       expectedPoints: input.question.expectedPoints || [],
@@ -174,10 +180,10 @@ export class LLMScorer {
    * Sanitizes, parses JSON, and validates strictly against Zod schema.
    */
   public static parseAndValidate(rawText: string): ScorerOutput {
-    let cleanText = (rawText || "").trim();
+    let cleanText = (rawText || '').trim();
 
     // Strip markdown code fences if model returned them
-    if (cleanText.includes("```")) {
+    if (cleanText.includes('```')) {
       const match = cleanText.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (match && match[1]) {
         cleanText = match[1].trim();
@@ -244,25 +250,29 @@ export class LLMScorer {
       }
     }
 
-    const overallScore = dimCount > 0 ? Math.round((sumScore / dimCount) * 10) / 10 : output.overall.score;
+    const overallScore =
+      dimCount > 0 ? Math.round((sumScore / dimCount) * 10) / 10 : output.overall.score;
 
     // Determine verdict
-    let verdict: "Strong Hire" | "Hire" | "Leaning Hire" | "No Hire" | "Strong No Hire";
-    if (overallScore >= 4.5) verdict = "Strong Hire";
-    else if (overallScore >= 3.8) verdict = "Hire";
-    else if (overallScore >= 3.0) verdict = "Leaning Hire";
-    else if (overallScore >= 2.0) verdict = "No Hire";
-    else verdict = "Strong No Hire";
+    let verdict: 'Strong Hire' | 'Hire' | 'Leaning Hire' | 'No Hire' | 'Strong No Hire';
+    if (overallScore >= 4.5) verdict = 'Strong Hire';
+    else if (overallScore >= 3.8) verdict = 'Hire';
+    else if (overallScore >= 3.0) verdict = 'Leaning Hire';
+    else if (overallScore >= 2.0) verdict = 'No Hire';
+    else verdict = 'Strong No Hire';
 
     return {
       questions: processedQuestions,
       overall: {
         score: overallScore,
-        summary: output.overall.summary || "Evaluation completed with verbatim evidence validation.",
+        summary:
+          output.overall.summary || 'Evaluation completed with verbatim evidence validation.',
         top_fixes: output.overall.top_fixes,
         strengths: output.overall.strengths,
       },
-      uncertainty: output.uncertainty || (transcript.length < 50 ? "Transcript too brief for robust assessment." : "None"),
+      uncertainty:
+        output.uncertainty ||
+        (transcript.length < 50 ? 'Transcript too brief for robust assessment.' : 'None'),
       isHeuristicEstimate: false,
       verdict,
       signals,
@@ -277,26 +287,40 @@ export class LLMScorer {
     input: ScorerInput,
     signals: DeterministicSignals
   ): FinalScoredReport {
-    const transcript = (input.transcript || "").trim();
+    const transcript = (input.transcript || '').trim();
     const type = input.question.type;
 
     const baseDimScore = transcript.length > 200 ? 3.0 : 2.0;
 
     const defaultDimensions: Record<string, FinalScoredDimension> = {};
     const dimKeys =
-      type === "coding"
-        ? ["problem_understanding", "approach", "correctness", "complexity", "testing", "communication"]
-        : type === "system_design"
-        ? ["requirements", "estimation", "architecture", "tradeoffs", "failure_modes", "communication"]
-        : ["structure", "specificity", "ownership", "impact", "reflection"];
+      type === 'coding'
+        ? [
+            'problem_understanding',
+            'approach',
+            'correctness',
+            'complexity',
+            'testing',
+            'communication',
+          ]
+        : type === 'system_design'
+          ? [
+              'requirements',
+              'estimation',
+              'architecture',
+              'tradeoffs',
+              'failure_modes',
+              'communication',
+            ]
+          : ['structure', 'specificity', 'ownership', 'impact', 'reflection'];
 
     for (const key of dimKeys) {
       defaultDimensions[key] = {
         name: key,
         score: baseDimScore,
-        evidence: "",
-        note: "Heuristic estimate (offline fallback)",
-        matchType: "none",
+        evidence: '',
+        note: 'Heuristic estimate (offline fallback)',
+        matchType: 'none',
         penaltyDeduction: 0,
       };
     }
@@ -304,23 +328,30 @@ export class LLMScorer {
     return {
       questions: [
         {
-          id: input.question.id || "q1",
+          id: input.question.id || 'q1',
           type,
           dimensions: defaultDimensions,
-          missed_points: ["Semantic verification requires active LLM connection."],
-          model_answer_outline: ["Follow structured framework: clarify -> design -> tradeoff -> test."],
+          missed_points: ['Semantic verification requires active LLM connection.'],
+          model_answer_outline: [
+            'Follow structured framework: clarify -> design -> tradeoff -> test.',
+          ],
         },
       ],
       overall: {
         score: baseDimScore,
-        summary: "Evaluated by offline heuristic fallback because LLM was unavailable. Subject to calibration.",
-        top_fixes: ["Connect configured LLM API key for verified rubric scoring and evidence quotes."],
-        strengths: ["Completed verbal or typed practice attempt."],
+        summary:
+          'Evaluated by offline heuristic fallback because LLM was unavailable. Subject to calibration.',
+        top_fixes: [
+          'Connect configured LLM API key for verified rubric scoring and evidence quotes.',
+        ],
+        strengths: ['Completed verbal or typed practice attempt.'],
       },
-      uncertainty: "LLM scoring unavailable. Semantic correctness and depth cannot be confirmed offline.",
+      uncertainty:
+        'LLM scoring unavailable. Semantic correctness and depth cannot be confirmed offline.',
       isHeuristicEstimate: true,
-      confidenceBanner: "Estimated, low confidence: offline heuristic fallback. Not an official evaluation.",
-      verdict: "Uncalibrated (Heuristic Estimate)",
+      confidenceBanner:
+        'Estimated, low confidence: offline heuristic fallback. Not an official evaluation.',
+      verdict: 'Uncalibrated (Heuristic Estimate)',
       signals,
     };
   }
@@ -328,21 +359,21 @@ export class LLMScorer {
   private static createDefaultCaller(config: Partial<AIProviderConfig>) {
     return async (prompt: string, model: string): Promise<string> => {
       const url =
-        config.type === "openrouter"
-          ? "https://openrouter.ai/api/v1/chat/completions"
-          : config.type === "openai"
-          ? "https://api.openai.com/v1/chat/completions"
-          : "https://api.groq.com/openai/v1/chat/completions";
+        config.type === 'openrouter'
+          ? 'https://openrouter.ai/api/v1/chat/completions'
+          : config.type === 'openai'
+            ? 'https://api.openai.com/v1/chat/completions'
+            : 'https://api.groq.com/openai/v1/chat/completions';
 
       const response = await fetch(url, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${config.apiKey}`,
         },
         body: JSON.stringify({
           model,
-          messages: [{ role: "user", content: prompt }],
+          messages: [{ role: 'user', content: prompt }],
           temperature: 0.1, // Low temperature for deterministic scoring
           max_tokens: 2000,
         }),
@@ -353,7 +384,7 @@ export class LLMScorer {
       }
 
       const data = await response.json();
-      return data.choices?.[0]?.message?.content || "";
+      return data.choices?.[0]?.message?.content || '';
     };
   }
 }

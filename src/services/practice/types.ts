@@ -1,23 +1,23 @@
-import { DeterministicSignals } from "./scoring/DeterministicSignals";
-export type InterviewPersona = "strict_big_tech" | "startup_pragmatist" | "friendly_recruiter";
+import { DeterministicSignals } from './scoring/DeterministicSignals';
+export type InterviewPersona = 'strict_big_tech' | 'startup_pragmatist' | 'friendly_recruiter';
 
 export type MockRoundType =
-  | "dress_rehearsal" // Complete 45-minute loop
-  | "dsa_coding"
-  | "system_design"
-  | "behavioral"
-  | "role_specific";
+  | 'dress_rehearsal' // Complete 45-minute loop
+  | 'dsa_coding'
+  | 'system_design'
+  | 'behavioral'
+  | 'role_specific';
 
 export type RehearsalPhase =
-  | "icebreaker" // 3 min
-  | "behavioral" // 10 min
-  | "technical" // 22 min
-  | "candidate_qa" // 5 min
-  | "wrapup"; // 5 min
+  | 'icebreaker' // 3 min
+  | 'behavioral' // 10 min
+  | 'technical' // 22 min
+  | 'candidate_qa' // 5 min
+  | 'wrapup'; // 5 min
 
 export interface RubricDimension {
   name: string;
-  category: "coding" | "system_design" | "behavioral";
+  category: 'coding' | 'system_design' | 'behavioral';
   score: number; // 1 to 5
   maxScore: number;
   weight: number;
@@ -48,7 +48,7 @@ export interface DeliveryMetrics {
   durationSeconds: number;
   wordCount: number;
   speakingPaceWpm: number;
-  paceCategory: "slow" | "optimal" | "fast";
+  paceCategory: 'slow' | 'optimal' | 'fast';
   fillerWordsCount: number;
   fillerPercentage: number;
   fillerBreakdown: Record<string, number>;
@@ -62,17 +62,13 @@ export type HintTier = 1 | 2 | 3;
 
 export interface TieredHint {
   tier: HintTier;
-  title: "Gentle Nudge" | "Specific Hint" | "Near-Solution Approach";
+  title: 'Gentle Nudge' | 'Specific Hint' | 'Near-Solution Approach';
   content: string;
   penaltyPoints: number; // e.g. 0.5, 1.0, 2.0
 }
 
 export type BehavioralCompetency =
-  | "leadership"
-  | "conflict"
-  | "failure_postmortem"
-  | "ambiguity"
-  | "high_impact_scale";
+  'leadership' | 'conflict' | 'failure_postmortem' | 'ambiguity' | 'high_impact_scale';
 
 export interface BehavioralStory {
   id: string;
@@ -90,7 +86,7 @@ export interface BehavioralStory {
 export interface TopicMastery {
   topicId: string;
   topicName: string;
-  category: "DSA" | "System Design" | "Behavioral" | "Core CS";
+  category: 'DSA' | 'System Design' | 'Behavioral' | 'Core CS';
   easeFactor: number; // SM-2 ease factor, initial 2.5
   intervalDays: number;
   repetitions: number;
@@ -104,7 +100,7 @@ export interface CompanyPracticePlan {
   targetRole: string;
   jobDescriptionText: string;
   extractedStack: string[];
-  seniority: "Junior" | "Mid" | "Senior" | "Staff/Lead";
+  seniority: 'Junior' | 'Mid' | 'Senior' | 'Staff/Lead';
   likelyRoundThemes: string[];
   resumeGapAnalysis: {
     matchedStrengths: string[];
@@ -148,7 +144,7 @@ export interface MockSessionState {
   }>;
   isOfflineInterviewer?: boolean;
   overallScorecard?: {
-    finalRating: "Strong No Hire" | "No Hire" | "Leaning Hire" | "Hire" | "Strong Hire";
+    finalRating: 'Strong No Hire' | 'No Hire' | 'Leaning Hire' | 'Hire' | 'Strong Hire';
     averageScore: number;
     codingScore?: number;
     systemDesignScore?: number;

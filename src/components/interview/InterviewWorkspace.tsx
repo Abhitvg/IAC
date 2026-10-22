@@ -19,7 +19,7 @@ export default function InterviewWorkspace() {
         overflow: 'hidden',
       }}
     >
-            <LiveStatusBar />
+      <LiveStatusBar />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <div

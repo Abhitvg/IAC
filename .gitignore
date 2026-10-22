@@ -7,6 +7,12 @@ dist-electron/
 release/
 build/
 
+# Stray & Scratch Scripts
+fix.js
+*.tmp
+*.temp
+scratch/
+
 # Environment variables
 .env
 .env.local

@@ -3,11 +3,7 @@
     "id": "sd_01",
     "type": "system_design",
     "topic": "Distributed Rate Limiter",
-    "tags": [
-      "rate_limiting",
-      "redis",
-      "concurrency"
-    ],
+    "tags": ["rate_limiting", "redis", "concurrency"],
     "difficulty": 3,
     "prompt": "Design a distributed multi-tenant API Rate Limiting service capable of enforcing tiered request quotas (e.g., 10,000 req/min) across thousands of API gateway instances with sub-5ms latency.",
     "clarifyingInfo": "Must handle multi-region deployments, race conditions, and support headers (X-RateLimit-Remaining, Retry-After).",
@@ -26,23 +22,14 @@
     "followUps": [
       "How do you handle clock drift across regions when using sliding window timestamps?"
     ],
-    "rubricHooks": [
-      "requirements",
-      "architecture",
-      "tradeoffs",
-      "failure_modes"
-    ],
+    "rubricHooks": ["requirements", "architecture", "tradeoffs", "failure_modes"],
     "timeBudgetMinutes": 35
   },
   {
     "id": "sd_02",
     "type": "system_design",
     "topic": "URL Shortener & Click Analytics",
-    "tags": [
-      "key_value",
-      "caching",
-      "analytics"
-    ],
+    "tags": ["key_value", "caching", "analytics"],
     "difficulty": 2,
     "prompt": "Design a scalable URL shortening service like Bitly that handles 500 million new URLs per month and 10 billion redirect clicks, including real-time click analytics dashboards.",
     "clarifyingInfo": "Read to write ratio is 20:1. Custom aliases are supported. URLs expire after 5 years.",
@@ -60,22 +47,14 @@
     "followUps": [
       "How do you detect and block malicious phishing destination URLs before redirection?"
     ],
-    "rubricHooks": [
-      "estimation",
-      "architecture",
-      "tradeoffs"
-    ],
+    "rubricHooks": ["estimation", "architecture", "tradeoffs"],
     "timeBudgetMinutes": 30
   },
   {
     "id": "sd_03",
     "type": "system_design",
     "topic": "Distributed Video Streaming",
-    "tags": [
-      "video",
-      "cdn",
-      "object_storage"
-    ],
+    "tags": ["video", "cdn", "object_storage"],
     "difficulty": 4,
     "prompt": "Design a video ingestion and adaptive bitrate streaming platform like YouTube, supporting upload, distributed transcoding, and low-latency playback across global viewers.",
     "clarifyingInfo": "Support up to 4K resolution across mobile and desktop. Average video length is 10 minutes.",
@@ -93,22 +72,14 @@
     "followUps": [
       "How would you implement live stream transcoding with sub-3-second glass-to-glass latency?"
     ],
-    "rubricHooks": [
-      "requirements",
-      "architecture",
-      "failure_modes"
-    ],
+    "rubricHooks": ["requirements", "architecture", "failure_modes"],
     "timeBudgetMinutes": 40
   },
   {
     "id": "sd_04",
     "type": "system_design",
     "topic": "Metrics & Time Series Database",
-    "tags": [
-      "tsdb",
-      "monitoring",
-      "compression"
-    ],
+    "tags": ["tsdb", "monitoring", "compression"],
     "difficulty": 4,
     "prompt": "Design a high-throughput real-time Metrics and Monitoring platform (similar to Prometheus or Datadog) that ingests 1 million metric data points per second from cloud infrastructure.",
     "clarifyingInfo": "Metrics have format: {metric_name, tags, timestamp, value}. Retention is 90 days.",
@@ -126,23 +97,14 @@
     "followUps": [
       "How do you alert on sudden anomalies across 100,000 distinct server streams in real time?"
     ],
-    "rubricHooks": [
-      "estimation",
-      "architecture",
-      "tradeoffs",
-      "failure_modes"
-    ],
+    "rubricHooks": ["estimation", "architecture", "tradeoffs", "failure_modes"],
     "timeBudgetMinutes": 40
   },
   {
     "id": "sd_05",
     "type": "system_design",
     "topic": "Distributed Job Scheduler",
-    "tags": [
-      "scheduler",
-      "queues",
-      "fault_tolerance"
-    ],
+    "tags": ["scheduler", "queues", "fault_tolerance"],
     "difficulty": 3,
     "prompt": "Design a distributed Job Scheduler and Task Execution engine capable of executing millions of scheduled cron tasks and ad-hoc delayed jobs with at-least-once delivery guarantees.",
     "clarifyingInfo": "Jobs have varying durations from 100ms to 2 hours. Support priorities, retries, and cancellation.",
@@ -160,22 +122,14 @@
     "followUps": [
       "How do you handle a thundering herd where 50,000 jobs are scheduled for exactly midnight?"
     ],
-    "rubricHooks": [
-      "requirements",
-      "architecture",
-      "failure_modes"
-    ],
+    "rubricHooks": ["requirements", "architecture", "failure_modes"],
     "timeBudgetMinutes": 35
   },
   {
     "id": "sd_06",
     "type": "system_design",
     "topic": "Distributed Key-Value Store",
-    "tags": [
-      "nosql",
-      "consistent_hashing",
-      "consensus"
-    ],
+    "tags": ["nosql", "consistent_hashing", "consensus"],
     "difficulty": 4,
     "prompt": "Design a distributed, horizontally scalable Key-Value Store with high availability and tunable consistency, modeled after Amazon Dynamo or Apache Cassandra.",
     "clarifyingInfo": "Must support get(key) and put(key, value) across hundreds of commodity server nodes.",
@@ -190,25 +144,15 @@
       "Centralized master coordinator creating single point of failure",
       "Ignoring read amplification on SSTables without Bloom filters"
     ],
-    "followUps": [
-      "How does hinted handoff work when a replica node is temporarily unreachable?"
-    ],
-    "rubricHooks": [
-      "architecture",
-      "tradeoffs",
-      "failure_modes"
-    ],
+    "followUps": ["How does hinted handoff work when a replica node is temporarily unreachable?"],
+    "rubricHooks": ["architecture", "tradeoffs", "failure_modes"],
     "timeBudgetMinutes": 40
   },
   {
     "id": "sd_07",
     "type": "system_design",
     "topic": "Real-Time Chat & Messaging",
-    "tags": [
-      "websockets",
-      "messaging",
-      "presence"
-    ],
+    "tags": ["websockets", "messaging", "presence"],
     "difficulty": 3,
     "prompt": "Design a real-time Chat Messaging platform like WhatsApp or Slack, supporting 1-on-1 chats, group channels up to 10,000 members, and user online/offline presence.",
     "clarifyingInfo": "50 million daily active users. Messages must be delivered in order with read receipts.",
@@ -223,25 +167,15 @@
       "Long-polling instead of WebSockets for active chat",
       "Broadcasting group messages to 10,000 members on the gateway process thread"
     ],
-    "followUps": [
-      "How do you handle end-to-end encryption key exchange across multi-device sync?"
-    ],
-    "rubricHooks": [
-      "requirements",
-      "architecture",
-      "tradeoffs"
-    ],
+    "followUps": ["How do you handle end-to-end encryption key exchange across multi-device sync?"],
+    "rubricHooks": ["requirements", "architecture", "tradeoffs"],
     "timeBudgetMinutes": 35
   },
   {
     "id": "sd_08",
     "type": "system_design",
     "topic": "Search Autocomplete / Typeahead",
-    "tags": [
-      "trie",
-      "caching",
-      "search"
-    ],
+    "tags": ["trie", "caching", "search"],
     "difficulty": 3,
     "prompt": "Design a real-time Search Autocomplete / Typeahead suggestion system for an e-commerce platform that returns top 5 popular search queries within 20ms.",
     "clarifyingInfo": "10 billion searches daily. Suggestions should update hourly based on trending search volumes.",
@@ -256,25 +190,15 @@
       "Querying SQL LIKE '%prefix%' on every keystroke",
       "Traversing Trie downwards and sorting frequencies on live query path"
     ],
-    "followUps": [
-      "How do you filter inappropriate or out-of-stock search terms in real-time?"
-    ],
-    "rubricHooks": [
-      "estimation",
-      "architecture",
-      "tradeoffs"
-    ],
+    "followUps": ["How do you filter inappropriate or out-of-stock search terms in real-time?"],
+    "rubricHooks": ["estimation", "architecture", "tradeoffs"],
     "timeBudgetMinutes": 30
   },
   {
     "id": "sd_09",
     "type": "system_design",
     "topic": "Distributed Web Crawler",
-    "tags": [
-      "crawling",
-      "dns",
-      "distributed_systems"
-    ],
+    "tags": ["crawling", "dns", "distributed_systems"],
     "difficulty": 4,
     "prompt": "Design a scalable Distributed Web Crawler that downloads and parses 1 billion web pages per month while respecting politeness policies and robots.txt.",
     "clarifyingInfo": "Avoid crawling duplicate content. Handle trap loops, broken links, and domain rate limits.",
@@ -292,22 +216,14 @@
     "followUps": [
       "How do you prioritize crawling high-authority frequently updated news sites over static blogs?"
     ],
-    "rubricHooks": [
-      "requirements",
-      "architecture",
-      "failure_modes"
-    ],
+    "rubricHooks": ["requirements", "architecture", "failure_modes"],
     "timeBudgetMinutes": 35
   },
   {
     "id": "sd_10",
     "type": "system_design",
     "topic": "Ride Sharing Dispatch Engine",
-    "tags": [
-      "geospatial",
-      "quadtree",
-      "real_time"
-    ],
+    "tags": ["geospatial", "quadtree", "real_time"],
     "difficulty": 4,
     "prompt": "Design a real-time geospatial location tracking and Ride Matching service like Uber or Lyft that matches riders with nearby available drivers in under 3 seconds.",
     "clarifyingInfo": "1 million active drivers reporting GPS coordinates every 4 seconds. 500,000 ride requests per hour.",
@@ -325,22 +241,14 @@
     "followUps": [
       "How do you calculate dynamic surge pricing based on real-time supply and demand ratios per cell?"
     ],
-    "rubricHooks": [
-      "estimation",
-      "architecture",
-      "tradeoffs"
-    ],
+    "rubricHooks": ["estimation", "architecture", "tradeoffs"],
     "timeBudgetMinutes": 40
   },
   {
     "id": "sd_11",
     "type": "system_design",
     "topic": "Distributed Notification Service",
-    "tags": [
-      "notifications",
-      "kafka",
-      "queues"
-    ],
+    "tags": ["notifications", "kafka", "queues"],
     "difficulty": 2,
     "prompt": "Design a multi-channel Notification System capable of delivering push notifications, emails, and SMS alerts to 100 million users daily.",
     "clarifyingInfo": "Supports marketing blasts and critical transactional alerts (e.g. 2FA OTP). Third-party vendors: APNs, FCM, SendGrid, Twilio.",
@@ -355,25 +263,15 @@
       "Calling third-party vendor APIs synchronously in client request path",
       "No retry strategy or dead letter queue when vendor APIs fail"
     ],
-    "followUps": [
-      "How do you track open rates and click-through rates across email campaigns?"
-    ],
-    "rubricHooks": [
-      "architecture",
-      "tradeoffs",
-      "failure_modes"
-    ],
+    "followUps": ["How do you track open rates and click-through rates across email campaigns?"],
+    "rubricHooks": ["architecture", "tradeoffs", "failure_modes"],
     "timeBudgetMinutes": 30
   },
   {
     "id": "sd_12",
     "type": "system_design",
     "topic": "E-Commerce Flash Sale System",
-    "tags": [
-      "concurrency",
-      "inventory",
-      "redis"
-    ],
+    "tags": ["concurrency", "inventory", "redis"],
     "difficulty": 4,
     "prompt": "Design a high-concurrency Flash Sale Inventory Reservation system where 100,000 users attempt to purchase 1,000 limited-edition items at the exact same second.",
     "clarifyingInfo": "Never oversell inventory. Unpaid reserved items must be returned to stock after a 10-minute timeout.",
@@ -391,23 +289,14 @@
     "followUps": [
       "How do you defend against automated scalper bots and multi-account cart reservations?"
     ],
-    "rubricHooks": [
-      "requirements",
-      "architecture",
-      "tradeoffs",
-      "failure_modes"
-    ],
+    "rubricHooks": ["requirements", "architecture", "tradeoffs", "failure_modes"],
     "timeBudgetMinutes": 40
   },
   {
     "id": "sd_13",
     "type": "system_design",
     "topic": "Distributed File Storage (Dropbox)",
-    "tags": [
-      "storage",
-      "chunking",
-      "sync"
-    ],
+    "tags": ["storage", "chunking", "sync"],
     "difficulty": 4,
     "prompt": "Design a cloud storage and file synchronization service like Dropbox or Google Drive that synchronizes file edits across multiple devices efficiently.",
     "clarifyingInfo": "Files can be up to 50 GB. Support offline edits, version history, and delta sync.",
@@ -422,25 +311,15 @@
       "Uploading whole files on minor edits wasting user bandwidth",
       "Lack of conflict resolution when two devices edit offline concurrently"
     ],
-    "followUps": [
-      "How would you implement differential block compression (rsync algorithm)?"
-    ],
-    "rubricHooks": [
-      "requirements",
-      "architecture",
-      "tradeoffs"
-    ],
+    "followUps": ["How would you implement differential block compression (rsync algorithm)?"],
+    "rubricHooks": ["requirements", "architecture", "tradeoffs"],
     "timeBudgetMinutes": 35
   },
   {
     "id": "sd_14",
     "type": "system_design",
     "topic": "Collaborative Real-Time Document Editor",
-    "tags": [
-      "ot",
-      "crdt",
-      "websockets"
-    ],
+    "tags": ["ot", "crdt", "websockets"],
     "difficulty": 5,
     "prompt": "Design a collaborative real-time rich-text editing engine like Google Docs or Figma where multiple users can type simultaneously in the same document with zero conflict divergence.",
     "clarifyingInfo": "Must support offline editing with eventual consistency upon reconnecting. Up to 50 concurrent editors per document.",
@@ -455,26 +334,15 @@
       "Naive last-write-wins (LWW) overwriting collaborator edits",
       "Sending full document text on every keystroke"
     ],
-    "followUps": [
-      "How do CRDTs handle memory bloat from tombstones of deleted characters?"
-    ],
-    "rubricHooks": [
-      "requirements",
-      "architecture",
-      "tradeoffs",
-      "communication"
-    ],
+    "followUps": ["How do CRDTs handle memory bloat from tombstones of deleted characters?"],
+    "rubricHooks": ["requirements", "architecture", "tradeoffs", "communication"],
     "timeBudgetMinutes": 45
   },
   {
     "id": "sd_15",
     "type": "system_design",
     "topic": "Distributed Payment Gateway",
-    "tags": [
-      "payments",
-      "idempotency",
-      "acid"
-    ],
+    "tags": ["payments", "idempotency", "acid"],
     "difficulty": 4,
     "prompt": "Design a highly reliable Payment Gateway and Processing service (like Stripe) that handles credit card transactions with strict idempotency and zero double-charge risk.",
     "clarifyingInfo": "System must be PCI-DSS compliant. Third-party banking rails may experience transient network timeouts.",
@@ -492,22 +360,14 @@
     "followUps": [
       "How do you maintain distributed consistency between your ledger and third-party bank settlement reports?"
     ],
-    "rubricHooks": [
-      "requirements",
-      "architecture",
-      "failure_modes"
-    ],
+    "rubricHooks": ["requirements", "architecture", "failure_modes"],
     "timeBudgetMinutes": 40
   },
   {
     "id": "sd_16",
     "type": "system_design",
     "topic": "Social Media News Feed",
-    "tags": [
-      "news_feed",
-      "fanout",
-      "caching"
-    ],
+    "tags": ["news_feed", "fanout", "caching"],
     "difficulty": 3,
     "prompt": "Design a Social Media News Feed generation system like Twitter or Facebook where users can publish posts and view an aggregated timeline of posts from people they follow.",
     "clarifyingInfo": "300 million daily active users. Average user follows 200 people. Celebrities have 50 million followers.",
@@ -522,25 +382,15 @@
       "Using pure fan-out on write for celebrity accounts causing millions of concurrent Redis writes",
       "Querying relational database JOIN on every feed refresh"
     ],
-    "followUps": [
-      "How do you ensure pagination remains stable as new posts arrive in real time?"
-    ],
-    "rubricHooks": [
-      "estimation",
-      "architecture",
-      "tradeoffs"
-    ],
+    "followUps": ["How do you ensure pagination remains stable as new posts arrive in real time?"],
+    "rubricHooks": ["estimation", "architecture", "tradeoffs"],
     "timeBudgetMinutes": 35
   },
   {
     "id": "sd_17",
     "type": "system_design",
     "topic": "API Gateway & Service Mesh",
-    "tags": [
-      "gateway",
-      "reverse_proxy",
-      "security"
-    ],
+    "tags": ["gateway", "reverse_proxy", "security"],
     "difficulty": 3,
     "prompt": "Design a centralized API Gateway that acts as the single entry point for all client traffic across 200 backend microservices, handling routing, TLS termination, auth, and telemetry.",
     "clarifyingInfo": "Handles 100,000 QPS with p99 latency overhead < 5ms. Support canary routing and circuit breaking.",
@@ -558,22 +408,14 @@
     "followUps": [
       "How do you route 5% of production traffic to a canary service instance by header?"
     ],
-    "rubricHooks": [
-      "requirements",
-      "architecture",
-      "tradeoffs"
-    ],
+    "rubricHooks": ["requirements", "architecture", "tradeoffs"],
     "timeBudgetMinutes": 30
   },
   {
     "id": "sd_18",
     "type": "system_design",
     "topic": "Distributed Caching Tier (Memcached/Redis)",
-    "tags": [
-      "caching",
-      "cache_stampede",
-      "eviction"
-    ],
+    "tags": ["caching", "cache_stampede", "eviction"],
     "difficulty": 3,
     "prompt": "Design a large-scale Distributed In-Memory Caching infrastructure to shield backend databases from traffic surges across 50,000 database read queries per second.",
     "clarifyingInfo": "Provide O(1) reads and writes, TTL expiration, eviction policies (LRU/LFU), and cache stampede protection.",
@@ -588,25 +430,15 @@
       "Not setting TTLs leading to stale data indefinitely",
       "All cache keys expiring at midnight simultaneously causing database crash"
     ],
-    "followUps": [
-      "How do you safely resize the cache cluster without dropping hot items?"
-    ],
-    "rubricHooks": [
-      "architecture",
-      "tradeoffs",
-      "failure_modes"
-    ],
+    "followUps": ["How do you safely resize the cache cluster without dropping hot items?"],
+    "rubricHooks": ["architecture", "tradeoffs", "failure_modes"],
     "timeBudgetMinutes": 35
   },
   {
     "id": "sd_19",
     "type": "system_design",
     "topic": "Distributed Log Ingestion (ELK / Loki)",
-    "tags": [
-      "logging",
-      "elasticsearch",
-      "kafka"
-    ],
+    "tags": ["logging", "elasticsearch", "kafka"],
     "difficulty": 4,
     "prompt": "Design a centralized Distributed Log Aggregation and Search system capable of ingesting, indexing, and querying 50 TB of structured JSON application logs per day.",
     "clarifyingInfo": "Logs must be searchable within 10 seconds of emission. Support full-text substring and tag filtering.",
@@ -621,25 +453,15 @@
       "Indexing every arbitrary JSON field causing mapping explosion in Elasticsearch",
       "Direct HTTP logging from app servers to indexers causing application threads to block"
     ],
-    "followUps": [
-      "How would you execute distributed grep across cold compressed log files in S3?"
-    ],
-    "rubricHooks": [
-      "estimation",
-      "architecture",
-      "tradeoffs"
-    ],
+    "followUps": ["How would you execute distributed grep across cold compressed log files in S3?"],
+    "rubricHooks": ["estimation", "architecture", "tradeoffs"],
     "timeBudgetMinutes": 40
   },
   {
     "id": "sd_20",
     "type": "system_design",
     "topic": "Leaderboard & Ranking Engine",
-    "tags": [
-      "redis",
-      "ranking",
-      "gaming"
-    ],
+    "tags": ["redis", "ranking", "gaming"],
     "difficulty": 2,
     "prompt": "Design a real-time Gaming Leaderboard service that maintains top 100 players and real-time rank lookups for 10 million active players across millions of score updates per hour.",
     "clarifyingInfo": "Support global rank lookup (e.g., 'You are ranked #1,402') and monthly rolling leaderboard resets.",
@@ -657,11 +479,7 @@
     "followUps": [
       "How do you implement leaderboard rankings for friend circles with custom filters?"
     ],
-    "rubricHooks": [
-      "estimation",
-      "architecture",
-      "tradeoffs"
-    ],
+    "rubricHooks": ["estimation", "architecture", "tradeoffs"],
     "timeBudgetMinutes": 25
   }
 ]

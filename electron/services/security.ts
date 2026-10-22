@@ -74,8 +74,7 @@ export function validateReadPath(
 
     return {
       allowed: false,
-      reason:
-        'Access denied: Path is outside userData and was not approved via open-file dialog',
+      reason: 'Access denied: Path is outside userData and was not approved via open-file dialog',
     };
   } catch (err: any) {
     return { allowed: false, reason: `Path validation error: ${err.message || String(err)}` };
@@ -143,10 +142,7 @@ export function validateWritePath(
  * 1. Target must exist.
  * 2. Target must strictly be inside userData (never deleting userData root itself).
  */
-export function validateDeletePath(
-  targetPath: string,
-  userDataDir: string
-): PathValidationResult {
+export function validateDeletePath(targetPath: string, userDataDir: string): PathValidationResult {
   if (!targetPath || typeof targetPath !== 'string') {
     return { allowed: false, reason: 'Invalid or empty target path' };
   }
@@ -170,7 +166,10 @@ export function validateDeletePath(
 
     return { allowed: true, resolvedPath: realTarget };
   } catch (err: any) {
-    return { allowed: false, reason: `Delete path validation error: ${err.message || String(err)}` };
+    return {
+      allowed: false,
+      reason: `Delete path validation error: ${err.message || String(err)}`,
+    };
   }
 }
 
@@ -204,7 +203,7 @@ export function buildCspHeader(isDev: boolean): string {
 
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "media-src 'self' blob:",

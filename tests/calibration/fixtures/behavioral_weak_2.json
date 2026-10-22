@@ -21,26 +21,11 @@
   "transcript": "Candidate: Honestly, I don't really have major failures because I am very meticulous with my work. But one time a project was delivered two months late. That wasn't really my failure though—our product manager kept changing the specifications every week, and upper management cut our team budget in half. If management had given us clear requirements from day one, we would have shipped early. What did I learn? I learned that management rarely knows what they are doing and that you can't trust timelines when other people are involved.",
   "hints": [],
   "expectedScoreRanges": {
-    "structure": [
-      1.5,
-      2.5
-    ],
-    "specificity": [
-      1.5,
-      2.5
-    ],
-    "ownership": [
-      1,
-      1.5
-    ],
-    "impact": [
-      1,
-      1.5
-    ],
-    "reflection": [
-      1,
-      1.5
-    ]
+    "structure": [1.5, 2.5],
+    "specificity": [1.5, 2.5],
+    "ownership": [1, 1.5],
+    "impact": [1, 1.5],
+    "reflection": [1, 1.5]
   },
   "notes": "Refuses to acknowledge personal vulnerability, blames management, cynical takeaway.",
   "recordedLLMResponse": "{\"questions\":[{\"id\":\"beh_failure\",\"type\":\"behavioral\",\"dimensions\":{\"structure\":{\"score\":2,\"evidence\":\"Honestly, I don't really have major failures because I am very meticulous\",\"note\":\"Evasive opening.\"},\"specificity\":{\"score\":2,\"evidence\":\"one time a project was delivered two months late\",\"note\":\"High-level scenario lacking depth.\"},\"ownership\":{\"score\":1,\"evidence\":\"That wasn't really my failure though—our product manager kept changing the specifications\",\"note\":\"Completely rejects personal accountability.\"},\"impact\":{\"score\":1,\"evidence\":\"project was delivered two months late\",\"note\":\"Negative organizational impact.\"},\"reflection\":{\"score\":1,\"evidence\":\"I learned that management rarely knows what they are doing\",\"note\":\"Cynical mindset with zero self-awareness.\"}},\"missed_points\":[\"Personal vulnerability and accountability\",\"Scope management and change control mechanisms\",\"Positive growth from failure\"],\"model_answer_outline\":[\"Acknowledge personal oversight\",\"Containment steps taken\",\"Preventive systemic measures introduced\"]}],\"overall\":{\"score\":1.4,\"summary\":\"Candidate was defensive and declined to take ownership of project setbacks, blaming leadership and product managers while providing a cynical non-learning.\",\"top_fixes\":[\"Select an authentic failure where you made an engineering or prioritization error\",\"Demonstrate personal accountability for proactive scope management\",\"Highlight constructive systems or checklists developed from the experience\"],\"strengths\":[\"Identified project delay timeframe\"]},\"uncertainty\":\"None.\"}"

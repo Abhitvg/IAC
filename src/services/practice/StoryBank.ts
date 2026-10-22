@@ -1,4 +1,4 @@
-import { BehavioralStory, BehavioralCompetency } from "./types";
+import { BehavioralStory, BehavioralCompetency } from './types';
 
 export interface CompetencyCoverageReport {
   coverage: Record<BehavioralCompetency, number>;
@@ -10,11 +10,11 @@ export interface CompetencyCoverageReport {
 
 export class StoryBank {
   public static readonly ALL_COMPETENCIES: BehavioralCompetency[] = [
-    "leadership",
-    "conflict",
-    "failure_postmortem",
-    "ambiguity",
-    "high_impact_scale",
+    'leadership',
+    'conflict',
+    'failure_postmortem',
+    'ambiguity',
+    'high_impact_scale',
   ];
 
   /**
@@ -32,98 +32,104 @@ export class StoryBank {
       .map((l) => l.trim())
       .filter((l) => l.length > 20);
 
-    let currentCompanyOrProject = "Core Experience";
+    let currentCompanyOrProject = 'Core Experience';
     let storyCounter = 1;
 
     for (const line of lines) {
       // Check if line indicates a role/company header
       if (
         (line.toUpperCase() === line && line.length < 50) ||
-        line.includes("Company") ||
-        line.includes("Engineer") ||
-        line.includes("Developer") ||
-        line.includes("Project:") ||
-        line.includes("Lead")
+        line.includes('Company') ||
+        line.includes('Engineer') ||
+        line.includes('Developer') ||
+        line.includes('Project:') ||
+        line.includes('Lead')
       ) {
-        currentCompanyOrProject = line.replace(/^[#*-]+\s*/, "").slice(0, 45);
+        currentCompanyOrProject = line.replace(/^[#*-]+\s*/, '').slice(0, 45);
         continue;
       }
 
       // Check if line looks like an impactful bullet point
       const isBullet =
-        line.startsWith("-") ||
-        line.startsWith("•") ||
-        line.startsWith("*") ||
-        /^(Led|Built|Implemented|Architected|Engineered|Reduced|Accelerated|Designed|Resolved|Scaled)\b/i.test(line);
+        line.startsWith('-') ||
+        line.startsWith('•') ||
+        line.startsWith('*') ||
+        /^(Led|Built|Implemented|Architected|Engineered|Reduced|Accelerated|Designed|Resolved|Scaled)\b/i.test(
+          line
+        );
 
       if (isBullet && line.length > 40) {
-        const cleanBullet = line.replace(/^[•*\-\s]+/, "");
+        const cleanBullet = line.replace(/^[•*\-\s]+/, '');
         const lower = cleanBullet.toLowerCase();
 
         // Detect competencies
         const competencies: BehavioralCompetency[] = [];
         if (
-          lower.includes("led") ||
-          lower.includes("mentored") ||
-          lower.includes("spearheaded") ||
-          lower.includes("founded") ||
-          lower.includes("coordinated") ||
-          lower.includes("cross-functional")
+          lower.includes('led') ||
+          lower.includes('mentored') ||
+          lower.includes('spearheaded') ||
+          lower.includes('founded') ||
+          lower.includes('coordinated') ||
+          lower.includes('cross-functional')
         ) {
-          competencies.push("leadership");
+          competencies.push('leadership');
         }
 
         if (
-          lower.includes("conflict") ||
-          lower.includes("disagreed") ||
-          lower.includes("pushback") ||
-          lower.includes("consensus") ||
-          lower.includes("trade-off") ||
-          lower.includes("negotiated") ||
-          lower.includes("aligned stakeholders")
+          lower.includes('conflict') ||
+          lower.includes('disagreed') ||
+          lower.includes('pushback') ||
+          lower.includes('consensus') ||
+          lower.includes('trade-off') ||
+          lower.includes('negotiated') ||
+          lower.includes('aligned stakeholders')
         ) {
-          competencies.push("conflict");
+          competencies.push('conflict');
         }
 
         if (
-          lower.includes("outage") ||
-          lower.includes("incident") ||
-          lower.includes("bug") ||
-          lower.includes("root cause") ||
-          lower.includes("postmortem") ||
-          lower.includes("recovered") ||
-          lower.includes("fixed crash")
+          lower.includes('outage') ||
+          lower.includes('incident') ||
+          lower.includes('bug') ||
+          lower.includes('root cause') ||
+          lower.includes('postmortem') ||
+          lower.includes('recovered') ||
+          lower.includes('fixed crash')
         ) {
-          competencies.push("failure_postmortem");
+          competencies.push('failure_postmortem');
         }
 
         if (
-          lower.includes("ambiguity") ||
-          lower.includes("prototype") ||
-          lower.includes("0 to 1") ||
-          lower.includes("mvp") ||
-          lower.includes("uncertain") ||
-          lower.includes("exploratory") ||
-          lower.includes("unstructured")
+          lower.includes('ambiguity') ||
+          lower.includes('prototype') ||
+          lower.includes('0 to 1') ||
+          lower.includes('mvp') ||
+          lower.includes('uncertain') ||
+          lower.includes('exploratory') ||
+          lower.includes('unstructured')
         ) {
-          competencies.push("ambiguity");
+          competencies.push('ambiguity');
         }
 
         if (
-          lower.includes("scale") ||
-          lower.includes("reduced latency") ||
-          lower.includes("increased") ||
-          lower.includes("improved") ||
-          lower.includes("saved") ||
-          lower.includes("high-throughput") ||
+          lower.includes('scale') ||
+          lower.includes('reduced latency') ||
+          lower.includes('increased') ||
+          lower.includes('improved') ||
+          lower.includes('saved') ||
+          lower.includes('high-throughput') ||
           /\b\d+(%|x|ms|s|k|m|users|dollars)?\b/i.test(lower)
         ) {
-          competencies.push("high_impact_scale");
+          competencies.push('high_impact_scale');
         }
 
         // If no explicit competency matched, default to high_impact_scale or leadership based on verbs
         if (competencies.length === 0) {
-          competencies.push(lower.includes("built") || lower.includes("designed") ? "high_impact_scale" : "leadership");
+          competencies.push(
+            lower.includes('built') || lower.includes('designed')
+              ? 'high_impact_scale'
+              : 'leadership'
+          );
         }
 
         // Extract metrics
@@ -136,13 +142,14 @@ export class StoryBank {
         const situation = `At ${currentCompanyOrProject}, needed to address critical operational requirements in: ${cleanBullet.slice(0, 60)}...`;
         const task = `Responsible for designing and delivering robust execution without disrupting live users.`;
         const action = `I personally led: ${cleanBullet}`;
-        const result = metrics.length > 0
-          ? `Delivered measurable outcome achieving ${metrics.join(", ")} improvement.`
-          : "Successfully delivered to production with zero regressions and received positive stakeholder feedback.";
+        const result =
+          metrics.length > 0
+            ? `Delivered measurable outcome achieving ${metrics.join(', ')} improvement.`
+            : 'Successfully delivered to production with zero regressions and received positive stakeholder feedback.';
 
         stories.push({
           id: `story-${storyCounter++}`,
-          title: cleanBullet.slice(0, 50) + "...",
+          title: cleanBullet.slice(0, 50) + '...',
           companyProject: currentCompanyOrProject,
           situation,
           task,
@@ -199,13 +206,11 @@ export class StoryBank {
       );
     }
     if (coverage.leadership === 0) {
-      gapAlerts.push(
-        "Gap: 0 stories for 'Leadership & Influence without Authority'."
-      );
+      gapAlerts.push("Gap: 0 stories for 'Leadership & Influence without Authority'.");
     }
     if (coverage.high_impact_scale === 0) {
       gapAlerts.push(
-        "Gap: 0 stories demonstrating quantified business scale ($ savings, latency drop %, or DAU)."
+        'Gap: 0 stories demonstrating quantified business scale ($ savings, latency drop %, or DAU).'
       );
     }
 
@@ -226,18 +231,39 @@ export class StoryBank {
    */
   public static matchStory(question: string, stories: BehavioralStory[]): BehavioralStory | null {
     if (!stories || stories.length === 0) return null;
-    const qLower = (question || "").toLowerCase();
+    const qLower = (question || '').toLowerCase();
 
     // Map question intent to competency
-    let targetCompetency: BehavioralCompetency = "high_impact_scale";
-    if (qLower.includes("disagree") || qLower.includes("conflict") || qLower.includes("pushback") || qLower.includes("persuade")) {
-      targetCompetency = "conflict";
-    } else if (qLower.includes("fail") || qLower.includes("mistake") || qLower.includes("wrong") || qLower.includes("regret") || qLower.includes("postmortem")) {
-      targetCompetency = "failure_postmortem";
-    } else if (qLower.includes("ambigu") || qLower.includes("unclear") || qLower.includes("uncertain") || qLower.includes("pivot")) {
-      targetCompetency = "ambiguity";
-    } else if (qLower.includes("lead") || qLower.includes("mentor") || qLower.includes("initiative") || qLower.includes("proud")) {
-      targetCompetency = "leadership";
+    let targetCompetency: BehavioralCompetency = 'high_impact_scale';
+    if (
+      qLower.includes('disagree') ||
+      qLower.includes('conflict') ||
+      qLower.includes('pushback') ||
+      qLower.includes('persuade')
+    ) {
+      targetCompetency = 'conflict';
+    } else if (
+      qLower.includes('fail') ||
+      qLower.includes('mistake') ||
+      qLower.includes('wrong') ||
+      qLower.includes('regret') ||
+      qLower.includes('postmortem')
+    ) {
+      targetCompetency = 'failure_postmortem';
+    } else if (
+      qLower.includes('ambigu') ||
+      qLower.includes('unclear') ||
+      qLower.includes('uncertain') ||
+      qLower.includes('pivot')
+    ) {
+      targetCompetency = 'ambiguity';
+    } else if (
+      qLower.includes('lead') ||
+      qLower.includes('mentor') ||
+      qLower.includes('initiative') ||
+      qLower.includes('proud')
+    ) {
+      targetCompetency = 'leadership';
     }
 
     // Find candidate stories tagged with this competency

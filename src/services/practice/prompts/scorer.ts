@@ -23,18 +23,15 @@ export interface ScorerPromptParams {
 }
 
 export function buildScorerPrompt(params: ScorerPromptParams): string {
-  const transcriptText = (params.transcript || "").trim();
+  const transcriptText = (params.transcript || '').trim();
   const questionJsonStr =
-    typeof params.questionJson === "string"
+    typeof params.questionJson === 'string'
       ? params.questionJson
       : JSON.stringify(params.questionJson, null, 2);
   const hintsStr =
-    typeof params.hints === "string"
-      ? params.hints
-      : JSON.stringify(params.hints, null, 2);
+    typeof params.hints === 'string' ? params.hints : JSON.stringify(params.hints, null, 2);
 
-  return SCORER_PROMPT_TEMPLATE
-    .replace("{{transcript}}", transcriptText)
-    .replace("{{question_json}}", questionJsonStr)
-    .replace("{{hints}}", hintsStr);
+  return SCORER_PROMPT_TEMPLATE.replace('{{transcript}}', transcriptText)
+    .replace('{{question_json}}', questionJsonStr)
+    .replace('{{hints}}', hintsStr);
 }

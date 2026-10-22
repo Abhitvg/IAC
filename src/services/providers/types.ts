@@ -82,24 +82,30 @@ export function calculateEstimatedCost(
   promptTokens: number,
   completionTokens: number
 ): number {
-  if (providerId === 'ollama' || providerId === 'local-whisper-cpp' || providerId === 'piper-local' || providerId === 'kokoro-local' || providerId === 'browser-speech') {
+  if (
+    providerId === 'ollama' ||
+    providerId === 'local-whisper-cpp' ||
+    providerId === 'piper-local' ||
+    providerId === 'kokoro-local' ||
+    providerId === 'browser-speech'
+  ) {
     return 0.0;
   }
 
   // Rates per 1,000,000 tokens
-  let promptRatePerMillion = 0.50;
-  let completionRatePerMillion = 0.80;
+  let promptRatePerMillion = 0.5;
+  let completionRatePerMillion = 0.8;
 
   if (providerId === 'openai') {
     // GPT-4o-mini rates
     promptRatePerMillion = 0.15;
-    completionRatePerMillion = 0.60;
+    completionRatePerMillion = 0.6;
   } else if (providerId === 'groq') {
     promptRatePerMillion = 0.59;
     completionRatePerMillion = 0.79;
   } else if (providerId === 'openrouter') {
-    promptRatePerMillion = 0.50;
-    completionRatePerMillion = 0.80;
+    promptRatePerMillion = 0.5;
+    completionRatePerMillion = 0.8;
   }
 
   const cost =

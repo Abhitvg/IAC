@@ -5,22 +5,27 @@ export class OpenAIWhisperProvider implements STTProvider {
   public readonly name = 'OpenAI Whisper Cloud';
   public readonly isLocal = false;
 
-  constructor(private apiKey: string, private model: string = 'whisper-1') {}
+  constructor(
+    private apiKey: string,
+    private model: string = 'whisper-1'
+  ) {}
 
-  async transcribe(audioData: Blob | Buffer | ArrayBuffer, options?: STTOptions): Promise<STTResult> {
+  async transcribe(
+    audioData: Blob | Buffer | ArrayBuffer,
+    options?: STTOptions
+  ): Promise<STTResult> {
     const startTime = Date.now();
     const formData = new FormData();
 
     const blob =
-      audioData instanceof Blob
-        ? audioData
-        : new Blob([audioData as any], { type: 'audio/webm' });
+      audioData instanceof Blob ? audioData : new Blob([audioData as any], { type: 'audio/webm' });
 
     formData.append('file', blob, 'audio.webm');
     formData.append('model', this.model);
     if (options?.language) formData.append('language', options.language);
     if (options?.prompt) formData.append('prompt', options.prompt);
-    if (options?.temperature !== undefined) formData.append('temperature', String(options.temperature));
+    if (options?.temperature !== undefined)
+      formData.append('temperature', String(options.temperature));
 
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
@@ -60,16 +65,20 @@ export class GroqWhisperProvider implements STTProvider {
   public readonly name = 'Groq Whisper Large v3';
   public readonly isLocal = false;
 
-  constructor(private apiKey: string, private model: string = 'whisper-large-v3') {}
+  constructor(
+    private apiKey: string,
+    private model: string = 'whisper-large-v3'
+  ) {}
 
-  async transcribe(audioData: Blob | Buffer | ArrayBuffer, options?: STTOptions): Promise<STTResult> {
+  async transcribe(
+    audioData: Blob | Buffer | ArrayBuffer,
+    options?: STTOptions
+  ): Promise<STTResult> {
     const startTime = Date.now();
     const formData = new FormData();
 
     const blob =
-      audioData instanceof Blob
-        ? audioData
-        : new Blob([audioData as any], { type: 'audio/webm' });
+      audioData instanceof Blob ? audioData : new Blob([audioData as any], { type: 'audio/webm' });
 
     formData.append('file', blob, 'audio.webm');
     formData.append('model', this.model);
@@ -116,15 +125,16 @@ export class LocalWhisperCppProvider implements STTProvider {
 
   constructor(private endpoint: string = 'http://127.0.0.1:8080/inference') {}
 
-  async transcribe(audioData: Blob | Buffer | ArrayBuffer, options?: STTOptions): Promise<STTResult> {
+  async transcribe(
+    audioData: Blob | Buffer | ArrayBuffer,
+    options?: STTOptions
+  ): Promise<STTResult> {
     const startTime = Date.now();
 
     // Check if local whisper.cpp server is reachable
     const formData = new FormData();
     const blob =
-      audioData instanceof Blob
-        ? audioData
-        : new Blob([audioData as any], { type: 'audio/wav' });
+      audioData instanceof Blob ? audioData : new Blob([audioData as any], { type: 'audio/wav' });
 
     formData.append('file', blob, 'audio.wav');
     if (options?.language) formData.append('language', options.language);
@@ -184,9 +194,13 @@ export class STTManager {
     this.providers.set(provider.id, provider);
   }
 
-  public async transcribeWithFallback(audioData: Blob | Buffer | ArrayBuffer, options?: STTOptions): Promise<STTResult> {
-    const order = [this.primaryId, 'groq-whisper', 'openai-whisper', 'local-whisper-cpp']
-      .filter((id, idx, arr) => arr.indexOf(id) === idx && this.providers.has(id));
+  public async transcribeWithFallback(
+    audioData: Blob | Buffer | ArrayBuffer,
+    options?: STTOptions
+  ): Promise<STTResult> {
+    const order = [this.primaryId, 'groq-whisper', 'openai-whisper', 'local-whisper-cpp'].filter(
+      (id, idx, arr) => arr.indexOf(id) === idx && this.providers.has(id)
+    );
 
     let lastError: Error | null = null;
 
@@ -197,10 +211,14 @@ export class STTManager {
         return await p.transcribe(audioData, options);
       } catch (err: any) {
         lastError = err;
-        console.warn(`[STTManager] ${id} transcription failed: ${err.message}. Trying next fallback...`);
+        console.warn(
+          `[STTManager] ${id} transcription failed: ${err.message}. Trying next fallback...`
+        );
       }
     }
 
-    throw new Error(`All STT transcription providers failed. Last error: ${lastError?.message || 'Unknown'}`);
+    throw new Error(
+      `All STT transcription providers failed. Last error: ${lastError?.message || 'Unknown'}`
+    );
   }
 }

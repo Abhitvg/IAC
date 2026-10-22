@@ -21,26 +21,11 @@
   "transcript": "Candidate: At my previous company, we were preparing for a major customer demo scheduled in three weeks, but our onboarding flow was still unfinished. My task was to lead the frontend delivery for that flow. I audited our backlog with our product manager and realized we had six features queued, which was impossible for a three-week window. I proposed cutting two non-essential customization widgets and postponing automated PDF exports to phase two. This allowed us to focus 100% on the core user sign-up and payment capture steps. I coordinated daily standups with our designer and backend engineer to resolve blocking issues immediately. We completed the core flow two days ahead of the demo, and the client successfully signed the annual contract. In reflection, while we hit the target, our team worked several late nights, so I learned we must identify scope creep earlier during sprint planning.",
   "hints": [],
   "expectedScoreRanges": {
-    "structure": [
-      3.5,
-      4.5
-    ],
-    "specificity": [
-      3,
-      4
-    ],
-    "ownership": [
-      3,
-      4
-    ],
-    "impact": [
-      3,
-      4
-    ],
-    "reflection": [
-      3,
-      4
-    ]
+    "structure": [3.5, 4.5],
+    "specificity": [3, 4],
+    "ownership": [3, 4],
+    "impact": [3, 4],
+    "reflection": [3, 4]
   },
   "notes": "Good adherence to STAR format. Clear scope cut decisions and cross-functional alignment. Outcome is positive though metrics could be more quantified.",
   "recordedLLMResponse": "{\"questions\":[{\"id\":\"beh_tight_deadline\",\"type\":\"behavioral\",\"dimensions\":{\"structure\":{\"score\":4,\"evidence\":\"At my previous company, we were preparing for a major customer demo scheduled in three weeks\",\"note\":\"Structured STAR progression.\"},\"specificity\":{\"score\":3.5,\"evidence\":\"cutting two non-essential customization widgets and postponing automated PDF exports\",\"note\":\"Concrete examples of scope triage.\"},\"ownership\":{\"score\":3.5,\"evidence\":\"I audited our backlog with our product manager and realized we had six features queued\",\"note\":\"Proactive backlog auditing.\"},\"impact\":{\"score\":3.5,\"evidence\":\"completed the core flow two days ahead of the demo, and the client successfully signed the annual contract\",\"note\":\"Direct business success.\"},\"reflection\":{\"score\":3.5,\"evidence\":\"our team worked several late nights, so I learned we must identify scope creep earlier during sprint planning\",\"note\":\"Recognized unsustainable crunch.\"}},\"missed_points\":[\"Specific contract valuation metrics\",\"Long-term technical debt payback plan\"],\"model_answer_outline\":[\"STAR setup on demo deadline\",\"Scope triage P0 vs P2\",\"Client win and sustainable pace reflection\"]}],\"overall\":{\"score\":3.6,\"summary\":\"Solid behavioral response structured cleanly around STAR. The candidate negotiated scope pragmatically with product management, delivered early, and acknowledged the need to prevent late-night crunches.\",\"top_fixes\":[\"Quantify business impact with specific contract dollar values or conversion percentages\",\"Outline how the postponed tech debt was tracked and scheduled in future sprints\"],\"strengths\":[\"Effective scope triage\",\"Honest reflection on work-life balance and sprint planning\"]},\"uncertainty\":\"None.\"}"

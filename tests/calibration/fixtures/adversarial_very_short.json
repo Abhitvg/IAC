@@ -11,38 +11,17 @@
       "Maintain heap size balance within 1 element",
       "O(log N) insertion and O(1) median retrieval"
     ],
-    "commonMistakes": [
-      "Sorting array on every addition O(N log N)",
-      "Single heap approach"
-    ]
+    "commonMistakes": ["Sorting array on every addition O(N log N)", "Single heap approach"]
   },
   "transcript": "Candidate: I will just use a hash map.",
   "hints": [],
   "expectedScoreRanges": {
-    "problem_understanding": [
-      1,
-      2
-    ],
-    "approach": [
-      1,
-      2
-    ],
-    "correctness": [
-      1,
-      2
-    ],
-    "complexity": [
-      1,
-      2
-    ],
-    "testing": [
-      1,
-      1.5
-    ],
-    "communication": [
-      1,
-      2
-    ]
+    "problem_understanding": [1, 2],
+    "approach": [1, 2],
+    "correctness": [1, 2],
+    "complexity": [1, 2],
+    "testing": [1, 1.5],
+    "communication": [1, 2]
   },
   "notes": "Adversarial very short answer. Must score <= 2 and explicitly trigger uncertainty flag about thin transcript.",
   "recordedLLMResponse": "{\"questions\":[{\"id\":\"adv_q_short\",\"type\":\"coding\",\"dimensions\":{\"problem_understanding\":{\"score\":1,\"evidence\":\"I will just use a hash map\",\"note\":\"Hash map cannot maintain sorted order for running median.\"},\"approach\":{\"score\":1,\"evidence\":\"I will just use a hash map\",\"note\":\"Incorrect data structure selection.\"},\"correctness\":{\"score\":1,\"evidence\":\"\",\"note\":\"no verifiable evidence of working median retrieval\"},\"complexity\":{\"score\":1,\"evidence\":\"\",\"note\":\"no verifiable evidence of complexity\"},\"testing\":{\"score\":1,\"evidence\":\"\",\"note\":\"no evidence of testing\"},\"communication\":{\"score\":1.5,\"evidence\":\"I will just use a hash map\",\"note\":\"Extremely brief 8-word answer.\"}},\"missed_points\":[\"Two heaps (max-heap and min-heap) architecture\",\"Heap balance invariant\",\"O(log N) addNum and O(1) findMedian\"],\"model_answer_outline\":[\"MaxHeap for left half, MinHeap for right half\",\"Rebalance sizes\",\"Median is average or top of larger heap\"]}],\"overall\":{\"score\":1.1,\"summary\":\"Answer was eight words long. Proposed an inappropriate data structure (hash map) for a running median problem without elaboration.\",\"top_fixes\":[\"Explain why two heaps are required for continuous median calculation\",\"Walk through addNum and findMedian operations with concrete examples\"],\"strengths\":[]},\"uncertainty\":\"The transcript is only 8 words long and too thin to evaluate depth, testing, or trade-offs.\"}"

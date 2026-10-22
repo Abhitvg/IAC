@@ -8,7 +8,7 @@ export interface ValidationResult {
   score: number;
   evidence: string;
   note: string;
-  matchType: "verbatim" | "fuzzy_90" | "none";
+  matchType: 'verbatim' | 'fuzzy_90' | 'none';
 }
 
 export class EvidenceValidator {
@@ -16,7 +16,7 @@ export class EvidenceValidator {
    * Normalizes whitespace and converts to lowercase for deterministic comparison.
    */
   public static normalize(text: string): string {
-    return (text || "").replace(/\s+/g, " ").trim().toLowerCase();
+    return (text || '').replace(/\s+/g, ' ').trim().toLowerCase();
   }
 
   /**
@@ -35,16 +35,16 @@ export class EvidenceValidator {
     // If quote is empty, generic placeholder, or says "no evidence"
     if (
       !normEvidence ||
-      normEvidence === "no evidence" ||
-      normEvidence === "none" ||
-      normEvidence === "n/a"
+      normEvidence === 'no evidence' ||
+      normEvidence === 'none' ||
+      normEvidence === 'n/a'
     ) {
       return {
         valid: false,
         score: Math.min(rawScore, 2),
-        evidence: "",
-        note: existingNote && existingNote.length > 0 ? existingNote : "no verifiable evidence",
-        matchType: "none",
+        evidence: '',
+        note: existingNote && existingNote.length > 0 ? existingNote : 'no verifiable evidence',
+        matchType: 'none',
       };
     }
 
@@ -54,8 +54,8 @@ export class EvidenceValidator {
         valid: true,
         score: rawScore,
         evidence: evidence.trim(),
-        note: existingNote || "",
-        matchType: "verbatim",
+        note: existingNote || '',
+        matchType: 'verbatim',
       };
     }
 
@@ -66,8 +66,8 @@ export class EvidenceValidator {
         valid: true,
         score: rawScore,
         evidence: evidence.trim(),
-        note: existingNote || "",
-        matchType: "fuzzy_90",
+        note: existingNote || '',
+        matchType: 'fuzzy_90',
       };
     }
 
@@ -75,9 +75,9 @@ export class EvidenceValidator {
     return {
       valid: false,
       score: Math.min(rawScore, 2),
-      evidence: "",
-      note: "no verifiable evidence",
-      matchType: "none",
+      evidence: '',
+      note: 'no verifiable evidence',
+      matchType: 'none',
     };
   }
 
@@ -88,10 +88,13 @@ export class EvidenceValidator {
     dimensions: Record<string, { score: number; evidence?: string; note?: string }>,
     transcript: string
   ): Record<string, { score: number; evidence: string; note: string; matchType: string }> {
-    const validated: Record<string, { score: number; evidence: string; note: string; matchType: string }> = {};
+    const validated: Record<
+      string,
+      { score: number; evidence: string; note: string; matchType: string }
+    > = {};
 
     for (const [name, dim] of Object.entries(dimensions)) {
-      const res = this.validateEvidence(dim.evidence || "", transcript, dim.score, dim.note);
+      const res = this.validateEvidence(dim.evidence || '', transcript, dim.score, dim.note);
       validated[name] = {
         score: res.score,
         evidence: res.evidence,
@@ -112,15 +115,15 @@ export class EvidenceValidator {
       return this.levenshteinSimilarity(target, transcript);
     }
 
-    const targetWords = target.split(" ");
-    const transcriptWords = transcript.split(" ");
+    const targetWords = target.split(' ');
+    const transcriptWords = transcript.split(' ');
 
     // Word-level sliding window
     const windowSize = Math.max(1, targetWords.length);
     let bestRatio = 0;
 
     for (let i = 0; i <= transcriptWords.length - windowSize; i++) {
-      const windowStr = transcriptWords.slice(i, i + windowSize).join(" ");
+      const windowStr = transcriptWords.slice(i, i + windowSize).join(' ');
       const ratio = this.levenshteinSimilarity(target, windowStr);
       if (ratio > bestRatio) {
         bestRatio = ratio;
@@ -131,7 +134,7 @@ export class EvidenceValidator {
     // Also check expanded window (+- 2 words) to catch dropped or added words
     const expandedSize = Math.min(transcriptWords.length, windowSize + 2);
     for (let i = 0; i <= transcriptWords.length - expandedSize; i++) {
-      const windowStr = transcriptWords.slice(i, i + expandedSize).join(" ");
+      const windowStr = transcriptWords.slice(i, i + expandedSize).join(' ');
       const ratio = this.levenshteinSimilarity(target, windowStr);
       if (ratio > bestRatio) {
         bestRatio = ratio;

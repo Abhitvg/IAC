@@ -1,23 +1,17 @@
-import { z } from "zod";
-import codingData from "../../data/questions/coding.json";
-import systemDesignData from "../../data/questions/system_design.json";
-import behavioralData from "../../data/questions/behavioral.json";
-import { TopicMastery } from "./types";
+import { z } from 'zod';
+import codingData from '../../data/questions/coding.json';
+import systemDesignData from '../../data/questions/system_design.json';
+import behavioralData from '../../data/questions/behavioral.json';
+import { TopicMastery } from './types';
 
 export const QuestionEntrySchema = z.object({
   id: z.string().min(1),
-  type: z.enum(["coding", "system_design", "behavioral"]),
+  type: z.enum(['coding', 'system_design', 'behavioral']),
   topic: z.string().min(1),
   tags: z.array(z.string()),
-  difficulty: z.union([
-    z.literal(1),
-    z.literal(2),
-    z.literal(3),
-    z.literal(4),
-    z.literal(5),
-  ]),
+  difficulty: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
   prompt: z.string().min(5),
-  clarifyingInfo: z.string().optional().default(""),
+  clarifyingInfo: z.string().optional().default(''),
   expectedPoints: z.array(z.string().min(1)).min(1),
   commonMistakes: z.array(z.string()).optional().default([]),
   followUps: z.array(z.string()).optional().default([]),
@@ -53,7 +47,7 @@ export class QuestionBank {
   }
 
   public static getQuestionsByType(
-    type: "coding" | "system_design" | "behavioral"
+    type: 'coding' | 'system_design' | 'behavioral'
   ): QuestionEntry[] {
     return this.getAllQuestions().filter((q) => q.type === type);
   }
@@ -65,7 +59,7 @@ export class QuestionBank {
    * 3. Topic mastery priority: Prioritizes topics with lowest mastery scores.
    */
   public static selectAdaptiveQuestion(params: {
-    type: "coding" | "system_design" | "behavioral";
+    type: 'coding' | 'system_design' | 'behavioral';
     previousScore?: number;
     currentDifficulty?: number;
     excludedIds?: string[];
@@ -121,9 +115,7 @@ export class QuestionBank {
     }
 
     // 3. Try matching exact target difficulty
-    const targetDiffMatch = candidates.filter(
-      (q) => q.difficulty === targetDifficulty
-    );
+    const targetDiffMatch = candidates.filter((q) => q.difficulty === targetDifficulty);
     if (targetDiffMatch.length > 0) {
       return targetDiffMatch[0];
     }
@@ -131,8 +123,7 @@ export class QuestionBank {
     // 4. Fallback to closest available difficulty
     candidates.sort(
       (a, b) =>
-        Math.abs(a.difficulty - targetDifficulty) -
-        Math.abs(b.difficulty - targetDifficulty)
+        Math.abs(a.difficulty - targetDifficulty) - Math.abs(b.difficulty - targetDifficulty)
     );
     return candidates[0];
   }
@@ -141,13 +132,15 @@ export class QuestionBank {
    * Imports and validates a custom question pack (JSON string or object array).
    * Rejects invalid schemas, duplicate IDs, missing fields, or empty expectedPoints.
    */
-  public static importCustomPack(
-    rawPack: string | unknown[]
-  ): { success: boolean; importedCount: number; errors?: string[] } {
+  public static importCustomPack(rawPack: string | unknown[]): {
+    success: boolean;
+    importedCount: number;
+    errors?: string[];
+  } {
     let rawItems: unknown[];
 
     try {
-      if (typeof rawPack === "string") {
+      if (typeof rawPack === 'string') {
         rawItems = JSON.parse(rawPack);
       } else if (Array.isArray(rawPack)) {
         rawItems = rawPack;
@@ -155,7 +148,7 @@ export class QuestionBank {
         return {
           success: false,
           importedCount: 0,
-          errors: ["Custom pack must be a valid JSON array of questions."],
+          errors: ['Custom pack must be a valid JSON array of questions.'],
         };
       }
     } catch (e: any) {
@@ -170,7 +163,7 @@ export class QuestionBank {
       return {
         success: false,
         importedCount: 0,
-        errors: ["Custom pack must contain at least one question."],
+        errors: ['Custom pack must contain at least one question.'],
       };
     }
 
@@ -182,8 +175,8 @@ export class QuestionBank {
       const parsed = QuestionEntrySchema.safeParse(item);
       if (!parsed.success) {
         const issues = parsed.error.issues
-          .map((i) => `${i.path.join(".")}: ${i.message}`)
-          .join(", ");
+          .map((i) => `${i.path.join('.')}: ${i.message}`)
+          .join(', ');
         errors.push(`Question #${index + 1}: ${issues}`);
         return;
       }

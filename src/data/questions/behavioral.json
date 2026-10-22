@@ -3,11 +3,7 @@
     "id": "beh_01",
     "type": "behavioral",
     "topic": "Technical Conflict",
-    "tags": [
-      "conflict",
-      "collaboration",
-      "architecture"
-    ],
+    "tags": ["conflict", "collaboration", "architecture"],
     "difficulty": 3,
     "prompt": "Tell me about a time you had a strong technical disagreement with a peer or senior engineer regarding an architecture decision. How did you handle it?",
     "clarifyingInfo": "Focus on how you evaluated trade-offs objectively, communicated with empathy, and reached consensus.",
@@ -26,23 +22,14 @@
     "followUps": [
       "What would you have done if the team had decided to move forward with their approach instead of yours?"
     ],
-    "rubricHooks": [
-      "structure",
-      "specificity",
-      "ownership",
-      "reflection"
-    ],
+    "rubricHooks": ["structure", "specificity", "ownership", "reflection"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_02",
     "type": "behavioral",
     "topic": "Production Outage Postmortem",
-    "tags": [
-      "failure_postmortem",
-      "production",
-      "incident"
-    ],
+    "tags": ["failure_postmortem", "production", "incident"],
     "difficulty": 3,
     "prompt": "Describe a situation where a code deployment or database change you authored caused a major production outage. How did you react and what followed?",
     "clarifyingInfo": "Highlight incident triage, blast-radius mitigation, transparency, and lasting preventative safeguards.",
@@ -60,22 +47,14 @@
     "followUps": [
       "How did this experience change the way you review code for other engineers on your team?"
     ],
-    "rubricHooks": [
-      "ownership",
-      "impact",
-      "reflection"
-    ],
+    "rubricHooks": ["ownership", "impact", "reflection"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_03",
     "type": "behavioral",
     "topic": "Navigating Ambiguity",
-    "tags": [
-      "ambiguity",
-      "product_discovery",
-      "leadership"
-    ],
+    "tags": ["ambiguity", "product_discovery", "leadership"],
     "difficulty": 4,
     "prompt": "Tell me about a project where the business requirements were vague, contradictory, or constantly shifting. How did you drive clarity and deliver results?",
     "clarifyingInfo": "Focus on how you broke down the ambiguous problem, aligned stakeholders, and created structured milestones.",
@@ -93,22 +72,14 @@
     "followUps": [
       "How did you know when you had gathered enough information to stop researching and start coding?"
     ],
-    "rubricHooks": [
-      "structure",
-      "ownership",
-      "impact"
-    ],
+    "rubricHooks": ["structure", "ownership", "impact"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_04",
     "type": "behavioral",
     "topic": "Engineering Mentorship",
-    "tags": [
-      "leadership",
-      "mentorship",
-      "culture"
-    ],
+    "tags": ["leadership", "mentorship", "culture"],
     "difficulty": 2,
     "prompt": "Describe an experience where you mentored a struggling junior engineer or intern. How did you assess their needs and help them level up?",
     "clarifyingInfo": "Demonstrate pedagogical empathy, pairing techniques, and how you empowered their autonomy.",
@@ -126,22 +97,14 @@
     "followUps": [
       "How do you balance spending time mentoring others with your own individual delivery commitments?"
     ],
-    "rubricHooks": [
-      "specificity",
-      "ownership",
-      "reflection"
-    ],
+    "rubricHooks": ["specificity", "ownership", "reflection"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_05",
     "type": "behavioral",
     "topic": "Tight Deadlines & Scoping",
-    "tags": [
-      "high_impact_scale",
-      "prioritization",
-      "project_management"
-    ],
+    "tags": ["high_impact_scale", "prioritization", "project_management"],
     "difficulty": 3,
     "prompt": "Tell me about a time you were faced with an aggressive delivery deadline that seemed impossible to meet. How did you prioritize and execute?",
     "clarifyingInfo": "Focus on pragmatic scope triage, transparent stakeholder negotiation, and sustainable team execution.",
@@ -156,25 +119,15 @@
       "Glorifying 80-hour workweeks and hero burnout culture",
       "Cutting corners on testing or security without a debt-payback plan"
     ],
-    "followUps": [
-      "How did you track and pay down the deferred features in subsequent sprints?"
-    ],
-    "rubricHooks": [
-      "structure",
-      "ownership",
-      "impact"
-    ],
+    "followUps": ["How did you track and pay down the deferred features in subsequent sprints?"],
+    "rubricHooks": ["structure", "ownership", "impact"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_06",
     "type": "behavioral",
     "topic": "Cross-Functional Collaboration",
-    "tags": [
-      "collaboration",
-      "stakeholders",
-      "communication"
-    ],
+    "tags": ["collaboration", "stakeholders", "communication"],
     "difficulty": 2,
     "prompt": "Give an example of a project where you had to collaborate closely with non-technical stakeholders (e.g. Sales, Legal, or Customer Support). How did you bridge the communication gap?",
     "clarifyingInfo": "Highlight translating technical complexity into user value and aligning on shared business goals.",
@@ -192,22 +145,14 @@
     "followUps": [
       "How did you resolve situations where their business request was technically unfeasible?"
     ],
-    "rubricHooks": [
-      "specificity",
-      "ownership",
-      "reflection"
-    ],
+    "rubricHooks": ["specificity", "ownership", "reflection"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_07",
     "type": "behavioral",
     "topic": "Customer Focus & Empathy",
-    "tags": [
-      "customer_empathy",
-      "product",
-      "debugging"
-    ],
+    "tags": ["customer_empathy", "product", "debugging"],
     "difficulty": 3,
     "prompt": "Tell me about a time you advocated for the customer or end-user against team consensus or established technical plans.",
     "clarifyingInfo": "Show customer empathy, user feedback analysis, and courage to challenge internal assumptions.",
@@ -225,22 +170,14 @@
     "followUps": [
       "How do you distinguish between a vocal minority of power users and the broader customer base?"
     ],
-    "rubricHooks": [
-      "structure",
-      "specificity",
-      "impact"
-    ],
+    "rubricHooks": ["structure", "specificity", "impact"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_08",
     "type": "behavioral",
     "topic": "Pushing Back on Leadership",
-    "tags": [
-      "leadership",
-      "disagreement",
-      "courage"
-    ],
+    "tags": ["leadership", "disagreement", "courage"],
     "difficulty": 4,
     "prompt": "Describe a situation where you had to tell an executive, VP, or major client 'no' regarding an unrealistic feature request or timeline.",
     "clarifyingInfo": "Demonstrate emotional intelligence, data-driven reasoning, and proposing viable alternatives.",
@@ -258,22 +195,14 @@
     "followUps": [
       "How do you apply 'disagree and commit' when leadership decides to proceed despite your warning?"
     ],
-    "rubricHooks": [
-      "ownership",
-      "impact",
-      "reflection"
-    ],
+    "rubricHooks": ["ownership", "impact", "reflection"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_09",
     "type": "behavioral",
     "topic": "Managing Technical Debt",
-    "tags": [
-      "tech_debt",
-      "refactoring",
-      "strategy"
-    ],
+    "tags": ["tech_debt", "refactoring", "strategy"],
     "difficulty": 3,
     "prompt": "Tell me about a time you successfully championed paying down a legacy codebase or critical technical debt that product managers were hesitant to prioritize.",
     "clarifyingInfo": "Focus on translating code health into business terms (developer velocity, incident frequency, latency).",
@@ -291,22 +220,14 @@
     "followUps": [
       "How do you decide when technical debt is acceptable to take on during early prototyping?"
     ],
-    "rubricHooks": [
-      "structure",
-      "specificity",
-      "ownership"
-    ],
+    "rubricHooks": ["structure", "specificity", "ownership"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_10",
     "type": "behavioral",
     "topic": "Adapting to Rapid Change",
-    "tags": [
-      "adaptability",
-      "pivot",
-      "resilience"
-    ],
+    "tags": ["adaptability", "pivot", "resilience"],
     "difficulty": 2,
     "prompt": "Describe a time when a company pivot, reorganization, or sudden market shift rendered weeks of your engineering work obsolete. How did you adapt?",
     "clarifyingInfo": "Demonstrate emotional resilience, professional maturity, and pivoting focus to the new priority.",
@@ -324,21 +245,14 @@
     "followUps": [
       "How did you document or preserve the cancelled work in case it became relevant later?"
     ],
-    "rubricHooks": [
-      "ownership",
-      "reflection"
-    ],
+    "rubricHooks": ["ownership", "reflection"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_11",
     "type": "behavioral",
     "topic": "Innovating with Low Resources",
-    "tags": [
-      "scrappiness",
-      "innovation",
-      "cost_optimization"
-    ],
+    "tags": ["scrappiness", "innovation", "cost_optimization"],
     "difficulty": 3,
     "prompt": "Tell me about a time you solved a complex engineering problem with significant budget, tooling, or headcount constraints.",
     "clarifyingInfo": "Highlight creative thinking, open-source adoption, and maximizing resource efficiency.",
@@ -356,22 +270,14 @@
     "followUps": [
       "When is it smarter to buy an established SaaS solution versus building in-house?"
     ],
-    "rubricHooks": [
-      "structure",
-      "specificity",
-      "impact"
-    ],
+    "rubricHooks": ["structure", "specificity", "impact"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_12",
     "type": "behavioral",
     "topic": "Unpopular Decision Leadership",
-    "tags": [
-      "leadership",
-      "decision_making",
-      "culture"
-    ],
+    "tags": ["leadership", "decision_making", "culture"],
     "difficulty": 4,
     "prompt": "Describe an unpopular decision you had to make or enforce on your team (e.g. deprecating a beloved tool, enforcing stricter on-call standards, or rejecting a PR).",
     "clarifyingInfo": "Focus on transparency, empathy for dissenting viewpoints, and holding the standard.",
@@ -386,25 +292,15 @@
       "Enforcing top-down edicts without explaining the 'why'",
       "Apologizing or wavering when facing immediate pushback"
     ],
-    "followUps": [
-      "How did you re-engage team members who were most resistant to the change?"
-    ],
-    "rubricHooks": [
-      "structure",
-      "ownership",
-      "reflection"
-    ],
+    "followUps": ["How did you re-engage team members who were most resistant to the change?"],
+    "rubricHooks": ["structure", "ownership", "reflection"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_13",
     "type": "behavioral",
     "topic": "Handling Incomplete Information",
-    "tags": [
-      "debugging",
-      "investigation",
-      "systems"
-    ],
+    "tags": ["debugging", "investigation", "systems"],
     "difficulty": 3,
     "prompt": "Tell me about a time you had to diagnose and fix a severe, intermittent bug in production that could not be reproduced locally.",
     "clarifyingInfo": "Show methodical debugging methodology, telemetry instrumentation, and hypothesis validation.",
@@ -419,25 +315,15 @@
       "Claiming you immediately fixed it on a hunch without telemetry",
       "Leaving debug logs permanently running in production"
     ],
-    "followUps": [
-      "How did you prevent similar heisenbugs from reaching production in the future?"
-    ],
-    "rubricHooks": [
-      "specificity",
-      "ownership",
-      "impact"
-    ],
+    "followUps": ["How did you prevent similar heisenbugs from reaching production in the future?"],
+    "rubricHooks": ["specificity", "ownership", "impact"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_14",
     "type": "behavioral",
     "topic": "Fostering Diversity & Inclusion",
-    "tags": [
-      "inclusion",
-      "team_dynamics",
-      "empathy"
-    ],
+    "tags": ["inclusion", "team_dynamics", "empathy"],
     "difficulty": 2,
     "prompt": "Give an example of how you actively contributed to creating an inclusive, psychologically safe environment within your engineering team.",
     "clarifyingInfo": "Focus on concrete behaviors: meeting facilitation, amplifying quieter voices, blameless culture.",
@@ -455,21 +341,14 @@
     "followUps": [
       "How do you handle situations where a peer interrupts or talks over others in meetings?"
     ],
-    "rubricHooks": [
-      "ownership",
-      "reflection"
-    ],
+    "rubricHooks": ["ownership", "reflection"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_15",
     "type": "behavioral",
     "topic": "Balancing Speed vs Perfection",
-    "tags": [
-      "pragmatism",
-      "shipping",
-      "quality"
-    ],
+    "tags": ["pragmatism", "shipping", "quality"],
     "difficulty": 3,
     "prompt": "Tell me about a time you knowingly shipped an imperfect or hacky solution to meet a critical business objective. How did you balance risk?",
     "clarifyingInfo": "Demonstrate engineering pragmatism, risk containment, and deliberate tech debt tracking.",
@@ -487,22 +366,14 @@
     "followUps": [
       "What criteria do you use to draw the line where code is too compromised to ship, regardless of urgency?"
     ],
-    "rubricHooks": [
-      "structure",
-      "ownership",
-      "tradeoffs"
-    ],
+    "rubricHooks": ["structure", "ownership", "tradeoffs"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_16",
     "type": "behavioral",
     "topic": "Receiving Harsh Feedback",
-    "tags": [
-      "growth_mindset",
-      "feedback",
-      "humility"
-    ],
+    "tags": ["growth_mindset", "feedback", "humility"],
     "difficulty": 3,
     "prompt": "Describe an instance where you received critical or harsh feedback on your code, design, or working style during a performance review or PR review. How did you process it?",
     "clarifyingInfo": "Demonstrate emotional maturity, separating self-worth from work, and tangible self-improvement.",
@@ -517,24 +388,15 @@
       "Blaming the reviewer for having unfair expectations",
       "Claiming you never receive negative feedback"
     ],
-    "followUps": [
-      "How do you give constructive feedback to peers who tend to get defensive?"
-    ],
-    "rubricHooks": [
-      "ownership",
-      "reflection"
-    ],
+    "followUps": ["How do you give constructive feedback to peers who tend to get defensive?"],
+    "rubricHooks": ["ownership", "reflection"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_17",
     "type": "behavioral",
     "topic": "Leading Without Authority",
-    "tags": [
-      "influence",
-      "leadership",
-      "initiative"
-    ],
+    "tags": ["influence", "leadership", "initiative"],
     "difficulty": 4,
     "prompt": "Tell me about a time you led an initiative across multiple engineering teams where none of the engineers reported to you. How did you drive alignment?",
     "clarifyingInfo": "Highlight influence through technical credibility, shared vision, empathy, and clear coordination.",
@@ -552,23 +414,14 @@
     "followUps": [
       "How did you keep teams motivated when their own sprint deliverables conflicted with your initiative?"
     ],
-    "rubricHooks": [
-      "structure",
-      "specificity",
-      "ownership",
-      "impact"
-    ],
+    "rubricHooks": ["structure", "specificity", "ownership", "impact"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_18",
     "type": "behavioral",
     "topic": "Handling Burnout & High Pressure",
-    "tags": [
-      "wellbeing",
-      "resilience",
-      "team_health"
-    ],
+    "tags": ["wellbeing", "resilience", "team_health"],
     "difficulty": 2,
     "prompt": "Describe a period where you or your team were facing severe burnout or sustained high pressure. How did you manage it?",
     "clarifyingInfo": "Show self-awareness, workload boundaries, communication with management, and sustainable habits.",
@@ -586,21 +439,14 @@
     "followUps": [
       "What specific signals do you look for in your peers to catch burnout before it leads to resignation?"
     ],
-    "rubricHooks": [
-      "ownership",
-      "reflection"
-    ],
+    "rubricHooks": ["ownership", "reflection"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_19",
     "type": "behavioral",
     "topic": "Improving Team Engineering Standards",
-    "tags": [
-      "engineering_excellence",
-      "standards",
-      "ci_cd"
-    ],
+    "tags": ["engineering_excellence", "standards", "ci_cd"],
     "difficulty": 3,
     "prompt": "Tell me about a time you identified a systemic weakness in your team's engineering practices and introduced a new tool, testing strategy, or process to fix it.",
     "clarifyingInfo": "Focus on bottom-up change management, demonstrating ROI, and low-friction adoption.",
@@ -618,23 +464,14 @@
     "followUps": [
       "How did you handle teammates who resisted changing their local development habits?"
     ],
-    "rubricHooks": [
-      "structure",
-      "specificity",
-      "ownership",
-      "impact"
-    ],
+    "rubricHooks": ["structure", "specificity", "ownership", "impact"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "beh_20",
     "type": "behavioral",
     "topic": "Significant Professional Accomplishment",
-    "tags": [
-      "high_impact_scale",
-      "pride",
-      "career_highlight"
-    ],
+    "tags": ["high_impact_scale", "pride", "career_highlight"],
     "difficulty": 3,
     "prompt": "Walk me through the project you are most proud of in your engineering career. Why was it meaningful to you, and what was your individual contribution?",
     "clarifyingInfo": "Highlight technical depth, personal ownership, business impact, and what made the achievement memorable.",
@@ -652,13 +489,7 @@
     "followUps": [
       "If you had to build that same system again today with modern tooling, what would you do differently?"
     ],
-    "rubricHooks": [
-      "structure",
-      "specificity",
-      "ownership",
-      "impact",
-      "reflection"
-    ],
+    "rubricHooks": ["structure", "specificity", "ownership", "impact", "reflection"],
     "timeBudgetMinutes": 15
   }
 ]

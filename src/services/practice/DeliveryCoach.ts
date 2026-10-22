@@ -1,22 +1,22 @@
-import { DeliveryMetrics } from "./types";
+import { DeliveryMetrics } from './types';
 
 const COMMON_FILLERS = [
-  "um",
-  "uh",
-  "er",
-  "ah",
-  "like",
-  "basically",
-  "actually",
-  "you know",
-  "sort of",
-  "kind of",
-  "i mean",
-  "right",
+  'um',
+  'uh',
+  'er',
+  'ah',
+  'like',
+  'basically',
+  'actually',
+  'you know',
+  'sort of',
+  'kind of',
+  'i mean',
+  'right',
 ];
 
 function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export interface DeliveryTimingData {
@@ -37,9 +37,7 @@ export class DeliveryCoach {
       return { timeToFirstWordSeconds: 0, longestPauseSeconds: 0 };
     }
 
-    const valid = segments.filter(
-      (s) => s.text === undefined || s.text.trim().length > 0
-    );
+    const valid = segments.filter((s) => s.text === undefined || s.text.trim().length > 0);
 
     if (valid.length === 0) {
       return { timeToFirstWordSeconds: 0, longestPauseSeconds: 0 };
@@ -72,17 +70,11 @@ export class DeliveryCoach {
       return { timeToFirstWordSeconds: 0, longestPauseSeconds: 0 };
     }
 
-    const firstStart = Math.max(
-      0,
-      (speechIntervals[0].start - sessionStartTimestamp) / 1000
-    );
+    const firstStart = Math.max(0, (speechIntervals[0].start - sessionStartTimestamp) / 1000);
     let longestPause = 0;
 
     for (let i = 1; i < speechIntervals.length; i++) {
-      const pause = Math.max(
-        0,
-        (speechIntervals[i].start - speechIntervals[i - 1].end) / 1000
-      );
+      const pause = Math.max(0, (speechIntervals[i].start - speechIntervals[i - 1].end) / 1000);
       if (pause > longestPause) {
         longestPause = pause;
       }
@@ -107,7 +99,7 @@ export class DeliveryCoach {
     let timeToFirstWordSeconds = 0;
     let longestPauseSeconds = 0;
 
-    if (typeof timingInput === "number") {
+    if (typeof timingInput === 'number') {
       timeToFirstWordSeconds = Math.max(0, timingInput);
     } else if (timingInput) {
       if (timingInput.segments && timingInput.segments.length > 0) {
@@ -120,20 +112,20 @@ export class DeliveryCoach {
       }
     }
 
-    const cleanText = (transcript || "").trim();
+    const cleanText = (transcript || '').trim();
     if (!cleanText || durationSeconds <= 0) {
       return {
         durationSeconds: Math.max(0, durationSeconds),
         wordCount: 0,
         speakingPaceWpm: 0,
-        paceCategory: "slow",
+        paceCategory: 'slow',
         fillerWordsCount: 0,
         fillerPercentage: 0,
         fillerBreakdown: {},
         timeToFirstSentenceSeconds: timeToFirstWordSeconds,
         isRambling: false,
         deliveryScore: 3,
-        deliveryFeedback: "No speech detected in answer.",
+        deliveryFeedback: 'No speech detected in answer.',
       };
     }
 
@@ -142,14 +134,13 @@ export class DeliveryCoach {
 
     // Calculate pace (WPM)
     const effectiveMinutes = durationSeconds / 60;
-    const speakingPaceWpm =
-      effectiveMinutes > 0 ? Math.round(wordCount / effectiveMinutes) : 0;
+    const speakingPaceWpm = effectiveMinutes > 0 ? Math.round(wordCount / effectiveMinutes) : 0;
 
-    let paceCategory: "slow" | "optimal" | "fast" = "optimal";
+    let paceCategory: 'slow' | 'optimal' | 'fast' = 'optimal';
     if (speakingPaceWpm < 115) {
-      paceCategory = "slow";
+      paceCategory = 'slow';
     } else if (speakingPaceWpm > 165) {
-      paceCategory = "fast";
+      paceCategory = 'fast';
     }
 
     // Detect filler words using properly escaped single-slash word boundaries
@@ -159,7 +150,7 @@ export class DeliveryCoach {
     for (const filler of COMMON_FILLERS) {
       const escaped = escapeRegex(filler);
       // Valid word boundary regex, works for single words and multiword phrases
-      const regex = new RegExp(`\\b${escaped}\\b`, "gi");
+      const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
       const matches = cleanText.match(regex);
       if (matches && matches.length > 0) {
         fillerBreakdown[filler] = matches.length;
@@ -176,8 +167,8 @@ export class DeliveryCoach {
     let score = 5;
 
     // Deduct for pace extremes
-    if (paceCategory === "fast") score -= 0.8;
-    if (paceCategory === "slow") score -= 0.5;
+    if (paceCategory === 'fast') score -= 0.8;
+    if (paceCategory === 'slow') score -= 0.5;
 
     // Deduct for fillers
     if (fillerPercentage > 6.0) score -= 1.5;
@@ -198,11 +189,11 @@ export class DeliveryCoach {
 
     feedbackParts.push(
       `Pace: ${speakingPaceWpm} WPM (${
-        paceCategory === "optimal"
-          ? "ideal conversational range"
-          : paceCategory === "fast"
-          ? "rushed, consider breathing pauses"
-          : "deliberate, but could pick up tempo"
+        paceCategory === 'optimal'
+          ? 'ideal conversational range'
+          : paceCategory === 'fast'
+            ? 'rushed, consider breathing pauses'
+            : 'deliberate, but could pick up tempo'
       }).`
     );
 
@@ -211,12 +202,12 @@ export class DeliveryCoach {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
         .map(([w, c]) => `"${w}" (${c}x)`)
-        .join(", ");
+        .join(', ');
       feedbackParts.push(
         `Filler words: ${fillerWordsCount} (${fillerPercentage}% of speech), most frequent: ${topFillers}.`
       );
     } else {
-      feedbackParts.push("Clean articulation: 0 filler words detected.");
+      feedbackParts.push('Clean articulation: 0 filler words detected.');
     }
 
     if (isRambling) {
@@ -230,15 +221,11 @@ export class DeliveryCoach {
     }
 
     if (timeToFirstWordSeconds > 0) {
-      feedbackParts.push(
-        `Time to first word: ${timeToFirstWordSeconds.toFixed(1)}s.`
-      );
+      feedbackParts.push(`Time to first word: ${timeToFirstWordSeconds.toFixed(1)}s.`);
     }
 
     if (longestPauseSeconds > 3.0) {
-      feedbackParts.push(
-        `Longest pause: ${longestPauseSeconds.toFixed(1)}s (felt noticeable).`
-      );
+      feedbackParts.push(`Longest pause: ${longestPauseSeconds.toFixed(1)}s (felt noticeable).`);
     }
 
     return {
@@ -252,7 +239,7 @@ export class DeliveryCoach {
       timeToFirstSentenceSeconds: Math.round(timeToFirstWordSeconds * 10) / 10,
       isRambling,
       deliveryScore,
-      deliveryFeedback: feedbackParts.join(" "),
+      deliveryFeedback: feedbackParts.join(' '),
     };
   }
 }

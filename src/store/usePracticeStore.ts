@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 import {
   MockSessionState,
   MockRoundType,
@@ -7,17 +7,17 @@ import {
   TopicMastery,
   CompanyPracticePlan,
   TieredHint,
-} from "../services/practice/types";
-import { MockInterviewerEngine } from "../services/practice/MockInterviewerEngine";
-import { CoachingEngine } from "../services/practice/CoachingEngine";
-import { StoryBank } from "../services/practice/StoryBank";
-import { SpacedScheduler } from "../services/practice/SpacedScheduler";
-import { QuestionBank } from "../services/practice/QuestionBank";
-import { CompanyPlanGenerator } from "../services/practice/CompanyPlanGenerator";
+} from '../services/practice/types';
+import { MockInterviewerEngine } from '../services/practice/MockInterviewerEngine';
+import { CoachingEngine } from '../services/practice/CoachingEngine';
+import { StoryBank } from '../services/practice/StoryBank';
+import { SpacedScheduler } from '../services/practice/SpacedScheduler';
+import { QuestionBank } from '../services/practice/QuestionBank';
+import { CompanyPlanGenerator } from '../services/practice/CompanyPlanGenerator';
 
 interface PracticeState {
-  activeView: "mock_gym";
-  activeTab: "arena" | "story_bank" | "spaced_drills" | "company_prep" | "delivery_trends";
+  activeView: 'mock_gym';
+  activeTab: 'arena' | 'story_bank' | 'spaced_drills' | 'company_prep' | 'delivery_trends';
   activeSession: MockSessionState | null;
   sessionHistory: MockSessionState[];
   storyBank: BehavioralStory[];
@@ -33,8 +33,10 @@ interface PracticeState {
   interruptionBanner: string | null;
 
   // Actions
-  setActiveView: (view: "mock_gym") => void;
-  setActiveTab: (tab: "arena" | "story_bank" | "spaced_drills" | "company_prep" | "delivery_trends") => void;
+  setActiveView: (view: 'mock_gym') => void;
+  setActiveTab: (
+    tab: 'arena' | 'story_bank' | 'spaced_drills' | 'company_prep' | 'delivery_trends'
+  ) => void;
   startMockSession: (
     roundType: MockRoundType,
     persona?: InterviewPersona,
@@ -51,7 +53,11 @@ interface PracticeState {
   loadStoryBankFromResume: (resumeText: string) => void;
   saveStory: (story: BehavioralStory) => void;
   deleteStory: (id: string) => void;
-  importCustomQuestionPack: (pack: string | unknown[]) => { success: boolean; importedCount: number; errors?: string[] };
+  importCustomQuestionPack: (pack: string | unknown[]) => {
+    success: boolean;
+    importedCount: number;
+    errors?: string[];
+  };
 
   // Spaced scheduler actions
   recordTopicScore: (topicId: string, score: number) => void;
@@ -69,10 +75,10 @@ interface PracticeState {
 }
 
 const STORAGE_KEYS = {
-  SESSIONS: "ai_practice_sessions_v1",
-  STORIES: "ai_practice_stories_v1",
-  TOPICS: "ai_practice_topics_v1",
-  PLANS: "ai_practice_company_plans_v1",
+  SESSIONS: 'ai_practice_sessions_v1',
+  STORIES: 'ai_practice_stories_v1',
+  TOPICS: 'ai_practice_topics_v1',
+  PLANS: 'ai_practice_company_plans_v1',
 };
 
 function loadStored<T>(key: string, fallback: T): T {
@@ -88,13 +94,13 @@ function persist<T>(key: string, data: T) {
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch (e) {
-    console.error("Storage persist error for", key, e);
+    console.error('Storage persist error for', key, e);
   }
 }
 
 export const usePracticeStore = create<PracticeState>((set, get) => ({
-  activeView: "mock_gym",
-  activeTab: "arena",
+  activeView: 'mock_gym',
+  activeTab: 'arena',
   activeSession: null,
   sessionHistory: loadStored<MockSessionState[]>(STORAGE_KEYS.SESSIONS, []),
   storyBank: loadStored<BehavioralStory[]>(STORAGE_KEYS.STORIES, []),
@@ -105,7 +111,7 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   companyPlans: loadStored<CompanyPracticePlan[]>(STORAGE_KEYS.PLANS, []),
   activeCompanyPlan: null,
 
-  currentCandidateAnswer: "",
+  currentCandidateAnswer: '',
   speakingStartTime: null,
   activeHintsUsed: [],
   availableHints: [],
@@ -114,19 +120,24 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   setActiveView: (view) => set({ activeView: view }),
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  startMockSession: (roundType, persona = "strict_big_tech", interruptionEnabled = false) => {
-    const session = MockInterviewerEngine.createSession(roundType, persona, interruptionEnabled, get().topicMasteries);
-    const category = session.questionHistory[0]?.category || "behavioral";
+  startMockSession: (roundType, persona = 'strict_big_tech', interruptionEnabled = false) => {
+    const session = MockInterviewerEngine.createSession(
+      roundType,
+      persona,
+      interruptionEnabled,
+      get().topicMasteries
+    );
+    const category = session.questionHistory[0]?.category || 'behavioral';
     const availableHints = CoachingEngine.getTieredHints(session.currentQuestion, category);
 
     set({
       activeSession: session,
-      currentCandidateAnswer: "",
+      currentCandidateAnswer: '',
       speakingStartTime: Date.now(),
       activeHintsUsed: [],
       availableHints,
       interruptionBanner: null,
-      activeTab: "arena",
+      activeTab: 'arena',
     });
   },
 
@@ -179,7 +190,13 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   },
 
   submitCurrentAnswer: () => {
-    const { activeSession, currentCandidateAnswer, speakingStartTime, activeHintsUsed, topicMasteries } = get();
+    const {
+      activeSession,
+      currentCandidateAnswer,
+      speakingStartTime,
+      activeHintsUsed,
+      topicMasteries,
+    } = get();
     if (!activeSession || !activeSession.isActive) return;
 
     const durationSeconds = speakingStartTime ? (Date.now() - speakingStartTime) / 1000 : 45;
@@ -193,7 +210,10 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     // Update topic mastery in spaced repetition table
     const lastQuestion = activeSession.currentQuestion;
     const topicId = SpacedScheduler.identifyTopicForQuestion(lastQuestion);
-    const lastEval = updatedSession.questionHistory[updatedSession.questionHistory.length - (updatedSession.isActive ? 2 : 1)]?.evaluation;
+    const lastEval =
+      updatedSession.questionHistory[
+        updatedSession.questionHistory.length - (updatedSession.isActive ? 2 : 1)
+      ]?.evaluation;
 
     let updatedTopics = topicMasteries;
     if (lastEval) {
@@ -211,14 +231,19 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     }
 
     // Refresh available hints for next question if continuing
-    const nextCategory = updatedSession.questionHistory[updatedSession.questionHistory.length - 1]?.category || "behavioral";
-    const availableHints = CoachingEngine.getTieredHints(updatedSession.currentQuestion, nextCategory);
+    const nextCategory =
+      updatedSession.questionHistory[updatedSession.questionHistory.length - 1]?.category ||
+      'behavioral';
+    const availableHints = CoachingEngine.getTieredHints(
+      updatedSession.currentQuestion,
+      nextCategory
+    );
 
     set({
       activeSession: updatedSession,
       sessionHistory: newHistory,
       topicMasteries: updatedTopics,
-      currentCandidateAnswer: "",
+      currentCandidateAnswer: '',
       speakingStartTime: Date.now(),
       activeHintsUsed: [],
       availableHints,
@@ -295,9 +320,12 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   createCompanyPlan: (companyName, role, jd, resume, days = 7) => {
     const plan = CompanyPlanGenerator.generatePlan(companyName, role, jd, resume, days);
     const existing = get().companyPlans;
-    const updated = [plan, ...existing.filter((p) => p.companyName.toLowerCase() !== companyName.toLowerCase())];
+    const updated = [
+      plan,
+      ...existing.filter((p) => p.companyName.toLowerCase() !== companyName.toLowerCase()),
+    ];
     persist(STORAGE_KEYS.PLANS, updated);
-    set({ companyPlans: updated, activeCompanyPlan: plan, activeTab: "company_prep" });
+    set({ companyPlans: updated, activeCompanyPlan: plan, activeTab: 'company_prep' });
   },
 
   toggleDrillCompleted: (planIndex, dayNumber) => {

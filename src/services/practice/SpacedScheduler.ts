@@ -1,26 +1,50 @@
-import { TopicMastery } from "./types";
-import { QuestionBank, QuestionEntry } from "./QuestionBank";
+import { TopicMastery } from './types';
+import { QuestionBank, QuestionEntry } from './QuestionBank';
 
 export class SpacedScheduler {
   public static readonly DEFAULT_TOPICS: Array<{
     id: string;
     name: string;
-    category: "DSA" | "System Design" | "Behavioral" | "Core CS";
+    category: 'DSA' | 'System Design' | 'Behavioral' | 'Core CS';
   }> = [
-    { id: "dsa_arrays_pointers", name: "Two Pointers & Sliding Window", category: "DSA" },
-    { id: "dsa_binary_search", name: "Binary Search & Monotonic Stack", category: "DSA" },
-    { id: "dsa_trees_graphs", name: "Trees & Graph Traversals (DFS/BFS)", category: "DSA" },
-    { id: "dsa_dp", name: "Dynamic Programming & Memoization", category: "DSA" },
-    { id: "dsa_heaps_topo", name: "Heaps & Topological Sort", category: "DSA" },
-    { id: "sd_scale_lb", name: "Horizontal Scaling & Load Balancing", category: "System Design" },
-    { id: "sd_sharding_repl", name: "Database Sharding & Replication", category: "System Design" },
-    { id: "sd_caching", name: "Caching Patterns & Invalidation Strategies", category: "System Design" },
-    { id: "sd_queues_async", name: "Distributed Queues & Event-Driven Architecture", category: "System Design" },
-    { id: "sd_resilience", name: "Rate Limiting & Circuit Breaker Fault Tolerance", category: "System Design" },
-    { id: "beh_conflict", name: "Resolving Engineering Disagreements", category: "Behavioral" },
-    { id: "beh_ambiguity", name: "Delivering Under Ambiguity & Shifting Specs", category: "Behavioral" },
-    { id: "beh_failure", name: "Production Incident Postmortems & Ownership", category: "Behavioral" },
-    { id: "beh_leadership", name: "Technical Leadership & Cross-Functional Alignment", category: "Behavioral" },
+    { id: 'dsa_arrays_pointers', name: 'Two Pointers & Sliding Window', category: 'DSA' },
+    { id: 'dsa_binary_search', name: 'Binary Search & Monotonic Stack', category: 'DSA' },
+    { id: 'dsa_trees_graphs', name: 'Trees & Graph Traversals (DFS/BFS)', category: 'DSA' },
+    { id: 'dsa_dp', name: 'Dynamic Programming & Memoization', category: 'DSA' },
+    { id: 'dsa_heaps_topo', name: 'Heaps & Topological Sort', category: 'DSA' },
+    { id: 'sd_scale_lb', name: 'Horizontal Scaling & Load Balancing', category: 'System Design' },
+    { id: 'sd_sharding_repl', name: 'Database Sharding & Replication', category: 'System Design' },
+    {
+      id: 'sd_caching',
+      name: 'Caching Patterns & Invalidation Strategies',
+      category: 'System Design',
+    },
+    {
+      id: 'sd_queues_async',
+      name: 'Distributed Queues & Event-Driven Architecture',
+      category: 'System Design',
+    },
+    {
+      id: 'sd_resilience',
+      name: 'Rate Limiting & Circuit Breaker Fault Tolerance',
+      category: 'System Design',
+    },
+    { id: 'beh_conflict', name: 'Resolving Engineering Disagreements', category: 'Behavioral' },
+    {
+      id: 'beh_ambiguity',
+      name: 'Delivering Under Ambiguity & Shifting Specs',
+      category: 'Behavioral',
+    },
+    {
+      id: 'beh_failure',
+      name: 'Production Incident Postmortems & Ownership',
+      category: 'Behavioral',
+    },
+    {
+      id: 'beh_leadership',
+      name: 'Technical Leadership & Cross-Functional Alignment',
+      category: 'Behavioral',
+    },
   ];
 
   /**
@@ -73,10 +97,10 @@ export class SpacedScheduler {
 
     // Calculate normalized mastery percentage (0% to 100%)
     const repetitionWeight = Math.min(repetitions / 4, 1.0);
-    const scoreWeight = (q / 5.0);
+    const scoreWeight = q / 5.0;
     const masteryScore = Math.min(
       100,
-      Math.round(((repetitionWeight * 0.6) + (scoreWeight * 0.4)) * 100)
+      Math.round((repetitionWeight * 0.6 + scoreWeight * 0.4) * 100)
     );
 
     const now = Date.now();
@@ -130,11 +154,11 @@ export class SpacedScheduler {
 
     for (const topic of prioritizedTopics) {
       const type =
-        topic.category === "DSA"
-          ? "coding"
-          : topic.category === "System Design"
-          ? "system_design"
-          : "behavioral";
+        topic.category === 'DSA'
+          ? 'coding'
+          : topic.category === 'System Design'
+            ? 'system_design'
+            : 'behavioral';
 
       const q = QuestionBank.selectAdaptiveQuestion({
         type,
@@ -151,7 +175,7 @@ export class SpacedScheduler {
     // Fill remaining if needed
     while (chosenQuestions.length < count) {
       const fallback = QuestionBank.selectAdaptiveQuestion({
-        type: "coding",
+        type: 'coding',
         excludedIds: Array.from(chosenIds),
         topicMasteries: records,
       });
@@ -167,61 +191,99 @@ export class SpacedScheduler {
   }
 
   public static identifyTopicForQuestion(question: string | QuestionEntry): string {
-    if (typeof question !== "string") {
+    if (typeof question !== 'string') {
       const allTags = [question.topic, ...(question.tags || [])].map((t) => t.toLowerCase());
       for (const tag of allTags) {
-        if (tag.includes("sliding_window") || tag.includes("two_pointers")) return "dsa_arrays_pointers";
-        if (tag.includes("binary_search") || tag.includes("monotonic_stack")) return "dsa_binary_search";
-        if (tag.includes("tree") || tag.includes("graph") || tag.includes("bfs") || tag.includes("dfs")) return "dsa_trees_graphs";
-        if (tag.includes("dynamic_programming") || tag.includes("dp")) return "dsa_dp";
-        if (tag.includes("heap") || tag.includes("priority_queue") || tag.includes("topological")) return "dsa_heaps_topo";
-        if (tag.includes("rate_limiting") || tag.includes("circuit_breaker") || tag.includes("resilience")) return "sd_resilience";
-        if (tag.includes("caching") || tag.includes("redis")) return "sd_caching";
-        if (tag.includes("queue") || tag.includes("kafka") || tag.includes("stream")) return "sd_queues_async";
-        if (tag.includes("sharding") || tag.includes("storage") || tag.includes("nosql")) return "sd_sharding_repl";
-        if (tag.includes("conflict")) return "beh_conflict";
-        if (tag.includes("ambiguity")) return "beh_ambiguity";
-        if (tag.includes("failure") || tag.includes("postmortem") || tag.includes("incident")) return "beh_failure";
-        if (tag.includes("leadership") || tag.includes("mentorship")) return "beh_leadership";
+        if (tag.includes('sliding_window') || tag.includes('two_pointers'))
+          return 'dsa_arrays_pointers';
+        if (tag.includes('binary_search') || tag.includes('monotonic_stack'))
+          return 'dsa_binary_search';
+        if (
+          tag.includes('tree') ||
+          tag.includes('graph') ||
+          tag.includes('bfs') ||
+          tag.includes('dfs')
+        )
+          return 'dsa_trees_graphs';
+        if (tag.includes('dynamic_programming') || tag.includes('dp')) return 'dsa_dp';
+        if (tag.includes('heap') || tag.includes('priority_queue') || tag.includes('topological'))
+          return 'dsa_heaps_topo';
+        if (
+          tag.includes('rate_limiting') ||
+          tag.includes('circuit_breaker') ||
+          tag.includes('resilience')
+        )
+          return 'sd_resilience';
+        if (tag.includes('caching') || tag.includes('redis')) return 'sd_caching';
+        if (tag.includes('queue') || tag.includes('kafka') || tag.includes('stream'))
+          return 'sd_queues_async';
+        if (tag.includes('sharding') || tag.includes('storage') || tag.includes('nosql'))
+          return 'sd_sharding_repl';
+        if (tag.includes('conflict')) return 'beh_conflict';
+        if (tag.includes('ambiguity')) return 'beh_ambiguity';
+        if (tag.includes('failure') || tag.includes('postmortem') || tag.includes('incident'))
+          return 'beh_failure';
+        if (tag.includes('leadership') || tag.includes('mentorship')) return 'beh_leadership';
       }
-      return question.type === "coding" ? "dsa_arrays_pointers" : question.type === "system_design" ? "sd_caching" : "beh_conflict";
+      return question.type === 'coding'
+        ? 'dsa_arrays_pointers'
+        : question.type === 'system_design'
+          ? 'sd_caching'
+          : 'beh_conflict';
     }
-    const qLower = (question || "").toLowerCase();
+    const qLower = (question || '').toLowerCase();
 
-    if (qLower.includes("two sum") || qLower.includes("pointer") || qLower.includes("sliding window")) {
-      return "dsa_arrays_pointers";
+    if (
+      qLower.includes('two sum') ||
+      qLower.includes('pointer') ||
+      qLower.includes('sliding window')
+    ) {
+      return 'dsa_arrays_pointers';
     }
-    if (qLower.includes("binary search") || qLower.includes("sorted array") || qLower.includes("rotated")) {
-      return "dsa_binary_search";
+    if (
+      qLower.includes('binary search') ||
+      qLower.includes('sorted array') ||
+      qLower.includes('rotated')
+    ) {
+      return 'dsa_binary_search';
     }
-    if (qLower.includes("tree") || qLower.includes("graph") || qLower.includes("traversal") || qLower.includes("bst")) {
-      return "dsa_trees_graphs";
+    if (
+      qLower.includes('tree') ||
+      qLower.includes('graph') ||
+      qLower.includes('traversal') ||
+      qLower.includes('bst')
+    ) {
+      return 'dsa_trees_graphs';
     }
-    if (qLower.includes("dynamic programming") || qLower.includes("memo") || qLower.includes("knapsack")) {
-      return "dsa_dp";
+    if (
+      qLower.includes('dynamic programming') ||
+      qLower.includes('memo') ||
+      qLower.includes('knapsack')
+    ) {
+      return 'dsa_dp';
     }
-    if (qLower.includes("cache") || qLower.includes("redis") || qLower.includes("invalidation")) {
-      return "sd_caching";
+    if (qLower.includes('cache') || qLower.includes('redis') || qLower.includes('invalidation')) {
+      return 'sd_caching';
     }
-    if (qLower.includes("shard") || qLower.includes("partition") || qLower.includes("database")) {
-      return "sd_sharding_repl";
+    if (qLower.includes('shard') || qLower.includes('partition') || qLower.includes('database')) {
+      return 'sd_sharding_repl';
     }
-    if (qLower.includes("queue") || qLower.includes("kafka") || qLower.includes("event")) {
-      return "sd_queues_async";
+    if (qLower.includes('queue') || qLower.includes('kafka') || qLower.includes('event')) {
+      return 'sd_queues_async';
     }
-    if (qLower.includes("disagree") || qLower.includes("conflict")) {
-      return "beh_conflict";
+    if (qLower.includes('disagree') || qLower.includes('conflict')) {
+      return 'beh_conflict';
     }
-    if (qLower.includes("ambiguity") || qLower.includes("unclear")) {
-      return "beh_ambiguity";
+    if (qLower.includes('ambiguity') || qLower.includes('unclear')) {
+      return 'beh_ambiguity';
     }
-    if (qLower.includes("fail") || qLower.includes("outage") || qLower.includes("incident")) {
-      return "beh_failure";
+    if (qLower.includes('fail') || qLower.includes('outage') || qLower.includes('incident')) {
+      return 'beh_failure';
     }
-    if (qLower.includes("lead") || qLower.includes("mentor") || qLower.includes("stakeholder")) {
-      return "beh_leadership";
+    if (qLower.includes('lead') || qLower.includes('mentor') || qLower.includes('stakeholder')) {
+      return 'beh_leadership';
     }
 
-    return "dsa_arrays_pointers";
+    return 'dsa_arrays_pointers';
   }
 }

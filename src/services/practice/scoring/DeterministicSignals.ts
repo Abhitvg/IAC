@@ -4,7 +4,7 @@
  */
 
 export interface DeterministicSignals {
-  label: "signals, not scores";
+  label: 'signals, not scores';
   hasNumberOrPercentage: boolean;
   numberOrPercentageMatches: string[];
   iCount: number;
@@ -21,7 +21,7 @@ export interface DeterministicSignals {
 
 export class DeterministicSignalsExtractor {
   public static extract(transcript: string): DeterministicSignals {
-    const clean = (transcript || "").trim();
+    const clean = (transcript || '').trim();
     const lower = clean.toLowerCase();
     const words = lower.split(/\s+/).filter(Boolean);
 
@@ -31,8 +31,8 @@ export class DeterministicSignalsExtractor {
     const hasNumberOrPercentage = numberOrPercentageMatches.length > 0;
 
     // "I" vs "We" Ownership counting
-    const iWords = new Set(["i", "i'm", "my", "me", "myself"]);
-    const weWords = new Set(["we", "we're", "our", "us", "ourselves"]);
+    const iWords = new Set(['i', "i'm", 'my', 'me', 'myself']);
+    const weWords = new Set(['we', "we're", 'our', 'us', 'ourselves']);
     let iCount = 0;
     let weCount = 0;
 
@@ -51,52 +51,52 @@ export class DeterministicSignalsExtractor {
 
     const hasTimeComplexityMention =
       hasBigONotation ||
-      lower.includes("time complexity") ||
-      lower.includes("linear time") ||
-      lower.includes("constant time") ||
-      lower.includes("logarithmic time");
+      lower.includes('time complexity') ||
+      lower.includes('linear time') ||
+      lower.includes('constant time') ||
+      lower.includes('logarithmic time');
 
     const hasSpaceComplexityMention =
-      lower.includes("space complexity") ||
-      lower.includes("auxiliary space") ||
-      lower.includes("extra memory") ||
-      lower.includes("in-place") ||
-      lower.includes("call stack");
+      lower.includes('space complexity') ||
+      lower.includes('auxiliary space') ||
+      lower.includes('extra memory') ||
+      lower.includes('in-place') ||
+      lower.includes('call stack');
 
     // Constraint clarification check
     const hasConstraintClarification =
-      lower.includes("constraint") ||
-      lower.includes("edge case") ||
-      lower.includes("empty") ||
-      lower.includes("null") ||
-      lower.includes("bounds") ||
-      lower.includes("can the input");
+      lower.includes('constraint') ||
+      lower.includes('edge case') ||
+      lower.includes('empty') ||
+      lower.includes('null') ||
+      lower.includes('bounds') ||
+      lower.includes('can the input');
 
     // Testing / Dry Run check
     const hasTestingDryRunMention =
-      lower.includes("dry run") ||
-      lower.includes("trace") ||
-      lower.includes("test case") ||
-      lower.includes("walk through an example");
+      lower.includes('dry run') ||
+      lower.includes('trace') ||
+      lower.includes('test case') ||
+      lower.includes('walk through an example');
 
     // General keyword mentions
     const keywords = [
-      "caching",
-      "redis",
-      "sharding",
-      "replication",
-      "queue",
-      "kafka",
-      "circuit breaker",
-      "spof",
-      "two pointer",
-      "hash map",
-      "sliding window",
+      'caching',
+      'redis',
+      'sharding',
+      'replication',
+      'queue',
+      'kafka',
+      'circuit breaker',
+      'spof',
+      'two pointer',
+      'hash map',
+      'sliding window',
     ];
     const detectedKeywords = keywords.filter((k) => lower.includes(k));
 
     return {
-      label: "signals, not scores",
+      label: 'signals, not scores',
       hasNumberOrPercentage,
       numberOrPercentageMatches,
       iCount,

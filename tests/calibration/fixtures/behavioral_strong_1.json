@@ -22,26 +22,11 @@
   "transcript": "Candidate: Our VP of Engineering proposed breaking apart our core e-commerce monolith into thirty microservices to resolve latency spikes ahead of Black Friday. While I agreed our service needed optimization, I believed a hasty microservices migration with a four-month deadline would introduce catastrophic network latency, distributed transactions overhead, and massive operational complexity. Rather than arguing in meetings, I spent three days profiling our production telemetry. The data revealed that 82% of our p99 latency was caused by unindexed N+1 queries in our checkout path and missing read replicas, not monolith cpu bottlenecks. I built a benchmark prototype on staging, added Redis caching for catalog reads, and indexed the offending database foreign keys. I then drafted a 2-page decision memo detailing cost, risk, and timelines: the microservices migration would cost an estimated 1,200 engineering hours with high delivery risk, whereas our targeted optimizations required 80 engineering hours and delivered a 65% latency reduction on staging. I presented the memo privately to the VP, acknowledging their valid concern about deployment decoupling and offering a phased modularization plan for next year. The VP reviewed the data, agreed to proceed with the targeted database optimizations for Black Friday, and the platform handled record traffic with zero downtime while saving our team approximately four months of engineering crunch. I learned that leaders respond best to empirical data and trade-off matrices, not emotional resistance.",
   "hints": [],
   "expectedScoreRanges": {
-    "structure": [
-      4.5,
-      5
-    ],
-    "specificity": [
-      4.5,
-      5
-    ],
-    "ownership": [
-      4.5,
-      5
-    ],
-    "impact": [
-      4.5,
-      5
-    ],
-    "reflection": [
-      4.5,
-      5
-    ]
+    "structure": [4.5, 5],
+    "specificity": [4.5, 5],
+    "ownership": [4.5, 5],
+    "impact": [4.5, 5],
+    "reflection": [4.5, 5]
   },
   "notes": "Outstanding behavioral response. Empirical data over ideology, benchmark prototype, private empathetic communication with VP, massive business and time savings.",
   "recordedLLMResponse": "{\"questions\":[{\"id\":\"beh_leadership_disagreement\",\"type\":\"behavioral\",\"dimensions\":{\"structure\":{\"score\":5,\"evidence\":\"Our VP of Engineering proposed breaking apart our core e-commerce monolith into thirty microservices\",\"note\":\"Perfect STAR narrative structure.\"},\"specificity\":{\"score\":5,\"evidence\":\"data revealed that 82% of our p99 latency was caused by unindexed N+1 queries in our checkout path\",\"note\":\"Concrete empirical telemetry data.\"},\"ownership\":{\"score\":5,\"evidence\":\"I built a benchmark prototype on staging, added Redis caching for catalog reads\",\"note\":\"Proactive prototype validation.\"},\"impact\":{\"score\":5,\"evidence\":\"platform handled record traffic with zero downtime while saving our team approximately four months of engineering crunch\",\"note\":\"Quantified engineering and business win.\"},\"reflection\":{\"score\":5,\"evidence\":\"I learned that leaders respond best to empirical data and trade-off matrices, not emotional resistance\",\"note\":\"Profound executive stakeholder maturity.\"}},\"missed_points\":[],\"model_answer_outline\":[\"Disagree with data, not emotion\",\"Benchmarking on staging\",\"Private empathetic review with executive\",\"Zero downtime delivery\"]}],\"overall\":{\"score\":5,\"summary\":\"Exemplary leadership answer. The candidate navigated an architectural dispute with senior leadership by gathering empirical telemetry, building a functional prototype, presenting a respectful decision memo, and saving months of engineering toil while guaranteeing Black Friday uptime.\",\"top_fixes\":[],\"strengths\":[\"Empirical data-driven approach to technical disputes\",\"Empathetic private alignment with executive leadership\",\"Measurable business impact with zero downtime\"]},\"uncertainty\":\"None.\"}"

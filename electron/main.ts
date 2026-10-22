@@ -1,13 +1,5 @@
 import { parsePdfBuffer } from './services/pdfParser';
-import {
-  app,
-  BrowserWindow,
-  ipcMain,
-  dialog,
-  shell,
-  Menu,
-  session,
-} from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu, session } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import mammoth from 'mammoth';
@@ -246,32 +238,36 @@ ipcMain.handle('fs:read-file', async (_event, filePath: string) => {
 });
 
 // Write file restricted strictly to userData with size limits
-ipcMain.handle('fs:write-file', async (_event, filePath: string, data: Buffer | string | ArrayBuffer) => {
-  if (typeof filePath !== 'string') {
-    throw new Error('Invalid argument: filePath must be a string');
+ipcMain.handle(
+  'fs:write-file',
+  async (_event, filePath: string, data: Buffer | string | ArrayBuffer) => {
+    if (typeof filePath !== 'string') {
+      throw new Error('Invalid argument: filePath must be a string');
+    }
+
+    const byteLength =
+      typeof data === 'string'
+        ? Buffer.byteLength(data)
+        : Buffer.isBuffer(data)
+          ? data.length
+          : data instanceof ArrayBuffer
+            ? data.byteLength
+            : 0;
+
+    const validation = validateWritePath(filePath, byteLength, app.getPath('userData'));
+    if (!validation.allowed || !validation.resolvedPath) {
+      throw new Error(validation.reason || 'Access denied');
+    }
+
+    const dir = path.dirname(validation.resolvedPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    fs.writeFileSync(validation.resolvedPath, data as any);
+    return true;
   }
-
-  const byteLength = typeof data === 'string'
-    ? Buffer.byteLength(data)
-    : Buffer.isBuffer(data)
-    ? data.length
-    : data instanceof ArrayBuffer
-    ? data.byteLength
-    : 0;
-
-  const validation = validateWritePath(filePath, byteLength, app.getPath('userData'));
-  if (!validation.allowed || !validation.resolvedPath) {
-    throw new Error(validation.reason || 'Access denied');
-  }
-
-  const dir = path.dirname(validation.resolvedPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  fs.writeFileSync(validation.resolvedPath, data as any);
-  return true;
-});
+);
 
 // List directory restricted to userData
 ipcMain.handle('fs:list-dir', async (_event, dirPath: string) => {
@@ -328,7 +324,7 @@ ipcMain.handle('shell:open-external', async (_event, url: string) => {
   }
 });
 
-// PDF parsing via modern pdfjs-dist with pdf-parse fallback
+// PDF parsing via modern pdfjs-dist
 ipcMain.handle('fs:parse-pdf', async (_event, arrayBuffer: ArrayBuffer) => {
   if (!(arrayBuffer instanceof ArrayBuffer) && !Buffer.isBuffer(arrayBuffer)) {
     throw new Error('Invalid argument: expected ArrayBuffer or Buffer');

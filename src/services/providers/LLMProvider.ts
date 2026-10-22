@@ -11,7 +11,10 @@ export class GroqProvider implements LLMProvider {
   public readonly name = 'Groq Cloud';
   public readonly isLocal = false;
 
-  constructor(private apiKey: string, private defaultModel: string = 'openai/gpt-oss-120b') {}
+  constructor(
+    private apiKey: string,
+    private defaultModel: string = 'openai/gpt-oss-120b'
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -39,7 +42,8 @@ export class GroqProvider implements LLMProvider {
 
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || '';
-    const promptTokens = data.usage?.prompt_tokens || Math.ceil(messages.map((m) => m.content).join(' ').length / 4);
+    const promptTokens =
+      data.usage?.prompt_tokens || Math.ceil(messages.map((m) => m.content).join(' ').length / 4);
     const completionTokens = data.usage?.completion_tokens || Math.ceil(text.length / 4);
     const totalTokens = promptTokens + completionTokens;
     const latencyMs = Date.now() - startTime;
@@ -76,7 +80,10 @@ export class OpenAIProvider implements LLMProvider {
   public readonly name = 'OpenAI Cloud';
   public readonly isLocal = false;
 
-  constructor(private apiKey: string, private defaultModel: string = 'gpt-4o-mini') {}
+  constructor(
+    private apiKey: string,
+    private defaultModel: string = 'gpt-4o-mini'
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -140,7 +147,10 @@ export class OpenRouterProvider implements LLMProvider {
   public readonly name = 'OpenRouter';
   public readonly isLocal = false;
 
-  constructor(private apiKey: string, private defaultModel: string = 'meta-llama/llama-3.3-70b-instruct') {}
+  constructor(
+    private apiKey: string,
+    private defaultModel: string = 'meta-llama/llama-3.3-70b-instruct'
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -239,7 +249,8 @@ export class OllamaProvider implements LLMProvider {
 
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || '';
-    const promptTokens = data.usage?.prompt_tokens || Math.ceil(messages.map((m) => m.content).join(' ').length / 4);
+    const promptTokens =
+      data.usage?.prompt_tokens || Math.ceil(messages.map((m) => m.content).join(' ').length / 4);
     const completionTokens = data.usage?.completion_tokens || Math.ceil(text.length / 4);
     const totalTokens = promptTokens + completionTokens;
     const latencyMs = Date.now() - startTime;
@@ -273,7 +284,10 @@ export class OllamaProvider implements LLMProvider {
       }
       return { ok: false, message: `Ollama returned HTTP ${res.status}` };
     } catch (err: any) {
-      return { ok: false, message: `Could not reach Ollama at ${this.endpoint}: ${err.message || String(err)}` };
+      return {
+        ok: false,
+        message: `Could not reach Ollama at ${this.endpoint}: ${err.message || String(err)}`,
+      };
     }
   }
 }
@@ -344,13 +358,9 @@ export class LLMManager {
       );
     }
 
-    const fallbackOrder = [
-      this.primaryProviderId,
-      'groq',
-      'openai',
-      'openrouter',
-      'ollama',
-    ].filter((id, idx, arr) => arr.indexOf(id) === idx && this.providers.has(id));
+    const fallbackOrder = [this.primaryProviderId, 'groq', 'openai', 'openrouter', 'ollama'].filter(
+      (id, idx, arr) => arr.indexOf(id) === idx && this.providers.has(id)
+    );
 
     let lastError: Error | null = null;
 
@@ -367,10 +377,12 @@ export class LLMManager {
         this.sessionUsage.totalCompletionTokens += response.completionTokens;
         this.sessionUsage.totalTokens += response.totalTokens;
         this.sessionUsage.totalEstimatedCostUsd =
-          Math.round((this.sessionUsage.totalEstimatedCostUsd + response.estimatedCostUsd) * 1_000_000) /
-          1_000_000;
+          Math.round(
+            (this.sessionUsage.totalEstimatedCostUsd + response.estimatedCostUsd) * 1_000_000
+          ) / 1_000_000;
 
-        const prevTotalLatency = this.sessionUsage.averageLatencyMs * this.sessionUsage.requestCount;
+        const prevTotalLatency =
+          this.sessionUsage.averageLatencyMs * this.sessionUsage.requestCount;
         this.sessionUsage.requestCount += 1;
         this.sessionUsage.averageLatencyMs = Math.round(
           (prevTotalLatency + response.latencyMs) / this.sessionUsage.requestCount
@@ -383,7 +395,9 @@ export class LLMManager {
         return response;
       } catch (err: any) {
         lastError = err;
-        console.warn(`[LLMManager] Provider ${providerId} failed: ${err.message}. Trying next fallback...`);
+        console.warn(
+          `[LLMManager] Provider ${providerId} failed: ${err.message}. Trying next fallback...`
+        );
       }
     }
 

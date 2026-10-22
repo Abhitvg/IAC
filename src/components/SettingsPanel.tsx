@@ -12,6 +12,11 @@ export default function SettingsPanel() {
     setSelectedAudioDeviceId,
   } = useAppStore();
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [apiKey, setApiKey] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [extensionToken, setExtensionToken] = useState('');
+  const [tokenCopied, setTokenCopied] = useState(false);
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -25,17 +30,17 @@ export default function SettingsPanel() {
     };
     fetchDevices();
   }, []);
-  const [apiKey, setApiKey] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [extensionToken, setExtensionToken] = useState('');
-  const [tokenCopied, setTokenCopied] = useState(false);
 
   // Load current API key on mount
   useEffect(() => {
     const loadKey = async () => {
       if (settings?.aiProvider) {
-        const key = await window.electronAPI?.getApiKey(settings.aiProvider);
-        setApiKey(key || '');
+        try {
+          const key = await window.electronAPI?.getApiKey(settings.aiProvider);
+          setApiKey(key || '');
+        } catch {
+          setErrorMessage('Unable to retrieve stored API key from keychain.');
+        }
       }
     };
     loadKey();
@@ -58,35 +63,76 @@ export default function SettingsPanel() {
   };
 
   const saveApiKey = async () => {
+    if (!settings.aiProvider) return;
     setLoading(true);
-    await window.electronAPI?.setApiKey(settings.aiProvider, apiKey);
-    setLoading(false);
+    setErrorMessage(null);
+    try {
+      await window.electronAPI?.setApiKey(settings.aiProvider, apiKey.trim());
+      updateSetting('hasApiKey', apiKey.trim().length > 0);
+    } catch {
+      setErrorMessage('Failed to encrypt and store API key in system keychain.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <>
-      <div className="panel-overlay" onClick={() => setSettingsOpen(false)} />
-      <div className="panel">
+      <div className="backdrop" onClick={() => setSettingsOpen(false)} aria-hidden="true" />
+      <div
+        className="panel"
+        role="dialog"
+        aria-labelledby="settings-dialog-title"
+        aria-modal="true"
+      >
         <div className="panel__header">
-          <h2 className="panel__title">Settings</h2>
-          <button className="panel__close" onClick={() => setSettingsOpen(false)}>
+          <h2 id="settings-dialog-title" className="panel__title">
+            Settings &amp; Configuration
+          </h2>
+          <button
+            className="action-btn"
+            onClick={() => setSettingsOpen(false)}
+            aria-label="Close Settings Panel"
+          >
             <X size={16} />
           </button>
         </div>
 
-        <div className="panel__body">
+        <div className="panel__content">
+          {errorMessage && (
+            <div
+              role="alert"
+              style={{
+                padding: '8px 12px',
+                marginBottom: '12px',
+                background: 'var(--error-bg)',
+                border: '1px solid rgba(248, 113, 113, 0.3)',
+                borderRadius: '6px',
+                color: 'var(--error)',
+                fontSize: '12px',
+              }}
+            >
+              {errorMessage}
+            </div>
+          )}
+
+          {/* AI Engine Settings */}
           <div className="settings-section">
-            <h3 className="settings-section__title">AI Configuration</h3>
+            <h3 className="settings-section__title">AI Scoring &amp; Interview Provider</h3>
 
             <div className="field">
-              <label className="field__label">Provider</label>
+              <label className="field__label" htmlFor="ai-provider-select">
+                Provider
+              </label>
               <select
+                id="ai-provider-select"
                 className="field__select"
                 value={settings.aiProvider}
                 onChange={handleProviderChange}
+                aria-label="AI Provider selection"
               >
-                <option value="groq">Groq (Ultra-Low Latency Cloud)</option>
-                <option value="openai">OpenAI (GPT-4o / GPT-4o-mini)</option>
+                <option value="groq">Groq (Ultra-fast LLM &amp; Whisper)</option>
+                <option value="openai">OpenAI (GPT-4o &amp; Whisper)</option>
                 <option value="openrouter">OpenRouter (Multi-model)</option>
                 <option value="ollama">Ollama (100% Offline Local)</option>
               </select>
@@ -94,21 +140,26 @@ export default function SettingsPanel() {
 
             {settings.aiProvider !== 'ollama' && (
               <div className="field">
-                <label className="field__label">API Key</label>
+                <label className="field__label" htmlFor="api-key-input">
+                  API Key
+                </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
+                    id="api-key-input"
                     type="password"
                     className="field__input"
                     style={{ flex: 1 }}
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder={`Enter ${settings.aiProvider} API key`}
+                    aria-label={`Enter ${settings.aiProvider} API key`}
                   />
                   <button
                     className="action-btn action-btn--primary"
                     style={{ padding: '0 12px' }}
                     onClick={saveApiKey}
                     disabled={loading}
+                    aria-label="Save API Key securely"
                   >
                     {loading ? (
                       <div className="spinner" style={{ width: 14, height: 14 }} />
@@ -125,49 +176,81 @@ export default function SettingsPanel() {
 
             {settings.aiProvider === 'ollama' && (
               <div className="field">
-                <label className="field__label">Ollama Endpoint</label>
+                <label className="field__label" htmlFor="ollama-endpoint-input">
+                  Ollama Endpoint
+                </label>
                 <input
+                  id="ollama-endpoint-input"
                   type="text"
                   className="field__input"
                   value={settings.ollamaEndpoint}
                   onChange={(e) => updateSetting('ollamaEndpoint', e.target.value)}
+                  aria-label="Ollama HTTP Endpoint"
                 />
               </div>
             )}
 
             {settings.aiProvider === 'custom' && (
               <div className="field">
-                <label className="field__label">Custom Endpoint</label>
+                <label className="field__label" htmlFor="custom-endpoint-input">
+                  Custom Endpoint
+                </label>
                 <input
+                  id="custom-endpoint-input"
                   type="text"
                   className="field__input"
                   value={settings.customApiEndpoint}
                   onChange={(e) => updateSetting('customApiEndpoint', e.target.value)}
                   placeholder="https://api.example.com/v1/chat/completions"
+                  aria-label="Custom API Endpoint"
                 />
               </div>
             )}
 
             <div className="field">
-              <label className="field__label">Model</label>
+              <label className="field__label" htmlFor="ai-model-input">
+                Model
+              </label>
               <input
+                id="ai-model-input"
                 type="text"
                 className="field__input"
                 value={settings.aiModel}
                 onChange={(e) => updateSetting('aiModel', e.target.value)}
+                aria-label="AI Model name"
               />
             </div>
           </div>
 
           <div className="settings-section">
-            <h3 className="settings-section__title">Preferences</h3>
+            <h3 className="settings-section__title">Preferences &amp; Accessibility</h3>
 
             <div className="field">
-              <label className="field__label">🎙️ Audio Input Device (Microphone / Loopback)</label>
+              <label className="field__label" htmlFor="theme-select">
+                Appearance Theme
+              </label>
               <select
+                id="theme-select"
+                className="field__select"
+                value={settings.theme || 'dark'}
+                onChange={(e) => updateSetting('theme', e.target.value)}
+                aria-label="Appearance Theme"
+              >
+                <option value="dark">Dark Theme (Studio High Contrast)</option>
+                <option value="light">Light Theme (Clean Daylight Studio)</option>
+              </select>
+            </div>
+
+            <div className="field">
+              <label className="field__label" htmlFor="audio-device-select">
+                🎙️ Audio Input Device
+              </label>
+              <select
+                id="audio-device-select"
                 className="field__select"
                 value={selectedAudioDeviceId || ''}
                 onChange={(e) => setSelectedAudioDeviceId(e.target.value)}
+                aria-label="Audio Input Device"
               >
                 <option value="">Default System Microphone</option>
                 {audioDevices.map((d, idx) => (
@@ -177,16 +260,20 @@ export default function SettingsPanel() {
                 ))}
               </select>
               <span className="field__hint">
-                Directly route AirPods, USB headset, or BlackHole virtual audio loopback.
+                Directly route AirPods, USB headset, or virtual audio loopback.
               </span>
             </div>
 
             <div className="field">
-              <label className="field__label">Preferred Programming Language</label>
+              <label className="field__label" htmlFor="programming-lang-select">
+                Preferred Programming Language
+              </label>
               <select
+                id="programming-lang-select"
                 className="field__select"
                 value={settings.preferredLanguage}
                 onChange={(e) => updateSetting('preferredLanguage', e.target.value)}
+                aria-label="Preferred Programming Language"
               >
                 <option value="python">Python</option>
                 <option value="java">Java</option>
@@ -201,6 +288,10 @@ export default function SettingsPanel() {
             <div className="toggle-row">
               <span className="toggle-row__label">Browser Extension Integration</span>
               <button
+                type="button"
+                role="switch"
+                aria-checked={Boolean(settings.browserIntegration)}
+                aria-label="Toggle Browser Extension Integration"
                 className={`toggle ${settings.browserIntegration ? 'active' : ''}`}
                 onClick={() => updateSetting('browserIntegration', !settings.browserIntegration)}
               />
@@ -210,12 +301,18 @@ export default function SettingsPanel() {
                 style={{
                   marginTop: '8px',
                   padding: '10px',
-                  background: 'rgba(30, 41, 59, 0.5)',
+                  background: 'var(--bg-card, rgba(30, 41, 59, 0.5))',
                   borderRadius: '6px',
-                  border: '1px solid rgba(148, 163, 184, 0.2)',
+                  border: '1px solid var(--border-default, rgba(148, 163, 184, 0.2))',
                 }}
               >
-                <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: 'var(--text-muted, #94a3b8)',
+                    marginBottom: '4px',
+                  }}
+                >
                   Extension Pairing Token (Required by extension for security):
                 </div>
                 <div style={{ display: 'flex', gap: '6px' }}>
@@ -223,14 +320,15 @@ export default function SettingsPanel() {
                     type="password"
                     readOnly
                     value={extensionToken}
+                    aria-label="Extension pairing security token"
                     style={{
                       flex: 1,
                       fontSize: '11px',
                       padding: '4px 8px',
-                      background: '#0f172a',
-                      border: '1px solid #334155',
+                      background: 'var(--bg-tertiary, #0f172a)',
+                      border: '1px solid var(--border-subtle, #334155)',
                       borderRadius: '4px',
-                      color: '#cbd5e1',
+                      color: 'var(--text-primary, #cbd5e1)',
                     }}
                   />
                   <button
@@ -240,10 +338,11 @@ export default function SettingsPanel() {
                       setTokenCopied(true);
                       setTimeout(() => setTokenCopied(false), 2000);
                     }}
+                    aria-label="Copy extension pairing token"
                     style={{
                       padding: '4px 8px',
                       fontSize: '11px',
-                      background: '#4f46e5',
+                      background: 'var(--accent-primary, #4f46e5)',
                       color: '#ffffff',
                       border: 'none',
                       borderRadius: '4px',
@@ -260,11 +359,16 @@ export default function SettingsPanel() {
           <div className="settings-section">
             <h3 className="settings-section__title">System Prompt</h3>
             <div className="field">
+              <label className="sr-only" htmlFor="system-prompt-textarea">
+                System Prompt
+              </label>
               <textarea
+                id="system-prompt-textarea"
                 className="field__textarea"
                 value={settings.systemPrompt}
                 onChange={(e) => updateSetting('systemPrompt', e.target.value)}
                 rows={4}
+                aria-label="Custom Interviewer System Prompt"
               />
               <span className="field__hint">Customize how the AI behaves and responds.</span>
             </div>
@@ -277,6 +381,7 @@ export default function SettingsPanel() {
             <button
               className="danger-btn"
               onClick={clearAllData}
+              aria-label="Clear all application data and stored sessions"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -285,7 +390,7 @@ export default function SettingsPanel() {
               }}
             >
               <AlertTriangle size={14} />
-              Clear All Data & Sessions
+              Clear All Data &amp; Sessions
             </button>
           </div>
         </div>

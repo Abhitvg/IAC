@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { usePracticeStore } from "../../store/usePracticeStore";
-import { useAppStore } from "../../store/useAppStore";
-import { EvidenceScorecard } from "./EvidenceScorecard";
+import React, { useEffect, useState } from 'react';
+import { usePracticeStore } from '../../store/usePracticeStore';
+import { useAppStore } from '../../store/useAppStore';
+import { EvidenceScorecard } from './EvidenceScorecard';
 
 export const MockPressureRoom: React.FC = () => {
   const {
@@ -34,9 +34,9 @@ export const MockPressureRoom: React.FC = () => {
   useEffect(() => {
     if (transcript && transcript.length > 0 && isRecording) {
       const userText = transcript
-        .filter((m: any) => m.speaker === "user" || m.speaker === "unknown")
+        .filter((m: any) => m.speaker === 'user' || m.speaker === 'unknown')
         .map((m: any) => m.text)
-        .join(" ");
+        .join(' ');
       if (userText) {
         setCurrentCandidateAnswer(userText);
       }
@@ -50,12 +50,16 @@ export const MockPressureRoom: React.FC = () => {
   // Format timer MM:SS
   const mins = Math.floor(activeSession.timeRemainingSeconds / 60);
   const secs = activeSession.timeRemainingSeconds % 60;
-  const timerStr = `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  const timerStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   const isTimeCritical = activeSession.timeRemainingSeconds < 300; // < 5 mins
 
   // Current active question item
-  const currentHistoryItem = activeSession.questionHistory[activeSession.questionHistory.length - 1];
-  const lastCompletedItem = activeSession.questionHistory[activeSession.questionHistory.length - (activeSession.isActive ? 2 : 1)];
+  const currentHistoryItem =
+    activeSession.questionHistory[activeSession.questionHistory.length - 1];
+  const lastCompletedItem =
+    activeSession.questionHistory[
+      activeSession.questionHistory.length - (activeSession.isActive ? 2 : 1)
+    ];
 
   return (
     <div className="space-y-6">
@@ -63,12 +67,16 @@ export const MockPressureRoom: React.FC = () => {
       <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center font-bold text-white shadow">
-            {activeSession.persona === "strict_big_tech" ? "ST" : activeSession.persona === "startup_pragmatist" ? "SP" : "FR"}
+            {activeSession.persona === 'strict_big_tech'
+              ? 'ST'
+              : activeSession.persona === 'startup_pragmatist'
+                ? 'SP'
+                : 'FR'}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-white capitalize">
-                {activeSession.persona.replace(/_/g, " ")} Interviewer
+                {activeSession.persona.replace(/_/g, ' ')} Interviewer
               </span>
               {activeSession.rehearsalPhase && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
@@ -80,7 +88,8 @@ export const MockPressureRoom: React.FC = () => {
               {activeSession.interviewerThinkingSeconds > 0 ? (
                 <span className="flex items-center gap-1.5 text-xs text-amber-400 animate-pulse font-medium">
                   <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                  Interviewer is taking notes & reflecting ({activeSession.interviewerThinkingSeconds}s)...
+                  Interviewer is taking notes & reflecting (
+                  {activeSession.interviewerThinkingSeconds}s)...
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
@@ -95,10 +104,13 @@ export const MockPressureRoom: React.FC = () => {
         {/* Visible Pressure Timer */}
         <div className="flex items-center gap-3">
           <div
+            role="timer"
+            aria-live="off"
+            aria-label={`Time remaining: ${timerStr}`}
             className={`px-4 py-2 rounded-xl font-mono text-xl font-extrabold border transition ${
               isTimeCritical
-                ? "bg-rose-950/60 text-rose-300 border-rose-500/50 animate-pulse"
-                : "bg-slate-950 text-white border-slate-800"
+                ? 'bg-rose-950/60 text-rose-300 border-rose-500/50 animate-pulse'
+                : 'bg-slate-950 text-white border-slate-800'
             }`}
           >
             ⏱️ {timerStr}
@@ -106,6 +118,7 @@ export const MockPressureRoom: React.FC = () => {
 
           <button
             onClick={endSession}
+            aria-label="End practice session early"
             className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold transition"
           >
             End Session
@@ -122,9 +135,7 @@ export const MockPressureRoom: React.FC = () => {
               <span className="text-xs font-bold uppercase tracking-wider text-rose-400">
                 Interviewer Interrupted Mid-Answer:
               </span>
-              <p className="text-sm font-semibold text-white mt-0.5">
-                "{interruptionBanner}"
-              </p>
+              <p className="text-sm font-semibold text-white mt-0.5">"{interruptionBanner}"</p>
               <p className="text-[11px] text-rose-200 mt-1">
                 Address this specific challenge immediately before moving on with your answer.
               </p>
@@ -145,7 +156,7 @@ export const MockPressureRoom: React.FC = () => {
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-2">
               <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                {currentHistoryItem?.category || "Question"}
+                {currentHistoryItem?.category || 'Question'}
               </span>
               {currentHistoryItem?.isFollowUp && (
                 <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
@@ -166,7 +177,8 @@ export const MockPressureRoom: React.FC = () => {
                 Tiered Coaching Hints (Cost penalty against rubric score):
               </span>
               <span className="text-[11px] text-amber-400">
-                Penalty: -{activeHintsUsed.reduce((sum, h) => sum + h.penaltyPoints, 0).toFixed(1)} pts
+                Penalty: -{activeHintsUsed.reduce((sum, h) => sum + h.penaltyPoints, 0).toFixed(1)}{' '}
+                pts
               </span>
             </div>
 
@@ -180,8 +192,8 @@ export const MockPressureRoom: React.FC = () => {
                     key={tierNum}
                     className={`p-3 rounded-xl border text-xs transition ${
                       isUnlocked
-                        ? "bg-slate-950 border-indigo-500/40 text-slate-200"
-                        : "bg-slate-900/60 border-slate-800 text-slate-400"
+                        ? 'bg-slate-950 border-indigo-500/40 text-slate-200'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-400'
                     }`}
                   >
                     <div className="flex justify-between items-center mb-1">
@@ -194,9 +206,7 @@ export const MockPressureRoom: React.FC = () => {
                     </div>
 
                     {isUnlocked ? (
-                      <p className="text-slate-200 text-xs mt-1 leading-relaxed">
-                        {hint?.content}
-                      </p>
+                      <p className="text-slate-200 text-xs mt-1 leading-relaxed">{hint?.content}</p>
                     ) : (
                       <button
                         onClick={() => requestHint(tierNum as any)}
@@ -214,7 +224,10 @@ export const MockPressureRoom: React.FC = () => {
           {/* Candidate Answer Workspace */}
           <div className="space-y-3 pt-2 border-t border-slate-800/80">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+              <label
+                htmlFor="candidate-response-input"
+                className="text-xs font-semibold text-slate-300 flex items-center gap-2"
+              >
                 <span>Your Live Response (Speak out loud or type structure):</span>
                 {isRecording && (
                   <span className="flex items-center gap-1.5 text-rose-400 text-[10px] animate-pulse">
@@ -228,15 +241,17 @@ export const MockPressureRoom: React.FC = () => {
                 onClick={toggleRecording}
                 className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
                   isRecording
-                    ? "bg-rose-600 hover:bg-rose-500 text-white animate-pulse"
-                    : "bg-slate-800 hover:bg-slate-700 text-slate-200"
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
                 }`}
               >
-                {isRecording ? "Stop Dictation" : "🎤 Speak Answer"}
+                {isRecording ? 'Stop Dictation' : '🎤 Speak Answer'}
               </button>
             </div>
 
             <textarea
+              id="candidate-response-input"
+              aria-label="Your Live Response"
               value={currentCandidateAnswer}
               onChange={(e) => setCurrentCandidateAnswer(e.target.value)}
               placeholder="Start speaking into your microphone or type your initial technical thoughts here..."
@@ -267,15 +282,15 @@ export const MockPressureRoom: React.FC = () => {
                 Consolidated Rehearsal Scorecard
               </span>
               <h3 className="text-2xl font-black text-white mt-1">
-                Final Hiring Decision:{" "}
+                Final Hiring Decision:{' '}
                 <span
                   className={`${
-                    activeSession.overallScorecard?.finalRating.includes("Hire")
-                      ? "text-emerald-400"
-                      : "text-rose-400"
+                    activeSession.overallScorecard?.finalRating.includes('Hire')
+                      ? 'text-emerald-400'
+                      : 'text-rose-400'
                   }`}
                 >
-                  {activeSession.overallScorecard?.finalRating || "Hire"}
+                  {activeSession.overallScorecard?.finalRating || 'Hire'}
                 </span>
               </h3>
             </div>
@@ -294,7 +309,9 @@ export const MockPressureRoom: React.FC = () => {
               </ul>
             </div>
             <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
-              <span className="text-xs font-bold text-slate-400 uppercase">Top Improvement Priorities</span>
+              <span className="text-xs font-bold text-slate-400 uppercase">
+                Top Improvement Priorities
+              </span>
               <ul className="mt-2 space-y-1 text-xs text-slate-200">
                 {activeSession.overallScorecard?.topImprovementPriorities.map((prio, idx) => (
                   <li key={idx} className="flex gap-2 items-center">

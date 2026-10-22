@@ -25,7 +25,7 @@ import { getGfgKnowledgePromptSection } from '../data/gfgCurriculum';
 
 export const DEFAULT_TARGET_ROLE = 'Software Developer (Alignerr — AI Assisted Coding)';
 
-export const DEFAULT_RESUME = "";
+export const DEFAULT_RESUME = '';
 
 export const DEFAULT_JOB_DESCRIPTION = `Role: Software Developer — Build Your Own Project with an AI Coding Assistant
 Organization: Alignerr

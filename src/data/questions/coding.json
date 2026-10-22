@@ -3,11 +3,7 @@
     "id": "code_01",
     "type": "coding",
     "topic": "Sliding Window",
-    "tags": [
-      "sliding_window",
-      "strings",
-      "hash_table"
-    ],
+    "tags": ["sliding_window", "strings", "hash_table"],
     "difficulty": 2,
     "prompt": "Given an event log stream string containing sensor status codes, find the length of the longest continuous slice that contains at most k distinct error status codes.",
     "clarifyingInfo": "The string contains arbitrary ASCII tokens. If k is zero or greater than the number of unique characters, handle gracefully.",
@@ -21,25 +17,15 @@
       "Nested O(N^2) subarray scanning",
       "Failing to decrement frequency and delete key from map when frequency reaches zero"
     ],
-    "followUps": [
-      "How would you optimize if the alphabet size is bounded to standard 128 ASCII?"
-    ],
-    "rubricHooks": [
-      "approach",
-      "correctness",
-      "complexity"
-    ],
+    "followUps": ["How would you optimize if the alphabet size is bounded to standard 128 ASCII?"],
+    "rubricHooks": ["approach", "correctness", "complexity"],
     "timeBudgetMinutes": 20
   },
   {
     "id": "code_02",
     "type": "coding",
     "topic": "Two Pointers",
-    "tags": [
-      "two_pointers",
-      "arrays",
-      "in_place"
-    ],
+    "tags": ["two_pointers", "arrays", "in_place"],
     "difficulty": 1,
     "prompt": "Given an array of network packet sizes, partition all zero-payload ping packets to the end of the array in-place while preserving the relative order of non-zero payload packets.",
     "clarifyingInfo": "Must be done in-place with O(1) extra memory. Return the count of non-zero payload packets.",
@@ -56,22 +42,14 @@
     "followUps": [
       "How can you minimize total write operations if the array already contains few zeros?"
     ],
-    "rubricHooks": [
-      "approach",
-      "complexity",
-      "testing"
-    ],
+    "rubricHooks": ["approach", "complexity", "testing"],
     "timeBudgetMinutes": 15
   },
   {
     "id": "code_03",
     "type": "coding",
     "topic": "Monotonic Stack",
-    "tags": [
-      "stack",
-      "monotonic_stack",
-      "arrays"
-    ],
+    "tags": ["stack", "monotonic_stack", "arrays"],
     "difficulty": 3,
     "prompt": "Given a sequence of daily CPU peak temperature readings, calculate for each day how many days you would have to wait until a strictly higher temperature is observed. If no future day is hotter, output 0.",
     "clarifyingInfo": "Temperatures are integers between 0 and 150. Array length up to 10^5.",
@@ -85,25 +63,15 @@
       "Brute force double loop O(N^2) timing out on large inputs",
       "Storing temperature values instead of indices on the stack"
     ],
-    "followUps": [
-      "What if the temperature sensor wraps cyclically around the calendar year?"
-    ],
-    "rubricHooks": [
-      "problem_understanding",
-      "approach",
-      "correctness"
-    ],
+    "followUps": ["What if the temperature sensor wraps cyclically around the calendar year?"],
+    "rubricHooks": ["problem_understanding", "approach", "correctness"],
     "timeBudgetMinutes": 25
   },
   {
     "id": "code_04",
     "type": "coding",
     "topic": "Linked List",
-    "tags": [
-      "linked_list",
-      "two_pointers",
-      "fast_slow"
-    ],
+    "tags": ["linked_list", "two_pointers", "fast_slow"],
     "difficulty": 2,
     "prompt": "Given a singly linked list representing transactional state transitions, determine if the state machine enters an infinite cyclic loop. If so, return the exact node where the cycle begins; otherwise return null.",
     "clarifyingInfo": "Do not modify the linked list pointers. Strive for O(1) auxiliary space.",
@@ -117,25 +85,15 @@
       "Using a hash set which consumes O(N) space instead of O(1)",
       "Off-by-one errors during pointer advancement"
     ],
-    "followUps": [
-      "How do you break or remove the cycle safely without losing data?"
-    ],
-    "rubricHooks": [
-      "correctness",
-      "complexity",
-      "communication"
-    ],
+    "followUps": ["How do you break or remove the cycle safely without losing data?"],
+    "rubricHooks": ["correctness", "complexity", "communication"],
     "timeBudgetMinutes": 20
   },
   {
     "id": "code_05",
     "type": "coding",
     "topic": "Binary Search",
-    "tags": [
-      "binary_search",
-      "arrays",
-      "rotated_array"
-    ],
+    "tags": ["binary_search", "arrays", "rotated_array"],
     "difficulty": 3,
     "prompt": "A sorted telemetry time-series dataset has been cyclically rotated at an unknown pivot index. Given a target timestamp, find its index in the rotated array in O(log N) time, or return -1 if absent.",
     "clarifyingInfo": "All timestamps in the array are unique. Length up to 10^6.",
@@ -149,25 +107,15 @@
       "Linear scanning O(N) violating time budget",
       "Misidentifying which boundary inequality includes equality (<= vs <)"
     ],
-    "followUps": [
-      "How does the time complexity change if duplicates are allowed?"
-    ],
-    "rubricHooks": [
-      "approach",
-      "correctness",
-      "testing"
-    ],
+    "followUps": ["How does the time complexity change if duplicates are allowed?"],
+    "rubricHooks": ["approach", "correctness", "testing"],
     "timeBudgetMinutes": 25
   },
   {
     "id": "code_06",
     "type": "coding",
     "topic": "Binary Trees",
-    "tags": [
-      "binary_tree",
-      "recursion",
-      "dfs"
-    ],
+    "tags": ["binary_tree", "recursion", "dfs"],
     "difficulty": 3,
     "prompt": "Given the root of a binary tree representing an organizational hierarchy, compute the maximum path sum between any two nodes. The path may start and end at any node and does not need to pass through the root.",
     "clarifyingInfo": "Node values can be negative. A path must contain at least one node.",
@@ -181,25 +129,15 @@
       "Including both left and right children in the return value to parent (paths cannot fork)",
       "Initializing global max to 0 instead of negative infinity"
     ],
-    "followUps": [
-      "How would you return the actual sequence of node IDs in the optimal path?"
-    ],
-    "rubricHooks": [
-      "problem_understanding",
-      "approach",
-      "correctness"
-    ],
+    "followUps": ["How would you return the actual sequence of node IDs in the optimal path?"],
+    "rubricHooks": ["problem_understanding", "approach", "correctness"],
     "timeBudgetMinutes": 30
   },
   {
     "id": "code_07",
     "type": "coding",
     "topic": "Graph Traversal",
-    "tags": [
-      "graph",
-      "bfs",
-      "topological_sort"
-    ],
+    "tags": ["graph", "bfs", "topological_sort"],
     "difficulty": 4,
     "prompt": "Given a directed dependency graph of microservice startup tasks where dependencies[i] = [serviceA, serviceB] indicates serviceB must be running before serviceA starts, return a valid startup order. If a deadlocked circular dependency exists, return an empty array.",
     "clarifyingInfo": "There are N services numbered 0 to N-1. Some services may be completely independent.",
@@ -216,22 +154,14 @@
     "followUps": [
       "How would you parallelize startup across multiple threads given dependency constraints?"
     ],
-    "rubricHooks": [
-      "approach",
-      "complexity",
-      "testing"
-    ],
+    "rubricHooks": ["approach", "complexity", "testing"],
     "timeBudgetMinutes": 30
   },
   {
     "id": "code_08",
     "type": "coding",
     "topic": "Dynamic Programming",
-    "tags": [
-      "dynamic_programming",
-      "subsequences",
-      "memoization"
-    ],
+    "tags": ["dynamic_programming", "subsequences", "memoization"],
     "difficulty": 4,
     "prompt": "Given two distributed log event streams s1 and s2, compute the length of their Longest Common Subsequence of event tags to measure log synchronization alignment.",
     "clarifyingInfo": "Event strings length up to 2000. Characters represent event IDs.",
@@ -245,25 +175,15 @@
       "Confusing common substring (contiguous) with common subsequence (non-contiguous)",
       "Off-by-one errors on table indexing"
     ],
-    "followUps": [
-      "How would you reconstruct the actual matching subsequence string?"
-    ],
-    "rubricHooks": [
-      "approach",
-      "correctness",
-      "complexity"
-    ],
+    "followUps": ["How would you reconstruct the actual matching subsequence string?"],
+    "rubricHooks": ["approach", "correctness", "complexity"],
     "timeBudgetMinutes": 30
   },
   {
     "id": "code_09",
     "type": "coding",
     "topic": "Heaps & Priority Queue",
-    "tags": [
-      "heap",
-      "priority_queue",
-      "stream"
-    ],
+    "tags": ["heap", "priority_queue", "stream"],
     "difficulty": 3,
     "prompt": "Design a data structure that ingests an unbounded real-time stream of server response latency integers and provides an efficient method to retrieve the median response time at any moment.",
     "clarifyingInfo": "addLatency(val) is called frequently; getMedian() is called periodically. Latencies are positive integers.",
@@ -280,22 +200,14 @@
     "followUps": [
       "How would you modify this structure to support sliding window median over the last K numbers?"
     ],
-    "rubricHooks": [
-      "problem_understanding",
-      "approach",
-      "testing"
-    ],
+    "rubricHooks": ["problem_understanding", "approach", "testing"],
     "timeBudgetMinutes": 25
   },
   {
     "id": "code_10",
     "type": "coding",
     "topic": "Trie Data Structure",
-    "tags": [
-      "trie",
-      "prefix_tree",
-      "strings"
-    ],
+    "tags": ["trie", "prefix_tree", "strings"],
     "difficulty": 3,
     "prompt": "Implement an autocomplete prefix search engine for an API gateway URL route matcher that supports insert(route), searchExact(route), and startsWith(prefix).",
     "clarifyingInfo": "Routes consist of lowercase alphabetic characters and slashes.",
@@ -309,25 +221,15 @@
       "Using an array/list of strings leading to O(N * L) prefix searches",
       "Forgetting to mark isEndOfWord on insertion"
     ],
-    "followUps": [
-      "How do you support wildcard matching (e.g. '*' matches any single character)?"
-    ],
-    "rubricHooks": [
-      "approach",
-      "correctness",
-      "complexity"
-    ],
+    "followUps": ["How do you support wildcard matching (e.g. '*' matches any single character)?"],
+    "rubricHooks": ["approach", "correctness", "complexity"],
     "timeBudgetMinutes": 25
   },
   {
     "id": "code_11",
     "type": "coding",
     "topic": "Backtracking",
-    "tags": [
-      "backtracking",
-      "recursion",
-      "combinatorics"
-    ],
+    "tags": ["backtracking", "recursion", "combinatorics"],
     "difficulty": 3,
     "prompt": "Given an array of cloud server RAM configurations (distinct integers) and a target workload capacity, return all unique combinations of servers whose total RAM equals target. The same server configuration may be chosen unlimited times.",
     "clarifyingInfo": "All numbers are positive integers. Elements in combinations can be returned in any order.",
@@ -344,22 +246,14 @@
     "followUps": [
       "What changes if each server configuration can only be used once and input contains duplicates?"
     ],
-    "rubricHooks": [
-      "problem_understanding",
-      "approach",
-      "testing"
-    ],
+    "rubricHooks": ["problem_understanding", "approach", "testing"],
     "timeBudgetMinutes": 30
   },
   {
     "id": "code_12",
     "type": "coding",
     "topic": "Intervals",
-    "tags": [
-      "intervals",
-      "sorting",
-      "greedy"
-    ],
+    "tags": ["intervals", "sorting", "greedy"],
     "difficulty": 2,
     "prompt": "Given a list of scheduled database backup time windows [start, end], find the minimum number of parallel worker nodes required to execute all backups without overlapping concurrency conflicts.",
     "clarifyingInfo": "Intervals are given as pairs of integers. End points are non-inclusive.",
@@ -373,25 +267,15 @@
       "Merging intervals instead of counting peak concurrent overlap",
       "Not handling simultaneous start and end points correctly"
     ],
-    "followUps": [
-      "How would you return which backup ran on which specific worker ID?"
-    ],
-    "rubricHooks": [
-      "approach",
-      "correctness",
-      "complexity"
-    ],
+    "followUps": ["How would you return which backup ran on which specific worker ID?"],
+    "rubricHooks": ["approach", "correctness", "complexity"],
     "timeBudgetMinutes": 25
   },
   {
     "id": "code_13",
     "type": "coding",
     "topic": "Binary Search Tree",
-    "tags": [
-      "bst",
-      "binary_tree",
-      "recursion"
-    ],
+    "tags": ["bst", "binary_tree", "recursion"],
     "difficulty": 2,
     "prompt": "Given the root of a binary search tree representing price indexes, validate whether it is a strictly valid BST according to BST invariants across all ancestors.",
     "clarifyingInfo": "Node values can be any 32-bit integer. Left subtree must be strictly less than node value; right subtree strictly greater.",
@@ -405,25 +289,15 @@
       "Only checking parent-child relationship (node.left < node) without ancestor range bounds",
       "Using Integer.MIN_VALUE as boundary causing false failure when node value equals Integer.MIN_VALUE"
     ],
-    "followUps": [
-      "How do you find the Kth smallest element in a BST in O(H + K) time?"
-    ],
-    "rubricHooks": [
-      "correctness",
-      "testing",
-      "complexity"
-    ],
+    "followUps": ["How do you find the Kth smallest element in a BST in O(H + K) time?"],
+    "rubricHooks": ["correctness", "testing", "complexity"],
     "timeBudgetMinutes": 20
   },
   {
     "id": "code_14",
     "type": "coding",
     "topic": "String Parsing",
-    "tags": [
-      "stack",
-      "strings",
-      "parsing"
-    ],
+    "tags": ["stack", "strings", "parsing"],
     "difficulty": 3,
     "prompt": "Implement an arithmetic expression evaluator for an alert query engine that computes the value of a string expression containing non-negative integers, '+', '-', '*', '/', and parentheses.",
     "clarifyingInfo": "Integer division should truncate toward zero. Ignore whitespace. Assume expression is well-formed.",
@@ -437,25 +311,15 @@
       "Applying operations left-to-right without respecting operator precedence",
       "Failing to process remaining operators after reaching end of string"
     ],
-    "followUps": [
-      "How would you extend this to support unary minus (-5 * 2)?"
-    ],
-    "rubricHooks": [
-      "problem_understanding",
-      "approach",
-      "correctness"
-    ],
+    "followUps": ["How would you extend this to support unary minus (-5 * 2)?"],
+    "rubricHooks": ["problem_understanding", "approach", "correctness"],
     "timeBudgetMinutes": 30
   },
   {
     "id": "code_15",
     "type": "coding",
     "topic": "Graph Shortest Path",
-    "tags": [
-      "graph",
-      "dijkstra",
-      "shortest_path"
-    ],
+    "tags": ["graph", "dijkstra", "shortest_path"],
     "difficulty": 4,
     "prompt": "Given a network of N router nodes with directional transmission delays represented by edges [u, v, weight], compute the minimum time required for a signal broadcast from node K to reach all nodes in the network. If impossible, return -1.",
     "clarifyingInfo": "Weights are positive integers. Nodes are numbered 1 to N.",
@@ -469,25 +333,15 @@
       "Using BFS which only works for unweighted graphs",
       "Not checking if any node remains unreachable at the end"
     ],
-    "followUps": [
-      "What if network delays could be negative? What algorithm would you switch to?"
-    ],
-    "rubricHooks": [
-      "approach",
-      "correctness",
-      "complexity"
-    ],
+    "followUps": ["What if network delays could be negative? What algorithm would you switch to?"],
+    "rubricHooks": ["approach", "correctness", "complexity"],
     "timeBudgetMinutes": 30
   },
   {
     "id": "code_16",
     "type": "coding",
     "topic": "Disjoint Set Union",
-    "tags": [
-      "dsu",
-      "union_find",
-      "graphs"
-    ],
+    "tags": ["dsu", "union_find", "graphs"],
     "difficulty": 3,
     "prompt": "Given an initial list of N isolated cloud compute nodes and a stream of operational network cable connections [nodeA, nodeB], determine the number of distinct connected clusters after each connection.",
     "clarifyingInfo": "Nodes are 0-indexed. Connections may be redundant.",
@@ -501,25 +355,15 @@
       "Re-running full BFS/DFS after every cable connection resulting in O(E * (V + E))",
       "Omitting path compression leading to degenerate O(N) trees"
     ],
-    "followUps": [
-      "How would you return the size of the largest cluster dynamically?"
-    ],
-    "rubricHooks": [
-      "approach",
-      "complexity",
-      "testing"
-    ],
+    "followUps": ["How would you return the size of the largest cluster dynamically?"],
+    "rubricHooks": ["approach", "complexity", "testing"],
     "timeBudgetMinutes": 25
   },
   {
     "id": "code_17",
     "type": "coding",
     "topic": "Matrix Traversal",
-    "tags": [
-      "matrix",
-      "dfs",
-      "bfs"
-    ],
+    "tags": ["matrix", "dfs", "bfs"],
     "difficulty": 2,
     "prompt": "Given a 2D grid of memory addresses where '1' represents allocated memory blocks and '0' represents free blocks, count the number of contiguous allocated memory clusters. A cluster is formed by connecting adjacent 1s horizontally or vertically.",
     "clarifyingInfo": "Diagonals do not count. The grid can be rectangular (M x N).",
@@ -536,22 +380,14 @@
     "followUps": [
       "How would you solve this iteratively if recursion depth exceeds call stack limits?"
     ],
-    "rubricHooks": [
-      "approach",
-      "correctness",
-      "testing"
-    ],
+    "rubricHooks": ["approach", "correctness", "testing"],
     "timeBudgetMinutes": 20
   },
   {
     "id": "code_18",
     "type": "coding",
     "topic": "Bit Manipulation",
-    "tags": [
-      "bit_manipulation",
-      "bitwise",
-      "math"
-    ],
+    "tags": ["bit_manipulation", "bitwise", "math"],
     "difficulty": 2,
     "prompt": "Given an array of microservice replica IDs where every replica appears exactly twice except for two unique singleton services, find the two singleton services in O(N) time and O(1) auxiliary space.",
     "clarifyingInfo": "Array contains 2N + 2 integers. Order of output does not matter.",
@@ -568,21 +404,14 @@
     "followUps": [
       "How would you solve this if every number appears three times except one singleton?"
     ],
-    "rubricHooks": [
-      "problem_understanding",
-      "approach",
-      "complexity"
-    ],
+    "rubricHooks": ["problem_understanding", "approach", "complexity"],
     "timeBudgetMinutes": 25
   },
   {
     "id": "code_19",
     "type": "coding",
     "topic": "Greedy Algorithms",
-    "tags": [
-      "greedy",
-      "arrays"
-    ],
+    "tags": ["greedy", "arrays"],
     "difficulty": 2,
     "prompt": "You are given an array of gas station capacities and route consumption costs along a circular highway. Return the starting station index from which a vehicle can complete a full clockwise circuit, or -1 if impossible.",
     "clarifyingInfo": "Each gas[i] is fuel available; each cost[i] is fuel needed to travel to i+1. Solution is guaranteed unique if possible.",
@@ -599,22 +428,14 @@
     "followUps": [
       "How do you prove that start index is guaranteed valid if total gas >= total cost?"
     ],
-    "rubricHooks": [
-      "problem_understanding",
-      "approach",
-      "communication"
-    ],
+    "rubricHooks": ["problem_understanding", "approach", "communication"],
     "timeBudgetMinutes": 25
   },
   {
     "id": "code_20",
     "type": "coding",
     "topic": "Advanced Data Structures",
-    "tags": [
-      "lru",
-      "doubly_linked_list",
-      "hash_table"
-    ],
+    "tags": ["lru", "doubly_linked_list", "hash_table"],
     "difficulty": 4,
     "prompt": "Design and implement a Time-Based Key-Value Store that can store multiple values for the same key at different timestamps, and retrieve the key's value at a specific query timestamp (or latest timestamp <= query timestamp).",
     "clarifyingInfo": "Timestamps are strictly increasing for each set call. If no timestamp <= target exists, return empty string.",
@@ -631,11 +452,7 @@
     "followUps": [
       "How would you evict historical timestamps if storage exceeds a rolling TTL retention window?"
     ],
-    "rubricHooks": [
-      "approach",
-      "correctness",
-      "complexity"
-    ],
+    "rubricHooks": ["approach", "correctness", "complexity"],
     "timeBudgetMinutes": 30
   }
 ]

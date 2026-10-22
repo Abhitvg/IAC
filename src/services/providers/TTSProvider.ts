@@ -75,14 +75,19 @@ export class PiperLocalTTSProvider implements TTSProvider {
         providerId: this.id,
       };
     } catch (err: any) {
-      throw new Error(`Piper local TTS failed at ${this.endpoint}: ${err.message || String(err)}`, { cause: err });
+      throw new Error(`Piper local TTS failed at ${this.endpoint}: ${err.message || String(err)}`, {
+        cause: err,
+      });
     }
   }
 
   async checkHealth(): Promise<{ ok: boolean; message?: string }> {
     try {
       const res = await fetch(this.endpoint, { method: 'GET' });
-      return { ok: res.ok, message: res.ok ? 'Piper daemon running' : `Piper returned ${res.status}` };
+      return {
+        ok: res.ok,
+        message: res.ok ? 'Piper daemon running' : `Piper returned ${res.status}`,
+      };
     } catch {
       return { ok: false, message: `Piper daemon not reachable at ${this.endpoint}` };
     }
@@ -125,7 +130,10 @@ export class KokoroLocalTTSProvider implements TTSProvider {
         providerId: this.id,
       };
     } catch (err: any) {
-      throw new Error(`Kokoro local TTS failed at ${this.endpoint}: ${err.message || String(err)}`, { cause: err });
+      throw new Error(
+        `Kokoro local TTS failed at ${this.endpoint}: ${err.message || String(err)}`,
+        { cause: err }
+      );
     }
   }
 
@@ -133,7 +141,10 @@ export class KokoroLocalTTSProvider implements TTSProvider {
     try {
       const base = this.endpoint.replace(/\/v1\/audio\/speech$/, '');
       const res = await fetch(`${base}/health`, { method: 'GET' });
-      return { ok: res.ok, message: res.ok ? 'Kokoro daemon running' : `Kokoro returned ${res.status}` };
+      return {
+        ok: res.ok,
+        message: res.ok ? 'Kokoro daemon running' : `Kokoro returned ${res.status}`,
+      };
     } catch {
       return { ok: false, message: `Kokoro daemon not reachable at ${this.endpoint}` };
     }
@@ -153,8 +164,9 @@ export class TTSManager {
   }
 
   public async speakWithFallback(text: string, options?: TTSOptions): Promise<TTSResult> {
-    const order = [this.primaryId, 'piper-local', 'kokoro-local', 'browser-speech']
-      .filter((id, idx, arr) => arr.indexOf(id) === idx && this.providers.has(id));
+    const order = [this.primaryId, 'piper-local', 'kokoro-local', 'browser-speech'].filter(
+      (id, idx, arr) => arr.indexOf(id) === idx && this.providers.has(id)
+    );
 
     let lastError: Error | null = null;
 
@@ -165,7 +177,9 @@ export class TTSManager {
         return await p.synthesize(text, options);
       } catch (err: any) {
         lastError = err;
-        console.warn(`[TTSManager] ${id} synthesis failed: ${err.message}. Trying next fallback...`);
+        console.warn(
+          `[TTSManager] ${id} synthesis failed: ${err.message}. Trying next fallback...`
+        );
       }
     }
 

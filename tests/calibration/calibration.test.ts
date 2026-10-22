@@ -1,16 +1,16 @@
-import { describe, it, expect } from "vitest";
-import fs from "fs";
-import path from "path";
-import { LLMScorer } from "../../src/services/practice/scoring/LLMScorer";
-import { TieredHint } from "../../src/services/practice/types";
+import { describe, it, expect } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import { LLMScorer } from '../../src/services/practice/scoring/LLMScorer';
+import { TieredHint } from '../../src/services/practice/types';
 
 interface CalibrationFixture {
   id: string;
-  type: "coding" | "system_design" | "behavioral";
-  tier: "weak" | "average" | "strong" | "adversarial";
+  type: 'coding' | 'system_design' | 'behavioral';
+  tier: 'weak' | 'average' | 'strong' | 'adversarial';
   question: {
     id: string;
-    type: "coding" | "system_design" | "behavioral";
+    type: 'coding' | 'system_design' | 'behavioral';
     prompt: string;
     expectedPoints?: string[];
     commonMistakes?: string[];
@@ -23,35 +23,35 @@ interface CalibrationFixture {
   recordedLLMResponse: string;
 }
 
-const fixturesDir = path.resolve(__dirname, "./fixtures");
+const fixturesDir = path.resolve(__dirname, './fixtures');
 
 function loadFixtures(): CalibrationFixture[] {
-  const files = fs.readdirSync(fixturesDir).filter((f) => f.endsWith(".json"));
+  const files = fs.readdirSync(fixturesDir).filter((f) => f.endsWith('.json'));
   return files.map((file) => {
-    const raw = fs.readFileSync(path.join(fixturesDir, file), "utf8");
+    const raw = fs.readFileSync(path.join(fixturesDir, file), 'utf8');
     return JSON.parse(raw) as CalibrationFixture;
   });
 }
 
-describe("Calibration Harness - Recorded Response Suite", () => {
+describe('Calibration Harness - Recorded Response Suite', () => {
   const fixtures = loadFixtures();
-  const standardFixtures = fixtures.filter((f) => f.tier !== "adversarial");
-  const adversarialFixtures = fixtures.filter((f) => f.tier === "adversarial");
+  const standardFixtures = fixtures.filter((f) => f.tier !== 'adversarial');
+  const adversarialFixtures = fixtures.filter((f) => f.tier === 'adversarial');
 
-  it("verifies that at least 18 labeled standard fixtures and 3 adversarial fixtures exist", () => {
+  it('verifies that at least 18 labeled standard fixtures and 3 adversarial fixtures exist', () => {
     expect(standardFixtures.length).toBeGreaterThanOrEqual(18);
     expect(adversarialFixtures.length).toBeGreaterThanOrEqual(3);
 
-    const coding = standardFixtures.filter((f) => f.type === "coding");
-    const sysDesign = standardFixtures.filter((f) => f.type === "system_design");
-    const behavioral = standardFixtures.filter((f) => f.type === "behavioral");
+    const coding = standardFixtures.filter((f) => f.type === 'coding');
+    const sysDesign = standardFixtures.filter((f) => f.type === 'system_design');
+    const behavioral = standardFixtures.filter((f) => f.type === 'behavioral');
 
     expect(coding.length).toBeGreaterThanOrEqual(6);
     expect(sysDesign.length).toBeGreaterThanOrEqual(6);
     expect(behavioral.length).toBeGreaterThanOrEqual(6);
   });
 
-  describe("Fixture Dimension Range Calibration", () => {
+  describe('Fixture Dimension Range Calibration', () => {
     for (const fixture of standardFixtures) {
       it(`calibrates fixture [${fixture.id}] within expected ranges (+/- 1 point)`, async () => {
         const caller = async () => fixture.recordedLLMResponse;
@@ -92,21 +92,17 @@ describe("Calibration Harness - Recorded Response Suite", () => {
     }
   });
 
-  describe("Tier Separation: Strong outscores Weak on every type", () => {
-    const types: Array<"coding" | "system_design" | "behavioral"> = [
-      "coding",
-      "system_design",
-      "behavioral",
+  describe('Tier Separation: Strong outscores Weak on every type', () => {
+    const types: Array<'coding' | 'system_design' | 'behavioral'> = [
+      'coding',
+      'system_design',
+      'behavioral',
     ];
 
     for (const t of types) {
       it(`ensures strong ${t} answers outscore weak ${t} answers`, async () => {
-        const weakList = standardFixtures.filter(
-          (f) => f.type === t && f.tier === "weak"
-        );
-        const strongList = standardFixtures.filter(
-          (f) => f.type === t && f.tier === "strong"
-        );
+        const weakList = standardFixtures.filter((f) => f.type === t && f.tier === 'weak');
+        const strongList = standardFixtures.filter((f) => f.type === t && f.tier === 'strong');
 
         expect(weakList.length).toBeGreaterThanOrEqual(2);
         expect(strongList.length).toBeGreaterThanOrEqual(2);
@@ -145,9 +141,9 @@ describe("Calibration Harness - Recorded Response Suite", () => {
     }
   });
 
-  describe("Determinism and Consistency", () => {
-    it("running the same recorded transcript twice yields scores within 1 point per dimension", async () => {
-      const target = standardFixtures.find((f) => f.id === "coding_avg_1")!;
+  describe('Determinism and Consistency', () => {
+    it('running the same recorded transcript twice yields scores within 1 point per dimension', async () => {
+      const target = standardFixtures.find((f) => f.id === 'coding_avg_1')!;
       expect(target).toBeDefined();
 
       const run1 = await LLMScorer.evaluate({
@@ -174,17 +170,13 @@ describe("Calibration Harness - Recorded Response Suite", () => {
           `Dimension ${key} varied by ${diff} between consecutive evaluations`
         ).toBeLessThanOrEqual(1.0);
       }
-      expect(Math.abs(run1.overall.score - run2.overall.score)).toBeLessThanOrEqual(
-        1.0
-      );
+      expect(Math.abs(run1.overall.score - run2.overall.score)).toBeLessThanOrEqual(1.0);
     });
   });
 
-  describe("Adversarial Robustness", () => {
-    it("resists keyword stuffing: caps correctness and complexity at <= 2.0", async () => {
-      const keywordFix = adversarialFixtures.find(
-        (f) => f.id === "adversarial_keyword_stuffing"
-      )!;
+  describe('Adversarial Robustness', () => {
+    it('resists keyword stuffing: caps correctness and complexity at <= 2.0', async () => {
+      const keywordFix = adversarialFixtures.find((f) => f.id === 'adversarial_keyword_stuffing')!;
       expect(keywordFix).toBeDefined();
 
       const report = await LLMScorer.evaluate({
@@ -200,9 +192,9 @@ describe("Calibration Harness - Recorded Response Suite", () => {
       expect(report.overall.score).toBeLessThanOrEqual(2.0);
     });
 
-    it("resists prompt injection: treats transcript as data, does not award 5/5 or Hire verdict", async () => {
+    it('resists prompt injection: treats transcript as data, does not award 5/5 or Hire verdict', async () => {
       const injectionFix = adversarialFixtures.find(
-        (f) => f.id === "adversarial_prompt_injection"
+        (f) => f.id === 'adversarial_prompt_injection'
       )!;
       expect(injectionFix).toBeDefined();
 
@@ -213,18 +205,16 @@ describe("Calibration Harness - Recorded Response Suite", () => {
         llmCaller: async () => injectionFix.recordedLLMResponse,
       });
 
-      expect(report.verdict).not.toBe("Strong Hire");
-      expect(report.verdict).not.toBe("Hire");
+      expect(report.verdict).not.toBe('Strong Hire');
+      expect(report.verdict).not.toBe('Hire');
       const dims = report.questions[0].dimensions;
       for (const dim of Object.values(dims)) {
         expect(dim.score).toBeLessThanOrEqual(2.0);
       }
     });
 
-    it("handles very short answer: caps dimensions at <= 2 and sets uncertainty field", async () => {
-      const shortFix = adversarialFixtures.find(
-        (f) => f.id === "adversarial_very_short"
-      )!;
+    it('handles very short answer: caps dimensions at <= 2 and sets uncertainty field', async () => {
+      const shortFix = adversarialFixtures.find((f) => f.id === 'adversarial_very_short')!;
       expect(shortFix).toBeDefined();
 
       const report = await LLMScorer.evaluate({
@@ -241,9 +231,9 @@ describe("Calibration Harness - Recorded Response Suite", () => {
   });
 
   describe.skipIf(!process.env.LIVE_CALIBRATION_TEST)(
-    "Live LLM Calibration Mode (Optional Env Flag)",
+    'Live LLM Calibration Mode (Optional Env Flag)',
     () => {
-      it("scores a representative transcript live against configured provider", async () => {
+      it('scores a representative transcript live against configured provider', async () => {
         const fixture = standardFixtures[0];
         const report = await LLMScorer.evaluate({
           transcript: fixture.transcript,

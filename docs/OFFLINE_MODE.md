@@ -17,6 +17,7 @@ In Offline Mode, all three core AI components run locally on your machine:
 ## 🚀 Step-by-Step Setup
 
 ### Step 1: Install & Launch Ollama
+
 ```bash
 # 1. Install Ollama (macOS / Linux / Windows)
 brew install ollama  # macOS (or download from ollama.ai)
@@ -29,6 +30,7 @@ curl http://127.0.0.1:11434/api/tags
 ```
 
 ### Step 2: Setup Local whisper.cpp Server
+
 ```bash
 # 1. Clone and compile whisper.cpp
 git clone https://github.com/ggerganov/whisper.cpp.git
@@ -43,6 +45,7 @@ bash ./models/download-ggml-model.sh base.en
 ```
 
 ### Step 3: Configure AI Interview Practice Gym
+
 1. Open **Settings** (or complete the first-run Onboarding flow).
 2. Select **Ollama (Local Offline)** as your AI Provider.
 3. Ensure endpoint is set to `http://127.0.0.1:11434`.
@@ -82,6 +85,7 @@ Follow these steps to verify that a full 15-minute practice session completes co
 ## 🛡️ Cost & Token Budgeting
 
 Even in offline mode, `LLMManager` enforces session token budgeting:
+
 - Default budget: **25,000 tokens** per practice session.
 - Runaway loops or excessively long prompts trigger an explicit threshold warning before exhausting device RAM.
 - Local inference costs **$0.00** per session.

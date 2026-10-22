@@ -22,30 +22,12 @@
   "transcript": "Candidate: Let's frame the problem: transcoding long videos sequentially on single machines causes unbearable latency and wasted work if a node crashes 90% into a two-hour encode. The architecture must decompose videos into independent chunks and transcode them in parallel across a distributed worker fleet. Ingestion begins with a pre-signed S3 upload URL. Once the raw file lands in Object Storage, an S3 Event Notification triggers an Ingestion Worker that runs ffprobe to inspect metadata and checks for duplicate video hashes to prevent redundant processing. A Splitting Service slices the video into 5-to-10 second chunks aligned strictly on keyframe boundaries (GOP - Group of Pictures). Each chunk task is published to a priority-based message queue with task metadata: chunk_index, target resolution (4k, 1080p, 720p, 360p), and codec profile (H.264 for legacy compatibility and AV1 for bandwidth efficiency). A fleet of stateless worker instances orchestrated by Kubernetes processes chunks. Workers run on cheap Spot Instances; if a spot worker is terminated, the queue's visibility timeout expires, safely reassigning the chunk to another worker with zero data loss. Completed chunks are pushed back to S3, and a Stitching/Manifest Generator creates the master HLS (.m3u8) and DASH (.mpd) manifests. Finally, content is delivered via globally distributed CDNs using range requests for instant start times. For cost optimization, popular videos are pre-encoded in all resolutions, whereas cold tail videos are only encoded into high-demand formats until view thresholds are reached.",
   "hints": [],
   "expectedScoreRanges": {
-    "requirements": [
-      4.5,
-      5
-    ],
-    "estimation": [
-      4,
-      5
-    ],
-    "architecture": [
-      4.5,
-      5
-    ],
-    "tradeoffs": [
-      4.5,
-      5
-    ],
-    "failure_modes": [
-      4.5,
-      5
-    ],
-    "communication": [
-      4.5,
-      5
-    ]
+    "requirements": [4.5, 5],
+    "estimation": [4, 5],
+    "architecture": [4.5, 5],
+    "tradeoffs": [4.5, 5],
+    "failure_modes": [4.5, 5],
+    "communication": [4.5, 5]
   },
   "notes": "Exceptional system design. Addresses chunking on GOP boundaries, stateless spot workers, fault tolerance via visibility timeouts, adaptive bitrate manifests, and tiering cold content.",
   "recordedLLMResponse": "{\"questions\":[{\"id\":\"sd_video_transcoding\",\"type\":\"system_design\",\"dimensions\":{\"requirements\":{\"score\":5,\"evidence\":\"transcoding long videos sequentially on single machines causes unbearable latency and wasted work\",\"note\":\"Understands fundamental distributed chunking motivation.\"},\"estimation\":{\"score\":4.5,\"evidence\":\"slices the video into 5-to-10 second chunks aligned strictly on keyframe boundaries (GOP - Group of Pictures)\",\"note\":\"Deep domain expertise in video codecs.\"},\"architecture\":{\"score\":5,\"evidence\":\"Stitching/Manifest Generator creates the master HLS (.m3u8) and DASH (.mpd) manifests\",\"note\":\"End-to-end distributed pipeline.\"},\"tradeoffs\":{\"score\":5,\"evidence\":\"Workers run on cheap Spot Instances; if a spot worker is terminated, the queue's visibility timeout expires\",\"note\":\"Superb cost/reliability engineering trade-off.\"},\"failure_modes\":{\"score\":5,\"evidence\":\"safely reassigning the chunk to another worker with zero data loss\",\"note\":\"Idempotent worker recovery.\"},\"communication\":{\"score\":5,\"evidence\":\"Ingestion begins with a pre-signed S3 upload URL\",\"note\":\"Clear, fluid chronological exposition.\"}},\"missed_points\":[],\"model_answer_outline\":[\"GOP-aligned video chunking\",\"Spot worker fleet with visibility timeout\",\"HLS/DASH manifest generation\",\"CDN edge caching\"]}],\"overall\":{\"score\":4.9,\"summary\":\"World-class system design. The candidate demonstrated comprehensive mastery of distributed chunk-based transcoding, keyframe alignment, resilient spot-instance worker pools, and adaptive bitrate delivery.\",\"top_fixes\":[],\"strengths\":[\"Identified GOP keyframe alignment for chunking\",\"Leveraged queue visibility timeouts for spot instance fault tolerance\",\"Differentiated hot vs cold video transcoding profiles\"]},\"uncertainty\":\"None.\"}"

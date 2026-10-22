@@ -1,8 +1,12 @@
 /**
- * Modern, robust PDF text extraction using pdfjs-dist with fallback to pdf-parse.
+ * Modern, robust PDF text extraction using pdfjs-dist.
  * Handles complex multi-column resumes, Unicode character sets, and nested text blocks.
  */
 export async function parsePdfBuffer(arrayBuffer: ArrayBuffer): Promise<string> {
+  if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+    return '';
+  }
+
   const copy = arrayBuffer.slice(0);
   const buffer = new Uint8Array(copy);
 
@@ -31,21 +35,9 @@ export async function parsePdfBuffer(arrayBuffer: ArrayBuffer): Promise<string> 
       fullText += pageStrings.join(' ') + '\n\n';
     }
 
-    const clean = fullText.trim();
-    if (clean.length > 0) {
-      return clean;
-    }
+    return fullText.trim();
   } catch (err) {
-    console.warn('[PDFParser] pdfjs-dist extraction failed, trying pdf-parse fallback:', err);
-  }
-
-  // Secondary fallback to pdf-parse
-  try {
-    const pdfParse = require('pdf-parse');
-    const data = await pdfParse(Buffer.from(arrayBuffer.slice(0)));
-    return (data.text || '').trim();
-  } catch (fallbackErr) {
-    console.error('[PDFParser] pdf-parse fallback also failed:', fallbackErr);
+    console.warn('[PDFParser] pdfjs-dist extraction failed or invalid PDF structure:', err);
     return '';
   }
 }

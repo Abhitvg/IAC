@@ -21,26 +21,11 @@
   "transcript": "Candidate: There was this junior engineer on my team who was completely incompetent. He was always pushing sloppy code that broke my PRs. I told him multiple times in Slack that he needed to get his act together, but he kept arguing with me and ignoring my comments. Eventually, I realized talking to him was a waste of time, so I just went into his branch, rewrote all of his code myself over the weekend, and merged it so we wouldn't miss our sprint goal. He complained to our manager, but our manager saw that my code worked better, so nothing happened. I proved I was right and we shipped on time.",
   "hints": [],
   "expectedScoreRanges": {
-    "structure": [
-      1.5,
-      2.5
-    ],
-    "specificity": [
-      2,
-      3
-    ],
-    "ownership": [
-      1,
-      2
-    ],
-    "impact": [
-      1.5,
-      2.5
-    ],
-    "reflection": [
-      1,
-      1.5
-    ]
+    "structure": [1.5, 2.5],
+    "specificity": [2, 3],
+    "ownership": [1, 2],
+    "impact": [1.5, 2.5],
+    "reflection": [1, 1.5]
   },
   "notes": "Severe red flags: abusive language towards colleague, bypassed peer without communication, zero empathy or reflection.",
   "recordedLLMResponse": "{\"questions\":[{\"id\":\"beh_conflict\",\"type\":\"behavioral\",\"dimensions\":{\"structure\":{\"score\":2,\"evidence\":\"There was this junior engineer on my team\",\"note\":\"Basic chronological narrative without STAR reflection.\"},\"specificity\":{\"score\":2.5,\"evidence\":\"rewrote all of his code myself over the weekend, and merged it\",\"note\":\"Specific actions described, but toxic.\"},\"ownership\":{\"score\":1,\"evidence\":\"junior engineer on my team who was completely incompetent\",\"note\":\"Derogatory towards teammate, abdicates collaboration.\"},\"impact\":{\"score\":2,\"evidence\":\"I proved I was right and we shipped on time\",\"note\":\"Team health destroyed despite shipping code.\"},\"reflection\":{\"score\":1,\"evidence\":\"realized talking to him was a waste of time\",\"note\":\"Completely unreflective and combative.\"}},\"missed_points\":[\"Constructive conflict resolution\",\"Active listening and pair programming mentorship\",\"Self-reflection and emotional intelligence\"],\"model_answer_outline\":[\"Frame technical disagreement objectively\",\"Seek alignment via data/user needs\",\"Foster collaborative growth\"]}],\"overall\":{\"score\":1.7,\"summary\":\"Candidate demonstrated severe collaboration red flags, disparaging a junior teammate and unilaterally rewriting their work without constructive feedback or reflection.\",\"top_fixes\":[\"Adopt constructive de-escalation techniques rather than unilateral overrides\",\"Practice empathetic communication and mentorship with junior peers\",\"Reflect on how actions impact team psychological safety\"],\"strengths\":[\"Identified sprint delivery urgency\"]},\"uncertainty\":\"None.\"}"

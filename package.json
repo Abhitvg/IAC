@@ -1,7 +1,7 @@
 {
   "name": "ai-interview-assistant",
   "version": "1.0.0",
-  "description": "AI technical interview practice gym and mock interview coaching desktop app",
+  "description": "AI technical interview practice gym and mock interview coaching desktop application",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
@@ -24,7 +24,6 @@
     "lucide-react": "^0.460.0",
     "mammoth": "^1.8.0",
     "openai": "^4.73.0",
-    "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^6.4.299",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -89,7 +88,7 @@
       "maintainer": "Abhishek Singh"
     }
   },
-  "author": "Abhishek Singh",
+  "author": "Abhishek Singh <Abhisheksingh1thakur@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -102,6 +101,8 @@
     "ai-coach",
     "leetcode",
     "system-design",
+    "behavioral-interview",
+    "speech-coaching",
     "electron",
     "react",
     "typescript"

@@ -1,11 +1,11 @@
-import { RubricDimension, RubricEvaluation, TieredHint } from "./types";
-import { LLMScorer } from "./scoring/LLMScorer";
-import { EvidenceValidator } from "./scoring/EvidenceValidator";
-import { DeterministicSignalsExtractor } from "./scoring/DeterministicSignals";
-import { AIProviderConfig } from "../../types";
+import { RubricDimension, RubricEvaluation, TieredHint } from './types';
+import { LLMScorer } from './scoring/LLMScorer';
+import { EvidenceValidator } from './scoring/EvidenceValidator';
+import { DeterministicSignalsExtractor } from './scoring/DeterministicSignals';
+import { AIProviderConfig } from '../../types';
 
 export interface RubricConfig {
-  category: "coding" | "system_design" | "behavioral";
+  category: 'coding' | 'system_design' | 'behavioral';
   question: string;
   candidateAnswer: string;
   codeSnippet?: string;
@@ -27,7 +27,7 @@ export class RubricScorer {
   }
 
   private static async evaluateWithLLM(config: RubricConfig): Promise<RubricEvaluation> {
-    const cleanAnswer = (config.candidateAnswer || "").trim();
+    const cleanAnswer = (config.candidateAnswer || '').trim();
     const signals = DeterministicSignalsExtractor.extract(cleanAnswer);
 
     // Call LLMScorer
@@ -48,14 +48,14 @@ export class RubricScorer {
     if (questionEval) {
       for (const [_key, dim] of Object.entries(questionEval.dimensions)) {
         dimensions.push({
-          name: dim.name.replace(/_/g, " "),
+          name: dim.name.replace(/_/g, ' '),
           category: config.category,
           score: dim.score,
           maxScore: 5,
           weight: 1.0 / Object.keys(questionEval.dimensions).length,
-          feedback: dim.note || "Evaluated by verified scoring rubric.",
+          feedback: dim.note || 'Evaluated by verified scoring rubric.',
           evidenceQuote: dim.evidence || undefined,
-          missingAspect: dim.evidence ? undefined : "No verifiable transcript quote provided.",
+          missingAspect: dim.evidence ? undefined : 'No verifiable transcript quote provided.',
           penaltyDeduction: dim.penaltyDeduction,
           matchType: dim.matchType,
         });
@@ -67,7 +67,8 @@ export class RubricScorer {
       percentage: Math.round((report.overall.score / 5.0) * 100),
       dimensions,
       topLeverageFixes: report.overall.top_fixes,
-      modelAnswer: questionEval?.model_answer_outline?.join("\n") || "Follow standard structured framework.",
+      modelAnswer:
+        questionEval?.model_answer_outline?.join('\n') || 'Follow standard structured framework.',
       diffMissingPoints: questionEval?.missed_points || [],
       assessedAt: Date.now(),
       uncertainty: report.uncertainty,
@@ -82,7 +83,7 @@ export class RubricScorer {
    * Labeled strictly as heuristic estimate. Never gives 5/5 to keyword stuffing.
    */
   public static evaluateSync(config: RubricConfig): RubricEvaluation {
-    const cleanAnswer = (config.candidateAnswer || "").trim();
+    const cleanAnswer = (config.candidateAnswer || '').trim();
     // lower unneeded
     const signals = DeterministicSignalsExtractor.extract(cleanAnswer);
     const sentences = cleanAnswer.split(/(?<=[.?!])\s+/).filter((s) => s.length > 5);
@@ -91,29 +92,37 @@ export class RubricScorer {
     const diffMissingPoints: string[] = [];
 
     const dimKeys =
-      config.category === "coding"
+      config.category === 'coding'
         ? [
-            { key: "problem_understanding", name: "Problem Understanding & Constraints", weight: 0.15 },
-            { key: "approach", name: "Approach & Trade-off Exploration", weight: 0.20 },
-            { key: "correctness", name: "Algorithmic Correctness", weight: 0.25 },
-            { key: "complexity", name: "Complexity Analysis (Time & Space)", weight: 0.20 },
-            { key: "testing", name: "Testing & Code Dry-Run", weight: 0.20 },
+            {
+              key: 'problem_understanding',
+              name: 'Problem Understanding & Constraints',
+              weight: 0.15,
+            },
+            { key: 'approach', name: 'Approach & Trade-off Exploration', weight: 0.2 },
+            { key: 'correctness', name: 'Algorithmic Correctness', weight: 0.25 },
+            { key: 'complexity', name: 'Complexity Analysis (Time & Space)', weight: 0.2 },
+            { key: 'testing', name: 'Testing & Code Dry-Run', weight: 0.2 },
           ]
-        : config.category === "system_design"
-        ? [
-            { key: "requirements", name: "Requirements & Scope Framing", weight: 0.20 },
-            { key: "estimation", name: "Scale Estimation & Math", weight: 0.20 },
-            { key: "architecture", name: "Architecture & Component Decoupling", weight: 0.20 },
-            { key: "tradeoffs", name: "Trade-offs & Deep Dives", weight: 0.20 },
-            { key: "failure_modes", name: "Failure Modes & Resilience", weight: 0.20 },
-          ]
-        : [
-            { key: "structure", name: "STAR Structure & Framing", weight: 0.20 },
-            { key: "specificity", name: "Context Specificity", weight: 0.20 },
-            { key: "ownership", name: "Action & Individual Ownership ('I' vs 'we')", weight: 0.25 },
-            { key: "impact", name: "Quantified Result & Impact", weight: 0.20 },
-            { key: "reflection", name: "Learnings & Reflection", weight: 0.15 },
-          ];
+        : config.category === 'system_design'
+          ? [
+              { key: 'requirements', name: 'Requirements & Scope Framing', weight: 0.2 },
+              { key: 'estimation', name: 'Scale Estimation & Math', weight: 0.2 },
+              { key: 'architecture', name: 'Architecture & Component Decoupling', weight: 0.2 },
+              { key: 'tradeoffs', name: 'Trade-offs & Deep Dives', weight: 0.2 },
+              { key: 'failure_modes', name: 'Failure Modes & Resilience', weight: 0.2 },
+            ]
+          : [
+              { key: 'structure', name: 'STAR Structure & Framing', weight: 0.2 },
+              { key: 'specificity', name: 'Context Specificity', weight: 0.2 },
+              {
+                key: 'ownership',
+                name: "Action & Individual Ownership ('I' vs 'we')",
+                weight: 0.25,
+              },
+              { key: 'impact', name: 'Quantified Result & Impact', weight: 0.2 },
+              { key: 'reflection', name: 'Learnings & Reflection', weight: 0.15 },
+            ];
 
     // Hint penalties applied in code: Tier 1: 0.25, Tier 2: 0.5, Tier 3: 1.0
     let totalPenalty = 0;
@@ -126,48 +135,61 @@ export class RubricScorer {
 
     for (const d of dimKeys) {
       let rawScore = 2.0;
-      let quote = "";
-      let note = "no verifiable evidence";
+      let quote = '';
+      let note = 'no verifiable evidence';
 
       // Look for a genuine candidate sentence
       if (sentences.length > 0) {
-        if (d.key === "complexity" && (signals.hasBigONotation || signals.hasTimeComplexityMention)) {
-          const cSentence = sentences.find((s) => s.toLowerCase().includes("o(") || s.toLowerCase().includes("complexity"));
+        if (
+          d.key === 'complexity' &&
+          (signals.hasBigONotation || signals.hasTimeComplexityMention)
+        ) {
+          const cSentence = sentences.find(
+            (s) => s.toLowerCase().includes('o(') || s.toLowerCase().includes('complexity')
+          );
           if (cSentence) {
             quote = cSentence;
-            rawScore = signals.hasSpaceComplexityMention && signals.hasTimeComplexityMention ? 3.5 : 2.5;
+            rawScore =
+              signals.hasSpaceComplexityMention && signals.hasTimeComplexityMention ? 3.5 : 2.5;
             if (!signals.hasSpaceComplexityMention) {
-              diffMissingPoints.push("Complexity Analysis: Missing auxiliary space complexity calculation.");
+              diffMissingPoints.push(
+                'Complexity Analysis: Missing auxiliary space complexity calculation.'
+              );
             }
-            note = "Stated complexity figures.";
+            note = 'Stated complexity figures.';
           }
-        } else if (d.key === "ownership" && signals.ownershipRatio >= 0.6 && signals.iCount >= 3) {
-          const oSentence = sentences.find((s) => s.toLowerCase().includes("i "));
+        } else if (d.key === 'ownership' && signals.ownershipRatio >= 0.6 && signals.iCount >= 3) {
+          const oSentence = sentences.find((s) => s.toLowerCase().includes('i '));
           if (oSentence) {
             quote = oSentence;
             rawScore = 3.5;
-            note = "Demonstrated individual ownership.";
+            note = 'Demonstrated individual ownership.';
           }
-        } else if (d.key === "impact" && signals.hasNumberOrPercentage) {
+        } else if (d.key === 'impact' && signals.hasNumberOrPercentage) {
           const numSentence = sentences.find((s) => /\b\d+(?:%|ms|s|k|m|\$|users)?\b/i.test(s));
           if (numSentence) {
             quote = numSentence;
             rawScore = 3.5;
-            note = "Delivered quantified numbers.";
+            note = 'Delivered quantified numbers.';
           }
-        } else if (d.key === "problem_understanding" && signals.hasConstraintClarification) {
-          const uSentence = sentences.find((s) => s.toLowerCase().includes("constraint") || s.toLowerCase().includes("empty"));
+        } else if (d.key === 'problem_understanding' && signals.hasConstraintClarification) {
+          const uSentence = sentences.find(
+            (s) => s.toLowerCase().includes('constraint') || s.toLowerCase().includes('empty')
+          );
           if (uSentence) {
             quote = uSentence;
             rawScore = 3.5;
-            note = "Clarified input constraints.";
+            note = 'Clarified input constraints.';
           }
         }
       }
 
       // Validate with EvidenceValidator: if quote is missing or invalid, caps score at 2
       const validation = EvidenceValidator.validateEvidence(quote, cleanAnswer, rawScore, note);
-      const postPenaltyScore = Math.max(1.0, Math.round((validation.score - penaltyPerDim) * 10) / 10);
+      const postPenaltyScore = Math.max(
+        1.0,
+        Math.round((validation.score - penaltyPerDim) * 10) / 10
+      );
 
       dimensions.push({
         name: d.name,
@@ -177,16 +199,20 @@ export class RubricScorer {
         weight: d.weight,
         feedback: validation.note,
         evidenceQuote: validation.evidence || undefined,
-        missingAspect: validation.evidence ? undefined : "No verifiable transcript quote found.",
+        missingAspect: validation.evidence ? undefined : 'No verifiable transcript quote found.',
         penaltyDeduction: Math.round(penaltyPerDim * 100) / 100,
         matchType: validation.matchType,
       });
 
       if (!validation.evidence) {
-        if (d.key === "complexity") {
-          diffMissingPoints.push("Complexity Analysis: Missing auxiliary space complexity calculation.");
+        if (d.key === 'complexity') {
+          diffMissingPoints.push(
+            'Complexity Analysis: Missing auxiliary space complexity calculation.'
+          );
         } else {
-          diffMissingPoints.push(`${d.name}: Provide explicit verbal justification with concrete data.`);
+          diffMissingPoints.push(
+            `${d.name}: Provide explicit verbal justification with concrete data.`
+          );
         }
       }
     }
@@ -199,15 +225,17 @@ export class RubricScorer {
       percentage: Math.round((overallScore / 5.0) * 100),
       dimensions,
       topLeverageFixes: [
-        "Articulate constraints and boundary edge cases before diving into code or architecture.",
-        "Always state Big-O Time AND Auxiliary Space complexity explicitly.",
+        'Articulate constraints and boundary edge cases before diving into code or architecture.',
+        'Always state Big-O Time AND Auxiliary Space complexity explicitly.',
       ],
-      modelAnswer: "Follow structured framework: clarify constraints -> explore trade-offs -> test boundary cases.",
+      modelAnswer:
+        'Follow structured framework: clarify constraints -> explore trade-offs -> test boundary cases.',
       diffMissingPoints,
       assessedAt: Date.now(),
-      uncertainty: "Evaluated by offline heuristic estimate. Semantic correctness cannot be guaranteed without LLM.",
+      uncertainty:
+        'Evaluated by offline heuristic estimate. Semantic correctness cannot be guaranteed without LLM.',
       isHeuristicEstimate: true,
-      confidenceBanner: "Estimated, low confidence: evaluated by offline heuristic fallback.",
+      confidenceBanner: 'Estimated, low confidence: evaluated by offline heuristic fallback.',
       signals,
     };
   }

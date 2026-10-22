@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  calculateEstimatedCost,
-  LLMMessage,
-} from '../../src/services/providers/types';
+import { calculateEstimatedCost, LLMMessage } from '../../src/services/providers/types';
 import {
   GroqProvider,
   OpenAIProvider,
@@ -77,9 +74,7 @@ describe('LLM Providers Execution', () => {
     global.fetch = mockFetch;
 
     const groq = new GroqProvider('gsk_testkey');
-    const response = await groq.complete([
-      { role: 'user', content: 'Design URL shortener' },
-    ]);
+    const response = await groq.complete([{ role: 'user', content: 'Design URL shortener' }]);
 
     expect(response.text).toBe('Groq high-speed answer');
     expect(response.providerId).toBe('groq');
@@ -177,7 +172,11 @@ describe('15-Minute Offline Mock Session Simulation', () => {
                     id: 'q1',
                     type: 'behavioral',
                     dimensions: {
-                      ownership: { score: 4, evidence: 'I led the migration', note: 'clear ownership' },
+                      ownership: {
+                        score: 4,
+                        evidence: 'I led the migration',
+                        note: 'clear ownership',
+                      },
                     },
                     missed_points: [],
                     model_answer_outline: ['State situation', 'Explain trade-offs'],
