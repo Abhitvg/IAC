@@ -7,6 +7,7 @@ import SessionsPanel from './components/SessionsPanel';
 import OnboardingModal from './components/OnboardingModal';
 import Toast from './components/Toast';
 import { InterviewEngine } from './services/InterviewEngine';
+import { Mic, MicOff, Settings, History } from 'lucide-react';
 import './styles/index.css';
 
 export default function App() {
@@ -22,6 +23,8 @@ export default function App() {
     resumeModalOpen,
     isRecording,
     isGenerating,
+    setSettingsOpen,
+    setSessionsOpen,
   } = useAppStore();
 
   useEffect(() => {
@@ -138,12 +141,81 @@ export default function App() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
+            gap: '10px',
             fontSize: '11px',
-            color: 'var(--text-muted, #64748b)',
           }}
         >
-          <span>Ready • Electron 33</span>
+          {/* Audio Recording / Dictation Button */}
+          <button
+            type="button"
+            onClick={toggleRecording}
+            aria-label={isRecording ? 'Stop Audio Recording' : 'Start Audio Recording'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              background: isRecording ? '#e11d48' : 'rgba(255, 255, 255, 0.08)',
+              color: isRecording ? '#ffffff' : '#cbd5e1',
+              border: isRecording ? '1px solid #f43f5e' : '1px solid rgba(255, 255, 255, 0.12)',
+            }}
+          >
+            {isRecording ? <MicOff size={13} /> : <Mic size={13} />}
+            <span>{isRecording ? 'Recording (Stop)' : 'Record Audio (R)'}</span>
+          </button>
+
+          {/* Past Sessions History Button */}
+          <button
+            type="button"
+            onClick={() => setSessionsOpen(true)}
+            aria-label="View Past Practice Sessions"
+            title="Past Sessions History"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 500,
+              background: 'transparent',
+              color: '#94a3b8',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              cursor: 'pointer',
+            }}
+          >
+            <History size={13} />
+            <span>Sessions</span>
+          </button>
+
+          {/* Settings Button */}
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Open Settings"
+            title="Configure Microphone, Models & Privacy"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 500,
+              background: 'transparent',
+              color: '#94a3b8',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              cursor: 'pointer',
+            }}
+          >
+            <Settings size={13} />
+            <span>Settings</span>
+          </button>
         </div>
       </header>
 

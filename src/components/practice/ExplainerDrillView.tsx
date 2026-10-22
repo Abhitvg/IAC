@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePracticeStore } from '../../store/usePracticeStore';
+import { useAppStore } from '../../store/useAppStore';
 import { ExplainerDrillService } from '../../services/practice/coach/ExplainerDrillService';
 import { StructureAnalyzer } from '../../services/practice/coach/StructureAnalyzer';
 import { ConcretenessAnalyzer } from '../../services/practice/coach/ConcretenessAnalyzer';
@@ -15,6 +16,8 @@ import {
   TrendingUp,
   Award,
   BookOpen,
+  Mic,
+  MicOff,
 } from 'lucide-react';
 
 export const ExplainerDrillView: React.FC = () => {
@@ -27,6 +30,7 @@ export const ExplainerDrillView: React.FC = () => {
     saveConceptCard,
     feedbackRecords,
   } = usePracticeStore();
+  const { isRecording, toggleRecording, transcript } = useAppStore();
 
   const [timeLimit, setTimeLimit] = useState<30 | 60 | 90>(90);
   const [isRunning, setIsRunning] = useState(false);
@@ -43,6 +47,19 @@ export const ExplainerDrillView: React.FC = () => {
   const [cardTradeOff, setCardTradeOff] = useState('');
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync live spoken words from microphone into candidateText during drill
+  useEffect(() => {
+    if (transcript && transcript.length > 0 && isRecording) {
+      const userText = transcript
+        .filter((m: any) => m.speaker === 'user' || m.speaker === 'unknown')
+        .map((m: any) => m.text)
+        .join(' ');
+      if (userText) {
+        setCandidateText(userText);
+      }
+    }
+  }, [transcript, isRecording]);
 
   // Available topics from feedback or defaults
   const availableTopics = Array.from(
@@ -95,10 +112,16 @@ export const ExplainerDrillView: React.FC = () => {
     setCandidateText('');
     setLatestAttempt(null);
     setIsRunning(true);
+    if (!isRecording) {
+      toggleRecording();
+    }
   };
 
   const handleStopAndAnalyze = async () => {
     setIsRunning(false);
+    if (isRecording) {
+      toggleRecording();
+    }
     setIsAnalyzing(true);
 
     const cleanText = candidateText.trim() || 'No answer spoken.';
@@ -267,12 +290,38 @@ export const ExplainerDrillView: React.FC = () => {
 
             {/* Answer Input Textarea */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 flex justify-between">
-                <span>Spoken Answer Transcript:</span>
-                <span className="text-slate-400">
-                  {candidateText.split(/\s+/).filter(Boolean).length} words
-                </span>
-              </label>
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
+                  <span>Spoken Answer Transcript:</span>
+                  {isRecording && (
+                    <span className="flex items-center gap-1.5 text-rose-400 text-[10px] animate-pulse">
+                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                      Mic Active
+                    </span>
+                  )}
+                </label>
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-400 text-xs">
+                    {candidateText.split(/\s+/).filter(Boolean).length} words
+                  </span>
+                  <button
+                    type="button"
+                    onClick={toggleRecording}
+                    className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition ${
+                      isRecording
+                        ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                    }`}
+                  >
+                    {isRecording ? (
+                      <MicOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Mic className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isRecording ? 'Stop Mic' : '🎤 Speak Answer'}</span>
+                  </button>
+                </div>
+              </div>
               <textarea
                 value={candidateText}
                 onChange={(e) => setCandidateText(e.target.value)}
