@@ -9,7 +9,7 @@ import SessionsPanel from './components/SessionsPanel';
 import OnboardingModal from './components/OnboardingModal';
 import Toast from './components/Toast';
 import { InterviewEngine } from './services/InterviewEngine';
-import { Mic, MicOff, Settings, History } from 'lucide-react';
+import { Mic, Settings, History } from 'lucide-react';
 import './styles/index.css';
 
 export default function App() {
@@ -109,9 +109,12 @@ export default function App() {
       <header
         role="banner"
         style={{
-          height: '42px',
-          background: 'var(--bg-secondary, #090d16)',
-          borderBottom: '1px solid var(--border-default, rgba(255, 255, 255, 0.08))',
+          height: '44px',
+          background: 'rgba(9, 13, 22, 0.88)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.25)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -120,43 +123,69 @@ export default function App() {
           userSelect: 'none',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <h1
-            style={{
-              fontSize: '13px',
-              fontWeight: 800,
-              color: 'var(--text-bright, #f8fafc)',
-              letterSpacing: '-0.2px',
-              margin: 0,
-            }}
-          >
-            AI Interview{' '}
-            <span style={{ color: 'var(--accent-secondary, #818cf8)' }}>Assistant</span>
-          </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '6px',
+                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                boxShadow: '0 0 10px rgba(99, 102, 241, 0.4)',
+              }}
+            >
+              ⚡
+            </div>
+            <h1
+              style={{
+                fontSize: '13px',
+                fontWeight: 800,
+                color: '#f8fafc',
+                letterSpacing: '-0.2px',
+                margin: 0,
+              }}
+            >
+              AI Interview <span style={{ color: '#818cf8' }}>Assistant</span>
+            </h1>
+          </div>
 
           {/* Mode Switcher Segmented Control */}
           <div
             style={{
               display: 'flex',
-              background: 'rgba(255, 255, 255, 0.08)',
-              borderRadius: '6px',
-              padding: '2px',
+              background: 'rgba(0, 0, 0, 0.45)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '8px',
+              padding: '3px',
               gap: '2px',
+              boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.3)',
             }}
           >
             <button
               type="button"
               onClick={() => setActiveView('teleprompter')}
               style={{
-                padding: '3px 10px',
-                borderRadius: '5px',
+                padding: '4px 12px',
+                borderRadius: '6px',
                 fontSize: '11px',
                 fontWeight: 700,
                 cursor: 'pointer',
-                border: 'none',
-                background: activeView === 'teleprompter' ? '#4f46e5' : 'transparent',
+                border:
+                  activeView === 'teleprompter'
+                    ? '1px solid rgba(129, 140, 248, 0.4)'
+                    : '1px solid transparent',
+                background:
+                  activeView === 'teleprompter'
+                    ? 'linear-gradient(135deg, #4f46e5, #6366f1)'
+                    : 'transparent',
                 color: activeView === 'teleprompter' ? '#ffffff' : '#94a3b8',
-                transition: 'all 0.15s ease',
+                boxShadow:
+                  activeView === 'teleprompter' ? '0 2px 8px rgba(79, 70, 229, 0.4)' : 'none',
+                transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
               }}
             >
               🛡️ Live Copilot / Teleprompter
@@ -165,15 +194,22 @@ export default function App() {
               type="button"
               onClick={() => setActiveView('mock_gym')}
               style={{
-                padding: '3px 10px',
-                borderRadius: '5px',
+                padding: '4px 12px',
+                borderRadius: '6px',
                 fontSize: '11px',
                 fontWeight: 700,
                 cursor: 'pointer',
-                border: 'none',
-                background: activeView === 'mock_gym' ? '#4f46e5' : 'transparent',
+                border:
+                  activeView === 'mock_gym'
+                    ? '1px solid rgba(129, 140, 248, 0.4)'
+                    : '1px solid transparent',
+                background:
+                  activeView === 'mock_gym'
+                    ? 'linear-gradient(135deg, #4f46e5, #6366f1)'
+                    : 'transparent',
                 color: activeView === 'mock_gym' ? '#ffffff' : '#94a3b8',
-                transition: 'all 0.15s ease',
+                boxShadow: activeView === 'mock_gym' ? '0 2px 8px rgba(79, 70, 229, 0.4)' : 'none',
+                transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
               }}
             >
               🏋️ Mock Practice Gym
@@ -185,11 +221,11 @@ export default function App() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
+            gap: '8px',
             fontSize: '11px',
           }}
         >
-          {/* Audio Recording / Dictation Button */}
+          {/* Audio Recording / Dictation Button with Beacon */}
           <button
             type="button"
             onClick={toggleRecording}
@@ -198,19 +234,26 @@ export default function App() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '4px 10px',
-              borderRadius: '6px',
+              padding: '5px 12px',
+              borderRadius: '8px',
               fontSize: '11px',
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: 'pointer',
               transition: 'all 0.2s ease',
-              background: isRecording ? '#e11d48' : 'rgba(255, 255, 255, 0.08)',
+              background: isRecording
+                ? 'linear-gradient(135deg, #e11d48, #be123c)'
+                : 'rgba(255, 255, 255, 0.06)',
               color: isRecording ? '#ffffff' : '#cbd5e1',
               border: isRecording ? '1px solid #f43f5e' : '1px solid rgba(255, 255, 255, 0.12)',
+              boxShadow: isRecording ? '0 0 14px rgba(225, 29, 72, 0.45)' : 'none',
             }}
           >
-            {isRecording ? <MicOff size={13} /> : <Mic size={13} />}
-            <span>{isRecording ? 'Recording (Stop)' : 'Record Audio (R)'}</span>
+            {isRecording ? (
+              <span className="beacon-recording" />
+            ) : (
+              <Mic size={13} style={{ color: '#cbd5e1' }} />
+            )}
+            <span>{isRecording ? 'Recording Active (R)' : 'Record Audio (R)'}</span>
           </button>
 
           {/* Past Sessions History Button */}
@@ -222,15 +265,16 @@ export default function App() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              borderRadius: '6px',
+              gap: '5px',
+              padding: '5px 10px',
+              borderRadius: '8px',
               fontSize: '11px',
-              fontWeight: 500,
-              background: 'transparent',
+              fontWeight: 600,
+              background: 'rgba(255, 255, 255, 0.05)',
               color: '#94a3b8',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.09)',
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
             <History size={13} />
@@ -246,15 +290,16 @@ export default function App() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              borderRadius: '6px',
+              gap: '5px',
+              padding: '5px 10px',
+              borderRadius: '8px',
               fontSize: '11px',
-              fontWeight: 500,
-              background: 'transparent',
+              fontWeight: 600,
+              background: 'rgba(255, 255, 255, 0.05)',
               color: '#94a3b8',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.09)',
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
             <Settings size={13} />

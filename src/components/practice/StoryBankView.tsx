@@ -185,9 +185,41 @@ export const StoryBankView: React.FC = () => {
       <div className="space-y-3">
         <h3 className="text-sm font-bold text-slate-300">Saved Stories ({storyBank.length})</h3>
         {storyBank.length === 0 ? (
-          <div className="p-8 bg-slate-900 border border-slate-800 rounded-xl text-center text-slate-400 text-xs">
-            No stories recorded yet. Click "Extract from Resume" or "+ Add Story" to build your
-            bank.
+          <div className="p-10 bg-gradient-to-br from-slate-900/80 via-slate-900/50 to-indigo-950/20 border border-slate-800/80 rounded-2xl text-center flex flex-col items-center justify-center space-y-3.5 shadow-xl">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-2xl">
+              📖
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white">Your Behavioral Story Bank is Empty</h4>
+              <p className="text-xs text-slate-400 max-w-md mt-1 leading-relaxed">
+                Top-tier interviewers look for structured STAR stories with quantified business
+                metrics. Extract them automatically from your resume or craft your first story now.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2.5 pt-1">
+              <button
+                onClick={() => setShowExtractor(true)}
+                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 transition active:scale-[0.98]"
+              >
+                ⚡ Auto-Extract from Resume
+              </button>
+              <button
+                onClick={() =>
+                  setEditingStory({
+                    title: '',
+                    companyProject: '',
+                    situation: '',
+                    task: '',
+                    action: '',
+                    result: '',
+                    competencies: ['leadership'],
+                  })
+                }
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition"
+              >
+                + Create Story Manually
+              </button>
+            </div>
           </div>
         ) : (
           storyBank.map((story) => (

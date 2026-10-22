@@ -324,8 +324,40 @@ export const CompanyPrepView: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="p-8 bg-slate-900 border border-slate-800 rounded-2xl text-center text-slate-400 text-xs">
-          No company plans yet. Click "+ Prepare for New Company" to generate your first roadmap.
+        <div className="p-12 bg-gradient-to-br from-slate-900/80 via-slate-900/50 to-indigo-950/20 border border-slate-800/80 rounded-3xl text-center flex flex-col items-center justify-center space-y-4 shadow-xl">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-3xl">
+            🏢
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-white">No Company Roadmap Created Yet</h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+              Targeting a specific tier-1 company? Paste their job description to generate a
+              tailored 7- or 14-day study plan with specific tech stack drill lists and cross-round
+              notes.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2 pt-1 max-w-lg">
+            {['Google L5', 'Meta E5', 'Amazon SDE II', 'Stripe L3', 'Uber SSE'].map((co) => (
+              <button
+                key={co}
+                type="button"
+                onClick={() => {
+                  setCompanyName(co.split(' ')[0]);
+                  setRole(co);
+                  setShowCreator(true);
+                }}
+                className="px-3 py-1 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-indigo-300 rounded-lg text-xs font-semibold transition"
+              >
+                + {co} Blueprint
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowCreator(true)}
+            className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition active:scale-[0.98]"
+          >
+            + Create New Company Roadmap
+          </button>
         </div>
       )}
     </div>

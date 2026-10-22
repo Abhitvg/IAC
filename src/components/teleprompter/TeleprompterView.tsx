@@ -10,8 +10,6 @@ import {
   Mic,
   MicOff,
   Copy,
-  Settings,
-  History,
   Sparkles,
   Loader2,
   Send,
@@ -26,7 +24,6 @@ import {
   Terminal,
   EyeOff,
   Keyboard,
-  Zap,
 } from 'lucide-react';
 
 interface CodeBlockCardProps {
@@ -445,8 +442,6 @@ export default function TeleprompterView() {
     clearAndResetToListen,
     responseMode,
     setResponseMode,
-    setSettingsOpen,
-    setSessionsOpen,
     targetRole,
     setResumeModalOpen,
     setResumeText,
@@ -869,8 +864,8 @@ export default function TeleprompterView() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
-        width: '100vw',
+        height: '100%',
+        width: '100%',
         background: `rgba(8, 10, 20, ${windowOpacity})`,
         color: '#f8fafc',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -1377,36 +1372,6 @@ export default function TeleprompterView() {
                   : 'Role'}
               </span>
             )}
-          </button>
-
-          <button
-            onClick={() => setSettingsOpen(true)}
-            title="AI & Whisper Settings"
-            style={{
-              background: 'transparent',
-              color: '#94a3b8',
-              border: 'none',
-              padding: '4px',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            <Settings size={13} />
-          </button>
-
-          <button
-            onClick={() => setSessionsOpen(true)}
-            title="Session History"
-            style={{
-              background: 'transparent',
-              color: '#94a3b8',
-              border: 'none',
-              padding: '4px',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            <History size={13} />
           </button>
 
           <button
@@ -1920,82 +1885,484 @@ export default function TeleprompterView() {
           ) : isGenerating ? (
             <div
               style={{
-                color: '#94a3b8',
+                color: '#cbd5e1',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                fontSize: '18px',
+                gap: '10px',
+                fontSize: '15px',
+                padding: '24px',
+                background: 'rgba(99, 102, 241, 0.08)',
+                border: '1px solid rgba(129, 140, 248, 0.25)',
+                borderRadius: '12px',
               }}
             >
-              <Loader2 size={18} className="spin" /> Generating answer live with Groq Qwen 27B...
+              <Loader2 size={18} className="spin" style={{ color: '#818cf8' }} />
+              <span style={{ fontWeight: 600 }}>
+                Synthesizing verified solution in real-time...
+              </span>
             </div>
           ) : (
-            <div style={{ color: '#cbd5e1', fontSize: '18px', lineHeight: '1.8' }}>
-              <p style={{ marginBottom: '10px', color: '#93c5fd', fontWeight: 600 }}>
-                ● Teleprompter & Code Assistant Ready
-              </p>
+            <div style={{ color: '#e2e8f0', width: '100%', maxWidth: '980px', margin: '0 auto' }}>
+              {/* Top Status & Persona Banner */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 18px',
+                  background:
+                    'linear-gradient(135deg, rgba(30, 27, 75, 0.6), rgba(15, 23, 42, 0.75))',
+                  border: '1px solid rgba(129, 140, 248, 0.25)',
+                  borderRadius: '14px',
+                  marginBottom: '16px',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {isListening ? (
+                    <span className="beacon-live" />
+                  ) : (
+                    <span
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: '#818cf8',
+                        display: 'inline-block',
+                      }}
+                    />
+                  )}
+                  <span
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      color: '#f8fafc',
+                      letterSpacing: '-0.1px',
+                    }}
+                  >
+                    {isListening
+                      ? 'Live Copilot Active — Listening for interview question or coding challenge...'
+                      : 'AI Technical Copilot Ready • Screen OCR & Speech Standby'}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#c7d2fe',
+                    background: 'rgba(99, 102, 241, 0.18)',
+                    border: '1px solid rgba(129, 140, 248, 0.35)',
+                    borderRadius: '20px',
+                    padding: '3px 10px',
+                  }}
+                >
+                  <Target size={12} style={{ color: '#a78bfa' }} />
+                  <span>Abhishek Singh • Software Development Engineer</span>
+                </div>
+              </div>
+
+              {/* Instant Action Bar */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginBottom: '18px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleScreenCapture('fullscreen')}
+                  disabled={isScreenReading}
+                  style={{
+                    flex: '1 1 auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '12px 18px',
+                    background:
+                      'linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.95))',
+                    color: '#ffffff',
+                    border: '1px solid rgba(52, 211, 153, 0.6)',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: isScreenReading ? 'wait' : 'pointer',
+                    boxShadow: '0 4px 16px rgba(16, 185, 129, 0.35)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {isScreenReading ? (
+                    <Loader2 size={15} className="spin" />
+                  ) : (
+                    <ScanText size={15} />
+                  )}
+                  <span>📸 Solve Full Screen (⌘⇧S)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleScreenCapture('snip')}
+                  disabled={isScreenReading}
+                  style={{
+                    flex: '1 1 auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '12px 18px',
+                    background:
+                      'linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(79, 70, 229, 0.95))',
+                    color: '#ffffff',
+                    border: '1px solid rgba(129, 140, 248, 0.6)',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: isScreenReading ? 'wait' : 'pointer',
+                    boxShadow: '0 4px 16px rgba(99, 102, 241, 0.35)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Crop size={15} />
+                  <span>✂️ Snip Question Box (⌘⇧X)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  style={{
+                    flex: '1 1 auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '12px 18px',
+                    background: isListening
+                      ? 'linear-gradient(135deg, rgba(225, 29, 72, 0.9), rgba(190, 18, 60, 0.95))'
+                      : 'rgba(255, 255, 255, 0.08)',
+                    color: '#ffffff',
+                    border: isListening
+                      ? '1px solid rgba(244, 63, 94, 0.6)'
+                      : '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: isListening ? '0 4px 16px rgba(225, 29, 72, 0.4)' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {isListening ? <MicOff size={15} /> : <Mic size={15} />}
+                  <span>{isListening ? 'Stop Mic (R)' : '🎙️ Dictate Question (R)'}</span>
+                </button>
+              </div>
+
+              {/* Three Interactive Response Mode Cards */}
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '10px',
-                  margin: '14px 0',
-                  fontSize: '13px',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                  gap: '12px',
+                  marginBottom: '18px',
                 }}
               >
+                {/* Coding Mode Card */}
                 <div
+                  onClick={() => {
+                    setResponseMode('coding');
+                    setToast('Mode set: 💻 Coding Challenge');
+                  }}
                   style={{
-                    background: 'rgba(99, 102, 241, 0.12)',
-                    border: '1px solid rgba(129, 140, 248, 0.3)',
-                    borderRadius: '6px',
-                    padding: '10px',
+                    background:
+                      responseMode === 'coding'
+                        ? 'linear-gradient(145deg, rgba(49, 46, 129, 0.6), rgba(15, 23, 42, 0.85))'
+                        : 'rgba(15, 23, 42, 0.55)',
+                    border:
+                      responseMode === 'coding'
+                        ? '1.5px solid rgba(129, 140, 248, 0.65)'
+                        : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow:
+                      responseMode === 'coding' ? '0 4px 18px rgba(99, 102, 241, 0.25)' : 'none',
                   }}
                 >
-                  <div style={{ fontWeight: 700, color: '#a5b4fc', marginBottom: '4px' }}>
-                    💻 Coding Mode
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontWeight: 800,
+                        fontSize: '13px',
+                        color: '#a5b4fc',
+                      }}
+                    >
+                      <Terminal size={14} />
+                      <span>💻 Coding Mode</span>
+                    </div>
+                    {responseMode === 'coding' && (
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: '#4f46e5',
+                          color: '#fff',
+                        }}
+                      >
+                        ACTIVE
+                      </span>
+                    )}
                   </div>
-                  <div style={{ color: '#94a3b8', fontSize: '12px', lineHeight: '1.5' }}>
-                    Verified, runnable code in your language with line numbers, Big-O proof, and
-                    1-click clipboard copy.
-                  </div>
+                  <p
+                    style={{
+                      color: '#94a3b8',
+                      fontSize: '11px',
+                      lineHeight: '1.5',
+                      margin: '0 0 10px 0',
+                    }}
+                  >
+                    Verified, runnable code with line numbers, Big-O proof, and 1-click clipboard
+                    copy.
+                  </p>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      color: '#c7d2fe',
+                      fontWeight: 600,
+                      background: 'rgba(99, 102, 241, 0.2)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    Language: {settings?.preferredLanguage || 'Java'}
+                  </span>
                 </div>
+
+                {/* Behavioral / Interview Mode Card */}
                 <div
+                  onClick={() => {
+                    setResponseMode('interview');
+                    setToast('Mode set: 🎙️ Interview / STAR');
+                  }}
                   style={{
-                    background: 'rgba(168, 85, 247, 0.12)',
-                    border: '1px solid rgba(192, 132, 252, 0.3)',
-                    borderRadius: '6px',
-                    padding: '10px',
+                    background:
+                      responseMode === 'interview'
+                        ? 'linear-gradient(145deg, rgba(88, 28, 135, 0.6), rgba(15, 23, 42, 0.85))'
+                        : 'rgba(15, 23, 42, 0.55)',
+                    border:
+                      responseMode === 'interview'
+                        ? '1.5px solid rgba(192, 132, 252, 0.65)'
+                        : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow:
+                      responseMode === 'interview' ? '0 4px 18px rgba(168, 85, 247, 0.25)' : 'none',
                   }}
                 >
-                  <div style={{ fontWeight: 700, color: '#d8b4fe', marginBottom: '4px' }}>
-                    🎙️ Interview Mode
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontWeight: 800,
+                        fontSize: '13px',
+                        color: '#d8b4fe',
+                      }}
+                    >
+                      <Volume2 size={14} />
+                      <span>🎙️ Behavioral Mode</span>
+                    </div>
+                    {responseMode === 'interview' && (
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: '#9333ea',
+                          color: '#fff',
+                        }}
+                      >
+                        ACTIVE
+                      </span>
+                    )}
                   </div>
-                  <div style={{ color: '#94a3b8', fontSize: '12px', lineHeight: '1.5' }}>
-                    Natural first-person spoken STAR responses tailored to your candidate persona
-                    (Abhishek Singh).
-                  </div>
+                  <p
+                    style={{
+                      color: '#94a3b8',
+                      fontSize: '11px',
+                      lineHeight: '1.5',
+                      margin: '0 0 10px 0',
+                    }}
+                  >
+                    Natural first-person spoken STAR responses tailored to your actual backend
+                    engineering achievements.
+                  </p>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      color: '#e9d5ff',
+                      fontWeight: 600,
+                      background: 'rgba(168, 85, 247, 0.2)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    Persona: Abhishek Singh
+                  </span>
                 </div>
+
+                {/* Quiz / MCQ Mode Card */}
                 <div
+                  onClick={() => {
+                    setResponseMode('quiz');
+                    setToast('Mode set: 📝 Quiz / MCQ');
+                  }}
                   style={{
-                    background: 'rgba(16, 185, 129, 0.12)',
-                    border: '1px solid rgba(52, 211, 153, 0.3)',
-                    borderRadius: '6px',
-                    padding: '10px',
+                    background:
+                      responseMode === 'quiz'
+                        ? 'linear-gradient(145deg, rgba(6, 78, 59, 0.6), rgba(15, 23, 42, 0.85))'
+                        : 'rgba(15, 23, 42, 0.55)',
+                    border:
+                      responseMode === 'quiz'
+                        ? '1.5px solid rgba(52, 211, 153, 0.65)'
+                        : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow:
+                      responseMode === 'quiz' ? '0 4px 18px rgba(16, 185, 129, 0.25)' : 'none',
                   }}
                 >
-                  <div style={{ fontWeight: 700, color: '#86efac', marginBottom: '4px' }}>
-                    📝 Quiz / MCQ Mode
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontWeight: 800,
+                        fontSize: '13px',
+                        color: '#86efac',
+                      }}
+                    >
+                      <Check size={14} />
+                      <span>📝 Quiz / MCQ Mode</span>
+                    </div>
+                    {responseMode === 'quiz' && (
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: '#059669',
+                          color: '#fff',
+                        }}
+                      >
+                        ACTIVE
+                      </span>
+                    )}
                   </div>
-                  <div style={{ color: '#94a3b8', fontSize: '12px', lineHeight: '1.5' }}>
-                    Instant highlighted correct option with 1-line proof and brief explanation of
-                    why other options are wrong.
-                  </div>
+                  <p
+                    style={{
+                      color: '#94a3b8',
+                      fontSize: '11px',
+                      lineHeight: '1.5',
+                      margin: '0 0 10px 0',
+                    }}
+                  >
+                    Instant highlighted correct option with 1-line proof and explanation of why
+                    distractors fail.
+                  </p>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      color: '#a7f3d0',
+                      fontWeight: 600,
+                      background: 'rgba(16, 185, 129, 0.2)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    Instant Proof + Distractors
+                  </span>
                 </div>
               </div>
-              <p style={{ color: '#94a3b8', fontSize: '14px' }}>
-                Use <strong>📸 Solve Screen (⌘⇧S)</strong> or <strong>✂️ Snip Box</strong> to solve
-                any question on your screen instantly.
-              </p>
+
+              {/* Keyboard Shortcuts Strip */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '14px',
+                  padding: '8px 14px',
+                  background: 'rgba(0, 0, 0, 0.35)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '10px',
+                  fontSize: '11px',
+                  color: '#94a3b8',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <span>
+                  <kbd className="kbd">⌘⇧S</kbd> Full Screen OCR
+                </span>
+                <span>
+                  <kbd className="kbd">⌘⇧X</kbd> Snip Box
+                </span>
+                <span>
+                  <kbd className="kbd">⌘K</kbd> Clear & Reset
+                </span>
+                <span>
+                  <kbd className="kbd">⌘J</kbd> Auto-Scroll
+                </span>
+                <span>
+                  <kbd className="kbd">Space</kbd> Done Answering
+                </span>
+                <span>
+                  <kbd className="kbd">⌘⇧H</kbd> Stealth Hide
+                </span>
+              </div>
             </div>
           )}
         </div>
