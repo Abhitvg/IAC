@@ -25,6 +25,7 @@ export class InterviewEngine {
         globalLatencyTracker.mark('speechStart');
         store.setStatus('listening');
         store.setRecitalState('listening');
+        store.setToast('🎙️ Microphone Active — Listening for speech...');
         try {
           await audioService.start(async (utteranceBlob: Blob) => {
             if (utteranceBlob.size < 500) {
@@ -40,6 +41,14 @@ export class InterviewEngine {
         } catch (e: any) {
           store.updateDiagnostics({ whisperStatus: 'Mic error: ' + (e?.message || e) });
           console.error('[InterviewEngine] Microphone start error:', e);
+          const isPermission =
+            e?.name === 'NotAllowedError' ||
+            String(e).includes('Permission') ||
+            String(e).includes('not allowed');
+          const errorMsg = isPermission
+            ? '🎙️ Microphone permission denied. Please grant microphone access in macOS System Settings > Privacy & Security > Microphone.'
+            : `🎙️ Microphone error: ${e?.message || e}`;
+          store.setToast(errorMsg);
           store.setStatus('idle');
           store.setRecitalState('idle');
         }
@@ -451,6 +460,7 @@ export class InterviewEngine {
         await audioService.stop();
         store.setStatus('idle');
         store.setRecitalState('idle');
+        store.setToast('⏹️ Audio recording stopped.');
         break;
     }
   }
