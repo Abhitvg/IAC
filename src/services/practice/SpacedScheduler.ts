@@ -1,4 +1,4 @@
-import { TopicMastery } from './types';
+import { TopicMastery, RankedWeakness } from './types';
 import { QuestionBank, QuestionEntry } from './QuestionBank';
 
 export class SpacedScheduler {
@@ -50,6 +50,95 @@ export class SpacedScheduler {
   /**
    * Initializes default topic mastery records if none exist yet.
    */
+
+  /**
+   * Seeds SpacedScheduler from ranked feedback weaknesses.
+   * Each weakness creates or boosts a TopicMastery entry with lowered starting mastery (10-20%)
+   * and a shorter first interval (due immediately, intervalDays 0).
+   */
+  public static seedFromWeaknesses(
+    existingMasteries: TopicMastery[],
+    weaknesses: RankedWeakness[],
+    now: number = Date.now()
+  ): TopicMastery[] {
+    const updated = [...existingMasteries];
+
+    for (const w of weaknesses) {
+      const wTopicLower = w.topic.toLowerCase();
+      const identifiedId = SpacedScheduler.matchKnownTopicId(w.topic);
+      const existingIdx = updated.findIndex((m) => {
+        if (identifiedId && m.topicId === identifiedId) return true;
+        const mNameLower = m.topicName.toLowerCase();
+        const mIdLower = m.topicId.toLowerCase();
+        return (
+          mNameLower === wTopicLower ||
+          mIdLower === wTopicLower ||
+          w.mappedQuestionTags.some((tag) => {
+            const t = tag.toLowerCase();
+            return (
+              mIdLower === t ||
+              mIdLower === `sd_${t}` ||
+              mIdLower === `dsa_${t}` ||
+              mIdLower === `beh_${t}`
+            );
+          })
+        );
+      });
+
+      const loweredMastery = Math.max(5, 25 - w.severity * 5);
+
+      if (existingIdx !== -1) {
+        const curr = updated[existingIdx];
+        updated[existingIdx] = {
+          ...curr,
+          masteryScore: Math.min(curr.masteryScore, loweredMastery),
+          intervalDays: 0,
+          repetitions: 0,
+          easeFactor: Math.max(1.3, curr.easeFactor - 0.2),
+          nextReviewDate: now,
+        };
+      } else {
+        const isDsa = w.mappedQuestionTags.some((t) =>
+          [
+            'sliding_window',
+            'two_pointers',
+            'stack',
+            'binary_search',
+            'trees',
+            'graph',
+            'dp',
+          ].includes(t)
+        );
+        const isBehavioral = w.mappedQuestionTags.some((t) =>
+          ['conflict', 'failure_postmortem', 'ambiguity', 'leadership', 'communication'].includes(t)
+        );
+        const category: 'DSA' | 'System Design' | 'Behavioral' | 'Core CS' = isDsa
+          ? 'DSA'
+          : isBehavioral
+            ? 'Behavioral'
+            : w.mappedQuestionTags.some((t) =>
+                  ['caching', 'rate_limiting', 'kafka', 'ot', 'crdt', 'sharding'].includes(t)
+                )
+              ? 'System Design'
+              : 'Core CS';
+
+        const safeId = `weakness_${w.topic.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+        updated.push({
+          topicId: safeId,
+          topicName: w.topic,
+          category,
+          easeFactor: 1.8,
+          intervalDays: 0,
+          repetitions: 0,
+          masteryScore: loweredMastery,
+          nextReviewDate: now,
+        });
+      }
+    }
+
+    return updated;
+  }
+
   public static initializeDefaults(): TopicMastery[] {
     const now = Date.now();
     return this.DEFAULT_TOPICS.map((topic, index) => ({
@@ -188,6 +277,48 @@ export class SpacedScheduler {
     }
 
     return chosenQuestions;
+  }
+
+  public static matchKnownTopicId(topic: string): string | null {
+    const qLower = (topic || '').toLowerCase();
+    if (
+      qLower.includes('two sum') ||
+      qLower.includes('pointer') ||
+      qLower.includes('sliding window')
+    )
+      return 'dsa_arrays_pointers';
+    if (qLower.includes('binary search') || qLower.includes('monotonic stack'))
+      return 'dsa_binary_search';
+    if (
+      qLower.includes('tree') ||
+      qLower.includes('graph') ||
+      qLower.includes('dfs') ||
+      qLower.includes('bfs') ||
+      qLower.includes('bst')
+    )
+      return 'dsa_trees_graphs';
+    if (
+      qLower.includes('dynamic programming') ||
+      qLower.includes('dp') ||
+      qLower.includes('knapsack')
+    )
+      return 'dsa_dp';
+    if (qLower.includes('heap') || qLower.includes('topological')) return 'dsa_heaps_topo';
+    if (qLower.includes('cache') || qLower.includes('redis') || qLower.includes('invalidation'))
+      return 'sd_caching';
+    if (qLower.includes('shard') || qLower.includes('partition') || qLower.includes('database'))
+      return 'sd_sharding_repl';
+    if (qLower.includes('queue') || qLower.includes('kafka') || qLower.includes('stream'))
+      return 'sd_queues_async';
+    if (qLower.includes('rate limit') || qLower.includes('circuit breaker')) return 'sd_resilience';
+    if (qLower.includes('load balanc') || qLower.includes('horizontal scal')) return 'sd_scale_lb';
+    if (qLower.includes('disagree') || qLower.includes('conflict')) return 'beh_conflict';
+    if (qLower.includes('ambiguity') || qLower.includes('unclear')) return 'beh_ambiguity';
+    if (qLower.includes('fail') || qLower.includes('outage') || qLower.includes('incident'))
+      return 'beh_failure';
+    if (qLower.includes('lead') || qLower.includes('mentor') || qLower.includes('stakeholder'))
+      return 'beh_leadership';
+    return null;
   }
 
   public static identifyTopicForQuestion(question: string | QuestionEntry): string {

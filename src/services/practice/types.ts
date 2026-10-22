@@ -192,3 +192,52 @@ export interface FeedbackRecord {
   isEstimated?: boolean;
   createdAt: number;
 }
+
+export interface RankedWeakness {
+  id: string;
+  topic: string;
+  rawTopics: string[];
+  skill: FeedbackSkill;
+  severity: number;
+  score: number;
+  reportCount: number;
+  isRecurring: boolean;
+  lastReportedDate: number;
+  evidenceQuotes: string[];
+  requestedFixes: string[];
+  mappedQuestionTags: string[];
+  hasMatchingQuestions: boolean;
+}
+
+export interface WeaknessMapResult {
+  rankedWeaknesses: RankedWeakness[];
+  recurringWeaknesses: RankedWeakness[];
+  missingContentTopics: string[];
+  skillBreakdown: Record<FeedbackSkill, number>;
+  totalReportsAnalyzed: number;
+}
+
+export interface WeaknessPlanDrill {
+  id: string;
+  type: 'structure_drill' | 'concreteness_drill' | 'topic_mock';
+  title: string;
+  targetTopic: string;
+  instructions: string;
+  timeBudgetMinutes: number;
+  completed: boolean;
+}
+
+export interface WeaknessPlanDay {
+  day: number;
+  totalTimeMinutes: number;
+  drills: [WeaknessPlanDrill, WeaknessPlanDrill, WeaknessPlanDrill];
+}
+
+export interface WeaknessPracticePlan {
+  id: string;
+  createdAt: number;
+  durationDays: 7;
+  maxDailyMinutes: number;
+  rankedWeaknessesSnapshot: RankedWeakness[];
+  days: WeaknessPlanDay[];
+}

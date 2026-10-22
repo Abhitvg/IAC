@@ -7,6 +7,7 @@ import { SpacedRepetitionView } from './SpacedRepetitionView';
 import { CompanyPrepView } from './CompanyPrepView';
 import { DeliveryTrendsView } from './DeliveryTrendsView';
 import { FeedbackImportView } from './FeedbackImportView';
+import { WeaknessMapView } from './WeaknessMapView';
 
 export const MockGymView: React.FC = () => {
   const { activeTab, setActiveTab, activeSession, startMockSession } = usePracticeStore();
@@ -32,6 +33,7 @@ export const MockGymView: React.FC = () => {
             { id: 'company_prep', label: 'Company Prep' },
             { id: 'delivery_trends', label: 'Delivery Trends' },
             { id: 'feedback', label: 'Import Feedback' },
+            { id: 'weakness_map', label: 'Weakness Map' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -160,6 +162,7 @@ export const MockGymView: React.FC = () => {
         {activeTab === 'company_prep' && <CompanyPrepView />}
         {activeTab === 'delivery_trends' && <DeliveryTrendsView />}
         {activeTab === 'feedback' && <FeedbackImportView />}
+        {activeTab === 'weakness_map' && <WeaknessMapView />}
       </div>
 
       {/* Round Launcher Modal */}

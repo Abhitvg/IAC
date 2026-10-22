@@ -8,7 +8,9 @@ import {
   CompanyPracticePlan,
   TieredHint,
   FeedbackRecord,
+  WeaknessPracticePlan,
 } from '../services/practice/types';
+import { WeaknessMap } from '../services/practice/feedback/WeaknessMap';
 import { MockInterviewerEngine } from '../services/practice/MockInterviewerEngine';
 import { CoachingEngine } from '../services/practice/CoachingEngine';
 import { StoryBank } from '../services/practice/StoryBank';
@@ -19,7 +21,13 @@ import { CompanyPlanGenerator } from '../services/practice/CompanyPlanGenerator'
 interface PracticeState {
   activeView: 'mock_gym';
   activeTab:
-    'arena' | 'story_bank' | 'spaced_drills' | 'company_prep' | 'delivery_trends' | 'feedback';
+    | 'arena'
+    | 'story_bank'
+    | 'spaced_drills'
+    | 'company_prep'
+    | 'delivery_trends'
+    | 'feedback'
+    | 'weakness_map';
   activeSession: MockSessionState | null;
   sessionHistory: MockSessionState[];
   storyBank: BehavioralStory[];
@@ -37,7 +45,14 @@ interface PracticeState {
   // Actions
   setActiveView: (view: 'mock_gym') => void;
   setActiveTab: (
-    tab: 'arena' | 'story_bank' | 'spaced_drills' | 'company_prep' | 'delivery_trends' | 'feedback'
+    tab:
+      | 'arena'
+      | 'story_bank'
+      | 'spaced_drills'
+      | 'company_prep'
+      | 'delivery_trends'
+      | 'feedback'
+      | 'weakness_map'
   ) => void;
   startMockSession: (
     roundType: MockRoundType,
@@ -79,6 +94,10 @@ interface PracticeState {
   updateFeedbackRecord: (record: FeedbackRecord) => void;
   deleteFeedbackRecord: (id: string) => void;
   clearAllFeedback: () => void;
+  weaknessPlan: WeaknessPracticePlan | null;
+  setWeaknessPlan: (plan: WeaknessPracticePlan) => void;
+  seedSchedulerFromWeaknesses: () => void;
+  toggleWeaknessDrillCompleted: (day: number, drillId: string) => void;
 }
 
 const STORAGE_KEYS = {
@@ -87,6 +106,7 @@ const STORAGE_KEYS = {
   TOPICS: 'ai_practice_topics_v1',
   PLANS: 'ai_practice_company_plans_v1',
   FEEDBACK: 'ai_practice_feedback_v1',
+  WEAKNESS_PLAN: 'ai_practice_weakness_plan_v1',
 };
 
 function loadStored<T>(key: string, fallback: T): T {
@@ -119,6 +139,7 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   companyPlans: loadStored<CompanyPracticePlan[]>(STORAGE_KEYS.PLANS, []),
   activeCompanyPlan: null,
   feedbackRecords: loadStored<FeedbackRecord[]>(STORAGE_KEYS.FEEDBACK, []),
+  weaknessPlan: loadStored<WeaknessPracticePlan | null>(STORAGE_KEYS.WEAKNESS_PLAN, null),
 
   currentCandidateAnswer: '',
   speakingStartTime: null,
@@ -372,6 +393,38 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     const updated = get().feedbackRecords.filter((r) => r.id !== id);
     persist(STORAGE_KEYS.FEEDBACK, updated);
     set({ feedbackRecords: updated });
+  },
+
+  setWeaknessPlan: (plan) => {
+    persist(STORAGE_KEYS.WEAKNESS_PLAN, plan);
+    set({ weaknessPlan: plan });
+  },
+
+  seedSchedulerFromWeaknesses: () => {
+    const records = get().feedbackRecords;
+    const weaknessResult = WeaknessMap.aggregateFeedback(records);
+    const currentMasteries = get().topicMasteries;
+    const updatedMasteries = SpacedScheduler.seedFromWeaknesses(
+      currentMasteries,
+      weaknessResult.rankedWeaknesses
+    );
+    persist(STORAGE_KEYS.TOPICS, updatedMasteries);
+    set({ topicMasteries: updatedMasteries });
+  },
+
+  toggleWeaknessDrillCompleted: (day, drillId) => {
+    const currentPlan = get().weaknessPlan;
+    if (!currentPlan) return;
+    const updatedDays = currentPlan.days.map((d) => {
+      if (d.day !== day) return d;
+      const updatedDrills = d.drills.map((drill) =>
+        drill.id === drillId ? { ...drill, completed: !drill.completed } : drill
+      ) as [any, any, any];
+      return { ...d, drills: updatedDrills };
+    });
+    const updatedPlan: WeaknessPracticePlan = { ...currentPlan, days: updatedDays };
+    persist(STORAGE_KEYS.WEAKNESS_PLAN, updatedPlan);
+    set({ weaknessPlan: updatedPlan });
   },
 
   clearAllFeedback: () => {
