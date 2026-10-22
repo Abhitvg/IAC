@@ -64,14 +64,20 @@ export class ProgressExporter {
 
         ranked.forEach((w, idx) => {
           const recBadge = w.isRecurring ? '**YES (Recurring)**' : 'No';
-          const fix = (w.requestedFixes && w.requestedFixes.length > 0) ? w.requestedFixes.join(", ").replace(/\|/g, "\\|") : "None recorded";
+          const fix =
+            w.requestedFixes && w.requestedFixes.length > 0
+              ? w.requestedFixes.join(', ').replace(/\|/g, '\\|')
+              : 'None recorded';
           lines.push(
             `| ${idx + 1} | ${w.topic} | ${w.skill} | ${w.severity}/3 | ${w.score.toFixed(2)} | ${recBadge} | ${fix} |`
           );
         });
       }
 
-      if (data.weaknessMap.missingContentTopics && data.weaknessMap.missingContentTopics.length > 0) {
+      if (
+        data.weaknessMap.missingContentTopics &&
+        data.weaknessMap.missingContentTopics.length > 0
+      ) {
         lines.push('');
         lines.push('### ⚠️ Topics Needing Additional Question Content');
         data.weaknessMap.missingContentTopics.forEach((t) => {
@@ -96,7 +102,9 @@ export class ProgressExporter {
 
         (day.drills || []).forEach((drill) => {
           const check = drill.completed ? '✅' : '⬜';
-          lines.push(`| ${drill.type} | ${drill.title} | ${drill.timeBudgetMinutes}m | ${drill.targetTopic} | ${check} |`);
+          lines.push(
+            `| ${drill.type} | ${drill.title} | ${drill.timeBudgetMinutes}m | ${drill.targetTopic} | ${check} |`
+          );
         });
         lines.push('');
       });
@@ -128,7 +136,9 @@ export class ProgressExporter {
       if (summary.metrics.length === 0) {
         lines.push('No completed mock sessions recorded yet.');
       } else {
-        lines.push('| Session | Round | Structure | Concreteness | Delivery | Pace | Confidence Indicator |');
+        lines.push(
+          '| Session | Round | Structure | Concreteness | Delivery | Pace | Confidence Indicator |'
+        );
         lines.push('| :--- | :--- | :--- | :--- | :--- | :--- | :--- |');
 
         summary.metrics.forEach((m) => {
@@ -158,7 +168,9 @@ export class ProgressExporter {
     // Raw Transcripts (Privacy Guardrail: STRICT OPT-IN ONLY)
     if (includeTranscripts && data.sessionHistory) {
       lines.push('## 📝 Full Practice Transcripts (User Opt-In)');
-      lines.push('> Note: Candidate transcripts are included because you opted in to transcript export.');
+      lines.push(
+        '> Note: Candidate transcripts are included because you opted in to transcript export.'
+      );
       lines.push('');
 
       data.sessionHistory.forEach((session, sIdx) => {

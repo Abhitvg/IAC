@@ -249,11 +249,12 @@ export const MockGymView: React.FC = () => {
                       key={p.id}
                       type="button"
                       onClick={() => setSelectedPressure(p.id)}
-                      className={'p-2 rounded-lg border text-center transition ' + (
-                        selectedPressure === p.id
+                      className={
+                        'p-2 rounded-lg border text-center transition ' +
+                        (selectedPressure === p.id
                           ? 'bg-indigo-600 text-white border-indigo-500 shadow'
-                          : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
-                      )}
+                          : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white')
+                      }
                     >
                       <span className="block font-semibold text-xs">{p.label}</span>
                       <span className="block text-[10px] text-slate-400 mt-0.5 leading-tight">

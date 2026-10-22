@@ -33,7 +33,7 @@ interface PracticeState {
     | 'feedback'
     | 'weakness_map'
     | 'explainer_drill'
-      | 'progress';
+    | 'progress';
   activeSession: MockSessionState | null;
   sessionHistory: MockSessionState[];
   storyBank: BehavioralStory[];
@@ -102,6 +102,7 @@ interface PracticeState {
   updateFeedbackRecord: (record: FeedbackRecord) => void;
   deleteFeedbackRecord: (id: string) => void;
   clearAllFeedback: () => void;
+  deleteAllFeedbackAndPracticeData: () => void;
   weaknessPlan: WeaknessPracticePlan | null;
   setWeaknessPlan: (plan: WeaknessPracticePlan) => void;
   seedSchedulerFromWeaknesses: () => void;
@@ -491,6 +492,35 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   clearAllFeedback: () => {
     persist(STORAGE_KEYS.FEEDBACK, []);
     set({ feedbackRecords: [] });
+  },
+
+  deleteAllFeedbackAndPracticeData: () => {
+    Object.values(STORAGE_KEYS).forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch (_e) {
+        // Ignore
+      }
+    });
+
+    set({
+      activeSession: null,
+      sessionHistory: [],
+      storyBank: [],
+      topicMasteries: [],
+      companyPlans: [],
+      activeCompanyPlan: null,
+      currentCandidateAnswer: '',
+      speakingStartTime: null,
+      activeHintsUsed: [],
+      availableHints: [],
+      interruptionBanner: null,
+      feedbackRecords: [],
+      weaknessPlan: null,
+      explainerAttempts: [],
+      conceptCards: {},
+      activeExplainerTopic: '',
+    });
   },
   addCompanyNote: (companyName, roundName, note) => {
     const plans = [...get().companyPlans];

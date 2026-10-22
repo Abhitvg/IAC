@@ -45,7 +45,10 @@ export class ProgressMetricsService {
     topicMasteries: TopicMastery[] = []
   ): ProgressSummary {
     const validSessions = (sessionHistory || []).filter(
-      (s) => s.questionHistory && s.questionHistory.length > 0 && s.questionHistory.some((q) => q.evaluation)
+      (s) =>
+        s.questionHistory &&
+        s.questionHistory.length > 0 &&
+        s.questionHistory.some((q) => q.evaluation)
     );
 
     const sessionCount = validSessions.length;
@@ -58,9 +61,9 @@ export class ProgressMetricsService {
       : null;
 
     const metrics: SessionProgressMetric[] = validSessions.map((session, index) => {
-      const evals = session.questionHistory
-        .map((q) => q.evaluation)
-        .filter(Boolean) as NonNullable<(typeof session.questionHistory)[0]['evaluation']>[];
+      const evals = session.questionHistory.map((q) => q.evaluation).filter(Boolean) as NonNullable<
+        (typeof session.questionHistory)[0]['evaluation']
+      >[];
 
       const deliveries = session.questionHistory
         .map((q) => q.delivery)
@@ -74,7 +77,9 @@ export class ProgressMetricsService {
         );
         structureScore =
           structureDims.length > 0
-            ? Math.round((structureDims.reduce((acc, d) => acc + d.score, 0) / structureDims.length) * 10) / 10
+            ? Math.round(
+                (structureDims.reduce((acc, d) => acc + d.score, 0) / structureDims.length) * 10
+              ) / 10
             : 3.0;
       }
 
@@ -86,7 +91,8 @@ export class ProgressMetricsService {
         );
         concretenessScore =
           concDims.length > 0
-            ? Math.round((concDims.reduce((acc, d) => acc + d.score, 0) / concDims.length) * 10) / 10
+            ? Math.round((concDims.reduce((acc, d) => acc + d.score, 0) / concDims.length) * 10) /
+              10
             : 3.0;
       }
 
@@ -95,7 +101,9 @@ export class ProgressMetricsService {
       if (deliveryScore === undefined) {
         deliveryScore =
           deliveries.length > 0
-            ? Math.round((deliveries.reduce((acc, d) => acc + d.deliveryScore, 0) / deliveries.length) * 10) / 10
+            ? Math.round(
+                (deliveries.reduce((acc, d) => acc + d.deliveryScore, 0) / deliveries.length) * 10
+              ) / 10
             : 3.5;
       }
 
@@ -114,7 +122,8 @@ export class ProgressMetricsService {
           : 3.0);
 
       // Confidence indicator: Low if heuristic estimate or no verbatim evidence, High otherwise
-      const isHeuristic = evals.some((e) => e.isHeuristicEstimate) || Boolean(session.isOfflineInterviewer);
+      const isHeuristic =
+        evals.some((e) => e.isHeuristicEstimate) || Boolean(session.isOfflineInterviewer);
       const confidence: 'high' | 'low' = isHeuristic ? 'low' : 'high';
 
       return {
@@ -134,22 +143,28 @@ export class ProgressMetricsService {
 
     const averageStructure =
       metrics.length > 0
-        ? Math.round((metrics.reduce((acc, m) => acc + m.structureScore, 0) / metrics.length) * 10) / 10
+        ? Math.round(
+            (metrics.reduce((acc, m) => acc + m.structureScore, 0) / metrics.length) * 10
+          ) / 10
         : 0;
 
     const averageConcreteness =
       metrics.length > 0
-        ? Math.round((metrics.reduce((acc, m) => acc + m.concretenessScore, 0) / metrics.length) * 10) / 10
+        ? Math.round(
+            (metrics.reduce((acc, m) => acc + m.concretenessScore, 0) / metrics.length) * 10
+          ) / 10
         : 0;
 
     const averageDelivery =
       metrics.length > 0
-        ? Math.round((metrics.reduce((acc, m) => acc + m.deliveryScore, 0) / metrics.length) * 10) / 10
+        ? Math.round((metrics.reduce((acc, m) => acc + m.deliveryScore, 0) / metrics.length) * 10) /
+          10
         : 0;
 
     const averageOverall =
       metrics.length > 0
-        ? Math.round((metrics.reduce((acc, m) => acc + m.overallScore, 0) / metrics.length) * 10) / 10
+        ? Math.round((metrics.reduce((acc, m) => acc + m.overallScore, 0) / metrics.length) * 10) /
+          10
         : 0;
 
     const averageWpm =

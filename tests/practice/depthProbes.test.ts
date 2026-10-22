@@ -18,7 +18,8 @@ describe('Phase 5 - Follow-up Depth Probes & Pressure Settings', () => {
     company: 'CollabCorp',
     role: 'Staff Infrastructure Engineer',
     roundType: 'system_design',
-    redactedText: 'Candidate did well on websockets, but explanation of OT was too theoretical without implementation specifics.',
+    redactedText:
+      'Candidate did well on websockets, but explanation of OT was too theoretical without implementation specifics.',
     sourceHash: 'collab-ot-hash-001',
     strengths: [
       {
@@ -60,7 +61,10 @@ describe('Phase 5 - Follow-up Depth Probes & Pressure Settings', () => {
 
       const turn = InterviewerService.generateOfflineFallback({
         lastAnswer: candidateAnswer,
-        question_json: { id: 'sd_ot', prompt: 'Design a collaborative document editor like Google Docs with OT.' },
+        question_json: {
+          id: 'sd_ot',
+          prompt: 'Design a collaborative document editor like Google Docs with OT.',
+        },
         interview_type: 'system_design',
         currentProbesCount: 0,
         targetWeakness: otFixtureWeakness,
@@ -75,11 +79,9 @@ describe('Phase 5 - Follow-up Depth Probes & Pressure Settings', () => {
 
     it('generates targeted probe using findMatchingWeakness from FeedbackRecords', () => {
       const questionPrompt = 'Design a real-time collaborative document editing system using OT';
-      const matched = MockInterviewerEngine.findMatchingWeakness(
-        questionPrompt,
-        'system_design',
-        [otFeedbackRecord]
-      );
+      const matched = MockInterviewerEngine.findMatchingWeakness(questionPrompt, 'system_design', [
+        otFeedbackRecord,
+      ]);
 
       expect(matched).toBeDefined();
       expect(matched?.topic).toBe('OT');
@@ -93,7 +95,8 @@ describe('Phase 5 - Follow-up Depth Probes & Pressure Settings', () => {
     });
 
     it('tailors probes according to different requestedFix types', () => {
-      const answer = 'We put a Redis caching layer to handle high read QPS and store user session tokens.';
+      const answer =
+        'We put a Redis caching layer to handle high read QPS and store user session tokens.';
 
       // 1. Specific numbers
       const numberWeakness: ExtractedWeakness = {
@@ -103,7 +106,10 @@ describe('Phase 5 - Follow-up Depth Probes & Pressure Settings', () => {
         evidence: 'no numbers provided',
         requestedFix: 'provide specific numbers and latency metrics',
       };
-      const probeNumbers = MockInterviewerEngine.generateTargetedWeaknessProbe(answer, numberWeakness);
+      const probeNumbers = MockInterviewerEngine.generateTargetedWeaknessProbe(
+        answer,
+        numberWeakness
+      );
       expect(probeNumbers.spoken.toLowerCase()).toMatch(/number|metric|latency|threshold/);
       expect(InterviewerService.validateEvidence(probeNumbers.evidence, answer)).toBe(true);
 
@@ -139,7 +145,10 @@ describe('Phase 5 - Follow-up Depth Probes & Pressure Settings', () => {
         evidence: 'no failover discussed',
         requestedFix: 'explain failure handling and node crash recovery',
       };
-      const probeFailure = MockInterviewerEngine.generateTargetedWeaknessProbe(answer, failureWeakness);
+      const probeFailure = MockInterviewerEngine.generateTargetedWeaknessProbe(
+        answer,
+        failureWeakness
+      );
       expect(probeFailure.spoken.toLowerCase()).toMatch(/failure|recovery|crash/);
       expect(InterviewerService.validateEvidence(probeFailure.evidence, answer)).toBe(true);
 
@@ -190,12 +199,7 @@ describe('Phase 5 - Follow-up Depth Probes & Pressure Settings', () => {
 
       // Turn 0: Answer root question
       const answer0 = 'I built an editor using Operational Transformation to sync documents.';
-      const afterAnswer0 = MockInterviewerEngine.processAnswerSubmission(
-        session,
-        answer0,
-        45,
-        []
-      );
+      const afterAnswer0 = MockInterviewerEngine.processAnswerSubmission(session, answer0, 45, []);
 
       // Check probe 1 was created
       expect(afterAnswer0.questionHistory.length).toBe(2);
@@ -205,7 +209,8 @@ describe('Phase 5 - Follow-up Depth Probes & Pressure Settings', () => {
       expect(afterAnswer0.questionHistory[1].question.toLowerCase()).toContain('concrete');
 
       // Turn 1: Candidate answers probe 1
-      const answer1 = 'For concurrent insertions at position 4 and 5, client A adds character X and client B shifts by 1.';
+      const answer1 =
+        'For concurrent insertions at position 4 and 5, client A adds character X and client B shifts by 1.';
       const afterAnswer1 = MockInterviewerEngine.processAnswerSubmission(
         afterAnswer0,
         answer1,

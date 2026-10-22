@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { usePracticeStore } from '../store/usePracticeStore';
 import { X, Save, AlertTriangle } from 'lucide-react';
 
 export default function SettingsPanel() {
+  const { deleteAllFeedbackAndPracticeData } = usePracticeStore();
   const {
     settings,
     updateSetting,
@@ -374,7 +376,7 @@ export default function SettingsPanel() {
             </div>
           </div>
 
-                    <div
+          <div
             className="settings-section"
             data-testid="settings-calibration-reminder"
             style={{
@@ -408,7 +410,10 @@ export default function SettingsPanel() {
                 margin: 0,
               }}
             >
-              AI scores are estimates, may be wrong, and should be compared against feedback from real people when possible. Language models can miss nuanced engineering context, non-standard system designs, or delivery subtleties. Treat these rubric scores as iterative coaching benchmarks rather than definitive hiring decisions.
+              AI scores are estimates, may be wrong, and should be compared against feedback from
+              real people when possible. Language models can miss nuanced engineering context,
+              non-standard system designs, or delivery subtleties. Treat these rubric scores as
+              iterative coaching benchmarks rather than definitive hiring decisions.
             </p>
           </div>
 
@@ -418,8 +423,20 @@ export default function SettingsPanel() {
             </h3>
             <button
               className="danger-btn"
-              onClick={clearAllData}
-              aria-label="Clear all application data and stored sessions"
+              onClick={() => {
+                const confirmed =
+                  typeof window !== 'undefined' && window.confirm
+                    ? window.confirm(
+                        'Are you sure you want to permanently delete all feedback records, practice sessions, transcripts, and study plans?'
+                      )
+                    : true;
+                if (confirmed) {
+                  deleteAllFeedbackAndPracticeData();
+                  clearAllData();
+                }
+              }}
+              aria-label="Delete all feedback and practice data"
+              data-testid="delete-all-feedback-practice-data"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -428,7 +445,7 @@ export default function SettingsPanel() {
               }}
             >
               <AlertTriangle size={14} />
-              Clear All Data &amp; Sessions
+              Delete all feedback and practice data
             </button>
           </div>
         </div>

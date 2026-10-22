@@ -4,6 +4,22 @@ import { renderFeedbackPrompt } from '../prompts/feedbackExtraction';
 import { LLMManager } from '../../providers/LLMProvider';
 
 // ═══════════════════════════════════════════════════════════════════
+// Limits & Security Defenses
+// ═══════════════════════════════════════════════════════════════════
+export const MAX_FEEDBACK_CHARS = 10000;
+
+/**
+ * Escapes prompt delimiters from untrusted user feedback
+ * to prevent prompt injection breakouts.
+ */
+export function escapePromptDelimiters(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/<<<FEEDBACK/g, '[DELIMITER_OPEN_ESCAPED]')
+    .replace(/FEEDBACK>>>/g, '[DELIMITER_CLOSE_ESCAPED]');
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Schemas
 // ═══════════════════════════════════════════════════════════════════
 
@@ -82,7 +98,7 @@ export function redactFeedbackText(rawText: string, customNames: string[] = []):
  * Normalizes text for verbatim substring comparison.
  */
 export function normalizeForMatching(text: string): string {
-  return text.toLowerCase().replace(/\s+/g, ' ').trim();
+  return text.toLowerCase().normalize('NFC').replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -147,6 +163,17 @@ export function heuristicExtract(redactedText: string): {
     'comprehensive',
     'effective',
     'liked',
+    'buen',
+    'excelente',
+    'fuerte',
+    'claridad',
+    'dominio',
+    'fortalezas',
+    '良好',
+    '優れて',
+    '素晴らしい',
+    '理解',
+    '評価点',
   ];
 
   const weaknessKeywords = [
@@ -167,6 +194,21 @@ export function heuristicExtract(redactedText: string): {
     'concern',
     'vague',
     'hesitant',
+    'falta',
+    'faltaron',
+    'mejorar',
+    'mejora',
+    'brecha',
+    'confuso',
+    'débil',
+    'debilidades',
+    'insuficiente',
+    '不足',
+    '改善',
+    '改善点',
+    '弱点',
+    '課題',
+    '冗長',
   ];
 
   for (const sentence of sentences) {
@@ -177,6 +219,8 @@ export function heuristicExtract(redactedText: string): {
     if (
       lower.includes('system design') ||
       lower.includes('architecture') ||
+      lower.includes('arquitectura') ||
+      lower.includes('設計') ||
       lower.includes('scale')
     ) {
       topic = 'System Design';
@@ -184,7 +228,9 @@ export function heuristicExtract(redactedText: string): {
       lower.includes('code') ||
       lower.includes('algorithm') ||
       lower.includes('dsa') ||
-      lower.includes('complexity')
+      lower.includes('complexity') ||
+      lower.includes('postgresql') ||
+      lower.includes('database')
     ) {
       topic = 'Coding & Algorithms';
     } else if (
@@ -199,6 +245,8 @@ export function heuristicExtract(redactedText: string): {
     let skill: FeedbackSkill = 'knowledge';
     if (
       lower.includes('structure') ||
+      lower.includes('estructuración') ||
+      lower.includes('構成') ||
       lower.includes('rambl') ||
       lower.includes('organized') ||
       lower.includes('jumped')
@@ -206,7 +254,10 @@ export function heuristicExtract(redactedText: string): {
       skill = 'structure';
     } else if (
       lower.includes('example') ||
+      lower.includes('ejemplo') ||
+      lower.includes('例') ||
       lower.includes('concrete') ||
+      lower.includes('concreto') ||
       lower.includes('metric') ||
       lower.includes('vague')
     ) {
@@ -334,7 +385,17 @@ export class FeedbackImporter {
       );
     }
 
-    const redactedText = redactFeedbackText(params.rawText, params.customNames || []);
+    let rawInput = params.rawText || '';
+    let isTruncated = false;
+    let truncationNotice: string | undefined;
+
+    if (rawInput.length > MAX_FEEDBACK_CHARS) {
+      isTruncated = true;
+      truncationNotice = `Input text exceeded maximum length of ${MAX_FEEDBACK_CHARS.toLocaleString()} characters and was truncated for privacy and performance.`;
+      rawInput = rawInput.slice(0, MAX_FEEDBACK_CHARS) + `\n\n[NOTICE: ${truncationNotice}]`;
+    }
+
+    const redactedText = redactFeedbackText(rawInput, params.customNames || []);
     const sourceHash = computeFeedbackHash(redactedText);
 
     let extracted: {
@@ -372,6 +433,8 @@ export class FeedbackImporter {
       uncertainty: extracted.uncertainty,
       sourceHash,
       isEstimated: extracted.isEstimated,
+      isTruncated,
+      truncationNotice,
       createdAt: Date.now(),
     };
 
@@ -392,7 +455,8 @@ export class FeedbackImporter {
     uncertainty: string;
     isEstimated: boolean;
   }> {
-    const prompt = renderFeedbackPrompt(redactedText);
+    const safeDelimitedText = escapePromptDelimiters(redactedText);
+    const prompt = renderFeedbackPrompt(safeDelimitedText);
 
     try {
       const rawOutput = await this.invokeLLM(prompt, managerOrCaller);

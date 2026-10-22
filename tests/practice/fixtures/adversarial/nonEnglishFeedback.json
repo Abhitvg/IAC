@@ -1,0 +1,12 @@
+{
+  "spanish": {
+    "raw": "Informe de Entrevista Técnica:\nFortalezas: El candidato demostró un buen dominio de arquitectura de microservicios y excelente claridad en patrones de mensajería asíncrona.\nÁreas de mejora: Faltaron ejemplos concretos sobre particionamiento en PostgreSQL y el manejo de bloqueos en transacciones concurrentes. Hubo debilidades notables en la estructuración de la respuesta inicial.",
+    "expectedWeaknessTopic": "PostgreSQL",
+    "expectedSkill": "concreteness"
+  },
+  "japanese": {
+    "raw": "技術面接フィードバック報告書：\n【評価点】候補者はマイクロサービス設計とメッセージング基盤について良好な理解を示しました。\n【改善点】具体的なPostgreSQLのインデックス設計やデッドロック回避策の例が大幅に不足していました。また、回答の構成が整理されておらず説明が冗長になる傾向がありました。",
+    "expectedWeaknessTopic": "PostgreSQL",
+    "expectedSkill": "concreteness"
+  }
+}

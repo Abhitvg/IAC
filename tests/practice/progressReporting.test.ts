@@ -115,7 +115,9 @@ describe('Phase 6 - Progress and Honesty in Reporting Suite', () => {
       expect(summary1.shouldRenderTrendLine).toBe(false);
       expect(summary1.isDataThin).toBe(true);
 
-      const html1 = renderToStaticMarkup(React.createElement(ProgressView, { sessionHistory: [s1] }));
+      const html1 = renderToStaticMarkup(
+        React.createElement(ProgressView, { sessionHistory: [s1] })
+      );
       expect(html1).not.toContain('data-testid="progress-trend-line"');
       expect(html1).toContain('1 / 3 Sessions');
 
@@ -127,7 +129,9 @@ describe('Phase 6 - Progress and Honesty in Reporting Suite', () => {
       expect(summary2.shouldRenderTrendLine).toBe(false);
       expect(summary2.isDataThin).toBe(true);
 
-      const html2 = renderToStaticMarkup(React.createElement(ProgressView, { sessionHistory: [s1, s2] }));
+      const html2 = renderToStaticMarkup(
+        React.createElement(ProgressView, { sessionHistory: [s1, s2] })
+      );
       expect(html2).not.toContain('data-testid="progress-trend-line"');
       expect(html2).toContain('2 / 3 Sessions');
     });
@@ -143,7 +147,9 @@ describe('Phase 6 - Progress and Honesty in Reporting Suite', () => {
       expect(summary3.shouldRenderTrendLine).toBe(true);
       expect(summary3.isDataThin).toBe(false);
 
-      const html3 = renderToStaticMarkup(React.createElement(ProgressView, { sessionHistory: [s1, s2, s3] }));
+      const html3 = renderToStaticMarkup(
+        React.createElement(ProgressView, { sessionHistory: [s1, s2, s3] })
+      );
       // Trend line renders!
       expect(html3).toContain('data-testid="progress-trend-line"');
       // Thin data banner does NOT render!
@@ -158,12 +164,17 @@ describe('Phase 6 - Progress and Honesty in Reporting Suite', () => {
       const estimatedSession = createMockSession('s2', 'heuristic transcript', 3.0, 2.5, 3.0, true);
 
       usePracticeStore.setState({ sessionHistory: [verifiedSession, estimatedSession] });
-      const summary = ProgressMetricsService.computeProgressSummary([verifiedSession, estimatedSession], []);
+      const summary = ProgressMetricsService.computeProgressSummary(
+        [verifiedSession, estimatedSession],
+        []
+      );
 
       expect(summary.metrics[0].confidence).toBe('high');
       expect(summary.metrics[1].confidence).toBe('low');
 
-      const html = renderToStaticMarkup(React.createElement(ProgressView, { sessionHistory: [verifiedSession, estimatedSession] }));
+      const html = renderToStaticMarkup(
+        React.createElement(ProgressView, { sessionHistory: [verifiedSession, estimatedSession] })
+      );
       expect(html).toContain('High Confidence (LLM Verified)');
       expect(html).toContain('Low Confidence (Estimated)');
     });
@@ -172,7 +183,9 @@ describe('Phase 6 - Progress and Honesty in Reporting Suite', () => {
   describe('Task 3: Calibration Reminder in Settings and Progress View', () => {
     it('displays calibration reminder explaining AI scores are estimates and may be wrong in plain language', () => {
       // 1. In Progress View
-      const progressHtml = renderToStaticMarkup(React.createElement(ProgressView, { sessionHistory: [] }));
+      const progressHtml = renderToStaticMarkup(
+        React.createElement(ProgressView, { sessionHistory: [] })
+      );
       expect(progressHtml).toContain('Calibration Reminder');
       expect(progressHtml).toContain('AI scores are mathematical estimates');
       expect(progressHtml).toContain('compare them against feedback from real human interviewers');
@@ -210,7 +223,8 @@ describe('Phase 6 - Progress and Honesty in Reporting Suite', () => {
         date: '2026-04-12',
         company: 'Stripe',
         role: 'Senior Backend Engineer',
-        redactedText: 'Candidate had good structure but missed concrete examples on distributed locks.',
+        redactedText:
+          'Candidate had good structure but missed concrete examples on distributed locks.',
         sourceHash: 'stripe-hash-1',
         strengths: [{ topic: 'Structure', skill: 'structure', evidence: 'good structure' }],
         weaknesses: [

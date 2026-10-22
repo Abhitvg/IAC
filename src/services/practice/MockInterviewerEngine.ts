@@ -233,7 +233,11 @@ export class MockInterviewerEngine {
         }
 
         // Check 5: Common expansions
-        if (topicLower === 'ot' && (qTextLower.includes('operational transformation') || qTextLower.includes('collaborative'))) {
+        if (
+          topicLower === 'ot' &&
+          (qTextLower.includes('operational transformation') ||
+            qTextLower.includes('collaborative'))
+        ) {
           candidateWeaknesses.push(w);
           continue;
         }
@@ -319,7 +323,8 @@ export class MockInterviewerEngine {
     let ask: string;
 
     if (fixLower.includes('example') || fixLower.includes('concrete')) {
-      ask = 'Could you walk me through a concrete worked example showing step-by-step how that behaves in practice?';
+      ask =
+        'Could you walk me through a concrete worked example showing step-by-step how that behaves in practice?';
     } else if (
       fixLower.includes('number') ||
       fixLower.includes('metric') ||
@@ -327,13 +332,15 @@ export class MockInterviewerEngine {
       fixLower.includes('latency') ||
       fixLower.includes('quantit')
     ) {
-      ask = 'What specific numbers, throughput thresholds, or latency limits did you design for or measure?';
+      ask =
+        'What specific numbers, throughput thresholds, or latency limits did you design for or measure?';
     } else if (
       fixLower.includes('tool') ||
       fixLower.includes('technolog') ||
       fixLower.includes('librar')
     ) {
-      ask = 'What specific tools or technologies did you select for that component, and what were the key trade-offs?';
+      ask =
+        'What specific tools or technologies did you select for that component, and what were the key trade-offs?';
     } else if (
       fixLower.includes('state') ||
       fixLower.includes('data model') ||
@@ -346,17 +353,20 @@ export class MockInterviewerEngine {
       fixLower.includes('fault') ||
       fixLower.includes('error')
     ) {
-      ask = 'How does your architecture handle failure handling and node recovery when that component crashes?';
+      ask =
+        'How does your architecture handle failure handling and node recovery when that component crashes?';
     } else if (
       fixLower.includes('order') ||
       fixLower.includes('sequence') ||
       fixLower.includes('concurrent')
     ) {
-      ask = 'What ordering guarantees and synchronization mechanisms do you enforce to handle concurrent mutations?';
+      ask =
+        'What ordering guarantees and synchronization mechanisms do you enforce to handle concurrent mutations?';
     } else if (targetWeakness.requestedFix) {
       ask = `Could you provide a concrete worked example addressing: ${targetWeakness.requestedFix}?`;
     } else {
-      ask = 'Could you walk me through a concrete worked example with specific numbers and failure handling?';
+      ask =
+        'Could you walk me through a concrete worked example with specific numbers and failure handling?';
     }
 
     const spoken = evidence ? `You mentioned "${evidence}". ${ask}` : ask;
@@ -370,7 +380,10 @@ export class MockInterviewerEngine {
     category: string,
     targetWeakness?: ExtractedWeakness | { topic?: string; skill?: string; requestedFix?: string }
   ): string {
-    if (targetWeakness && (targetWeakness.skill === 'depth' || targetWeakness.skill === 'concreteness')) {
+    if (
+      targetWeakness &&
+      (targetWeakness.skill === 'depth' || targetWeakness.skill === 'concreteness')
+    ) {
       const targeted = this.generateTargetedWeaknessProbe(candidateTranscript, targetWeakness);
       return targeted.spoken;
     }
@@ -582,7 +595,10 @@ export class MockInterviewerEngine {
       ...session,
       rehearsalPhase: nextPhase,
       currentQuestion: nextQuestion || session.currentQuestion,
-      interviewerThinkingSeconds: this.getInterviewerThinkingDelay(session.persona, session.pressure || 'normal'),
+      interviewerThinkingSeconds: this.getInterviewerThinkingDelay(
+        session.persona,
+        session.pressure || 'normal'
+      ),
     };
   }
 

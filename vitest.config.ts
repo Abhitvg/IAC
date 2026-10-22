@@ -5,5 +5,12 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/services/practice/**'],
+      thresholds: {
+        lines: 80,
+      },
+    },
   },
 });

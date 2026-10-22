@@ -38,7 +38,8 @@ export class InterviewerService {
     params: BuildInterviewerPromptParams & {
       lastAnswer: string;
       currentProbesCount?: number;
-      targetWeakness?: ExtractedWeakness | { topic?: string; skill?: string; requestedFix?: string };
+      targetWeakness?:
+        ExtractedWeakness | { topic?: string; skill?: string; requestedFix?: string };
       feedbackRecords?: FeedbackRecord[];
       pressure?: InterviewPressure;
     },
@@ -81,7 +82,8 @@ export class InterviewerService {
       const promptParams: BuildInterviewerPromptParams = {
         ...params,
         target_weakness:
-          targetWeakness && (targetWeakness.skill === 'depth' || targetWeakness.skill === 'concreteness')
+          targetWeakness &&
+          (targetWeakness.skill === 'depth' || targetWeakness.skill === 'concreteness')
             ? {
                 topic: targetWeakness.topic || '',
                 skill: targetWeakness.skill,

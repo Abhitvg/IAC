@@ -4,7 +4,13 @@ import { ProgressMetricsService } from '../../services/practice/feedback/Progres
 import { ProgressExporter } from '../../services/practice/feedback/ProgressExporter';
 import { WeaknessMap } from '../../services/practice/feedback/WeaknessMap';
 
-import { MockSessionState, TopicMastery, WeaknessMapResult, WeaknessPracticePlan, FeedbackRecord } from '../../services/practice/types';
+import {
+  MockSessionState,
+  TopicMastery,
+  WeaknessMapResult,
+  WeaknessPracticePlan,
+  FeedbackRecord,
+} from '../../services/practice/types';
 
 export interface ProgressViewProps {
   sessionHistory?: MockSessionState[];
@@ -20,7 +26,11 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
   const topicMasteries = props.topicMasteries ?? store.topicMasteries;
   const feedbackRecords = props.feedbackRecords ?? store.feedbackRecords;
   const weaknessPlan = props.weaknessPlan ?? store.weaknessPlan;
-  const weaknessMap = props.weaknessMap ?? (feedbackRecords && feedbackRecords.length > 0 ? WeaknessMap.aggregateFeedback(feedbackRecords) : null);
+  const weaknessMap =
+    props.weaknessMap ??
+    (feedbackRecords && feedbackRecords.length > 0
+      ? WeaknessMap.aggregateFeedback(feedbackRecords)
+      : null);
 
   const [includeTranscripts, setIncludeTranscripts] = useState(false);
   const [copiedNotice, setCopiedNotice] = useState(false);
@@ -88,7 +98,8 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
             📈 Coaching Progress &amp; Metric Evolution
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Track your Structure, Concreteness, and Speech Delivery progression across practice rounds.
+            Track your Structure, Concreteness, and Speech Delivery progression across practice
+            rounds.
           </p>
         </div>
 
@@ -120,9 +131,7 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
         <div className="font-bold flex items-center gap-1.5 text-amber-300">
           <span>⚖️ Calibration Reminder</span>
         </div>
-        <p className="leading-relaxed text-slate-300">
-          {ProgressExporter.CALIBRATION_REMINDER}
-        </p>
+        <p className="leading-relaxed text-slate-300">{ProgressExporter.CALIBRATION_REMINDER}</p>
       </div>
 
       {/* Baseline Status Notice */}
@@ -166,7 +175,11 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
             className="h-44 w-full bg-slate-950/60 rounded-xl p-4 flex flex-col justify-between border border-slate-800"
           >
             {/* SVG Trend Line Graph */}
-            <svg className="w-full h-full overflow-visible" viewBox="0 0 500 100" preserveAspectRatio="none">
+            <svg
+              className="w-full h-full overflow-visible"
+              viewBox="0 0 500 100"
+              preserveAspectRatio="none"
+            >
               {/* Grid Lines */}
               <line x1="0" y1="20" x2="500" y2="20" stroke="#334155" strokeDasharray="3 3" />
               <line x1="0" y1="50" x2="500" y2="50" stroke="#334155" strokeDasharray="3 3" />
@@ -292,7 +305,9 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
                 {summary.metrics.map((m) => (
                   <tr key={m.sessionId} className="hover:bg-slate-800/30">
                     <td className="py-3 font-semibold text-slate-200">{m.sessionId}</td>
-                    <td className="py-3 capitalize text-slate-300">{m.roundType.replace(/_/g, ' ')}</td>
+                    <td className="py-3 capitalize text-slate-300">
+                      {m.roundType.replace(/_/g, ' ')}
+                    </td>
                     <td className="py-3 text-blue-400 font-bold">{m.structureScore} / 5</td>
                     <td className="py-3 text-purple-400 font-bold">{m.concretenessScore} / 5</td>
                     <td className="py-3 text-emerald-400 font-bold">{m.deliveryScore} / 5</td>
@@ -322,8 +337,8 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
       <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
         <h3 className="font-bold text-white text-sm">Privacy &amp; Export Configuration</h3>
         <p className="text-xs text-slate-400">
-          Exports compile your weakness map, 7-day practice plan, calibration reminders, and progress
-          charts into clean, shareable formats.
+          Exports compile your weakness map, 7-day practice plan, calibration reminders, and
+          progress charts into clean, shareable formats.
         </p>
 
         <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
@@ -339,9 +354,9 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
                 Include raw candidate transcripts in export (Opt-In Only)
               </span>
               <span className="text-[11px] text-slate-400 leading-relaxed block mt-0.5">
-                By default, reports never include your spoken transcript text to protect confidential
-                company details or private stories. Check this box only if you wish to export full
-                transcripts.
+                By default, reports never include your spoken transcript text to protect
+                confidential company details or private stories. Check this box only if you wish to
+                export full transcripts.
               </span>
             </div>
           </label>

@@ -160,9 +160,10 @@ export interface FeedbackRecord {
   uncertainty?: string;
   sourceHash: string;
   isEstimated?: boolean;
+  isTruncated?: boolean;
+  truncationNotice?: string;
   createdAt: number;
 }
-
 
 export interface MockSessionState {
   isActive: boolean;

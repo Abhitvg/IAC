@@ -38,7 +38,7 @@ export interface BuildInterviewerPromptParams {
     requestedFix?: string;
     evidence?: string;
   };
-  pressure?: "low" | "normal" | "high";
+  pressure?: 'low' | 'normal' | 'high';
 }
 
 export function buildInterviewerPrompt(params: BuildInterviewerPromptParams): string {
@@ -52,7 +52,10 @@ export function buildInterviewerPrompt(params: BuildInterviewerPromptParams): st
       : JSON.stringify(params.question_json, null, 2);
 
   let weaknessDirective = '';
-  if (params.target_weakness && (params.target_weakness.skill === 'depth' || params.target_weakness.skill === 'concreteness')) {
+  if (
+    params.target_weakness &&
+    (params.target_weakness.skill === 'depth' || params.target_weakness.skill === 'concreteness')
+  ) {
     const fix = params.target_weakness.requestedFix || 'more technical depth and concrete examples';
     weaknessDirective = `TARGET WEAKNESS DIRECTIVE (FIRST PROBE): The candidate has recorded past feedback indicating a ${params.target_weakness.skill} weakness: "${fix}". If probing, your first probe MUST specifically ask for a worked example, specific numbers, tool names, state design, failure handling, or ordering (whichever matches the requested fix), and cite a verbatim phrase the candidate actually spoke.`;
   }
