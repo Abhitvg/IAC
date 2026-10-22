@@ -154,3 +154,41 @@ export interface MockSessionState {
     topImprovementPriorities: string[];
   };
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Feedback Import & Weakness Analysis Types
+// ═══════════════════════════════════════════════════════════════════
+
+export type FeedbackSkill =
+  'knowledge' | 'structure' | 'concreteness' | 'depth' | 'delivery' | 'other';
+
+export interface FeedbackStrength {
+  topic: string;
+  skill: FeedbackSkill;
+  evidence: string;
+}
+
+export interface FeedbackWeakness {
+  topic: string;
+  skill: FeedbackSkill;
+  severity: 1 | 2 | 3;
+  evidence: string;
+  requestedFix: string;
+}
+
+export interface FeedbackRecord {
+  id: string;
+  date: string;
+  company?: string;
+  role?: string;
+  roundType?: MockRoundType | string;
+  rawText?: string;
+  redactedText: string;
+  strengths: FeedbackStrength[];
+  weaknesses: FeedbackWeakness[];
+  overallTone?: string;
+  uncertainty?: string;
+  sourceHash: string;
+  isEstimated?: boolean;
+  createdAt: number;
+}

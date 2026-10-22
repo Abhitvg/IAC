@@ -1,0 +1,44 @@
+{
+  "company": "E-Commerce Velocity Inc",
+  "role": "Staff Frontend Architect",
+  "date": "2026-08-20",
+  "roundType": "frontend_architecture",
+  "rawText": "Debrief from Sarah Connor (sarah.c@ecomvelocity.com, tel: +1-206-555-0142). The candidate demonstrated deep CSS layout understanding and detailed knowledge of React state reconciliation. The interviewer liked how cleanly you articulated component boundary patterns. On the other hand, the panel was concerned that you lacked concrete performance metrics on web vital improvements, speaking only in abstract terms when pressed for specific millisecond targets. Additionally, you rambled when asked about micro-frontend trade-offs and did not state a decisive conclusion. For career details, visit https://careers.ecomvelocity.com/faq.",
+  "expectedRedacted": {
+    "hasNoEmail": true,
+    "hasNoPhone": true,
+    "hasNoUrl": true
+  },
+  "mockExtraction": {
+    "strengths": [
+      {
+        "topic": "CSS & Modern Layouts",
+        "skill": "knowledge",
+        "evidence": "demonstrated deep CSS layout understanding"
+      },
+      {
+        "topic": "React State Reconciliation",
+        "skill": "knowledge",
+        "evidence": "detailed knowledge of React state reconciliation"
+      }
+    ],
+    "weaknesses": [
+      {
+        "topic": "Web Vitals & Performance",
+        "skill": "concreteness",
+        "severity": 3,
+        "evidence": "lacked concrete performance metrics on web vital improvements",
+        "requestedFix": "Quote specific LCP/INP millisecond targets and optimization techniques"
+      },
+      {
+        "topic": "Micro-Frontends",
+        "skill": "structure",
+        "severity": 2,
+        "evidence": "rambled when asked about micro-frontend trade-offs",
+        "requestedFix": "Start with a direct trade-off summary before analyzing module federation"
+      }
+    ],
+    "overallTone": "Mixed; positive on fundamentals but failed on senior communication",
+    "uncertainty": "Testing methodologies were not explicitly probed during this round"
+  }
+}

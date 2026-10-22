@@ -1,0 +1,44 @@
+{
+  "company": "CloudScale Hyperdrive",
+  "role": "Principal Systems Engineer",
+  "date": "2026-07-05",
+  "roundType": "system_design",
+  "rawText": "Feedback summary from recruiting coordinator Alex Vance (alex.v@cloudscale.net, cell: 555-883-9921). Alex noted that you drew a thorough high-level architecture diagram and gave a precise API schema definition for our distributed ingestion pipeline. However, you did not provide concrete traffic calculations or quantitative storage estimates when asked to size the Kafka cluster. The interviewer felt your discussion of multi-region replication was a shallow exploration of edge cases and lacked failure mode handling under network partitions. Please consult https://cloudscale.net/architecture for how we evaluate staff-plus candidates.",
+  "expectedRedacted": {
+    "hasNoEmail": true,
+    "hasNoPhone": true,
+    "hasNoUrl": true
+  },
+  "mockExtraction": {
+    "strengths": [
+      {
+        "topic": "Architecture Diagramming",
+        "skill": "structure",
+        "evidence": "thorough high-level architecture diagram"
+      },
+      {
+        "topic": "API Schema Definition",
+        "skill": "knowledge",
+        "evidence": "gave a precise API schema definition"
+      }
+    ],
+    "weaknesses": [
+      {
+        "topic": "Capacity & Estimation",
+        "skill": "concreteness",
+        "severity": 3,
+        "evidence": "did not provide concrete traffic calculations or quantitative storage estimates",
+        "requestedFix": "Work through QPS, write throughput, and IOPS numbers explicitly on the whiteboard"
+      },
+      {
+        "topic": "Multi-Region Replication",
+        "skill": "depth",
+        "severity": 2,
+        "evidence": "shallow exploration of edge cases and lacked failure mode handling under network partitions",
+        "requestedFix": "Walk through CAP theorem trade-offs and split-brain resolution protocols"
+      }
+    ],
+    "overallTone": "Staff bar not met due to missing capacity math and partition edge cases",
+    "uncertainty": "Security and auth controls were skipped due to time constraints"
+  }
+}

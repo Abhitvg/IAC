@@ -1,0 +1,44 @@
+{
+  "company": "Stripe-like Fintech Corp",
+  "role": "Senior Backend Engineer",
+  "date": "2026-09-14",
+  "roundType": "technical_systems",
+  "rawText": "Thank you for interviewing with us on Tuesday. John Doe (john.doe@fintechcorp.io, +1-415-555-0199) and the interviewing panel reviewed your performance for the Senior Backend Engineer loop. Overall, the team was impressed by your strong concurrent programming knowledge in Go and how you handled database index optimization with great clarity. However, the committee noted that your answer regarding distributed cache failure was unstructured and hard to follow. In particular, you missed concrete examples when discussing cache eviction policies and jumped around without signposting your approach. We would like to see a clear headline followed by a step-by-step failure recovery mechanism. You can check our engineering blog at https://fintechcorp.io/eng for reference.",
+  "expectedRedacted": {
+    "hasNoEmail": true,
+    "hasNoPhone": true,
+    "hasNoUrl": true
+  },
+  "mockExtraction": {
+    "strengths": [
+      {
+        "topic": "Concurrency & Go",
+        "skill": "knowledge",
+        "evidence": "strong concurrent programming knowledge in Go"
+      },
+      {
+        "topic": "Database Optimization",
+        "skill": "knowledge",
+        "evidence": "handled database index optimization with great clarity"
+      }
+    ],
+    "weaknesses": [
+      {
+        "topic": "Distributed Caching",
+        "skill": "structure",
+        "severity": 2,
+        "evidence": "answer regarding distributed cache failure was unstructured and hard to follow",
+        "requestedFix": "Provide a clear headline followed by a step-by-step failure recovery mechanism"
+      },
+      {
+        "topic": "Cache Eviction",
+        "skill": "concreteness",
+        "severity": 2,
+        "evidence": "missed concrete examples when discussing cache eviction policies",
+        "requestedFix": "Cite real-world production cache eviction numbers and concrete scenarios"
+      }
+    ],
+    "overallTone": "Constructive but hesitant on technical communication",
+    "uncertainty": "Panel did not evaluate system monitoring or alerting in depth"
+  }
+}

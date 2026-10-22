@@ -7,6 +7,7 @@ import {
   TopicMastery,
   CompanyPracticePlan,
   TieredHint,
+  FeedbackRecord,
 } from '../services/practice/types';
 import { MockInterviewerEngine } from '../services/practice/MockInterviewerEngine';
 import { CoachingEngine } from '../services/practice/CoachingEngine';
@@ -17,7 +18,8 @@ import { CompanyPlanGenerator } from '../services/practice/CompanyPlanGenerator'
 
 interface PracticeState {
   activeView: 'mock_gym';
-  activeTab: 'arena' | 'story_bank' | 'spaced_drills' | 'company_prep' | 'delivery_trends';
+  activeTab:
+    'arena' | 'story_bank' | 'spaced_drills' | 'company_prep' | 'delivery_trends' | 'feedback';
   activeSession: MockSessionState | null;
   sessionHistory: MockSessionState[];
   storyBank: BehavioralStory[];
@@ -35,7 +37,7 @@ interface PracticeState {
   // Actions
   setActiveView: (view: 'mock_gym') => void;
   setActiveTab: (
-    tab: 'arena' | 'story_bank' | 'spaced_drills' | 'company_prep' | 'delivery_trends'
+    tab: 'arena' | 'story_bank' | 'spaced_drills' | 'company_prep' | 'delivery_trends' | 'feedback'
   ) => void;
   startMockSession: (
     roundType: MockRoundType,
@@ -72,6 +74,11 @@ interface PracticeState {
   ) => void;
   toggleDrillCompleted: (planIndex: number, dayNumber: number) => void;
   addCompanyNote: (companyName: string, roundName: string, note: string) => void;
+  feedbackRecords: FeedbackRecord[];
+  addFeedbackRecord: (record: FeedbackRecord) => { success: boolean; duplicate?: boolean };
+  updateFeedbackRecord: (record: FeedbackRecord) => void;
+  deleteFeedbackRecord: (id: string) => void;
+  clearAllFeedback: () => void;
 }
 
 const STORAGE_KEYS = {
@@ -79,6 +86,7 @@ const STORAGE_KEYS = {
   STORIES: 'ai_practice_stories_v1',
   TOPICS: 'ai_practice_topics_v1',
   PLANS: 'ai_practice_company_plans_v1',
+  FEEDBACK: 'ai_practice_feedback_v1',
 };
 
 function loadStored<T>(key: string, fallback: T): T {
@@ -110,6 +118,7 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   ),
   companyPlans: loadStored<CompanyPracticePlan[]>(STORAGE_KEYS.PLANS, []),
   activeCompanyPlan: null,
+  feedbackRecords: loadStored<FeedbackRecord[]>(STORAGE_KEYS.FEEDBACK, []),
 
   currentCandidateAnswer: '',
   speakingStartTime: null,
@@ -341,6 +350,34 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     }
   },
 
+  addFeedbackRecord: (record) => {
+    const existing = get().feedbackRecords;
+    if (existing.some((r) => r.sourceHash === record.sourceHash)) {
+      return { success: false, duplicate: true };
+    }
+    const updated = [record, ...existing];
+    persist(STORAGE_KEYS.FEEDBACK, updated);
+    set({ feedbackRecords: updated });
+    return { success: true };
+  },
+
+  updateFeedbackRecord: (record) => {
+    const existing = get().feedbackRecords;
+    const updated = existing.map((r) => (r.id === record.id ? record : r));
+    persist(STORAGE_KEYS.FEEDBACK, updated);
+    set({ feedbackRecords: updated });
+  },
+
+  deleteFeedbackRecord: (id) => {
+    const updated = get().feedbackRecords.filter((r) => r.id !== id);
+    persist(STORAGE_KEYS.FEEDBACK, updated);
+    set({ feedbackRecords: updated });
+  },
+
+  clearAllFeedback: () => {
+    persist(STORAGE_KEYS.FEEDBACK, []);
+    set({ feedbackRecords: [] });
+  },
   addCompanyNote: (companyName, roundName, note) => {
     const plans = [...get().companyPlans];
     const index = plans.findIndex((p) => p.companyName.toLowerCase() === companyName.toLowerCase());
