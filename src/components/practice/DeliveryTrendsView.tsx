@@ -47,7 +47,7 @@ export const DeliveryTrendsView: React.FC = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
             <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl">
               <span className="text-xs font-bold uppercase text-slate-400">Average Pacing</span>
               <div className="text-2xl font-extrabold text-white mt-1">
@@ -116,6 +116,63 @@ export const DeliveryTrendsView: React.FC = () => {
               </div>
               <span className="text-[10px] text-amber-400">Answers &gt; 120s flagged</span>
             </div>
+            <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl">
+              <span className="text-xs font-bold uppercase text-indigo-400">Structure Score</span>
+              <div className="text-2xl font-extrabold text-white mt-1">
+                {hasSufficientData ? (
+                  <>
+                    {(
+                      sessionsWithDelivery.reduce((acc, s) => {
+                        const evalData = s.questionHistory.find((q) => q.evaluation)?.evaluation;
+                        const score =
+                          evalData?.structureAnalysis?.structureScore ||
+                          evalData?.dimensions?.find((d) =>
+                            d.name.toLowerCase().includes('structure')
+                          )?.score ||
+                          3.0;
+                        return acc + score;
+                      }, 0) / sessionsWithDelivery.length
+                    ).toFixed(1)}{' '}
+                    <span className="text-sm font-normal text-slate-400">/ 5.0</span>
+                  </>
+                ) : (
+                  <span className="text-sm font-normal text-slate-500 italic">
+                    Needs &ge; 3 sessions
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-indigo-400">Headline + Signposting</span>
+            </div>
+
+            <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl">
+              <span className="text-xs font-bold uppercase text-emerald-400">
+                Concreteness Score
+              </span>
+              <div className="text-2xl font-extrabold text-white mt-1">
+                {hasSufficientData ? (
+                  <>
+                    {(
+                      sessionsWithDelivery.reduce((acc, s) => {
+                        const evalData = s.questionHistory.find((q) => q.evaluation)?.evaluation;
+                        const score =
+                          evalData?.concretenessAnalysis?.concretenessScore ||
+                          evalData?.dimensions?.find((d) =>
+                            d.name.toLowerCase().includes('concrete')
+                          )?.score ||
+                          3.0;
+                        return acc + score;
+                      }, 0) / sessionsWithDelivery.length
+                    ).toFixed(1)}{' '}
+                    <span className="text-sm font-normal text-slate-400">/ 5.0</span>
+                  </>
+                ) : (
+                  <span className="text-sm font-normal text-slate-500 italic">
+                    Needs &ge; 3 sessions
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-emerald-400">Numbers + Tool Names</span>
+            </div>
           </div>
 
           {/* Historical Session Rows */}
@@ -148,6 +205,18 @@ export const DeliveryTrendsView: React.FC = () => {
                     </div>
 
                     <div className="flex gap-4 items-center">
+                      <div className="flex gap-2 items-center">
+                        {evalData?.structureAnalysis && (
+                          <span className="px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/50 text-[10px] text-indigo-300 font-bold">
+                            Struct: {evalData.structureAnalysis.structureScore}/5
+                          </span>
+                        )}
+                        {evalData?.concretenessAnalysis && (
+                          <span className="px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/50 text-[10px] text-emerald-300 font-bold">
+                            Concrete: {evalData.concretenessAnalysis.concretenessScore}/5
+                          </span>
+                        )}
+                      </div>
                       <div className="text-right">
                         <span className="text-xs font-bold text-white block">
                           {delivery?.speakingPaceWpm || 0} WPM

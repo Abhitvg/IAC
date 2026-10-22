@@ -42,6 +42,9 @@ export interface RubricEvaluation {
   signals?: DeterministicSignals;
   estimatedCostUsd?: number;
   latencyMs?: number;
+  structureAnalysis?: StructureAnalysisResult;
+  concretenessAnalysis?: ConcretenessAnalysisResult;
+  suggestedRewrite?: SuggestedRewrite;
 }
 
 export interface DeliveryMetrics {
@@ -150,6 +153,8 @@ export interface MockSessionState {
     systemDesignScore?: number;
     behavioralScore?: number;
     deliveryScore: number;
+    structureScore?: number;
+    concretenessScore?: number;
     keyStrengths: string[];
     topImprovementPriorities: string[];
   };
@@ -240,4 +245,82 @@ export interface WeaknessPracticePlan {
   maxDailyMinutes: number;
   rankedWeaknessesSnapshot: RankedWeakness[];
   days: WeaknessPlanDay[];
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Structure & Concreteness Coach Types
+// ═══════════════════════════════════════════════════════════════════
+
+export interface StructureJudgmentItem {
+  met: boolean;
+  quote: string;
+}
+
+export interface ClaimReasonExampleItem {
+  count: number;
+  quotes: string[];
+}
+
+export interface TangentItem {
+  quote: string;
+  why: string;
+}
+
+export interface StructureAnalysisResult {
+  headlineFirst: StructureJudgmentItem;
+  signposting: StructureJudgmentItem;
+  claimReasonExample: ClaimReasonExampleItem;
+  tradeOffStated: StructureJudgmentItem;
+  closingSummary: StructureJudgmentItem;
+  tangents: TangentItem[];
+  tangentRatio: number;
+  structureScore: number; // 1 to 5
+  reasons: string[];
+  answerLength: number;
+  wordCount: number;
+  sentenceCount: number;
+  timeToFirstClaimSeconds: number;
+  isHeuristicEstimate?: boolean;
+}
+
+export interface SupportedClaimItem {
+  claim: string;
+  quote: string;
+  missingElement: 'example' | 'number' | 'mechanism';
+}
+
+export interface NamedToolItem {
+  name: string;
+  quote: string;
+}
+
+export interface QuantityItem {
+  quantity: string;
+  quote: string;
+}
+
+export interface ConcreteExampleItem {
+  quote: string;
+  description: string;
+}
+
+export interface ConcretenessAnalysisResult {
+  concreteExamplesCount: number;
+  concreteExamples: ConcreteExampleItem[];
+  namedToolsOrTechnologies: NamedToolItem[];
+  quantitiesOrThresholds: QuantityItem[];
+  workedExamplePresent: boolean;
+  workedExampleQuote: string;
+  claimsWithoutSupport: SupportedClaimItem[];
+  concretenessScore: number; // 1 to 5
+  reasons: string[];
+  isHeuristicEstimate?: boolean;
+}
+
+export interface SuggestedRewrite {
+  originalParagraph: string;
+  rewrittenParagraph: string;
+  extractedNumbers: string[];
+  extractedTools: string[];
+  isGrounded: boolean;
 }

@@ -2,6 +2,8 @@ import { RubricDimension, RubricEvaluation, TieredHint } from './types';
 import { LLMScorer } from './scoring/LLMScorer';
 import { EvidenceValidator } from './scoring/EvidenceValidator';
 import { DeterministicSignalsExtractor } from './scoring/DeterministicSignals';
+import { StructureAnalyzer } from './coach/StructureAnalyzer';
+import { ConcretenessAnalyzer } from './coach/ConcretenessAnalyzer';
 import { AIProviderConfig } from '../../types';
 
 export interface RubricConfig {
@@ -39,7 +41,7 @@ export class RubricScorer {
       },
       hintsUsed: config.hintsUsed || [],
       config: config.config,
-      llmCaller: config.llmCaller,
+      llmCaller: config.llmCaller ? (p: string, m?: string) => config.llmCaller!(p, m || 'gpt-4o-mini') : undefined,
     });
 
     const questionEval = report.questions[0];
@@ -62,6 +64,62 @@ export class RubricScorer {
       }
     }
 
+    // Structure & Concreteness Coach analysis
+    const structureAnalysis = await StructureAnalyzer.analyze({
+      transcript: cleanAnswer,
+      question: config.question,
+      llmCaller: config.llmCaller ? (p: string, m?: string) => config.llmCaller!(p, m || 'gpt-4o-mini') : undefined,
+    });
+
+    const concretenessAnalysis = await ConcretenessAnalyzer.analyze({
+      transcript: cleanAnswer,
+      question: config.question,
+      llmCaller: config.llmCaller ? (p: string, m?: string) => config.llmCaller!(p, m || 'gpt-4o-mini') : undefined,
+    });
+
+    const paragraphs = cleanAnswer.split(/\n\s*\n/).filter((p) => p.trim().length > 20);
+    const weakestParagraph = paragraphs[0] || cleanAnswer;
+    const suggestedRewrite = await StructureAnalyzer.generateRewrite({
+      paragraph: weakestParagraph,
+      llmCaller: config.llmCaller,
+    });
+
+    dimensions.push({
+      name: 'Structure & Organization',
+      category: config.category,
+      score: structureAnalysis.structureScore,
+      maxScore: 5,
+      weight: 0.15,
+      feedback:
+        structureAnalysis.reasons.join(' ') ||
+        'Evaluation of headline, signposting, and trade-offs.',
+      evidenceQuote:
+        structureAnalysis.headlineFirst.quote || structureAnalysis.signposting.quote || undefined,
+      missingAspect:
+        structureAnalysis.structureScore < 3
+          ? 'Needs clearer signposting and headline-first opening.'
+          : undefined,
+    });
+
+    dimensions.push({
+      name: 'Concreteness & Evidence',
+      category: config.category,
+      score: concretenessAnalysis.concretenessScore,
+      maxScore: 5,
+      weight: 0.15,
+      feedback:
+        concretenessAnalysis.reasons.join(' ') ||
+        'Evaluation of numerical estimates and named production technologies.',
+      evidenceQuote:
+        concretenessAnalysis.concreteExamples[0]?.quote ||
+        concretenessAnalysis.quantitiesOrThresholds[0]?.quote ||
+        undefined,
+      missingAspect:
+        concretenessAnalysis.concretenessScore < 3
+          ? 'Missing concrete production numbers and specific tools.'
+          : undefined,
+    });
+
     return {
       overallScore: report.overall.score,
       percentage: Math.round((report.overall.score / 5.0) * 100),
@@ -75,6 +133,9 @@ export class RubricScorer {
       isHeuristicEstimate: report.isHeuristicEstimate,
       confidenceBanner: report.confidenceBanner,
       signals,
+      structureAnalysis,
+      concretenessAnalysis,
+      suggestedRewrite,
     };
   }
 

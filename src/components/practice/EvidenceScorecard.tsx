@@ -246,6 +246,192 @@ export const EvidenceScorecard: React.FC<Props> = ({ evaluation, delivery, model
         </div>
       )}
 
+      {/* Structure & Concreteness Coaching Dimensions */}
+      {(evaluation?.structureAnalysis || evaluation?.concretenessAnalysis) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {evaluation.structureAnalysis && (
+            <div className="p-4 bg-slate-900 border border-indigo-500/30 rounded-xl space-y-3">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h4 className="text-xs font-bold uppercase text-indigo-400 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+                  Structure & Organization
+                </h4>
+                <span className="text-xs font-extrabold text-white px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-700/50">
+                  {evaluation.structureAnalysis.structureScore} / 5
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Headline in first 20%:</span>
+                  <span
+                    className={
+                      evaluation.structureAnalysis.headlineFirst.met
+                        ? 'text-emerald-400 font-bold'
+                        : 'text-slate-500'
+                    }
+                  >
+                    {evaluation.structureAnalysis.headlineFirst.met ? '✓ Met' : '✗ Missing'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Roadmap Signposting:</span>
+                  <span
+                    className={
+                      evaluation.structureAnalysis.signposting.met
+                        ? 'text-emerald-400 font-bold'
+                        : 'text-slate-500'
+                    }
+                  >
+                    {evaluation.structureAnalysis.signposting.met ? '✓ Met' : '✗ Missing'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Claim-Reason-Example Triples:</span>
+                  <span className="text-indigo-300 font-bold">
+                    {evaluation.structureAnalysis.claimReasonExample.count} found
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Explicit Trade-Off:</span>
+                  <span
+                    className={
+                      evaluation.structureAnalysis.tradeOffStated.met
+                        ? 'text-emerald-400 font-bold'
+                        : 'text-slate-500'
+                    }
+                  >
+                    {evaluation.structureAnalysis.tradeOffStated.met ? '✓ Stated' : '✗ Omitted'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Closing Summary:</span>
+                  <span
+                    className={
+                      evaluation.structureAnalysis.closingSummary.met
+                        ? 'text-emerald-400 font-bold'
+                        : 'text-slate-500'
+                    }
+                  >
+                    {evaluation.structureAnalysis.closingSummary.met ? '✓ Met' : '✗ Missing'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Tangent Ratio:</span>
+                  <span
+                    className={
+                      evaluation.structureAnalysis.tangentRatio > 0.2
+                        ? 'text-rose-400 font-bold'
+                        : 'text-slate-300'
+                    }
+                  >
+                    {Math.round(evaluation.structureAnalysis.tangentRatio * 100)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {evaluation.concretenessAnalysis && (
+            <div className="p-4 bg-slate-900 border border-emerald-500/30 rounded-xl space-y-3">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h4 className="text-xs font-bold uppercase text-emerald-400 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  Concreteness & Evidence
+                </h4>
+                <span className="text-xs font-extrabold text-white px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-700/50">
+                  {evaluation.concretenessAnalysis.concretenessScore} / 5
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Concrete Examples:</span>
+                  <span className="text-emerald-300 font-bold">
+                    {evaluation.concretenessAnalysis.concreteExamplesCount}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Named Technologies:</span>
+                  <span className="text-white font-medium">
+                    {evaluation.concretenessAnalysis.namedToolsOrTechnologies
+                      .map((t) => t.name)
+                      .join(', ') || 'None named'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Quantities / Thresholds:</span>
+                  <span className="text-white font-medium">
+                    {evaluation.concretenessAnalysis.quantitiesOrThresholds
+                      .map((q) => q.quantity)
+                      .join(', ') || 'None cited'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Worked Scenario Present:</span>
+                  <span
+                    className={
+                      evaluation.concretenessAnalysis.workedExamplePresent
+                        ? 'text-emerald-400 font-bold'
+                        : 'text-slate-500'
+                    }
+                  >
+                    {evaluation.concretenessAnalysis.workedExamplePresent ? '✓ Present' : '✗ None'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Unsupported Claims:</span>
+                  <span
+                    className={
+                      evaluation.concretenessAnalysis.claimsWithoutSupport.length > 0
+                        ? 'text-amber-400 font-bold'
+                        : 'text-emerald-400 font-bold'
+                    }
+                  >
+                    {evaluation.concretenessAnalysis.claimsWithoutSupport.length}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Suggested Rewrite Section */}
+      {evaluation?.suggestedRewrite && (
+        <div className="p-4 bg-slate-900 border border-purple-500/30 rounded-xl space-y-3">
+          <div className="flex justify-between items-center">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400 flex items-center gap-2">
+              <span>✍️</span>
+              Suggested Rewrite (Grounded in Your Own Words)
+            </h4>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">
+              Zero Invented Facts
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div className="p-3 bg-slate-950/80 rounded-lg border border-slate-800 space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                Your Original Paragraph:
+              </span>
+              <p className="text-slate-400 italic leading-relaxed">
+                "{evaluation.suggestedRewrite.originalParagraph}"
+              </p>
+            </div>
+
+            <div className="p-3 bg-purple-950/20 rounded-lg border border-purple-800/40 space-y-1">
+              <span className="text-[10px] uppercase font-bold text-purple-300 block">
+                Structured Suggested Rewrite (&lt;90s):
+              </span>
+              <p className="text-purple-100 whitespace-pre-line leading-relaxed font-sans">
+                {evaluation.suggestedRewrite.rewrittenParagraph}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Leverage Fixes */}
       {evaluation && evaluation.topLeverageFixes.length > 0 && (
         <div className="p-4 bg-amber-950/20 border border-amber-500/30 rounded-xl space-y-2">
