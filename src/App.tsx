@@ -1,7 +1,9 @@
 import ResumeAndJobModal from './components/ResumeAndJobModal';
 import React, { useEffect, useCallback } from 'react';
 import { useAppStore } from './store/useAppStore';
+import TeleprompterView from './components/teleprompter/TeleprompterView';
 import { MockGymView } from './components/practice/MockGymView';
+import { usePracticeStore } from './store/usePracticeStore';
 import SettingsPanel from './components/SettingsPanel';
 import SessionsPanel from './components/SessionsPanel';
 import OnboardingModal from './components/OnboardingModal';
@@ -26,6 +28,8 @@ export default function App() {
     setSettingsOpen,
     setSessionsOpen,
   } = useAppStore();
+
+  const { activeView, setActiveView } = usePracticeStore();
 
   useEffect(() => {
     loadSettings();
@@ -109,7 +113,7 @@ export default function App() {
           userSelect: 'none',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <h1
             style={{
               fontSize: '13px',
@@ -120,21 +124,54 @@ export default function App() {
             }}
           >
             AI Interview{' '}
-            <span style={{ color: 'var(--accent-secondary, #818cf8)' }}>Practice Gym</span>
+            <span style={{ color: 'var(--accent-secondary, #818cf8)' }}>Assistant</span>
           </h1>
-          <span
+
+          {/* Mode Switcher Segmented Control */}
+          <div
             style={{
-              fontSize: '10px',
-              padding: '1px 6px',
-              borderRadius: '4px',
-              background: 'rgba(99, 102, 241, 0.15)',
-              color: 'var(--accent-secondary, #a5b4fc)',
-              border: '1px solid rgba(99, 102, 241, 0.3)',
-              fontWeight: 600,
+              display: 'flex',
+              background: 'rgba(255, 255, 255, 0.08)',
+              borderRadius: '6px',
+              padding: '2px',
+              gap: '2px',
             }}
           >
-            Mock &amp; Coaching Mode
-          </span>
+            <button
+              type="button"
+              onClick={() => setActiveView('teleprompter')}
+              style={{
+                padding: '3px 10px',
+                borderRadius: '5px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: 'none',
+                background: activeView === 'teleprompter' ? '#4f46e5' : 'transparent',
+                color: activeView === 'teleprompter' ? '#ffffff' : '#94a3b8',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              🛡️ Live Copilot / Teleprompter
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView('mock_gym')}
+              style={{
+                padding: '3px 10px',
+                borderRadius: '5px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: 'none',
+                background: activeView === 'mock_gym' ? '#4f46e5' : 'transparent',
+                color: activeView === 'mock_gym' ? '#ffffff' : '#94a3b8',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              🏋️ Mock Practice Gym
+            </button>
+          </div>
         </div>
 
         <div
@@ -222,10 +259,10 @@ export default function App() {
       {/* Main View Display: Dedicated Practice Gym */}
       <main
         role="main"
-        aria-label="Mock Practice Gym Workspace"
+        aria-label="Application Workspace"
         style={{ flex: 1, overflow: 'hidden', position: 'relative' }}
       >
-        <MockGymView />
+        {activeView === 'teleprompter' ? <TeleprompterView /> : <MockGymView />}
       </main>
 
       {showOnboarding && <OnboardingModal />}

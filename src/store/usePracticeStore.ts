@@ -23,7 +23,7 @@ import { QuestionBank } from '../services/practice/QuestionBank';
 import { CompanyPlanGenerator } from '../services/practice/CompanyPlanGenerator';
 
 interface PracticeState {
-  activeView: 'mock_gym';
+  activeView: 'teleprompter' | 'mock_gym';
   activeTab:
     | 'arena'
     | 'story_bank'
@@ -49,7 +49,7 @@ interface PracticeState {
   interruptionBanner: string | null;
 
   // Actions
-  setActiveView: (view: 'mock_gym') => void;
+  setActiveView: (view: 'teleprompter' | 'mock_gym') => void;
   setActiveTab: (
     tab:
       | 'arena'

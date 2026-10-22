@@ -1,5 +1,19 @@
 import { parsePdfBuffer } from './services/pdfParser';
-import { app, BrowserWindow, ipcMain, dialog, shell, Menu, session } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  shell,
+  Menu,
+  session,
+  globalShortcut,
+  Tray,
+  nativeImage,
+} from 'electron';
+import { exec } from 'child_process';
+import util from 'util';
+const execAsync = util.promisify(exec);
 import path from 'path';
 import fs from 'fs';
 import mammoth from 'mammoth';
@@ -14,6 +28,8 @@ import {
 } from './services/security';
 
 let mainWindow: BrowserWindow | null = null;
+let isContentProtected = true;
+let tray: Tray | null = null;
 
 const RECORDINGS_DIR = path.join(app.getPath('userData'), 'recordings');
 const SESSIONS_DIR = path.join(app.getPath('userData'), 'sessions');
@@ -65,9 +81,98 @@ function createWindow() {
     console.log('[Renderer Log]', message);
   });
 
+  if (isContentProtected) {
+    try {
+      mainWindow.setContentProtection(true);
+      if (process.platform === 'darwin') {
+        mainWindow.setHiddenInMissionControl(true);
+        mainWindow.excludedFromShownWindowsMenu = true;
+      }
+    } catch (e) {
+      console.warn('[Electron] Could not enable initial content protection:', e);
+    }
+  }
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+}
+
+function toggleWindowVisibility() {
+  if (!mainWindow) return;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+  } else {
+    mainWindow.show();
+    mainWindow.setAlwaysOnTop(true, 'floating');
+    if (process.platform === 'darwin') {
+      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    }
+    mainWindow.focus();
+  }
+}
+
+function setupTray() {
+  if (tray) return;
+  const iconPath = path.join(__dirname, '../public/icon.png');
+  const icon = fs.existsSync(iconPath)
+    ? nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+    : nativeImage.createEmpty();
+  try {
+    tray = new Tray(icon);
+    tray.setToolTip('AI Interview Assistant (Cmd+Shift+H to toggle)');
+    const trayMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show / Hide Overlay',
+        accelerator: 'CmdOrCtrl+Shift+H',
+        click: () => toggleWindowVisibility(),
+      },
+      {
+        label: 'Solve Screen Problem',
+        accelerator: 'CmdOrCtrl+Shift+S',
+        click: () => {
+          if (!mainWindow?.isVisible()) mainWindow?.show();
+          mainWindow?.webContents.send('trigger-screen-capture');
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        role: 'quit',
+      },
+    ]);
+    tray.setContextMenu(trayMenu);
+    tray.on('click', () => toggleWindowVisibility());
+  } catch (err) {
+    console.warn('[Electron] Could not initialize tray:', err);
+  }
+}
+
+function registerGlobalShortcuts() {
+  const stealthShortcuts = [
+    'CommandOrControl+Shift+H',
+    'CommandOrControl+Shift+Space',
+    'CommandOrControl+\\',
+    'Alt+H',
+  ];
+  stealthShortcuts.forEach((shortcut) => {
+    try {
+      globalShortcut.register(shortcut, () => {
+        toggleWindowVisibility();
+      });
+    } catch (err) {
+      console.warn(`[Electron] Could not register shortcut ${shortcut}:`, err);
+    }
+  });
+
+  try {
+    globalShortcut.register('CommandOrControl+Shift+S', () => {
+      if (!mainWindow?.isVisible()) mainWindow?.show();
+      mainWindow?.webContents.send('trigger-screen-capture');
+    });
+  } catch (err) {
+    console.warn('[Electron] Could not register screen capture shortcut:', err);
+  }
 }
 
 function setupNativeApplicationMenu() {
@@ -168,6 +273,8 @@ app.whenReady().then(() => {
   createWindow();
   setupIpcHandlers(mainWindow);
   setupNativeApplicationMenu();
+  setupTray();
+  registerGlobalShortcuts();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -177,6 +284,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  globalShortcut.unregisterAll();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -340,4 +448,127 @@ ipcMain.handle('fs:parse-docx', async (_event, arrayBuffer: ArrayBuffer) => {
   const buffer = Buffer.from(arrayBuffer);
   const result = await mammoth.extractRawText({ buffer });
   return result.value || '';
+});
+
+// Window visibility & protection IPC
+ipcMain.on('window:toggle-visibility', () => toggleWindowVisibility());
+ipcMain.on('window:hide', () => mainWindow?.hide());
+ipcMain.on('window:show', () => {
+  if (!mainWindow) return;
+  mainWindow.show();
+  mainWindow.setAlwaysOnTop(true, 'floating');
+  mainWindow.focus();
+});
+ipcMain.handle('window:set-content-protection', (_event, enable: boolean) => {
+  if (mainWindow) {
+    mainWindow.setContentProtection(enable);
+    isContentProtected = enable;
+    return true;
+  }
+  return false;
+});
+ipcMain.handle('window:is-content-protected', () => isContentProtected);
+ipcMain.on('window:toggle-content-protection', () => {
+  if (mainWindow) {
+    isContentProtected = !isContentProtected;
+    mainWindow.setContentProtection(isContentProtected);
+  }
+});
+
+// Screen Capture & Neural OCR
+ipcMain.handle(
+  'screen:capture-and-ocr',
+  async (_event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
+    const tmpImg = path.join(app.getPath('temp'), `iac_screen_${Date.now()}.jpg`);
+    const isMac = process.platform === 'darwin';
+    const ocrBin = path.join(__dirname, '../bin/mac-ocr');
+
+    try {
+      if (isMac) {
+        const captureFlag = mode === 'snip' ? '-i -x' : '-x';
+        await execAsync(`screencapture ${captureFlag} "${tmpImg}"`);
+      } else {
+        const snipCmd = `maim -s "${tmpImg}" || scrot -s "${tmpImg}" || import "${tmpImg}"`;
+        const fullCmd = `maim "${tmpImg}" || scrot "${tmpImg}" || import -window root "${tmpImg}"`;
+        await execAsync(mode === 'snip' ? snipCmd : fullCmd);
+      }
+
+      if (!fs.existsSync(tmpImg)) {
+        return {
+          success: false,
+          cancelled: true,
+          error:
+            'Screen capture was cancelled or capture tool missing (install: sudo apt install maim / scrot).',
+        };
+      }
+
+      let text = '';
+      if (isMac && fs.existsSync(ocrBin)) {
+        const { stdout } = await execAsync(`"${ocrBin}" "${tmpImg}"`);
+        text = stdout.trim();
+      } else {
+        try {
+          const { stdout } = await execAsync(
+            `tesseract "${tmpImg}" stdout --oem 1 -l eng 2>/dev/null || tesseract "${tmpImg}" stdout 2>/dev/null`
+          );
+          text = stdout.trim();
+        } catch (ocrErr: any) {
+          throw new Error(
+            'OCR engine not found. On Linux, please install tesseract: sudo apt install tesseract-ocr',
+            { cause: ocrErr }
+          );
+        }
+      }
+
+      try {
+        fs.unlinkSync(tmpImg);
+      } catch {
+        // ignore
+      }
+
+      if (!text) {
+        return { success: false, error: 'No text or code could be detected on the screen.' };
+      }
+
+      return { success: true, text };
+    } catch (err: any) {
+      console.error('[Electron] Screen OCR error:', err);
+      try {
+        if (fs.existsSync(tmpImg)) fs.unlinkSync(tmpImg);
+      } catch {
+        // ignore
+      }
+      return { success: false, error: err.message || String(err) };
+    }
+  }
+);
+
+ipcMain.handle('screen:ocr-image', async (_event, filePath: string) => {
+  const isMac = process.platform === 'darwin';
+  const ocrBin = path.join(__dirname, '../bin/mac-ocr');
+  try {
+    const resolvedPath = path.resolve(filePath);
+    if (!fs.existsSync(resolvedPath)) {
+      return { success: false, error: 'File not found.' };
+    }
+
+    let text = '';
+    if (isMac && fs.existsSync(ocrBin)) {
+      const { stdout } = await execAsync(`"${ocrBin}" "${resolvedPath}"`);
+      text = stdout.trim();
+    } else {
+      const { stdout } = await execAsync(
+        `tesseract "${resolvedPath}" stdout --oem 1 -l eng 2>/dev/null || tesseract "${resolvedPath}" stdout 2>/dev/null`
+      );
+      text = stdout.trim();
+    }
+
+    if (!text) {
+      return { success: false, error: 'No text could be extracted from image.' };
+    }
+    return { success: true, text };
+  } catch (err: any) {
+    console.error('[Electron] Image OCR error:', err);
+    return { success: false, error: err.message || String(err) };
+  }
 });
