@@ -32,7 +32,8 @@ interface PracticeState {
     | 'delivery_trends'
     | 'feedback'
     | 'weakness_map'
-    | 'explainer_drill';
+    | 'explainer_drill'
+      | 'progress';
   activeSession: MockSessionState | null;
   sessionHistory: MockSessionState[];
   storyBank: BehavioralStory[];

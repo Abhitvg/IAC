@@ -374,6 +374,44 @@ export default function SettingsPanel() {
             </div>
           </div>
 
+                    <div
+            className="settings-section"
+            data-testid="settings-calibration-reminder"
+            style={{
+              background: 'rgba(245, 158, 11, 0.08)',
+              padding: '12px 14px',
+              borderRadius: '8px',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
+              marginBottom: '16px',
+            }}
+          >
+            <h3
+              className="settings-section__title"
+              style={{
+                color: '#fbbf24',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                margin: 0,
+                marginBottom: '6px',
+              }}
+            >
+              ⚖️ Calibration Reminder
+            </h3>
+            <p
+              style={{
+                fontSize: '11px',
+                color: '#cbd5e1',
+                lineHeight: '1.5',
+                margin: 0,
+              }}
+            >
+              AI scores are estimates, may be wrong, and should be compared against feedback from real people when possible. Language models can miss nuanced engineering context, non-standard system designs, or delivery subtleties. Treat these rubric scores as iterative coaching benchmarks rather than definitive hiring decisions.
+            </p>
+          </div>
+
           <div className="settings-section" style={{ marginTop: 'auto' }}>
             <h3 className="settings-section__title" style={{ color: 'var(--error)' }}>
               Danger Zone
