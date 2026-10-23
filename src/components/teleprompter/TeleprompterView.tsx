@@ -1017,7 +1017,7 @@ export default function TeleprompterView() {
                     color: active ? '#ffffff' : '#94a3b8',
                     border: active ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid transparent',
                     borderRadius: '4px',
-                    padding: '3px 8px',
+                    padding: isUltraCompact ? '3px 6px' : '3px 8px',
                     fontSize: '11px',
                     fontWeight: active ? 700 : 500,
                     cursor: 'pointer',
@@ -1026,7 +1026,7 @@ export default function TeleprompterView() {
                     boxShadow: active ? '0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
                   }}
                 >
-                  {m.label}
+                  {isUltraCompact ? m.label.split(' ')[0] : m.label}
                 </button>
               );
             })}
@@ -1359,24 +1359,26 @@ export default function TeleprompterView() {
           style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-            <button
-              onClick={() =>
-                setWindowOpacity(Math.max(0.12, Math.round((windowOpacity - 0.1) * 100) / 100))
-              }
-              title="More transparent (Clearer glass)"
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: '#e2e8f0',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: '4px',
-                padding: '2px 6px',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              -
-            </button>
+            {!isUltraCompact && (
+              <button
+                onClick={() =>
+                  setWindowOpacity(Math.max(0.12, Math.round((windowOpacity - 0.1) * 100) / 100))
+                }
+                title="More transparent (Clearer glass)"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#e2e8f0',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '4px',
+                  padding: '2px 6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                -
+              </button>
+            )}
             <select
               value={windowOpacity}
               onChange={(e) => setWindowOpacity(parseFloat(e.target.value))}
@@ -1415,24 +1417,26 @@ export default function TeleprompterView() {
                 98% Solid Dark
               </option>
             </select>
-            <button
-              onClick={() =>
-                setWindowOpacity(Math.min(0.98, Math.round((windowOpacity + 0.1) * 100) / 100))
-              }
-              title="Less transparent (More solid)"
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: '#e2e8f0',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: '4px',
-                padding: '2px 6px',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              +
-            </button>
+            {!isUltraCompact && (
+              <button
+                onClick={() =>
+                  setWindowOpacity(Math.min(0.98, Math.round((windowOpacity + 0.1) * 100) / 100))
+                }
+                title="Less transparent (More solid)"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#e2e8f0',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '4px',
+                  padding: '2px 6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                +
+              </button>
+            )}
           </div>
 
           {/* Shortcuts Quick Reference Button */}
@@ -1569,7 +1573,7 @@ export default function TeleprompterView() {
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '20px 28px',
+          padding: isUltraCompact ? '12px 14px' : '20px 28px',
           scrollBehavior: 'smooth',
           userSelect: 'text',
         }}
@@ -1599,12 +1603,13 @@ export default function TeleprompterView() {
               background: 'rgba(99, 102, 241, 0.22)',
               border: '1px solid rgba(129, 140, 248, 0.4)',
               borderRadius: '6px',
-              padding: '6px 12px',
+              padding: isUltraCompact ? '6px 8px' : '6px 12px',
               marginBottom: '10px',
               color: '#e0e7ff',
               fontSize: '13px',
               fontWeight: 600,
               letterSpacing: '0.2px',
+              flexWrap: isUltraCompact ? 'wrap' : 'nowrap',
             }}
           >
             <div
@@ -1612,17 +1617,18 @@ export default function TeleprompterView() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                flex: 1,
+                flex: isUltraCompact ? '1 1 100%' : 1,
+                minWidth: 0,
                 overflow: 'hidden',
               }}
             >
               <Sparkles size={13} style={{ color: '#818cf8', flexShrink: 0 }} />
-              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: isUltraCompact ? 'normal' : 'nowrap', wordBreak: 'break-word' }}>
                 Q: {currentQuestion}
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, marginLeft: isUltraCompact ? 'auto' : undefined }}>
               {/* Back / Undo button right on Question Card */}
               <button
                 onClick={restorePreviousQuestion}
@@ -2173,7 +2179,7 @@ export default function TeleprompterView() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '12px 18px',
+                  padding: isUltraCompact ? '8px 12px' : '12px 18px',
                   background:
                     'linear-gradient(135deg, rgba(30, 27, 75, 0.6), rgba(15, 23, 42, 0.75))',
                   border: '1px solid rgba(129, 140, 248, 0.25)',
@@ -2249,7 +2255,7 @@ export default function TeleprompterView() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
-                    padding: '12px 18px',
+                    padding: isUltraCompact ? '8px 12px' : '12px 18px',
                     background:
                       'linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.95))',
                     color: '#ffffff',
@@ -2280,7 +2286,7 @@ export default function TeleprompterView() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
-                    padding: '12px 18px',
+                    padding: isUltraCompact ? '8px 12px' : '12px 18px',
                     background:
                       'linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(79, 70, 229, 0.95))',
                     color: '#ffffff',

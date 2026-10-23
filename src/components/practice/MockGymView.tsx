@@ -39,9 +39,9 @@ export const MockGymView: React.FC = () => {
   return (
     <div className="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
       {/* Sub-Header Navigation */}
-      <div className="px-5 py-2.5 bg-slate-900/90 backdrop-blur-xl border-b border-slate-800/80 flex items-center justify-between gap-4 shrink-0 z-10">
+      <div className="px-3 sm:px-5 py-2 bg-slate-900/90 backdrop-blur-xl border-b border-slate-800/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 sm:gap-4 shrink-0 z-10">
         <div
-          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5"
+          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 scroll-smooth w-full md:w-auto"
           role="tablist"
           aria-label="Mock Practice Sections"
         >
@@ -56,7 +56,7 @@ export const MockGymView: React.FC = () => {
                 aria-controls={'tabpanel-' + tab.id}
                 id={'tab-' + tab.id}
                 className={
-                  'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ' +
+                  'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 shrink-0 ' +
                   (isActive
                     ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/25 ring-1 ring-white/10'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80')
@@ -70,10 +70,10 @@ export const MockGymView: React.FC = () => {
         </div>
 
         {/* Right Controls: Pressure Selector, Interruption Toggle, Start/Active Button */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center justify-between md:justify-end gap-2 shrink-0 w-full md:w-auto">
           {/* Segmented Pressure Selector */}
-          <div className="hidden sm:flex items-center bg-slate-950/80 border border-slate-800 rounded-lg p-0.5 text-xs">
-            <span className="text-[11px] font-semibold text-slate-400 pl-2 pr-1.5">Pressure:</span>
+          <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-lg p-0.5 text-xs">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 pl-1.5 sm:pl-2 pr-1">Pressure:</span>
             {(['low', 'normal', 'high'] as InterviewPressure[]).map((p) => {
               const isSelected = selectedPressure === p;
               return (
@@ -82,7 +82,7 @@ export const MockGymView: React.FC = () => {
                   type="button"
                   onClick={() => setSelectedPressure(p)}
                   className={
-                    'px-2 py-0.5 text-[11px] font-semibold rounded-md capitalize transition ' +
+                    'px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold rounded-md capitalize transition ' +
                     (isSelected
                       ? p === 'high'
                         ? 'bg-rose-600 text-white shadow-sm'
@@ -103,7 +103,7 @@ export const MockGymView: React.FC = () => {
             type="button"
             onClick={() => setInterruptionEnabled(!interruptionEnabled)}
             className={
-              'flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold transition ' +
+              'flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg border text-xs font-semibold transition shrink-0 ' +
               (interruptionEnabled
                 ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 shadow-sm shadow-amber-500/10'
                 : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700')
@@ -116,7 +116,8 @@ export const MockGymView: React.FC = () => {
                 (interruptionEnabled ? 'bg-amber-400 animate-pulse' : 'bg-slate-600')
               }
             />
-            <span className="hidden md:inline">Interruptions</span>
+            <span className="hidden sm:inline">Interruptions</span>
+            <span className="sm:hidden">Probes</span>
           </button>
 
           {/* Action Button: Jump to Active Round or Start New Round */}
@@ -124,15 +125,16 @@ export const MockGymView: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('arena')}
-              className="flex items-center gap-2 px-3 py-1 bg-rose-600/20 border border-rose-500/40 text-rose-300 hover:bg-rose-600/30 rounded-lg text-xs font-bold transition shadow-sm"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 bg-rose-600/20 border border-rose-500/40 text-rose-300 hover:bg-rose-600/30 rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap shrink-0"
             >
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-              <span>In Session ({activeSession.persona.replace(/_/g, ' ')})</span>
+              <span className="hidden sm:inline">In Session ({activeSession.persona.replace(/_/g, ' ')})</span>
+              <span className="sm:hidden">In Session</span>
             </button>
           ) : (
             <button
               onClick={() => setShowLauncher(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg text-xs font-bold shadow-md shadow-indigo-500/20 transition active:scale-[0.98]"
+              className="flex items-center gap-1 px-3 sm:px-3.5 py-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg text-xs font-bold shadow-md shadow-indigo-500/20 transition active:scale-[0.98] whitespace-nowrap shrink-0"
             >
               <span>⚡</span>
               <span>Start Round</span>
@@ -143,7 +145,7 @@ export const MockGymView: React.FC = () => {
 
       {/* Main Content Area */}
       <div
-        className="flex-1 overflow-y-auto p-6 max-w-6xl mx-auto w-full"
+        className="flex-1 overflow-y-auto p-3 sm:p-6 max-w-6xl mx-auto w-full"
         role="tabpanel"
         id={'tabpanel-' + activeTab}
         aria-labelledby={'tab-' + activeTab}
@@ -154,7 +156,7 @@ export const MockGymView: React.FC = () => {
           ) : (
             <div className="space-y-6">
               {/* Hero Banner */}
-              <div className="relative overflow-hidden p-8 bg-gradient-to-br from-indigo-950/70 via-slate-900/90 to-purple-950/40 border border-indigo-500/30 rounded-3xl shadow-2xl space-y-4">
+              <div className="relative overflow-hidden p-4 sm:p-8 bg-gradient-to-br from-indigo-950/70 via-slate-900/90 to-purple-950/40 border border-indigo-500/30 rounded-3xl shadow-2xl space-y-4">
                 <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
                 <div className="flex items-center gap-2">
@@ -331,7 +333,7 @@ export const MockGymView: React.FC = () => {
                 <label className="text-slate-300 font-semibold block mb-1.5">
                   Interviewer Persona
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
                     { id: 'strict_big_tech', label: 'Strict Big Tech', icon: '🏛️' },
                     { id: 'startup_pragmatist', label: 'Startup Pragmatist', icon: '⚡' },
@@ -359,7 +361,7 @@ export const MockGymView: React.FC = () => {
                 <label className="text-slate-300 font-semibold block mb-1.5">
                   Interview Pressure
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
                     { id: 'low', label: 'Low', desc: 'Relaxed pause, fewer probes', icon: '😌' },
                     { id: 'normal', label: 'Normal', desc: 'Standard interview pace', icon: '⚡' },
