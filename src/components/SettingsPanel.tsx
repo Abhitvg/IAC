@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { usePracticeStore } from '../store/usePracticeStore';
-import { X, Save, AlertTriangle } from 'lucide-react';
+import { X, Save, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
+import { isSoundMuted, toggleSoundMuted } from '../utils/soundEffects';
 
 export default function SettingsPanel() {
   const { deleteAllFeedbackAndPracticeData } = usePracticeStore();
@@ -19,6 +20,7 @@ export default function SettingsPanel() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [extensionToken, setExtensionToken] = useState('');
   const [tokenCopied, setTokenCopied] = useState(false);
+  const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted());
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -241,6 +243,38 @@ export default function SettingsPanel() {
                 <option value="dark">Dark Theme (Studio High Contrast)</option>
                 <option value="light">Light Theme (Clean Daylight Studio)</option>
               </select>
+            </div>
+
+            <div className="field">
+              <label className="field__label" htmlFor="sound-fx-toggle">
+                Practice Audio Feedback &amp; Sound Chimes
+              </label>
+              <div className="flex items-center justify-between p-3 bg-slate-900/60 border border-slate-800 rounded-xl">
+                <div>
+                  <span className="text-xs font-semibold text-slate-200 block">
+                    Synthesized Practice Audio Chimes
+                  </span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                    Gentle Web Audio chimes for round starts and celebration arpeggios upon drill completion.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  id="sound-fx-toggle"
+                  onClick={() => {
+                    const next = toggleSoundMuted();
+                    setSoundMutedState(next);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    soundMuted
+                      ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                      : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                  }`}
+                >
+                  {soundMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+                  <span>{soundMuted ? "🔇 Muted" : "🔊 Active"}</span>
+                </button>
+              </div>
             </div>
 
             <div className="field">

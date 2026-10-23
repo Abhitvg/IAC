@@ -5,6 +5,26 @@
 
 let audioCtx: AudioContext | null = null;
 
+export function isSoundMuted(): boolean {
+  if (typeof window !== "undefined" && window.localStorage) {
+    const val = localStorage.getItem("interviewpro_sound_muted");
+    if (val !== null) return val === "true";
+  }
+  return false;
+}
+
+export function setSoundMuted(muted: boolean): void {
+  if (typeof window !== "undefined" && window.localStorage) {
+    localStorage.setItem("interviewpro_sound_muted", muted ? "true" : "false");
+  }
+}
+
+export function toggleSoundMuted(): boolean {
+  const next = !isSoundMuted();
+  setSoundMuted(next);
+  return next;
+}
+
 function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!audioCtx) {
@@ -23,6 +43,7 @@ function getAudioContext(): AudioContext | null {
  * Play a gentle ascending chime when practice session begins or countdown finishes.
  */
 export function playRoundStartChime() {
+  if (isSoundMuted()) return;
   const ctx = getAudioContext();
   if (!ctx) return;
 
@@ -49,6 +70,7 @@ export function playRoundStartChime() {
  * Play a warm celebration arpeggio when high rubric score or drill completion is achieved.
  */
 export function playSuccessChime() {
+  if (isSoundMuted()) return;
   const ctx = getAudioContext();
   if (!ctx) return;
 

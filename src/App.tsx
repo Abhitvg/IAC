@@ -9,7 +9,8 @@ import SessionsPanel from './components/SessionsPanel';
 import OnboardingModal from './components/OnboardingModal';
 import Toast from './components/Toast';
 import { InterviewEngine } from './services/InterviewEngine';
-import { Mic, Settings, History } from 'lucide-react';
+import { Mic, Settings, History, Volume2, VolumeX } from 'lucide-react';
+import { isSoundMuted, toggleSoundMuted } from './utils/soundEffects';
 import './styles/index.css';
 
 export default function App() {
@@ -38,6 +39,13 @@ export default function App() {
     storyBank,
     topicMasteries,
   } = usePracticeStore();
+
+  const [soundMuted, setSoundMutedState] = React.useState(() => isSoundMuted());
+  const handleToggleSound = () => {
+    const next = toggleSoundMuted();
+    setSoundMutedState(next);
+  };
+
 
   const totalRounds = sessionHistory?.length || 0;
   const storiesCount = storyBank?.length || 0;
@@ -374,6 +382,32 @@ export default function App() {
           >
             <Settings size={13} />
             <span className="hidden sm:inline">Settings</span>
+          </button>
+
+          {/* Sound FX Mute/Unmute Button */}
+          <button
+            type="button"
+            onClick={handleToggleSound}
+            aria-label={soundMuted ? "Unmute Practice Sound Effects" : "Mute Practice Sound Effects"}
+            title={soundMuted ? "Sound Effects Muted (Click to Unmute)" : "Sound Effects Active (Click to Mute)"}
+            className="card-interactive"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "30px",
+              height: "28px",
+              borderRadius: "8px",
+              fontSize: "11px",
+              fontWeight: 600,
+              background: soundMuted ? "rgba(239, 68, 68, 0.12)" : "rgba(255, 255, 255, 0.05)",
+              color: soundMuted ? "#f87171" : "#94a3b8",
+              border: soundMuted ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(255, 255, 255, 0.1)",
+              cursor: "pointer",
+              transition: "all 0.18s ease",
+            }}
+          >
+            {soundMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
           </button>
         </div>
       </header>
