@@ -1525,3 +1525,55 @@ body {
 .pulse-subtle {
   animation: pulseSubtle 3s ease-in-out infinite;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   P1 Redesign Animations & Navigation Crossfades
+   ═══════════════════════════════════════════════════════════════════ */
+
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-view-fade {
+  animation: viewFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Company Logo Pills */
+.company-logo-pill {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease,
+              background 0.2s ease;
+}
+
+.company-logo-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.6);
+}
+
+.company-logo-pill:active {
+  transform: scale(0.97);
+}
+
+/* Tab Active Underline Indicator */
+.tab-active-indicator {
+  position: relative;
+}
+.tab-active-indicator::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: linear-gradient(90deg, #818cf8, #c084fc);
+  border-radius: 9999px;
+  box-shadow: 0 0 8px rgba(129, 140, 248, 0.8);
+}

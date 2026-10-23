@@ -31,7 +31,30 @@ export default function App() {
     windowOpacity,
   } = useAppStore();
 
-  const { activeView, setActiveView } = usePracticeStore();
+  const {
+    activeView,
+    setActiveView,
+    sessionHistory,
+    storyBank,
+    topicMasteries,
+  } = usePracticeStore();
+
+  const totalRounds = sessionHistory?.length || 0;
+  const storiesCount = storyBank?.length || 0;
+  const avgMastery =
+    topicMasteries && topicMasteries.length > 0
+      ? Math.round(
+          topicMasteries.reduce((acc, t) => acc + (t.masteryScore || 0), 0) /
+            topicMasteries.length
+        )
+      : 0;
+  const storyCoveragePct = Math.min(100, Math.round((storiesCount / 5) * 100));
+  const roundsScorePct = Math.min(100, Math.round((totalRounds / 5) * 100));
+  const readinessScore = Math.min(
+    100,
+    Math.round(storyCoveragePct * 0.3 + avgMastery * 0.4 + roundsScorePct * 0.3)
+  );
+  const practiceStreak = totalRounds > 0 ? Math.min(Math.max(totalRounds, 1), 14) : 0;
 
   // Synchronize native Electron window opacity between translucent teleprompter overlay and solid practice gym
   useEffect(() => {
@@ -120,168 +143,182 @@ export default function App() {
       {/* Top Application Bar with Accessibility Landmark */}
       <header
         role="banner"
-        className="px-2 sm:px-4"
+        className="px-3 sm:px-5"
         style={{
-          minHeight: '44px',
+          minHeight: "44px",
           background:
-            activeView === 'teleprompter'
+            activeView === "teleprompter"
               ? `rgba(9, 13, 22, ${Math.min(0.85, windowOpacity * 0.75 + 0.2)})`
-              : 'rgba(9, 13, 22, 0.88)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '8px',
+              : "rgba(9, 13, 22, 0.92)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          boxShadow: "0 2px 16px rgba(0, 0, 0, 0.35)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "10px",
           zIndex: 50,
-          userSelect: 'none',
+          userSelect: "none",
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+          {/* Logo Brand Mark */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
             <div
               style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '6px',
-                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '12px',
-                boxShadow: '0 0 10px rgba(99, 102, 241, 0.4)',
+                width: "26px",
+                height: "26px",
+                borderRadius: "7px",
+                background: "linear-gradient(135deg, #4f46e5, #7c3aed, #c084fc)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "13px",
+                boxShadow: "0 0 12px rgba(99, 102, 241, 0.45)",
               }}
             >
               ⚡
             </div>
-            <h1
-              className="text-xs sm:text-[13px] font-extrabold text-slate-100 tracking-tight m-0 hidden md:inline"
-            >
-              AI Interview <span style={{ color: '#818cf8' }}>Assistant</span>
-            </h1>
-            <h1
-              className="text-xs font-bold text-slate-100 tracking-tight m-0 hidden sm:inline md:hidden"
-            >
-              AI <span style={{ color: '#818cf8' }}>Copilot</span>
-            </h1>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-xs sm:text-[13px] font-black text-slate-100 tracking-tight m-0 hidden md:inline">
+                Interview<span style={{ color: "#a5b4fc" }}>Pro</span>
+              </h1>
+              <span className="hidden lg:inline text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                AI Copilot
+              </span>
+            </div>
           </div>
 
           {/* Mode Switcher Segmented Control */}
           <div
             style={{
-              display: 'flex',
-              background: 'rgba(0, 0, 0, 0.45)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '8px',
-              padding: '2px',
-              gap: '2px',
-              boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.3)',
+              display: "flex",
+              background: "rgba(0, 0, 0, 0.5)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "8px",
+              padding: "2px",
+              gap: "2px",
+              boxShadow: "inset 0 1px 3px rgba(0, 0, 0, 0.3)",
             }}
           >
             <button
               type="button"
-              onClick={() => setActiveView('teleprompter')}
-              title="Live Copilot / Teleprompter Mode"
+              onClick={() => setActiveView("teleprompter")}
+              title="Live Copilot / Teleprompter Mode (OCR, Audio Transcription, Real-time Answers)"
               style={{
-                padding: '4px 8px',
-                borderRadius: '6px',
-                fontSize: '11px',
+                padding: "4px 9px",
+                borderRadius: "6px",
+                fontSize: "11px",
                 fontWeight: 700,
-                cursor: 'pointer',
+                cursor: "pointer",
                 border:
-                  activeView === 'teleprompter'
-                    ? '1px solid rgba(129, 140, 248, 0.4)'
-                    : '1px solid transparent',
+                  activeView === "teleprompter"
+                    ? "1px solid rgba(129, 140, 248, 0.5)"
+                    : "1px solid transparent",
                 background:
-                  activeView === 'teleprompter'
-                    ? 'linear-gradient(135deg, #4f46e5, #6366f1)'
-                    : 'transparent',
-                color: activeView === 'teleprompter' ? '#ffffff' : '#94a3b8',
+                  activeView === "teleprompter"
+                    ? "linear-gradient(135deg, #4f46e5, #6366f1)"
+                    : "transparent",
+                color: activeView === "teleprompter" ? "#ffffff" : "#94a3b8",
                 boxShadow:
-                  activeView === 'teleprompter' ? '0 2px 8px rgba(79, 70, 229, 0.4)' : 'none',
-                transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
-                whiteSpace: 'nowrap',
+                  activeView === "teleprompter" ? "0 2px 10px rgba(79, 70, 229, 0.45)" : "none",
+                transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
+                whiteSpace: "nowrap",
               }}
             >
-              <span className="hidden lg:inline">🛡️ Live Copilot / Teleprompter</span>
+              <span className="hidden lg:inline">🛡️ Live Copilot</span>
               <span className="hidden sm:inline lg:hidden">🛡️ Copilot</span>
               <span className="sm:hidden">🛡️</span>
             </button>
             <button
               type="button"
-              onClick={() => setActiveView('mock_gym')}
-              title="Mock Practice Gym Mode"
+              onClick={() => setActiveView("mock_gym")}
+              title="Mock Practice Gym (Pressure Simulations, Spaced Drills, STAR Story Bank)"
               style={{
-                padding: '4px 8px',
-                borderRadius: '6px',
-                fontSize: '11px',
+                padding: "4px 9px",
+                borderRadius: "6px",
+                fontSize: "11px",
                 fontWeight: 700,
-                cursor: 'pointer',
+                cursor: "pointer",
                 border:
-                  activeView === 'mock_gym'
-                    ? '1px solid rgba(129, 140, 248, 0.4)'
-                    : '1px solid transparent',
+                  activeView === "mock_gym"
+                    ? "1px solid rgba(129, 140, 248, 0.5)"
+                    : "1px solid transparent",
                 background:
-                  activeView === 'mock_gym'
-                    ? 'linear-gradient(135deg, #4f46e5, #6366f1)'
-                    : 'transparent',
-                color: activeView === 'mock_gym' ? '#ffffff' : '#94a3b8',
-                boxShadow: activeView === 'mock_gym' ? '0 2px 8px rgba(79, 70, 229, 0.4)' : 'none',
-                transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
-                whiteSpace: 'nowrap',
+                  activeView === "mock_gym"
+                    ? "linear-gradient(135deg, #4f46e5, #6366f1)"
+                    : "transparent",
+                color: activeView === "mock_gym" ? "#ffffff" : "#94a3b8",
+                boxShadow: activeView === "mock_gym" ? "0 2px 10px rgba(79, 70, 229, 0.45)" : "none",
+                transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
+                whiteSpace: "nowrap",
               }}
             >
-              <span className="hidden lg:inline">🏋️ Mock Practice Gym</span>
+              <span className="hidden lg:inline">🏋️ Practice Gym</span>
               <span className="hidden sm:inline lg:hidden">🏋️ Gym</span>
               <span className="sm:hidden">🏋️</span>
             </button>
           </div>
+
+          {/* Readiness Badges in Header */}
+          {practiceStreak > 0 && (
+            <span className="hidden xl:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/35 shadow-sm">
+              <span>🔥</span>
+              <span>{practiceStreak}d Streak</span>
+            </span>
+          )}
+          {readinessScore > 0 && (
+            <span className="hidden 2xl:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-500/15 text-indigo-300 border border-indigo-500/35 shadow-sm">
+              <span>🎯</span>
+              <span>{readinessScore}% Ready</span>
+            </span>
+          )}
         </div>
 
+        {/* Right Action Buttons */}
         <div
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '11px',
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            fontSize: "11px",
             flexShrink: 0,
           }}
         >
-          {/* Audio Recording / Dictation Button with Beacon */}
+          {/* Audio Recording Button with Beacon */}
           <button
             type="button"
             onClick={toggleRecording}
-            aria-label={isRecording ? 'Stop Audio Recording' : 'Start Audio Recording'}
+            aria-label={isRecording ? "Stop Audio Recording" : "Start Audio Recording"}
             title="Toggle Audio Recording (Shortcut: R)"
+            className="card-interactive"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '4px 8px',
-              borderRadius: '8px',
-              fontSize: '11px',
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              padding: "4px 9px",
+              borderRadius: "8px",
+              fontSize: "11px",
               fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              cursor: "pointer",
               background: isRecording
-                ? 'linear-gradient(135deg, #e11d48, #be123c)'
-                : 'rgba(255, 255, 255, 0.06)',
-              color: isRecording ? '#ffffff' : '#cbd5e1',
-              border: isRecording ? '1px solid #f43f5e' : '1px solid rgba(255, 255, 255, 0.12)',
-              boxShadow: isRecording ? '0 0 14px rgba(225, 29, 72, 0.45)' : 'none',
-              whiteSpace: 'nowrap',
+                ? "linear-gradient(135deg, #e11d48, #be123c)"
+                : "rgba(255, 255, 255, 0.06)",
+              color: isRecording ? "#ffffff" : "#cbd5e1",
+              border: isRecording ? "1px solid #f43f5e" : "1px solid rgba(255, 255, 255, 0.12)",
+              boxShadow: isRecording ? "0 0 14px rgba(225, 29, 72, 0.45)" : "none",
+              whiteSpace: "nowrap",
             }}
           >
             {isRecording ? (
               <span className="beacon-recording" />
             ) : (
-              <Mic size={13} style={{ color: '#cbd5e1' }} />
+              <Mic size={13} style={{ color: "#cbd5e1" }} />
             )}
-            <span className="hidden md:inline">{isRecording ? 'Recording Active (R)' : 'Record Audio (R)'}</span>
-            <span className="hidden sm:inline md:hidden">{isRecording ? 'Recording' : 'Record'}</span>
-            <span className="sm:hidden">{isRecording ? 'Rec' : 'Mic'}</span>
+            <span className="hidden md:inline">{isRecording ? "Recording Active (R)" : "Record Audio (R)"}</span>
+            <span className="hidden sm:inline md:hidden">{isRecording ? "Recording" : "Record"}</span>
+            <span className="sm:hidden">{isRecording ? "Rec" : "Mic"}</span>
           </button>
 
           {/* Past Sessions History Button */}
@@ -290,23 +327,28 @@ export default function App() {
             onClick={() => setSessionsOpen(true)}
             aria-label="View Past Practice Sessions"
             title="Past Sessions History"
+            className="card-interactive"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              borderRadius: '8px',
-              fontSize: '11px',
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              padding: "4px 9px",
+              borderRadius: "8px",
+              fontSize: "11px",
               fontWeight: 600,
-              background: 'rgba(255, 255, 255, 0.05)',
-              color: '#94a3b8',
-              border: '1px solid rgba(255, 255, 255, 0.09)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
+              background: "rgba(255, 255, 255, 0.05)",
+              color: "#94a3b8",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              cursor: "pointer",
             }}
           >
             <History size={13} />
             <span className="hidden sm:inline">Sessions</span>
+            {totalRounds > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-indigo-500/30 text-indigo-200">
+                {totalRounds}
+              </span>
+            )}
           </button>
 
           {/* Settings Button */}
@@ -315,19 +357,19 @@ export default function App() {
             onClick={() => setSettingsOpen(true)}
             aria-label="Open Settings"
             title="Configure Microphone, Models & Privacy"
+            className="card-interactive"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              borderRadius: '8px',
-              fontSize: '11px',
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              padding: "4px 9px",
+              borderRadius: "8px",
+              fontSize: "11px",
               fontWeight: 600,
-              background: 'rgba(255, 255, 255, 0.05)',
-              color: '#94a3b8',
-              border: '1px solid rgba(255, 255, 255, 0.09)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
+              background: "rgba(255, 255, 255, 0.05)",
+              color: "#94a3b8",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              cursor: "pointer",
             }}
           >
             <Settings size={13} />

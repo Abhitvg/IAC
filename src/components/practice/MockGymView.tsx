@@ -86,7 +86,7 @@ export const MockGymView: React.FC = () => {
                 className={
                   'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 shrink-0 ' +
                   (isActive
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/25 ring-1 ring-white/10'
+                    ? 'tab-active-indicator bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/25 ring-1 ring-white/10'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80')
                 }
               >
@@ -99,6 +99,15 @@ export const MockGymView: React.FC = () => {
 
         {/* Right Controls: Pressure Selector, Interruption Toggle, Start/Active Button */}
         <div className="flex items-center justify-between md:justify-end gap-2 shrink-0 w-full md:w-auto">
+          {practiceStreak > 0 && (
+            <div
+              className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-300 font-bold shrink-0"
+              title="Consecutive practice days logged"
+            >
+              <span>🔥</span>
+              <span>{practiceStreak}d Streak</span>
+            </div>
+          )}
           {/* Segmented Pressure Selector */}
           <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-lg p-0.5 text-xs">
             <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 pl-1.5 sm:pl-2 pr-1">Pressure:</span>
@@ -173,7 +182,8 @@ export const MockGymView: React.FC = () => {
 
       {/* Main Content Area */}
       <div
-        className="flex-1 overflow-y-auto p-3 sm:p-6 max-w-6xl mx-auto w-full"
+        key={activeTab}
+        className="flex-1 overflow-y-auto p-3 sm:p-6 max-w-6xl mx-auto w-full animate-view-fade"
         role="tabpanel"
         id={'tabpanel-' + activeTab}
         aria-labelledby={'tab-' + activeTab}
