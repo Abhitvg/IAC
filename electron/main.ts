@@ -57,11 +57,11 @@ function createWindow() {
     minHeight: 600,
     title: 'AI Interview Practice Gym',
     frame: true,
-    transparent: false,
+    transparent: true,
     hasShadow: true,
     resizable: true,
     alwaysOnTop: false,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
