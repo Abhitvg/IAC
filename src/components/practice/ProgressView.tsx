@@ -355,7 +355,7 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
             </p>
             <button
               type="button"
-              onClick={() => store.setActivePracticeTab("rehearsal")}
+              onClick={() => store.setActiveTab("arena")}
               className="card-interactive px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition inline-flex items-center gap-1.5"
             >
               <span>🏋️ Launch Rehearsal Session</span>

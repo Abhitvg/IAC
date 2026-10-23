@@ -213,10 +213,7 @@ export class InterviewEngine {
           const provider = currentStore.settings?.aiProvider || 'groq';
           let apiKey =
             (await window.electronAPI?.getApiKey?.(provider)) ||
-            (provider === 'groq' ? await window.electronAPI?.getApiKey?.('openai') : null) ||
-            (typeof import.meta !== 'undefined'
-              ? (import.meta as any).env?.VITE_GROQ_API_KEY
-              : null);
+            (provider === 'groq' ? await window.electronAPI?.getApiKey?.('openai') : null) ;
           if (apiKey && provider === 'groq') {
             const m = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
             if (m) apiKey = m[0];

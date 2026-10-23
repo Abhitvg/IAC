@@ -46,8 +46,7 @@ export async function transcribeAudio(
   const apiKey =
     config.apiKey ||
     (await window.electronAPI?.getApiKey?.('groq')) ||
-    (await window.electronAPI?.getApiKey?.('openai')) ||
-    (typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_GROQ_API_KEY : null);
+    (await window.electronAPI?.getApiKey?.('openai')) ;
 
   if (
     config.endpoint &&
