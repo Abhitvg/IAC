@@ -13,7 +13,7 @@ import { AudioRecorder } from './audio';
 import { transcribeAudio } from './whisper';
 import { streamAnswer } from './ai';
 
-const audioService = new AudioRecorder();
+const audioService = AudioRecorder.getInstance();
 let activeAbortController: AbortController | null = null;
 
 export class InterviewEngine {

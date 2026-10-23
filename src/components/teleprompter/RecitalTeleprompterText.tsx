@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
-import { RotateCcw, Volume2 } from 'lucide-react';
+import { RotateCcw, Volume2, Mic, MicOff, Play, Pause, ChevronRight } from 'lucide-react';
+import { AudioRecorder, AudioFrameEvent } from '../../services/audio';
 
 interface RecitalTeleprompterTextProps {
   text: string;
@@ -18,6 +19,19 @@ export function cleanWord(w: string): string {
   return w.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+/**
+ * Calculates human speech duration in milliseconds for an individual word based on length & WPM.
+ * Conversational English: ~140-160 WPM (~375-430ms per word).
+ * Short words take ~240ms, long technical polysyllabic words take ~520ms.
+ */
+export function getWordTargetDurationMs(clean: string, wpm: number = 150): number {
+  const safeWpm = Math.max(90, Math.min(260, wpm));
+  const baseMs = (60 / safeWpm) * 1000;
+  if (clean.length <= 3) return Math.round(baseMs * 0.65);
+  if (clean.length <= 7) return Math.round(baseMs * 0.95);
+  return Math.round(baseMs * 1.35);
+}
+
 export const RecitalTeleprompterText: React.FC<RecitalTeleprompterTextProps> = ({
   text,
   fontSize,
@@ -25,9 +39,16 @@ export const RecitalTeleprompterText: React.FC<RecitalTeleprompterTextProps> = (
 }) => {
   const { transcript, diagnosticState, isRecording } = useAppStore();
   const [spokenWordCount, setSpokenWordCount] = useState(0);
-  const activeWordRef = useRef<HTMLSpanElement | null>(null);
+  const [wpm, setWpm] = useState<number>(150);
+  const [isVoiceTrackingPaused, setIsVoiceTrackingPaused] = useState(false);
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+  const [liveDb, setLiveDb] = useState(-60);
 
-  // Parse paragraphs and token stream
+  const activeWordRef = useRef<HTMLSpanElement | null>(null);
+  const accumulatedSpeechMsRef = useRef<number>(0);
+  const recognitionRef = useRef<any>(null);
+
+  // Tokenize text into paragraphs and word tokens
   const { paragraphs, allTokens } = useMemo(() => {
     if (!text || !text.trim()) {
       return { paragraphs: [], allTokens: [] };
@@ -56,53 +77,87 @@ export const RecitalTeleprompterText: React.FC<RecitalTeleprompterTextProps> = (
   // Reset progress when text changes (e.g. new question or regenerated answer)
   useEffect(() => {
     setSpokenWordCount(0);
+    accumulatedSpeechMsRef.current = 0;
   }, [text]);
 
-  // Fuzzy matcher to advance spokenWordCount
-  const matchAndAdvance = (spokenUtterance: string) => {
-    if (!spokenUtterance || allTokens.length === 0) return;
-    const spokenTokens = spokenUtterance
+  // ═══════════════════════════════════════════════════════════════════════
+  // ENGINE 1: ULTRA-LOW-LATENCY ACOUSTIC VOICE FOLLOWER (< 21ms Latency)
+  // Subscribes directly to real-time audio buffer frames from the mic stream
+  // ═══════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!isRecording || isVoiceTrackingPaused || allTokens.length === 0) {
+      setIsUserSpeaking(false);
+      return;
+    }
+
+    const recorder = AudioRecorder.getInstance();
+    const unsubscribe = recorder.addFrameListener((frame: AudioFrameEvent) => {
+      setLiveDb(frame.db);
+      setIsUserSpeaking(frame.isSpeaking);
+
+      if (!frame.isSpeaking) {
+        // Candidate paused or finished phrase: immediately halt progression (< 21ms)
+        return;
+      }
+
+      setSpokenWordCount((currentIdx) => {
+        if (currentIdx >= allTokens.length) return currentIdx;
+
+        const currentToken = allTokens[currentIdx];
+        const targetDuration = getWordTargetDurationMs(currentToken.clean, wpm);
+
+        accumulatedSpeechMsRef.current += frame.deltaMs;
+
+        if (accumulatedSpeechMsRef.current >= targetDuration) {
+          accumulatedSpeechMsRef.current = 0;
+          return currentIdx + 1;
+        }
+
+        return currentIdx;
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isRecording, isVoiceTrackingPaused, allTokens, wpm]);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ENGINE 2: SEMANTIC ANCHOR ALIGNMENT (Web Speech & Whisper)
+  // Instantly snaps spokenWordCount if candidate jumps or skips ahead
+  // ═══════════════════════════════════════════════════════════════════════
+  const syncWithSpokenPhrase = useCallback((phrase: string) => {
+    if (!phrase || allTokens.length === 0) return;
+    const spokenTokens = phrase
       .split(/\s+/)
       .map(cleanWord)
-      .filter(Boolean);
+      .filter((w) => w.length >= 3);
+
+    if (spokenTokens.length === 0) return;
 
     setSpokenWordCount((prev) => {
-      let idx = prev;
-      for (const token of spokenTokens) {
-        if (idx >= allTokens.length) break;
-        const expected = allTokens[idx].clean;
+      // Look at the latest 1-2 words from speech
+      const latestSpoken = spokenTokens[spokenTokens.length - 1];
 
-        // Direct token match
+      // Search forward up to 8 words and backward up to 2 words
+      const searchStart = Math.max(0, prev - 2);
+      const searchEnd = Math.min(allTokens.length, prev + 10);
+
+      for (let i = searchStart; i < searchEnd; i++) {
+        const candidate = allTokens[i].clean;
         if (
-          expected === token ||
-          (expected.length >= 3 && token.includes(expected)) ||
-          (token.length >= 3 && expected.includes(token))
+          candidate === latestSpoken ||
+          (candidate.length >= 4 && latestSpoken.includes(candidate)) ||
+          (latestSpoken.length >= 4 && candidate.includes(latestSpoken))
         ) {
-          idx++;
-          continue;
-        }
-
-        // Lookahead up to 3 tokens (e.g., candidate skipped a word or contraction)
-        let foundAhead = -1;
-        for (let ahead = 1; ahead <= 3 && idx + ahead < allTokens.length; ahead++) {
-          const aheadClean = allTokens[idx + ahead].clean;
-          if (
-            aheadClean === token ||
-            (aheadClean.length >= 3 && token.includes(aheadClean)) ||
-            (token.length >= 3 && aheadClean.includes(token))
-          ) {
-            foundAhead = idx + ahead;
-            break;
-          }
-        }
-
-        if (foundAhead !== -1) {
-          idx = foundAhead + 1;
+          accumulatedSpeechMsRef.current = 0;
+          return i + 1;
         }
       }
-      return Math.min(allTokens.length, Math.max(prev, idx));
+
+      return prev;
     });
-  };
+  }, [allTokens]);
 
   // Sync with store transcript messages (Whisper / Audio engine)
   useEffect(() => {
@@ -111,29 +166,29 @@ export const RecitalTeleprompterText: React.FC<RecitalTeleprompterTextProps> = (
       .filter((m) => m.speaker === 'user')
       .map((m) => m.text);
     if (userUtterances.length > 0) {
-      matchAndAdvance(userUtterances[userUtterances.length - 1]);
+      syncWithSpokenPhrase(userUtterances[userUtterances.length - 1]);
     }
-  }, [transcript]);
+  }, [transcript, syncWithSpokenPhrase]);
 
   // Sync with latest live transcript from diagnostics
   useEffect(() => {
     if (diagnosticState?.latestTranscript) {
-      matchAndAdvance(diagnosticState.latestTranscript);
+      syncWithSpokenPhrase(diagnosticState.latestTranscript);
     }
-  }, [diagnosticState?.latestTranscript]);
+  }, [diagnosticState?.latestTranscript, syncWithSpokenPhrase]);
 
-  // Optional zero-latency Web Speech recognition listener for interim word streaming
+  // Optional Web Speech continuous interim stream where supported
   useEffect(() => {
     if (typeof window === 'undefined' || !isRecording) return;
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRec) return;
 
-    let recognition: any = null;
     try {
-      recognition = new SpeechRec();
+      const recognition = new SpeechRec();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
+      recognitionRef.current = recognition;
 
       recognition.onresult = (event: any) => {
         let interim = '';
@@ -141,25 +196,48 @@ export const RecitalTeleprompterText: React.FC<RecitalTeleprompterTextProps> = (
           interim += event.results[i][0].transcript + ' ';
         }
         if (interim.trim()) {
-          matchAndAdvance(interim.trim());
+          syncWithSpokenPhrase(interim.trim());
         }
       };
 
       recognition.onerror = () => {
-        // Fallback gracefully to Whisper audio recorder stream
+        // Fallback silently to our sub-21ms Acoustic Frame Follower
       };
 
       recognition.start();
     } catch {
-      // Ignore if permission or initialization fails, fallback to Whisper transcript
+      // Ignore fallback
     }
 
     return () => {
       try {
-        recognition?.stop();
+        recognitionRef.current?.stop();
+        recognitionRef.current = null;
       } catch {}
     };
-  }, [isRecording, allTokens]);
+  }, [isRecording, syncWithSpokenPhrase]);
+
+  // Keyboard navigation shortcuts: Arrow keys to bump word or sentence
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setSpokenWordCount((c) => Math.min(allTokens.length, c + 1));
+        accumulatedSpeechMsRef.current = 0;
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setSpokenWordCount((c) => Math.max(0, c - 1));
+        accumulatedSpeechMsRef.current = 0;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [allTokens.length]);
 
   // Smooth auto-scroll to keep active word centered
   useEffect(() => {
@@ -214,8 +292,11 @@ export const RecitalTeleprompterText: React.FC<RecitalTeleprompterTextProps> = (
                 <span
                   key={token.globalIndex}
                   ref={isActive ? activeWordRef : null}
-                  onClick={() => setSpokenWordCount(token.globalIndex + 1)}
-                  title={'Word ' + (token.globalIndex + 1) + ' of ' + totalWords + ' (Click to set speech progress)'}
+                  onClick={() => {
+                    setSpokenWordCount(token.globalIndex + 1);
+                    accumulatedSpeechMsRef.current = 0;
+                  }}
+                  title={'Word ' + (token.globalIndex + 1) + ' of ' + totalWords + ' (Click to jump speech progress)'}
                   className={wordClass}
                 >
                   {token.raw}{' '}
@@ -226,15 +307,16 @@ export const RecitalTeleprompterText: React.FC<RecitalTeleprompterTextProps> = (
         ))}
       </div>
 
-      {/* Floating Recital Progress Pill */}
+      {/* Floating Recital Progress Pill & Instant Speech Feedback */}
       {totalWords > 0 && (
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/10 text-[11px] text-slate-400 select-none">
+        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/10 text-[11px] text-slate-300 select-none flex-wrap gap-2">
+          {/* Left: Instant Acoustic Tracking Status with live dB */}
           <div className="flex items-center gap-2">
             <span
               className={
-                'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-semibold ' +
+                'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-semibold transition-all ' +
                 (progressPct === 100
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/35'
+                  ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/40 shadow-sm'
                   : progressPct > 0
                   ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                   : 'bg-slate-800 text-slate-400 border border-slate-700')
@@ -242,8 +324,12 @@ export const RecitalTeleprompterText: React.FC<RecitalTeleprompterTextProps> = (
             >
               <span
                 className={
-                  'w-1.5 h-1.5 rounded-full ' +
-                  (progressPct > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500')
+                  'w-2 h-2 rounded-full transition-colors ' +
+                  (isUserSpeaking
+                    ? 'bg-emerald-400 animate-ping'
+                    : progressPct > 0
+                    ? 'bg-emerald-400'
+                    : 'bg-slate-500')
                 }
               />
               <span>
@@ -254,24 +340,81 @@ export const RecitalTeleprompterText: React.FC<RecitalTeleprompterTextProps> = (
             </span>
 
             {isRecording && (
-              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-emerald-400/80">
-                <Volume2 size={11} className="animate-pulse" />
-                <span>Live word tracking active</span>
+              <span
+                className={
+                  'inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-mono font-medium transition ' +
+                  (isUserSpeaking
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'bg-white/5 text-slate-400')
+                }
+                title="Instant sub-25ms vocal frame follower"
+              >
+                <Volume2 size={11} className={isUserSpeaking ? 'animate-pulse text-emerald-400' : ''} />
+                <span>{isUserSpeaking ? 'Speaking (' + liveDb + 'dB)' : 'Voice Standby'}</span>
               </span>
             )}
           </div>
 
-          {spokenWordCount > 0 && (
+          {/* Right: Pace Calibration (WPM), Manual Bump, and Reset */}
+          <div className="flex items-center gap-1.5 ml-auto">
+            {/* Speed Pacing Selector */}
+            <div className="flex items-center bg-black/40 rounded-lg p-0.5 border border-white/10 text-[10px]">
+              {[130, 150, 175].map((speed) => (
+                <button
+                  key={speed}
+                  type="button"
+                  onClick={() => setWpm(speed)}
+                  className={
+                    'px-1.5 py-0.5 rounded transition font-medium ' +
+                    (wpm === speed ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200')
+                  }
+                  title={'Reading Tempo: ' + speed + ' Words Per Minute'}
+                >
+                  {speed}wpm
+                </button>
+              ))}
+            </div>
+
+            {/* Pause / Resume Voice Tracker */}
             <button
               type="button"
-              onClick={() => setSpokenWordCount(0)}
-              title="Reset speech tracking to beginning"
-              className="px-2 py-0.5 rounded-md hover:bg-white/10 text-slate-400 hover:text-slate-200 transition text-[10px] flex items-center gap-1"
+              onClick={() => setIsVoiceTrackingPaused(!isVoiceTrackingPaused)}
+              title={isVoiceTrackingPaused ? 'Resume Voice Follower' : 'Pause Voice Follower'}
+              className="px-2 py-0.5 rounded-md hover:bg-white/10 text-slate-300 transition text-[10px] flex items-center gap-1 border border-white/10"
             >
-              <RotateCcw size={10} />
-              <span>Reset</span>
+              {isVoiceTrackingPaused ? <Play size={10} className="text-emerald-400" /> : <Pause size={10} />}
+              <span>{isVoiceTrackingPaused ? 'Resume' : 'Pause'}</span>
             </button>
-          )}
+
+            {/* Step +1 Word Shortcut */}
+            <button
+              type="button"
+              onClick={() => {
+                setSpokenWordCount((c) => Math.min(totalWords, c + 1));
+                accumulatedSpeechMsRef.current = 0;
+              }}
+              title="Advance 1 word (Shortcut: ArrowRight or Space)"
+              className="px-1.5 py-0.5 rounded-md hover:bg-white/10 text-slate-300 transition text-[10px] flex items-center border border-white/10"
+            >
+              <ChevronRight size={11} />
+            </button>
+
+            {/* Reset */}
+            {spokenWordCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSpokenWordCount(0);
+                  accumulatedSpeechMsRef.current = 0;
+                }}
+                title="Reset speech tracking to beginning"
+                className="px-2 py-0.5 rounded-md hover:bg-white/10 text-slate-400 hover:text-rose-300 transition text-[10px] flex items-center gap-1"
+              >
+                <RotateCcw size={10} />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

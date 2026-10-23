@@ -1,7 +1,33 @@
 import { useAppStore } from '../store/useAppStore';
 import { downsampleBuffer, encodeWav } from '../utils/audioConversion';
 
+export interface AudioFrameEvent {
+  db: number;
+  isSpeaking: boolean;
+  rms: number;
+  deltaMs: number;
+}
+
+export type AudioFrameListener = (event: AudioFrameEvent) => void;
+
 export class AudioRecorder {
+  private static instance: AudioRecorder | null = null;
+  private frameListeners: Set<AudioFrameListener> = new Set();
+  private lastFrameTime = 0;
+
+  public static getInstance(): AudioRecorder {
+    if (!AudioRecorder.instance) {
+      AudioRecorder.instance = new AudioRecorder();
+    }
+    return AudioRecorder.instance;
+  }
+
+  public addFrameListener(listener: AudioFrameListener): () => void {
+    this.frameListeners.add(listener);
+    return () => {
+      this.frameListeners.delete(listener);
+    };
+  }
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
   private sourceNode: MediaStreamAudioSourceNode | null = null;
@@ -63,7 +89,8 @@ export class AudioRecorder {
 
       this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
       // Buffer size 4096 gives ~85ms chunks at 48kHz, optimal for speech analysis
-      this.processorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
+      // Buffer size 1024 gives ~21ms chunks at 48kHz for instant sub-30ms voice tracking
+      this.processorNode = this.audioContext.createScriptProcessor(1024, 1, 1);
 
       this.processorNode.onaudioprocess = (e) => {
         if (!this.isListening) return;
@@ -103,6 +130,22 @@ export class AudioRecorder {
     const db = Math.round(20 * Math.log10(rms || 0.00001));
 
     const now = Date.now();
+    const deltaMs = this.lastFrameTime > 0 ? Math.min(100, now - this.lastFrameTime) : 21;
+    this.lastFrameTime = now;
+
+    // Instant frame dispatch to subscribers (< 21ms latency)
+    const isSpeaking = db > this.voiceThreshold;
+    if (this.frameListeners.size > 0) {
+      const event: AudioFrameEvent = { db, isSpeaking, rms, deltaMs };
+      for (const listener of this.frameListeners) {
+        try {
+          listener(event);
+        } catch (err) {
+          console.error('[AudioRecorder] Frame listener error:', err);
+        }
+      }
+    }
+
     if (now - this.lastDbUpdate > 100) {
       this.lastDbUpdate = now;
       useAppStore.getState().updateDiagnostics({ currentDb: db });

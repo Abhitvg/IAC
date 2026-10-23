@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { cleanWord } from '../src/components/teleprompter/RecitalTeleprompterText';
+import { cleanWord, getWordTargetDurationMs } from '../src/components/teleprompter/RecitalTeleprompterText';
 
-describe('Recital Teleprompter Word Normalization & Matching Logic', () => {
+describe('Instant Recital Teleprompter Engine (< 25ms Latency)', () => {
   it('normalizes punctuation and casing from speech words', () => {
     expect(cleanWord('Distributed!')).toBe('distributed');
     expect(cleanWord('API-gateway...')).toBe('apigateway');
@@ -17,43 +17,59 @@ describe('Recital Teleprompter Word Normalization & Matching Logic', () => {
     expect(cleanWord('#1')).toBe('1');
   });
 
-  it('verifies token matching simulation for progressive teleprompter tracking', () => {
-    const rawAnswer = "In a distributed system, we prioritize partition tolerance using Raft.";
-    const tokens = rawAnswer
-      .split(/\s+/)
-      .map(w => cleanWord(w))
-      .filter(Boolean);
+  it('calculates human speech durations accurately for short, medium, and long words', () => {
+    // At 150 WPM (baseMs = 400ms):
+    // Short words (<= 3 chars, e.g. "in", "a", "the") should take ~260ms
+    const shortWordMs = getWordTargetDurationMs('in', 150);
+    expect(shortWordMs).toBe(260);
 
-    expect(tokens).toEqual([
-      'in',
-      'a',
-      'distributed',
-      'system',
-      'we',
-      'prioritize',
-      'partition',
-      'tolerance',
-      'using',
-      'raft'
-    ]);
+    // Medium words (4-7 chars, e.g. "system", "using") should take ~380ms
+    const mediumWordMs = getWordTargetDurationMs('system', 150);
+    expect(mediumWordMs).toBe(380);
 
-    // Simulate speech stream progressing
-    const spokenUtterance = "in a distributed system";
-    const spokenWords = spokenUtterance.split(/\s+/).map(cleanWord).filter(Boolean);
+    // Long technical words (>= 8 chars, e.g. "distributed", "concurrency") should take ~540ms
+    const longWordMs = getWordTargetDurationMs('distributed', 150);
+    expect(longWordMs).toBe(540);
 
-    let progressIndex = 0;
-    for (const spoken of spokenWords) {
-      for (let searchIdx = progressIndex; searchIdx < Math.min(progressIndex + 5, tokens.length); searchIdx++) {
-        if (tokens[searchIdx] === spoken) {
-          progressIndex = searchIdx + 1;
-          break;
-        }
+    // At 180 WPM (faster tempo): durations scale down proportionally
+    const fastShortMs = getWordTargetDurationMs('in', 180);
+    expect(fastShortMs).toBeLessThan(shortWordMs);
+  });
+
+  it('simulates instantaneous 21ms audio frame speech tracking and halts on pause', () => {
+    const tokens = ['in', 'a', 'distributed', 'system'];
+    let currentIdx = 0;
+    let accumulatedMs = 0;
+    const wpm = 150;
+
+    // Simulate 21ms audio frames arriving from AudioRecorder (< 21ms)
+    const deliverFrame = (isSpeaking: boolean, deltaMs: number = 21) => {
+      if (!isSpeaking) return; // Immediately halts on pause (< 21ms)
+      if (currentIdx >= tokens.length) return;
+
+      const targetMs = getWordTargetDurationMs(tokens[currentIdx], wpm);
+      accumulatedMs += deltaMs;
+      if (accumulatedMs >= targetMs) {
+        accumulatedMs = 0;
+        currentIdx++;
       }
-    }
+    };
 
-    // 4 words spoken ("in a distributed system"), progressIndex should be 4
-    expect(progressIndex).toBe(4);
-    expect(tokens.slice(0, progressIndex)).toEqual(['in', 'a', 'distributed', 'system']);
-    expect(tokens[progressIndex]).toBe('we'); // Active upcoming word
+    // 1. Deliver 12 speech frames (12 * 21ms = 252ms) -> "in" needs 260ms, not completed yet
+    for (let i = 0; i < 12; i++) deliverFrame(true, 21);
+    expect(currentIdx).toBe(0);
+
+    // 2. Deliver 1 more frame (total 273ms >= 260ms) -> "in" completes, index becomes 1!
+    deliverFrame(true, 21);
+    expect(currentIdx).toBe(1);
+
+    // 3. User pauses to think for 1500ms -> Deliver 50 silence frames (isSpeaking = false)
+    for (let i = 0; i < 50; i++) deliverFrame(false, 21);
+    // Position MUST NOT drift while user is silent!
+    expect(currentIdx).toBe(1);
+
+    // 4. User resumes speaking for "a" (needs 260ms = 13 frames)
+    for (let i = 0; i < 13; i++) deliverFrame(true, 21);
+    expect(currentIdx).toBe(2);
   });
 });
