@@ -189,6 +189,8 @@ export interface ElectronAPI {
   setContentProtection?: (enable: boolean) => Promise<boolean>;
   isContentProtected?: () => Promise<boolean>;
   toggleContentProtection?: () => void;
+  setWindowOpacity?: (opacity: number) => Promise<boolean>;
+  getWindowOpacity?: () => Promise<number>;
   getRecordingsDir: () => Promise<string>;
   getSessionsDir: () => Promise<string>;
   getUserDataPath: () => Promise<string>;

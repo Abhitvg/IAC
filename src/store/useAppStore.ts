@@ -158,6 +158,11 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       localStorage.setItem('teleprompter_opacity', String(windowOpacity));
     } catch (_) {}
     set({ windowOpacity });
+    try {
+      if (typeof window !== 'undefined' && window.electronAPI?.setWindowOpacity) {
+        window.electronAPI.setWindowOpacity(windowOpacity);
+      }
+    } catch (_) {}
   },
   selectedAudioDeviceId: (() => {
     try {

@@ -28,9 +28,21 @@ export default function App() {
     isGenerating,
     setSettingsOpen,
     setSessionsOpen,
+    windowOpacity,
   } = useAppStore();
 
   const { activeView, setActiveView } = usePracticeStore();
+
+  // Synchronize native Electron window opacity between translucent teleprompter overlay and solid practice gym
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI?.setWindowOpacity) {
+      if (activeView === 'teleprompter') {
+        window.electronAPI.setWindowOpacity(windowOpacity);
+      } else {
+        window.electronAPI.setWindowOpacity(1.0);
+      }
+    }
+  }, [activeView, windowOpacity]);
 
   useEffect(() => {
     loadSettings();
@@ -98,7 +110,7 @@ export default function App() {
       style={{
         height: '100vh',
         width: '100vw',
-        background: 'var(--bg-primary, #090d16)',
+        background: activeView === 'teleprompter' ? 'transparent' : 'var(--bg-primary, #090d16)',
         color: 'var(--text-primary, #e8e6f0)',
         overflow: 'hidden',
         display: 'flex',
@@ -110,7 +122,10 @@ export default function App() {
         role="banner"
         style={{
           height: '44px',
-          background: 'rgba(9, 13, 22, 0.88)',
+          background:
+            activeView === 'teleprompter'
+              ? `rgba(9, 13, 22, ${Math.min(0.85, windowOpacity * 0.75 + 0.2)})`
+              : 'rgba(9, 13, 22, 0.88)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
@@ -312,7 +327,7 @@ export default function App() {
       <main
         role="main"
         aria-label="Application Workspace"
-        style={{ flex: 1, overflow: 'hidden', position: 'relative' }}
+        style={{ flex: 1, overflow: 'hidden', position: 'relative', background: 'transparent' }}
       >
         {activeView === 'teleprompter' ? <TeleprompterView /> : <MockGymView />}
       </main>

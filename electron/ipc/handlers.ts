@@ -29,6 +29,7 @@ const ALLOWED_SETTING_KEYS = new Set([
   'teleprompterFontSize',
   'hasCompletedOnboarding',
   'extensionToken',
+  'windowOpacity',
 ]);
 
 export function validateSetting(key: string, value: any): boolean {
@@ -40,6 +41,11 @@ export function validateSetting(key: string, value: any): boolean {
     case 'aiProvider':
       if (!['openai', 'groq', 'openrouter', 'ollama'].includes(value)) {
         throw new Error(`Invalid aiProvider: "${value}"`);
+      }
+      break;
+    case 'windowOpacity':
+      if (typeof value !== 'number' || isNaN(value) || value < 0.1 || value > 1.0) {
+        throw new Error(`Invalid windowOpacity: ${value}. Must be between 0.1 and 1.0.`);
       }
       break;
     case 'responseMode':

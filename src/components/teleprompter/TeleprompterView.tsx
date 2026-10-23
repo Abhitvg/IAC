@@ -867,6 +867,8 @@ export default function TeleprompterView() {
         height: '100%',
         width: '100%',
         background: `rgba(8, 10, 20, ${windowOpacity})`,
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         color: '#f8fafc',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         overflow: 'hidden',

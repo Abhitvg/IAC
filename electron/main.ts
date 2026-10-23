@@ -308,6 +308,28 @@ ipcMain.on('window:toggle-always-on-top', () => {
 });
 ipcMain.handle('window:is-always-on-top', () => mainWindow?.isAlwaysOnTop() ?? false);
 
+ipcMain.handle('window:set-opacity', (_event, opacity: number) => {
+  if (!mainWindow) return false;
+  if (typeof opacity !== 'number' || isNaN(opacity)) return false;
+  const clamped = Math.max(0.12, Math.min(1.0, opacity));
+  try {
+    mainWindow.setOpacity(clamped);
+    return true;
+  } catch (err) {
+    console.error('[Electron] Failed to set window opacity:', err);
+    return false;
+  }
+});
+
+ipcMain.handle('window:get-opacity', () => {
+  if (!mainWindow) return 1.0;
+  try {
+    return mainWindow.getOpacity();
+  } catch {
+    return 1.0;
+  }
+});
+
 // File system paths
 ipcMain.handle('get-recordings-dir', () => RECORDINGS_DIR);
 ipcMain.handle('get-sessions-dir', () => SESSIONS_DIR);

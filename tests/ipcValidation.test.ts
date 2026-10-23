@@ -45,6 +45,8 @@ describe('IPC Settings Validation', () => {
     expect(() => validateSetting('browserIntegration', true)).not.toThrow();
     expect(() => validateSetting('alwaysOnTop', false)).not.toThrow();
     expect(() => validateSetting('hasCompletedOnboarding', true)).not.toThrow();
+    expect(() => validateSetting('windowOpacity', 0.25)).not.toThrow();
+    expect(() => validateSetting('windowOpacity', 0.88)).not.toThrow();
   });
 
   it('rejects unauthorized setting keys to prevent prototype pollution or arbitrary storage', () => {
@@ -63,6 +65,9 @@ describe('IPC Settings Validation', () => {
   it('validates temperature range strictly [0, 2]', () => {
     expect(() => validateSetting('temperature', -0.1)).toThrow('Invalid temperature');
     expect(() => validateSetting('temperature', 2.5)).toThrow('Invalid temperature');
+    expect(() => validateSetting('windowOpacity', 0.05)).toThrow('Invalid windowOpacity');
+    expect(() => validateSetting('windowOpacity', 1.5)).toThrow('Invalid windowOpacity');
+    expect(() => validateSetting('windowOpacity', '0.5' as any)).toThrow('Invalid windowOpacity');
     expect(() => validateSetting('temperature', '0.7' as any)).toThrow('Invalid temperature');
   });
 
