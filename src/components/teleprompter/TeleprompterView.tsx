@@ -2168,21 +2168,62 @@ export default function TeleprompterView() {
           ) : isGenerating ? (
             <div
               style={{
-                color: '#cbd5e1',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '15px',
-                padding: '24px',
-                background: 'rgba(99, 102, 241, 0.08)',
-                border: '1px solid rgba(129, 140, 248, 0.25)',
-                borderRadius: '12px',
+                padding: "24px",
+                background: "rgba(15, 23, 42, 0.75)",
+                border: "1px solid rgba(129, 140, 248, 0.3)",
+                borderRadius: "16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "14px",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
               }}
             >
-              <Loader2 size={18} className="spin" style={{ color: '#818cf8' }} />
-              <span style={{ fontWeight: 600 }}>
-                Synthesizing verified solution in real-time...
-              </span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div
+                    style={{
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "6px",
+                      background: "rgba(99, 102, 241, 0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Loader2 size={14} className="spin" style={{ color: "#818cf8" }} />
+                  </div>
+                  <span style={{ fontWeight: 700, fontSize: "13px", color: "#e0e7ff" }}>
+                    Synthesizing Verified Interview Solution...
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  {responseMode.toUpperCase()} STREAM
+                </span>
+              </div>
+
+              {/* Shimmer Skeleton Blocks */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingTop: "4px" }}>
+                <div className="skeleton-shimmer" style={{ height: "18px", width: "75%" }} />
+                <div className="skeleton-shimmer" style={{ height: "14px", width: "92%" }} />
+                <div className="skeleton-shimmer" style={{ height: "14px", width: "85%" }} />
+                <div className="skeleton-shimmer" style={{ height: "14px", width: "60%" }} />
+              </div>
+
+              <div
+                style={{
+                  background: "rgba(0, 0, 0, 0.4)",
+                  borderRadius: "10px",
+                  padding: "14px",
+                  border: "1px solid rgba(255, 255, 255, 0.05)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px",
+                }}
+              >
+                <div className="skeleton-shimmer" style={{ height: "12px", width: "40%" }} />
+                <div className="skeleton-shimmer" style={{ height: "12px", width: "65%" }} />
+              </div>
             </div>
           ) : (
             <div style={{ color: '#e2e8f0', width: '100%', maxWidth: '980px', margin: '0 auto' }}>

@@ -1,3 +1,4 @@
+import { playRoundStartChime } from '../../utils/soundEffects';
 import React, { useState } from 'react';
 import { usePracticeStore } from '../../store/usePracticeStore';
 import { MockRoundType, InterviewPersona, InterviewPressure } from '../../services/practice/types';
@@ -48,6 +49,7 @@ export const MockGymView: React.FC = () => {
   const [showLauncher, setShowLauncher] = useState(false);
 
   const handleLaunch = (roundType: MockRoundType) => {
+    try { playRoundStartChime(); } catch (_e) {}
     startMockSession(roundType, selectedPersona, interruptionEnabled, selectedPressure);
     setShowLauncher(false);
   };
