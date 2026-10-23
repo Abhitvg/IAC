@@ -48,6 +48,19 @@ export default function App() {
     setSoundMutedState(next);
   };
 
+  const [windowHeight, setWindowHeight] = React.useState(
+    typeof window !== "undefined" ? window.innerHeight : 720
+  );
+
+  React.useEffect(() => {
+    const handleResize = () => setWindowHeight(window.innerHeight);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isCompactHeight = windowHeight < 380;
+  const hideAppHeader = activeView === "teleprompter" && (isInterviewFocusMode || isCompactHeight);
+
 
   const totalRounds = sessionHistory?.length || 0;
   const storiesCount = storyBank?.length || 0;
@@ -156,8 +169,8 @@ export default function App() {
         flexDirection: 'column',
       }}
     >
-      {/* Top Application Bar with Accessibility Landmark (Hidden in Interview Focus Mode) */}
-      {!isInterviewFocusMode && (
+      {/* Top Application Bar with Accessibility Landmark (Hidden in Interview Focus or Compact Ribbon Mode) */}
+      {!hideAppHeader && (
       <header
         role="banner"
         className="px-3 sm:px-5"

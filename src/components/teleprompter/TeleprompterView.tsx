@@ -23,6 +23,7 @@ import {
   Shield,
   CheckCircle2,
   Volume2,
+  Camera,
   Crop,
   ScanText,
   Check,
@@ -524,15 +525,23 @@ export default function TeleprompterView() {
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 900
   );
+  const [windowHeight, setWindowHeight] = useState(
+    typeof window !== 'undefined' ? window.innerHeight : 720
+  );
 
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+      setWindowHeight(window.innerHeight);
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const isCompact = windowWidth < 920;
   const isUltraCompact = windowWidth < 660;
+  const isCompactHeight = windowHeight < 380;
+  const isRibbonMode = isInterviewFocusMode || isCompactHeight;
 
   useEffect(() => {
     const unsub = window.electronAPI?.onTriggerScreenCapture?.(() => {
@@ -820,10 +829,10 @@ export default function TeleprompterView() {
   const handleToggleCompactWindow = async () => {
     if (typeof window !== 'undefined' && window.electronAPI?.setWindowSize) {
       const size = await window.electronAPI.getWindowSize?.();
-      if (size && size.width <= 600) {
+      if (size && (size.width <= 750 || size.height <= 380)) {
         await window.electronAPI.setWindowSize(1024, 720);
       } else {
-        await window.electronAPI.setWindowSize(540, 340);
+        await window.electronAPI.setWindowSize(680, 240);
       }
     }
   };
@@ -969,7 +978,7 @@ export default function TeleprompterView() {
       )}
 
       {/* ════════════ TOP TELEPROMPTER CONTROL BAR ════════════ */}
-      {!isInterviewFocusMode && (
+      {!isRibbonMode && (
         <>
       <div
         className="teleprompter-draggable"
@@ -1607,15 +1616,15 @@ export default function TeleprompterView() {
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: isUltraCompact ? '12px 14px' : '20px 28px',
+          padding: isRibbonMode ? '6px 12px' : isUltraCompact ? '12px 14px' : '20px 28px',
           scrollBehavior: 'smooth',
           userSelect: 'text',
         }}
       >
                 {/* Minimal Distraction-Free Interview HUD Pill */}
-        {isInterviewFocusMode && (
+        {isRibbonMode && (
           <div
-            className="teleprompter-draggable flex items-center justify-between px-3.5 py-2 mb-3 floating-hud-pill mx-auto w-full select-none"
+            className="teleprompter-draggable flex items-center justify-between px-3 py-1.5 mb-2 floating-hud-pill mx-auto w-full select-none"
             style={{ cursor: 'grab' }}
           >
             <div className="flex items-center gap-2">
@@ -1633,16 +1642,28 @@ export default function TeleprompterView() {
                 <span className={'w-2 h-2 rounded-full ' + (isRecording ? 'bg-rose-500 animate-ping' : 'bg-slate-400')} />
                 <span>{isRecording ? 'Listening' : 'Mic Off (R)'}</span>
               </button>
-              <span className="text-[11px] font-mono text-slate-300 font-semibold px-2 py-0.5 rounded bg-white/10">
+              <span className="text-[11px] font-mono text-slate-300 font-semibold px-2 py-0.5 rounded bg-white/10 flex items-center gap-1">
                 ⏱️ {formatTimer(seconds)}
+                {wordCount > 0 && <span className="opacity-60 ml-0.5 font-normal">· {wordCount}w</span>}
               </span>
             </div>
 
-            <div className="hidden sm:flex items-center gap-1 text-[10px] text-slate-400 font-medium opacity-60">
-              <span>⋮⋮ Drag to reposition</span>
+            <div className="hidden md:flex items-center gap-1 text-[10px] text-slate-400 font-medium opacity-60">
+              <span>⋮⋮ Drag</span>
             </div>
 
             <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleScreenCapture('fullscreen')}
+                disabled={isScreenReading}
+                className="card-interactive px-2 py-1 rounded-lg text-[11px] font-bold bg-emerald-600/80 hover:bg-emerald-500 text-white border border-emerald-400/40 flex items-center gap-1 shadow-sm"
+                title="Capture & Solve Interviewer's Screen (⌘⇧S)"
+              >
+                {isScreenReading ? <Loader2 size={11} className="spin" /> : <Camera size={11} />}
+                <span className="hidden sm:inline">Snip (⌘⇧S)</span>
+              </button>
+
               <button
                 type="button"
                 onClick={copyAnswer}
@@ -1650,7 +1671,7 @@ export default function TeleprompterView() {
                 title="Copy Answer to Clipboard (Shortcut: C)"
               >
                 <Copy size={11} />
-                <span>Copy (C)</span>
+                <span className="hidden sm:inline">Copy (C)</span>
               </button>
 
               <button
@@ -1693,25 +1714,35 @@ export default function TeleprompterView() {
               <button
                 type="button"
                 onClick={handleToggleCompactWindow}
-                className="card-interactive p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition"
-                title="Toggle Compact Mini-HUD (540x340) vs Standard (1024x720)"
+                className="card-interactive px-2 py-1 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/15 text-slate-300 border border-white/10 flex items-center gap-1"
+                title={isCompactHeight ? "Restore full studio window (1024x720)" : "Switch to compact ribbon (680x240)"}
               >
-                <SlidersHorizontal size={12} />
+                <SlidersHorizontal size={11} />
+                <span className="hidden sm:inline">{isCompactHeight ? 'Expand' : 'Ribbon'}</span>
               </button>
 
               <button
                 type="button"
                 onClick={toggleInterviewFocusMode}
                 className="card-interactive px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1"
-                title="Exit Focus Mode (Show full studio controls)"
+                title={isInterviewFocusMode ? "Exit Focus Mode (Show full studio controls)" : "Enter Focus Mode (Hide clutter)"}
               >
-                <span>👁️ Full</span>
+                <span>{isInterviewFocusMode ? '👁️ Full' : '🎯 Focus'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.electronAPI?.toggleVisibility?.()}
+                className="card-interactive p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                title="Instant Stealth Vanish (Esc or ⌘\)"
+              >
+                <EyeOff size={11} />
               </button>
             </div>
           </div>
         )}
         {/* Active Detected Question Header & Done Answering Button */}
-        {!isInterviewFocusMode && currentQuestion && (
+        {!isRibbonMode && currentQuestion && (
           <div
             style={{
               display: 'flex',
@@ -2030,7 +2061,7 @@ export default function TeleprompterView() {
           {currentAnswer ? (
             <div>
               {/* Live Answer Steering Actions */}
-              {!isGenerating && (
+              {!isRibbonMode && !isGenerating && (
                 <div
                   style={{
                     display: 'flex',
@@ -2256,11 +2287,11 @@ export default function TeleprompterView() {
                 }
 
                 return (
-                  <div key={idx} className="floating-prompter-card p-5 sm:p-7 my-3 shadow-2xl">
+                  <div key={idx} className={"floating-prompter-card shadow-2xl " + (isRibbonMode ? "p-3 sm:p-4 my-1.5" : "p-5 sm:p-7 my-3")}>
                     <RecitalTeleprompterText
                       text={text}
                       fontSize={teleprompterFontSize}
-                      isInterviewFocusMode={isInterviewFocusMode}
+                      isInterviewFocusMode={isRibbonMode}
                     />
                   </div>
                 );
@@ -2281,7 +2312,7 @@ export default function TeleprompterView() {
               )}
 
               {/* Layer 6: Predicted Follow-Ups Panel */}
-              {predictedFollowUps && predictedFollowUps.length > 0 && !isGenerating && (
+              {!isRibbonMode && predictedFollowUps && predictedFollowUps.length > 0 && !isGenerating && (
                 <FollowUpPredictions
                   followUps={predictedFollowUps}
                   onSelect={(fu) => handleTriggerQuestion(fu)}
@@ -2346,6 +2377,44 @@ export default function TeleprompterView() {
               >
                 <div className="skeleton-shimmer" style={{ height: "12px", width: "40%" }} />
                 <div className="skeleton-shimmer" style={{ height: "12px", width: "65%" }} />
+              </div>
+            </div>
+          ) : isRibbonMode ? (
+            <div className="floating-prompter-card p-4 sm:p-5 my-auto max-w-xl mx-auto flex flex-col items-center justify-center text-center shadow-2xl select-none">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className={"w-2.5 h-2.5 rounded-full " + (isListening ? "bg-emerald-400 animate-pulse" : "bg-indigo-400")} />
+                <span className="text-xs font-bold text-white tracking-wide">
+                  {isListening ? "Live Copilot Active — Listening for Interview Question..." : "AI Technical Copilot Standby"}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 mb-3 max-w-md leading-relaxed">
+                Speak or paste a question to see real-time green recital text, or snip a coding problem directly off your screen.
+              </p>
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => handleScreenCapture('fullscreen')}
+                  disabled={isScreenReading}
+                  className="card-interactive px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-400/40 flex items-center gap-1.5 shadow-sm transition"
+                >
+                  {isScreenReading ? <Loader2 size={12} className="spin" /> : <Camera size={12} />}
+                  <span>Snip Screen (⌘⇧S)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTriggerQuestion("Explain the trade-offs between optimistic vs pessimistic locking in distributed systems.")}
+                  className="card-interactive px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600/70 hover:bg-indigo-500 text-indigo-100 border border-indigo-400/30 flex items-center gap-1.5 transition"
+                >
+                  <Sparkles size={12} />
+                  <span>Test Sample Question</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleInterviewFocusMode}
+                  className="card-interactive px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+                >
+                  Full Studio
+                </button>
               </div>
             </div>
           ) : (
@@ -2816,7 +2885,7 @@ export default function TeleprompterView() {
       </div>
 
       {/* ════════════ BOTTOM STEALTH TOOLBAR & INPUT BAR ════════════ */}
-      {!isInterviewFocusMode && (
+      {!isRibbonMode && (
       <div
         style={{
           display: 'flex',

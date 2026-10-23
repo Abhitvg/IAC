@@ -14,7 +14,7 @@ interface WordToken {
   clean: string;
 }
 
-function cleanWord(w: string): string {
+export function cleanWord(w: string): string {
   return w.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
