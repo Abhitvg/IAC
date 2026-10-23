@@ -53,8 +53,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1024,
     height: 720,
-    minWidth: 800,
-    minHeight: 600,
+    minWidth: 320,
+    minHeight: 160,
     title: 'AI Interview Practice Gym',
     frame: true,
     transparent: true,
@@ -307,6 +307,24 @@ ipcMain.on('window:toggle-always-on-top', () => {
   }
 });
 ipcMain.handle('window:is-always-on-top', () => mainWindow?.isAlwaysOnTop() ?? false);
+
+ipcMain.handle('window:set-size', (_event, width: number, height: number) => {
+  if (!mainWindow) return false;
+  try {
+    mainWindow.setSize(Math.round(width), Math.round(height));
+    return true;
+  } catch (err) {
+    console.error('[Electron] Failed to set window size:', err);
+    return false;
+  }
+});
+
+ipcMain.handle('window:get-size', () => {
+  if (!mainWindow) return { width: 1024, height: 720 };
+  const [width, height] = mainWindow.getSize();
+  return { width, height };
+});
+
 
 ipcMain.handle('window:set-opacity', (_event, opacity: number) => {
   if (!mainWindow) return false;

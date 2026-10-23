@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleContentProtection: () => ipcRenderer.send('window:toggle-content-protection'),
   setWindowOpacity: (opacity: number) => ipcRenderer.invoke('window:set-opacity', opacity),
   getWindowOpacity: () => ipcRenderer.invoke('window:get-opacity'),
+  setWindowSize: (width: number, height: number) => ipcRenderer.invoke('window:set-size', width, height),
+  getWindowSize: () => ipcRenderer.invoke('window:get-size'),
 
   // Paths
   getRecordingsDir: () => ipcRenderer.invoke('get-recordings-dir'),

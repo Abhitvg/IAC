@@ -191,6 +191,8 @@ export interface ElectronAPI {
   toggleContentProtection?: () => void;
   setWindowOpacity?: (opacity: number) => Promise<boolean>;
   getWindowOpacity?: () => Promise<number>;
+  setWindowSize?: (width: number, height: number) => Promise<boolean>;
+  getWindowSize?: () => Promise<{ width: number; height: number }>;
   getRecordingsDir: () => Promise<string>;
   getSessionsDir: () => Promise<string>;
   getUserDataPath: () => Promise<string>;

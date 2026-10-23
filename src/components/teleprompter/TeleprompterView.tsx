@@ -1,4 +1,5 @@
 import { detectLanguageHint } from '../../services/screenSolver';
+import { RecitalTeleprompterText } from './RecitalTeleprompterText';
 import { readAndParseFile } from '../../services/resume';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
@@ -434,6 +435,10 @@ export default function TeleprompterView() {
     currentAnswer,
     status,
     diagnosticState,
+    isRecording,
+    isInterviewFocusMode,
+    setInterviewFocusMode,
+    toggleInterviewFocusMode,
     teleprompterFontSize,
     setTeleprompterFontSize,
     isAutoScrolling,
@@ -811,6 +816,18 @@ export default function TeleprompterView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentAnswer, doneAnswering, restorePreviousQuestion, redoQuestion, markQuestionIncomplete]);
 
+  
+  const handleToggleCompactWindow = async () => {
+    if (typeof window !== 'undefined' && window.electronAPI?.setWindowSize) {
+      const size = await window.electronAPI.getWindowSize?.();
+      if (size && size.width <= 600) {
+        await window.electronAPI.setWindowSize(1024, 720);
+      } else {
+        await window.electronAPI.setWindowSize(540, 340);
+      }
+    }
+  };
+
   const handleRestartScrolling = () => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -952,6 +969,8 @@ export default function TeleprompterView() {
       )}
 
       {/* ════════════ TOP TELEPROMPTER CONTROL BAR ════════════ */}
+      {!isInterviewFocusMode && (
+        <>
       <div
         className="teleprompter-draggable"
         style={{
@@ -1577,6 +1596,8 @@ export default function TeleprompterView() {
           </div>
         </div>
       )}
+        </>
+      )}
 
       {/* ════════════ MIDDLE TELEPROMPTER BODY ════════════ */}
       <div
@@ -1591,8 +1612,106 @@ export default function TeleprompterView() {
           userSelect: 'text',
         }}
       >
+                {/* Minimal Distraction-Free Interview HUD Pill */}
+        {isInterviewFocusMode && (
+          <div
+            className="teleprompter-draggable flex items-center justify-between px-3.5 py-2 mb-3 floating-hud-pill mx-auto w-full select-none"
+            style={{ cursor: 'grab' }}
+          >
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleRecording}
+                className="card-interactive px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 transition"
+                style={{
+                  background: isRecording ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                  color: isRecording ? '#f87171' : '#cbd5e1',
+                  border: isRecording ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(255, 255, 255, 0.12)',
+                }}
+                title="Toggle Microphone (Shortcut: R)"
+              >
+                <span className={'w-2 h-2 rounded-full ' + (isRecording ? 'bg-rose-500 animate-ping' : 'bg-slate-400')} />
+                <span>{isRecording ? 'Listening' : 'Mic Off (R)'}</span>
+              </button>
+              <span className="text-[11px] font-mono text-slate-300 font-semibold px-2 py-0.5 rounded bg-white/10">
+                ⏱️ {formatTimer(seconds)}
+              </span>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-1 text-[10px] text-slate-400 font-medium opacity-60">
+              <span>⋮⋮ Drag to reposition</span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={copyAnswer}
+                className="card-interactive px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white/10 hover:bg-white/15 text-slate-200 border border-white/10 flex items-center gap-1"
+                title="Copy Answer to Clipboard (Shortcut: C)"
+              >
+                <Copy size={11} />
+                <span>Copy (C)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={clearAndResetToListen}
+                className="card-interactive px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600/90 hover:bg-indigo-500 text-white border border-indigo-400/30 flex items-center gap-1 shadow-sm"
+                title="Next Question / Clear Answer (Shortcut: Space or ⌘K)"
+              >
+                <Sparkles size={11} />
+                <span>Next (Space)</span>
+              </button>
+
+              <div className="flex items-center bg-black/40 rounded-lg p-0.5 border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sizes: TeleprompterFontSize[] = ['small', 'medium', 'large', 'xlarge'];
+                    const idx = sizes.indexOf(teleprompterFontSize);
+                    if (idx > 0) setTeleprompterFontSize(sizes[idx - 1]);
+                  }}
+                  className="px-1.5 py-0.5 text-[10px] text-slate-300 hover:text-white"
+                  title="Decrease Font Size"
+                >
+                  A-
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sizes: TeleprompterFontSize[] = ['small', 'medium', 'large', 'xlarge'];
+                    const idx = sizes.indexOf(teleprompterFontSize);
+                    if (idx < sizes.length - 1) setTeleprompterFontSize(sizes[idx + 1]);
+                  }}
+                  className="px-1.5 py-0.5 text-[10px] text-slate-300 hover:text-white"
+                  title="Increase Font Size"
+                >
+                  A+
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleCompactWindow}
+                className="card-interactive p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition"
+                title="Toggle Compact Mini-HUD (540x340) vs Standard (1024x720)"
+              >
+                <SlidersHorizontal size={12} />
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleInterviewFocusMode}
+                className="card-interactive px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1"
+                title="Exit Focus Mode (Show full studio controls)"
+              >
+                <span>👁️ Full</span>
+              </button>
+            </div>
+          </div>
+        )}
         {/* Active Detected Question Header & Done Answering Button */}
-        {currentQuestion && (
+        {!isInterviewFocusMode && currentQuestion && (
           <div
             style={{
               display: 'flex',
@@ -2087,7 +2206,7 @@ export default function TeleprompterView() {
                 </div>
               )}
 
-              {(responseMode === 'quiz' || currentAnswer?.includes('CORRECT ANSWER:')) && (
+        {(responseMode === 'quiz' || currentAnswer?.includes('CORRECT ANSWER:')) && (
                 <QuizAnswerCard
                   answerText={currentAnswer}
                   onCopy={(text) => {
@@ -2137,8 +2256,12 @@ export default function TeleprompterView() {
                 }
 
                 return (
-                  <div key={idx} style={{ whiteSpace: 'pre-wrap', marginBottom: '12px' }}>
-                    {text}
+                  <div key={idx} className="floating-prompter-card p-5 sm:p-7 my-3 shadow-2xl">
+                    <RecitalTeleprompterText
+                      text={text}
+                      fontSize={teleprompterFontSize}
+                      isInterviewFocusMode={isInterviewFocusMode}
+                    />
                   </div>
                 );
               })}
@@ -2693,6 +2816,7 @@ export default function TeleprompterView() {
       </div>
 
       {/* ════════════ BOTTOM STEALTH TOOLBAR & INPUT BAR ════════════ */}
+      {!isInterviewFocusMode && (
       <div
         style={{
           display: 'flex',
@@ -3084,6 +3208,7 @@ export default function TeleprompterView() {
           )}
         </div>
       </div>
+      )}
 
       {/* Shortcuts Quick-Ref Modal */}
       {showShortcuts && (

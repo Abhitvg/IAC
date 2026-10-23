@@ -49,6 +49,9 @@ export interface TranscriptMessage {
 export type TeleprompterFontSize = 'small' | 'medium' | 'large' | 'xlarge';
 
 interface InterviewState {
+  isInterviewFocusMode: boolean;
+  setInterviewFocusMode: (focus: boolean) => void;
+  toggleInterviewFocusMode: () => void;
   teleprompterFontSize: TeleprompterFontSize;
   setTeleprompterFontSize: (size: TeleprompterFontSize) => void;
   isAutoScrolling: boolean;
@@ -159,6 +162,9 @@ let _pendingTokens = '';
 let _tokenBatchTimeout: any = null;
 
 export const useAppStore = create<InterviewState>((set, get) => ({
+  isInterviewFocusMode: false,
+  setInterviewFocusMode: (isInterviewFocusMode) => set({ isInterviewFocusMode }),
+  toggleInterviewFocusMode: () => set((state) => ({ isInterviewFocusMode: !state.isInterviewFocusMode })),
   teleprompterFontSize: 'medium',
   setTeleprompterFontSize: (teleprompterFontSize) => set({ teleprompterFontSize }),
   isAutoScrolling: true,

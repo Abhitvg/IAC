@@ -30,6 +30,8 @@ export default function App() {
     setSettingsOpen,
     setSessionsOpen,
     windowOpacity,
+    isInterviewFocusMode,
+    toggleInterviewFocusMode,
   } = useAppStore();
 
   const {
@@ -105,6 +107,12 @@ export default function App() {
         return;
       if (settingsOpen || sessionsOpen) return;
 
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.code === 'KeyF' || e.key.toLowerCase() === 'f')) {
+        e.preventDefault();
+        toggleInterviewFocusMode();
+        return;
+      }
+
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         clearAndResetToListen();
@@ -148,7 +156,8 @@ export default function App() {
         flexDirection: 'column',
       }}
     >
-      {/* Top Application Bar with Accessibility Landmark */}
+      {/* Top Application Bar with Accessibility Landmark (Hidden in Interview Focus Mode) */}
+      {!isInterviewFocusMode && (
       <header
         role="banner"
         className="px-3 sm:px-5"
@@ -411,6 +420,7 @@ export default function App() {
           </button>
         </div>
       </header>
+      )}
 
       {/* Main View Display: Dedicated Practice Gym */}
       <main
