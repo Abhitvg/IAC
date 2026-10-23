@@ -7,6 +7,10 @@ import {
   Play,
   Pause,
   RotateCcw,
+  Undo2,
+  Redo2,
+  Clock,
+  Hourglass,
   Mic,
   MicOff,
   Copy,
@@ -455,6 +459,15 @@ export default function TeleprompterView() {
     answerConfidence,
     predictedFollowUps,
     conversationHistory,
+    questionHistory,
+    redoQuestionHistory,
+    isIncompleteQuestionMode,
+    speechPauseTolerance,
+    restorePreviousQuestion,
+    redoQuestion,
+    setIsIncompleteQuestionMode,
+    markQuestionIncomplete,
+    setSpeechPauseTolerance,
   } = useAppStore();
 
   const isListening =
@@ -703,6 +716,34 @@ export default function TeleprompterView() {
         return;
       }
 
+      // Undo / Restore Previous Question (Cmd+Z or Cmd+[)
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        (e.code === 'KeyZ' || e.key.toLowerCase() === 'z' || e.code === 'BracketLeft' || e.key === '[')
+      ) {
+        e.preventDefault();
+        restorePreviousQuestion();
+        return;
+      }
+
+      // Redo to Next Question (Cmd+Shift+Z or Cmd+Y or Cmd+])
+      if (
+        ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.code === 'KeyZ' || e.key.toLowerCase() === 'z')) ||
+        ((e.metaKey || e.ctrlKey) && (e.code === 'KeyY' || e.key.toLowerCase() === 'y' || e.code === 'BracketRight' || e.key === ']'))
+      ) {
+        e.preventDefault();
+        redoQuestion();
+        return;
+      }
+
+      // Tell AI Question is Still Not Completed / Waiting for Continuation (Alt+C)
+      if (e.altKey && (e.code === 'KeyC' || e.key.toLowerCase() === 'c')) {
+        e.preventDefault();
+        markQuestionIncomplete();
+        return;
+      }
+
       // Clear / Next Question Shortcut: Cmd+K or Cmd+Backspace
       if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'k' || e.key === 'Backspace')) {
         e.preventDefault();
@@ -765,7 +806,7 @@ export default function TeleprompterView() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentAnswer, doneAnswering]);
+  }, [currentAnswer, doneAnswering, restorePreviousQuestion, redoQuestion, markQuestionIncomplete]);
 
   const handleRestartScrolling = () => {
     if (scrollRef.current) {
@@ -1135,6 +1176,109 @@ export default function TeleprompterView() {
             {scrollSpeed}x
           </button>
 
+          {/* Undo Disruption / Back Button */}
+          <button
+            onClick={restorePreviousQuestion}
+            disabled={!questionHistory || questionHistory.length === 0}
+            title={
+              questionHistory && questionHistory.length > 0
+                ? `Back: Restore previous question & answer (Shortcut: ⌘Z or ⌘[) [${questionHistory.length} in stack]`
+                : 'Back: No previous questions in history (⌘Z)'
+            }
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              background:
+                !questionHistory || questionHistory.length === 0
+                  ? 'rgba(255, 255, 255, 0.04)'
+                  : 'rgba(99, 102, 241, 0.24)',
+              color:
+                !questionHistory || questionHistory.length === 0
+                  ? '#64748b'
+                  : '#c7d2fe',
+              border:
+                !questionHistory || questionHistory.length === 0
+                  ? '1px solid rgba(255, 255, 255, 0.06)'
+                  : '1px solid rgba(129, 140, 248, 0.45)',
+              borderRadius: '4px',
+              padding: isUltraCompact ? '3px 5px' : '4px 7px',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor:
+                !questionHistory || questionHistory.length === 0
+                  ? 'not-allowed'
+                  : 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Undo2 size={11} />
+            <span>Back{questionHistory && questionHistory.length > 0 ? ` (${questionHistory.length})` : ''}</span>
+          </button>
+
+          {redoQuestionHistory && redoQuestionHistory.length > 0 && (
+            <button
+              onClick={redoQuestion}
+              title="Redo to next question (Shortcut: ⌘⇧Z or ⌘])"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '2px',
+                background: 'rgba(99, 102, 241, 0.18)',
+                color: '#c7d2fe',
+                border: '1px solid rgba(129, 140, 248, 0.35)',
+                borderRadius: '4px',
+                padding: '4px 6px',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <Redo2 size={11} />
+            </button>
+          )}
+
+          {/* Speech Pause Tolerance Selector */}
+          {!isUltraCompact && (
+            <div
+              title="Pause Tolerance: How long interviewer can pause mid-sentence before AI answers (Normal: 1.0s, Patient: 1.5s, Long: 2.0s)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '4px',
+                padding: '2px 5px',
+                fontSize: '10px',
+                color: '#cbd5e1',
+              }}
+            >
+              <Clock size={10} style={{ color: '#818cf8', flexShrink: 0 }} />
+              <select
+                value={speechPauseTolerance || 1000}
+                onChange={(e) => setSpeechPauseTolerance(Number(e.target.value))}
+                style={{
+                  background: 'transparent',
+                  color: '#e2e8f0',
+                  border: 'none',
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  outline: 'none',
+                  padding: '1px 0',
+                }}
+              >
+                <option value={700} style={{ background: '#0f172a', color: '#fff' }}>⚡ 0.7s Fast</option>
+                <option value={1000} style={{ background: '#0f172a', color: '#fff' }}>⏱️ 1.0s Normal</option>
+                <option value={1500} style={{ background: '#0f172a', color: '#fff' }}>🧘 1.5s Patient</option>
+                <option value={2000} style={{ background: '#0f172a', color: '#fff' }}>⏳ 2.0s Long</option>
+              </select>
+            </div>
+          )}
+
           {/* Live Session Timer Badge */}
           <div
             onClick={() => setTimerRunning(!timerRunning)}
@@ -1478,30 +1622,148 @@ export default function TeleprompterView() {
               </span>
             </div>
 
-            {currentAnswer && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              {/* Back / Undo button right on Question Card */}
               <button
-                onClick={doneAnswering}
-                title="Mark answer complete and listen for next question (or press Space)"
+                onClick={restorePreviousQuestion}
+                disabled={!questionHistory || questionHistory.length === 0}
+                title="Disrupted by background speech? Restore previous question & answer (Shortcut: ⌘Z)"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  background: 'rgba(34, 197, 94, 0.2)',
-                  border: '1px solid rgba(74, 222, 128, 0.5)',
-                  color: '#86efac',
+                  gap: '3px',
+                  background:
+                    !questionHistory || questionHistory.length === 0
+                      ? 'rgba(255, 255, 255, 0.05)'
+                      : 'rgba(99, 102, 241, 0.28)',
+                  border:
+                    !questionHistory || questionHistory.length === 0
+                      ? '1px solid rgba(255, 255, 255, 0.1)'
+                      : '1px solid rgba(129, 140, 248, 0.5)',
+                  color: !questionHistory || questionHistory.length === 0 ? '#64748b' : '#c7d2fe',
                   borderRadius: '4px',
-                  padding: '3px 8px',
+                  padding: '3px 7px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: !questionHistory || questionHistory.length === 0 ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Undo2 size={11} />
+                <span>Back</span>
+              </button>
+
+              {/* Still Speaking / Question Not Completed Button */}
+              <button
+                onClick={markQuestionIncomplete}
+                title="Interviewer paused mid-thought? Click to tell AI the question is not completed yet (Shortcut: Alt+C). The next speech will append automatically."
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  background: isIncompleteQuestionMode ? 'rgba(245, 158, 11, 0.38)' : 'rgba(245, 158, 11, 0.2)',
+                  border: '1px solid rgba(245, 158, 11, 0.55)',
+                  color: '#fde68a',
+                  borderRadius: '4px',
+                  padding: '3px 7px',
                   fontSize: '11px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
-                  flexShrink: 0,
                 }}
               >
-                <CheckCircle2 size={12} />
-                <span>Done Answering (Space)</span>
+                <Hourglass size={11} />
+                <span>⏳ Still Asking (Append)</span>
               </button>
-            )}
+
+              {currentAnswer && (
+                <button
+                  onClick={doneAnswering}
+                  title="Mark answer complete and listen for next question (or press Space)"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'rgba(34, 197, 94, 0.2)',
+                    border: '1px solid rgba(74, 222, 128, 0.5)',
+                    color: '#86efac',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  <CheckCircle2 size={12} />
+                  <span>Done (Space)</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Incomplete Question Continuation Banner */}
+        {isIncompleteQuestionMode && currentQuestion && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              background: 'linear-gradient(135deg, rgba(180, 83, 9, 0.38), rgba(120, 53, 15, 0.48))',
+              border: '1.5px solid rgba(245, 158, 11, 0.7)',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              marginBottom: '12px',
+              boxShadow: '0 4px 16px rgba(180, 83, 9, 0.35)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fef3c7', fontSize: '12px', fontWeight: 600 }}>
+              <Hourglass size={15} style={{ color: '#fbbf24', flexShrink: 0 }} />
+              <span>
+                <strong>Question Not Completed:</strong> AI is waiting for interviewer to finish. Next spoken words will automatically append to this question.
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              <button
+                onClick={() => {
+                  setIsIncompleteQuestionMode(false);
+                  if (currentQuestion) {
+                    InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: currentQuestion });
+                  }
+                }}
+                title="Interviewer is done — solve now"
+                style={{
+                  background: '#f59e0b',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                ✨ Solve Now
+              </button>
+              <button
+                onClick={() => setIsIncompleteQuestionMode(false)}
+                title="Cancel continuation mode"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  color: '#fde68a',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 

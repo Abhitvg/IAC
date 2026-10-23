@@ -17,6 +17,13 @@ const audioService = new AudioRecorder();
 let activeAbortController: AbortController | null = null;
 
 export class InterviewEngine {
+  static abortActiveGeneration() {
+    if (activeAbortController) {
+      activeAbortController.abort();
+      activeAbortController = null;
+    }
+  }
+
   static async handleEvent(event: any) {
     const store = useAppStore.getState();
 
@@ -170,16 +177,30 @@ export class InterviewEngine {
 
       case 'QUESTION_DETECTED': {
         globalLatencyTracker.mark('questionDetected');
-        // Abort previous running generation if another question arrives
-        if (activeAbortController) {
-          activeAbortController.abort();
-          activeAbortController = null;
+
+        const isExtending = store.isIncompleteQuestionMode && Boolean(store.currentQuestion);
+        let finalQuestion = event.text;
+
+        if (isExtending && store.currentQuestion) {
+          finalQuestion = `${store.currentQuestion.trim()} ... ${event.text.trim()}`;
+          store.setIsIncompleteQuestionMode(false);
+          store.setToast(`➕ Appended continuation: "${event.text.slice(0, 45)}..."`);
+        } else {
+          if (store.currentQuestion && store.currentQuestion.trim() !== '') {
+            store.pushToQuestionHistory({
+              question: store.currentQuestion,
+              answer: store.currentAnswer,
+              confidence: store.answerConfidence,
+            });
+          }
         }
+
+        InterviewEngine.abortActiveGeneration();
 
         activeAbortController = new AbortController();
         store.incrementGenerationId();
         store.clearAnswerQueue();
-        store.setCurrentQuestion(event.text);
+        store.setCurrentQuestion(finalQuestion);
         store.setCurrentAnswer('');
         store.setStatus('analyzing');
         store.setRecitalState('listening');
@@ -343,10 +364,14 @@ export class InterviewEngine {
 
       case 'SCREEN_PROBLEM_DETECTED': {
         globalLatencyTracker.mark('questionDetected');
-        if (activeAbortController) {
-          activeAbortController.abort();
-          activeAbortController = null;
+        if (store.currentQuestion && store.currentQuestion.trim() !== '') {
+          store.pushToQuestionHistory({
+            question: store.currentQuestion,
+            answer: store.currentAnswer,
+            confidence: store.answerConfidence,
+          });
         }
+        InterviewEngine.abortActiveGeneration();
 
         activeAbortController = new AbortController();
         store.incrementGenerationId();

@@ -23,7 +23,7 @@ export class AudioRecorder {
   private silenceThreshold = -52; // dB threshold for silence
   private lastSpeechTime = 0;
   private speechStartDetectedTime = 0;
-  private speechSilenceDuration = 550; // ms silence before finalizing utterance (optimized for 300ms faster response)
+  private speechSilenceDuration = 1000; // ms silence before finalizing utterance (optimized for 300ms faster response)
   private minUtteranceSamples = 16000 * 0.35; // minimum 0.35s of speech
   private maxUtteranceSamples = 16000 * 35; // 35s max duration guard
   private lastDbUpdate = 0;
@@ -36,6 +36,10 @@ export class AudioRecorder {
     this.utteranceChunks = [];
     this.totalUtteranceSamples = 0;
     this.preRollBuffer.fill(0);
+    const storeTolerance = useAppStore.getState().speechPauseTolerance;
+    if (typeof storeTolerance === 'number' && storeTolerance >= 400) {
+      this.speechSilenceDuration = storeTolerance;
+    }
     this.preRollIndex = 0;
 
     try {
@@ -153,8 +157,9 @@ export class AudioRecorder {
       this.utteranceChunks.push(resampled);
       this.totalUtteranceSamples += resampled.length;
 
+      const currentSilenceDuration = useAppStore.getState().speechPauseTolerance || this.speechSilenceDuration;
       const isSilenceTimeout =
-        db < this.silenceThreshold && now - this.lastSpeechTime >= this.speechSilenceDuration;
+        db < this.silenceThreshold && now - this.lastSpeechTime >= currentSilenceDuration;
       const isMaxDurationReached = this.totalUtteranceSamples >= this.maxUtteranceSamples;
 
       if (isSilenceTimeout || isMaxDurationReached) {
@@ -187,6 +192,14 @@ export class AudioRecorder {
 
     this.utteranceChunks = [];
     this.totalUtteranceSamples = 0;
+  }
+
+  setSilenceDuration(ms: number): void {
+    this.speechSilenceDuration = Math.max(400, Math.min(3500, ms));
+  }
+
+  getSilenceDuration(): number {
+    return this.speechSilenceDuration;
   }
 
   async stop(): Promise<void> {

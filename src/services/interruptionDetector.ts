@@ -23,6 +23,7 @@ export interface UtteranceClassification {
   reason: string;
   questionText?: string;
   overlapScore?: number;
+  isIncomplete?: boolean;
 }
 
 const STOP_WORDS = new Set([
@@ -80,6 +81,17 @@ const STOP_WORDS = new Set([
   'er',
   'across',
 ]);
+
+export const INCOMPLETE_CONNECTORS = /\b(and|or|because|so|with|that|to|if|while|as well as|such as|for instance|like|when|where|which|in terms of|regarding|about)$/i;
+
+export function isIncompleteSentence(text: string): boolean {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return false;
+  if (INCOMPLETE_CONNECTORS.test(trimmed)) return true;
+  // Trailing comma, dash, or ellipsis (2 or more dots) indicates incomplete utterance
+  if (/(?:,|\.{2,4}|–|—|-)$/.test(trimmed)) return true;
+  return false;
+}
 
 /** Extract meaningful lowercase word tokens */
 export function extractTokens(text: string): string[] {
@@ -259,7 +271,7 @@ export function classifyUtterance(
 
     // D. Low overlap (>= 2 words, < 8% overlap) that isn't first-person recital -> New prompt/question
     const wordCount = trimmed.split(/\s+/).length;
-    if (wordCount >= 2 && compositeScore < 0.08 && !isFirstPersonNarrative) {
+    if (wordCount >= 4 && compositeScore < 0.08 && !isFirstPersonNarrative) {
       return {
         type: 'INTERVIEWER_INTERRUPTION',
         confidence: 0.88,

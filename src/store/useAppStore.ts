@@ -32,6 +32,13 @@ export interface DiagnosticState {
   lastInterruption?: string | null;
 }
 
+export interface QuestionHistoryItem {
+  question: string;
+  answer: string | null;
+  confidence?: 'high' | 'medium' | 'low' | null;
+  timestamp?: number;
+}
+
 export interface TranscriptMessage {
   id: string;
   speaker: 'interviewer' | 'assistant' | 'user' | 'unknown';
@@ -85,6 +92,18 @@ interface InterviewState {
   }>;
   addToConversationHistory: (entry: { question: string; answer: string; category: string }) => void;
   clearConversationHistory: () => void;
+
+  // History Stack & Incomplete Question Continuation
+  questionHistory: QuestionHistoryItem[];
+  redoQuestionHistory: QuestionHistoryItem[];
+  isIncompleteQuestionMode: boolean;
+  speechPauseTolerance: number;
+  pushToQuestionHistory: (item: QuestionHistoryItem) => void;
+  restorePreviousQuestion: () => boolean;
+  redoQuestion: () => boolean;
+  setIsIncompleteQuestionMode: (incomp: boolean) => void;
+  markQuestionIncomplete: () => void;
+  setSpeechPauseTolerance: (ms: number) => void;
 
   // Answer Confidence & Follow-Up Predictions
   answerConfidence: 'high' | 'medium' | 'low' | null;
@@ -195,6 +214,119 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     }),
   clearConversationHistory: () => set({ conversationHistory: [] }),
 
+  questionHistory: [],
+  redoQuestionHistory: [],
+  isIncompleteQuestionMode: false,
+  speechPauseTolerance: (() => {
+    try {
+      const saved = localStorage.getItem('interview_speech_pause_tolerance');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 400) return parsed;
+      }
+    } catch (_) {}
+    return 1000;
+  })(),
+
+  pushToQuestionHistory: (item) =>
+    set((state) => {
+      const last = state.questionHistory[state.questionHistory.length - 1];
+      if (last && last.question.trim() === item.question.trim()) {
+        return state;
+      }
+      const updated = [...state.questionHistory, { ...item, timestamp: Date.now() }].slice(-25);
+      return { questionHistory: updated, redoQuestionHistory: [] };
+    }),
+
+  restorePreviousQuestion: () => {
+    InterviewEngine.abortActiveGeneration();
+    const { questionHistory, redoQuestionHistory, currentQuestion, currentAnswer, answerConfidence } = get();
+    if (!questionHistory || questionHistory.length === 0) {
+      get().setToast('⚠️ No previous question in history');
+      return false;
+    }
+    const historyCopy = [...questionHistory];
+    const prevItem = historyCopy.pop()!;
+
+    const redoCopy = [...redoQuestionHistory];
+    if (currentQuestion && currentQuestion.trim() !== '') {
+      redoCopy.push({
+        question: currentQuestion,
+        answer: currentAnswer,
+        confidence: answerConfidence,
+        timestamp: Date.now(),
+      });
+    }
+
+    set({
+      questionHistory: historyCopy,
+      redoQuestionHistory: redoCopy.slice(-25),
+      currentQuestion: prevItem.question,
+      currentAnswer: prevItem.answer,
+      answerConfidence: prevItem.confidence || null,
+      status: 'ready',
+      recitalState: 'reciting',
+      isIncompleteQuestionMode: false,
+    });
+    get().setToast(`⬅️ Restored: "${prevItem.question.slice(0, 36)}..."`);
+    return true;
+  },
+
+  redoQuestion: () => {
+    InterviewEngine.abortActiveGeneration();
+    const { questionHistory, redoQuestionHistory, currentQuestion, currentAnswer, answerConfidence } = get();
+    if (!redoQuestionHistory || redoQuestionHistory.length === 0) {
+      return false;
+    }
+    const redoCopy = [...redoQuestionHistory];
+    const nextItem = redoCopy.pop()!;
+
+    const historyCopy = [...questionHistory];
+    if (currentQuestion && currentQuestion.trim() !== '') {
+      historyCopy.push({
+        question: currentQuestion,
+        answer: currentAnswer,
+        confidence: answerConfidence,
+        timestamp: Date.now(),
+      });
+    }
+
+    set({
+      questionHistory: historyCopy.slice(-25),
+      redoQuestionHistory: redoCopy,
+      currentQuestion: nextItem.question,
+      currentAnswer: nextItem.answer,
+      answerConfidence: nextItem.confidence || null,
+      status: 'ready',
+      recitalState: 'reciting',
+      isIncompleteQuestionMode: false,
+    });
+    get().setToast(`➡️ Restored forward: "${nextItem.question.slice(0, 36)}..."`);
+    return true;
+  },
+
+  setIsIncompleteQuestionMode: (isIncompleteQuestionMode: boolean) =>
+    set({ isIncompleteQuestionMode }),
+
+  markQuestionIncomplete: () => {
+    InterviewEngine.abortActiveGeneration();
+    set({
+      isIncompleteQuestionMode: true,
+      status: 'listening',
+      recitalState: 'listening',
+    });
+    get().setToast('⏳ "Still speaking" mode on — speech will append to this question.');
+  },
+
+  setSpeechPauseTolerance: (ms: number) => {
+    const clamped = Math.max(400, Math.min(3500, ms));
+    try {
+      localStorage.setItem('interview_speech_pause_tolerance', String(clamped));
+    } catch (_) {}
+    set({ speechPauseTolerance: clamped });
+    get().setToast(`⏱️ Speech pause tolerance: ${clamped}ms`);
+  },
+
   // Answer Confidence & Follow-Up Predictions
   answerConfidence: null,
   setAnswerConfidence: (answerConfidence) => set({ answerConfidence }),
@@ -294,8 +426,16 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     }),
 
   clearAndResetToListen: () => {
+    const { currentQuestion, currentAnswer, answerConfidence } = get();
+    if (currentQuestion && currentQuestion.trim() !== '') {
+      get().pushToQuestionHistory({
+        question: currentQuestion,
+        answer: currentAnswer,
+        confidence: answerConfidence,
+      });
+    }
     get().clearAnswerQueue();
-    get().setToast('✨ Teleprompter cleared! Ready for next question.');
+    get().setToast('✨ Teleprompter cleared (⌘Z to restore). Ready for next question.');
     get().updateDiagnostics({
       whisperStatus: 'Ready for question (mic active)',
       latestTranscript: '',
@@ -347,6 +487,13 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       const savedJD = localStorage.getItem('target_job_description');
       const savedRole = localStorage.getItem('target_role');
       const savedMode = localStorage.getItem('interview_response_mode');
+      const savedTolerance = localStorage.getItem('interview_speech_pause_tolerance');
+      if (savedTolerance) {
+        const parsed = parseInt(savedTolerance, 10);
+        if (!isNaN(parsed) && parsed >= 400) {
+          set({ speechPauseTolerance: parsed });
+        }
+      }
 
       // If stored resume is legacy/dummy placeholder, reset to Abhishek Singh verified resume
       const isLegacy =
