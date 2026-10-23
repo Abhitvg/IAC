@@ -1,3 +1,4 @@
+import { triggerCelebrationConfetti } from '../../utils/confetti';
 import React, { useState } from 'react';
 import { usePracticeStore } from '../../store/usePracticeStore';
 import { StoryBank } from '../../services/practice/StoryBank';
@@ -48,6 +49,7 @@ export const StoryBankView: React.FC = () => {
       competencies: ["high_impact_scale", "leadership", "ambiguity"],
     };
     saveStory(sampleStory);
+    triggerCelebrationConfetti();
   };
 
   const handleSave = () => {
@@ -65,6 +67,7 @@ export const StoryBankView: React.FC = () => {
     };
     saveStory(story);
     setEditingStory(null);
+    triggerCelebrationConfetti();
   };
 
   return (

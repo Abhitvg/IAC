@@ -1,3 +1,4 @@
+import { triggerCelebrationConfetti } from '../../utils/confetti';
 import React, { useEffect, useState } from 'react';
 import { usePracticeStore } from '../../store/usePracticeStore';
 import { useAppStore } from '../../store/useAppStore';
