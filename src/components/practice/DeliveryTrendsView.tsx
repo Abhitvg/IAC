@@ -2,7 +2,7 @@ import React from 'react';
 import { usePracticeStore } from '../../store/usePracticeStore';
 
 export const DeliveryTrendsView: React.FC = () => {
-  const { sessionHistory } = usePracticeStore();
+  const { sessionHistory, setActiveTab, startMockSession } = usePracticeStore();
 
   const sessionsWithDelivery = sessionHistory
     .filter((s) => s.questionHistory.some((q) => q.delivery))
@@ -26,9 +26,81 @@ export const DeliveryTrendsView: React.FC = () => {
       </div>
 
       {sessionCount === 0 ? (
-        <div className="p-8 bg-slate-900 border border-slate-800 rounded-2xl text-center text-slate-400 text-xs">
-          No delivery history recorded yet. Complete practice sessions to see your speech metrics
-          trend over time.
+        <div className="space-y-6">
+          {/* Motivational Hero Preview Card */}
+          <div className="p-6 sm:p-8 bg-gradient-to-br from-indigo-950/60 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-3xl space-y-4 shadow-xl">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[11px] font-extrabold uppercase tracking-widest text-indigo-400">
+                  Telemetry Engine Ready
+                </span>
+              </div>
+              <span className="text-xs text-slate-400">Baseline Target: 3 Completed Sessions</span>
+            </div>
+
+            <h3 className="text-xl sm:text-2xl font-black text-white">
+              Speech Fluency, Pacing &amp; Rambling Analytics
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+              Interviews are often lost to speaking too fast (&gt;170 WPM), freezing, or rambling past the 2-minute mark. Your practice engine measures syllable tempo, counts filler words, and detects signposting structure in real time.
+            </p>
+
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  startMockSession("behavioral");
+                  setActiveTab("arena");
+                }}
+                className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/25 transition active:scale-[0.98] flex items-center gap-2"
+              >
+                <span>⚡</span>
+                <span>Launch First 15-Minute Practice Session</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Target Metric Benchmark Cards (Preview) */}
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Target Benchmark Thresholds (What We Track)
+              </span>
+              <span className="text-[11px] text-indigo-400 font-semibold">Simulated Guidance</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-xl space-y-1">
+                <span className="text-[11px] font-bold uppercase text-slate-400">Speaking Pacing</span>
+                <div className="text-xl font-extrabold text-white">130 – 150 <span className="text-xs font-normal text-slate-400">WPM</span></div>
+                <p className="text-[10px] text-emerald-400">Conversational Sweet Spot</p>
+              </div>
+
+              <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-xl space-y-1">
+                <span className="text-[11px] font-bold uppercase text-slate-400">Filler Density</span>
+                <div className="text-xl font-extrabold text-white">&lt; 2.5%</div>
+                <p className="text-[10px] text-emerald-400">Um, ah, like, basically</p>
+              </div>
+
+              <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-xl space-y-1">
+                <span className="text-[11px] font-bold uppercase text-slate-400">Rambling Threshold</span>
+                <div className="text-xl font-extrabold text-white">&lt; 120s</div>
+                <p className="text-[10px] text-amber-400">Answers &gt; 2m lose attention</p>
+              </div>
+
+              <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-xl space-y-1">
+                <span className="text-[11px] font-bold uppercase text-indigo-400">Signposting Score</span>
+                <div className="text-xl font-extrabold text-white">4.5 <span className="text-xs font-normal text-slate-400">/ 5.0</span></div>
+                <p className="text-[10px] text-indigo-400">First / Next / Trade-off</p>
+              </div>
+
+              <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-xl space-y-1">
+                <span className="text-[11px] font-bold uppercase text-emerald-400">Concreteness</span>
+                <div className="text-xl font-extrabold text-white">4.5 <span className="text-xs font-normal text-slate-400">/ 5.0</span></div>
+                <p className="text-[10px] text-emerald-400">Metrics, QPS, latencies</p>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">

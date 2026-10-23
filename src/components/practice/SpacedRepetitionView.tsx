@@ -136,7 +136,7 @@ export const SpacedRepetitionView: React.FC = () => {
           {dailyQueue.map((item) => (
             <div
               key={item.topicId}
-              className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl flex justify-between items-center hover:border-slate-700 transition"
+              className="card-interactive p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl flex justify-between items-center hover:border-indigo-500/40"
             >
               <div className="space-y-1">
                 <span
@@ -175,7 +175,7 @@ export const SpacedRepetitionView: React.FC = () => {
           {topicMasteries.map((topic) => (
             <div
               key={topic.topicId}
-              className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-2.5"
+              className="card-interactive p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-2.5 hover:border-slate-700"
             >
               <div className="flex justify-between items-center">
                 <div>

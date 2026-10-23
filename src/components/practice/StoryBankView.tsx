@@ -34,6 +34,22 @@ export const StoryBankView: React.FC = () => {
     },
   };
 
+  
+  const handleLoadSample = () => {
+    const sampleStory: BehavioralStory = {
+      id: "sample-star-" + Date.now(),
+      title: "Migrated Payment Processing to Event-Driven Architecture",
+      companyProject: "Core Infrastructure",
+      situation: "Legacy monolithic checkout service suffered database deadlocks during peak flash sales, causing a 4.2% payment drop-off rate.",
+      task: "As Tech Lead, tasked with decoupling transaction verification into an asynchronous, idempotent event-driven pipeline within a 6-week deadline.",
+      action: "Architected an outbox pattern with Apache Kafka and Redis distributed locks for idempotent verification. Validated failover using Toxiproxy chaos testing.",
+      result: "Handled 18,000 peak QPS with zero deadlocks during peak season. Reduced p99 payment latency from 850ms to 95ms and preserved $2.4M in transactions.",
+      metrics: ["18,000 peak QPS handled", "p99 latency: 850ms -> 95ms", "0 payment deadlocks", "$2.4M saved"],
+      competencies: ["high_impact_scale", "leadership", "ambiguity"],
+    };
+    saveStory(sampleStory);
+  };
+
   const handleSave = () => {
     if (!editingStory || !editingStory.title) return;
     const story: BehavioralStory = {
@@ -131,46 +147,70 @@ export const StoryBankView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
         {(Object.keys(competencyLabels) as BehavioralCompetency[]).map((comp) => {
           const count = coverageReport.coverage[comp] || 0;
-          const isMissing = count === 0;
+          const hasStories = count > 0;
           return (
             <div
               key={comp}
-              className={`p-3.5 rounded-xl border ${
-                isMissing
-                  ? 'bg-rose-950/20 border-rose-500/30 text-rose-200'
-                  : 'bg-slate-900 border-slate-800 text-slate-200'
+              className={`card-interactive p-3.5 rounded-xl border transition ${
+                hasStories
+                  ? "bg-emerald-950/20 border-emerald-500/40 text-slate-100 shadow-sm shadow-emerald-500/5"
+                  : "bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700"
               }`}
             >
               <div className="flex justify-between items-start">
-                <span className="text-xs font-bold">{competencyLabels[comp].name}</span>
+                <span className="text-xs font-bold leading-tight">{competencyLabels[comp].name}</span>
                 <span
-                  className={`text-xs px-2 py-0.5 rounded font-extrabold ${
-                    isMissing
-                      ? 'bg-rose-500/30 text-rose-300'
-                      : 'bg-emerald-500/20 text-emerald-300'
+                  className={`text-[11px] px-2 py-0.5 rounded font-extrabold shrink-0 ml-1.5 ${
+                    hasStories
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                      : "bg-slate-800 text-slate-400 border border-slate-700"
                   }`}
                 >
-                  {count} stories
+                  {count} {count === 1 ? "story" : "stories"}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 mt-2 leading-snug">
                 {competencyLabels[comp].desc}
               </p>
-              {isMissing && (
-                <div className="mt-2 text-[10px] font-semibold text-rose-400">
-                  ⚠️ Critical Gap: 0 stories
-                </div>
-              )}
+              <div className="mt-2 text-[10px] font-semibold">
+                {hasStories ? (
+                  <span className="text-emerald-400 flex items-center gap-1">
+                    <span>✓</span>
+                    <span>Pillar active</span>
+                  </span>
+                ) : (
+                  <span className="text-slate-500">Target: 1+ story</span>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Gap Alerts */}
-      {coverageReport.gapAlerts.length > 0 && (
+      {/* Checklist / Coverage Banner */}
+      {storyBank.length === 0 ? (
+        <div className="p-4 bg-indigo-950/20 border border-indigo-500/30 rounded-xl flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg">📋</span>
+            <div>
+              <span className="font-bold text-indigo-300">Story Readiness Checklist: </span>
+              <span className="text-slate-300">
+                0/5 competency pillars covered. 5 well-crafted STAR stories will cover &gt;80% of behavioral questions.
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={handleLoadSample}
+            className="px-3 py-1 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 rounded-lg text-xs font-semibold whitespace-nowrap transition"
+          >
+            ✨ Load Sample Story
+          </button>
+        </div>
+      ) : coverageReport.gapAlerts.length > 0 ? (
         <div className="p-4 bg-amber-950/20 border border-amber-500/30 rounded-xl space-y-1.5">
-          <div className="text-xs font-bold uppercase text-amber-400">
-            Coverage Warnings ({coverageReport.coveragePercentage}% Ready)
+          <div className="text-xs font-bold uppercase text-amber-400 flex items-center gap-1.5">
+            <span>🎯</span>
+            <span>Coverage Optimization ({coverageReport.coveragePercentage}% Pillars Mastered)</span>
           </div>
           {coverageReport.gapAlerts.map((alert, i) => (
             <div key={i} className="text-xs text-amber-200 flex items-start gap-1.5">
@@ -178,6 +218,11 @@ export const StoryBankView: React.FC = () => {
               <span>{alert}</span>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 flex items-center gap-2 font-semibold">
+          <span>🎉</span>
+          <span>100% Competency Coverage Achieved! All 5 behavioral pillars have verified STAR stories.</span>
         </div>
       )}
 

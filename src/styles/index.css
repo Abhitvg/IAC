@@ -1448,3 +1448,80 @@ body {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   P0 Redesign Micro-Interactions & Drill Accent Tokens
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Interactive Card Micro-Interaction: Lift, Glow, Smooth Response */
+.card-interactive {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease,
+              background-color 0.2s ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.6), 0 0 15px 0 var(--hover-glow, rgba(99, 102, 241, 0.15));
+}
+
+.card-interactive:active {
+  transform: scale(0.985);
+}
+
+/* Drill Card Accents */
+.drill-card-rehearsal {
+  --hover-glow: rgba(129, 140, 248, 0.35);
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(129, 140, 248, 0.35);
+}
+.drill-card-rehearsal:hover {
+  border-color: rgba(165, 180, 252, 0.6);
+}
+
+.drill-card-dsa {
+  --hover-glow: rgba(56, 189, 248, 0.35);
+  background: linear-gradient(135deg, rgba(8, 47, 73, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.drill-card-dsa:hover {
+  border-color: rgba(125, 211, 252, 0.6);
+}
+
+.drill-card-sysdesign {
+  --hover-glow: rgba(245, 158, 11, 0.35);
+  background: linear-gradient(135deg, rgba(69, 26, 3, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.drill-card-sysdesign:hover {
+  border-color: rgba(251, 191, 36, 0.6);
+}
+
+.drill-card-star {
+  --hover-glow: rgba(244, 63, 94, 0.35);
+  background: linear-gradient(135deg, rgba(76, 5, 25, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+.drill-card-star:hover {
+  border-color: rgba(251, 113, 133, 0.6);
+}
+
+/* Glass Floating Popover for Progressive Disclosure */
+.glass-popover-panel {
+  background: rgba(15, 17, 28, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Soft Progress Ring / Circular Badge */
+@keyframes pulseSubtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.02); }
+}
+.pulse-subtle {
+  animation: pulseSubtle 3s ease-in-out infinite;
+}

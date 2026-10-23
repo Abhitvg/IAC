@@ -79,21 +79,98 @@ export const WeaknessMapView: React.FC = () => {
   if (feedbackRecords.length === 0) {
     return (
       <div className="space-y-6">
-        <div className="p-8 bg-slate-900 border border-slate-800 rounded-3xl text-center space-y-4">
-          <div className="w-16 h-16 bg-indigo-900/40 border border-indigo-500/30 rounded-2xl flex items-center justify-center mx-auto text-indigo-400">
-            <Target className="w-8 h-8" />
+        {/* Onboarding & Diagnostic Introduction */}
+        <div className="p-6 sm:p-8 bg-gradient-to-br from-indigo-950/60 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-3xl space-y-4 shadow-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[11px] font-extrabold uppercase tracking-widest text-indigo-400">
+              Evidence-Based Weakness Diagnostic
+            </span>
+            <span className="text-xs text-slate-400">Recency-Weighted Gap Aggregation</span>
           </div>
-          <h2 className="text-2xl font-black text-white">No Interview Feedback Imported Yet</h2>
-          <p className="text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
-            Paste real interview feedback reports into the Import Feedback tab. The app will redact
-            sensitive details, extract structured weaknesses, and rank your recurring gaps here.
+
+          <h2 className="text-2xl sm:text-3xl font-black text-white">
+            Transform Interview Rejections into a 7-Day Recovery Plan.
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+            Paste interview rejection emails or scorecard feedback into the Import tab. The system redacts private names, extracts recurring technical gaps, weights severity, and synthesizes a day-by-day practice curriculum.
           </p>
-          <button
-            onClick={() => setActiveTab('feedback')}
-            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition"
-          >
-            Go to Import Feedback
-          </button>
+
+          <div className="flex flex-wrap gap-3 pt-2">
+            <button
+              onClick={() => setActiveTab("feedback")}
+              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/25 transition active:scale-[0.98] flex items-center gap-2"
+            >
+              <span>📥</span>
+              <span>Import Real Interview Feedback</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("arena")}
+              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-2"
+            >
+              <span>⚡</span>
+              <span>Practice in Mock Arena</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Diagnostic Preview Showcase */}
+        <div>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Sample Diagnostic Output Preview
+            </span>
+            <span className="text-[11px] text-indigo-400 font-semibold">How Gaps Are Ranked</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-4 bg-slate-900/90 border border-rose-500/30 rounded-2xl space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                  HIGH SEVERITY
+                </span>
+                <span className="text-[10px] text-slate-400">Recurrence: 3 rounds</span>
+              </div>
+              <h4 className="text-xs font-bold text-white">Dynamic Programming State Space</h4>
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Interviewer noted freezing on memoization state definition and subproblem overlapping proof.
+              </p>
+              <div className="text-[10px] text-indigo-300 font-semibold pt-1">
+                &rarr; Auto-scheduled in Day 1 &amp; Day 3 Drills
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-900/90 border border-amber-500/30 rounded-2xl space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  MEDIUM SEVERITY
+                </span>
+                <span className="text-[10px] text-slate-400">Recurrence: 2 rounds</span>
+              </div>
+              <h4 className="text-xs font-bold text-white">Cache Invalidation Race Conditions</h4>
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Missed thundering herd prevention with Redis distributed locks during high-traffic reads.
+              </p>
+              <div className="text-[10px] text-indigo-300 font-semibold pt-1">
+                &rarr; Auto-scheduled in Day 2 System Design
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-900/90 border border-emerald-500/30 rounded-2xl space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  STRENGTH CONFIRMED
+                </span>
+                <span className="text-[10px] text-slate-400">Consistent Praise</span>
+              </div>
+              <h4 className="text-xs font-bold text-white">STAR Business Metrics Precision</h4>
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Explicit dollar revenue and latency improvements were cited as executive-grade communication.
+              </p>
+              <div className="text-[10px] text-emerald-400 font-semibold pt-1">
+                &rarr; Ready for Final Executive Round
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

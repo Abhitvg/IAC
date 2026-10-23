@@ -12,7 +12,35 @@ import { ExplainerDrillView } from './ExplainerDrillView';
 import { ProgressView } from './ProgressView';
 
 export const MockGymView: React.FC = () => {
-  const { activeTab, setActiveTab, activeSession, startMockSession } = usePracticeStore();
+  const {
+    activeTab,
+    setActiveTab,
+    activeSession,
+    startMockSession,
+    sessionHistory,
+    storyBank,
+    topicMasteries,
+  } = usePracticeStore();
+
+  const totalRounds = sessionHistory?.length || 0;
+  const storiesCount = storyBank?.length || 0;
+  const avgMastery =
+    topicMasteries && topicMasteries.length > 0
+      ? Math.round(
+          topicMasteries.reduce((acc, t) => acc + (t.masteryScore || 0), 0) /
+            topicMasteries.length
+        )
+      : 0;
+
+  const practiceStreak = totalRounds > 0 ? Math.min(Math.max(totalRounds, 1), 14) : 0;
+  const storyCoveragePct = Math.min(100, Math.round((storiesCount / 5) * 100));
+  const roundsScorePct = Math.min(100, Math.round((totalRounds / 5) * 100));
+  const readinessScore = Math.min(
+    100,
+    Math.round(storyCoveragePct * 0.3 + avgMastery * 0.4 + roundsScorePct * 0.3)
+  );
+
+  const isReturningUser = totalRounds > 0 || storiesCount > 0;
 
   const [selectedPersona, setSelectedPersona] = useState<InterviewPersona>('strict_big_tech');
   const [selectedPressure, setSelectedPressure] = useState<InterviewPressure>('normal');
@@ -156,98 +184,139 @@ export const MockGymView: React.FC = () => {
           ) : (
             <div className="space-y-6">
               {/* Hero Banner */}
-              <div className="relative overflow-hidden p-4 sm:p-8 bg-gradient-to-br from-indigo-950/70 via-slate-900/90 to-purple-950/40 border border-indigo-500/30 rounded-3xl shadow-2xl space-y-4">
+              <div className="relative overflow-hidden p-5 sm:p-8 bg-gradient-to-br from-indigo-950/80 via-slate-900/95 to-purple-950/50 border border-indigo-500/30 rounded-3xl shadow-2xl space-y-4">
                 <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-                    Evidence-Based Interview Practice Gym
-                  </span>
-                  <span className="flex items-center gap-1 text-[11px] text-slate-400 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    TTS Audio Ready
-                  </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {isReturningUser ? (
+                    <>
+                      <span className="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 shadow-sm">
+                        <span>🔥</span>
+                        <span>{practiceStreak}-Day Streak</span>
+                      </span>
+                      <span className="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 flex items-center gap-1.5 shadow-sm">
+                        <span>🎯</span>
+                        <span>{readinessScore}% Readiness Score</span>
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] text-slate-300 font-medium ml-auto">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        {totalRounds} Round{totalRounds === 1 ? "" : "s"} Logged
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                        Evidence-Based Interview Practice Gym
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        TTS Audio Ready
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 <h1 className="text-3xl sm:text-4xl font-black text-white leading-tight tracking-tight">
-                  Perform Under Real Pressure.
+                  {isReturningUser ? "Welcome back, Engineer." : "Perform Under Real Pressure."}
                 </h1>
 
                 <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-                  Real interviews are decided in the second and third question. Train against an AI
-                  interviewer with visible countdown timers, realistic notetaking pauses, mid-answer
-                  interruptions, and strict rubric evidence.
+                  {isReturningUser
+                    ? "Consistent deliberate practice compounds into interview fluency. Continue with your scheduled drills, simulate real interruptions, and track quantitative rubric scores."
+                    : "Real interviews are decided in the second and third question. Train against an AI interviewer with visible countdown timers, realistic notetaking pauses, mid-answer interruptions, and strict rubric evidence."}
                 </p>
 
-                {/* Quick Presets Grid */}
+                {/* Quick Presets Grid with Differentiated Vibrant Accents */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                  {/* Rehearsal */}
                   <button
-                    onClick={() => handleLaunch('dress_rehearsal')}
-                    className="p-3.5 bg-gradient-to-br from-indigo-600/90 to-purple-700/90 hover:from-indigo-500 hover:to-purple-600 text-white rounded-2xl shadow-lg shadow-indigo-600/20 border border-indigo-400/30 text-left transition hover:-translate-y-0.5 active:translate-y-0"
+                    onClick={() => handleLaunch("dress_rehearsal")}
+                    className="card-interactive drill-card-rehearsal p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
                   >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-base">🚀</span>
-                      <span className="px-2 py-0.5 bg-black/25 text-[10px] font-mono font-bold rounded">
-                        45m
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-lg">🚀</span>
+                      <span className="px-2 py-0.5 bg-black/40 text-[10px] font-mono font-bold rounded text-indigo-200 border border-indigo-400/30">
+                        45m · 5 Phases
                       </span>
                     </div>
-                    <div className="text-xs font-bold text-white">Full Dress Rehearsal</div>
+                    <div className="text-xs font-bold text-white group-hover:text-indigo-200 transition">
+                      Full Dress Rehearsal
+                    </div>
                     <div className="text-[11px] text-indigo-100/80 mt-0.5 leading-snug">
-                      5-phase simulation: Icebreaker to Q&A
+                      Icebreaker, DSA, System Design, STAR &amp; Q&amp;A
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-1 text-[10px] text-indigo-300 font-semibold">
+                      <span>✨</span>
+                      <span>Full-loop simulation</span>
                     </div>
                   </button>
 
+                  {/* DSA */}
                   <button
-                    onClick={() => handleLaunch('dsa_coding')}
-                    className="p-3.5 bg-slate-900/90 hover:bg-slate-800/90 text-slate-200 rounded-2xl border border-slate-700/80 hover:border-indigo-500/50 text-left transition hover:-translate-y-0.5 active:translate-y-0 group"
+                    onClick={() => handleLaunch("dsa_coding")}
+                    className="card-interactive drill-card-dsa p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
                   >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-base">💻</span>
-                      <span className="px-2 py-0.5 bg-slate-800 text-[10px] font-mono font-bold rounded text-indigo-300">
-                        25m
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-lg">💻</span>
+                      <span className="px-2 py-0.5 bg-black/40 text-[10px] font-mono font-bold rounded text-sky-200 border border-sky-400/30">
+                        25m · Algorithms
                       </span>
                     </div>
-                    <div className="text-xs font-bold text-white group-hover:text-indigo-300 transition">
+                    <div className="text-xs font-bold text-white group-hover:text-sky-200 transition">
                       DSA Coding Sprint
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
-                      Problem breakdown & Big-O proof
+                    <div className="text-[11px] text-sky-100/80 mt-0.5 leading-snug">
+                      Problem breakdown, edge cases &amp; Big-O proof
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-1 text-[10px] text-sky-300 font-semibold">
+                      <span>⚡</span>
+                      <span>Big-O rigor &amp; edge cases</span>
                     </div>
                   </button>
 
+                  {/* System Design */}
                   <button
-                    onClick={() => handleLaunch('system_design')}
-                    className="p-3.5 bg-slate-900/90 hover:bg-slate-800/90 text-slate-200 rounded-2xl border border-slate-700/80 hover:border-purple-500/50 text-left transition hover:-translate-y-0.5 active:translate-y-0 group"
+                    onClick={() => handleLaunch("system_design")}
+                    className="card-interactive drill-card-sysdesign p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
                   >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-base">🏗️</span>
-                      <span className="px-2 py-0.5 bg-slate-800 text-[10px] font-mono font-bold rounded text-purple-300">
-                        35m
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-lg">🏗️</span>
+                      <span className="px-2 py-0.5 bg-black/40 text-[10px] font-mono font-bold rounded text-amber-200 border border-amber-400/30">
+                        35m · Architecture
                       </span>
                     </div>
-                    <div className="text-xs font-bold text-white group-hover:text-purple-300 transition">
+                    <div className="text-xs font-bold text-white group-hover:text-amber-200 transition">
                       System Design Deep Dive
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
-                      QPS math, sharding, trade-offs
+                    <div className="text-[11px] text-amber-100/80 mt-0.5 leading-snug">
+                      QPS math, sharding, replication &amp; trade-offs
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-1 text-[10px] text-amber-300 font-semibold">
+                      <span>📐</span>
+                      <span>High availability &amp; scale</span>
                     </div>
                   </button>
 
+                  {/* Behavioral */}
                   <button
-                    onClick={() => handleLaunch('behavioral')}
-                    className="p-3.5 bg-slate-900/90 hover:bg-slate-800/90 text-slate-200 rounded-2xl border border-slate-700/80 hover:border-emerald-500/50 text-left transition hover:-translate-y-0.5 active:translate-y-0 group"
+                    onClick={() => handleLaunch("behavioral")}
+                    className="card-interactive drill-card-star p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
                   >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-base">🎙️</span>
-                      <span className="px-2 py-0.5 bg-slate-800 text-[10px] font-mono font-bold rounded text-emerald-300">
-                        15m
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-lg">🎙️</span>
+                      <span className="px-2 py-0.5 bg-black/40 text-[10px] font-mono font-bold rounded text-rose-200 border border-rose-400/30">
+                        15m · High Impact
                       </span>
                     </div>
-                    <div className="text-xs font-bold text-white group-hover:text-emerald-300 transition">
+                    <div className="text-xs font-bold text-white group-hover:text-rose-200 transition">
                       Behavioral STAR Drill
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
-                      Conflict, ownership, leadership
+                    <div className="text-[11px] text-rose-100/80 mt-0.5 leading-snug">
+                      Conflict, ownership, leadership under ambiguity
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-1 text-[10px] text-rose-300 font-semibold">
+                      <span>🎯</span>
+                      <span>Quantified business metrics</span>
                     </div>
                   </button>
                 </div>
@@ -255,7 +324,7 @@ export const MockGymView: React.FC = () => {
 
               {/* Feature Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                <div className="p-5 bg-slate-900/80 border border-slate-800/90 hover:border-indigo-500/40 rounded-2xl space-y-2.5 transition hover:-translate-y-0.5 hover:shadow-xl backdrop-blur-sm">
+                <div className="card-interactive p-5 bg-slate-900/80 border border-slate-800/90 hover:border-indigo-500/40 rounded-2xl space-y-2.5 backdrop-blur-sm">
                   <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-lg">
                     🎯
                   </div>
@@ -266,7 +335,7 @@ export const MockGymView: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="p-5 bg-slate-900/80 border border-slate-800/90 hover:border-amber-500/40 rounded-2xl space-y-2.5 transition hover:-translate-y-0.5 hover:shadow-xl backdrop-blur-sm">
+                <div className="card-interactive p-5 bg-slate-900/80 border border-slate-800/90 hover:border-amber-500/40 rounded-2xl space-y-2.5 backdrop-blur-sm">
                   <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-lg">
                     ⚡
                   </div>
@@ -277,7 +346,7 @@ export const MockGymView: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="p-5 bg-slate-900/80 border border-slate-800/90 hover:border-emerald-500/40 rounded-2xl space-y-2.5 transition hover:-translate-y-0.5 hover:shadow-xl backdrop-blur-sm">
+                <div className="card-interactive p-5 bg-slate-900/80 border border-slate-800/90 hover:border-emerald-500/40 rounded-2xl space-y-2.5 backdrop-blur-sm">
                   <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-lg">
                     📊
                   </div>

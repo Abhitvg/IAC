@@ -28,6 +28,8 @@ import {
   Terminal,
   EyeOff,
   Keyboard,
+  SlidersHorizontal,
+  X,
 } from 'lucide-react';
 
 interface CodeBlockCardProps {
@@ -513,6 +515,7 @@ export default function TeleprompterView() {
 
   const [isScreenReading, setIsScreenReading] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showControlsPopover, setShowControlsPopover] = useState(false);
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 900
   );
@@ -952,49 +955,49 @@ export default function TeleprompterView() {
       <div
         className="teleprompter-draggable"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: isCompact ? '6px 8px' : '6px 12px',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "6px 12px",
           background: `rgba(16, 18, 30, ${Math.min(0.72, windowOpacity * 0.75 + 0.15)})`,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.10)',
-          gap: '6px',
-          rowGap: '6px',
-          flexWrap: isCompact ? 'wrap' : 'nowrap',
+          borderBottom: "1px solid rgba(255, 255, 255, 0.10)",
+          gap: "8px",
+          flexWrap: "nowrap",
+          position: "relative",
         }}
       >
-        {/* Left: Mode Selector Pills (Coding / Interview / Quiz) */}
+        {/* Left: Mode Selector Pills & Language */}
         <div
           className="teleprompter-nodrag"
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}
+          style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}
         >
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'rgba(0, 0, 0, 0.45)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '6px',
-              padding: '2px',
-              gap: '2px',
+              display: "flex",
+              alignItems: "center",
+              background: "rgba(0, 0, 0, 0.5)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "6px",
+              padding: "2px",
+              gap: "2px",
             }}
           >
             {[
               {
-                id: 'coding',
-                label: '💻 Coding',
+                id: "coding",
+                label: "💻 Coding",
                 title:
-                  'Coding Mode: 100% verified compilable code, syntax card, Big-O & 1-click copy',
+                  "Coding Mode: 100% verified compilable code, syntax card, Big-O & 1-click copy",
               },
               {
-                id: 'interview',
-                label: '🎙️ Interview',
-                title: 'Interview Mode: Spoken STAR answers, eye-contact teleprompter flow',
+                id: "interview",
+                label: "🎙️ Interview",
+                title: "Interview Mode: Spoken STAR answers, eye-contact teleprompter flow",
               },
               {
-                id: 'quiz',
-                label: '📝 Quiz',
-                title: 'Quiz / MCQ Mode: High-contrast correct answer banner + 1-sentence proof',
+                id: "quiz",
+                label: "📝 Quiz",
+                title: "Quiz / MCQ Mode: High-contrast correct answer banner + 1-sentence proof",
               },
             ].map((m) => {
               const active = responseMode === m.id;
@@ -1008,340 +1011,179 @@ export default function TeleprompterView() {
                   title={m.title}
                   style={{
                     background: active
-                      ? m.id === 'coding'
-                        ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(79, 70, 229, 0.95))'
-                        : m.id === 'quiz'
-                          ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.95))'
-                          : 'linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(147, 51, 234, 0.95))'
-                      : 'transparent',
-                    color: active ? '#ffffff' : '#94a3b8',
-                    border: active ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid transparent',
-                    borderRadius: '4px',
-                    padding: isUltraCompact ? '3px 6px' : '3px 8px',
-                    fontSize: '11px',
+                      ? m.id === "coding"
+                        ? "linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(79, 70, 229, 0.95))"
+                        : m.id === "quiz"
+                          ? "linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.95))"
+                          : "linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(147, 51, 234, 0.95))"
+                      : "transparent",
+                    color: active ? "#ffffff" : "#94a3b8",
+                    border: active ? "1px solid rgba(255, 255, 255, 0.3)" : "1px solid transparent",
+                    borderRadius: "4px",
+                    padding: isUltraCompact ? "3px 6px" : "3px 8px",
+                    fontSize: "11px",
                     fontWeight: active ? 700 : 500,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.15s ease',
-                    boxShadow: active ? '0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    transition: "all 0.15s ease",
+                    boxShadow: active ? "0 2px 6px rgba(0, 0, 0, 0.4)" : "none",
                   }}
                 >
-                  {isUltraCompact ? m.label.split(' ')[0] : m.label}
+                  {isUltraCompact ? m.label.split(" ")[0] : m.label}
                 </button>
               );
             })}
           </div>
 
           {/* If in Coding Mode: Show Language Selector Dropdown */}
-          {responseMode === 'coding' && (
+          {responseMode === "coding" && (
             <select
-              value={settings?.preferredLanguage || 'Java'}
+              value={settings?.preferredLanguage || "Java"}
               onChange={(e) => {
-                updateSetting('preferredLanguage', e.target.value);
+                updateSetting("preferredLanguage", e.target.value);
                 setToast(`💻 Coding Language: ${e.target.value}`);
               }}
               title="Preferred programming language for coding challenge solutions"
               style={{
-                background: 'rgba(99, 102, 241, 0.25)',
-                color: '#e0e7ff',
-                border: '1px solid rgba(129, 140, 248, 0.45)',
-                borderRadius: '4px',
-                padding: '3px 6px',
-                fontSize: '11px',
+                background: "rgba(99, 102, 241, 0.25)",
+                color: "#e0e7ff",
+                border: "1px solid rgba(129, 140, 248, 0.45)",
+                borderRadius: "4px",
+                padding: "3px 6px",
+                fontSize: "11px",
                 fontWeight: 650,
-                cursor: 'pointer',
-                outline: 'none',
+                cursor: "pointer",
+                outline: "none",
               }}
             >
-              <option value="Java" style={{ background: '#0f172a', color: '#fff' }}>
-                ☕ Java
-              </option>
-              <option value="Python" style={{ background: '#0f172a', color: '#fff' }}>
-                🐍 Python
-              </option>
-              <option value="TypeScript" style={{ background: '#0f172a', color: '#fff' }}>
-                🔷 TypeScript
-              </option>
-              <option value="JavaScript" style={{ background: '#0f172a', color: '#fff' }}>
-                ⚡ JavaScript
-              </option>
-              <option value="C++" style={{ background: '#0f172a', color: '#fff' }}>
-                ⚙️ C++
-              </option>
-              <option value="Go" style={{ background: '#0f172a', color: '#fff' }}>
-                🐹 Go
-              </option>
-              <option value="SQL" style={{ background: '#0f172a', color: '#fff' }}>
-                🗄️ SQL
-              </option>
+              <option value="Java" style={{ background: "#0f172a", color: "#fff" }}>☕ Java</option>
+              <option value="Python" style={{ background: "#0f172a", color: "#fff" }}>🐍 Python</option>
+              <option value="TypeScript" style={{ background: "#0f172a", color: "#fff" }}>🔷 TypeScript</option>
+              <option value="JavaScript" style={{ background: "#0f172a", color: "#fff" }}>⚡ JavaScript</option>
+              <option value="C++" style={{ background: "#0f172a", color: "#fff" }}>⚙️ C++</option>
+              <option value="Go" style={{ background: "#0f172a", color: "#fff" }}>🐹 Go</option>
+              <option value="SQL" style={{ background: "#0f172a", color: "#fff" }}>🗄️ SQL</option>
             </select>
           )}
-
-          {/* Font Size Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-            {(['small', 'medium', 'large', 'xlarge'] as TeleprompterFontSize[]).map((f) => (
-              <button
-                key={f}
-                onClick={() => setTeleprompterFontSize(f)}
-                style={{
-                  background: teleprompterFontSize === f ? '#3730a3' : 'rgba(255, 255, 255, 0.06)',
-                  color: teleprompterFontSize === f ? '#ffffff' : '#94a3b8',
-                  border:
-                    teleprompterFontSize === f
-                      ? '1px solid #6366f1'
-                      : '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '4px',
-                  padding: '3px 6px',
-                  fontSize: '10px',
-                  fontWeight: teleprompterFontSize === f ? 700 : 400,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {isCompact ? fontSizes[f].label.charAt(0) : fontSizes[f].label}
-              </button>
-            ))}
-          </div>
         </div>
 
-        {/* Center: Scroll Controls & Timer */}
+        {/* Center: Essential Session Controls */}
         <div
           className="teleprompter-nodrag"
-          style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
+          style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}
         >
-          <button
-            onClick={handleRestartScrolling}
-            title="Restart scrolling from the top"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              color: '#e2e8f0',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '4px',
-              padding: isUltraCompact ? '4px 6px' : '4px 8px',
-              fontSize: '11px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            <RotateCcw size={11} /> {!isUltraCompact && 'Restart'}
-          </button>
-
+          {/* Scroll / Pause */}
           <button
             onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-            title={isAutoScrolling ? 'Pause scrolling' : 'Resume auto-scroll'}
+            title={isAutoScrolling ? "Pause auto-scroll" : "Resume auto-scroll"}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '3px',
-              background: isAutoScrolling ? '#1e1b4b' : 'rgba(255, 255, 255, 0.06)',
-              color: isAutoScrolling ? '#a5b4fc' : '#94a3b8',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '4px',
-              padding: '4px 8px',
-              fontSize: '11px',
-              cursor: 'pointer',
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              background: isAutoScrolling ? "#1e1b4b" : "rgba(255, 255, 255, 0.08)",
+              color: isAutoScrolling ? "#a5b4fc" : "#e2e8f0",
+              border: isAutoScrolling ? "1px solid #6366f1" : "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "4px",
+              padding: "4px 8px",
+              fontSize: "11px",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.15s ease",
             }}
           >
             {isAutoScrolling ? <Pause size={11} /> : <Play size={11} />}
-            <span>{isAutoScrolling ? 'Pause' : 'Scroll'}</span>
+            <span>{isAutoScrolling ? "Pause" : "Scroll"}</span>
           </button>
 
-          <button
-            onClick={() =>
-              setScrollSpeed(
-                scrollSpeed === 0.7
-                  ? 1.0
-                  : scrollSpeed === 1.0
-                    ? 1.5
-                    : scrollSpeed === 1.5
-                      ? 2.0
-                      : 0.7
-              )
-            }
-            title="Scroll Speed"
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              color: '#c7d2fe',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '4px',
-              padding: '4px 6px',
-              fontSize: '11px',
-              cursor: 'pointer',
-            }}
-          >
-            {scrollSpeed}x
-          </button>
-
-          {/* Undo Disruption / Back Button */}
-          <button
-            onClick={restorePreviousQuestion}
-            disabled={!questionHistory || questionHistory.length === 0}
-            title={
-              questionHistory && questionHistory.length > 0
-                ? `Back: Restore previous question & answer (Shortcut: ⌘Z or ⌘[) [${questionHistory.length} in stack]`
-                : 'Back: No previous questions in history (⌘Z)'
-            }
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              background:
-                !questionHistory || questionHistory.length === 0
-                  ? 'rgba(255, 255, 255, 0.04)'
-                  : 'rgba(99, 102, 241, 0.24)',
-              color:
-                !questionHistory || questionHistory.length === 0
-                  ? '#64748b'
-                  : '#c7d2fe',
-              border:
-                !questionHistory || questionHistory.length === 0
-                  ? '1px solid rgba(255, 255, 255, 0.06)'
-                  : '1px solid rgba(129, 140, 248, 0.45)',
-              borderRadius: '4px',
-              padding: isUltraCompact ? '3px 5px' : '4px 7px',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor:
-                !questionHistory || questionHistory.length === 0
-                  ? 'not-allowed'
-                  : 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <Undo2 size={11} />
-            <span>Back{questionHistory && questionHistory.length > 0 ? ` (${questionHistory.length})` : ''}</span>
-          </button>
-
-          {redoQuestionHistory && redoQuestionHistory.length > 0 && (
-            <button
-              onClick={redoQuestion}
-              title="Redo to next question (Shortcut: ⌘⇧Z or ⌘])"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '2px',
-                background: 'rgba(99, 102, 241, 0.18)',
-                color: '#c7d2fe',
-                border: '1px solid rgba(129, 140, 248, 0.35)',
-                borderRadius: '4px',
-                padding: '4px 6px',
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <Redo2 size={11} />
-            </button>
-          )}
-
-          {/* Speech Pause Tolerance Selector */}
-          {!isUltraCompact && (
-            <div
-              title="Pause Tolerance: How long interviewer can pause mid-sentence before AI answers (Normal: 1.0s, Patient: 1.5s, Long: 2.0s)"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '4px',
-                padding: '2px 5px',
-                fontSize: '10px',
-                color: '#cbd5e1',
-              }}
-            >
-              <Clock size={10} style={{ color: '#818cf8', flexShrink: 0 }} />
-              <select
-                value={speechPauseTolerance || 1000}
-                onChange={(e) => setSpeechPauseTolerance(Number(e.target.value))}
-                style={{
-                  background: 'transparent',
-                  color: '#e2e8f0',
-                  border: 'none',
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  outline: 'none',
-                  padding: '1px 0',
-                }}
-              >
-                <option value={700} style={{ background: '#0f172a', color: '#fff' }}>⚡ 0.7s Fast</option>
-                <option value={1000} style={{ background: '#0f172a', color: '#fff' }}>⏱️ 1.0s Normal</option>
-                <option value={1500} style={{ background: '#0f172a', color: '#fff' }}>🧘 1.5s Patient</option>
-                <option value={2000} style={{ background: '#0f172a', color: '#fff' }}>⏳ 2.0s Long</option>
-              </select>
-            </div>
-          )}
-
-          {/* Live Session Timer Badge */}
+          {/* Session Timer Badge */}
           <div
             onClick={() => setTimerRunning(!timerRunning)}
-            title="Click to pause or reset session timer"
+            title="Click to pause/resume session timer"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: '#1e1b4b',
-              border: '1px solid #4338ca',
-              borderRadius: '4px',
-              padding: '4px 8px',
-              fontSize: '11px',
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              background: "#1e1b4b",
+              border: "1px solid #4338ca",
+              borderRadius: "4px",
+              padding: "4px 8px",
+              fontSize: "11px",
               fontWeight: 700,
-              color: '#a5b4fc',
-              letterSpacing: '0.5px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              color: "#a5b4fc",
+              letterSpacing: "0.5px",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
             }}
           >
             <span>⏱️</span>
             <span>{formatTimer(seconds)}</span>
           </div>
 
-          {/* Quick Clear Button in Top Bar */}
+          {/* Undo Disruption / Back Button */}
+          {questionHistory && questionHistory.length > 0 && (
+            <button
+              onClick={restorePreviousQuestion}
+              title={`Back: Restore previous question & answer (Shortcut: ⌘Z) [${questionHistory.length} in stack]`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                background: "rgba(99, 102, 241, 0.24)",
+                color: "#c7d2fe",
+                border: "1px solid rgba(129, 140, 248, 0.45)",
+                borderRadius: "4px",
+                padding: isUltraCompact ? "3px 5px" : "4px 7px",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <Undo2 size={11} />
+              <span>Back ({questionHistory.length})</span>
+            </button>
+          )}
+
+          {/* Quick Clear Button */}
           {currentAnswer && (
             <button
               onClick={clearAndResetToListen}
               title="Clear answer and listen for new question (Shortcut: ⌘K)"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'rgba(239, 68, 68, 0.18)',
-                border: '1px solid rgba(248, 113, 113, 0.4)',
-                color: '#fca5a5',
-                borderRadius: '4px',
-                padding: '3px 7px',
-                fontSize: '11px',
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                background: "rgba(239, 68, 68, 0.18)",
+                border: "1px solid rgba(248, 113, 113, 0.4)",
+                color: "#fca5a5",
+                borderRadius: "4px",
+                padding: "3px 7px",
+                fontSize: "11px",
                 fontWeight: 650,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease',
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "all 0.15s ease",
               }}
             >
               <span>✨ Clear (⌘K)</span>
             </button>
           )}
 
-          {/* Word Count & Read Time Badge (Responsive) */}
+          {/* Word Count & Read Time Badge */}
           {currentAnswer && !isCompact && (
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '4px',
-                padding: '4px 7px',
-                fontSize: '11px',
-                color: '#cbd5e1',
-                whiteSpace: 'nowrap',
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "4px",
+                padding: "4px 7px",
+                fontSize: "11px",
+                color: "#cbd5e1",
+                whiteSpace: "nowrap",
               }}
               title="Target: ~380-430 words for a standard 3-minute spoken response"
             >
@@ -1353,217 +1195,388 @@ export default function TeleprompterView() {
           )}
         </div>
 
-        {/* Right: Opacity Selector, Stealth, Resume Modal, Settings, History, Exit */}
+        {/* Right: Stealth, Progressive Controls Popover, Exit */}
         <div
           className="teleprompter-nodrag"
-          style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
+          style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-            {!isUltraCompact && (
-              <button
-                onClick={() =>
-                  setWindowOpacity(Math.max(0.12, Math.round((windowOpacity - 0.1) * 100) / 100))
-                }
-                title="More transparent (Clearer glass)"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: '#e2e8f0',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  borderRadius: '4px',
-                  padding: '2px 6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                -
-              </button>
-            )}
-            <select
-              value={windowOpacity}
-              onChange={(e) => setWindowOpacity(parseFloat(e.target.value))}
-              title="Teleprompter Overlay Transparency"
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: '#e0e7ff',
-                border: '1px solid rgba(255, 255, 255, 0.14)',
-                borderRadius: '4px',
-                padding: '3px 6px',
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                outline: 'none',
-              }}
-            >
-              <option value={0.15} style={{ background: '#111827' }}>
-                15% Ultra Clear
-              </option>
-              <option value={0.25} style={{ background: '#111827' }}>
-                25% Clear Glass
-              </option>
-              <option value={0.35} style={{ background: '#111827' }}>
-                35% Frosted Glass
-              </option>
-              <option value={0.5} style={{ background: '#111827' }}>
-                50% Medium Glass
-              </option>
-              <option value={0.7} style={{ background: '#111827' }}>
-                70% Deep Glass
-              </option>
-              <option value={0.88} style={{ background: '#111827' }}>
-                88% High Contrast
-              </option>
-              <option value={0.98} style={{ background: '#111827' }}>
-                98% Solid Dark
-              </option>
-            </select>
-            {!isUltraCompact && (
-              <button
-                onClick={() =>
-                  setWindowOpacity(Math.min(0.98, Math.round((windowOpacity + 0.1) * 100) / 100))
-                }
-                title="Less transparent (More solid)"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: '#e2e8f0',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  borderRadius: '4px',
-                  padding: '2px 6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                +
-              </button>
-            )}
-          </div>
-
-          {/* Shortcuts Quick Reference Button */}
-          <button
-            onClick={() => setShowShortcuts(!showShortcuts)}
-            title="View Stealth & OCR Keyboard Shortcuts"
-            style={{
-              background: showShortcuts ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255, 255, 255, 0.08)',
-              color: showShortcuts ? '#a5b4fc' : '#cbd5e1',
-              border: showShortcuts
-                ? '1px solid rgba(129, 140, 248, 0.5)'
-                : '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '4px',
-              padding: '3px 7px',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            <Keyboard size={12} />
-            {!isUltraCompact && <span>Shortcuts</span>}
-          </button>
-
+          {/* Stealth Toggle */}
           <button
             onClick={handleToggleStealth}
             title={
               isStealthActive
-                ? 'Screen Stealth ON: Teleprompter is 100% invisible to Zoom, Google Meet, Teams, Discord & recordings'
-                : 'Screen Stealth OFF: Teleprompter is visible to screen share'
+                ? "Screen Stealth ON: Teleprompter is 100% invisible to Zoom, Google Meet, Teams, Discord & recordings"
+                : "Screen Stealth OFF: Teleprompter is visible to screen share"
             }
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: isStealthActive ? 'rgba(16, 185, 129, 0.16)' : 'rgba(239, 68, 68, 0.16)',
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              background: isStealthActive ? "rgba(16, 185, 129, 0.16)" : "rgba(239, 68, 68, 0.16)",
               border: isStealthActive
-                ? '1px solid rgba(52, 211, 153, 0.4)'
-                : '1px solid rgba(239, 68, 68, 0.4)',
-              color: isStealthActive ? '#6ee7b7' : '#fca5a5',
-              borderRadius: '4px',
-              padding: '3px 8px',
-              fontSize: '11px',
+                ? "1px solid rgba(52, 211, 153, 0.4)"
+                : "1px solid rgba(239, 68, 68, 0.4)",
+              color: isStealthActive ? "#6ee7b7" : "#fca5a5",
+              borderRadius: "4px",
+              padding: "4px 8px",
+              fontSize: "11px",
               fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              transition: "all 0.15s ease",
             }}
           >
-            <Shield size={12} style={{ color: isStealthActive ? '#34d399' : '#f87171' }} />
-            {!isUltraCompact && <span>{isStealthActive ? 'Stealth ON' : 'Stealth OFF'}</span>}
+            <Shield size={12} style={{ color: isStealthActive ? "#34d399" : "#f87171" }} />
+            {!isUltraCompact && <span>{isStealthActive ? "Stealth ON" : "Stealth OFF"}</span>}
           </button>
 
+          {/* Progressive Disclosure: Controls & Display Popover Trigger */}
           <button
-            onClick={() => setResumeModalOpen(true)}
-            title="Configure Candidate Resume & Target Job Description"
+            onClick={() => setShowControlsPopover(!showControlsPopover)}
+            title="Display, Font Size, Opacity & Session Settings"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              background:
-                'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2))',
-              color: '#e0e7ff',
-              border: '1px solid rgba(168, 85, 247, 0.45)',
-              borderRadius: '4px',
-              padding: '3px 8px',
-              fontSize: '11px',
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              background: showControlsPopover
+                ? "rgba(99, 102, 241, 0.35)"
+                : "rgba(255, 255, 255, 0.08)",
+              color: showControlsPopover ? "#ffffff" : "#cbd5e1",
+              border: showControlsPopover
+                ? "1px solid rgba(129, 140, 248, 0.6)"
+                : "1px solid rgba(255, 255, 255, 0.14)",
+              borderRadius: "4px",
+              padding: "4px 8px",
+              fontSize: "11px",
               fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              transition: "all 0.15s ease",
             }}
           >
-            <Target size={12} style={{ color: '#a855f7' }} />
-            {!isCompact && (
-              <span>
-                🎯{' '}
-                {targetRole
-                  ? targetRole.length > 15
-                    ? targetRole.slice(0, 15) + '...'
-                    : targetRole
-                  : 'Role'}
-              </span>
-            )}
+            <SlidersHorizontal size={12} />
+            <span>Controls</span>
           </button>
 
-          <button
-            onClick={() => window.electronAPI?.toggleVisibility?.()}
-            title="Instant Stealth Toggle (0ms instant hide/show without any animation or visibility) — Shortcut: Cmd+Shift+H or Cmd+\"
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              color: '#cbd5e1',
-              border: '1px solid rgba(255, 255, 255, 0.14)',
-              borderRadius: '4px',
-              padding: '3px 8px',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <EyeOff size={11} />
-            <span>Hide (⌘⇧H)</span>
-          </button>
-
+          {/* Exit Button */}
           <button
             onClick={handleExit}
             style={{
-              background: '#e11d48',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '4px',
-              padding: '4px 10px',
-              fontSize: '11px',
+              background: "#e11d48",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "4px",
+              padding: "4px 10px",
+              fontSize: "11px",
               fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'background 0.15s ease',
+              cursor: "pointer",
+              transition: "background 0.15s ease",
             }}
           >
             Exit
           </button>
         </div>
       </div>
+
+      {/* ════════════ PROGRESSIVE CONTROLS FLOATING POPOVER ════════════ */}
+      {showControlsPopover && (
+        <div
+          className="teleprompter-nodrag glass-popover-panel"
+          style={{
+            position: "absolute",
+            top: "44px",
+            right: "12px",
+            zIndex: 100,
+            width: "320px",
+            borderRadius: "12px",
+            padding: "14px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+            color: "#e2e8f0",
+            fontSize: "11px",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.12)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontWeight: 700, fontSize: "12px", color: "#f8fafc", display: "flex", alignItems: "center", gap: "6px" }}>
+              <SlidersHorizontal size={13} style={{ color: "#818cf8" }} />
+              Display &amp; Session Controls
+            </span>
+            <button
+              onClick={() => setShowControlsPopover(false)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#94a3b8",
+                cursor: "pointer",
+                padding: "2px",
+              }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          {/* Font Size Selector */}
+          <div>
+            <div style={{ color: "#94a3b8", marginBottom: "5px", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
+              Teleprompter Font Size
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "4px" }}>
+              {(["small", "medium", "large", "xlarge"] as TeleprompterFontSize[]).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setTeleprompterFontSize(f)}
+                  style={{
+                    background: teleprompterFontSize === f ? "#3730a3" : "rgba(255, 255, 255, 0.06)",
+                    color: teleprompterFontSize === f ? "#ffffff" : "#94a3b8",
+                    border: teleprompterFontSize === f ? "1px solid #6366f1" : "1px solid rgba(255, 255, 255, 0.08)",
+                    borderRadius: "4px",
+                    padding: "4px 6px",
+                    fontSize: "10px",
+                    fontWeight: teleprompterFontSize === f ? 700 : 500,
+                    cursor: "pointer",
+                    textAlign: "center",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {fontSizes[f].label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Opacity Selector */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#94a3b8", marginBottom: "5px", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
+              <span>Window Transparency</span>
+              <span style={{ color: "#818cf8", fontWeight: 700 }}>{Math.round(windowOpacity * 100)}%</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <button
+                onClick={() => setWindowOpacity(Math.max(0.15, Math.round((windowOpacity - 0.1) * 100) / 100))}
+                title="More transparent"
+                style={{
+                  background: "rgba(255, 255, 255, 0.08)",
+                  color: "#e2e8f0",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  borderRadius: "4px",
+                  padding: "2px 8px",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                -
+              </button>
+              <input
+                type="range"
+                min="0.15"
+                max="0.98"
+                step="0.05"
+                value={windowOpacity}
+                onChange={(e) => setWindowOpacity(parseFloat(e.target.value))}
+                style={{ flex: 1, accentColor: "#6366f1", cursor: "pointer" }}
+              />
+              <button
+                onClick={() => setWindowOpacity(Math.min(0.98, Math.round((windowOpacity + 0.1) * 100) / 100))}
+                title="Less transparent"
+                style={{
+                  background: "rgba(255, 255, 255, 0.08)",
+                  color: "#e2e8f0",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  borderRadius: "4px",
+                  padding: "2px 8px",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                +
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: "4px", marginTop: "6px" }}>
+              {[
+                { label: "Clear", val: 0.25 },
+                { label: "Frosted", val: 0.5 },
+                { label: "Deep", val: 0.75 },
+                { label: "Solid", val: 0.98 },
+              ].map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() => setWindowOpacity(preset.val)}
+                  style={{
+                    flex: 1,
+                    background: Math.abs(windowOpacity - preset.val) < 0.1 ? "rgba(99, 102, 241, 0.3)" : "rgba(255, 255, 255, 0.05)",
+                    color: Math.abs(windowOpacity - preset.val) < 0.1 ? "#c7d2fe" : "#94a3b8",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    borderRadius: "4px",
+                    padding: "2px 4px",
+                    fontSize: "9px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Auto-Scroll Speed & Restart */}
+          <div>
+            <div style={{ color: "#94a3b8", marginBottom: "5px", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
+              Auto-Scroll Speed &amp; Top Reset
+            </div>
+            <div style={{ display: "flex", gap: "4px" }}>
+              {[0.7, 1.0, 1.5, 2.0].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setScrollSpeed(s)}
+                  style={{
+                    flex: 1,
+                    background: scrollSpeed === s ? "#3730a3" : "rgba(255, 255, 255, 0.06)",
+                    color: scrollSpeed === s ? "#ffffff" : "#94a3b8",
+                    border: scrollSpeed === s ? "1px solid #6366f1" : "1px solid rgba(255, 255, 255, 0.08)",
+                    borderRadius: "4px",
+                    padding: "4px 6px",
+                    fontSize: "10px",
+                    fontWeight: scrollSpeed === s ? 700 : 500,
+                    cursor: "pointer",
+                  }}
+                >
+                  {s}x
+                </button>
+              ))}
+              <button
+                onClick={handleRestartScrolling}
+                title="Restart scrolling from the top"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "2px",
+                  background: "rgba(255, 255, 255, 0.06)",
+                  color: "#e2e8f0",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: "4px",
+                  padding: "4px 6px",
+                  fontSize: "10px",
+                  cursor: "pointer",
+                }}
+              >
+                <RotateCcw size={10} /> Top
+              </button>
+            </div>
+          </div>
+
+          {/* Speech Pause Tolerance */}
+          <div>
+            <div style={{ color: "#94a3b8", marginBottom: "5px", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
+              Interviewer Pause Tolerance
+            </div>
+            <select
+              value={speechPauseTolerance || 1000}
+              onChange={(e) => setSpeechPauseTolerance(Number(e.target.value))}
+              style={{
+                width: "100%",
+                background: "rgba(255, 255, 255, 0.06)",
+                color: "#e2e8f0",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "4px",
+                padding: "4px 8px",
+                fontSize: "10px",
+                fontWeight: 600,
+                outline: "none",
+                cursor: "pointer",
+              }}
+            >
+              <option value={700} style={{ background: "#0f172a", color: "#fff" }}>⚡ 0.7s Fast (Rapid fire)</option>
+              <option value={1000} style={{ background: "#0f172a", color: "#fff" }}>⏱️ 1.0s Normal (Balanced)</option>
+              <option value={1500} style={{ background: "#0f172a", color: "#fff" }}>🧘 1.5s Patient (Allows thinking pauses)</option>
+              <option value={2000} style={{ background: "#0f172a", color: "#fff" }}>⏳ 2.0s Long (Deliberate)</option>
+            </select>
+          </div>
+
+          {/* Actions: Target Role, Shortcuts, Instant Hide */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", paddingTop: "4px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+            <button
+              onClick={() => {
+                setResumeModalOpen(true);
+                setShowControlsPopover(false);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "5px 8px",
+                background: "rgba(168, 85, 247, 0.15)",
+                border: "1px solid rgba(168, 85, 247, 0.3)",
+                borderRadius: "4px",
+                color: "#e9d5ff",
+                cursor: "pointer",
+                fontSize: "10px",
+                fontWeight: 600,
+              }}
+            >
+              <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                <Target size={11} style={{ color: "#c084fc" }} />
+                Target Role &amp; Resume Context
+              </span>
+              <span>{targetRole ? (targetRole.length > 12 ? targetRole.slice(0, 12) + "..." : targetRole) : "Not Set"} &rarr;</span>
+            </button>
+
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button
+                onClick={() => {
+                  setShowShortcuts(!showShortcuts);
+                  setShowControlsPopover(false);
+                }}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "4px",
+                  padding: "5px 8px",
+                  background: "rgba(255, 255, 255, 0.06)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "4px",
+                  color: "#cbd5e1",
+                  cursor: "pointer",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                }}
+              >
+                <Keyboard size={11} />
+                Shortcuts
+              </button>
+
+              <button
+                onClick={() => window.electronAPI?.toggleVisibility?.()}
+                title="Instant Stealth Toggle — Shortcut: Cmd+Shift+H"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "4px",
+                  padding: "5px 8px",
+                  background: "rgba(255, 255, 255, 0.06)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "4px",
+                  color: "#cbd5e1",
+                  cursor: "pointer",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                }}
+              >
+                <EyeOff size={11} />
+                Hide (⌘⇧H)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ════════════ MIDDLE TELEPROMPTER BODY ════════════ */}
       <div
