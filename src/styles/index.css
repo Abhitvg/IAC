@@ -1626,44 +1626,7 @@ body {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(99, 102, 241, 0.3);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   Live Recital Karaoke Word Highlighting
-   ═══════════════════════════════════════════════════════════════════ */
 
-.recital-word {
-  display: inline-block;
-  padding: 1px 3px;
-  margin: 0 1px;
-  border-radius: 4px;
-  transition: color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
-  cursor: pointer;
-  user-select: text;
-}
-
-.recital-word:hover {
-  background-color: rgba(255, 255, 255, 0.12);
-}
-
-.recital-word-completed {
-  color: #34d399 !important;
-  font-weight: 700;
-  background-color: rgba(16, 185, 129, 0.16);
-  text-shadow: 0 0 12px rgba(52, 211, 153, 0.4);
-}
-
-.recital-word-active {
-  color: #6ee7b7 !important;
-  font-weight: 800;
-  background-color: rgba(16, 185, 129, 0.32);
-  box-shadow: 0 0 14px rgba(52, 211, 153, 0.6);
-  border-bottom: 2px solid #34d399;
-  transform: scale(1.06);
-}
-
-.recital-word-upcoming {
-  color: #f8fafc;
-  opacity: 0.95;
-}
 
 /* Focus mode clean scrollbar */
 .prompter-focus-scroll::-webkit-scrollbar {

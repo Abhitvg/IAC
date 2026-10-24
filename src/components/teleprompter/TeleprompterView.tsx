@@ -1,5 +1,4 @@
 import { detectLanguageHint } from '../../services/screenSolver';
-import { RecitalTeleprompterText } from './RecitalTeleprompterText';
 import { readAndParseFile } from '../../services/resume';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
@@ -2287,12 +2286,29 @@ export default function TeleprompterView() {
                 }
 
                 return (
-                  <div key={idx} className={"floating-prompter-card shadow-2xl " + (isRibbonMode ? "p-3 sm:p-4 my-1.5" : "p-5 sm:p-7 my-3")}>
-                    <RecitalTeleprompterText
-                      text={text}
-                      fontSize={teleprompterFontSize}
-                      isInterviewFocusMode={isRibbonMode}
-                    />
+                  <div
+                    key={idx}
+                    className={"floating-prompter-card shadow-2xl " + (isRibbonMode ? "p-3 sm:p-4 my-1.5" : "p-5 sm:p-7 my-3")}
+                    style={{
+                      fontSize: {
+                        small: '15px',
+                        medium: '18px',
+                        large: '22px',
+                        xlarge: '26px',
+                      }[teleprompterFontSize] || '18px',
+                      lineHeight: {
+                        small: '1.6',
+                        medium: '1.7',
+                        large: '1.75',
+                        xlarge: '1.8',
+                      }[teleprompterFontSize] || '1.7',
+                      color: '#f8fafc',
+                      whiteSpace: 'pre-wrap',
+                      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                      letterSpacing: '-0.01em',
+                    }}
+                  >
+                    {text}
                   </div>
                 );
               })}
@@ -2388,7 +2404,7 @@ export default function TeleprompterView() {
                 </span>
               </div>
               <p className="text-[11px] text-slate-300 mb-3 max-w-md leading-relaxed">
-                Speak or paste a question to see real-time green recital text, or snip a coding problem directly off your screen.
+                Speak or paste a question to see real-time verified answers, or snip a coding problem directly off your screen.
               </p>
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 <button
