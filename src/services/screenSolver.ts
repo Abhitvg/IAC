@@ -57,13 +57,65 @@ export function cleanExtractedOcrText(rawText: string): string {
     const trimmed = line.trim();
     if (!trimmed) return false;
     // Filter common macOS menu bar / browser chrome noise
-    if (/^(File|Edit|Selection|View|Go|Run|Terminal|Window|Help)$/i.test(trimmed)) return false;
+    if (/^(File|Edit|Selection|View|Go|Run|Terminal|Window|Help)(\s+(File|Edit|Selection|View|Go|Run|Terminal|Window|Help))*$/i.test(trimmed)) return false;
     if (/^[0-9]{1,2}:[0-9]{2}(:[0-9]{2})?\s*(AM|PM)?$/i.test(trimmed)) return false;
     if (/^(http:\/\/|https:\/\/|chrome:\/\/|localhost:)/i.test(trimmed)) return false;
     return true;
   });
 
   return filtered.join('\n').trim();
+}
+
+/**
+ * Stitches two sequential OCR screen captures (e.g. before and after scrolling down).
+ * Automatically finds the overlapping seam lines between the bottom of topText
+ * and the top of bottomText, deduplicates them, and produces a single continuous problem text.
+ */
+export function stitchOcrTexts(topText: string, bottomText: string): string {
+  if (!topText || !topText.trim()) return (bottomText || '').trim();
+  if (!bottomText || !bottomText.trim()) return topText.trim();
+
+  const topLines = topText.split('\n').map((l) => l.trimEnd());
+  const bottomLines = bottomText.split('\n').map((l) => l.trimEnd());
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const maxOverlapCheck = Math.min(topLines.length, bottomLines.length, 25);
+  let bestOverlapCount = 0;
+
+  for (let overlap = maxOverlapCheck; overlap >= 1; overlap--) {
+    let match = true;
+    let matchedNonEmpty = 0;
+    let totalChars = 0;
+    for (let i = 0; i < overlap; i++) {
+      const topIdx = topLines.length - overlap + i;
+      const bottomIdx = i;
+      const lineTop = norm(topLines[topIdx]);
+      const lineBottom = norm(bottomLines[bottomIdx]);
+
+      if (!lineTop && !lineBottom) continue;
+      if (!lineTop || !lineBottom) {
+        match = false;
+        break;
+      }
+      if (lineTop === lineBottom || lineTop.includes(lineBottom) || lineBottom.includes(lineTop)) {
+        matchedNonEmpty++;
+        totalChars += Math.min(lineTop.length, lineBottom.length);
+      } else {
+        match = false;
+        break;
+      }
+    }
+    if (match && matchedNonEmpty >= 1 && (overlap > 1 || totalChars >= 8)) {
+      bestOverlapCount = overlap;
+      break;
+    }
+  }
+
+  if (bestOverlapCount > 0) {
+    return [...topLines, ...bottomLines.slice(bestOverlapCount)].join('\n').trim();
+  }
+
+  return `${topText.trim()}\n\n--- [SCROLLED SECTION / CONTINUED] ---\n\n${bottomText.trim()}`;
 }
 
 export function extractProblemHeadline(cleanedText: string): string {
@@ -98,7 +150,7 @@ export function buildScreenSolverPrompt(
 ): string {
   const _langHint = detectLanguageHint(cleanedOcrText);
 
-  return `You are an elite multilingual Senior Staff Software Engineer and competitive programming champion assisting a candidate in a live technical evaluation for "${targetRole || 'Software Engineer'}".
+  return `You are an elite multilingual Senior Staff Software Engineer and ACM ICPC World Finalist assisting a candidate in a live technical evaluation for "${targetRole || 'Software Engineer'}".
 
 --- EXTRACTED SCREEN OCR TEXT ---
 ${cleanedOcrText}
@@ -144,31 +196,39 @@ Provide a direct, articulate first-person spoken script (~65 to 110 words) struc
 - Ground the answer in the candidate's verified production experience and resume projects.
 `
       : `======================================================================
-🚨 ACTIVE MODE: CODING CHALLENGE (${preferredLanguage})
+🚨 ACTIVE MODE: ZERO-FAIL CODING CHALLENGE (${preferredLanguage})
 ======================================================================
-1. 🎯 PROBLEM BREAKDOWN & CONSTRAINTS:
-   - Restate exact problem, input/output types, and constraints (e.g. N <= 10^5, time limits).
-   - Identify critical edge cases (empty input, negatives, single element, duplicates, overflow).
+YOU MUST DELIVER BOTH FORMATS BELOW IN A SINGLE COMPLETE RESPONSE WITH ZERO OMISSIONS:
 
-2. ⚡ OPTIMAL APPROACH & BIG-O COMPLEXITY:
-   - Identify the exact optimal pattern (e.g., Hash Map, Two Pointers, Monotonic Stack, Dynamic Programming, Binary Search, Sliding Window).
-   - Time Complexity: O(...) with mathematical proof.
-   - Space Complexity: O(...) with auxiliary memory breakdown.
+1. 🎯 PROBLEM SPECIFICATION & DEFENSIVE EDGE CASES:
+   - Exact input/output types and constraints (e.g. N <= 10^5, -10^9 <= val <= 10^9).
+   - Time & Space Complexity Target:
+     • N <= 10^5: MUST be O(N) or O(N log N). STRICTLY FORBIDDEN to use O(N^2) (causes Time Limit Exceeded).
+   - Edge cases audited: Empty/null (N=0), single element (N=1), negative values, duplicates, and 64-bit integer overflow guard (use 'long' in Java or 'long long' in C++ for sums/multiplications).
 
-3. 💻 100% VERIFIED WORKING CODE (${preferredLanguage}):
-   - Provide complete, production-grade, syntactically flawless ${preferredLanguage} code inside a single markdown code block:
+2. ⚡ FORMAT 1: ULTRA-MINIMAL TYPEABLE SOLUTION (5–12 LINES MAX):
+   - Provide ONLY the concise core algorithm method body (under 12 lines) that passes 100% of test cases.
+   - NO comments, NO blank lines, NO outer class wrappers, NO import statements.
+   - Designed specifically for manual typing or auto-typing in under 45 seconds when clipboard pasting is blocked.
    \`\`\`${preferredLanguage.toLowerCase()}
-   // Complete, optimal, 100% verified solution in ${preferredLanguage}
+   // ⚡ TYPEABLE BODY (Shortest logic passing 100% of test cases)
    \`\`\`
-   - STRICT ZERO-PLACEHOLDERS: NEVER use '// TODO', '...', or leave any helper methods/comparators unwritten. Every line must be 100% implemented.
-   - ONLINE ASSESSMENT & COMPILER READY: Include all necessary standard library imports (e.g., 'import java.util.*;' in Java, 'from typing import List, Optional, Dict; from collections import deque, defaultdict; import heapq' in Python, standard includes in C++) and wrap in standard class (e.g., 'class Solution') ready to copy-paste directly into LeetCode / HackerRank / IDE with 0 compilation errors.
-   - DEFENSIVE GUARDS: Guard against null/empty inputs, single elements, negative numbers, and 64-bit integer overflow (use 'long' in Java/C++ when sums or multiplications can exceed 2*10^9).
-   - OPTIMALITY: Strictly adhere to the guaranteed optimal Big-O time and space complexity (e.g. O(N) or O(N log N)).
 
-4. 🧪 STEP-BY-STEP DRY RUN:
-   - Concise variable trace table stepping through the primary example from the screen to mathematically verify correctness.
+3. 📦 FORMAT 2: COMPLETE ONLINE JUDGE CLASS (100% COMPILABLE & ZERO MISSING CODE):
+   - Complete, production-grade, compilable class (e.g., 'class Solution') ready to copy-paste directly into LeetCode / HackerRank / CodeSignal / IDE.
+   - STRICT ZERO-OMISSION GUARANTEE:
+     • MUST include ALL necessary imports (e.g., 'import java.util.*;' in Java; 'from typing import List, Dict, Optional, Tuple; from collections import deque, defaultdict, Counter; import heapq' in Python; standard #includes in C++).
+     • ABSOLUTELY FORBIDDEN: NEVER use '// TODO', '...', or omit any helper methods, comparators, or ListNode/TreeNode definitions.
+     • Every single line must be 100% implemented, syntactically flawless, and ready to pass all test cases on first run.
+   \`\`\`${preferredLanguage.toLowerCase()}
+   // 📦 COMPLETE ONLINE JUDGE CLASS (Zero placeholders, 100% compilable)
+   \`\`\`
 
-5. 🗣️ VERBAL EXPLANATION (Spoken script):
-   - A crisp, natural first-person verbal explanation (~65 to 90 words) the candidate can speak aloud to the interviewer while typing the solution.`
+4. 🧪 MATHEMATICAL VERIFICATION & DRY RUN:
+   - Line-by-line variable trace table stepping through Example 1 and a Tricky Edge Case (empty, negative, or duplicate elements).
+   - Verify expected output vs actual output to mathematically guarantee 0 test case failures.
+
+5. 🗣️ SPOKEN CANDIDATE SCRIPT:
+   - A natural, confident 60-80 word first-person explanation the candidate can speak to the interviewer while code is being typed.`
 }`;
 }

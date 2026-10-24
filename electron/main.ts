@@ -1,6 +1,8 @@
 import { parsePdfBuffer } from './services/pdfParser';
+import { stitchOcrTexts } from './services/ocrStitcher';
 import {
   app,
+  clipboard,
   BrowserWindow,
   ipcMain,
   dialog,
@@ -30,6 +32,7 @@ import {
 let mainWindow: BrowserWindow | null = null;
 let isContentProtected = true;
 let tray: Tray | null = null;
+let lastCapturedOcrText = "";
 
 const RECORDINGS_DIR = path.join(app.getPath('userData'), 'recordings');
 const SESSIONS_DIR = path.join(app.getPath('userData'), 'sessions');
@@ -172,6 +175,23 @@ function registerGlobalShortcuts() {
     });
   } catch (err) {
     console.warn('[Electron] Could not register screen capture shortcut:', err);
+  }
+
+  try {
+    globalShortcut.register('CommandOrControl+Shift+A', () => {
+      if (!mainWindow?.isVisible()) mainWindow?.show();
+      mainWindow?.webContents.send('trigger-append-screen-capture');
+    });
+  } catch (err) {
+    console.warn('[Electron] Could not register append screen capture shortcut:', err);
+  }
+
+  try {
+    globalShortcut.register('Alt+V', () => {
+      mainWindow?.webContents.send('trigger-auto-type');
+    });
+  } catch (err) {
+    console.warn('[Electron] Could not register auto-type shortcut:', err);
   }
 }
 
@@ -570,6 +590,7 @@ ipcMain.handle(
         return { success: false, error: 'No text or code could be detected on the screen.' };
       }
 
+      lastCapturedOcrText = text;
       return { success: true, text };
     } catch (err: any) {
       console.error('[Electron] Screen OCR error:', err);
@@ -582,6 +603,147 @@ ipcMain.handle(
     }
   }
 );
+
+
+ipcMain.handle('screen:get-last-ocr-text', () => lastCapturedOcrText);
+ipcMain.handle('screen:set-last-ocr-text', (_event, text: string) => {
+  lastCapturedOcrText = text || '';
+  return true;
+});
+
+// Append Screen Capture (Scroll down & stitch multi-page problem descriptions)
+ipcMain.handle(
+  'screen:append-capture-and-ocr',
+  async (_event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
+    const tmpImg = path.join(app.getPath('temp'), `iac_screen_append_${Date.now()}.jpg`);
+    const isMac = process.platform === 'darwin';
+    const ocrBin = path.join(__dirname, '../bin/mac-ocr');
+
+    try {
+      if (isMac) {
+        const captureFlag = mode === 'snip' ? '-i -x' : '-x';
+        await execAsync(`screencapture ${captureFlag} "${tmpImg}"`);
+      } else {
+        const snipCmd = `maim -s "${tmpImg}" || scrot -s "${tmpImg}" || import "${tmpImg}"`;
+        const fullCmd = `maim "${tmpImg}" || scrot "${tmpImg}" || import -window root "${tmpImg}"`;
+        await execAsync(mode === 'snip' ? snipCmd : fullCmd);
+      }
+
+      if (!fs.existsSync(tmpImg)) {
+        return {
+          success: false,
+          cancelled: true,
+          error: 'Screen capture cancelled.',
+        };
+      }
+
+      let newText = '';
+      if (isMac && fs.existsSync(ocrBin)) {
+        const { stdout } = await execAsync(`"${ocrBin}" "${tmpImg}"`);
+        newText = stdout.trim();
+      } else {
+        const { stdout } = await execAsync(
+          `tesseract "${tmpImg}" stdout --oem 1 -l eng 2>/dev/null || tesseract "${tmpImg}" stdout 2>/dev/null`
+        );
+        newText = stdout.trim();
+      }
+
+      try {
+        fs.unlinkSync(tmpImg);
+      } catch {
+        // ignore
+      }
+
+      if (!newText) {
+        return { success: false, error: 'No text detected on the scrolled screen.' };
+      }
+
+      // Stitch previous capture with new capture, deduplicating overlapping lines
+      const stitched = stitchOcrTexts(lastCapturedOcrText, newText);
+      lastCapturedOcrText = stitched;
+
+      return {
+        success: true,
+        text: stitched,
+        appended: true,
+        newLength: stitched.length,
+      };
+    } catch (err: any) {
+      console.error('[Electron] Screen append OCR error:', err);
+      try {
+        if (fs.existsSync(tmpImg)) fs.unlinkSync(tmpImg);
+      } catch {
+        // ignore
+      }
+      return { success: false, error: err.message || String(err) };
+    }
+  }
+);
+
+// Stealth Keystroke Auto-Typer: Dispatches native OS keyboard HID events directly into active editor window
+ipcMain.handle('system:auto-type', async (_event, code: string, delayMs: number = 1500) => {
+  if (!code || typeof code !== 'string') {
+    return { success: false, error: 'No code provided.' };
+  }
+  const isMac = process.platform === 'darwin';
+
+  if (!isMac) {
+    try {
+      clipboard.writeText(code);
+      return { success: true, method: 'clipboard' };
+    } catch (err: any) {
+      return { success: false, error: err.message || String(err) };
+    }
+  }
+
+  const tmpCode = path.join(app.getPath('temp'), `iac_code_${Date.now()}.txt`);
+  const tmpScript = path.join(app.getPath('temp'), `iac_type_${Date.now()}.applescript`);
+
+  try {
+    fs.writeFileSync(tmpCode, code, 'utf8');
+
+    const delaySec = Math.max(0.5, (delayMs || 1500) / 1000);
+    const appleScriptContent = `
+delay ${delaySec}
+set f to "${tmpCode}"
+set theCode to read POSIX file f as «class utf8»
+tell application "System Events"
+  keystroke theCode
+end tell
+`;
+    fs.writeFileSync(tmpScript, appleScriptContent, 'utf8');
+
+    await execAsync(`osascript "${tmpScript}"`);
+
+    try {
+      if (fs.existsSync(tmpCode)) fs.unlinkSync(tmpCode);
+      if (fs.existsSync(tmpScript)) fs.unlinkSync(tmpScript);
+    } catch {
+      // ignore
+    }
+
+    return { success: true, method: 'keystroke' };
+  } catch (err: any) {
+    console.error('[Electron] Auto-type error:', err);
+    try {
+      if (fs.existsSync(tmpCode)) fs.unlinkSync(tmpCode);
+      if (fs.existsSync(tmpScript)) fs.unlinkSync(tmpScript);
+    } catch {
+      // ignore
+    }
+    // Fallback: Copy clean code to clipboard
+    try {
+      clipboard.writeText(code);
+      return {
+        success: true,
+        method: 'clipboard-fallback',
+        warning: 'Keystroke simulation required Accessibility permission; copied to clipboard instead.',
+      };
+    } catch (clipErr: any) {
+      return { success: false, error: err.message || String(err) };
+    }
+  }
+});
 
 ipcMain.handle('screen:ocr-image', async (_event, filePath: string) => {
   const isMac = process.platform === 'darwin';

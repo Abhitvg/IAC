@@ -216,10 +216,21 @@ export interface ElectronAPI {
   stopWsServer: () => Promise<boolean>;
   onBrowserContext: (callback: (data: BrowserContext) => void) => () => void;
   onTriggerScreenCapture?: (callback: () => void) => () => void;
+  onTriggerAppendScreenCapture?: (callback: () => void) => () => void;
+  onTriggerAutoType?: (callback: () => void) => () => void;
   captureScreenAndOCR?: (
     mode?: 'fullscreen' | 'snip'
   ) => Promise<{ success: boolean; text?: string; cancelled?: boolean; error?: string }>;
+  appendScreenCaptureAndOCR?: (
+    mode?: 'fullscreen' | 'snip'
+  ) => Promise<{ success: boolean; text?: string; cancelled?: boolean; error?: string; appended?: boolean }>;
+  getLastOcrText?: () => Promise<string>;
+  setLastOcrText?: (text: string) => Promise<boolean>;
   ocrImageFile?: (filePath: string) => Promise<{ success: boolean; text?: string; error?: string }>;
+  autoTypeCode?: (
+    code: string,
+    delayMs?: number
+  ) => Promise<{ success: boolean; method?: string; error?: string; warning?: string }>;
   platform: string;
 }
 

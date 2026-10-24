@@ -23,6 +23,8 @@ import {
   CheckCircle2,
   Volume2,
   Camera,
+  FilePlus,
+  Zap,
   Crop,
   ScanText,
   Check,
@@ -39,6 +41,7 @@ interface CodeBlockCardProps {
   index: number;
   onCopy: (code: string, index: number) => void;
   isCopied: boolean;
+  onAutoType?: (code: string) => void;
 }
 
 // Dedicated High-Contrast MCQ / Quiz Answer Card
@@ -302,11 +305,60 @@ function MemoryIndicator({ historyCount }: { historyCount: number }) {
   );
 }
 
+function extractCodeBlocksFromAnswer(answer: string | null | undefined, defaultLang: string = 'Java') {
+  if (!answer) return [];
+  const segments: Array<{ language: string; code: string }> = [];
+  const codeBlockRegex = /```([a-zA-Z0-9_#+-]*)[^\n\r]*\r?\n([\s\S]*?)(?:```|$)/g;
+  let match: RegExpExecArray | null;
+  while ((match = codeBlockRegex.exec(answer)) !== null) {
+    const lang = match[1] || defaultLang;
+    const code = match[2] || '';
+    if (code.trim()) {
+      segments.push({ language: lang, code: code.trim() });
+    }
+  }
+  return segments;
+}
+
 function CodeBlockCard({ language, code, index, onCopy, isCopied }: CodeBlockCardProps) {
   const cleanCode = code.trim();
   const lines = cleanCode.split('\n');
   const lineCount = lines.length;
   const displayLang = (language || 'code').toUpperCase();
+  const isTypeableMinimal = lineCount <= 14 || /⚡|TYPEABLE|Shortest/i.test(cleanCode.slice(0, 80));
+
+  const [typeStatus, setTypeStatus] = useState<'idle' | 'counting' | 'typing' | 'done'>('idle');
+  const [countdown, setCountdown] = useState(2);
+
+  const handleStartAutoType = async () => {
+    if (typeStatus !== 'idle') return;
+    setTypeStatus('counting');
+    setCountdown(2);
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setTypeStatus('typing');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    try {
+      const res = await window.electronAPI?.autoTypeCode?.(cleanCode, 2000);
+      clearInterval(timer);
+      setTypeStatus('done');
+      if (res?.method === 'clipboard-fallback') {
+        onCopy(cleanCode, index);
+      }
+      setTimeout(() => setTypeStatus('idle'), 3000);
+    } catch {
+      clearInterval(timer);
+      setTypeStatus('idle');
+    }
+  };
 
   return (
     <div
@@ -331,6 +383,8 @@ function CodeBlockCard({ language, code, index, onCopy, isCopied }: CodeBlockCar
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
           fontSize: '11px',
           color: '#94a3b8',
+          flexWrap: 'wrap',
+          gap: '6px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -350,34 +404,108 @@ function CodeBlockCard({ language, code, index, onCopy, isCopied }: CodeBlockCar
           <span style={{ color: '#64748b', fontSize: '10px' }}>
             ({lineCount} {lineCount === 1 ? 'line' : 'lines'})
           </span>
+          {isTypeableMinimal && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                padding: '1px 6px',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontWeight: 700,
+                background: 'rgba(245, 158, 11, 0.18)',
+                color: '#fde68a',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+              }}
+            >
+              ⚡ ~35s Typeable
+            </span>
+          )}
         </div>
 
-        <button
-          onClick={() => onCopy(cleanCode, index)}
-          title="Copy ONLY this clean code directly to clipboard (ready to paste into LeetCode / HackerRank / Editor)"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            background: isCopied
-              ? 'rgba(16, 185, 129, 0.3)'
-              : 'linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(79, 70, 229, 0.5))',
-            color: isCopied ? '#6ee7b7' : '#e0e7ff',
-            border: isCopied
-              ? '1px solid rgba(52, 211, 153, 0.7)'
-              : '1px solid rgba(129, 140, 248, 0.5)',
-            borderRadius: '5px',
-            padding: '4px 10px',
-            fontSize: '11px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-            boxShadow: isCopied ? '0 0 10px rgba(16, 185, 129, 0.4)' : 'none',
-          }}
-        >
-          {isCopied ? <Check size={12} /> : <Copy size={12} />}
-          <span>{isCopied ? '✓ Copied Code!' : '📋 Copy Code Only'}</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            onClick={handleStartAutoType}
+            title="Auto-type code into active editor to bypass platform copy-paste restrictions (Shortcut: Option+V)"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              background:
+                typeStatus === 'counting' || typeStatus === 'typing'
+                  ? 'rgba(234, 88, 12, 0.35)'
+                  : typeStatus === 'done'
+                  ? 'rgba(16, 185, 129, 0.3)'
+                  : 'linear-gradient(135deg, rgba(6, 182, 212, 0.35), rgba(14, 165, 233, 0.45))',
+              color:
+                typeStatus === 'counting' || typeStatus === 'typing'
+                  ? '#fdba74'
+                  : typeStatus === 'done'
+                  ? '#6ee7b7'
+                  : '#e0f2fe',
+              border:
+                typeStatus === 'done'
+                  ? '1px solid rgba(52, 211, 153, 0.7)'
+                  : '1px solid rgba(56, 189, 248, 0.5)',
+              borderRadius: '5px',
+              padding: '4px 9px',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {typeStatus === 'counting' ? (
+              <>
+                <Loader2 size={12} className="spin" />
+                <span>Focus Editor: {countdown}s...</span>
+              </>
+            ) : typeStatus === 'typing' ? (
+              <>
+                <Keyboard size={12} className="spin" />
+                <span>Typing...</span>
+              </>
+            ) : typeStatus === 'done' ? (
+              <>
+                <Check size={12} />
+                <span>✓ Auto-Typed!</span>
+              </>
+            ) : (
+              <>
+                <Zap size={12} />
+                <span>⚡ Auto-Type (⌥V)</span>
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={() => onCopy(cleanCode, index)}
+            title="Copy ONLY this clean code directly to clipboard (ready to paste into LeetCode / HackerRank / Editor)"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              background: isCopied
+                ? 'rgba(16, 185, 129, 0.3)'
+                : 'linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(79, 70, 229, 0.5))',
+              color: isCopied ? '#6ee7b7' : '#e0e7ff',
+              border: isCopied
+                ? '1px solid rgba(52, 211, 153, 0.7)'
+                : '1px solid rgba(129, 140, 248, 0.5)',
+              borderRadius: '5px',
+              padding: '4px 10px',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              boxShadow: isCopied ? '0 0 10px rgba(16, 185, 129, 0.4)' : 'none',
+            }}
+          >
+            {isCopied ? <Check size={12} /> : <Copy size={12} />}
+            <span>{isCopied ? '✓ Copied Code!' : '📋 Copy Code Only'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Code Body with Line Numbers */}
@@ -543,11 +671,19 @@ export default function TeleprompterView() {
   const isRibbonMode = isInterviewFocusMode || isCompactHeight;
 
   useEffect(() => {
-    const unsub = window.electronAPI?.onTriggerScreenCapture?.(() => {
+    const unsubCapture = window.electronAPI?.onTriggerScreenCapture?.(() => {
       handleScreenCapture('fullscreen');
     });
+    const unsubAppend = window.electronAPI?.onTriggerAppendScreenCapture?.(() => {
+      handleAppendScreenCapture('fullscreen');
+    });
+    const unsubAutoType = window.electronAPI?.onTriggerAutoType?.(() => {
+      handleTriggerAutoType();
+    });
     return () => {
-      unsub?.();
+      unsubCapture?.();
+      unsubAppend?.();
+      unsubAutoType?.();
     };
   }, []);
 
@@ -604,6 +740,73 @@ export default function TeleprompterView() {
       setToast('Screen capture error: ' + (err?.message || err));
     } finally {
       setIsScreenReading(false);
+    }
+  };
+
+  const handleAppendScreenCapture = async (mode: 'fullscreen' | 'snip' = 'fullscreen') => {
+    if (isScreenReading) return;
+    setIsScreenReading(true);
+    setToast(
+      mode === 'snip'
+        ? '✂️ Snip Scrolled Page: Drag over the continuation/constraints on screen'
+        : '📄 Capturing scrolled page & stitching with top question...'
+    );
+
+    try {
+      const res = await window.electronAPI?.appendScreenCaptureAndOCR?.(mode);
+      if (res?.cancelled) {
+        setToast('Append capture cancelled.');
+        setIsScreenReading(false);
+        return;
+      }
+      if (!res?.success || !res?.text) {
+        setToast(res?.error || 'No readable text or code found on scrolled screen.');
+        setIsScreenReading(false);
+        return;
+      }
+
+      setToast('🧩 Stitched 2-page question! Regenerating 100% verified solution with full constraints...');
+      InterviewEngine.handleEvent({
+        type: 'SCREEN_PROBLEM_DETECTED',
+        rawText: res.text,
+        mode,
+      });
+    } catch (err: any) {
+      console.error('[TeleprompterView] Append screen capture error:', err);
+      setToast('Append error: ' + (err?.message || err));
+    } finally {
+      setIsScreenReading(false);
+    }
+  };
+
+  const handleTriggerAutoType = async () => {
+    const codeBlocks = extractCodeBlocksFromAnswer(
+      useAppStore.getState().currentAnswer,
+      settings?.preferredLanguage || 'Java'
+    );
+    if (!codeBlocks.length) {
+      setToast('⚠️ No code block found in the current answer to auto-type.');
+      return;
+    }
+
+    const preferred =
+      codeBlocks.find(
+        (b) =>
+          b.code.split('\n').length <= 15 ||
+          /⚡|TYPEABLE|Shortest/i.test(b.code)
+      ) || codeBlocks[0];
+
+    const cleanCode = preferred.code;
+    setToast('⌨️ Auto-Type activated! Click inside your code editor now: 2... 1...');
+    try {
+      const res = await window.electronAPI?.autoTypeCode?.(cleanCode, 2000);
+      if (res?.success) {
+        setToast('✓ Code auto-typed into editor! (Bypassed copy-paste restrictions)');
+      } else {
+        setToast('Auto-type note: ' + (res?.warning || res?.error || 'Copied to clipboard'));
+      }
+    } catch (err: any) {
+      setToast('Auto-type error: ' + (err?.message || err));
     }
   };
 
@@ -1661,6 +1864,17 @@ export default function TeleprompterView() {
               >
                 {isScreenReading ? <Loader2 size={11} className="spin" /> : <Camera size={11} />}
                 <span className="hidden sm:inline">Snip (⌘⇧S)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleAppendScreenCapture('fullscreen')}
+                disabled={isScreenReading}
+                className="card-interactive px-2 py-1 rounded-lg text-[11px] font-bold bg-cyan-600/80 hover:bg-cyan-500 text-white border border-cyan-400/40 flex items-center gap-1 shadow-sm"
+                title="Scroll down & append lower section/constraints (⌘⇧A)"
+              >
+                {isScreenReading ? <Loader2 size={11} className="spin" /> : <FilePlus size={11} />}
+                <span className="hidden sm:inline">+ Page (⌘⇧A)</span>
               </button>
 
               <button
@@ -3139,6 +3353,30 @@ export default function TeleprompterView() {
             >
               <Crop size={11} />
               <span>✂️ Snip Box</span>
+            </button>
+
+            <button
+              onClick={() => handleAppendScreenCapture('fullscreen')}
+              disabled={isScreenReading}
+              title="Scroll down in question & append lower section/constraints (Shortcut: Cmd+Shift+A)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'rgba(6, 182, 212, 0.22)',
+                color: '#67e8f9',
+                border: '1px solid rgba(34, 211, 238, 0.35)',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                fontWeight: 650,
+                fontSize: '11px',
+                cursor: isScreenReading ? 'wait' : 'pointer',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <FilePlus size={11} />
+              <span>📄 + Append Page (⌘⇧A)</span>
             </button>
           </div>
 

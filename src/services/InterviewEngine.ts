@@ -438,7 +438,7 @@ export class InterviewEngine {
               apiKey: apiKey || '',
               model: currentStore.settings?.aiModel || 'openai/gpt-oss-120b',
               temperature: 0.1,
-              maxTokens: isCoding ? 2000 : store.settings?.maxTokens || 1500,
+              maxTokens: isCoding ? 3500 : store.settings?.maxTokens || 1500,
               systemPrompt:
                 'You are a world-class Principal Software Engineer and ACM ICPC World Finalist. You deliver 100% verified, bug-free, optimal, compilable code and rigorous algorithmic proofs with ZERO hallucinations.',
             },

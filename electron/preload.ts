@@ -63,9 +63,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('trigger-screen-capture', () => callback());
     return () => ipcRenderer.removeAllListeners('trigger-screen-capture');
   },
+  onTriggerAppendScreenCapture: (callback: () => void) => {
+    ipcRenderer.on('trigger-append-screen-capture', () => callback());
+    return () => ipcRenderer.removeAllListeners('trigger-append-screen-capture');
+  },
+  onTriggerAutoType: (callback: () => void) => {
+    ipcRenderer.on('trigger-auto-type', () => callback());
+    return () => ipcRenderer.removeAllListeners('trigger-auto-type');
+  },
   captureScreenAndOCR: (mode: 'fullscreen' | 'snip' = 'fullscreen') =>
     ipcRenderer.invoke('screen:capture-and-ocr', mode),
+  appendScreenCaptureAndOCR: (mode: 'fullscreen' | 'snip' = 'fullscreen') =>
+    ipcRenderer.invoke('screen:append-capture-and-ocr', mode),
+  getLastOcrText: () => ipcRenderer.invoke('screen:get-last-ocr-text'),
+  setLastOcrText: (text: string) => ipcRenderer.invoke('screen:set-last-ocr-text', text),
   ocrImageFile: (filePath: string) => ipcRenderer.invoke('screen:ocr-image', filePath),
+  autoTypeCode: (code: string, delayMs?: number) =>
+    ipcRenderer.invoke('system:auto-type', code, delayMs),
 
   // Platform
   platform: process.platform,
