@@ -20,6 +20,14 @@ export function detectLanguageHint(text: string): LanguageDetectionResult {
   if (/[\u0400-\u04ff]/.test(text))
     return { isNonEnglish: true, languageName: 'Russian', flag: '🇷🇺' };
   if (
+    /\b(retorne|arranjo|saída|função|questão|inteiro)\b/i.test(lower)
+  ) {
+    return { isNonEnglish: true, languageName: 'Portuguese', flag: '🇧🇷' };
+  }
+  if (/\b(restituisci|vettore|funzione|quesito)\b/i.test(lower)) {
+    return { isNonEnglish: true, languageName: 'Italian', flag: '🇮🇹' };
+  }
+  if (
     /\b(dado|arreglo|devuelva|enteros|ejemplo|entrada|salida|explicación|solución|puedes|índices|pregunta|entrevista|cadena|matriz)\b/i.test(
       lower
     )
@@ -39,12 +47,6 @@ export function detectLanguageHint(text: string): LanguageDetectionResult {
     )
   ) {
     return { isNonEnglish: true, languageName: 'German', flag: '🇩🇪' };
-  }
-  if (/\b(dado|matriz|retorne|saída|exemplo|inteiro|função)\b/i.test(lower)) {
-    return { isNonEnglish: true, languageName: 'Portuguese', flag: '🇧🇷' };
-  }
-  if (/\b(dato|restituisci|vettore|intero|esempio|stringa|funzione)\b/i.test(lower)) {
-    return { isNonEnglish: true, languageName: 'Italian', flag: '🇮🇹' };
   }
   return { isNonEnglish: false, languageName: 'English', flag: '🇬🇧' };
 }
