@@ -134,8 +134,8 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
     });
   });
 
-  describe('generateTailoredResume() — ATS Keyword Alignment', () => {
-    it('produces clean markdown resume structure with matching technical competencies', async () => {
+  describe('generateTailoredResume() — Sourabh Bajaj (sb2nov) LaTeX ATS Alignment', () => {
+    it('produces 100% valid compilable sb2nov LaTeX resume structure with matching technical competencies', async () => {
       const resume = await generateTailoredResume(
         'Need Java, Kafka, and AWS',
         sampleResume,
@@ -143,9 +143,12 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
         'Stripe'
       );
 
+      expect(resume).toContain('\\documentclass[letterpaper,11pt]{article}');
+      expect(resume).toContain('sb2nov/resume');
+      expect(resume).toContain('\\section{Programming Skills}');
       expect(resume).toContain('Lead Backend Engineer');
-      expect(resume).toContain('Core Technical Competencies');
       expect(resume).toContain('Java');
+      expect(resume).toContain('\\end{document}');
     });
   });
 

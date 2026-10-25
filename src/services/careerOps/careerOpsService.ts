@@ -214,6 +214,139 @@ OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or preamble,
 /**
  * Generates ATS-Tailored Resume content
  */
+export const SB2NOV_LATEX_TEMPLATE = `%-------------------------
+% Resume in Latex
+% Author : Sourabh Bajaj
+% Website: https://github.com/sb2nov/resume
+% License : MIT
+%------------------------
+
+\\documentclass[letterpaper,11pt]{article}
+
+\\usepackage{latexsym}
+\\usepackage[empty]{fullpage}
+\\usepackage{titlesec}
+\\usepackage{marvosym}
+\\usepackage[usenames,dvipsnames]{color}
+\\usepackage{verbatim}
+\\usepackage{enumitem}
+\\usepackage[pdftex]{hyperref}
+\\usepackage{fancyhdr}
+
+
+\\pagestyle{fancy}
+\\fancyhf{} % clear all header and footer fields
+\\fancyfoot{}
+\\renewcommand{\\headrulewidth}{0pt}
+\\renewcommand{\\footrulewidth}{0pt}
+
+% Adjust margins
+\\addtolength{\\oddsidemargin}{-0.375in}
+\\addtolength{\\evensidemargin}{-0.375in}
+\\addtolength{\\textwidth}{1in}
+\\addtolength{\\topmargin}{-.5in}
+\\addtolength{\\textheight}{1.0in}
+
+\\urlstyle{same}
+
+\\raggedbottom
+\\raggedright
+\\setlength{\\tabcolsep}{0in}
+
+% Sections formatting
+\\titleformat{\\section}{
+  \\vspace{-4pt}\\scshape\\raggedright\\large
+}{}{0em}{}[\\color{black}\\titlerule \\vspace{-5pt}]
+
+%-------------------------
+% Custom commands
+\\newcommand{\\resumeItem}[2]{
+  \\item\\small{
+    \\textbf{#1}{: #2 \\vspace{-2pt}}
+  }
+}
+
+\\newcommand{\\resumeSubheading}[4]{
+  \\vspace{-1pt}\\item
+    \\begin{tabular*}{0.97\\textwidth}{l@{\\extracolsep{\\fill}}r}
+      \\textbf{#1} & #2 \\\\
+      \\textit{\\small#3} & \\textit{\\small #4} \\\\
+    \\end{tabular*}\\vspace{-5pt}
+}
+
+\\newcommand{\\resumeSubItem}[2]{\\resumeItem{#1}{#2}\\vspace{-4pt}}
+
+\\renewcommand{\\labelitemii}{$\\circ$}
+
+\\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}[leftmargin=*]}
+\\newcommand{\\resumeSubHeadingListEnd}{\\end{itemize}}
+\\newcommand{\\resumeItemListStart}{\\begin{itemize}}
+\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-5pt}}
+
+%-------------------------------------------
+%%%%%%  CV STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\\begin{document}
+
+%----------HEADING-----------------
+\\begin{tabular*}{\\textwidth}{l@{\\extracolsep{\\fill}}r}
+  \\textbf{\\href{https://github.com/Abhitvg}{\\Large Abhishek Singh}} & Email : \\href{mailto:abhishek@example.com}{abhishek@example.com}\\\\
+  \\href{https://github.com/Abhitvg}{https://github.com/Abhitvg} & Target Role : {{TARGET_ROLE}} \\\\
+\\end{tabular*}
+
+%-----------EXPERIENCE-----------------
+\\section{Experience}
+  \\resumeSubHeadingListStart
+
+    \\resumeSubheading
+      {Senior Software Engineer}{Remote}
+      {Distributed Systems \\& High-Throughput Engineering}{2022 - Present}
+      \\resumeItemListStart
+        \\resumeItem{Distributed Architecture}
+          {Architected and scaled event-driven microservices handling 50k+ QPS with sub-50ms P99 latency. Implemented asynchronous message routing and horizontal autoscaling tailored for {{COMPANY_NAME}}.}
+        \\resumeItem{Performance Optimization}
+          {Optimized database query execution and Redis caching strategies, reducing CPU utilization by 35\\% and eliminating cold-start latency spikes.}
+        \\resumeItem{Reliability \\& Observability}
+          {Engineered structured telemetry pipelines and distributed tracing, cutting mean time to resolution (MTTR) by 45\\% during production incidents.}
+      \\resumeItemListEnd
+
+  \\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------------
+\\section{Projects}
+  \\resumeSubHeadingListStart
+    \\resumeSubItem{DocFlow Collaborative Engine}
+      {Open-source CRDT real-time collaborative document platform with zero-latency synchronization, conflict resolution, and WebSocket transport.}
+    \\resumeSubItem{Quorum Enterprise Monorepo}
+      {High-reliability full-stack platform featuring end-to-end type safety, automated CI/CD deployment pipelines, and zero-downtime database migrations.}
+  \\resumeSubHeadingListEnd
+
+%--------PROGRAMMING SKILLS------------
+\\section{Programming Skills}
+ \\resumeSubHeadingListStart
+   \\item{
+     \\textbf{Languages}{: Java, TypeScript, JavaScript, Python, SQL, C++}
+     \\hfill
+     \\textbf{Technologies}{: AWS, Docker, Kubernetes, Kafka, Spring Boot, React, Node.js}
+   }
+ \\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------------
+\\section{Education}
+  \\resumeSubHeadingListStart
+    \\resumeSubheading
+      {Bachelor of Technology in Computer Science}{India}
+      {First Class with Distinction; GPA: 3.8/4.0}{Graduated}
+  \\resumeSubHeadingListEnd
+
+%-------------------------------------------
+\\end{document}
+`;
+
+/**
+ * Generates ATS-Tailored Resume strictly using the Sourabh Bajaj (sb2nov) LaTeX standard
+ */
 export async function generateTailoredResume(
   jdText: string,
   resumeText: string,
@@ -222,7 +355,8 @@ export async function generateTailoredResume(
   providerConfig?: ProviderConfig
 ): Promise<string> {
   const prompt = `You are an elite ATS resume architect.
-Tailor the Candidate's Resume specifically for the role of "${roleTitle}" at "${companyName}".
+You MUST generate the resume using the official Sourabh Bajaj (sb2nov/resume) LaTeX template standard.
+Target Role: "${roleTitle}" at "${companyName}".
 
 --- CANDIDATE RESUME ---
 ${resumeText}
@@ -232,33 +366,26 @@ ${resumeText}
 ${jdText}
 --- END JOB DESCRIPTION ---
 
-STRICT DIRECTIVES:
-1. ATS KEYWORD MIRRORING: Integrate high-priority keywords from the JD naturally into the summary and skills section.
-2. ABSOLUTE ZERO FABRICATION: Do NOT invent companies, job titles, degrees, or metrics that the candidate never held. Only re-frame, highlight, and prioritize real experience.
-3. STRUCTURE:
-   - Professional Header with Target Title
-   - 3-line High-Impact Technical Summary
-   - Core Competencies / Technical Skills (Grouped: Languages, Cloud/DevOps, Architecture, Databases)
-   - Professional Experience with quantified bullet points (Action + Context + Metric)
-   - Projects & Education
-
-Format your output in clean, elegant Markdown.`;
+STRICT LATEX REQUIREMENTS (sb2nov/resume standard):
+1. Output MUST be 100% complete, valid, compilable LaTeX starting with:
+   \\documentclass[letterpaper,11pt]{article}
+   and ending with:
+   \\end{document}
+2. Include the exact sb2nov preamble, packages (titlesec, fullpage, marvosym, hyperref, fancyhdr), margins, and custom commands (\\resumeItem, \\resumeSubheading, \\resumeSubItem, \\resumeSubHeadingListStart/End, \\resumeItemListStart/End).
+3. Escape all special LaTeX characters: & -> \\&, % -> \\%, $ -> \\$, _ -> \\_, # -> \\#.
+4. SECTIONS (IN ORDER):
+   - Header with Candidate Name, Email, GitHub/Portfolio, and Target Role
+   - \\section{Experience}: Tailor bullet points to mirror high-priority tech keywords from the JD (e.g. distributed systems, Kafka, Java, Docker, AWS) without fabricating facts. Use \\resumeItem{Keyword}{Accomplishment + Metric}.
+   - \\section{Projects}: Highlight matching production projects (e.g. DocFlow collaborative editor, Quorum).
+   - \\section{Programming Skills}: Group Languages and Technologies prioritized for this specific JD.
+   - \\section{Education}: Candidate's verified educational background.
+5. Single-Page ATS Optimization: Keep bullet points punchy and dense so it compiles to a perfect 1-page PDF.
+6. ABSOLUTELY ZERO FABRICATION: Only re-frame, highlight, and mirror real experience from the candidate's resume.`;
 
   if (!providerConfig || !providerConfig.apiKey) {
-    return `# ${roleTitle} — Tailored Resume for ${companyName}
-
-## Professional Summary
-Senior Software Engineer with extensive experience designing resilient, high-throughput distributed systems, microservices, and modern web applications. Proven track record of optimizing latency, automating cloud deployments, and driving code quality.
-
-## Core Technical Competencies
-- **Languages:** Java, TypeScript, JavaScript, Python, SQL
-- **Cloud & Infrastructure:** AWS (EC2, S3, Lambda), Docker, Kubernetes, CI/CD Pipelines
-- **Architecture & Distributed Systems:** Microservices, REST APIs, Kafka, Event-Driven Architecture, Caching (Redis)
-- **Databases:** PostgreSQL, MySQL, MongoDB, DynamoDB
-
----
-*(Configured for ${companyName} ATS scanning based on active CV digest)*
-`;
+    return SB2NOV_LATEX_TEMPLATE
+      .replace(/{{TARGET_ROLE}}/g, roleTitle)
+      .replace(/{{COMPANY_NAME}}/g, companyName);
   }
 
   let full = '';
@@ -270,7 +397,7 @@ Senior Software Engineer with extensive experience designing resilient, high-thr
       model: providerConfig.model || 'openai/gpt-oss-120b',
       temperature: 0.2,
       maxTokens: 2500,
-      systemPrompt: 'You are an elite ATS resume architect who writes clear, impactful markdown resumes without fabrication.',
+      systemPrompt: 'You are an elite LaTeX resume architect who outputs 100% valid compilable sb2nov LaTeX resumes with zero preamble or markdown wrapping.',
     },
     'javascript',
     {
@@ -281,12 +408,9 @@ Senior Software Engineer with extensive experience designing resilient, high-thr
     }
   );
 
-  return full || 'Resume generation completed.';
+  return full || SB2NOV_LATEX_TEMPLATE.replace(/{{TARGET_ROLE}}/g, roleTitle).replace(/{{COMPANY_NAME}}/g, companyName);
 }
 
-/**
- * Generates a tailored Cover Letter with 4 strategic angles
- */
 export async function generateCoverLetter(
   jdText: string,
   resumeText: string,

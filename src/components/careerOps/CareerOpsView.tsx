@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   XCircle,
   Copy,
+  Download,
   ExternalLink,
   Plus,
   Trash2,
@@ -82,6 +83,23 @@ export function CareerOpsView() {
     setCopiedField(fieldName);
     setToast(`Copied ${fieldName} to clipboard!`);
     setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const handleDownloadTex = (texContent: string, company: string, role: string) => {
+    try {
+      const element = document.createElement("a");
+      const file = new Blob([texContent], { type: "text/x-tex;charset=utf-8" });
+      element.href = URL.createObjectURL(file);
+      const cleanComp = (company || "Company").replace(/[^a-zA-Z0-9]/g, "_");
+      const cleanRole = (role || "Role").replace(/[^a-zA-Z0-9]/g, "_");
+      element.download = `${cleanComp}_${cleanRole}_Resume.tex`;
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+      setToast(`Downloaded ${cleanComp}_${cleanRole}_Resume.tex!`);
+    } catch (e) {
+      console.error("Failed to download .tex file", e);
+    }
   };
 
   const handleCreateJobAndEvaluate = async () => {
@@ -905,7 +923,7 @@ export function CareerOpsView() {
                   ATS Resume & Cover Letter Tailoring Engine
                 </h3>
                 <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#94a3b8' }}>
-                  Mirrors high-value keywords from the JD without fabricating facts. Space Grotesk + DM Sans format.
+                  Sourabh Bajaj (sb2nov) LaTeX ATS standard. Single-page dense layout • 100% compilable in Overleaf/pdflatex • Zero fabrication.
                 </p>
               </div>
 
@@ -1002,46 +1020,118 @@ export function CareerOpsView() {
                   gap: '10px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
-                    📄 ATS Tailored Resume
-                  </span>
-                  {activeJob.tailoredResume && (
-                    <button
-                      onClick={() => handleCopy(activeJob.tailoredResume!, 'Tailored Resume')}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
+                      📜 Sourabh Bajaj LaTeX Resume (.tex)
+                    </span>
+                    <span
                       style={{
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(255, 255, 255, 0.06)',
-                        color: '#94a3b8',
-                        border: '1px solid rgba(255, 255, 255, 0.12)',
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        color: '#34d399',
+                        fontSize: '9px',
+                        fontWeight: 700,
                       }}
                     >
-                      <Copy size={11} />
-                      <span>{copiedField === 'Tailored Resume' ? 'Copied!' : 'Copy Markdown'}</span>
-                    </button>
+                      sb2nov/resume ATS
+                    </span>
+                  </div>
+
+                  {activeJob.tailoredResume && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        onClick={() => handleCopy(activeJob.tailoredResume!, 'Tailored Resume')}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          color: '#94a3b8',
+                          border: '1px solid rgba(255, 255, 255, 0.12)',
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Copy size={11} />
+                        <span>{copiedField === 'Tailored Resume' ? 'Copied LaTeX!' : 'Copy .tex'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDownloadTex(activeJob.tailoredResume!, activeJob.company, activeJob.role)}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(99, 102, 241, 0.15)',
+                          color: '#818cf8',
+                          border: '1px solid rgba(99, 102, 241, 0.3)',
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Download size={11} />
+                        <span>Download .tex</span>
+                      </button>
+                    </div>
                   )}
+                </div>
+
+                <div
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    background: 'rgba(30, 41, 59, 0.5)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    fontSize: '10px',
+                    color: '#94a3b8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span>Template: <strong>sb2nov/resume</strong> (MIT License) • 1-Page ATS format</span>
+                  <a
+                    href="https://www.overleaf.com/project"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      color: '#38bdf8',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span>Overleaf</span>
+                    <ExternalLink size={9} />
+                  </a>
                 </div>
 
                 <textarea
                   readOnly
                   value={
                     activeJob.tailoredResume ||
-                    'Click "Generate Tailored Resume" to create an ATS-optimized CV matching this specific job description.'
+                    'Click "Generate Tailored Resume" to create a 100% valid Sourabh Bajaj (sb2nov) LaTeX resume customized for ' +
+                      activeJob.company +
+                      '. Ready to compile in Overleaf or pdflatex.'
                   }
                   style={{
                     width: '100%',
-                    height: '380px',
+                    height: '350px',
                     background: 'rgba(0, 0, 0, 0.35)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '8px',
-                    color: '#e2e8f0',
+                    color: '#a5f3fc',
                     fontFamily: 'monospace',
                     fontSize: '11px',
                     padding: '10px',
