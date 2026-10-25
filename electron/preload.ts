@@ -71,6 +71,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('trigger-auto-type', () => callback());
     return () => ipcRenderer.removeAllListeners('trigger-auto-type');
   },
+  onTriggerAutoTypeText: (callback: () => void) => {
+    ipcRenderer.on('trigger-auto-type-text', () => callback());
+    return () => ipcRenderer.removeAllListeners('trigger-auto-type-text');
+  },
   captureScreenAndOCR: (mode: 'fullscreen' | 'snip' = 'fullscreen') =>
     ipcRenderer.invoke('screen:capture-and-ocr', mode),
   appendScreenCaptureAndOCR: (mode: 'fullscreen' | 'snip' = 'fullscreen') =>

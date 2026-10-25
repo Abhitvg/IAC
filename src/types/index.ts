@@ -218,6 +218,7 @@ export interface ElectronAPI {
   onTriggerScreenCapture?: (callback: () => void) => () => void;
   onTriggerAppendScreenCapture?: (callback: () => void) => () => void;
   onTriggerAutoType?: (callback: () => void) => () => void;
+  onTriggerAutoTypeText?: (callback: () => void) => () => void;
   captureScreenAndOCR?: (
     mode?: 'fullscreen' | 'snip'
   ) => Promise<{ success: boolean; text?: string; cancelled?: boolean; error?: string }>;

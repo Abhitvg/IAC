@@ -25,6 +25,7 @@ import {
   Camera,
   FilePlus,
   Zap,
+  MessageSquare,
   Crop,
   ScanText,
   Check,
@@ -303,6 +304,24 @@ function MemoryIndicator({ historyCount }: { historyCount: number }) {
       🧠 {historyCount}/5 Context
     </span>
   );
+}
+
+function extractChatExplanation(answer: string | null | undefined): string {
+  if (!answer) return '';
+  const spokenMatch = answer.match(
+    /(?:🗣️\s*(?:SPOKEN CANDIDATE SCRIPT|VERBAL EXPLANATION|Spoken script)[:\s]*)([\s\S]*?)(?:$|\n#{1,3}\s|\n\d+\.\s+[🎯⚡📦🧪🗣️])/i
+  );
+  if (spokenMatch && spokenMatch[1].trim()) {
+    return spokenMatch[1].replace(/^[*-]\s+/gm, '').trim();
+  }
+  const stripped = answer
+    .replace(/^#+\s.*$/gm, '')
+    .replace(/^=+\s*$/gm, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/^[*-]\s+/gm, '')
+    .trim();
+  return stripped;
 }
 
 function extractCodeBlocksFromAnswer(answer: string | null | undefined, defaultLang: string = 'Java') {
@@ -680,10 +699,14 @@ export default function TeleprompterView() {
     const unsubAutoType = window.electronAPI?.onTriggerAutoType?.(() => {
       handleTriggerAutoType();
     });
+    const unsubAutoTypeText = window.electronAPI?.onTriggerAutoTypeText?.(() => {
+      handleTriggerAutoTypeText();
+    });
     return () => {
       unsubCapture?.();
       unsubAppend?.();
       unsubAutoType?.();
+      unsubAutoTypeText?.();
     };
   }, []);
 
@@ -797,11 +820,34 @@ export default function TeleprompterView() {
       ) || codeBlocks[0];
 
     const cleanCode = preferred.code;
-    setToast('⌨️ Auto-Type activated! Click inside your code editor now: 2... 1...');
+    setToast('⌨️ Auto-Type Code activated! Click inside your code editor now: 2... 1...');
     try {
       const res = await window.electronAPI?.autoTypeCode?.(cleanCode, 2000);
       if (res?.success) {
         setToast('✓ Code auto-typed into editor! (Bypassed copy-paste restrictions)');
+      } else {
+        setToast('Auto-type note: ' + (res?.warning || res?.error || 'Copied to clipboard'));
+      }
+    } catch (err: any) {
+      setToast('Auto-type error: ' + (err?.message || err));
+    }
+  };
+
+  const handleTriggerAutoTypeText = async (customText?: string) => {
+    let cleanText = (customText || '').trim();
+    if (!cleanText) {
+      cleanText = extractChatExplanation(useAppStore.getState().currentAnswer);
+    }
+    if (!cleanText) {
+      setToast('⚠️ No explanation text found to auto-type.');
+      return;
+    }
+
+    setToast('💬 Auto-Type Text activated! Click inside chat/input box now: 2... 1...');
+    try {
+      const res = await window.electronAPI?.autoTypeCode?.(cleanText, 2000);
+      if (res?.success) {
+        setToast('✓ Text auto-typed into chat/input field! (Bypassed restrictions)');
       } else {
         setToast('Auto-type note: ' + (res?.warning || res?.error || 'Copied to clipboard'));
       }
@@ -1879,6 +1925,16 @@ export default function TeleprompterView() {
 
               <button
                 type="button"
+                onClick={() => handleTriggerAutoTypeText()}
+                className="card-interactive px-2 py-1 rounded-lg text-[11px] font-bold bg-purple-600/80 hover:bg-purple-500 text-white border border-purple-400/40 flex items-center gap-1 shadow-sm"
+                title="Auto-type verbal explanation / chat response into interviewer's chat box (⌥T)"
+              >
+                <MessageSquare size={11} />
+                <span className="hidden sm:inline">Type Chat (⌥T)</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={copyAnswer}
                 className="card-interactive px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white/10 hover:bg-white/15 text-slate-200 border border-white/10 flex items-center gap-1"
                 title="Copy Answer to Clipboard (Shortcut: C)"
@@ -2502,7 +2558,7 @@ export default function TeleprompterView() {
                 return (
                   <div
                     key={idx}
-                    className={"floating-prompter-card shadow-2xl " + (isRibbonMode ? "p-3 sm:p-4 my-1.5" : "p-5 sm:p-7 my-3")}
+                    className={"floating-prompter-card shadow-2xl group " + (isRibbonMode ? "p-3 sm:p-4 my-1.5" : "p-5 sm:p-7 my-3")}
                     style={{
                       fontSize: {
                         small: '15px',
@@ -2520,8 +2576,65 @@ export default function TeleprompterView() {
                       whiteSpace: 'pre-wrap',
                       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
                       letterSpacing: '-0.01em',
+                      position: 'relative',
                     }}
                   >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        gap: '6px',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleTriggerAutoTypeText(text)}
+                        title="Auto-type this text paragraph directly into active chat box (Shortcut: Option+T)"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          background: 'rgba(168, 85, 247, 0.25)',
+                          color: '#e9d5ff',
+                          border: '1px solid rgba(192, 132, 252, 0.45)',
+                          borderRadius: '5px',
+                          padding: '2px 8px',
+                          fontSize: '11px',
+                          fontWeight: 650,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <MessageSquare size={11} />
+                        <span>Type Text (⌥T)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(text);
+                          setToast('📋 Text copied to clipboard!');
+                        }}
+                        title="Copy text"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          color: '#cbd5e1',
+                          border: '1px solid rgba(255, 255, 255, 0.15)',
+                          borderRadius: '5px',
+                          padding: '2px 8px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Copy size={11} />
+                        <span>Copy</span>
+                      </button>
+                    </div>
+
                     {text}
                   </div>
                 );

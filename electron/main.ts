@@ -193,6 +193,14 @@ function registerGlobalShortcuts() {
   } catch (err) {
     console.warn('[Electron] Could not register auto-type shortcut:', err);
   }
+
+  try {
+    globalShortcut.register('Alt+T', () => {
+      mainWindow?.webContents.send('trigger-auto-type-text');
+    });
+  } catch (err) {
+    console.warn('[Electron] Could not register auto-type-text shortcut:', err);
+  }
 }
 
 function setupNativeApplicationMenu() {
