@@ -30,6 +30,12 @@ import { useCareerOpsStore } from '../../store/useCareerOpsStore';
 import { useAppStore } from '../../store/useAppStore';
 import { usePracticeStore } from '../../store/usePracticeStore';
 import { ApplicationStatus, JobApplication } from '../../services/careerOps/types';
+import {
+  generateBrowserAutoFillScript,
+  generateAutoFillBookmarklet,
+  generatePlaywrightAutoFillScript,
+  DEFAULT_CANDIDATE_PROFILE,
+} from '../../services/careerOps/autoFillService';
 
 export function CareerOpsView() {
   const {
@@ -76,6 +82,8 @@ export function CareerOpsView() {
   const [showNewModal, setShowNewModal] = useState(false);
   const [coverAngle, setCoverAngle] = useState<'problem_solver' | 'technical_depth' | 'fast_impact' | 'cultural_alignment'>('problem_solver');
   const [coverLevel, setCoverLevel] = useState<'senior' | 'mid' | 'entry' | 'career_switcher'>('senior');
+  const [showAutoFillModal, setShowAutoFillModal] = useState(false);
+  const [autoFillMode, setAutoFillMode] = useState<'console' | 'bookmarklet' | 'playwright'>('console');
 
   const activeJob = applications.find((a) => a.id === activeJobId) || applications[0] || null;
 
@@ -763,23 +771,50 @@ export function CareerOpsView() {
                   {activeJob.score.toFixed(1)}
                   <span style={{ fontSize: '14px', color: '#94a3b8' }}> / 5.0</span>
                 </div>
-                <button
-                  onClick={() => handleRunEvaluation(activeJob.id)}
-                  disabled={isEvaluating}
-                  style={{
-                    marginTop: '8px',
-                    padding: '5px 12px',
-                    borderRadius: '6px',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    color: '#ffffff',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {isEvaluating ? 'Evaluating...' : '↻ Re-Evaluate'}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <button
+                    onClick={() => handleRunEvaluation(activeJob.id)}
+                    disabled={isEvaluating}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      color: '#ffffff',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {isEvaluating ? 'Evaluating...' : '↻ Re-Evaluate'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      updateJob(activeJob.id, { status: 'applied' });
+                      setToast(`Marked ${activeJob.role} at ${activeJob.company} as Applied!`);
+                      if (activeJob.url && activeJob.url.startsWith('http')) {
+                        window.open(activeJob.url, '_blank');
+                      }
+                    }}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      background: activeJob.status === 'applied' ? 'rgba(34, 197, 94, 0.2)' : 'linear-gradient(135deg, #10b981, #059669)',
+                      color: '#ffffff',
+                      border: '1px solid rgba(34, 197, 94, 0.4)',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <CheckCircle2 size={12} />
+                    <span>{activeJob.status === 'applied' ? 'Applied' : 'Mark Applied'}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -945,11 +980,18 @@ export function CareerOpsView() {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   onClick={async () => {
+                    const providerConfig = settings?.aiProvider
+                      ? {
+                          type: settings.aiProvider,
+                          apiKey: settings.apiKey || '',
+                          model: settings.model,
+                        }
+                      : undefined;
                     setToast('Tailoring resume for ATS scanning...');
-                    await tailorResumeForJob(activeJob.id, resumeText);
+                    await tailorResumeForJob(activeJob.id, resumeText, providerConfig);
                     setToast('ATS Resume ready!');
                   }}
                   disabled={isTailoring}
@@ -969,8 +1011,15 @@ export function CareerOpsView() {
 
                 <button
                   onClick={async () => {
-                    setToast('Drafting 4-angle cover letter...');
-                    await generateCoverLetterForJob(activeJob.id, resumeText, coverAngle, coverLevel);
+                    const providerConfig = settings?.aiProvider
+                      ? {
+                          type: settings.aiProvider,
+                          apiKey: settings.apiKey || '',
+                          model: settings.model,
+                        }
+                      : undefined;
+                    setToast('Drafting 4-paragraph cover letter...');
+                    await generateCoverLetterForJob(activeJob.id, resumeText, coverAngle, coverLevel, providerConfig);
                     setToast('Cover Letter drafted!');
                   }}
                   style={{
@@ -985,6 +1034,53 @@ export function CareerOpsView() {
                   }}
                 >
                   ✍️ Draft Cover Letter
+                </button>
+
+                <button
+                  onClick={() => setShowAutoFillModal(true)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    boxShadow: '0 2px 8px rgba(139, 92, 246, 0.35)',
+                  }}
+                >
+                  <Sparkles size={13} />
+                  <span>🤖 1-Click Auto-Fill</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    updateJob(activeJob.id, { status: 'applied' });
+                    setToast(`Status updated: Applied to ${activeJob.company}!`);
+                    if (activeJob.url && activeJob.url.startsWith('http')) {
+                      window.open(activeJob.url, '_blank');
+                    }
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    background: activeJob.status === 'applied' ? 'rgba(34, 197, 94, 0.2)' : 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#ffffff',
+                    border: activeJob.status === 'applied' ? '1px solid rgba(34, 197, 94, 0.5)' : 'none',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  <CheckCircle2 size={13} />
+                  <span>{activeJob.status === 'applied' ? '✓ Applied' : '🚀 Apply to Job'}</span>
                 </button>
               </div>
             </div>
@@ -1559,6 +1655,247 @@ export function CareerOpsView() {
                 Evaluate & Score
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1-Click ATS Application Auto-Fill Modal */}
+      {showAutoFillModal && activeJob && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '680px',
+              background: '#0f172a',
+              border: '1px solid rgba(139, 92, 246, 0.5)',
+              borderRadius: '14px',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.7)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={18} color="#a78bfa" />
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#f8fafc' }}>
+                  1-Click ATS Application Auto-Fill
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowAutoFillModal(false)}
+                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '14px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>
+              Instantly fills out application forms on <strong>Greenhouse</strong>, <strong>Lever</strong>, <strong>Workday</strong>, and <strong>Ashby</strong>. Uses native value setter overrides so React/Vue controlled inputs never get wiped.
+            </p>
+
+            {/* Mode Selector */}
+            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '8px' }}>
+              {(
+                [
+                  { id: 'console', label: '⚡ Browser Console Script (Instant)' },
+                  { id: 'bookmarklet', label: '🔖 1-Click Bookmarklet' },
+                  { id: 'playwright', label: '🎭 Playwright Automation' },
+                ] as const
+              ).map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setAutoFillMode(m.id)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    background: autoFillMode === m.id ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                    color: autoFillMode === m.id ? '#c4b5fd' : '#94a3b8',
+                    border: autoFillMode === m.id ? '1px solid rgba(139, 92, 246, 0.5)' : 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Mode Content */}
+            {autoFillMode === 'console' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#cbd5e1' }}>
+                  <strong>How to use:</strong> Open the job portal page in Chrome/Safari/Brave, press <kbd style={{ background: '#334155', padding: '2px 4px', borderRadius: '4px' }}>Cmd+Option+J</kbd> (or <kbd style={{ background: '#334155', padding: '2px 4px', borderRadius: '4px' }}>F12</kbd> → Console), paste and hit Enter!
+                </div>
+                <textarea
+                  readOnly
+                  value={generateBrowserAutoFillScript(DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || '', activeJob.tailoredResume || '')}
+                  style={{
+                    width: '100%',
+                    height: '200px',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '8px',
+                    color: '#c4b5fd',
+                    fontFamily: 'monospace',
+                    fontSize: '10px',
+                    padding: '8px',
+                    resize: 'none',
+                    lineHeight: '1.4',
+                  }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                  <button
+                    onClick={() => handleCopy(generateBrowserAutoFillScript(DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || '', activeJob.tailoredResume || ''), 'Auto-Fill Script')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      color: '#ffffff',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Copy size={12} />
+                    <span>{copiedField === 'Auto-Fill Script' ? 'Copied!' : 'Copy Console Script'}</span>
+                  </button>
+
+                  {activeJob.url && activeJob.url.startsWith('http') && (
+                    <button
+                      onClick={() => {
+                        handleCopy(generateBrowserAutoFillScript(DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || '', activeJob.tailoredResume || ''), 'Auto-Fill Script');
+                        window.open(activeJob.url, '_blank');
+                        setToast(`Opening ${activeJob.company} portal! Script copied — paste in Console (F12) to auto-fill.`);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        color: '#ffffff',
+                        border: 'none',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <ExternalLink size={12} />
+                      <span>Launch Portal & Copy Script</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {autoFillMode === 'bookmarklet' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#cbd5e1' }}>
+                  <strong>Bookmarklet instructions:</strong> Create a new browser bookmark named <code>CareerOps Auto-Fill</code> and paste this URI as the URL. Click it while viewing any job application form!
+                </div>
+                <input
+                  readOnly
+                  value={generateAutoFillBookmarklet(DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || '')}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '8px',
+                    color: '#c4b5fd',
+                    fontFamily: 'monospace',
+                    fontSize: '10px',
+                    padding: '8px',
+                  }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                  <button
+                    onClick={() => handleCopy(generateAutoFillBookmarklet(DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || ''), 'Bookmarklet URL')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Copy size={12} />
+                    <span>{copiedField === 'Bookmarklet URL' ? 'Copied Bookmarklet!' : 'Copy Bookmarklet URI'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {autoFillMode === 'playwright' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#cbd5e1' }}>
+                  Run locally with Node / Playwright: <code>node apply.mjs</code>. Opens Chromium, navigates, and fills all form fields automatically.
+                </div>
+                <textarea
+                  readOnly
+                  value={generatePlaywrightAutoFillScript(activeJob.url || 'https://boards.greenhouse.io', DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || '')}
+                  style={{
+                    width: '100%',
+                    height: '200px',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '8px',
+                    color: '#c4b5fd',
+                    fontFamily: 'monospace',
+                    fontSize: '10px',
+                    padding: '8px',
+                    resize: 'none',
+                    lineHeight: '1.4',
+                  }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                  <button
+                    onClick={() => handleCopy(generatePlaywrightAutoFillScript(activeJob.url || 'https://boards.greenhouse.io', DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || ''), 'Playwright Script')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      color: '#ffffff',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Copy size={12} />
+                    <span>{copiedField === 'Playwright Script' ? 'Copied!' : 'Copy Playwright Code'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
