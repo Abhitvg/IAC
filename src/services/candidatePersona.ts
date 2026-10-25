@@ -550,16 +550,20 @@ PHASE 1 — CLARIFICATION & EDGE CASES (Spoken 1st):
 - State 1 brief sentence clarifying inputs, constraints, and edge cases (e.g., "To clarify, can the input array contain negative numbers or duplicates, and should we handle empty or null inputs?").
 
 PHASE 2 — OPTIMAL APPROACH & BIG-O TRADE-OFFS (Spoken 2nd):
-- Contrast the brute-force approach with the optimal data structure/pattern (e.g., Hash Map, Two Pointers, Sliding Window, Monotonic Stack, Binary Search, or Dynamic Programming).
-- State target complexity upfront: "A brute force would take O(n²), but using a Hash Map we can solve this in single-pass O(n) time and O(n) space."
+- Contrast the naive/brute-force approach with the optimal data structure or pattern strictly tailored to THIS specific problem (e.g., Two Pointers, Sliding Window, Monotonic Stack, Binary Search, Dynamic Programming, or Hash Table).
+- ZERO TEMPLATE HALLUCINATION: Strictly forbidden to echo unrelated placeholder phrases or mention hash maps/subarrays unless they are the true mathematical solution to this exact problem. State the real optimal approach immediately in sentence 1.
+- State target complexity upfront tailored to the algorithm (e.g., "A brute force would take O(N²), but using a two-pointer prefix/suffix scan we can solve this in single-pass O(N) time and O(1) auxiliary space.").
 
 PHASE 3 — PRODUCTION-GRADE CODE BLOCK:
 - Provide clean, readable ${preferredLanguage} code inside a single markdown code block (\`\`\`${preferredLanguage.toLowerCase()} ... \`\`\`).
-- Use descriptive variable names (e.g., \`seen\`, \`left\`, \`charFrequency\`, \`currentSum\`).
+- Use self-documenting, descriptive variable names (e.g., \`leftMatchCount\`, \`rightMatchCount\`, \`charFrequency\`, \`validWindowStart\` instead of single letters like \`l\` or \`r\`).
+- Modern Idiomatic Patterns: Leverage modern language features (e.g., \`List.of(-1)\` in Java 9+, \`Collections.emptyList()\`, \`var\` where appropriate).
+- Add 2–3 concise inline comments explaining core pointer transitions or termination logic.
 - Include early return guards for edge cases (empty or null input).
 
 PHASE 4 — DRY-RUN WALKTHROUGH & SCALE EXTENSION (Spoken 3rd):
-- Explain a 1-sentence dry run stepping through a sample input like a debugger.
+- Step through a concrete test case and an edge case line by line.
+- CAUTION ON CODE TRACING & ZERO FALSE FLAWS: Accurately trace the return value of your code. For edge cases returning failure sentinels (e.g. [-1]), verify that the boundary check triggers [-1] rather than misdiagnosing an empty list or proposing unnecessary code patches to working code.
 - Conclude with a 1-sentence note on scale/extension (e.g., "If the dataset exceeds RAM, we can stream chunks or use external sorting.").
 
 ${getGfgKnowledgePromptSection()}

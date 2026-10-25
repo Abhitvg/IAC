@@ -209,9 +209,9 @@ YOU MUST DELIVER BOTH FORMATS BELOW IN A SINGLE COMPLETE RESPONSE WITH ZERO OMIS
    - Edge cases audited: Empty/null (N=0), single element (N=1), negative values, duplicates, and 64-bit integer overflow guard (use 'long' in Java or 'long long' in C++ for sums/multiplications).
 
 2. ⚡ FORMAT 1: ULTRA-MINIMAL TYPEABLE SOLUTION (5–12 LINES MAX):
-   - Provide ONLY the concise core algorithm method body (under 12 lines) that passes 100% of test cases.
-   - NO comments, NO blank lines, NO outer class wrappers, NO import statements.
-   - Designed specifically for manual typing or auto-typing in under 45 seconds when clipboard pasting is blocked.
+   - Provide ONLY the statements inside the existing target method (under 12 lines) that passes 100% of test cases.
+   - STRICTLY FORBIDDEN: NO comments, NO blank lines, NO outer class wrappers (e.g. 'class Result'), NO method signature lines, NO imports, and NO trailing extra closing braces.
+   - Designed specifically to be inserted directly into the platform's pre-existing method body in under 45 seconds when clipboard pasting is blocked.
    \`\`\`${preferredLanguage.toLowerCase()}
    // ⚡ TYPEABLE BODY (Shortest logic passing 100% of test cases)
    \`\`\`
@@ -219,18 +219,30 @@ YOU MUST DELIVER BOTH FORMATS BELOW IN A SINGLE COMPLETE RESPONSE WITH ZERO OMIS
 3. 📦 FORMAT 2: COMPLETE ONLINE JUDGE CLASS (100% COMPILABLE & ZERO MISSING CODE):
    - Complete, production-grade, compilable class (e.g., 'class Solution') ready to copy-paste directly into LeetCode / HackerRank / CodeSignal / IDE.
    - STRICT ZERO-OMISSION GUARANTEE:
-     • MUST include ALL necessary imports (e.g., 'import java.util.*;' in Java; 'from typing import List, Dict, Optional, Tuple; from collections import deque, defaultdict, Counter; import heapq' in Python; standard #includes in C++).
+     • MUST include ALL necessary imports with zero duplicate imports.
      • ABSOLUTELY FORBIDDEN: NEVER use '// TODO', '...', or omit any helper methods, comparators, or ListNode/TreeNode definitions.
      • Every single line must be 100% implemented, syntactically flawless, and ready to pass all test cases on first run.
+   - CODE QUALITY & READABILITY STANDARDS:
+     • DESCRIPTIVE VARIABLE NAMES: Use clear, descriptive variable names (e.g. 'leftMatchCount', 'rightMatchCount', 'charFrequency', 'validWindowStart' instead of single letters like 'l' and 'r').
+     • INLINE COMMENTS: Include 2-3 concise, meaningful inline comments explaining non-trivial pointer shifts, state updates, or termination logic.
+     • MODERN IDIOMATIC CONVENTIONS: Use modern language idioms where available (e.g., in Java 9+, use 'List.of(-1)' or 'Collections.singletonList(-1)' when returning single elements, 'Collections.emptyList()' for empty returns, and appropriate collections rather than redundant initialization).
    \`\`\`${preferredLanguage.toLowerCase()}
    // 📦 COMPLETE ONLINE JUDGE CLASS (Zero placeholders, 100% compilable)
    \`\`\`
 
 4. 🧪 MATHEMATICAL VERIFICATION & DRY RUN:
-   - Line-by-line variable trace table stepping through Example 1 and a Tricky Edge Case (empty, negative, or duplicate elements).
-   - Verify expected output vs actual output to mathematically guarantee 0 test case failures.
+   - Line-by-line variable trace table stepping through Example 1 and a Tricky Edge Case (e.g. no valid match possible, empty string, or single character).
+   - EXACT TRACE FIDELITY & NO FALSE FLAWS:
+     • Manually step through the code logic line by line with concrete values.
+     • When testing an edge case where no match is possible (e.g. str1='ab', str2='c'), verify whether the boundary condition (e.g. leftMatchCount + rightMatchCount < targetLength) correctly triggers the return of [-1] as required by the problem statement.
+     • NEVER falsely conclude that valid code returns an empty list '[]' when the return value is '[-1]'.
+     • NEVER suggest unnecessary code changes or speculative bug fixes to code that already passes all test cases.
 
 5. 🗣️ SPOKEN CANDIDATE SCRIPT:
-   - A natural, confident 60-80 word first-person explanation the candidate can speak to the interviewer while code is being typed.`
+   - A natural, confident 60-80 word first-person explanation the candidate can speak to the interviewer while code is being typed.
+   - STRICT PROBLEM ALIGNMENT (ZERO TEMPLATE HALLUCINATION):
+     • NEVER mention unrelated algorithms or data structures (e.g., do NOT mention hash maps, sliding window, or maximum subarrays unless this exact problem requires them).
+     • In the very first sentence, directly state the true core approach matching this problem (e.g. 'For this string problem, I use a two-pointer prefix and suffix matching approach in O(N) time...').
+     • Explain why this specific technique is chosen to meet the Big-O time and space budget.`
 }`;
 }
