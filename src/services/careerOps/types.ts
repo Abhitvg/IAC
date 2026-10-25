@@ -55,6 +55,7 @@ export interface JobApplication {
   outreachNote?: string;
   createdAt: number;
   updatedAt: number;
+  appliedAt?: number;
   notes?: string;
 }
 

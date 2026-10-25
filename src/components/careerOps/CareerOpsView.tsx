@@ -25,7 +25,28 @@ import {
   MapPin,
   Clock,
   Compass,
+  UserCheck,
+  Calendar,
+  Zap,
+  Code,
+  Eye,
+  Upload,
 } from 'lucide-react';
+import {
+  parseJobUrlMetadata,
+  parseJobPageContent,
+  detectAtsPlatform,
+} from '../../services/careerOps/jobScraperService';
+import { useCandidateVaultStore } from '../../store/useCandidateVaultStore';
+import { predictInterviewLoop } from '../../services/careerOps/jobInterviewPredictor';
+import {
+  calculateFollowUpTimeline,
+  getNextDueFollowUp,
+} from '../../services/careerOps/followUpService';
+import {
+  openInOverleaf,
+  parseLatexForVisualPreview,
+} from '../../services/careerOps/overleafPusher';
 import { useCareerOpsStore } from '../../store/useCareerOpsStore';
 import { useAppStore } from '../../store/useAppStore';
 import { usePracticeStore } from '../../store/usePracticeStore';
@@ -34,7 +55,6 @@ import {
   generateBrowserAutoFillScript,
   generateAutoFillBookmarklet,
   generatePlaywrightAutoFillScript,
-  DEFAULT_CANDIDATE_PROFILE,
 } from '../../services/careerOps/autoFillService';
 
 export function CareerOpsView() {
@@ -84,6 +104,39 @@ export function CareerOpsView() {
   const [coverLevel, setCoverLevel] = useState<'senior' | 'mid' | 'entry' | 'career_switcher'>('senior');
   const [showAutoFillModal, setShowAutoFillModal] = useState(false);
   const [autoFillMode, setAutoFillMode] = useState<'console' | 'bookmarklet' | 'playwright'>('console');
+
+  // Candidate Vault Modal
+  const [showVaultModal, setShowVaultModal] = useState(false);
+  const [vaultSubTab, setVaultSubTab] = useState<'personal' | 'work_auth' | 'preferences' | 'pitch'>('personal');
+  const candidateVault = useCandidateVaultStore((s) => s.profile);
+  const updateCandidateVault = useCandidateVaultStore((s) => s.updateProfile);
+  const resetCandidateVault = useCandidateVaultStore((s) => s.resetToDefaults);
+  const exportCandidateVault = useCandidateVaultStore((s) => s.exportVaultJson);
+  const importCandidateVault = useCandidateVaultStore((s) => s.importVaultJson);
+
+  // Resume View Mode (Code vs Visual Preview)
+  const [resumeViewMode, setResumeViewMode] = useState<'code' | 'preview'>('code');
+
+  // Job Scraper URL state in Evaluator Modal
+  const [scrapeUrlInput, setScrapeUrlInput] = useState('');
+  const [detectedAtsInModal, setDetectedAtsInModal] = useState<string | null>(null);
+
+  const handleScrapeUrl = () => {
+    if (!scrapeUrlInput.trim()) {
+      setToast('Please enter a job posting URL.');
+      return;
+    }
+    const ats = detectAtsPlatform(scrapeUrlInput);
+    setDetectedAtsInModal(ats);
+    const parsed = parseJobPageContent(newJdText || scrapeUrlInput, scrapeUrlInput);
+    setNewCompany(parsed.company);
+    setNewRole(parsed.role);
+    setNewUrl(scrapeUrlInput.trim());
+    if (parsed.salaryRange) setNewSalary(parsed.salaryRange);
+    if (parsed.location) setNewLocation(parsed.location);
+    if (parsed.jdText && !newJdText) setNewJdText(parsed.jdText);
+    setToast(`Extracted ${parsed.role} at ${parsed.company} (${ats.toUpperCase()})!`);
+  };
 
   const activeJob = applications.find((a) => a.id === activeJobId) || applications[0] || null;
 
@@ -327,6 +380,26 @@ export function CareerOpsView() {
             <span style={{ color: '#818cf8' }}>Avg Fit:</span>
             <span style={{ fontWeight: 800, color: '#c7d2fe' }}>{stats.avgScore} / 5.0</span>
           </div>
+
+          <button
+            onClick={() => setShowVaultModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '5px 12px',
+              borderRadius: '8px',
+              background: 'rgba(99, 102, 241, 0.15)',
+              color: '#a5b4fc',
+              border: '1px solid rgba(99, 102, 241, 0.35)',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            <UserCheck size={14} />
+            <span>Candidate Vault</span>
+          </button>
 
           <button
             onClick={() => setShowNewModal(true)}
@@ -791,7 +864,7 @@ export function CareerOpsView() {
 
                   <button
                     onClick={() => {
-                      updateJob(activeJob.id, { status: 'applied' });
+                      updateJob(activeJob.id, { status: 'applied', appliedAt: Date.now() });
                       setToast(`Marked ${activeJob.role} at ${activeJob.company} as Applied!`);
                       if (activeJob.url && activeJob.url.startsWith('http')) {
                         window.open(activeJob.url, '_blank');
@@ -964,6 +1037,179 @@ export function CareerOpsView() {
                 </p>
               </div>
             </div>
+
+            {/* Predicted Interview Loop (Mock Gym Bridge) */}
+            {(() => {
+              const predictedLoop = predictInterviewLoop(activeJob.company, activeJob.role, activeJob.jdText);
+              return (
+                <div
+                  style={{
+                    background: 'rgba(15, 23, 42, 0.85)',
+                    border: '1px solid rgba(99, 102, 241, 0.35)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '14px',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>
+                          🎯 Predicted Interview Loop: {activeJob.company}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            fontWeight: 800,
+                            padding: '2px 6px',
+                            borderRadius: '12px',
+                            background: 'rgba(99, 102, 241, 0.2)',
+                            color: '#a5b4fc',
+                            border: '1px solid rgba(99, 102, 241, 0.4)',
+                          }}
+                        >
+                          {predictedLoop.technicalQuestions.length} TECH + {predictedLoop.behavioralQuestions.length} STAR
+                        </span>
+                      </div>
+                      <p style={{ margin: '3px 0 0', fontSize: '11px', color: '#94a3b8' }}>
+                        {predictedLoop.overview}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => handleSendToGym(activeJob)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                        color: '#ffffff',
+                        border: 'none',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 10px rgba(99, 102, 241, 0.4)',
+                      }}
+                    >
+                      <Zap size={13} />
+                      <span>🏋️ Launch Practice in Mock Gym</span>
+                    </button>
+                  </div>
+
+                  {/* Technical Questions */}
+                  <div>
+                    <h5 style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 800, color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Technical Architecture & Coding Questions
+                    </h5>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {predictedLoop.technicalQuestions.map((tq) => (
+                        <div
+                          key={tq.id}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#f1f5f9' }}>
+                              {tq.prompt}
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                              <span
+                                style={{
+                                  fontSize: '9px',
+                                  fontWeight: 800,
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  background: tq.difficulty === 'Hard' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                                  color: tq.difficulty === 'Hard' ? '#f87171' : '#fbbf24',
+                                }}
+                              >
+                                {tq.difficulty}
+                              </span>
+                              <button
+                                onClick={() => handleCopy(tq.prompt, 'Interview Question')}
+                                style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  background: 'rgba(255, 255, 255, 0.06)',
+                                  color: '#cbd5e1',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                                  fontSize: '10px',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                            <strong>Focus:</strong> {tq.companyContext}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Behavioral STAR Questions */}
+                  <div>
+                    <h5 style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 800, color: '#f97316', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Behavioral STAR Culture & Crisis Probes
+                    </h5>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {predictedLoop.behavioralQuestions.map((bq) => (
+                        <div
+                          key={bq.id}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#f1f5f9' }}>
+                              {bq.prompt}
+                            </span>
+                            <button
+                              onClick={() => handleCopy(bq.prompt, 'Behavioral Question')}
+                              style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                background: 'rgba(255, 255, 255, 0.06)',
+                                color: '#cbd5e1',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                fontSize: '10px',
+                                cursor: 'pointer',
+                                flexShrink: 0,
+                              }}
+                            >
+                              Copy
+                            </button>
+                          </div>
+                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                            <strong>Rubric:</strong> {bq.companyContext}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -1059,7 +1305,7 @@ export function CareerOpsView() {
 
                 <button
                   onClick={() => {
-                    updateJob(activeJob.id, { status: 'applied' });
+                    updateJob(activeJob.id, { status: 'applied', appliedAt: Date.now() });
                     setToast(`Status updated: Applied to ${activeJob.company}!`);
                     if (activeJob.url && activeJob.url.startsWith('http')) {
                       window.open(activeJob.url, '_blank');
@@ -1226,6 +1472,28 @@ export function CareerOpsView() {
                         <Download size={11} />
                         <span>Download .tex</span>
                       </button>
+
+                      <button
+                        onClick={() => openInOverleaf(activeJob.tailoredResume!, `${activeJob.company.toLowerCase()}_resume`)}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: 'linear-gradient(135deg, #10b981, #059669)',
+                          color: '#ffffff',
+                          border: 'none',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
+                        }}
+                        title="1-Click project creation on Overleaf"
+                      >
+                        <ExternalLink size={11} />
+                        <span>🚀 Open in Overleaf</span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1244,46 +1512,115 @@ export function CareerOpsView() {
                   }}
                 >
                   <span>Template: <strong>sb2nov/resume</strong> (MIT License) • 1-Page ATS format</span>
-                  <a
-                    href="https://www.overleaf.com/project"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      color: '#38bdf8',
-                      textDecoration: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                      fontWeight: 600,
-                    }}
-                  >
-                    <span>Overleaf</span>
-                    <ExternalLink size={9} />
-                  </a>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      onClick={() => setResumeViewMode('code')}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        background: resumeViewMode === 'code' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                        color: resumeViewMode === 'code' ? '#38bdf8' : '#94a3b8',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Code (.tex)
+                    </button>
+                    <button
+                      onClick={() => setResumeViewMode('preview')}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        background: resumeViewMode === 'preview' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                        color: resumeViewMode === 'preview' ? '#38bdf8' : '#94a3b8',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Visual Preview
+                    </button>
+                  </div>
                 </div>
 
-                <textarea
-                  readOnly
-                  value={
-                    activeJob.tailoredResume ||
-                    'Click "Generate Tailored Resume" to create a 100% valid Sourabh Bajaj (sb2nov) LaTeX resume customized for ' +
-                      activeJob.company +
-                      '. Ready to compile in Overleaf or pdflatex.'
-                  }
-                  style={{
-                    width: '100%',
-                    height: '350px',
-                    background: 'rgba(0, 0, 0, 0.35)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: '8px',
-                    color: '#a5f3fc',
-                    fontFamily: 'monospace',
-                    fontSize: '11px',
-                    padding: '10px',
-                    resize: 'none',
-                    lineHeight: '1.5',
-                  }}
-                />
+                {resumeViewMode === 'code' ? (
+                  <textarea
+                    readOnly
+                    value={
+                      activeJob.tailoredResume ||
+                      'Click "Generate Tailored Resume" to create a 100% valid Sourabh Bajaj (sb2nov) LaTeX resume customized for ' +
+                        activeJob.company +
+                        '. Ready to compile in Overleaf or pdflatex.'
+                    }
+                    style={{
+                      width: '100%',
+                      height: '350px',
+                      background: 'rgba(0, 0, 0, 0.35)',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      borderRadius: '8px',
+                      color: '#a5f3fc',
+                      fontFamily: 'monospace',
+                      fontSize: '11px',
+                      padding: '10px',
+                      resize: 'none',
+                      lineHeight: '1.5',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: '100%',
+                      height: '350px',
+                      overflowY: 'auto',
+                      background: 'rgba(0, 0, 0, 0.45)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '8px',
+                      padding: '16px',
+                    }}
+                  >
+                    {(() => {
+                      const parsed = parseLatexForVisualPreview(activeJob.tailoredResume || '');
+                      return (
+                        <div style={{ color: '#f8fafc', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div style={{ textAlign: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '8px' }}>
+                            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 900, color: '#ffffff' }}>{parsed.name}</h2>
+                            <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>
+                              {parsed.email && <span>{parsed.email} • </span>}
+                              <span>{parsed.role}</span>
+                            </div>
+                          </div>
+                          {parsed.sections.map((sec, idx) => (
+                            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <h4
+                                style={{
+                                  margin: 0,
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  color: '#38bdf8',
+                                  textTransform: 'uppercase',
+                                  borderBottom: '1px solid rgba(56, 189, 248, 0.25)',
+                                  paddingBottom: '2px',
+                                }}
+                              >
+                                {sec.title}
+                              </h4>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                {sec.lines.map((line, lIdx) => (
+                                  <div key={lIdx} style={{ fontSize: '10px', color: '#cbd5e1', lineHeight: '1.4' }}>
+                                    {line}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
               {/* Cover Letter Panel */}
@@ -1437,6 +1774,109 @@ export function CareerOpsView() {
               </button>
             </div>
 
+            {/* Automated Follow-Up Cadence & Timeline Engine */}
+            {(() => {
+              const appliedTimestamp = activeJob.appliedAt || activeJob.createdAt || Date.now();
+              const timeline = calculateFollowUpTimeline(
+                appliedTimestamp,
+                activeJob.company,
+                activeJob.role,
+                activeJob.evaluationReport?.strategicAngle
+              );
+              return (
+                <div
+                  style={{
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    border: '1px solid rgba(249, 115, 22, 0.3)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Calendar size={15} color="#fb923c" />
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>
+                        Automated Follow-Up Cadence (Day 3 • Day 7 • Day 14)
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                      Optimal conversion timing (Recruiter → Hiring Manager → Email)
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                    {timeline.map((m) => (
+                      <div
+                        key={m.dayOffset}
+                        style={{
+                          padding: '12px',
+                          borderRadius: '8px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: m.isDue
+                            ? '1px solid rgba(249, 115, 22, 0.5)'
+                            : '1px solid rgba(255, 255, 255, 0.06)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#f1f5f9' }}>
+                            {m.title}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontWeight: 800,
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              background: m.isDue
+                                ? 'rgba(249, 115, 22, 0.25)'
+                                : m.isOverdue
+                                ? 'rgba(239, 68, 68, 0.2)'
+                                : 'rgba(255, 255, 255, 0.06)',
+                              color: m.isDue ? '#fb923c' : m.isOverdue ? '#f87171' : '#94a3b8',
+                            }}
+                          >
+                            {m.isDue ? '🔥 Due Now' : m.isOverdue ? '⚠️ Overdue' : `In ${m.daysRemaining}d`}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#94a3b8' }}>
+                          Channel: <strong style={{ color: '#e2e8f0' }}>{m.channel === 'linkedin' ? 'LinkedIn DM' : 'Email'}</strong> • {m.draftText.length} chars
+                        </div>
+                        <p style={{ margin: 0, fontSize: '10px', color: '#cbd5e1', fontStyle: 'italic', maxHeight: '60px', overflowY: 'auto' }}>
+                          "{m.draftText}"
+                        </p>
+                        <button
+                          onClick={() => handleCopy(m.draftText, `${m.title} Draft`)}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            background: m.isDue ? 'rgba(249, 115, 22, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                            color: m.isDue ? '#fb923c' : '#cbd5e1',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Copy size={11} />
+                          <span>Copy Follow-Up Draft</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Generated Notes or Default View */}
             <div
               style={{
@@ -1548,6 +1988,70 @@ export function CareerOpsView() {
             <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>
               Paste a job description or portal link. CareerOps scores it 1.0 to 5.0 against your active CV and tells you whether to apply.
             </p>
+
+            {/* 1-Click Job URL Importer */}
+            <div
+              style={{
+                background: 'rgba(249, 115, 22, 0.08)',
+                border: '1px solid rgba(249, 115, 22, 0.3)',
+                borderRadius: '8px',
+                padding: '10px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#fb923c', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Sparkles size={13} /> 1-Click Job URL Importer (Greenhouse, Lever, Workday, Ashby)
+                </span>
+                {detectedAtsInModal && (
+                  <span style={{ fontSize: '9px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', background: 'rgba(249, 115, 22, 0.2)', color: '#fb923c' }}>
+                    {detectedAtsInModal.toUpperCase()} DETECTED
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input
+                  type="url"
+                  placeholder="Paste URL (e.g. boards.greenhouse.io/datadog/jobs/12345)"
+                  value={scrapeUrlInput}
+                  onChange={(e) => {
+                    setScrapeUrlInput(e.target.value);
+                    if (e.target.value.includes('http')) {
+                      setDetectedAtsInModal(detectAtsPlatform(e.target.value));
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    outline: 'none',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleScrapeUrl}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  ⚡ Auto-Extract
+                </button>
+              </div>
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
@@ -1703,9 +2207,29 @@ export function CareerOpsView() {
               </button>
             </div>
 
-            <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>
-              Instantly fills out application forms on <strong>Greenhouse</strong>, <strong>Lever</strong>, <strong>Workday</strong>, and <strong>Ashby</strong>. Uses native value setter overrides so React/Vue controlled inputs never get wiped.
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>
+                Instantly fills out application forms on <strong>Greenhouse</strong>, <strong>Lever</strong>, <strong>Workday</strong>, and <strong>Ashby</strong>. Uses native value setter overrides so React/Vue controlled inputs never get wiped.
+              </p>
+              <button
+                onClick={() => {
+                  setShowAutoFillModal(false);
+                  setShowVaultModal(true);
+                }}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  background: 'rgba(99, 102, 241, 0.15)',
+                  color: '#a5b4fc',
+                  border: '1px solid rgba(99, 102, 241, 0.35)',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                👤 Edit Profile in Candidate Vault
+              </button>
+            </div>
 
             {/* Mode Selector */}
             <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '8px' }}>
@@ -1743,7 +2267,7 @@ export function CareerOpsView() {
                 </div>
                 <textarea
                   readOnly
-                  value={generateBrowserAutoFillScript(DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || '', activeJob.tailoredResume || '')}
+                  value={generateBrowserAutoFillScript(candidateVault, activeJob.coverLetter || '', activeJob.tailoredResume || '')}
                   style={{
                     width: '100%',
                     height: '200px',
@@ -1760,7 +2284,7 @@ export function CareerOpsView() {
                 />
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                   <button
-                    onClick={() => handleCopy(generateBrowserAutoFillScript(DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || '', activeJob.tailoredResume || ''), 'Auto-Fill Script')}
+                    onClick={() => handleCopy(generateBrowserAutoFillScript(candidateVault, activeJob.coverLetter || '', activeJob.tailoredResume || ''), 'Auto-Fill Script')}
                     style={{
                       padding: '6px 12px',
                       borderRadius: '8px',
@@ -1782,7 +2306,7 @@ export function CareerOpsView() {
                   {activeJob.url && activeJob.url.startsWith('http') && (
                     <button
                       onClick={() => {
-                        handleCopy(generateBrowserAutoFillScript(DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || '', activeJob.tailoredResume || ''), 'Auto-Fill Script');
+                        handleCopy(generateBrowserAutoFillScript(candidateVault, activeJob.coverLetter || '', activeJob.tailoredResume || ''), 'Auto-Fill Script');
                         window.open(activeJob.url, '_blank');
                         setToast(`Opening ${activeJob.company} portal! Script copied — paste in Console (F12) to auto-fill.`);
                       }}
@@ -1815,7 +2339,7 @@ export function CareerOpsView() {
                 </div>
                 <input
                   readOnly
-                  value={generateAutoFillBookmarklet(DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || '')}
+                  value={generateAutoFillBookmarklet(candidateVault, activeJob.coverLetter || '')}
                   style={{
                     width: '100%',
                     background: 'rgba(0, 0, 0, 0.4)',
@@ -1829,7 +2353,7 @@ export function CareerOpsView() {
                 />
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                   <button
-                    onClick={() => handleCopy(generateAutoFillBookmarklet(DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || ''), 'Bookmarklet URL')}
+                    onClick={() => handleCopy(generateAutoFillBookmarklet(candidateVault, activeJob.coverLetter || ''), 'Bookmarklet URL')}
                     style={{
                       padding: '6px 12px',
                       borderRadius: '8px',
@@ -1858,7 +2382,7 @@ export function CareerOpsView() {
                 </div>
                 <textarea
                   readOnly
-                  value={generatePlaywrightAutoFillScript(activeJob.url || 'https://boards.greenhouse.io', DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || '')}
+                  value={generatePlaywrightAutoFillScript(activeJob.url || 'https://boards.greenhouse.io', candidateVault, activeJob.coverLetter || '')}
                   style={{
                     width: '100%',
                     height: '200px',
@@ -1875,7 +2399,7 @@ export function CareerOpsView() {
                 />
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                   <button
-                    onClick={() => handleCopy(generatePlaywrightAutoFillScript(activeJob.url || 'https://boards.greenhouse.io', DEFAULT_CANDIDATE_PROFILE, activeJob.coverLetter || ''), 'Playwright Script')}
+                    onClick={() => handleCopy(generatePlaywrightAutoFillScript(activeJob.url || 'https://boards.greenhouse.io', candidateVault, activeJob.coverLetter || ''), 'Playwright Script')}
                     style={{
                       padding: '6px 12px',
                       borderRadius: '8px',
@@ -1899,6 +2423,323 @@ export function CareerOpsView() {
           </div>
         </div>
       )}
+
+      {/* Candidate Profile & Screening Questions Vault Modal */}
+      {showVaultModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '680px',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              background: '#0f172a',
+              border: '1px solid rgba(99, 102, 241, 0.4)',
+              borderRadius: '14px',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.7)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <UserCheck size={18} color="#818cf8" />
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
+                  Candidate Profile & Screening Questions Vault
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowVaultModal(false)}
+                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '14px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>
+              Persistent candidate profile synced directly to 1-Click ATS Auto-Fill. Changes are saved automatically to local storage.
+            </p>
+
+            {/* Vault Tabs */}
+            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '8px' }}>
+              {[
+                { id: 'personal', label: '👤 Personal & Links' },
+                { id: 'work_auth', label: '🛂 Work Auth & Details' },
+                { id: 'preferences', label: '🎯 Compensation & Start' },
+                { id: 'pitch', label: '💬 Elevator Pitch & Stack' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setVaultSubTab(tab.id as any)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    background: vaultSubTab === tab.id ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                    color: vaultSubTab === tab.id ? '#c7d2fe' : '#94a3b8',
+                    border: vaultSubTab === tab.id ? '1px solid rgba(99, 102, 241, 0.4)' : 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab: Personal */}
+            {vaultSubTab === 'personal' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>FIRST NAME</label>
+                  <input
+                    type="text"
+                    value={candidateVault.firstName}
+                    onChange={(e) => updateCandidateVault({ firstName: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>LAST NAME</label>
+                  <input
+                    type="text"
+                    value={candidateVault.lastName}
+                    onChange={(e) => updateCandidateVault({ lastName: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>EMAIL</label>
+                  <input
+                    type="email"
+                    value={candidateVault.email}
+                    onChange={(e) => updateCandidateVault({ email: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>PHONE</label>
+                  <input
+                    type="tel"
+                    value={candidateVault.phone}
+                    onChange={(e) => updateCandidateVault({ phone: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>LOCATION / CITY, STATE</label>
+                  <input
+                    type="text"
+                    value={candidateVault.location}
+                    onChange={(e) => updateCandidateVault({ location: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>LINKEDIN URL</label>
+                  <input
+                    type="url"
+                    value={candidateVault.linkedin}
+                    onChange={(e) => updateCandidateVault({ linkedin: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>GITHUB URL</label>
+                  <input
+                    type="url"
+                    value={candidateVault.github}
+                    onChange={(e) => updateCandidateVault({ github: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Tab: Work Auth */}
+            {vaultSubTab === 'work_auth' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="authCheck"
+                    checked={candidateVault.authorizedToWork}
+                    onChange={(e) => updateCandidateVault({ authorizedToWork: e.target.checked })}
+                  />
+                  <label htmlFor="authCheck" style={{ fontSize: '11px', color: '#f8fafc', cursor: 'pointer' }}>
+                    Legally authorized to work in the country without restriction
+                  </label>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="sponCheck"
+                    checked={candidateVault.requiresSponsorship}
+                    onChange={(e) => updateCandidateVault({ requiresSponsorship: e.target.checked })}
+                  />
+                  <label htmlFor="sponCheck" style={{ fontSize: '11px', color: '#f8fafc', cursor: 'pointer' }}>
+                    Will now or in the future require visa sponsorship (H-1B, etc.)
+                  </label>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>CURRENT COMPANY</label>
+                    <input
+                      type="text"
+                      value={candidateVault.currentCompany}
+                      onChange={(e) => updateCandidateVault({ currentCompany: e.target.value })}
+                      style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>CURRENT TITLE</label>
+                    <input
+                      type="text"
+                      value={candidateVault.currentTitle}
+                      onChange={(e) => updateCandidateVault({ currentTitle: e.target.value })}
+                      style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab: Preferences */}
+            {vaultSubTab === 'preferences' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>SALARY EXPECTATIONS</label>
+                  <input
+                    type="text"
+                    value={candidateVault.salaryExpectation}
+                    onChange={(e) => updateCandidateVault({ salaryExpectation: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>YEARS OF EXPERIENCE</label>
+                  <input
+                    type="text"
+                    value={candidateVault.yearsOfExperience}
+                    onChange={(e) => updateCandidateVault({ yearsOfExperience: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>EARLIEST START DATE</label>
+                  <input
+                    type="text"
+                    value={candidateVault.earliestStartDate}
+                    onChange={(e) => updateCandidateVault({ earliestStartDate: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>NOTICE PERIOD</label>
+                  <input
+                    type="text"
+                    value={candidateVault.noticePeriod}
+                    onChange={(e) => updateCandidateVault({ noticePeriod: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Tab: Pitch */}
+            {vaultSubTab === 'pitch' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>CORE TECH STACK KEYWORDS</label>
+                  <input
+                    type="text"
+                    value={candidateVault.coreTechStack}
+                    onChange={(e) => updateCandidateVault({ coreTechStack: e.target.value })}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>ELEVATOR PITCH / "TELL ME ABOUT YOURSELF"</label>
+                  <textarea
+                    value={candidateVault.briefPitch}
+                    onChange={(e) => updateCandidateVault({ briefPitch: e.target.value })}
+                    style={{ width: '100%', height: '100px', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px', resize: 'none' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Bottom Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCopy(exportCandidateVault(), 'Candidate Vault JSON');
+                  }}
+                  style={{ padding: '5px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px', cursor: 'pointer' }}
+                >
+                  Export JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const json = prompt('Paste Candidate Vault JSON to import:');
+                    if (json) {
+                      const ok = importCandidateVault(json);
+                      if (ok) setToast('Candidate Vault imported successfully!');
+                      else setToast('Invalid Vault JSON.');
+                    }
+                  }}
+                  style={{ padding: '5px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px', cursor: 'pointer' }}
+                >
+                  Import JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm('Reset candidate profile to verified defaults?')) {
+                      resetCandidateVault();
+                      setToast('Reset to defaults.');
+                    }
+                  }}
+                  style={{ padding: '5px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)', fontSize: '10px', cursor: 'pointer' }}
+                >
+                  Reset Defaults
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowVaultModal(false);
+                  setToast('Candidate Vault synced to Auto-Fill!');
+                }}
+                style={{ padding: '6px 14px', borderRadius: '6px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: '#ffffff', border: 'none', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Save & Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
