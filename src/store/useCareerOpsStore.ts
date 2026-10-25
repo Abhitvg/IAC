@@ -9,6 +9,8 @@ import {
   generateTailoredResume,
   generateCoverLetter,
   generateOutreachNotes,
+  CoverLetterAngle,
+  CoverLetterExperienceLevel,
   ProviderConfig,
 } from '../services/careerOps/careerOpsService';
 
@@ -144,7 +146,8 @@ interface CareerOpsState {
   generateCoverLetterForJob: (
     id: string,
     resumeText: string,
-    angle?: 'problem_solver' | 'technical_depth' | 'fast_impact' | 'cultural_alignment',
+    angle?: CoverLetterAngle,
+    level?: CoverLetterExperienceLevel,
     config?: ProviderConfig
   ) => Promise<string>;
   generateOutreachForJob: (
@@ -276,7 +279,13 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
       }
     },
 
-    generateCoverLetterForJob: async (id, resumeText, angle = 'problem_solver', config) => {
+    generateCoverLetterForJob: async (
+      id,
+      resumeText,
+      angle = 'problem_solver',
+      level = 'senior',
+      config
+    ) => {
       const job = get().applications.find((a) => a.id === id);
       if (!job) return '';
 
@@ -286,6 +295,7 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
         job.company,
         job.role,
         angle,
+        level,
         config
       );
       get().updateJob(id, { coverLetter: letter });

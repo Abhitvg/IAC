@@ -411,45 +411,152 @@ STRICT LATEX REQUIREMENTS (sb2nov/resume standard):
   return full || SB2NOV_LATEX_TEMPLATE.replace(/{{TARGET_ROLE}}/g, roleTitle).replace(/{{COMPANY_NAME}}/g, companyName);
 }
 
+export type CoverLetterAngle =
+  | 'problem_solver'
+  | 'technical_depth'
+  | 'fast_impact'
+  | 'cultural_alignment';
+
+export type CoverLetterExperienceLevel =
+  | 'senior'
+  | 'mid'
+  | 'entry'
+  | 'career_switcher';
+
+/**
+ * Generates high-impact Software Engineer Cover Letters adhering to the
+ * Indeed & Intuit Software Engineering Cover Letter Blueprints:
+ * 1. Hook & Role Fit (State position, specific technical hook, connect to company mission)
+ * 2. Quantifiable Technical Impact (Action + Project Context + Measurable Result)
+ * 3. Relevant Tech Stack & Craft (Mirrored JD keywords, automated testing, CI/CD, cross-functional collaboration)
+ * 4. Why Company & Culture Alignment (Authentic curiosity for product challenges)
+ * 5. Confident Close & Actionable Contact (Clear CTA, portfolio/GitHub, phone, email)
+ */
 export async function generateCoverLetter(
   jdText: string,
   resumeText: string,
   companyName: string,
   roleTitle: string,
-  angle: 'problem_solver' | 'technical_depth' | 'fast_impact' | 'cultural_alignment' = 'problem_solver',
+  angle: CoverLetterAngle = 'problem_solver',
+  level: CoverLetterExperienceLevel = 'senior',
   providerConfig?: ProviderConfig
 ): Promise<string> {
-  const angleDescriptions = {
-    problem_solver: 'Focuses directly on a critical high-stakes challenge the company faces and how candidate solves it.',
+  const angleDescriptions: Record<CoverLetterAngle, string> = {
+    problem_solver: 'Focuses directly on a critical high-stakes engineering challenge the company faces and how candidate solves it.',
     technical_depth: 'Focuses deeply on architectural mastery, code quality, and distributed systems design.',
     fast_impact: 'Focuses on rapid 30-60-90 day value acceleration and immediate team velocity.',
     cultural_alignment: 'Focuses on passion for the mission, product excellence, and collaborative ownership.',
   };
 
-  const prompt = `Write an exceptional, compelling 3-paragraph Cover Letter for the role of "${roleTitle}" at "${companyName}".
-Angle: ${angleDescriptions[angle]}
+  const levelDescriptions: Record<CoverLetterExperienceLevel, string> = {
+    senior: 'Senior / Staff Engineer: emphasizes systems architecture, mentoring, 50k+ QPS scale, and cross-functional leadership.',
+    mid: 'Full-Stack / Backend Engineer: emphasizes end-to-end feature delivery, clean REST/gRPC API design, and automated test coverage.',
+    entry: 'New Graduate / Entry-Level Engineer: emphasizes core computer science foundations, hackathon/capstone achievements, and internship impact (27% bug reduction).',
+    career_switcher: 'Career Switcher / Bootcamp Graduate: emphasizes rapid technical immersion, shipped full-stack applications, and translating domain problem-solving into software engineering.',
+  };
 
-Candidate Resume:
+  const prompt = `Write an exceptional, compelling 4-paragraph Software Engineering Cover Letter for the role of "${roleTitle}" at "${companyName}".
+Guidance: Follow the official Indeed & Intuit Software Engineer Cover Letter Standards.
+
+Target Experience Profile: ${levelDescriptions[level]}
+Strategic Angle: ${angleDescriptions[angle]}
+
+--- CANDIDATE RESUME ---
 ${resumeText.slice(0, 2000)}
+--- END RESUME ---
 
-Job Description:
+--- JOB DESCRIPTION ---
 ${jdText.slice(0, 2000)}
+--- END JOB DESCRIPTION ---
 
-DIRECTIVES:
-- No boilerplate cliches ("I am writing to express my eager enthusiasm...").
-- Hook the reader in Sentence 1 with a concrete technical observation about ${companyName}.
-- Paragraph 2: Specific evidence of solving equivalent challenges from real candidate experience.
-- Paragraph 3: Crisp, confident call to action.
-- Length: 220 to 280 words max.`;
+STRICT 4-PARAGRAPH BLUEPRINT (Indeed & Intuit Standard):
+1. PARAGRAPH 1 (Hook and Role Fit):
+   - Professional salutation: "Dear ${companyName} Engineering Hiring Team,"
+   - State the exact role ("${roleTitle}") and company name.
+   - Lead with an immediate, compelling technical hook tied directly to ${companyName}'s engineering goals or product mission.
+   - ABSOLUTELY ZERO generic boilerplate cliches (e.g. "I am writing to express my enthusiastic interest in...", "Please find enclosed my resume").
+
+2. PARAGRAPH 2 (Skill Proof & Quantifiable Impact):
+   - Highlight 1-2 real-world engineering accomplishments from candidate experience.
+   - Include specific, measurable outcomes (e.g. percentage improvements in latency, uptime metrics, QPS throughput, or bug reduction).
+   - Directly connect technical decisions to user and business value.
+
+3. PARAGRAPH 3 (Relevant Tech Stack & Team Collaboration):
+   - Mirror high-value technical keywords directly from the JD (languages, frameworks, cloud infrastructure, databases).
+   - Emphasize engineering rigor: testing (unit/integration/E2E), CI/CD automation, code reviews, and cross-functional agile teamwork with Product and Design.
+
+4. PARAGRAPH 4 (Why ${companyName} & Confident Close):
+   - Express genuine, informed enthusiasm for ${companyName}'s specific product challenges or engineering mission.
+   - Confident, professional call to action to discuss team needs.
+   - Include actionable contact placeholders: [Phone Number] | [Email] | [GitHub / Portfolio].
+   - Professional sign-off: "Sincerely,\nCandidate Name".
+
+Length: 240 to 320 words max. Sharp, authentic, senior engineering tone.`;
 
   if (!providerConfig || !providerConfig.apiKey) {
-    return `Dear Hiring Team at ${companyName},
+    if (level === 'entry') {
+      return `Dear ${companyName} Engineering Hiring Team,
 
-I am writing regarding the ${roleTitle} position. Having scaled distributed microservices and real-time event-driven applications, I have followed ${companyName}'s work and appreciate your focus on building resilient, user-centered software.
+I am writing to apply for the ${roleTitle} position at ${companyName}. As a Computer Science graduate with hands-on experience building full-stack applications and participating in competitive hackathons, I have long admired ${companyName}'s technological innovation and look forward to contributing to your engineering mission.
 
-In my recent engineering work, I focused on reducing system latency, improving API reliability, and architecting modular backend services with high test coverage. For example, optimizing asynchronous message handling and database queries reduced our P99 response times while maintaining zero-downtime reliability under load.
+During my recent software engineering internship, I collaborated with cross-functional engineers and product teams to test and optimize internal data services, driving a 27% reduction in late-cycle software bugs through automated integration testing. Additionally, I built an open-source real-time collaborative document engine utilizing WebSockets and conflict-free data types, demonstrating my grasp of distributed state and asynchronous networking.
 
-I look forward to discussing how my experience with scalable architecture and rapid delivery can support ${companyName}'s engineering goals this quarter.
+My foundational skills span Java, Python, JavaScript/TypeScript, SQL, and Git version control, along with practical experience in Docker and cloud deployment basics. I thrive in agile environments where rapid feedback, continuous learning, and clean algorithmic problem-solving drive daily progress.
+
+Joining ${companyName} would be an extraordinary opportunity to work alongside talented engineers and solve challenging problems at scale. I am confident my strong fundamentals, curiosity, and work ethic make me an immediate contributor to your team.
+
+You can reach me at [Phone] or [Email]. My portfolio and GitHub repositories are located at [GitHub / Portfolio]. Thank you for your time and consideration.
+
+Sincerely,
+Candidate`;
+    }
+
+    if (level === 'career_switcher') {
+      return `Dear ${companyName} Engineering Hiring Team,
+
+I am excited to submit my application for the ${roleTitle} role at ${companyName}. Bringing a decade of professional problem-solving and domain expertise combined with rigorous software engineering immersion, I am eager to contribute to ${companyName}'s impactful technology initiatives.
+
+During my intensive software engineering training and subsequent freelance development, I built and deployed multiple production-ready applications, including a custom full-stack analytics tool that boosted user engagement by 33% and reduced workflow errors by 78%. I have engineered responsive web frontends and reliable backend APIs with rigorous input validation and secure database interactions.
+
+My technical toolkit includes JavaScript, TypeScript, React, Node.js, SQL, and cloud deployment on AWS. Having navigated complex stakeholder demands and operational constraints in my previous career, I bring unique strengths in cross-functional communication, adaptability, and high-pressure problem solving alongside my coding capabilities.
+
+${companyName}'s mission of empowering users through innovative software resonates deeply with my own values. I would welcome the opportunity to discuss how my unique blend of domain perspective and modern engineering skills can support your team's objectives.
+
+You can reach me at [Phone] or [Email]. My engineering portfolio and projects are available at [GitHub / Portfolio]. Thank you for your time and consideration.
+
+Sincerely,
+Candidate`;
+    }
+
+    if (level === 'mid') {
+      return `Dear ${companyName} Engineering Hiring Team,
+
+I am excited to apply for the ${roleTitle} role at ${companyName}. As a software engineer with extensive experience building scalable web applications and RESTful microservices, I admire ${companyName}'s commitment to engineering craft and seamless user experiences. I am eager to contribute to your team's feature velocity and platform reliability.
+
+In my current work, I built and deployed full-stack features that improved core transaction throughput by 30% and cut API response latency by 40%. Collaborating closely with product managers and designers, I led the development of a real-time collaborative synchronization module that eliminated data contention for over 100,000 active users.
+
+My daily stack includes TypeScript, Python, Node.js, SQL, Docker, and AWS. I take pride in writing clean, well-tested code backed by comprehensive unit and integration test suites, automated CI/CD pipelines, and thorough peer code reviews that prevent regressions before reaching production.
+
+I would love to bring my technical drive and collaborative mindset to ${companyName}'s engineering organization. I look forward to the possibility of discussing how my experience can support your upcoming product launches.
+
+You can reach me at [Phone] or [Email]. You can also review my work at [GitHub / Portfolio]. Thank you for your consideration.
+
+Sincerely,
+Candidate`;
+    }
+
+    // Default: 'senior'
+    return `Dear ${companyName} Engineering Hiring Team,
+
+Please consider my application for the ${roleTitle} position at ${companyName}. Having architected distributed microservices and scaled real-time data pipelines, I have followed ${companyName}'s technical growth with keen interest. Given your focus on building resilient, high-throughput systems, I am eager to apply my experience in distributed reliability and performance optimization to support your team's upcoming roadmap.
+
+In my recent engineering roles, I designed and scaled event-driven backend architectures processing over 50,000 QPS with sub-50ms P99 latency. By refactoring asynchronous messaging pipelines and optimizing database indexing strategies, my team reduced server CPU utilization by 35% and eliminated critical cold-start latency spikes. I also established structured distributed tracing that decreased our mean time to resolution (MTTR) by 45% during production incidents, ensuring 99.99% system availability.
+
+My technical toolkit centers on production-grade backend engineering with Java, TypeScript, Kafka, Docker, Kubernetes, and AWS, complemented by modern frontend workflows in React. Beyond systems architecture, I prioritize engineering excellence through rigorous automated integration testing, trunk-based CI/CD workflows, and active mentorship of junior engineers across the full software development lifecycle.
+
+What excites me most about ${companyName} is your dedication to solving complex engineering problems while keeping customer experience at the center. I would welcome the opportunity to discuss how my architectural background and delivery track record can help accelerate your team's milestones this quarter.
+
+You can reach me directly at [Phone] or [Email]. My open-source projects and code are available at [GitHub / Portfolio]. Thank you for your time and consideration.
 
 Sincerely,
 Candidate`;
@@ -464,7 +571,7 @@ Candidate`;
       model: providerConfig.model || 'openai/gpt-oss-120b',
       temperature: 0.3,
       maxTokens: 1000,
-      systemPrompt: 'You write sharp, authentic, senior-level cover letters that hiring managers actually enjoy reading.',
+      systemPrompt: 'You write sharp, authentic, senior-level software engineering cover letters that hiring managers actually enjoy reading, adhering to Indeed and Intuit industry best practices.',
     },
     'javascript',
     {

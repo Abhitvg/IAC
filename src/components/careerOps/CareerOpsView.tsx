@@ -75,6 +75,7 @@ export function CareerOpsView() {
   const [newJdText, setNewJdText] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
   const [coverAngle, setCoverAngle] = useState<'problem_solver' | 'technical_depth' | 'fast_impact' | 'cultural_alignment'>('problem_solver');
+  const [coverLevel, setCoverLevel] = useState<'senior' | 'mid' | 'entry' | 'career_switcher'>('senior');
 
   const activeJob = applications.find((a) => a.id === activeJobId) || applications[0] || null;
 
@@ -99,6 +100,23 @@ export function CareerOpsView() {
       setToast(`Downloaded ${cleanComp}_${cleanRole}_Resume.tex!`);
     } catch (e) {
       console.error("Failed to download .tex file", e);
+    }
+  };
+
+  const handleDownloadCoverLetter = (letterContent: string, company: string, role: string) => {
+    try {
+      const element = document.createElement('a');
+      const file = new Blob([letterContent], { type: 'text/markdown;charset=utf-8' });
+      element.href = URL.createObjectURL(file);
+      const cleanComp = (company || 'Company').replace(/[^a-zA-Z0-9]/g, '_');
+      const cleanRole = (role || 'Role').replace(/[^a-zA-Z0-9]/g, '_');
+      element.download = `${cleanComp}_${cleanRole}_CoverLetter.md`;
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+      setToast(`Downloaded ${cleanComp}_${cleanRole}_CoverLetter.md!`);
+    } catch (e) {
+      console.error('Failed to download cover letter', e);
     }
   };
 
@@ -952,7 +970,7 @@ export function CareerOpsView() {
                 <button
                   onClick={async () => {
                     setToast('Drafting 4-angle cover letter...');
-                    await generateCoverLetterForJob(activeJob.id, resumeText, coverAngle);
+                    await generateCoverLetterForJob(activeJob.id, resumeText, coverAngle, coverLevel);
                     setToast('Cover Letter drafted!');
                   }}
                   style={{
@@ -971,39 +989,70 @@ export function CareerOpsView() {
               </div>
             </div>
 
-            {/* Cover Letter Angle Selector */}
+            {/* Cover Letter Blueprint Selectors (Indeed & Intuit Standard) */}
             <div
               style={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: 'column',
                 gap: '8px',
                 background: 'rgba(255, 255, 255, 0.03)',
-                padding: '6px 12px',
-                borderRadius: '8px',
+                padding: '10px 14px',
+                borderRadius: '10px',
                 border: '1px solid rgba(255, 255, 255, 0.06)',
                 fontSize: '11px',
               }}
             >
-              <span style={{ color: '#94a3b8' }}>Cover Letter Angle:</span>
-              {(['problem_solver', 'technical_depth', 'fast_impact', 'cultural_alignment'] as const).map((ang) => (
-                <button
-                  key={ang}
-                  onClick={() => setCoverAngle(ang)}
-                  style={{
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    background: coverAngle === ang ? '#f97316' : 'rgba(255, 255, 255, 0.05)',
-                    color: coverAngle === ang ? '#ffffff' : '#94a3b8',
-                    border: 'none',
-                    cursor: 'pointer',
-                    textTransform: 'capitalize',
-                  }}
-                >
-                  {ang.replace('_', ' ')}
-                </button>
-              ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ color: '#94a3b8', fontWeight: 600 }}>Candidate Profile:</span>
+                {(
+                  [
+                    { id: 'senior', label: 'Senior / Staff' },
+                    { id: 'mid', label: 'Mid-Level' },
+                    { id: 'entry', label: 'Entry / New Grad' },
+                    { id: 'career_switcher', label: 'Career Switcher' },
+                  ] as const
+                ).map((lvl) => (
+                  <button
+                    key={lvl.id}
+                    onClick={() => setCoverLevel(lvl.id)}
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      background: coverLevel === lvl.id ? '#06b6d4' : 'rgba(255, 255, 255, 0.05)',
+                      color: coverLevel === lvl.id ? '#042f2e' : '#94a3b8',
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {lvl.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ color: '#94a3b8', fontWeight: 600 }}>Strategy Angle:</span>
+                {(['problem_solver', 'technical_depth', 'fast_impact', 'cultural_alignment'] as const).map((ang) => (
+                  <button
+                    key={ang}
+                    onClick={() => setCoverAngle(ang)}
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      background: coverAngle === ang ? '#f97316' : 'rgba(255, 255, 255, 0.05)',
+                      color: coverAngle === ang ? '#ffffff' : '#94a3b8',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textTransform: 'capitalize',
+                    }}
+                  >
+                    {ang.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Generated Outputs Display */}
@@ -1153,42 +1202,95 @@ export function CareerOpsView() {
                   gap: '10px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
-                    ✉️ Research-Backed Cover Letter
-                  </span>
-                  {activeJob.coverLetter && (
-                    <button
-                      onClick={() => handleCopy(activeJob.coverLetter!, 'Cover Letter')}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
+                      ✉️ Software Engineer Cover Letter
+                    </span>
+                    <span
                       style={{
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(255, 255, 255, 0.06)',
-                        color: '#94a3b8',
-                        border: '1px solid rgba(255, 255, 255, 0.12)',
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        background: 'rgba(6, 182, 212, 0.15)',
+                        border: '1px solid rgba(6, 182, 212, 0.3)',
+                        color: '#67e8f9',
+                        fontSize: '9px',
+                        fontWeight: 700,
                       }}
                     >
-                      <Copy size={11} />
-                      <span>{copiedField === 'Cover Letter' ? 'Copied!' : 'Copy Letter'}</span>
-                    </button>
+                      Indeed & Intuit Standard
+                    </span>
+                  </div>
+
+                  {activeJob.coverLetter && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        onClick={() => handleCopy(activeJob.coverLetter!, 'Cover Letter')}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          color: '#94a3b8',
+                          border: '1px solid rgba(255, 255, 255, 0.12)',
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Copy size={11} />
+                        <span>{copiedField === 'Cover Letter' ? 'Copied!' : 'Copy Letter'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDownloadCoverLetter(activeJob.coverLetter!, activeJob.company, activeJob.role)}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(6, 182, 212, 0.15)',
+                          color: '#67e8f9',
+                          border: '1px solid rgba(6, 182, 212, 0.3)',
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Download size={11} />
+                        <span>Download .md</span>
+                      </button>
+                    </div>
                   )}
+                </div>
+
+                <div
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    background: 'rgba(30, 41, 59, 0.5)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    fontSize: '10px',
+                    color: '#94a3b8',
+                  }}
+                >
+                  Blueprint: <strong>Hook & Role Fit</strong> → <strong>Quantified Impact</strong> → <strong>Tech Stack & Craft</strong> → <strong>Why {activeJob.company}</strong>
                 </div>
 
                 <textarea
                   readOnly
                   value={
                     activeJob.coverLetter ||
-                    'Click "Draft Cover Letter" to generate a research-backed, 3-paragraph letter hooked into this company.'
+                    'Click "Draft Cover Letter" to generate a 4-paragraph software engineering cover letter tailored for ' +
+                      activeJob.company +
+                      ' adhering to the Indeed & Intuit playbooks.'
                   }
                   style={{
                     width: '100%',
-                    height: '380px',
+                    height: '350px',
                     background: 'rgba(0, 0, 0, 0.35)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '8px',

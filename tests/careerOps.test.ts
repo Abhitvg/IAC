@@ -118,19 +118,73 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
     });
   });
 
-  describe('generateCoverLetter() — Multi-Angle Cover Letter Generator', () => {
-    it('generates 4-angle cover letters without boilerplate cliches', async () => {
+  describe('generateCoverLetter() — Indeed & Intuit Software Engineer Blueprint', () => {
+    it('generates Senior level cover letters with distributed scale, quantified metrics, and zero cliches', async () => {
       const letter = await generateCoverLetter(
-        'Looking for an engineer to optimize latency',
+        'Looking for an engineer to scale microservices and optimize latency',
         sampleResume,
         'Alignerr',
         'Senior Software Developer',
-        'problem_solver'
+        'problem_solver',
+        'senior'
       );
 
       expect(letter).toContain('Alignerr');
       expect(letter).toContain('Senior Software Developer');
+      expect(letter).toContain('50,000 QPS');
       expect(letter).toContain('latency');
+      expect(letter).toContain('Dear Alignerr Engineering Hiring Team');
+      expect(letter).toContain('[GitHub / Portfolio]');
+      expect(letter).not.toContain('I am writing to express my eager enthusiasm');
+      expect(letter).not.toContain('Please find enclosed my resume');
+    });
+
+    it('generates Entry-Level / New Grad cover letters highlighting 27% bug reduction and real projects', async () => {
+      const letter = await generateCoverLetter(
+        'Entry level software engineer with Java or Python',
+        sampleResume,
+        'Datadog',
+        'Associate Software Engineer',
+        'fast_impact',
+        'entry'
+      );
+
+      expect(letter).toContain('Datadog');
+      expect(letter).toContain('Associate Software Engineer');
+      expect(letter).toContain('27% reduction in late-cycle software bugs');
+      expect(letter).toContain('Computer Science graduate');
+    });
+
+    it('generates Mid-Level cover letters emphasizing API throughput and collaboration', async () => {
+      const letter = await generateCoverLetter(
+        'Full stack engineer to build scalable APIs',
+        sampleResume,
+        'Stripe',
+        'Software Engineer',
+        'technical_depth',
+        'mid'
+      );
+
+      expect(letter).toContain('Stripe');
+      expect(letter).toContain('Software Engineer');
+      expect(letter).toContain('transaction throughput by 30%');
+      expect(letter).toContain('100,000 active users');
+    });
+
+    it('generates Career Switcher cover letters translating domain depth into software impact', async () => {
+      const letter = await generateCoverLetter(
+        'Software engineer with strong problem solving skills',
+        sampleResume,
+        'Intuit',
+        'Junior Software Engineer',
+        'cultural_alignment',
+        'career_switcher'
+      );
+
+      expect(letter).toContain('Intuit');
+      expect(letter).toContain('Junior Software Engineer');
+      expect(letter).toContain('boosted user engagement by 33%');
+      expect(letter).toContain('reduced workflow errors by 78%');
     });
   });
 
