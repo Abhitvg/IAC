@@ -3,6 +3,8 @@ import React, { useEffect, useCallback } from 'react';
 import { useAppStore } from './store/useAppStore';
 import TeleprompterView from './components/teleprompter/TeleprompterView';
 import { MockGymView } from './components/practice/MockGymView';
+import { CareerOpsView } from './components/careerOps/CareerOpsView';
+import { useCareerOpsStore } from './store/useCareerOpsStore';
 import { usePracticeStore } from './store/usePracticeStore';
 import SettingsPanel from './components/SettingsPanel';
 import SessionsPanel from './components/SessionsPanel';
@@ -34,6 +36,7 @@ export default function App() {
     toggleInterviewFocusMode,
   } = useAppStore();
 
+  const { applications: careerOpsApps } = useCareerOpsStore();
   const {
     activeView,
     setActiveView,
@@ -289,6 +292,52 @@ export default function App() {
               <span className="hidden sm:inline lg:hidden">🏋️ Gym</span>
               <span className="sm:hidden">🏋️</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveView("career_ops")}
+              title="CareerOps Intelligence (Job Evaluation, 1-5 Fit Scoring, ATS Resume & Cover Letter Tailoring)"
+              style={{
+                padding: "4px 9px",
+                borderRadius: "6px",
+                fontSize: "11px",
+                fontWeight: 700,
+                cursor: "pointer",
+                border:
+                  activeView === "career_ops"
+                    ? "1px solid rgba(249, 115, 22, 0.5)"
+                    : "1px solid transparent",
+                background:
+                  activeView === "career_ops"
+                    ? "linear-gradient(135deg, #f97316, #ea580c)"
+                    : "transparent",
+                color: activeView === "career_ops" ? "#ffffff" : "#94a3b8",
+                boxShadow:
+                  activeView === "career_ops" ? "0 2px 10px rgba(249, 115, 22, 0.45)" : "none",
+                transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
+                whiteSpace: "nowrap",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              <span className="hidden lg:inline">💼 CareerOps</span>
+              <span className="hidden sm:inline lg:hidden">💼 Career</span>
+              <span className="sm:hidden">💼</span>
+              {careerOpsApps && careerOpsApps.length > 0 && (
+                <span
+                  style={{
+                    fontSize: "9px",
+                    fontWeight: 800,
+                    padding: "1px 5px",
+                    borderRadius: "10px",
+                    background: activeView === "career_ops" ? "rgba(0, 0, 0, 0.25)" : "rgba(249, 115, 22, 0.2)",
+                    color: activeView === "career_ops" ? "#ffffff" : "#fb923c",
+                  }}
+                >
+                  {careerOpsApps.length}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Readiness Badges in Header */}
@@ -441,7 +490,7 @@ export default function App() {
         aria-label="Application Workspace"
         style={{ flex: 1, overflow: 'hidden', position: 'relative', background: 'transparent' }}
       >
-        {activeView === 'teleprompter' ? <TeleprompterView /> : <MockGymView />}
+        {activeView === 'teleprompter' ? <TeleprompterView /> : activeView === 'mock_gym' ? <MockGymView /> : <CareerOpsView />}
       </main>
 
       {showOnboarding && <OnboardingModal />}
