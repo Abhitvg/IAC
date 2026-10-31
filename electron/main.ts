@@ -19,6 +19,7 @@ const execAsync = util.promisify(exec);
 const execFileAsync = util.promisify(execFile);
 import path from 'path';
 import fs from 'fs';
+import dns from 'dns';
 import mammoth from 'mammoth';
 import { setupIpcHandlers } from './ipc/handlers';
 import {
@@ -560,6 +561,16 @@ ipcMain.handle('fs:parse-pdf', async (_event, arrayBuffer: ArrayBuffer) => {
     throw new Error('Invalid argument: expected ArrayBuffer or Buffer');
   }
   return parsePdfBuffer(arrayBuffer);
+});
+
+// DNS resolution for SSRF verification
+ipcMain.handle('net:resolve-dns', async (_event, hostname: string) => {
+  return new Promise((resolve) => {
+    dns.lookup(hostname, { all: true }, (err, addresses) => {
+      if (err) return resolve([]);
+      resolve(addresses);
+    });
+  });
 });
 
 // DOCX parsing

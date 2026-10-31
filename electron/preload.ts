@@ -35,6 +35,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listDir: (path: string) => ipcRenderer.invoke('fs:list-dir', path),
   deleteFile: (path: string) => ipcRenderer.invoke('fs:delete', path),
 
+  // Network / SSRF verification
+  resolveDns: (hostname: string) => ipcRenderer.invoke('net:resolve-dns', hostname),
+
   // Shell
   openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
 

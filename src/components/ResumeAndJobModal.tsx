@@ -20,7 +20,6 @@ import {
   TrendingUp,
   AlertCircle,
   FileUp,
-  Check,
 } from 'lucide-react';
 
 export default function ResumeAndJobModal() {
@@ -88,11 +87,20 @@ export default function ResumeAndJobModal() {
       setToast(`Extracting text from ${file.name}...`);
       const ingestion = await ingestResumeFile(file);
       if (ingestion.rawText && ingestion.rawText.trim()) {
-        setLocalResume(ingestion.rawText.trim());
+        const text = ingestion.rawText.trim();
+        if (text.startsWith('Could not extract readable text')) {
+          setToast(`⚠️ ${file.name} had unreadable text layer. Please paste your resume text directly.`);
+          return;
+        }
+        setLocalResume(text);
         KnowledgeVaultService.getInstance().populateFromIngestionResult(ingestion);
-        setToast(`✅ Loaded ${file.name} into Knowledge Vault!`);
+        if (ingestion.ocrRequired || ingestion.isImageOnlyOrScanned) {
+          setToast(`⚠️ Extracted via OCR fallback for ${file.name}. Please review content.`);
+        } else {
+          setToast(`✅ Loaded ${file.name} into Knowledge Vault!`);
+        }
       } else {
-        setToast(`Could not extract text from ${file.name}`);
+        setToast(`Could not extract text from ${file.name}. Please try .txt or paste directly.`);
       }
     } catch (err: any) {
       console.error('File parsing error:', err);

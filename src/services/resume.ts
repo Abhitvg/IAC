@@ -194,6 +194,8 @@ export async function loadResume(filePath: string): Promise<ResumeContext> {
   return parseResumeText(text);
 }
 
+import { isGarbledOrMojibakeText } from './ingestion/pdfExtractor';
+
 /**
  * Extract text from PDF buffer using client-side pdfjs-dist fallback
  */
@@ -210,7 +212,7 @@ async function extractPdfText(buffer: Buffer | ArrayBuffer): Promise<string> {
     const loadingTask = pdfjs.getDocument({
       data: uint8,
       useSystemFonts: true,
-      disableFontFace: true,
+      disableFontFace: false,
     });
 
     const doc = await loadingTask.promise;
@@ -231,14 +233,14 @@ async function extractPdfText(buffer: Buffer | ArrayBuffer): Promise<string> {
     }
 
     const cleaned = fullText.trim();
-    if (cleaned) {
+    if (cleaned && !isGarbledOrMojibakeText(cleaned)) {
       return cleaned;
     }
   } catch (err) {
     console.warn('[extractPdfText] Browser PDF parsing error:', err);
   }
 
-  return 'Could not extract readable text from PDF. The document may be image-only or scanned. Please paste your resume text directly into the editor below or upload as .txt, .md, or .docx.';
+  return 'Could not extract readable text from PDF. The document may be image-only, scanned, or use custom encrypted font encodings. Please paste your resume text directly into the editor below or upload as .txt, .md, or .docx.';
 }
 
 /**

@@ -1,11 +1,11 @@
 /**
  * Asynchronous, Rate-Limited Same-Origin Website Crawler
- * Enforces SSRF constraints, depth and page bounds, content-type allowlists,
- * and reports fine-grained progress.
+ * Enforces SSRF constraints, manual redirect verification, streaming byte caps,
+ * depth and page bounds, content-type allowlists, and reports fine-grained progress.
  */
 
 import { CrawledPage, CrawlProgress } from './websiteIngestionTypes';
-import { validateAndNormalizeUrl } from './urlSafetyPolicy';
+import { validateAndNormalizeUrlAsync } from './urlSafetyPolicy';
 import { extractCleanHtmlContent } from './htmlContentExtractor';
 import { classifyPage } from './pageClassifier';
 import { computeSimpleHash } from './websiteChangeDetector';
@@ -21,6 +21,52 @@ export interface CrawlerOptions {
   onProgress?: (progress: CrawlProgress) => void;
 }
 
+const MAX_REDIRECT_HOPS = 5;
+
+/**
+ * Streams response body chunk-by-chunk and aborts immediately if max bytes exceeded.
+ */
+async function readStreamWithByteLimit(
+  response: Response,
+  maxByteSize: number,
+  signal: AbortSignal
+): Promise<string> {
+  if (!response.body) {
+    return '';
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8', { fatal: false });
+  let totalBytes = 0;
+  let result = '';
+
+  try {
+    while (true) {
+      if (signal.aborted) {
+        throw new Error('Crawl request timed out or aborted');
+      }
+
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      if (value) {
+        totalBytes += value.byteLength;
+        if (totalBytes > maxByteSize) {
+          await reader.cancel('Response exceeded maximum size limit');
+          throw new Error(`Response payload exceeded maximum limit of ${maxByteSize} bytes`);
+        }
+        result += decoder.decode(value, { stream: true });
+      }
+    }
+    result += decoder.decode();
+    return result;
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {}
+  }
+}
+
 export class WebsiteCrawler {
   public static async crawl(options: CrawlerOptions): Promise<CrawledPage[]> {
     const {
@@ -34,7 +80,7 @@ export class WebsiteCrawler {
       onProgress,
     } = options;
 
-    const validation = validateAndNormalizeUrl(seedUrl);
+    const validation = await validateAndNormalizeUrlAsync(seedUrl);
     if (!validation.safe || !validation.normalizedUrl) {
       throw new Error(`Invalid or unsafe seed URL: ${validation.reason}`);
     }
@@ -82,19 +128,66 @@ export class WebsiteCrawler {
       report('crawling', item.url);
 
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+        let currentUrl = item.url;
+        let redirectHops = 0;
+        const redirectHistory = new Set<string>([currentUrl]);
+        let response: Response | null = null;
+        let html = '';
 
-        const response = await fetch(item.url, {
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'IAC-InterviewAssistant/1.0 (+https://github.com/Abhitvg/IAC; Candidate Research)',
-            Accept: 'text/html,application/xhtml+xml',
-          },
-        });
-        clearTimeout(timeout);
+        // Follow manual redirects with validation on every hop
+        while (redirectHops <= MAX_REDIRECT_HOPS) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
 
-        if (!response.ok) {
+          try {
+            response = await fetch(currentUrl, {
+              method: 'GET',
+              redirect: 'manual',
+              signal: controller.signal,
+              headers: {
+                'User-Agent':
+                  'IAC-InterviewAssistant/1.0 (+https://github.com/Abhitvg/IAC; Candidate Research)',
+                Accept: 'text/html,application/xhtml+xml',
+              },
+            });
+          } finally {
+            clearTimeout(timeoutId);
+          }
+
+          // Handle redirects manually to prevent SSRF bypass and redirect loops
+          if (
+            response.status === 301 ||
+            response.status === 302 ||
+            response.status === 303 ||
+            response.status === 307 ||
+            response.status === 308
+          ) {
+            redirectHops++;
+            const location = response.headers.get('location');
+            if (!location) {
+              throw new Error(`Redirect response (${response.status}) missing Location header`);
+            }
+
+            const targetUrl = new URL(location, currentUrl).toString();
+            const targetValidation = await validateAndNormalizeUrlAsync(targetUrl, allowedOrigin);
+
+            if (!targetValidation.safe || !targetValidation.normalizedUrl) {
+              throw new Error(`Unsafe redirect destination blocked: ${targetValidation.reason}`);
+            }
+
+            if (redirectHistory.has(targetValidation.normalizedUrl)) {
+              throw new Error(`Redirect loop detected: ${targetValidation.normalizedUrl}`);
+            }
+
+            currentUrl = targetValidation.normalizedUrl;
+            redirectHistory.add(currentUrl);
+            continue;
+          }
+
+          break;
+        }
+
+        if (!response || !response.ok) {
           pagesFailed++;
           continue;
         }
@@ -105,20 +198,27 @@ export class WebsiteCrawler {
           continue;
         }
 
-        const html = await response.text();
-        if (html.length > maxByteSize) {
+        const streamController = new AbortController();
+        const streamTimeout = setTimeout(() => streamController.abort(), requestTimeoutMs);
+        try {
+          html = await readStreamWithByteLimit(response, maxByteSize, streamController.signal);
+        } finally {
+          clearTimeout(streamTimeout);
+        }
+
+        if (!html || html.length === 0) {
           pagesSkipped++;
           continue;
         }
 
-        const extracted = extractCleanHtmlContent(html, item.url, sourceId);
-        const classification = classifyPage(item.url, extracted.title, extracted.cleanText);
+        const extracted = extractCleanHtmlContent(html, currentUrl, sourceId);
+        const classification = classifyPage(currentUrl, extracted.title, extracted.cleanText);
         const hash = computeSimpleHash(extracted.cleanText);
 
         const pageRecord: CrawledPage = {
-          url: item.url,
-          canonicalUrl: item.url,
-          title: extracted.title || item.url,
+          url: currentUrl,
+          canonicalUrl: currentUrl,
+          title: extracted.title || currentUrl,
           classification,
           htmlContent: html.slice(0, 50000), // Bounded HTML storage
           cleanText: extracted.cleanText,
@@ -136,7 +236,7 @@ export class WebsiteCrawler {
         // Enqueue discovered same-origin links
         if (item.depth < maxDepth && pagesCrawled < maxPages) {
           for (const link of extracted.outboundLinks) {
-            const check = validateAndNormalizeUrl(link, allowedOrigin);
+            const check = await validateAndNormalizeUrlAsync(link, allowedOrigin);
             if (check.safe && check.normalizedUrl && !visitedUrls.has(check.normalizedUrl)) {
               visitedUrls.add(check.normalizedUrl);
               queue.push({ url: check.normalizedUrl, depth: item.depth + 1 });
@@ -150,7 +250,7 @@ export class WebsiteCrawler {
         }
       } catch (err: any) {
         pagesFailed++;
-        console.warn(`[WebsiteCrawler] Fetch failed for ${item.url}:`, err?.message || err);
+        console.warn(`[WebsiteCrawler] Crawl failed for ${item.url}:`, err?.message || err);
       }
     }
 
@@ -158,4 +258,3 @@ export class WebsiteCrawler {
     return crawledPages;
   }
 }
-

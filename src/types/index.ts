@@ -240,6 +240,7 @@ export interface ElectronAPI {
   writeFile: (path: string, data: any) => Promise<boolean>;
   listDir: (path: string) => Promise<Array<{ name: string; isDirectory: boolean; path: string }>>;
   deleteFile: (path: string) => Promise<boolean>;
+  resolveDns?: (hostname: string) => Promise<Array<{ address: string; family: number }>>;
   openExternal: (url: string) => Promise<void>;
   getSettings: () => Promise<AppSettings>;
   setSettings: (key: string, value: any) => Promise<boolean>;
