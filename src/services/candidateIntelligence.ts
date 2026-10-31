@@ -1936,7 +1936,13 @@ export class FactualGroundingValidator {
         // Check if sentence is an impersonal/general engineering explanation or forward-looking proposed design
         const isGeneralOrHypothetical = /\b(typically|generally|in general|conceptually|for example|such as|standard practice|a common pattern|in a typical|one could|one would|one might|engineers typically|to handle|systems that handle|if a service|when scaling|can handle|could handle|might experience|would need|would require|a system processing)\b/i.test(sentence);
         const isProposedDesign = /\b(proposed design|proposal|future design|prospective architecture|in our proposed|to scale this in the future|if I were to)\b/i.test(sentence);
-        const hasPersonalPastClaim = /\b(I|we|my|our|my team)\s+(?:scaled|achieved|handled|processed|served|supported|reached|managed|built|deployed|maintained)\b/i.test(sentence) || /\\b(?:our|my|the)\\s+(?:project|system|platform|service|api|infrastructure|application)\\s+(?:handled|scaled|served|processed|supported|reached|managed|achieved)\\b/i.test(sentence);
+        const hasPersonalPastClaim =
+          /\b(I|we|my|our|my team)\s+(?:scaled|achieved|handled|processed|served|supported|reached|managed|built|deployed|maintained)\b/i.test(
+            sentence
+          ) ||
+          /\b(?:our|my|the)\s+(?:project|system|platform|service|api|infrastructure|application)\s+(?:handled|scaled|served|processed|supported|reached|managed|achieved)\b/i.test(
+            sentence
+          );
 
         if ((isGeneralOrHypothetical || isProposedDesign) && !hasPersonalPastClaim) {
           // Permitted: General engineering explanation or forward-looking proposed design

@@ -6,6 +6,7 @@ import {
 } from '../services/candidatePersona';
 import { create } from 'zustand';
 import { InterviewEngine } from '../services/InterviewEngine';
+import { InterviewWorkspace } from '../types';
 
 export type InterviewStatus =
   | 'idle'
@@ -141,6 +142,14 @@ interface InterviewState {
   setTargetRole: (role: string) => void;
   setResumeModalOpen: (open: boolean) => void;
   setToast: (msg: string | null) => void;
+
+  // Interview Workspaces
+  workspaces: InterviewWorkspace[];
+  activeWorkspaceId: string | null;
+  createWorkspace: (ws: Omit<InterviewWorkspace, 'id' | 'createdAt' | 'updatedAt'>) => string;
+  setActiveWorkspace: (id: string | null) => void;
+  deleteWorkspace: (id: string) => void;
+  updateWorkspace: (id: string, updates: Partial<InterviewWorkspace>) => void;
 
   // UI states
   settingsOpen: boolean;
@@ -377,6 +386,87 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   targetRole: DEFAULT_TARGET_ROLE,
   resumeModalOpen: false,
 
+  workspaces: [],
+  activeWorkspaceId: null,
+
+  createWorkspace: (wsData) => {
+    const id = 'ws-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    const newWs: InterviewWorkspace = {
+      ...wsData,
+      id,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    const updated = [newWs, ...get().workspaces];
+    try {
+      localStorage.setItem('interview_workspaces_v1', JSON.stringify(updated));
+    } catch {}
+    set({
+      workspaces: updated,
+      activeWorkspaceId: id,
+      targetRole: newWs.role,
+      jobDescriptionText: newWs.jobDescription,
+    });
+    return id;
+  },
+
+  setActiveWorkspace: (id) => {
+    if (!id) {
+      set({
+        activeWorkspaceId: null,
+        targetRole: '',
+        jobDescriptionText: '',
+      });
+      return;
+    }
+    const ws = get().workspaces.find((w) => w.id === id);
+    if (ws) {
+      set({
+        activeWorkspaceId: id,
+        targetRole: ws.role,
+        jobDescriptionText: ws.jobDescription,
+      });
+    }
+  },
+
+  deleteWorkspace: (id) => {
+    const updated = get().workspaces.filter((w) => w.id !== id);
+    const nextActive = get().activeWorkspaceId === id ? updated[0]?.id || null : get().activeWorkspaceId;
+    try {
+      localStorage.setItem('interview_workspaces_v1', JSON.stringify(updated));
+    } catch {}
+    if (nextActive) {
+      const nextWs = updated.find((w) => w.id === nextActive);
+      set({
+        workspaces: updated,
+        activeWorkspaceId: nextActive,
+        targetRole: nextWs?.role || '',
+        jobDescriptionText: nextWs?.jobDescription || '',
+      });
+    } else {
+      set({
+        workspaces: updated,
+        activeWorkspaceId: null,
+        targetRole: '',
+        jobDescriptionText: '',
+      });
+    }
+  },
+
+  updateWorkspace: (id, updates) => {
+    const updated = get().workspaces.map((w) =>
+      w.id === id ? { ...w, ...updates, updatedAt: Date.now() } : w
+    );
+    try {
+      localStorage.setItem('interview_workspaces_v1', JSON.stringify(updated));
+    } catch {}
+    const active = updated.find((w) => w.id === get().activeWorkspaceId);
+    set({
+      workspaces: updated,
+      ...(active ? { targetRole: active.role, jobDescriptionText: active.jobDescription } : {}),
+    });
+  },
+
   setResumeText: (resumeText: string) => {
     try {
       localStorage.setItem('candidate_resume', resumeText);
@@ -542,19 +632,32 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         } catch {}
       }
 
+      let loadedWorkspaces: InterviewWorkspace[] = [];
+      try {
+        const rawWs = localStorage.getItem('interview_workspaces_v1');
+        if (rawWs) {
+          const parsedWs = JSON.parse(rawWs);
+          if (Array.isArray(parsedWs)) loadedWorkspaces = parsedWs;
+        }
+      } catch {}
+
       set({
         resumeText: activeResume,
+        workspaces: loadedWorkspaces,
+        activeWorkspaceId: loadedWorkspaces[0]?.id || null,
         jobDescriptionText:
           !savedJD ||
           savedJD.includes('IBM Consulting') ||
-          savedJD.includes('Global Enterprise Cloud')
-            ? DEFAULT_JOB_DESCRIPTION
+          savedJD.includes('Global Enterprise Cloud') ||
+          savedJD.includes('Alignerr')
+            ? ''
             : savedJD,
         targetRole:
           !savedRole ||
           savedRole === 'Application Developer' ||
-          savedRole === 'Senior DevOps & Cloud Engineer'
-            ? DEFAULT_TARGET_ROLE
+          savedRole === 'Senior DevOps & Cloud Engineer' ||
+          savedRole.includes('Alignerr')
+            ? ''
             : savedRole,
         responseMode:
           savedMode === 'coding' || savedMode === 'interview' || savedMode === 'quiz'

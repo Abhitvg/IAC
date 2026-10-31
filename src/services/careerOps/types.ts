@@ -46,8 +46,8 @@ export interface JobApplication {
   location?: string;
   workType?: 'remote' | 'hybrid' | 'onsite';
   status: ApplicationStatus;
-  score: number; // 1.0 to 5.0
-  recommendation: 'apply' | 'skip';
+  score?: number | null; // 1.0 to 5.0, or null/0 if not yet evaluated
+  recommendation?: 'apply' | 'skip' | 'unevaluated';
   jdText: string;
   evaluationReport?: JobEvaluationReport;
   tailoredResume?: string;
@@ -57,6 +57,7 @@ export interface JobApplication {
   updatedAt: number;
   appliedAt?: number;
   notes?: string;
+  isDemo?: boolean;
 }
 
 export interface CareerOpsStats {

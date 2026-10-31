@@ -6,7 +6,9 @@ import {
   DEFAULT_TARGET_ROLE,
   analyzeAlignment,
 } from '../services/candidatePersona';
-import { readAndParseFile } from '../services/resume';
+import { readAndParseFile, ingestResumeFile } from '../services/resume';
+import { DocumentIngestionService } from '../services/ingestion/documentIngestionService';
+import { KnowledgeVaultService } from '../services/knowledgeVault';
 import {
   X,
   FileText,
@@ -59,10 +61,24 @@ export default function ResumeAndJobModal() {
   }, [localJD]);
 
   const handleSave = () => {
-    setTargetRole(localRole.trim() || DEFAULT_TARGET_ROLE);
-    setResumeText(localResume.trim() || DEFAULT_RESUME);
-    setJobDescriptionText(localJD.trim() || DEFAULT_JOB_DESCRIPTION);
-    setToast('Target Role & Resume Applied to Teleprompter!');
+    const finalResume = localResume.trim() || DEFAULT_RESUME;
+    const finalJD = localJD.trim() || DEFAULT_JOB_DESCRIPTION;
+    const finalRole = localRole.trim() || DEFAULT_TARGET_ROLE;
+
+    setTargetRole(finalRole);
+    setResumeText(finalResume);
+    setJobDescriptionText(finalJD);
+
+    if (finalResume) {
+      try {
+        const rawIngestion = DocumentIngestionService.ingestRawText(finalResume, 'Direct Candidate Edit');
+        KnowledgeVaultService.getInstance().populateFromIngestionResult(rawIngestion);
+      } catch (e) {
+        console.warn('[ResumeModal] Failed to sync to Knowledge Vault:', e);
+      }
+    }
+
+    setToast('Target Role & Resume Applied to Teleprompter & Knowledge Vault!');
     setResumeModalOpen(false);
   };
 
@@ -70,10 +86,11 @@ export default function ResumeAndJobModal() {
     setIsParsing(true);
     try {
       setToast(`Extracting text from ${file.name}...`);
-      const text = await readAndParseFile(file);
-      if (text && text.trim()) {
-        setLocalResume(text.trim());
-        setToast(`✅ Loaded ${file.name} successfully!`);
+      const ingestion = await ingestResumeFile(file);
+      if (ingestion.rawText && ingestion.rawText.trim()) {
+        setLocalResume(ingestion.rawText.trim());
+        KnowledgeVaultService.getInstance().populateFromIngestionResult(ingestion);
+        setToast(`✅ Loaded ${file.name} into Knowledge Vault!`);
       } else {
         setToast(`Could not extract text from ${file.name}`);
       }

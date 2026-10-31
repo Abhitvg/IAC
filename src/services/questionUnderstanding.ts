@@ -24,10 +24,31 @@ export type DetailedInterviewCategory =
   | 'Debugging'
   | 'Testing'
   | 'Behavioral interviews'
-  | 'Project deep dives';
+  | 'Project deep dives'
+  | 'AI and Machine Learning'
+  | 'Career and role alignment';
+
+export type QuestionType =
+  | 'technical'
+  | 'candidate_specific'
+  | 'mixed'
+  | 'behavioral'
+  | 'ai_ml'
+  | 'role_alignment'
+  | 'follow_up'
+  | 'ambiguous';
 
 export interface QuestionAnalysis {
   category: DetailedInterviewCategory;
+  questionType: QuestionType;
+  requiresCandidateVault: boolean;
+  vaultRetrievalKeywords: string[];
+  suggestedStructure:
+    | 'Direct-Mechanism-Tradeoff'
+    | 'STAR'
+    | 'Architecture-Components-Tradeoffs'
+    | 'Clarify-First'
+    | 'Role-Company-Value';
   primaryConcept: string;
   hiddenRequirement: string;
   expectedDepth: 'concise' | 'intermediate' | 'deep';
@@ -107,8 +128,80 @@ export class QuestionUnderstandingEngine {
     if (category === 'React and frontend') requiredExamples.push('useCallback / useMemo memoization or key reconciler');
     if (category === 'Debugging') requiredExamples.push('Metric diagnosis (p99 vs p50, GC pause, pool saturation)');
 
+    // 8. Determine questionType
+    let questionType: QuestionType = 'technical';
+    if (lower.length < 15 && lower.split(/\s+/).length <= 2 && !/\b(what is|explain|define)\b/i.test(lower)) {
+      questionType = 'ambiguous';
+    } else if (
+      /\b(why\s+(?:do\s+you\s+want\s+to\s+join|should\s+we\s+hire\s+you|this\s+company|our\s+company|this\s+role|join\s+us|work\s+here)|what\s+interests\s+you\s+about|why\s+our\s+company)\b/i.test(
+        lower
+      )
+    ) {
+      questionType = 'role_alignment';
+    } else if (category === 'Behavioral interviews') {
+      questionType = 'behavioral';
+    } else if (category === 'AI and Machine Learning') {
+      questionType = 'ai_ml';
+    } else if (
+      /\b(how did you (?:implement|use|architect|deploy|scale|build|debug|handle|design)|in your project(?:,)? how did you|in your (?:last|previous|current) (?:role|company|job),(?:.*)how did you)\b/i.test(
+        lower
+      )
+    ) {
+      questionType = 'mixed';
+    } else if (
+      /\b(walk me through your (?:resume|background|experience|engineering)|tell me about yourself|tell me about your (?:project|work|experience)|describe (?:the\s+.*)?project|project you (?:have\s+)?personally worked on|(?:in|on|for|of)\s+your\s+(?:[A-Za-z0-9_-]+\s+){0,4}project|what did you (?:do|build) at|(?:in|at) your (?:last|previous|current) (?:role|company|job)|(?:what was|describe) your (?:specific )?(?:role|responsibility|responsibilities)|what is your greatest achievement)\b/i.test(
+        lower
+      ) ||
+      category === 'Project deep dives' ||
+      category === 'Career and role alignment'
+    ) {
+      questionType = 'candidate_specific';
+    } else if (
+      /\b(can you elaborate|what about (?:the|that)|why did you choose that|what trade-offs?|could you clarify)\b/i.test(
+        lower
+      )
+    ) {
+      questionType = 'follow_up';
+    }
+
+    // 9. Candidate Vault requirements
+    const requiresCandidateVault =
+      questionType === 'candidate_specific' ||
+      questionType === 'mixed' ||
+      questionType === 'role_alignment';
+
+    // 10. Suggested Structure
+    let suggestedStructure:
+      | 'Direct-Mechanism-Tradeoff'
+      | 'STAR'
+      | 'Architecture-Components-Tradeoffs'
+      | 'Clarify-First'
+      | 'Role-Company-Value';
+
+    if (questionType === 'behavioral') {
+      suggestedStructure = 'STAR';
+    } else if (category === 'System design' || category === 'Distributed systems') {
+      suggestedStructure = 'Architecture-Components-Tradeoffs';
+    } else if (questionType === 'role_alignment') {
+      suggestedStructure = 'Role-Company-Value';
+    } else if (questionType === 'ambiguous') {
+      suggestedStructure = 'Clarify-First';
+    } else {
+      suggestedStructure = 'Direct-Mechanism-Tradeoff';
+    }
+
+    // 11. Vault retrieval keywords
+    const vaultRetrievalKeywords = q
+      .replace(/[^\w\s]/g, '')
+      .split(/\s+/)
+      .filter((w) => w.length > 3 && !/\b(what|how|when|where|why|which|explain|tell|about|does|with|have|your|this|that|from)\b/i.test(w));
+
     return {
       category,
+      questionType,
+      requiresCandidateVault,
+      vaultRetrievalKeywords,
+      suggestedStructure,
       primaryConcept,
       hiddenRequirement,
       expectedDepth,
@@ -124,6 +217,23 @@ export class QuestionUnderstandingEngine {
     lower: string,
     activeMode: 'coding' | 'interview' | 'quiz'
   ): DetailedInterviewCategory {
+    // Career & Role Alignment
+    if (
+      /\b(why\s+(?:do\s+you\s+want\s+to\s+join|should\s+we\s+hire\s+you|this\s+company|our\s+company|join\s+us|work\s+here|this\s+role)|what\s+interests\s+you\s+about|tell\s+me\s+about\s+yourself)\b/i.test(
+        lower
+      )
+    ) {
+      return 'Career and role alignment';
+    }
+
+    // AI & Machine Learning
+    if (
+      /\b(llm|large language model|rag|retrieval augmented|fine-tuning|prompt engineering|embeddings?|vector database|transformer|attention mechanism|hallucination|evals?|agentic|diffusion)\b/i.test(
+        lower
+      )
+    ) {
+      return 'AI and Machine Learning';
+    }
     // Behavioral
     if (
       /\b(tell me about a time|give me an example of|describe a situation|how do you handle conflict|time you failed|biggest challenge|disagreement|proudest)\b/i.test(
@@ -135,7 +245,7 @@ export class QuestionUnderstandingEngine {
 
     // Project deep dive
     if (
-      /\b(walk me through (?:your|a) project|describe your project|tell me about your project|what did you build at|tell me about your current role)\b/i.test(
+      /\b(walk me through (?:your|a) project|describe (?:the\s+.*)?project|tell me about your project|what did you build at|tell me about your current role|project you (?:have\s+)?personally worked on)\b/i.test(
         lower
       )
     ) {
@@ -286,6 +396,10 @@ export class QuestionUnderstandingEngine {
         return 'Interviewer is probing cost trade-offs: index write amplification, transaction isolation anomalies (dirty/non-repeatable/phantom reads), and MVCC table bloat.';
       case 'Distributed systems':
         return 'Interviewer is checking for distributed systems realities: network delays, failure recovery, idempotency key guarantees, and refusing false exactly-once claims.';
+      case 'AI and Machine Learning':
+        return 'Interviewer is evaluating real-world model understanding: latency vs accuracy trade-offs, retrieval precision vs recall in RAG, hallucination safeguards, and quantitative eval metrics.';
+      case 'Career and role alignment':
+        return 'Interviewer wants genuine interest in the team engineering problems and clear communication of practical value alignment.';
       case 'System design':
         return 'Interviewer expects high-level clarity first, followed by clear single points of failure (SPOF) mitigation and trade-off analysis.';
       case 'Debugging':

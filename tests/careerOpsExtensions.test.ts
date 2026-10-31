@@ -50,12 +50,14 @@ describe('CareerOps Advanced Architecture & Automation Suite', () => {
       useCandidateVaultStore.getState().resetToDefaults();
     });
 
-    it('initializes with verified default profile and allows atomic updates', () => {
+    it('initializes with un-fabricated profile and allows atomic updates', () => {
       const store = useCandidateVaultStore.getState();
-      expect(store.profile.fullName).toBe('Abhishek Singh');
-      expect(store.profile.authorizedToWork).toBe(true);
+      expect(store.profile.fullName).toBe('');
+      expect(store.profile.email).toBe('');
+      expect(store.profile.location).toBe('unknown');
 
-      store.updateProfile({ phone: '+1-555-0199', city: 'Seattle' });
+      store.updateProfile({ firstName: 'Alex', lastName: 'Chen', phone: '+1-555-0199', city: 'Seattle' });
+      expect(useCandidateVaultStore.getState().profile.fullName).toBe('Alex Chen');
       expect(useCandidateVaultStore.getState().profile.phone).toBe('+1-555-0199');
       expect(useCandidateVaultStore.getState().profile.city).toBe('Seattle');
     });

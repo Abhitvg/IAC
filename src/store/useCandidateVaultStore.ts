@@ -23,41 +23,83 @@ export interface CandidateVaultProfile {
   noticePeriod: string;
   coreTechStack: string;
   briefPitch: string;
+  isUserSupplied?: boolean;
 }
 
-const STORAGE_KEY = 'career_ops_candidate_vault_v1';
+const STORAGE_KEY = 'career_ops_candidate_vault_v2';
+const LEGACY_STORAGE_KEY = 'career_ops_candidate_vault_v1';
 
+/**
+ * Clean, un-fabricated initial state with explicitly unknown or empty values.
+ * Zero fabricated personal experience, metrics, titles, or compensation.
+ */
 export const INITIAL_CANDIDATE_VAULT: CandidateVaultProfile = {
-  firstName: 'Abhishek',
-  lastName: 'Singh',
-  fullName: 'Abhishek Singh',
-  email: 'abhishek@example.com',
-  phone: '+1-123-456-7890',
-  location: 'San Francisco, CA, USA',
-  city: 'San Francisco',
-  state: 'CA',
-  country: 'United States',
-  linkedin: 'https://linkedin.com/in/abhisheksingh',
-  github: 'https://github.com/Abhitvg',
-  portfolio: 'https://github.com/Abhitvg',
-  currentCompany: 'Independent Systems Engineer',
-  currentTitle: 'Senior Software Engineer',
-  yearsOfExperience: '6+',
-  authorizedToWork: true,
+  firstName: '',
+  lastName: '',
+  fullName: '',
+  email: '',
+  phone: '',
+  location: 'unknown',
+  city: '',
+  state: '',
+  country: '',
+  linkedin: '',
+  github: '',
+  portfolio: '',
+  currentCompany: 'unknown',
+  currentTitle: 'unknown',
+  yearsOfExperience: 'unknown',
+  authorizedToWork: false,
   requiresSponsorship: false,
-  salaryExpectation: '$160,000 - $195,000 / yr',
-  earliestStartDate: '2 weeks',
-  noticePeriod: '2 weeks notice',
-  coreTechStack: 'Java, TypeScript, Python, Kafka, Docker, Kubernetes, AWS',
-  briefPitch: 'Experienced systems engineer specialized in event-driven microservices, sub-50ms latency optimization, and distributed architectures.',
+  salaryExpectation: 'unknown',
+  earliestStartDate: '',
+  noticePeriod: '',
+  coreTechStack: '',
+  briefPitch: '', // not generated until sufficient verified source information exists
+  isUserSupplied: false,
 };
+
+/**
+ * Checks if a legacy stored profile matches the known fabricated demo defaults.
+ */
+function isKnownFabricatedDemoProfile(profile: any): boolean {
+  if (!profile || typeof profile !== 'object') return false;
+  return (
+    profile.email === 'abhishek@example.com' ||
+    profile.phone === '+1-123-456-7890' ||
+    profile.salaryExpectation === '$160,000 - $195,000 / yr' ||
+    profile.currentCompany === 'Independent Systems Engineer'
+  );
+}
 
 function loadVaultFromStorage(): CandidateVaultProfile {
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        return { ...INITIAL_CANDIDATE_VAULT, ...JSON.parse(raw) };
+      // 1. Try v2 storage first
+      const rawV2 = localStorage.getItem(STORAGE_KEY);
+      if (rawV2) {
+        const parsed = JSON.parse(rawV2);
+        if (!isKnownFabricatedDemoProfile(parsed)) {
+          return { ...INITIAL_CANDIDATE_VAULT, ...parsed };
+        }
+      }
+
+      // 2. Try legacy v1 storage with safe migration
+      const rawV1 = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (rawV1) {
+        const legacyParsed = JSON.parse(rawV1);
+        if (isKnownFabricatedDemoProfile(legacyParsed)) {
+          console.info('[CandidateVault] Sanitized legacy fabricated demonstration data from storage.');
+          // Remove legacy fake record and return initial clean state
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+          return INITIAL_CANDIDATE_VAULT;
+        } else {
+          // Genuine user-supplied data from v1: migrate to v2
+          const migrated = { ...INITIAL_CANDIDATE_VAULT, ...legacyParsed, isUserSupplied: true };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+          return migrated;
+        }
       }
     } catch (e) {
       console.warn('[CandidateVault] Failed to load from localStorage:', e);
@@ -78,8 +120,8 @@ export const useCandidateVaultStore = create<CandidateVaultState>((set, get) => 
   profile: loadVaultFromStorage(),
 
   updateProfile: (updates) => {
-    const updated = { ...get().profile, ...updates };
-    if (updates.firstName || updates.lastName) {
+    const updated = { ...get().profile, ...updates, isUserSupplied: true };
+    if (updates.firstName !== undefined || updates.lastName !== undefined) {
       updated.fullName = `${updated.firstName || ''} ${updated.lastName || ''}`.trim();
     }
     set({ profile: updated });
@@ -96,6 +138,7 @@ export const useCandidateVaultStore = create<CandidateVaultState>((set, get) => 
     set({ profile: INITIAL_CANDIDATE_VAULT });
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_CANDIDATE_VAULT));
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
     }
   },
 

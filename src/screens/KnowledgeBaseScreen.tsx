@@ -12,18 +12,26 @@ import {
 } from 'lucide-react';
 import { PageHeader, Card, StatusBadge, EmptyState } from '../design-system/components';
 import { CandidateKnowledgeBase } from '../services/candidateIntelligence';
+import { KnowledgeVaultService } from '../services/knowledgeVault';
 import { useAppStore } from '../store/useAppStore';
 
 export const KnowledgeBaseScreen: React.FC = () => {
-  const { resumeText } = useAppStore();
+  const { resumeText, setResumeModalOpen } = useAppStore();
   const kb = React.useMemo(() => {
     return CandidateKnowledgeBase.getActiveKnowledgeBase(resumeText || '');
   }, [resumeText]);
 
   const [activeDomain, setActiveDomain] = React.useState<'candidate' | 'technical'>('candidate');
   const [search, setSearch] = React.useState('');
+  const [vault, setVault] = React.useState(() => KnowledgeVaultService.getInstance().getVault());
+
+  React.useEffect(() => {
+    const unsub = KnowledgeVaultService.getInstance().subscribe((v) => setVault(v));
+    return () => unsub();
+  }, []);
 
   const projects = kb.getAllProjects();
+  const vaultProjects = vault.projects;
   const allVerifiedTechs = Array.from(
     new Set(projects.flatMap((p) => p.technologyStack || []))
   );
@@ -138,36 +146,64 @@ export const KnowledgeBaseScreen: React.FC = () => {
             <strong>Zero-Trust Candidate Domain:</strong> Only verified candidate claims from repository or document inspection may be cited as personal implementation achievements.
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-            {projects.map((p) => (
-              <Card key={p.id}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>{p.name}</h4>
-                  <StatusBadge status={p.verificationStatus || 'UNKNOWN'} size="sm" />
-                </div>
-                <div style={{ fontSize: '12px', color: '#9299AA', marginBottom: '10px' }}>
-                  Role: <strong style={{ color: '#F3F4F8' }}>{p.ownership || 'contributor'}</strong>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {(p.technologyStack || []).map((t: string) => (
-                    <span
-                      key={t}
-                      style={{
-                        fontSize: '10px',
-                        background: '#1E2330',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        color: '#A99DFF',
-                        border: '1px solid #292E3A',
-                      }}
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </Card>
-            ))}
-          </div>
+          {projects.length === 0 && vaultProjects.length === 0 ? (
+            <EmptyState
+              title="No Candidate Projects in Vault"
+              description="Upload your resume or crawl your portfolio website to populate your candidate intelligence vault."
+              action={
+                <button
+                  type="button"
+                  onClick={() => setResumeModalOpen(true)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    background: '#8B7CFF',
+                    border: 'none',
+                    color: '#F3F4F8',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Load Resume / Sources
+                </button>
+              }
+            />
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+              {vaultProjects.map((p) => (
+                <Card key={p.id}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>{p.title}</h4>
+                    <StatusBadge status={p.status || 'UNKNOWN'} size="sm" />
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#9299AA', marginBottom: '10px' }}>
+                    Role: <strong style={{ color: '#F3F4F8' }}>{p.role || 'Contributor'}</strong>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#9299AA', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                    {p.description}
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {(p.technologies || []).map((t: string) => (
+                      <span
+                        key={t}
+                        style={{
+                          fontSize: '10px',
+                          background: '#1E2330',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          color: '#A99DFF',
+                          border: '1px solid #292E3A',
+                        }}
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <div>

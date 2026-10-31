@@ -89,6 +89,23 @@ export type QuestionIntent =
 export type ProgrammingLanguage =
   'java' | 'python' | 'cpp' | 'javascript' | 'typescript' | 'go' | 'csharp';
 
+// ─── Workspace Types ───
+
+export interface InterviewWorkspace {
+  id: string;
+  name: string;
+  company: string;
+  role: string;
+  jobDescription: string;
+  interviewRound?: 'technical_screen' | 'coding' | 'system_design' | 'behavioral' | 'hiring_manager' | 'final';
+  interviewDate?: string;
+  responseLanguage: string;
+  candidateProfileVersion?: string;
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // ─── Recording Types ───
 
 export interface Recording {

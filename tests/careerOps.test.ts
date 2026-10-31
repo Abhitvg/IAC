@@ -240,6 +240,7 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
     it('exports and imports pipeline JSON for local backup and sharing', () => {
       const store = useCareerOpsStore.getState();
+      store.addJob({ company: 'GitHub', role: 'Staff Platform Engineer' });
       const json = store.exportPipelineJson();
       expect(json).toContain('company');
 

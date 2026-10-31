@@ -32,4 +32,6 @@ Thumbs.db
 
 # Testing & Coverage
 coverage/
+test-results/
+playwright-report/
 .machine_secret

@@ -509,17 +509,20 @@ export function CareerOpsView() {
                 padding: '1px 6px',
                 borderRadius: '6px',
                 background:
-                  activeJob.score >= 4.0
+                  typeof activeJob.score === 'number' && activeJob.score >= 4.0
                     ? 'rgba(34, 197, 94, 0.2)'
-                    : 'rgba(239, 68, 68, 0.2)',
-                color: activeJob.score >= 4.0 ? '#4ade80' : '#f87171',
+                    : 'rgba(148, 163, 184, 0.2)',
+                color:
+                  typeof activeJob.score === 'number' && activeJob.score >= 4.0
+                    ? '#4ade80'
+                    : '#94a3b8',
                 border:
-                  activeJob.score >= 4.0
+                  typeof activeJob.score === 'number' && activeJob.score >= 4.0
                     ? '1px solid rgba(34, 197, 94, 0.4)'
-                    : '1px solid rgba(239, 68, 68, 0.4)',
+                    : '1px solid rgba(148, 163, 184, 0.3)',
               }}
             >
-              ★ {activeJob.score} / 5.0
+              ★ {typeof activeJob.score === 'number' ? activeJob.score : 'N/A'} / 5.0
             </span>
           </div>
         )}
@@ -590,64 +593,133 @@ export function CareerOpsView() {
             </div>
 
             {/* Application Cards List */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '14px' }}>
-              {filteredApps.map((job) => {
-                const isSelected = job.id === activeJobId;
-                const isApply = job.score >= 4.0;
-                return (
-                  <div
-                    key={job.id}
-                    onClick={() => setActiveJobId(job.id)}
+            {filteredApps.length === 0 ? (
+              <div
+                style={{
+                  padding: '40px 20px',
+                  textAlign: 'center',
+                  background: 'rgba(15, 23, 42, 0.4)',
+                  borderRadius: '12px',
+                  border: '1px dashed rgba(255, 255, 255, 0.1)',
+                }}
+              >
+                <Briefcase size={36} color="#64748b" style={{ margin: '0 auto 12px' }} />
+                <h3 style={{ fontSize: '15px', color: '#f8fafc', margin: '0 0 6px' }}>No Job Applications Tracked</h3>
+                <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 16px', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
+                  Add a target role from Greenhouse, Lever, Workday or LinkedIn to start A-H job-fit evaluation.
+                </p>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => setShowNewModal(true)}
                     style={{
-                      background: isSelected
-                        ? 'linear-gradient(145deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95))'
-                        : 'rgba(15, 23, 42, 0.6)',
-                      border: isSelected
-                        ? '1px solid rgba(249, 115, 22, 0.5)'
-                        : '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: '12px',
-                      padding: '14px',
+                      background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 600,
                       cursor: 'pointer',
-                      transition: 'all 0.18s ease',
-                      boxShadow: isSelected ? '0 4px 20px rgba(249, 115, 22, 0.15)' : 'none',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '10px',
                     }}
                   >
-                    {/* Header: Company & Fit Badge */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Building size={14} color="#f97316" />
-                          <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>{job.company}</span>
+                    + Add New Job
+                  </button>
+                  <button
+                    onClick={() => useCareerOpsStore.getState().enableDemoMode()}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      color: '#cbd5e1',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Load Demo Data
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '14px' }}>
+                {filteredApps.map((job) => {
+                  const isSelected = job.id === activeJobId;
+                  const hasScore = typeof job.score === 'number' && job.score > 0;
+                  const isApply = hasScore && (job.score as number) >= 4.0;
+                  return (
+                    <div
+                      key={job.id}
+                      onClick={() => setActiveJobId(job.id)}
+                      style={{
+                        background: isSelected
+                          ? 'linear-gradient(145deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95))'
+                          : 'rgba(15, 23, 42, 0.6)',
+                        border: isSelected
+                          ? '1px solid rgba(249, 115, 22, 0.5)'
+                          : '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        cursor: 'pointer',
+                        transition: 'all 0.18s ease',
+                        boxShadow: isSelected ? '0 4px 20px rgba(249, 115, 22, 0.15)' : 'none',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
+                      }}
+                    >
+                      {/* Header: Company & Fit Badge */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Building size={14} color="#f97316" />
+                            <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>{job.company}</span>
+                            {job.isDemo && (
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  background: 'rgba(244, 184, 74, 0.2)',
+                                  color: '#f4b84a',
+                                  border: '1px solid rgba(244, 184, 74, 0.4)',
+                                }}
+                              >
+                                DEMO
+                              </span>
+                            )}
+                          </div>
+                          <h4 style={{ margin: '3px 0 0', fontSize: '12px', fontWeight: 600, color: '#cbd5e1' }}>
+                            {job.role}
+                          </h4>
                         </div>
-                        <h4 style={{ margin: '3px 0 0', fontSize: '12px', fontWeight: 600, color: '#cbd5e1' }}>
-                          {job.role}
-                        </h4>
-                      </div>
 
-                      {/* 1-5 Score Badge */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'flex-end',
-                        }}
-                      >
-                        <span
+                        {/* 1-5 Score Badge */}
+                        <div
                           style={{
-                            fontSize: '12px',
-                            fontWeight: 900,
-                            padding: '2px 8px',
-                            borderRadius: '6px',
-                            background: isApply ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                            color: isApply ? '#4ade80' : '#f87171',
-                            border: isApply ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'flex-end',
                           }}
                         >
-                          ★ {job.score.toFixed(1)} / 5.0
-                        </span>
+                          <span
+                            style={{
+                              fontSize: '12px',
+                              fontWeight: 900,
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              background: hasScore
+                                ? (isApply ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)')
+                                : 'rgba(148, 163, 184, 0.15)',
+                              color: hasScore ? (isApply ? '#4ade80' : '#f87171') : '#94a3b8',
+                              border: hasScore
+                                ? (isApply ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)')
+                                : '1px solid rgba(148, 163, 184, 0.3)',
+                            }}
+                          >
+                            {hasScore ? `★ ${job.score!.toFixed(1)} / 5.0` : 'Pending Evaluation'}
+                          </span>
                         <span
                           style={{
                             fontSize: '9px',
@@ -792,7 +864,8 @@ export function CareerOpsView() {
                 );
               })}
             </div>
-          </div>
+          )}
+        </div>
         )}
 
         {/* TAB 2: A-H JOB EVALUATOR */}
@@ -807,13 +880,13 @@ export function CareerOpsView() {
                 padding: '16px 20px',
                 borderRadius: '12px',
                 background:
-                  activeJob.score >= 4.0
+                  typeof activeJob.score === 'number' && activeJob.score >= 4.0
                     ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(15, 23, 42, 0.9))'
-                    : 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(15, 23, 42, 0.9))',
+                    : 'linear-gradient(135deg, rgba(148, 163, 184, 0.1), rgba(15, 23, 42, 0.9))',
                 border:
-                  activeJob.score >= 4.0
+                  typeof activeJob.score === 'number' && activeJob.score >= 4.0
                     ? '1px solid rgba(34, 197, 94, 0.4)'
-                    : '1px solid rgba(239, 68, 68, 0.4)',
+                    : '1px solid rgba(148, 163, 184, 0.3)',
               }}
             >
               <div>
@@ -823,16 +896,18 @@ export function CareerOpsView() {
                     fontWeight: 800,
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
-                    color: activeJob.score >= 4.0 ? '#4ade80' : '#f87171',
+                    color: typeof activeJob.score === 'number' && activeJob.score >= 4.0 ? '#4ade80' : '#94a3b8',
                   }}
                 >
                   CAREEROPS VERDICT
                 </span>
                 <h3 style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 800, color: '#f8fafc' }}>
                   {activeJob.evaluationReport?.verdictHeadline ||
-                    (activeJob.score >= 4.0
-                      ? `🟢 Recommended: Strong Fit (${activeJob.score}/5.0)`
-                      : `🔴 Do Not Apply: Low Alignment (${activeJob.score}/5.0)`)}
+                    (typeof activeJob.score === 'number'
+                      ? (activeJob.score >= 4.0
+                          ? `🟢 Recommended: Strong Fit (${activeJob.score}/5.0)`
+                          : `🔴 Do Not Apply: Low Alignment (${activeJob.score}/5.0)`)
+                      : '⚪ Pending A-H Evaluation')}
                 </h3>
                 <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#cbd5e1', maxWidth: '640px' }}>
                   {activeJob.evaluationReport?.summary ||
@@ -841,8 +916,8 @@ export function CareerOpsView() {
               </div>
 
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '32px', fontWeight: 900, color: activeJob.score >= 4.0 ? '#4ade80' : '#f87171' }}>
-                  {activeJob.score.toFixed(1)}
+                <div style={{ fontSize: '32px', fontWeight: 900, color: typeof activeJob.score === 'number' && activeJob.score >= 4.0 ? '#4ade80' : '#94a3b8' }}>
+                  {typeof activeJob.score === 'number' ? activeJob.score.toFixed(1) : '—'}
                   <span style={{ fontSize: '14px', color: '#94a3b8' }}> / 5.0</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
