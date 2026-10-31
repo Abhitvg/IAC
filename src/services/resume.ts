@@ -204,9 +204,17 @@ async function extractPdfText(buffer: Buffer | ArrayBuffer): Promise<string> {
     const uint8 = new Uint8Array(buffer instanceof ArrayBuffer ? buffer : buffer.buffer);
     const pdfjs = await import('pdfjs-dist');
     
-    // Configure worker source for browser environment if not yet configured
-    if (pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version || '4.0.379'}/pdf.worker.min.mjs`;
+    try {
+      if (pdfjs.GlobalWorkerOptions) {
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.mjs',
+          import.meta.url
+        ).toString();
+      }
+    } catch {
+      if (pdfjs.GlobalWorkerOptions) {
+        pdfjs.GlobalWorkerOptions.workerSrc = '';
+      }
     }
 
     const loadingTask = pdfjs.getDocument({

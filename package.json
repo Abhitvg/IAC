@@ -71,6 +71,12 @@
       "dist/**/*",
       "dist-electron/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin"
+      }
+    ],
     "mac": {
       "category": "public.app-category.education",
       "target": [

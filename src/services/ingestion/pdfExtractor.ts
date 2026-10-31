@@ -93,8 +93,18 @@ export async function extractPdfDocument(arrayBuffer: ArrayBuffer): Promise<PdfE
     const pdfjs = await import('pdfjs-dist');
     const uint8 = new Uint8Array(arrayBuffer);
 
-    if (pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version || '4.0.379'}/pdf.worker.min.mjs`;
+    try {
+      if (pdfjs.GlobalWorkerOptions) {
+        // Use local packaged worker rather than external CDN for offline desktop reliability
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.mjs',
+          import.meta.url
+        ).toString();
+      }
+    } catch {
+      if (pdfjs.GlobalWorkerOptions) {
+        pdfjs.GlobalWorkerOptions.workerSrc = '';
+      }
     }
 
     const loadingTask = pdfjs.getDocument({

@@ -595,7 +595,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
 
   loadSettings: async () => {
     try {
-      if (window.electronAPI?.getSettings) {
+      if (typeof window !== 'undefined' && window.electronAPI?.getSettings) {
         try {
           const electronSettings = await window.electronAPI.getSettings();
           if (electronSettings && typeof electronSettings === 'object') {
@@ -617,18 +617,14 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         }
       }
 
-      // If stored resume is legacy/dummy placeholder, reset to Abhishek Singh verified resume
-      const isLegacy =
-        !savedResume ||
-        savedResume.includes('CloudScale') ||
-        savedResume.includes('TechNova') ||
-        !savedResume.includes('ABHISHEK SINGH') ||
-        savedResume.includes('IAC – AI Interview Assistant') ||
-        !savedResume.includes('Quorum');
-      const activeResume = isLegacy ? DEFAULT_RESUME : savedResume;
-      if (isLegacy && typeof localStorage !== 'undefined') {
+      // Clean up ancient legacy dummy placeholder mock strings if present
+      const isLegacyMock =
+        savedResume &&
+        (savedResume.includes('CloudScale') || savedResume.includes('TechNova'));
+      const activeResume = isLegacyMock ? '' : (savedResume || '');
+      if (isLegacyMock && typeof localStorage !== 'undefined') {
         try {
-          localStorage.setItem('candidate_resume', DEFAULT_RESUME);
+          localStorage.removeItem('candidate_resume');
         } catch {}
       }
 

@@ -407,36 +407,22 @@ export default function ResumeAndJobModal() {
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
-                    onClick={() => setLocalResume(DEFAULT_RESUME)}
+                    type="button"
+                    onClick={() => setLocalResume('')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '4px',
-                      background: 'rgba(99, 102, 241, 0.15)',
-                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
                       borderRadius: '6px',
                       padding: '4px 10px',
                       fontSize: '11px',
-                      color: '#c7d2fe',
+                      color: '#cbd5e1',
                       cursor: 'pointer',
                     }}
                   >
-                    <RefreshCw size={11} /> Reset to Default Resume
-                  </button>
-
-                  <button
-                    onClick={() => setLocalResume('')}
-                    style={{
-                      background: 'transparent',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '6px',
-                      padding: '4px 8px',
-                      fontSize: '11px',
-                      color: '#94a3b8',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Clear
+                    <RefreshCw size={11} /> Clear Resume
                   </button>
                 </div>
               </div>
@@ -720,12 +706,9 @@ export default function ResumeAndJobModal() {
                 <div style={{ fontWeight: 600, color: '#a5b4fc', marginBottom: '4px' }}>
                   💡 Teleprompter Behavior Guarantee:
                 </div>
-                The AI co-pilot will speak exclusively as you, referencing your past work at{' '}
-                {localResume.includes('CloudScale')
-                  ? 'CloudScale Systems'
-                  : 'your previous companies'}
-                , highlighting your metrics, and positioning your answers directly for the{' '}
-                {localRole} opening.
+                The AI co-pilot will speak exclusively as you, referencing your verified past work,
+                highlighting your metrics, and positioning your answers directly for the{' '}
+                {localRole || 'target'} opening.
               </div>
             </div>
           )}

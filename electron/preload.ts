@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Network / SSRF verification
   resolveDns: (hostname: string) => ipcRenderer.invoke('net:resolve-dns', hostname),
+  safeFetchPinned: (options: any) => ipcRenderer.invoke('net:safe-fetch-pinned', options),
 
   // Shell
   openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
@@ -100,6 +101,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLastOcrText: () => ipcRenderer.invoke('screen:get-last-ocr-text'),
   setLastOcrText: (text: string) => ipcRenderer.invoke('screen:set-last-ocr-text', text),
   ocrImageFile: (filePath: string) => ipcRenderer.invoke('screen:ocr-image', filePath),
+  getOcrEngineInfo: () => ipcRenderer.invoke('screen:get-ocr-engine-info'),
   autoTypeCode: (code: string, delayMs?: number) =>
     ipcRenderer.invoke('system:auto-type', code, delayMs),
 

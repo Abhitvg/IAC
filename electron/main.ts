@@ -1,5 +1,7 @@
 import { parsePdfBuffer } from './services/pdfParser';
 import { stitchOcrTexts } from './services/ocrStitcher';
+import { SafeConnectionFetcher, PinnedFetchOptions } from './services/safeConnectionFetcher';
+import { resolveOcrBinaryPath, getOcrEngineInfo } from './services/ocrService';
 import {
   app,
   clipboard,
@@ -573,6 +575,11 @@ ipcMain.handle('net:resolve-dns', async (_event, hostname: string) => {
   });
 });
 
+// Destination-pinned HTTP/HTTPS fetch for SSRF & DNS rebinding protection
+ipcMain.handle('net:safe-fetch-pinned', async (_event, options: PinnedFetchOptions) => {
+  return SafeConnectionFetcher.fetch(options);
+});
+
 // DOCX parsing
 ipcMain.handle('fs:parse-docx', async (_event, arrayBuffer: ArrayBuffer) => {
   if (!(arrayBuffer instanceof ArrayBuffer) && !Buffer.isBuffer(arrayBuffer)) {
@@ -614,7 +621,7 @@ ipcMain.handle(
   async (_event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
     const tmpImg = path.join(app.getPath('temp'), `iac_screen_${Date.now()}.jpg`);
     const isMac = process.platform === 'darwin';
-    const ocrBin = path.join(__dirname, '../bin/mac-ocr');
+    const ocrBin = resolveOcrBinaryPath();
 
     try {
       if (isMac) {
@@ -691,7 +698,7 @@ ipcMain.handle(
   async (_event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
     const tmpImg = path.join(app.getPath('temp'), `iac_screen_append_${Date.now()}.jpg`);
     const isMac = process.platform === 'darwin';
-    const ocrBin = path.join(__dirname, '../bin/mac-ocr');
+    const ocrBin = resolveOcrBinaryPath();
 
     try {
       if (isMac) {
@@ -819,12 +826,14 @@ end tell
   }
 });
 
+ipcMain.handle('screen:get-ocr-engine-info', () => getOcrEngineInfo());
+
 ipcMain.handle('screen:ocr-image', async (_event, filePath: string) => {
   if (typeof filePath !== 'string') {
     return { success: false, error: 'Invalid argument: filePath must be a string' };
   }
   const isMac = process.platform === 'darwin';
-  const ocrBin = path.join(__dirname, '../bin/mac-ocr');
+  const ocrBin = resolveOcrBinaryPath();
   try {
     const validation = validateReadPath(filePath, app.getPath('userData'), approvedFilePaths);
     if (!validation.allowed || !validation.resolvedPath) {

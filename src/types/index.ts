@@ -241,6 +241,7 @@ export interface ElectronAPI {
   listDir: (path: string) => Promise<Array<{ name: string; isDirectory: boolean; path: string }>>;
   deleteFile: (path: string) => Promise<boolean>;
   resolveDns?: (hostname: string) => Promise<Array<{ address: string; family: number }>>;
+  safeFetchPinned?: (options: any) => Promise<any>;
   openExternal: (url: string) => Promise<void>;
   getSettings: () => Promise<AppSettings>;
   setSettings: (key: string, value: any) => Promise<boolean>;
@@ -266,6 +267,7 @@ export interface ElectronAPI {
   getLastOcrText?: () => Promise<string>;
   setLastOcrText?: (text: string) => Promise<boolean>;
   ocrImageFile?: (filePath: string) => Promise<{ success: boolean; text?: string; error?: string }>;
+  getOcrEngineInfo?: () => Promise<{ available: boolean; platform: string; engine: string; maxPages: number; maxFileSizeMb: number }>;
   autoTypeCode?: (
     code: string,
     delayMs?: number
