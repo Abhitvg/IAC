@@ -507,7 +507,7 @@ Technologies: ${resumeContext.technologies.join(', ')}
 Experience: ${resumeContext.experience.join(', ')}\n\nUse this context to personalize answers when relevant, especially for behavioral, resume, and project questions.`
     : '';
 
-  return `${basePrompt}\n\nCategory: ${category}\nMode: ${mode}\n${modeInstructions[mode]}\n${codingInstructions}\n${resumeInstructions}\n\nAlways end with 2-3 potential follow-up questions the interviewer might ask, prefixed with "**Possible Follow-ups:**"`;
+  return `${basePrompt}\n\nCategory: ${category}\nMode: ${mode}\n${modeInstructions[mode]}\n${codingInstructions}\n${resumeInstructions}\n\nFOLLOW_UPS: [follow-up 1] | [follow-up 2] | [follow-up 3]`;
 }
 
 export async function generateAIResponse(
@@ -697,7 +697,7 @@ async function callOpenRouter(
               }
               config.onChunk(fullContent);
             }
-          } catch (e) {}
+          } catch (_e) {}
         }
       }
     }
@@ -752,7 +752,7 @@ async function callOllama(
             fullContent += parsed.message.content;
             config.onChunk(fullContent);
           }
-        } catch (e) {}
+        } catch (_e) {}
       }
     }
     return fullContent;
@@ -863,11 +863,10 @@ export async function streamAnswer(
   const systemPrompt =
     config.systemPrompt || createSystemPrompt(config, 'interview', 'General', language, null);
 
-  // Use tailored system prompt if explicitly provided; otherwise append default conversational delivery rules
+  // Use tailored system prompt if explicitly provided; otherwise use assembled system prompt
   const lowLatencyPrompt = config.systemPrompt
     ? config.systemPrompt
-    : systemPrompt +
-      '\n\nDELIVERY FORMAT: Speak naturally in the first person. 12-25 words per sentence. Clear, punchy, articulate phrasing suitable for spoken conversational technical interview practice and coaching (target length: 65 to 110 words).';
+    : systemPrompt;
 
   const url =
     config.type === 'openrouter'
@@ -960,59 +959,107 @@ export async function streamAnswer(
 
     const reader = activeResponse.body.getReader();
     const decoder = new TextDecoder('utf-8');
-    let fullResponse = '';
-
     const parser = new AIStreamParser();
     const buffer = new SentenceBuffer();
     let sseBuffer = '';
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        if (signal?.aborted) break;
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      sseBuffer += decoder.decode(value, { stream: true });
-      const lines = sseBuffer.split('\n');
-      sseBuffer = lines.pop() || '';
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() || '';
 
-      for (const rawLine of lines) {
-        const line = rawLine.trim();
-        if (!line || line === 'data: [DONE]') continue;
-        if (line.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(line.slice(6));
-            const token = data.choices[0]?.delta?.content || '';
-            if (!token) continue;
+        for (const rawLine of lines) {
+          if (signal?.aborted) break;
+          const line = rawLine.trim();
+          if (!line || line === 'data: [DONE]') continue;
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              const token = data.choices[0]?.delta?.content || '';
+              if (!token) continue;
 
-            fullResponse += token;
-            callbacks.onToken?.(token);
-            if (!(callbacks as any)._firstTokenFired) {
-              (callbacks as any)._firstTokenFired = true;
-              globalLatencyTracker.mark('firstToken');
-            }
+              const cleanChunk = parser.parseChunk(token);
+              if (cleanChunk) {
+                callbacks.onToken?.(cleanChunk);
+                globalLatencyTracker.markFirstTokenOnce();
 
-            const parsedToken = parser.parseChunk(token);
-            if (parsedToken) {
-              const sentences = buffer.push(parsedToken);
-              for (const s of sentences) {
-                callbacks.onSentence?.(s);
+                const sentences = buffer.push(cleanChunk);
+                for (const s of sentences) {
+                  callbacks.onSentence?.(s);
+                }
               }
+            } catch (_e) {
+              // ignore JSON parse errors for incomplete chunks
             }
-          } catch (e) {
-            // ignore JSON parse errors for incomplete chunks
           }
         }
       }
+
+      if (!signal?.aborted) {
+        const finalChunk = parser.flush();
+        if (finalChunk) {
+          callbacks.onToken?.(finalChunk);
+          const sentences = buffer.push(finalChunk);
+          for (const s of sentences) {
+            callbacks.onSentence?.(s);
+          }
+        }
+
+        const flushed = buffer.flush();
+        for (const s of flushed) {
+          callbacks.onSentence?.(s);
+        }
+
+        callbacks.onComplete?.(parser.getCleanText());
+      }
+    } finally {
+      try {
+        await reader.cancel();
+      } catch (_) {}
+      try {
+        reader.releaseLock();
+      } catch (_) {}
     }
-
-    // flush
-    const flushed = buffer.flush();
-    for (const s of flushed) callbacks.onSentence?.(s);
-
-    callbacks.onComplete?.(fullResponse);
   } catch (e: any) {
     if (e.name !== 'AbortError') {
       if (callbacks.onError) callbacks.onError(e);
       else throw e;
     }
   }
+}
+
+export async function generateAIAnswer(
+  prompt: string,
+  providerConfig?: Partial<AIProviderConfig>,
+  language?: ProgrammingLanguage
+): Promise<string> {
+  const config: AIProviderConfig = {
+    type: providerConfig?.type || 'groq',
+    apiKey: providerConfig?.apiKey || 'mock-key',
+    model: providerConfig?.model || 'llama-3.3-70b-versatile',
+    temperature: providerConfig?.temperature ?? 0.7,
+    maxTokens: providerConfig?.maxTokens || 1500,
+    systemPrompt: providerConfig?.systemPrompt || '',
+  };
+
+  let full = '';
+  await streamAnswer(
+    prompt,
+    config,
+    (language || 'java') as ProgrammingLanguage,
+    {
+      onToken: (token) => {
+        full += token;
+      },
+      onComplete: (completed) => {
+        full = completed;
+      },
+    }
+  );
+  return full;
 }

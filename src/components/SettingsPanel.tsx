@@ -1,3 +1,4 @@
+import { copyToClipboard } from '../utils/clipboard';
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { usePracticeStore } from '../store/usePracticeStore';
@@ -369,8 +370,8 @@ export default function SettingsPanel() {
                   />
                   <button
                     type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(extensionToken);
+                    onClick={async () => {
+                      await copyToClipboard(extensionToken);
                       setTokenCopied(true);
                       setTimeout(() => setTokenCopied(false), 2000);
                     }}

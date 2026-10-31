@@ -1,3 +1,4 @@
+import { copyToClipboard } from '../../utils/clipboard';
 import React, { useState } from "react";
 import { usePracticeStore } from "../../store/usePracticeStore";
 import { ProgressMetricsService } from "../../services/practice/feedback/ProgressMetricsService";
@@ -50,7 +51,7 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
 
   const summary = ProgressMetricsService.computeProgressSummary(sessionHistory, topicMasteries);
 
-  const handleExportMarkdown = () => {
+  const handleExportMarkdown = async () => {
     const markdown = ProgressExporter.generateMarkdownReport(
       {
         weaknessMap,
@@ -79,7 +80,7 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
     URL.revokeObjectURL(url);
   };
 
-  const handleCopyClipboard = () => {
+  const handleCopyClipboard = async () => {
     const markdown = ProgressExporter.generateMarkdownReport(
       {
         weaknessMap,
@@ -93,7 +94,7 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
       }
     );
 
-    navigator.clipboard.writeText(markdown);
+    await copyToClipboard(markdown);
     setCopiedNotice(true);
     setTimeout(() => setCopiedNotice(false), 2500);
   };

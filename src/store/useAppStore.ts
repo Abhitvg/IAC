@@ -1,3 +1,4 @@
+import { copyToClipboard } from '../utils/clipboard';
 import {
   DEFAULT_RESUME,
   DEFAULT_JOB_DESCRIPTION,
@@ -63,6 +64,15 @@ interface InterviewState {
   status: InterviewStatus;
   currentQuestion: string | null;
   currentAnswer: string | null;
+  isAnswerValidated: boolean;
+  answerValidationStatus: 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FAILED' | 'ABORTED';
+  groundingScore: number | null;
+  groundingViolations: string[];
+  activeRequestId: string | null;
+  setIsAnswerValidated: (isValidated: boolean) => void;
+  setAnswerValidationStatus: (status: 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FAILED' | 'ABORTED') => void;
+  setGroundingResult: (score: number | null, violations: string[]) => void;
+  setActiveRequestId: (id: string | null) => void;
   transcript: TranscriptMessage[];
   answerSentences: string[];
   followUps: string[];
@@ -136,10 +146,12 @@ interface InterviewState {
   settingsOpen: boolean;
   sessionsOpen: boolean;
   loadSettings: () => void;
-  loadSessionHistory: () => void;
+  loadSessionHistory: () => Promise<void>;
+  saveSession: (session: any) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
 
-  copyAnswer: () => void;
-  copyCodeOnly: () => boolean;
+  copyAnswer: () => void | Promise<void>;
+  copyCodeOnly: () => boolean | Promise<boolean>;
   responseMode: 'coding' | 'interview' | 'quiz';
   setResponseMode: (mode: 'coding' | 'interview' | 'quiz') => void;
   regenerateAnswer: () => void;
@@ -149,7 +161,7 @@ interface InterviewState {
   settings: any;
   updateSetting: (k: string, v: any) => void;
   setSettingsOpen: (open: boolean) => void;
-  clearAllData: () => void;
+  clearAllData: () => Promise<void>;
   toast: any;
   currentResponse: any;
   diagnosticState: DiagnosticState;
@@ -175,35 +187,44 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     try {
       const saved = localStorage.getItem('teleprompter_opacity');
       if (saved) return parseFloat(saved);
-    } catch (_) {}
+    } catch {}
     return 0.35;
   })(),
   setWindowOpacity: (windowOpacity) => {
     try {
       localStorage.setItem('teleprompter_opacity', String(windowOpacity));
-    } catch (_) {}
+    } catch {}
     set({ windowOpacity });
     try {
       if (typeof window !== 'undefined' && window.electronAPI?.setWindowOpacity) {
         window.electronAPI.setWindowOpacity(windowOpacity);
       }
-    } catch (_) {}
+    } catch {}
   },
   selectedAudioDeviceId: (() => {
     try {
       return localStorage.getItem('interview_audio_device_id') || '';
-    } catch (_) {}
+    } catch {}
     return '';
   })(),
   setSelectedAudioDeviceId: (selectedAudioDeviceId: string) => {
     try {
       localStorage.setItem('interview_audio_device_id', selectedAudioDeviceId);
-    } catch (_) {}
+    } catch {}
     set({ selectedAudioDeviceId });
   },
   status: 'idle',
   currentQuestion: null,
   currentAnswer: null,
+  isAnswerValidated: false,
+  answerValidationStatus: 'PENDING',
+  activeRequestId: null,
+  groundingScore: null,
+  groundingViolations: [],
+  setIsAnswerValidated: (isAnswerValidated) => set({ isAnswerValidated }),
+  setAnswerValidationStatus: (answerValidationStatus) => set({ answerValidationStatus }),
+  setActiveRequestId: (activeRequestId) => set({ activeRequestId }),
+  setGroundingResult: (groundingScore, groundingViolations) => set({ groundingScore, groundingViolations }),
   transcript: [],
   answerSentences: [],
   followUps: [],
@@ -230,7 +251,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         const parsed = parseInt(saved, 10);
         if (!isNaN(parsed) && parsed >= 400) return parsed;
       }
-    } catch (_) {}
+    } catch {}
     return 1000;
   })(),
 
@@ -328,7 +349,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     const clamped = Math.max(400, Math.min(3500, ms));
     try {
       localStorage.setItem('interview_speech_pause_tolerance', String(clamped));
-    } catch (_) {}
+    } catch {}
     set({ speechPauseTolerance: clamped });
     get().setToast(`⏱️ Speech pause tolerance: ${clamped}ms`);
   },
@@ -359,19 +380,19 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   setResumeText: (resumeText: string) => {
     try {
       localStorage.setItem('candidate_resume', resumeText);
-    } catch (_) {}
+    } catch {}
     set({ resumeText });
   },
   setJobDescriptionText: (jobDescriptionText: string) => {
     try {
       localStorage.setItem('target_job_description', jobDescriptionText);
-    } catch (_) {}
+    } catch {}
     set({ jobDescriptionText });
   },
   setTargetRole: (targetRole: string) => {
     try {
       localStorage.setItem('target_role', targetRole);
-    } catch (_) {}
+    } catch {}
     set({ targetRole });
   },
   setResumeModalOpen: (resumeModalOpen: boolean) => set({ resumeModalOpen }),
@@ -427,6 +448,11 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       currentSentenceIndex: 0,
       answerSentences: [],
       currentAnswer: null,
+      isAnswerValidated: false,
+      answerValidationStatus: 'PENDING',
+      activeRequestId: null,
+      groundingScore: null,
+      groundingViolations: [],
       currentQuestion: null,
       recitalState: 'listening',
     }),
@@ -487,7 +513,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
               settings: { ...state.settings, ...electronSettings },
             }));
           }
-        } catch (_) {}
+        } catch {}
       }
       const savedResume = localStorage.getItem('candidate_resume');
       const savedJD = localStorage.getItem('target_job_description');
@@ -513,7 +539,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       if (isLegacy && typeof localStorage !== 'undefined') {
         try {
           localStorage.setItem('candidate_resume', DEFAULT_RESUME);
-        } catch (_) {}
+        } catch {}
       }
 
       set({
@@ -535,29 +561,125 @@ export const useAppStore = create<InterviewState>((set, get) => ({
             ? savedMode
             : 'coding',
       });
-    } catch (_) {}
+    } catch {}
   },
-  loadSessionHistory: () => {},
+  loadSessionHistory: async () => {
+    try {
+      const sessions: any[] = [];
+      if (
+        typeof window !== 'undefined' &&
+        window.electronAPI?.getSessionsDir &&
+        window.electronAPI?.listDir &&
+        window.electronAPI?.readFile
+      ) {
+        try {
+          const sessionsDir = await window.electronAPI.getSessionsDir();
+          const entries = await window.electronAPI.listDir(sessionsDir);
+          if (Array.isArray(entries)) {
+            for (const entry of entries) {
+              if (entry.name.endsWith('.json') && !entry.isDirectory) {
+                try {
+                  const buffer = await window.electronAPI.readFile(entry.path);
+                  const str = new TextDecoder().decode(buffer);
+                  const sessionData = JSON.parse(str);
+                  if (sessionData && sessionData.id) {
+                    sessions.push(sessionData);
+                  }
+                } catch {}
+              }
+            }
+          }
+        } catch {}
+      }
 
-  copyAnswer: () => {
+      if (sessions.length === 0 && typeof localStorage !== 'undefined') {
+        try {
+          const local = localStorage.getItem('iac_session_history');
+          if (local) {
+            const parsed = JSON.parse(local);
+            if (Array.isArray(parsed)) {
+              sessions.push(...parsed);
+            }
+          }
+        } catch {}
+      }
+
+      sessions.sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
+      set({ sessionHistory: sessions });
+    } catch {}
+  },
+
+  saveSession: async (session: any) => {
+    if (!session || !session.id) return;
+    try {
+      const current = get().sessionHistory;
+      const updated = [session, ...current.filter((s) => s.id !== session.id)].slice(0, 50);
+      set({ sessionHistory: updated });
+
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem('iac_session_history', JSON.stringify(updated));
+        } catch {}
+      }
+
+      if (
+        typeof window !== 'undefined' &&
+        window.electronAPI?.getSessionsDir &&
+        window.electronAPI?.writeFile
+      ) {
+        try {
+          const sessionsDir = await window.electronAPI.getSessionsDir();
+          const sessionPath = `${sessionsDir}/${session.id}.json`;
+          const data = JSON.stringify(session, null, 2);
+          await window.electronAPI.writeFile(sessionPath, data);
+        } catch {}
+      }
+    } catch {}
+  },
+
+  deleteSession: async (sessionId: string) => {
+    try {
+      const updated = get().sessionHistory.filter((s) => s.id !== sessionId);
+      set({ sessionHistory: updated });
+
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem('iac_session_history', JSON.stringify(updated));
+        } catch {}
+      }
+
+      if (
+        typeof window !== 'undefined' &&
+        window.electronAPI?.getSessionsDir &&
+        window.electronAPI?.deleteFile
+      ) {
+        try {
+          const sessionsDir = await window.electronAPI.getSessionsDir();
+          await window.electronAPI.deleteFile(`${sessionsDir}/${sessionId}.json`);
+        } catch {}
+      }
+    } catch {}
+  },
+
+  copyAnswer: async () => {
     const ans = get().currentAnswer;
     if (ans) {
-      navigator.clipboard.writeText(ans);
+      await copyToClipboard(ans);
       set({ toast: 'Answer copied to clipboard!' });
       setTimeout(() => set({ toast: null }), 2500);
     }
   },
-  copyCodeOnly: () => {
+  copyCodeOnly: async () => {
     const ans = get().currentAnswer;
     if (!ans) return false;
     const match = ans.match(/```[a-zA-Z0-9_#+-]*[^\n\r]*\r?\n([\s\S]*?)(?:```|$)/);
     if (match && match[1]) {
-      navigator.clipboard.writeText(match[1].trim());
+      await copyToClipboard(match[1].trim());
       set({ toast: '💻 Code copied to clipboard!' });
       setTimeout(() => set({ toast: null }), 2500);
       return true;
     } else {
-      navigator.clipboard.writeText(ans);
+      await copyToClipboard(ans);
       set({ toast: 'Answer copied to clipboard!' });
       setTimeout(() => set({ toast: null }), 2500);
       return false;
@@ -567,16 +689,24 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     try {
       const saved = localStorage.getItem('interview_response_mode');
       if (saved === 'coding' || saved === 'interview' || saved === 'quiz') return saved;
-    } catch (_) {}
+    } catch {}
     return 'coding';
   })(),
   setResponseMode: (responseMode) => {
     try {
       localStorage.setItem('interview_response_mode', responseMode);
-    } catch (_) {}
+    } catch {}
     set({ responseMode: responseMode as any });
   },
-  regenerateAnswer: () => {},
+  regenerateAnswer: () => {
+    const { currentQuestion } = get();
+    if (currentQuestion && currentQuestion.trim()) {
+      InterviewEngine.handleEvent({ type: 'REGENERATE_ACTIVE_ANSWER' });
+      get().setToast('🔄 Regenerating answer...');
+    } else {
+      get().setToast('⚠️ No question to regenerate');
+    }
+  },
   sessionHistory: [],
   currentPerformance: null,
   setSessionsOpen: (o) => set({ sessionsOpen: o }),
@@ -585,7 +715,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     try {
       const saved = localStorage.getItem('preferred_coding_language');
       if (saved) lang = saved;
-    } catch (_) {}
+    } catch {}
     return {
       aiProvider: 'groq',
       aiModel: 'openai/gpt-oss-120b',
@@ -600,14 +730,66 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     if (key === 'preferredLanguage') {
       try {
         localStorage.setItem('preferred_coding_language', String(val));
-      } catch (_) {}
+      } catch {}
     }
     set((state) => ({
       settings: { ...state.settings, [key]: val },
     }));
   },
   setSettingsOpen: (o) => set({ settingsOpen: o }),
-  clearAllData: () => {},
+  clearAllData: async () => {
+    InterviewEngine.cancelAllActiveWork();
+    try {
+      const audio = (await import('../services/audio')).AudioRecorder.getInstance();
+      await audio.stop(false);
+    } catch {}
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem('iac_session_history');
+        localStorage.removeItem('interview_transcript');
+        localStorage.removeItem('conversation_history');
+      } catch {}
+    }
+
+    if (
+      typeof window !== 'undefined' &&
+      window.electronAPI?.getSessionsDir &&
+      window.electronAPI?.listDir &&
+      window.electronAPI?.deleteFile
+    ) {
+      try {
+        const dir = await window.electronAPI.getSessionsDir();
+        const files = await window.electronAPI.listDir(dir);
+        if (Array.isArray(files)) {
+          for (const f of files) {
+            if (f.name.endsWith('.json')) {
+              await window.electronAPI.deleteFile(f.path).catch(() => {});
+            }
+          }
+        }
+      } catch {}
+    }
+
+    set({
+      transcript: [],
+      questionHistory: [],
+      redoQuestionHistory: [],
+      conversationHistory: [],
+      sessionHistory: [],
+      currentQuestion: null,
+      currentAnswer: null,
+      teleprompterQueue: [],
+      currentSentenceIndex: 0,
+      status: 'idle',
+      recitalState: 'idle',
+      isIncompleteQuestionMode: false,
+      answerConfidence: null,
+      predictedFollowUps: [],
+    });
+
+    get().setToast('🧹 All interview data, transcripts & session history cleared.');
+  },
   toast: null,
   diagnosticState: {
     micActive: false,

@@ -54,26 +54,41 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startWsServer: () => ipcRenderer.invoke('ws:start'),
   stopWsServer: () => ipcRenderer.invoke('ws:stop'),
   onBrowserContext: (callback: (data: any) => void) => {
-    ipcRenderer.on('browser-context', (_event, data) => callback(data));
-    return () => ipcRenderer.removeAllListeners('browser-context');
+    const listener = (_event: any, data: any) => callback(data);
+    ipcRenderer.on('browser-context', listener);
+    return () => {
+      ipcRenderer.removeListener('browser-context', listener);
+    };
   },
 
   // Screen Capture & Neural OCR
   onTriggerScreenCapture: (callback: () => void) => {
-    ipcRenderer.on('trigger-screen-capture', () => callback());
-    return () => ipcRenderer.removeAllListeners('trigger-screen-capture');
+    const listener = () => callback();
+    ipcRenderer.on('trigger-screen-capture', listener);
+    return () => {
+      ipcRenderer.removeListener('trigger-screen-capture', listener);
+    };
   },
   onTriggerAppendScreenCapture: (callback: () => void) => {
-    ipcRenderer.on('trigger-append-screen-capture', () => callback());
-    return () => ipcRenderer.removeAllListeners('trigger-append-screen-capture');
+    const listener = () => callback();
+    ipcRenderer.on('trigger-append-screen-capture', listener);
+    return () => {
+      ipcRenderer.removeListener('trigger-append-screen-capture', listener);
+    };
   },
   onTriggerAutoType: (callback: () => void) => {
-    ipcRenderer.on('trigger-auto-type', () => callback());
-    return () => ipcRenderer.removeAllListeners('trigger-auto-type');
+    const listener = () => callback();
+    ipcRenderer.on('trigger-auto-type', listener);
+    return () => {
+      ipcRenderer.removeListener('trigger-auto-type', listener);
+    };
   },
   onTriggerAutoTypeText: (callback: () => void) => {
-    ipcRenderer.on('trigger-auto-type-text', () => callback());
-    return () => ipcRenderer.removeAllListeners('trigger-auto-type-text');
+    const listener = () => callback();
+    ipcRenderer.on('trigger-auto-type-text', listener);
+    return () => {
+      ipcRenderer.removeListener('trigger-auto-type-text', listener);
+    };
   },
   captureScreenAndOCR: (mode: 'fullscreen' | 'snip' = 'fullscreen') =>
     ipcRenderer.invoke('screen:capture-and-ocr', mode),
@@ -84,6 +99,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ocrImageFile: (filePath: string) => ipcRenderer.invoke('screen:ocr-image', filePath),
   autoTypeCode: (code: string, delayMs?: number) =>
     ipcRenderer.invoke('system:auto-type', code, delayMs),
+
+    // Privileged Evidence Inspection Operations
+  inspectRepository: (request: any) => ipcRenderer.invoke("evidence:inspect-repository", request),
+  inspectDocument: (request: any) => ipcRenderer.invoke("evidence:inspect-document", request),
+  verifyIndependentAudit: (attestation: any) => ipcRenderer.invoke("evidence:verify-audit", attestation),
+  verifyInspectionSeal: (result: any) => ipcRenderer.invoke("evidence:verify-seal", result),
+
+  // Clipboard
+  copyToClipboard: (text: string) => ipcRenderer.invoke('clipboard:write-text', text),
+  readClipboard: () => ipcRenderer.invoke('clipboard:read-text'),
 
   // Platform
   platform: process.platform,

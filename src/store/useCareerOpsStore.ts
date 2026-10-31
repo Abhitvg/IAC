@@ -72,7 +72,7 @@ function loadInitialApplications(): JobApplication[] {
       score: 4.8,
       recommendation: 'apply',
       jdText:
-        'Evaluate frontier AI coding models side-by-side on real personal git repos (e.g. DocFlow). Write bug fixes, test suites, and provide expert technical justifications.',
+        'Evaluate frontier AI coding models side-by-side on real personal git repos (e.g. open-source repositories). Write bug fixes, test suites, and provide expert technical justifications.',
       createdAt: Date.now() - 86400000 * 2,
       updatedAt: Date.now() - 3600000,
       notes: 'Mock technical round completed with 15/15 test cases passed.',

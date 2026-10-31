@@ -17,39 +17,53 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ─── Color Palette ─── */
-  --bg-primary: #08080d;
-  --bg-secondary: #0f0f18;
-  --bg-tertiary: #15152a;
-  --bg-card: #121220;
-  --bg-elevated: #1a1a2e;
-  --bg-hover: #1e1e38;
-  --bg-active: #252545;
+  /* ─── Semantic Phase 1 Design System Tokens ─── */
+  --color-bg: #0D0F14;
+  --color-sidebar: #11141B;
+  --color-surface: #171B24;
+  --color-elevated: #1E2330;
+  --color-accent-primary: #8B7CFF;
+  --color-accent-secondary: #A99DFF;
+  --color-success: #35C991;
+  --color-warning: #F4B84A;
+  --color-danger: #F16F78;
+  --color-text-primary: #F3F4F8;
+  --color-text-secondary: #9299AA;
+  --color-border: #292E3A;
 
-  --border-subtle: rgba(120, 100, 255, 0.08);
-  --border-default: rgba(120, 100, 255, 0.15);
-  --border-strong: rgba(120, 100, 255, 0.25);
-  --border-accent: rgba(120, 100, 255, 0.4);
+  /* ─── Preserved & Unified Palette ─── */
+  --bg-primary: #0D0F14;
+  --bg-secondary: #11141B;
+  --bg-tertiary: #171B24;
+  --bg-card: #171B24;
+  --bg-elevated: #1E2330;
+  --bg-hover: #1E2330;
+  --bg-active: #292E3A;
 
-  --text-primary: #e8e6f0;
-  --text-secondary: #9b97b0;
-  --text-muted: #6b6880;
-  --text-accent: #a78bfa;
-  --text-bright: #ffffff;
+  --border-subtle: #292E3A;
+  --border-default: #292E3A;
+  --border-strong: rgba(139, 124, 255, 0.25);
+  --border-accent: #8B7CFF;
 
-  --accent-primary: #7c5cfc;
-  --accent-secondary: #a78bfa;
-  --accent-glow: rgba(124, 92, 252, 0.3);
-  --accent-gradient: linear-gradient(135deg, #7c5cfc, #a78bfa, #c084fc);
+  --text-primary: #F3F4F8;
+  --text-secondary: #9299AA;
+  --text-muted: #9299AA;
+  --text-accent: #8B7CFF;
+  --text-bright: #F3F4F8;
 
-  --success: #34d399;
-  --success-bg: rgba(52, 211, 153, 0.1);
-  --warning: #fbbf24;
-  --warning-bg: rgba(251, 191, 36, 0.1);
-  --error: #f87171;
-  --error-bg: rgba(248, 113, 113, 0.1);
-  --info: #60a5fa;
-  --info-bg: rgba(96, 165, 250, 0.1);
+  --accent-primary: #8B7CFF;
+  --accent-secondary: #A99DFF;
+  --accent-glow: rgba(139, 124, 255, 0.25);
+  --accent-gradient: linear-gradient(135deg, #8B7CFF, #A99DFF);
+
+  --success: #35C991;
+  --success-bg: rgba(53, 201, 145, 0.12);
+  --warning: #F4B84A;
+  --warning-bg: rgba(244, 184, 74, 0.12);
+  --error: #F16F78;
+  --error-bg: rgba(241, 111, 120, 0.12);
+  --info: #8B7CFF;
+  --info-bg: rgba(139, 124, 255, 0.12);
 
   --record-red: #ef4444;
   --record-glow: rgba(239, 68, 68, 0.4);

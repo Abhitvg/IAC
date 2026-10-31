@@ -1,10 +1,35 @@
+/**
+ * Audio Conversion and WAV Validation Utility
+ * Supports accurate sample-rate conversion (downsampling & upsampling),
+ * rigorous WAV header validation, and safe browser audio decoding.
+ */
+
 export function downsampleBuffer(
   buffer: Float32Array,
   inSampleRate: number,
   outSampleRate: number
 ): Float32Array {
-  if (inSampleRate === outSampleRate) return buffer;
-  if (inSampleRate < outSampleRate) return buffer;
+  if (inSampleRate === outSampleRate || buffer.length === 0) {
+    return new Float32Array(buffer);
+  }
+
+  // Linear interpolation for upsampling if inSampleRate < outSampleRate
+  if (inSampleRate < outSampleRate) {
+    const ratio = inSampleRate / outSampleRate;
+    const newLength = Math.round(buffer.length / ratio);
+    const result = new Float32Array(newLength);
+    for (let i = 0; i < newLength; i++) {
+      const position = i * ratio;
+      const index = Math.floor(position);
+      const frac = position - index;
+      const s0 = buffer[index] ?? 0;
+      const s1 = buffer[index + 1] ?? s0;
+      result[i] = s0 + frac * (s1 - s0);
+    }
+    return result;
+  }
+
+  // Box-car averaging for downsampling
   const ratio = inSampleRate / outSampleRate;
   const newLength = Math.round(buffer.length / ratio);
   const result = new Float32Array(newLength);
@@ -44,18 +69,18 @@ export function encodeWav(samples: Float32Array, sampleRate = 16000): Blob {
   writeString('fmt ');
   view.setUint32(offset, 16, true);
   offset += 4;
-  view.setUint16(offset, 1, true);
-  offset += 2; // PCM
-  view.setUint16(offset, 1, true);
-  offset += 2; // Mono
+  view.setUint16(offset, 1, true); // PCM
+  offset += 2;
+  view.setUint16(offset, 1, true); // Mono
+  offset += 2;
   view.setUint32(offset, sampleRate, true);
   offset += 4;
-  view.setUint32(offset, sampleRate * 2, true);
-  offset += 4; // byte rate
-  view.setUint16(offset, 2, true);
-  offset += 2; // block align
-  view.setUint16(offset, 16, true);
-  offset += 2; // bits per sample
+  view.setUint32(offset, sampleRate * 2, true); // byte rate (sampleRate * numChannels * bitsPerSample/8)
+  offset += 4;
+  view.setUint16(offset, 2, true); // block align
+  offset += 2;
+  view.setUint16(offset, 16, true); // bits per sample
+  offset += 2;
   writeString('data');
   view.setUint32(offset, dataLength, true);
   offset += 4;
@@ -70,38 +95,91 @@ export function encodeWav(samples: Float32Array, sampleRate = 16000): Blob {
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
-export async function convertBlobToWav(blob: Blob): Promise<Blob> {
-  // If already a valid WAV, return directly without unnecessary re-decoding
-  if (blob.type === 'audio/wav') {
-    return blob;
+/**
+ * Validates whether an ArrayBuffer is a well-formed WAV file.
+ * Checks beyond minimal RIFF: verifies WAVE identifier, fmt subchunk, PCM format, and data subchunk.
+ */
+export function isValidWav(arrayBuffer: ArrayBuffer): boolean {
+  if (!arrayBuffer || arrayBuffer.byteLength < 44) {
+    return false;
   }
 
-  try {
-    const arrayBuffer = await blob.arrayBuffer();
-    // Check if starts with RIFF
-    if (arrayBuffer.byteLength >= 12) {
-      const u8 = new Uint8Array(arrayBuffer.slice(0, 4));
-      const magic = String.fromCharCode(...u8);
-      if (magic === 'RIFF') {
-        return new Blob([arrayBuffer], { type: 'audio/wav' });
+  const view = new DataView(arrayBuffer);
+  const readString = (offset: number, length: number) => {
+    let str = '';
+    for (let i = 0; i < length; i++) {
+      str += String.fromCharCode(view.getUint8(offset + i));
+    }
+    return str;
+  };
+
+  if (readString(0, 4) !== 'RIFF') return false;
+  if (readString(8, 4) !== 'WAVE') return false;
+
+  // Search for 'fmt ' chunk
+  let offset = 12;
+  let hasFmt = false;
+  let hasData = false;
+
+  while (offset + 8 <= arrayBuffer.byteLength) {
+    const chunkId = readString(offset, 4);
+    const chunkSize = view.getUint32(offset + 4, true);
+
+    if (chunkId === 'fmt ') {
+      hasFmt = true;
+      if (chunkSize < 16) return false;
+      const audioFormat = view.getUint16(offset + 8, true);
+      const numChannels = view.getUint16(offset + 10, true);
+      const sampleRate = view.getUint32(offset + 12, true);
+
+      // Must be PCM (1) or IEEE Float (3) and sensible channels/sampleRate
+      if ((audioFormat !== 1 && audioFormat !== 3) || numChannels < 1 || sampleRate < 4000) {
+        return false;
       }
+    } else if (chunkId === 'data') {
+      hasData = true;
+      break;
     }
 
-    const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
-    const audioContext = new AudioContextCtor();
-    try {
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      const channelData = audioBuffer.getChannelData(0);
-      const resampled = downsampleBuffer(channelData, audioBuffer.sampleRate, 16000);
-      const wav = encodeWav(resampled, 16000);
-      return wav;
-    } finally {
-      if (audioContext.state !== 'closed') {
-        await audioContext.close().catch(() => undefined);
-      }
+    offset += 8 + chunkSize;
+  }
+
+  return hasFmt && hasData;
+}
+
+export async function convertBlobToWav(blob: Blob): Promise<Blob> {
+  if (!blob || blob.size === 0) {
+    throw new Error('Invalid audio payload: empty or zero-length audio blob');
+  }
+
+  const arrayBuffer = await blob.arrayBuffer();
+
+  // If already a valid, structurally verified WAV, return as-is
+  if (isValidWav(arrayBuffer)) {
+    return blob.type === 'audio/wav' ? blob : new Blob([arrayBuffer], { type: 'audio/wav' });
+  }
+
+  // Attempt Web Audio decoding for WebM, OGG, MP4, etc.
+  if (typeof window === 'undefined' || (!window.AudioContext && !(window as any).webkitAudioContext)) {
+    throw new Error('AudioContext unavailable to decode non-WAV audio payload');
+  }
+
+  const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+  const audioContext = new AudioContextCtor();
+  try {
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    if (!audioBuffer || audioBuffer.length === 0) {
+      throw new Error('Decoded audio buffer is empty');
     }
+    const channelData = audioBuffer.getChannelData(0);
+    const resampled = downsampleBuffer(channelData, audioBuffer.sampleRate, 16000);
+    return encodeWav(resampled, 16000);
   } catch (e: any) {
-    console.error('convertBlobToWav error:', e);
-    throw e;
+    console.error('[audioConversion] Failed to decode and convert audio blob:', e);
+    throw new Error(`Audio conversion failed: ${e?.message || String(e)}`, { cause: e });
+  } finally {
+    if (audioContext.state !== 'closed') {
+      await audioContext.close().catch(() => undefined);
+    }
   }
 }

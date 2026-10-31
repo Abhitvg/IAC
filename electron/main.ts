@@ -13,9 +13,10 @@ import {
   Tray,
   nativeImage,
 } from 'electron';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import util from 'util';
 const execAsync = util.promisify(exec);
+const execFileAsync = util.promisify(execFile);
 import path from 'path';
 import fs from 'fs';
 import mammoth from 'mammoth';
@@ -27,6 +28,9 @@ import {
   isPermissionAllowed,
   buildCspHeader,
   getSandboxConfig,
+  redactSensitiveData,
+  isTrustedSender,
+  isSafeExternalUrl,
 } from './services/security';
 
 let mainWindow: BrowserWindow | null = null;
@@ -34,8 +38,8 @@ let isContentProtected = true;
 let tray: Tray | null = null;
 let lastCapturedOcrText = "";
 
-const RECORDINGS_DIR = path.join(app.getPath('userData'), 'recordings');
-const SESSIONS_DIR = path.join(app.getPath('userData'), 'sessions');
+let RECORDINGS_DIR = '';
+let SESSIONS_DIR = '';
 
 // In-memory set of explicitly user-approved file paths from dialog:open-file
 const approvedFilePaths = new Set<string>();
@@ -82,6 +86,29 @@ function createWindow() {
 
   mainWindow.webContents.on('console-message', (_event, _level, message) => {
     console.log('[Renderer Log]', message);
+  });
+
+  // Secure navigation: Intercept window.open and target="_blank"
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isSafeExternalUrl(url)) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  // Intercept internal page navigation escaping the app origin
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const currentUrl = mainWindow?.webContents.getURL() || '';
+    if (
+      url !== currentUrl &&
+      !url.startsWith('file://') &&
+      !url.startsWith(process.env.VITE_DEV_SERVER_URL || 'http://localhost')
+    ) {
+      event.preventDefault();
+      if (isSafeExternalUrl(url)) {
+        shell.openExternal(url);
+      }
+    }
   });
 
   if (isContentProtected) {
@@ -271,6 +298,8 @@ function setupNativeApplicationMenu() {
 }
 
 app.whenReady().then(() => {
+  RECORDINGS_DIR = path.join(app.getPath('userData'), 'recordings');
+  SESSIONS_DIR = path.join(app.getPath('userData'), 'sessions');
   // Strict permission handler: only allow "media" (microphone) for the app's own origin
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     const url = webContents.getURL();
@@ -400,7 +429,8 @@ ipcMain.handle('dialog:open-file', async (_event, options: Electron.OpenDialogOp
 });
 
 // Read file strictly restricted to userData and approved file dialog paths
-ipcMain.handle('fs:read-file', async (_event, filePath: string) => {
+ipcMain.handle('fs:read-file', async (event, filePath: string) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (typeof filePath !== 'string') {
     throw new Error('Invalid argument: filePath must be a string');
   }
@@ -416,7 +446,8 @@ ipcMain.handle('fs:read-file', async (_event, filePath: string) => {
 // Write file restricted strictly to userData with size limits
 ipcMain.handle(
   'fs:write-file',
-  async (_event, filePath: string, data: Buffer | string | ArrayBuffer) => {
+  async (event, filePath: string, data: Buffer | string | ArrayBuffer) => {
+    if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
     if (typeof filePath !== 'string') {
       throw new Error('Invalid argument: filePath must be a string');
     }
@@ -446,7 +477,8 @@ ipcMain.handle(
 );
 
 // List directory restricted to userData
-ipcMain.handle('fs:list-dir', async (_event, dirPath: string) => {
+ipcMain.handle('fs:list-dir', async (event, dirPath: string) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (typeof dirPath !== 'string') {
     throw new Error('Invalid argument: dirPath must be a string');
   }
@@ -472,7 +504,8 @@ ipcMain.handle('fs:list-dir', async (_event, dirPath: string) => {
 });
 
 // Delete file/directory strictly restricted to userData
-ipcMain.handle('fs:delete', async (_event, targetPath: string) => {
+ipcMain.handle('fs:delete', async (event, targetPath: string) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (typeof targetPath !== 'string') {
     throw new Error('Invalid argument: targetPath must be a string');
   }
@@ -492,11 +525,32 @@ ipcMain.handle('fs:delete', async (_event, targetPath: string) => {
 });
 
 // Open external URL strictly restricted to http/https
-ipcMain.handle('shell:open-external', async (_event, url: string) => {
-  if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+ipcMain.handle('shell:open-external', async (event, url: string) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (isSafeExternalUrl(url)) {
     await shell.openExternal(url);
   } else {
     throw new Error('Invalid URL protocol. Only http: and https: are allowed.');
+  }
+});
+
+// Native OS Clipboard handlers (guarantees clipboard writes work even when window is unfocused or transparent)
+ipcMain.handle('clipboard:write-text', (_event, text: string) => {
+  try {
+    const cleanText = typeof text === 'string' ? text : String(text ?? '');
+    clipboard.writeText(cleanText);
+    return { success: true };
+  } catch (err: any) {
+    console.error('[Main] Failed to write to clipboard:', err);
+    return { success: false, error: err?.message || String(err) };
+  }
+});
+
+ipcMain.handle('clipboard:read-text', () => {
+  try {
+    return clipboard.readText();
+  } catch {
+    return '';
   }
 });
 
@@ -572,7 +626,7 @@ ipcMain.handle(
 
       let text = '';
       if (isMac && fs.existsSync(ocrBin)) {
-        const { stdout } = await execAsync(`"${ocrBin}" "${tmpImg}"`);
+        const { stdout } = await execFileAsync(ocrBin, [tmpImg]);
         text = stdout.trim();
       } else {
         try {
@@ -598,8 +652,9 @@ ipcMain.handle(
         return { success: false, error: 'No text or code could be detected on the screen.' };
       }
 
-      lastCapturedOcrText = text;
-      return { success: true, text };
+      const cleanText = redactSensitiveData(text);
+      lastCapturedOcrText = cleanText;
+      return { success: true, text: cleanText };
     } catch (err: any) {
       console.error('[Electron] Screen OCR error:', err);
       try {
@@ -647,7 +702,7 @@ ipcMain.handle(
 
       let newText = '';
       if (isMac && fs.existsSync(ocrBin)) {
-        const { stdout } = await execAsync(`"${ocrBin}" "${tmpImg}"`);
+        const { stdout } = await execFileAsync(ocrBin, [tmpImg]);
         newText = stdout.trim();
       } else {
         const { stdout } = await execAsync(
@@ -754,23 +809,34 @@ end tell
 });
 
 ipcMain.handle('screen:ocr-image', async (_event, filePath: string) => {
+  if (typeof filePath !== 'string') {
+    return { success: false, error: 'Invalid argument: filePath must be a string' };
+  }
   const isMac = process.platform === 'darwin';
   const ocrBin = path.join(__dirname, '../bin/mac-ocr');
   try {
-    const resolvedPath = path.resolve(filePath);
+    const validation = validateReadPath(filePath, app.getPath('userData'), approvedFilePaths);
+    if (!validation.allowed || !validation.resolvedPath) {
+      return { success: false, error: validation.reason || 'Access denied: File outside authorized path' };
+    }
+    const resolvedPath = validation.resolvedPath;
+
     if (!fs.existsSync(resolvedPath)) {
       return { success: false, error: 'File not found.' };
     }
 
     let text = '';
     if (isMac && fs.existsSync(ocrBin)) {
-      const { stdout } = await execAsync(`"${ocrBin}" "${resolvedPath}"`);
+      const { stdout } = await execFileAsync(ocrBin, [resolvedPath]);
       text = stdout.trim();
     } else {
-      const { stdout } = await execAsync(
-        `tesseract "${resolvedPath}" stdout --oem 1 -l eng 2>/dev/null || tesseract "${resolvedPath}" stdout 2>/dev/null`
-      );
-      text = stdout.trim();
+      try {
+        const { stdout } = await execFileAsync('tesseract', [resolvedPath, 'stdout', '--oem', '1', '-l', 'eng']);
+        text = stdout.trim();
+      } catch {
+        const { stdout } = await execFileAsync('tesseract', [resolvedPath, 'stdout']);
+        text = stdout.trim();
+      }
     }
 
     if (!text) {

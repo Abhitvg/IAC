@@ -10,10 +10,13 @@ export interface AudioFrameEvent {
 
 export type AudioFrameListener = (event: AudioFrameEvent) => void;
 
+export type AudioCaptureState = 'stopped' | 'starting' | 'active' | 'stopping' | 'error';
+
 export class AudioRecorder {
   private static instance: AudioRecorder | null = null;
   private frameListeners: Set<AudioFrameListener> = new Set();
   private lastFrameTime = 0;
+  private captureState: AudioCaptureState = 'stopped';
 
   public static getInstance(): AudioRecorder {
     if (!AudioRecorder.instance) {
@@ -22,12 +25,17 @@ export class AudioRecorder {
     return AudioRecorder.instance;
   }
 
+  public getCaptureState(): AudioCaptureState {
+    return this.captureState;
+  }
+
   public addFrameListener(listener: AudioFrameListener): () => void {
     this.frameListeners.add(listener);
     return () => {
       this.frameListeners.delete(listener);
     };
   }
+
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
   private sourceNode: MediaStreamAudioSourceNode | null = null;
@@ -49,13 +57,20 @@ export class AudioRecorder {
   private silenceThreshold = -52; // dB threshold for silence
   private lastSpeechTime = 0;
   private speechStartDetectedTime = 0;
-  private speechSilenceDuration = 1000; // ms silence before finalizing utterance (optimized for 300ms faster response)
+  private speechSilenceDuration = 1000; // ms silence before finalizing utterance
   private minUtteranceSamples = 16000 * 0.35; // minimum 0.35s of speech
   private maxUtteranceSamples = 16000 * 35; // 35s max duration guard
   private lastDbUpdate = 0;
 
   async start(onUtterance: (blob: Blob) => void): Promise<void> {
-    await this.stop();
+    // Idempotent: if already active or starting, avoid re-attaching
+    if (this.captureState === 'active' || this.captureState === 'starting') {
+      this.onUtteranceCb = onUtterance;
+      return;
+    }
+
+    this.captureState = 'starting';
+    await this.stop(false);
     this.onUtteranceCb = onUtterance;
     this.isListening = true;
     this.isCapturing = false;
@@ -77,19 +92,24 @@ export class AudioRecorder {
         ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : {}),
       };
 
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('navigator.mediaDevices.getUserMedia is not supported in this environment');
+      }
+
       this.mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: audioConstraints,
       });
 
       const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextCtor) {
+        throw new Error('AudioContext is not supported in this environment');
+      }
       this.audioContext = new AudioContextCtor();
       if (this.audioContext.state === 'suspended') {
         await this.audioContext.resume();
       }
 
       this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
-      // Buffer size 4096 gives ~85ms chunks at 48kHz, optimal for speech analysis
-      // Buffer size 1024 gives ~21ms chunks at 48kHz for instant sub-30ms voice tracking
       this.processorNode = this.audioContext.createScriptProcessor(1024, 1, 1);
 
       this.processorNode.onaudioprocess = (e) => {
@@ -106,12 +126,14 @@ export class AudioRecorder {
       this.processorNode.connect(this.gainNode);
       this.gainNode.connect(this.audioContext.destination);
 
+      this.captureState = 'active';
       useAppStore.getState().updateDiagnostics({
         micActive: true,
         mimeType: 'audio/wav (16kHz mono PCM)',
       });
     } catch (e: any) {
       this.isListening = false;
+      this.captureState = 'error';
       useAppStore.getState().updateDiagnostics({
         micActive: false,
         whisperStatus: 'Mic error: ' + (e?.message || e),
@@ -200,7 +222,8 @@ export class AudioRecorder {
       this.utteranceChunks.push(resampled);
       this.totalUtteranceSamples += resampled.length;
 
-      const currentSilenceDuration = useAppStore.getState().speechPauseTolerance || this.speechSilenceDuration;
+      const currentSilenceDuration =
+        useAppStore.getState().speechPauseTolerance || this.speechSilenceDuration;
       const isSilenceTimeout =
         db < this.silenceThreshold && now - this.lastSpeechTime >= currentSilenceDuration;
       const isMaxDurationReached = this.totalUtteranceSamples >= this.maxUtteranceSamples;
@@ -245,10 +268,28 @@ export class AudioRecorder {
     return this.speechSilenceDuration;
   }
 
-  async stop(): Promise<void> {
+  /**
+   * Stop audio recording.
+   * @param flush If true, flushes and finalizes any in-progress speech.
+   *              If false (default), discards in-progress buffer to avoid triggering unwanted requests on stop.
+   */
+  async stop(flush: boolean = false): Promise<void> {
+    if (this.captureState === 'stopped') {
+      return;
+    }
+    this.captureState = 'stopping';
     this.isListening = false;
+
     if (this.isCapturing) {
-      this.finalizeUtterance();
+      if (flush) {
+        this.finalizeUtterance();
+      } else {
+        // Discard in-progress chunks cleanly
+        this.isCapturing = false;
+        this.utteranceChunks = [];
+        this.totalUtteranceSamples = 0;
+        this.speechStartDetectedTime = 0;
+      }
     }
 
     if (this.processorNode) {
@@ -283,9 +324,14 @@ export class AudioRecorder {
       this.audioContext = null;
     }
 
+    this.captureState = 'stopped';
     useAppStore.getState().updateDiagnostics({
       micActive: false,
       speechDetected: false,
     });
+  }
+
+  async cancel(): Promise<void> {
+    await this.stop(false);
   }
 }

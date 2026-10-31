@@ -1,3 +1,4 @@
+import { copyToClipboard } from '../../utils/clipboard';
 import React, { useState } from 'react';
 import {
   Briefcase,
@@ -140,8 +141,8 @@ export function CareerOpsView() {
 
   const activeJob = applications.find((a) => a.id === activeJobId) || applications[0] || null;
 
-  const handleCopy = (text: string, fieldName: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopy = async (text: string, fieldName: string) => {
+    await copyToClipboard(text);
     setCopiedField(fieldName);
     setToast(`Copied ${fieldName} to clipboard!`);
     setTimeout(() => setCopiedField(null), 2000);

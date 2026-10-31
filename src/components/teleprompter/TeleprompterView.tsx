@@ -1,3 +1,4 @@
+import { copyToClipboard } from '../../utils/clipboard';
 import { detectLanguageHint } from '../../services/screenSolver';
 import { readAndParseFile } from '../../services/resume';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
@@ -167,6 +168,134 @@ function QuizAnswerCard({
   );
 }
 
+/* ═══ Layer 4.8: Factual Grounding Badge ═══ */
+function GroundingBadge({
+  validationStatus,
+  isValidated,
+  score,
+  violationsCount,
+  isGenerating,
+}: {
+  validationStatus?: 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FAILED' | 'ABORTED';
+  isValidated: boolean;
+  score: number | null;
+  violationsCount: number;
+  isGenerating: boolean;
+}) {
+  if (isGenerating || validationStatus === 'PENDING') {
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontSize: '11px',
+          fontWeight: 700,
+          color: '#60a5fa',
+          background: 'rgba(59, 130, 246, 0.12)',
+          border: '1px solid rgba(96, 165, 250, 0.35)',
+        }}
+        title="Streaming live token stream. Factual grounding validation occurs upon completion."
+      >
+        ⚡ Live Stream (Validation Pending)
+      </span>
+    );
+  }
+
+  if (validationStatus === 'ABORTED') {
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontSize: '11px',
+          fontWeight: 700,
+          color: '#9ca3af',
+          background: 'rgba(156, 163, 175, 0.15)',
+          border: '1px solid rgba(156, 163, 175, 0.4)',
+        }}
+        title="Generation was aborted."
+      >
+        ⏹️ Generation Aborted
+      </span>
+    );
+  }
+
+  if (validationStatus === 'FAILED') {
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontSize: '11px',
+          fontWeight: 700,
+          color: '#ef4444',
+          background: 'rgba(239, 68, 68, 0.15)',
+          border: '1px solid rgba(239, 68, 68, 0.4)',
+        }}
+        title="Validation failed closed: unsafe or unvalidated answer blocked."
+      >
+        ❌ Factual Grounding: FAILED
+      </span>
+    );
+  }
+
+  if (!isValidated && !validationStatus) {
+    return null;
+  }
+
+  const isClean = isValidated && validationStatus === 'VALIDATED';
+  if (isClean) {
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontSize: '11px',
+          fontWeight: 700,
+          color: '#10b981',
+          background: 'rgba(16, 185, 129, 0.12)',
+          border: '1px solid rgba(52, 211, 153, 0.35)',
+        }}
+        title="100% grounded in verified candidate facts without unsupported technical claims."
+      >
+        🛡️ Factual Grounding: Verified
+      </span>
+    );
+  }
+
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '2px 8px',
+        borderRadius: '12px',
+        fontSize: '11px',
+        fontWeight: 700,
+        color: '#f87171',
+        background: 'rgba(239, 68, 68, 0.15)',
+        border: '1px solid rgba(248, 113, 113, 0.4)',
+      }}
+      title={`${violationsCount} ungrounded claims qualified/adjusted.`}
+    >
+      ⚠️ Grounding: FLAGGED ({violationsCount} Claim{violationsCount > 1 ? 's' : ''} Qualified)
+    </span>
+  );
+}
+
 /* ═══ Layer 5: Answer Confidence Badge ═══ */
 function ConfidenceBadge({ confidence }: { confidence: 'high' | 'medium' | 'low' | null }) {
   if (!confidence) return null;
@@ -309,7 +438,7 @@ function MemoryIndicator({ historyCount }: { historyCount: number }) {
 function extractChatExplanation(answer: string | null | undefined): string {
   if (!answer) return '';
   const spokenMatch = answer.match(
-    /(?:🗣️\s*(?:SPOKEN CANDIDATE SCRIPT|VERBAL EXPLANATION|Spoken script)[:\s]*)([\s\S]*?)(?:$|\n#{1,3}\s|\n\d+\.\s+[🎯⚡📦🧪🗣️])/i
+    /(?:🗣️\s*(?:SPOKEN CANDIDATE SCRIPT|VERBAL EXPLANATION|Spoken script)[:\s]*)([\s\S]*?)(?:$|\n#{1,3}\s|\n\d+\.\s+(?:🎯|⚡|📦|🧪|🗣️))/iu
   );
   if (spokenMatch && spokenMatch[1].trim()) {
     return spokenMatch[1].replace(/^[*-]\s+/gm, '').trim();
@@ -581,6 +710,10 @@ export default function TeleprompterView() {
     currentQuestion,
     currentAnswer,
     status,
+    isAnswerValidated,
+    answerValidationStatus,
+    groundingScore,
+    groundingViolations,
     diagnosticState,
     isRecording,
     isInterviewFocusMode,
@@ -635,8 +768,8 @@ export default function TeleprompterView() {
   const [copiedCodeIndices, setCopiedCodeIndices] = useState<Record<number, boolean>>({});
   const [copiedPrimary, setCopiedPrimary] = useState(false);
 
-  const handleCopyCodeBlock = (code: string, index: number) => {
-    navigator.clipboard.writeText(code);
+  const handleCopyCodeBlock = async (code: string, index: number) => {
+    await copyToClipboard(code);
     setCopiedCodeIndices((prev) => ({ ...prev, [index]: true }));
     setToast('💻 Clean code copied to clipboard!');
     setTimeout(() => {
@@ -644,8 +777,8 @@ export default function TeleprompterView() {
     }, 2500);
   };
 
-  const handleCopyPrimaryCode = () => {
-    const success = copyCodeOnly();
+  const handleCopyPrimaryCode = async () => {
+    const success = await copyCodeOnly();
     if (success) {
       setCopiedPrimary(true);
       setTimeout(() => setCopiedPrimary(false), 2500);
@@ -2022,7 +2155,37 @@ export default function TeleprompterView() {
             }}
           >
             <ConfidenceBadge confidence={answerConfidence} />
+            <GroundingBadge
+              validationStatus={answerValidationStatus}
+              isValidated={isAnswerValidated}
+              score={groundingScore}
+              violationsCount={(groundingViolations || []).length}
+              isGenerating={status === 'generating'}
+            />
             <MemoryIndicator historyCount={(conversationHistory || []).length} />
+          </div>
+        )}
+        {isAnswerValidated && (groundingViolations || []).length > 0 && (
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              borderRadius: '6px',
+              padding: '6px 10px',
+              marginBottom: '8px',
+              fontSize: '11px',
+              color: '#fca5a5',
+            }}
+          >
+            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+              <span>⚠️ Factual Guardrail Notice:</span>
+              <span>{(groundingViolations || []).length} unsupported claim(s) flagged & qualified</span>
+            </div>
+            <ul style={{ margin: 0, paddingLeft: '14px', lineHeight: '1.35' }}>
+              {(groundingViolations || []).map((v, idx) => (
+                <li key={idx}>{v}</li>
+              ))}
+            </ul>
           </div>
         )}
         {currentQuestion && (
@@ -2509,8 +2672,8 @@ export default function TeleprompterView() {
         {(responseMode === 'quiz' || currentAnswer?.includes('CORRECT ANSWER:')) && (
                 <QuizAnswerCard
                   answerText={currentAnswer}
-                  onCopy={(text) => {
-                    navigator.clipboard.writeText(text);
+                  onCopy={async (text) => {
+                    await copyToClipboard(text);
                     setToast('🎯 Correct Option copied to clipboard!');
                   }}
                 />
@@ -2611,8 +2774,8 @@ export default function TeleprompterView() {
 
                       <button
                         type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(text);
+                        onClick={async () => {
+                          await copyToClipboard(text);
                           setToast('📋 Text copied to clipboard!');
                         }}
                         title="Copy text"

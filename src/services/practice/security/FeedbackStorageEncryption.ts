@@ -84,8 +84,8 @@ export async function encryptPayload(data: unknown, customKey?: string): Promise
     rawData
   );
 
-  const ivB64 = Buffer.from(iv).toString('base64');
-  const dataB64 = Buffer.from(ciphertext).toString('base64');
+  const ivB64 = btoa(String.fromCharCode(...iv));
+  const dataB64 = btoa(String.fromCharCode(...new Uint8Array(ciphertext)));
 
   return `${ENCRYPTION_PREFIX}${ivB64}:${dataB64}`;
 }
@@ -104,8 +104,17 @@ export async function decryptPayload<T>(encryptedPayload: string, customKey?: st
   }
 
   const [ivB64, dataB64] = parts;
-  const iv = new Uint8Array(Buffer.from(ivB64, 'base64'));
-  const ciphertext = new Uint8Array(Buffer.from(dataB64, 'base64'));
+  const ivBinary = atob(ivB64);
+  const iv = new Uint8Array(ivBinary.length);
+  for (let i = 0; i < ivBinary.length; i++) {
+    iv[i] = ivBinary.charCodeAt(i);
+  }
+
+  const cipherBinary = atob(dataB64);
+  const ciphertext = new Uint8Array(cipherBinary.length);
+  for (let i = 0; i < cipherBinary.length; i++) {
+    ciphertext[i] = cipherBinary.charCodeAt(i);
+  }
 
   const keySource = customKey || getDefaultKeySource();
   const cryptoKey = await deriveCryptoKey(keySource);

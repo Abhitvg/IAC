@@ -1,16 +1,19 @@
 /**
  * Whisper Transcription Service
- * Supports OpenAI Whisper API and local Whisper implementations
+ * Supports Groq Whisper Large V3 Turbo, OpenAI Whisper, and local Whisper servers.
+ * Includes request-scoped cancellation via AbortSignal, audio payload validation,
+ * dynamic domain vocabulary priming, and post-processing corrections.
  */
 
 import { TECH_TERMS } from './ai';
 import { getDynamicWhisperVocab } from './candidatePersona';
 import { useAppStore } from '../store/useAppStore';
-import { convertBlobToWav } from '../utils/audioConversion';
+import { convertBlobToWav, isValidWav } from '../utils/audioConversion';
 
 export interface WhisperConfig {
+  provider?: 'groq' | 'openai' | 'local';
   apiKey?: string;
-  model: string;
+  model?: string;
   endpoint?: string;
   language?: string;
 }
@@ -31,58 +34,104 @@ export interface TranscriptionSegment {
 async function readErrorBody(response: Response): Promise<string> {
   try {
     const body = await response.text();
-    // Keep diagnostics useful without dumping arbitrarily large server responses.
     return body.slice(0, 1500) || '(empty response body)';
   } catch {
     return '(could not read response body)';
   }
 }
 
-/** Transcribe audio using Groq Whisper Large V3 Turbo, OpenAI, or local server. */
+/**
+ * Transcribe audio using Groq Whisper Large V3 Turbo, OpenAI Whisper, or a local server.
+ * Propagates AbortSignal to all fetch requests.
+ */
 export async function transcribeAudio(
   audioBlob: Blob,
-  config: WhisperConfig
+  config: WhisperConfig = {},
+  signal?: AbortSignal
 ): Promise<TranscriptionResult> {
-  const apiKey =
-    config.apiKey ||
-    (await window.electronAPI?.getApiKey?.('groq')) ||
-    (await window.electronAPI?.getApiKey?.('openai')) ;
+  if (signal?.aborted) {
+    const abortErr = new Error('Transcription aborted');
+    abortErr.name = 'AbortError';
+    throw abortErr;
+  }
 
-  if (
-    config.endpoint &&
-    !config.endpoint.includes('groq.com') &&
-    !config.endpoint.includes('openai.com')
-  ) {
-    return transcribeLocal(audioBlob, config);
+  // 1. Validate audio payload before network transmission
+  if (!audioBlob || audioBlob.size < 400) {
+    return { text: '' };
+  }
+
+  const arrayBuf = await audioBlob.arrayBuffer();
+  // Quick sanity check on audio buffer structure
+  if (arrayBuf.byteLength >= 44) {
+    // If it's supposed to be WAV, check validation
+    const headerStr = String.fromCharCode(...new Uint8Array(arrayBuf.slice(0, 4)));
+    if (headerStr === 'RIFF' && !isValidWav(arrayBuf)) {
+      console.warn('[Whisper] Audio payload failed strict WAV validation. Attempting conversion...');
+    }
+  }
+
+  // 2. Determine target provider
+  const targetProvider =
+    config.provider ||
+    (config.endpoint && !config.endpoint.includes('groq.com') && !config.endpoint.includes('openai.com')
+      ? 'local'
+      : config.model?.toLowerCase().includes('whisper-1')
+        ? 'openai'
+        : 'groq');
+
+  if (targetProvider === 'local') {
+    return transcribeLocal(audioBlob, config, signal);
+  }
+
+  // 3. Resolve API key
+  let apiKey = config.apiKey;
+  if (!apiKey && typeof window !== 'undefined' && window.electronAPI?.getApiKey) {
+    apiKey = (await window.electronAPI.getApiKey(targetProvider)) || undefined;
+    if (!apiKey && targetProvider === 'groq') {
+      // Fallback to openai key if configured
+      apiKey = (await window.electronAPI.getApiKey('openai')) || undefined;
+    }
+  }
+
+  if (!apiKey && typeof import.meta !== 'undefined' && (import.meta as any).env) {
+    const env = (import.meta as any).env;
+    if (targetProvider === 'groq') {
+      apiKey = env.VITE_GROQ_API_KEY || env.GROQ_API_KEY;
+    } else {
+      apiKey = env.VITE_OPENAI_API_KEY || env.OPENAI_API_KEY;
+    }
   }
 
   if (apiKey) {
     const match = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
     const cleanKey = match ? match[0] : apiKey.trim();
-    if (cleanKey.startsWith('gsk_')) {
-      return transcribeGroq(audioBlob, cleanKey, config);
+
+    if (targetProvider === 'groq' || cleanKey.startsWith('gsk_')) {
+      return transcribeGroq(audioBlob, cleanKey, config, signal);
     }
-    return transcribeOpenAI(audioBlob, { ...config, apiKey: cleanKey });
+    return transcribeOpenAI(audioBlob, { ...config, apiKey: cleanKey }, signal);
   }
 
   throw new Error(
-    'No speech-to-text API key found. Please configure your Groq or OpenAI API key in Settings.'
+    `No speech-to-text API key found for ${targetProvider.toUpperCase()}. Please configure your API key in Settings.`
   );
 }
 
 async function transcribeGroq(
   audioBlob: Blob,
   apiKey: string,
-  config?: WhisperConfig
+  config?: WhisperConfig,
+  signal?: AbortSignal
 ): Promise<TranscriptionResult> {
   const wavBlob = await convertBlobToWav(audioBlob);
   const formData = new FormData();
   formData.append('file', wavBlob, 'recording.wav');
-  formData.append('model', 'whisper-large-v3-turbo');
+  formData.append('model', config?.model || 'whisper-large-v3-turbo');
   formData.append('response_format', 'verbose_json');
 
   if (config?.language) formData.append('language', config.language);
-  // Layer 4: Dynamic Whisper Priming — context-aware vocabulary injection
+
+  // Dynamic Whisper Priming: context-aware vocabulary injection
   const store = useAppStore.getState();
   const lastCategory =
     store.conversationHistory?.length > 0
@@ -102,6 +151,7 @@ async function transcribeGroq(
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}` },
     body: formData,
+    signal,
   });
 
   if (!response.ok) {
@@ -124,7 +174,8 @@ async function transcribeGroq(
 
 async function transcribeOpenAI(
   audioBlob: Blob,
-  config: WhisperConfig
+  config: WhisperConfig,
+  signal?: AbortSignal
 ): Promise<TranscriptionResult> {
   const wavBlob = await convertBlobToWav(audioBlob);
   const formData = new FormData();
@@ -143,6 +194,7 @@ async function transcribeOpenAI(
     method: 'POST',
     headers: { Authorization: `Bearer ${config.apiKey}` },
     body: formData,
+    signal,
   });
 
   if (!response.ok) {
@@ -166,7 +218,8 @@ async function transcribeOpenAI(
 /** Supports local endpoints with a multipart "file" field, such as whisper.cpp server. */
 async function transcribeLocal(
   audioBlob: Blob,
-  config: WhisperConfig
+  config: WhisperConfig,
+  signal?: AbortSignal
 ): Promise<TranscriptionResult> {
   const wavBlob = await convertBlobToWav(audioBlob);
   const formData = new FormData();
@@ -183,7 +236,7 @@ async function transcribeLocal(
   formData.append('response_format', 'json');
 
   const endpoint = config.endpoint || 'http://localhost:8080/inference';
-  const response = await fetch(endpoint, { method: 'POST', body: formData });
+  const response = await fetch(endpoint, { method: 'POST', body: formData, signal });
 
   if (!response.ok) {
     const detail = await readErrorBody(response);
@@ -196,7 +249,6 @@ async function transcribeLocal(
     data = await response.json();
   } else {
     const text = await response.text();
-    // Some local Whisper servers return plain text rather than JSON.
     data = { text };
   }
 
@@ -210,7 +262,7 @@ async function transcribeLocal(
   };
 }
 
-function postProcessTranscript(text: string): string {
+export function postProcessTranscript(text: string): string {
   let processed = text.replace(/\[[^\]]+\]|\([^)]+\)/g, '').trim();
   const corrections: Record<string, string> = {
     'aws code pipeline': 'AWS CodePipeline',

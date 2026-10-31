@@ -166,9 +166,10 @@ MULTILINGUAL TRANSLATION & ZERO-HALLUCINATION DIRECTIVES:
      • Under "**🌐 ENGLISH TRANSLATION:**", translate the full question, constraints, inputs, and examples into clear, precise English.
    - If English: state "**Detected Language: English 🇬🇧**".
 
-2. STRICT 100% ACCURACY & ZERO-HALLUCINATION:
+2. FAITHFUL PROBLEM EXTRACTION & EXPLICIT ASSUMPTIONS:
    - Adhere strictly to the exact problem, constraints, and inputs from the screen.
-   - Do NOT invent phantom libraries, unstated assumptions, or non-existent constraints.
+   - If OCR text appears cropped, incomplete, or ambiguous, explicitly state assumptions under "**⚠️ Assumptions:**" rather than silently inventing missing problem details.
+   - Do NOT invent phantom libraries or non-existent constraints.
 
 ${
   mode === 'quiz'

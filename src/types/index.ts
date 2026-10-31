@@ -66,6 +66,26 @@ export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
 export type ResponseMode = 'coding' | 'interview' | 'quiz' | 'quick' | 'deep';
 
+export type QuestionIntent =
+  | 'definition'
+  | 'conceptual'
+  | 'comparison'
+  | 'implementation'
+  | 'troubleshooting'
+  | 'coding'
+  | 'system_design'
+  | 'distributed_systems'
+  | 'databases_sql'
+  | 'os_networking'
+  | 'runtime_internals'
+  | 'cloud_devops'
+  | 'testing_reliability'
+  | 'security'
+  | 'behavioral'
+  | 'resume'
+  | 'quiz'
+  | 'follow_up';
+
 export type ProgrammingLanguage =
   'java' | 'python' | 'cpp' | 'javascript' | 'typescript' | 'go' | 'csharp';
 
@@ -232,6 +252,12 @@ export interface ElectronAPI {
     code: string,
     delayMs?: number
   ) => Promise<{ success: boolean; method?: string; error?: string; warning?: string }>;
+  inspectRepository?: (request: any) => Promise<any>;
+  inspectDocument?: (request: any) => Promise<any>;
+  verifyIndependentAudit?: (attestation: any) => Promise<any>;
+  verifyInspectionSeal?: (result: any) => Promise<boolean>;
+  copyToClipboard?: (text: string) => Promise<{ success: boolean; error?: string }>;
+  readClipboard?: () => Promise<string>;
   platform: string;
 }
 

@@ -1,46 +1,105 @@
+/**
+ * InterviewEngine
+ *
+ * Core coordinator for the real-time AI interview assistant workflow.
+ * Manages audio recording, transcription, question detection, candidate recital vs. interruption classification,
+ * answer streaming, request-scoped cancellation, and stale-response protection.
+ */
+
 import {
   cleanExtractedOcrText,
   extractProblemHeadline,
-  buildScreenSolverPrompt,
   detectLanguageHint,
 } from './screenSolver';
 import { classifyUtterance } from './interruptionDetector';
-import { buildCandidateSystemPrompt, estimateConfidence } from './candidatePersona';
-import { classifyQuestion } from './ai';
 import { globalLatencyTracker } from './LatencyTracker';
 import { useAppStore } from '../store/useAppStore';
 import { AudioRecorder } from './audio';
 import { transcribeAudio } from './whisper';
-import { streamAnswer } from './ai';
+import { AnswerGenerationService } from './AnswerGenerationService';
+
+export type EngineEvent =
+  | { type: 'START_LISTENING' }
+  | { type: 'STOP_LISTENING' }
+  | { type: 'UTTERANCE_FINALIZED'; blob: Blob; requestId?: string }
+  | { type: 'QUESTION_DETECTED'; text: string; requestId?: string }
+  | { type: 'SCREEN_PROBLEM_DETECTED'; text?: string; rawText?: string; requestId?: string; mode?: string }
+  | { type: 'REGENERATE_ACTIVE_ANSWER' }
+  | { type: 'CANCEL_ACTIVE_REQUEST' };
 
 const audioService = AudioRecorder.getInstance();
+const answerService = AnswerGenerationService.getInstance();
+
 let activeAbortController: AbortController | null = null;
+let activeRequestId: string | null = null;
+let activeTranscriptionController: AbortController | null = null;
 
 export class InterviewEngine {
-  static abortActiveGeneration() {
+  /**
+   * Aborts any in-flight AI answer generation.
+   */
+  static abortActiveGeneration(): void {
     if (activeAbortController) {
       activeAbortController.abort();
       activeAbortController = null;
+      const store = useAppStore.getState();
+      store.setAnswerValidationStatus('ABORTED');
+      store.setIsAnswerValidated(false);
     }
   }
 
-  static async handleEvent(event: any) {
+  /**
+   * Aborts in-flight audio transcription.
+   */
+  static abortActiveTranscription(): void {
+    if (activeTranscriptionController) {
+      activeTranscriptionController.abort();
+      activeTranscriptionController = null;
+    }
+  }
+
+  /**
+   * Cancels all active in-flight requests (transcription and generation).
+   */
+  static cancelAllActiveWork(): void {
+    activeRequestId = null;
+    InterviewEngine.abortActiveGeneration();
+    InterviewEngine.abortActiveTranscription();
+  }
+
+  /**
+   * Handles lifecycle and user events for the interview session.
+   */
+  static async handleEvent(event: EngineEvent): Promise<void> {
     const store = useAppStore.getState();
 
     switch (event.type) {
-      case 'START_LISTENING':
+      case 'START_LISTENING': {
+        // Idempotent start: if already active or starting, ignore redundant trigger
+        if (store.status === 'listening' || audioService.getCaptureState() === 'active') {
+          return;
+        }
+
+        InterviewEngine.cancelAllActiveWork();
         globalLatencyTracker.mark('speechStart');
         store.setStatus('listening');
         store.setRecitalState('listening');
         store.setToast('🎙️ Microphone Active — Listening for speech...');
+
         try {
           await audioService.start(async (utteranceBlob: Blob) => {
-            if (utteranceBlob.size < 500) {
-              store.updateDiagnostics({ whisperStatus: 'empty (blob too small)' });
+            // Guard: If capture was stopped while an utterance was finalizing, ignore
+            if (useAppStore.getState().status === 'idle' || audioService.getCaptureState() === 'stopped') {
               return;
             }
-            store.updateDiagnostics({ whisperStatus: 'transcribing...' });
-            InterviewEngine.handleEvent({
+
+            if (utteranceBlob.size < 500) {
+              useAppStore.getState().updateDiagnostics({ whisperStatus: 'empty (blob too small)' });
+              return;
+            }
+
+            useAppStore.getState().updateDiagnostics({ whisperStatus: 'transcribing...' });
+            await InterviewEngine.handleEvent({
               type: 'UTTERANCE_FINALIZED',
               blob: utteranceBlob,
             });
@@ -60,13 +119,36 @@ export class InterviewEngine {
           store.setRecitalState('idle');
         }
         break;
+      }
 
-      case 'UTTERANCE_FINALIZED':
+      case 'UTTERANCE_FINALIZED': {
+        // Guard: Stale or stopped session check
+        if (store.status === 'idle') {
+          return;
+        }
+
+        const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        activeRequestId = requestId;
+
+        InterviewEngine.abortActiveTranscription();
+        activeTranscriptionController = new AbortController();
+
         globalLatencyTracker.mark('speechEnd');
         globalLatencyTracker.mark('transcriptionStart');
         store.setStatus('transcribing');
+
         try {
-          const result = await transcribeAudio(event.blob, store.settings);
+          const result = await transcribeAudio(
+            event.blob,
+            store.settings,
+            activeTranscriptionController.signal
+          );
+
+          // Check if this transcription was superseded by a newer request or cancelled
+          if (activeRequestId !== requestId || useAppStore.getState().status === 'idle') {
+            return;
+          }
+
           globalLatencyTracker.mark('transcriptionEnd');
           let text = (result?.text || '').trim();
 
@@ -74,22 +156,22 @@ export class InterviewEngine {
           text = text.replace(/\[[^\]]+\]|\([^)]+\)/g, '').trim();
 
           if (!text) {
-            store.updateDiagnostics({
+            useAppStore.getState().updateDiagnostics({
               whisperStatus: 'no speech detected in utterance',
             });
-            store.setStatus('listening');
+            useAppStore.getState().setStatus('listening');
             return;
           }
 
-          store.updateDiagnostics({
+          useAppStore.getState().updateDiagnostics({
             latestTranscript: text,
           });
 
           // Intelligent Classification: Distinguish Candidate Recital vs. Third-Person Interruption
           const classification = classifyUtterance(
             text,
-            store.currentAnswer,
-            store.teleprompterQueue
+            useAppStore.getState().currentAnswer,
+            useAppStore.getState().teleprompterQueue
           );
 
           console.log(
@@ -99,39 +181,36 @@ export class InterviewEngine {
             `"${text}"`
           );
 
-          // 1. CANDIDATE RECITAL: Candidate is repeating the teleprompted answer
-          // -> Suppress mic echo so it does NOT wipe or re-trigger the teleprompter
+          // 1. CANDIDATE RECITAL: Candidate is speaking/repeating the teleprompted answer
           if (classification.type === 'CANDIDATE_RECITAL') {
-            store.setRecitalState('reciting');
-            store.updateDiagnostics({
+            useAppStore.getState().setRecitalState('reciting');
+            useAppStore.getState().updateDiagnostics({
               whisperStatus: `🗣️ Mic paused for self-speech: ${classification.reason}`,
               recitalState: 'reciting',
               questionMatched: false,
             });
 
-            store.addTranscript({
+            useAppStore.getState().addTranscript({
               id: Date.now().toString(),
               speaker: 'user',
               text: text,
               timestamp: Date.now(),
             });
 
-            // Keep the teleprompter answer completely active and visible!
-            store.setStatus('listening');
+            useAppStore.getState().setStatus('listening');
             return;
           }
 
           // 2. CONVERSATIONAL FILLER ("Yeah", "Okay", "Right")
           if (classification.type === 'CONVERSATIONAL_FILLER') {
-            store.updateDiagnostics({
+            useAppStore.getState().updateDiagnostics({
               whisperStatus: `Conversational filler ignored ("${text}")`,
             });
-            store.setStatus('listening');
+            useAppStore.getState().setStatus('listening');
             return;
           }
 
           // 3. INTERVIEWER INTERRUPTION OR NEW QUESTION
-          // -> Third person interrupted! Immediately react, capture question, and stream answer
           if (
             classification.type === 'INTERVIEWER_INTERRUPTION' ||
             classification.type === 'INTERVIEWER_QUESTION'
@@ -139,9 +218,9 @@ export class InterviewEngine {
             const questionText = classification.questionText || text;
             const isInterruption = classification.type === 'INTERVIEWER_INTERRUPTION';
 
-            store.setRecitalState(isInterruption ? 'interrupted' : 'listening');
-            store.setLastInterruption(questionText);
-            store.updateDiagnostics({
+            useAppStore.getState().setRecitalState(isInterruption ? 'interrupted' : 'listening');
+            useAppStore.getState().setLastInterruption(questionText);
+            useAppStore.getState().updateDiagnostics({
               latestTranscript: questionText,
               whisperStatus: isInterruption
                 ? `⚡ Interviewer interruption: "${questionText.slice(0, 45)}..."`
@@ -151,31 +230,50 @@ export class InterviewEngine {
             });
 
             if (isInterruption) {
-              store.setToast(`⚡ Third-person interruption: "${questionText.slice(0, 50)}..."`);
+              useAppStore.getState().setToast(`⚡ Third-person interruption: "${questionText.slice(0, 50)}..."`);
             }
 
-            store.addTranscript({
+            useAppStore.getState().addTranscript({
               id: Date.now().toString(),
               speaker: 'interviewer',
               text: questionText,
               timestamp: Date.now(),
             });
 
-            InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: questionText });
+            await InterviewEngine.handleEvent({
+              type: 'QUESTION_DETECTED',
+              text: questionText,
+              requestId,
+            });
             return;
           }
 
-          store.setStatus('listening');
+          useAppStore.getState().setStatus('listening');
         } catch (e: any) {
-          store.updateDiagnostics({
-            whisperStatus: 'error: ' + (e?.message || e),
-          });
-          console.error('[InterviewEngine] Transcription error:', e);
-          store.setStatus('listening');
+          if (e.name !== 'AbortError') {
+            useAppStore.getState().updateDiagnostics({
+              whisperStatus: 'error: ' + (e?.message || e),
+            });
+            console.error('[InterviewEngine] Transcription error:', e);
+            useAppStore.getState().setStatus('listening');
+          }
         }
         break;
+      }
 
       case 'QUESTION_DETECTED': {
+        const incomingText = event.text.trim();
+        // Guard: Prevent duplicate questions from generating duplicate answers accidentally
+        if (
+          incomingText &&
+          store.currentQuestion &&
+          incomingText.toLowerCase() === store.currentQuestion.trim().toLowerCase() &&
+          (store.status === 'generating' || store.status === 'analyzing')
+        ) {
+          console.log('[InterviewEngine] Deduplicating identical in-flight question:', incomingText);
+          return;
+        }
+
         globalLatencyTracker.mark('questionDetected');
 
         const isExtending = store.isIncompleteQuestionMode && Boolean(store.currentQuestion);
@@ -198,169 +296,103 @@ export class InterviewEngine {
         InterviewEngine.abortActiveGeneration();
 
         activeAbortController = new AbortController();
+        const requestId = event.requestId || 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        activeRequestId = requestId;
+
         store.incrementGenerationId();
+        const currentGen = useAppStore.getState().generationId;
+
         store.clearAnswerQueue();
         store.setCurrentQuestion(finalQuestion);
         store.setCurrentAnswer('');
+        store.setActiveRequestId(requestId);
+        store.setAnswerValidationStatus('PENDING');
+        store.setIsAnswerValidated(false);
+        store.setGroundingResult(null, []);
         store.setStatus('analyzing');
         store.setRecitalState('listening');
 
-        const currentGen = useAppStore.getState().generationId;
+        globalLatencyTracker.mark('generationStart');
+        const currentStore = useAppStore.getState();
 
-        try {
-          globalLatencyTracker.mark('generationStart');
-          const currentStore = useAppStore.getState();
-          const provider = currentStore.settings?.aiProvider || 'groq';
-          let apiKey =
-            (await window.electronAPI?.getApiKey?.(provider)) ||
-            (provider === 'groq' ? await window.electronAPI?.getApiKey?.('openai') : null) ;
-          if (apiKey && provider === 'groq') {
-            const m = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
-            if (m) apiKey = m[0];
-          }
-
-          if (!apiKey && provider !== 'ollama') {
-            throw new Error(
-              `No API key configured for ${provider}. Please configure your API key in Settings.`
-            );
-          }
-
-          const mode = currentStore.responseMode || 'interview';
-          const isCoding = mode === 'coding';
-          const preferredLang = currentStore.settings?.preferredLanguage || 'Java';
-
-          // Classify question for smart routing & category-specific prompts
-          const { category: detectedCategory } = classifyQuestion(event.text);
-
-          // Estimate answer confidence
-          const confidence = estimateConfidence(
-            detectedCategory,
-            currentStore.resumeText,
-            event.text
-          );
-          useAppStore.getState().setAnswerConfidence(confidence);
-
-          // Smart Model Router: Route to optimal model based on question complexity
-          const isHardQuestion =
-            ['System Design', 'Coding', 'DSA'].includes(detectedCategory) ||
-            event.text.length > 100;
-          const smartModel = 'openai/gpt-oss-120b';
-          const smartTemperature = isCoding
-            ? 0.1
-            : isHardQuestion
-              ? 0.2
-              : store.settings?.temperature || 0.45;
-          const smartMaxTokens = isCoding
-            ? 2500
-            : isHardQuestion
-              ? 1800
-              : store.settings?.maxTokens || 1200;
-
-          // Build system prompt with conversation memory + category context
-          const candidateSystemPrompt = buildCandidateSystemPrompt(
-            currentStore.resumeText,
-            currentStore.jobDescriptionText,
-            currentStore.targetRole,
-            preferredLang,
-            mode as any,
-            currentStore.conversationHistory || [],
-            detectedCategory
-          );
-
-          await streamAnswer(
-            event.text,
-            {
-              type: (provider || 'groq') as any,
-              apiKey: apiKey || '',
-              // Use frontier 120B model for coding & quiz for 100% precision & higher token limits
-              model: smartModel,
-              temperature: smartTemperature,
-              maxTokens: smartMaxTokens,
-              systemPrompt: candidateSystemPrompt,
+        await answerService.generateAnswer(
+          {
+            requestId,
+            type: 'interview',
+            text: finalQuestion,
+            provider: currentStore.settings?.aiProvider || 'groq',
+            model: currentStore.settings?.aiModel,
+            preferredLanguage: currentStore.settings?.preferredLanguage || 'Java',
+            responseMode: currentStore.responseMode || 'interview',
+            resumeText: currentStore.resumeText,
+            jobDescriptionText: currentStore.jobDescriptionText,
+            targetRole: currentStore.targetRole,
+            conversationHistory: currentStore.conversationHistory || [],
+            signal: activeAbortController.signal,
+          },
+          {
+            onToken: (token, rId) => {
+              if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              useAppStore.getState().appendAnswerToken(token);
+              if (useAppStore.getState().status !== 'generating') {
+                useAppStore.getState().setStatus('generating');
+              }
             },
-            preferredLang.toLowerCase() as any,
-            {
-              onToken: (token) => {
-                if (useAppStore.getState().generationId === currentGen) {
-                  useAppStore.getState().appendAnswerToken(token);
-                  if (useAppStore.getState().status !== 'generating') {
-                    useAppStore.getState().setStatus('generating');
-                  }
-                }
-              },
-              onSentence: (sentence) => {
-                if (!(globalLatencyTracker as any)._firstSentenceFired) {
-                  (globalLatencyTracker as any)._firstSentenceFired = true;
-                  globalLatencyTracker.mark('firstSentence');
-                }
-                if (useAppStore.getState().generationId === currentGen) {
-                  const currentQueue = useAppStore.getState().teleprompterQueue;
-                  useAppStore.getState().enqueueSentences([...currentQueue, sentence]);
-                }
-              },
-              onComplete: (full) => {
-                globalLatencyTracker.mark('generationEnd');
-                console.log('Latency Report:', globalLatencyTracker.getReport());
-                if (useAppStore.getState().generationId === currentGen) {
-                  // Parse and extract follow-up predictions from AI response
-                  let cleanedAnswer = full;
-                  const followUpMatch = full.match(/FOLLOW_UPS:\s*(.+?)(?:\n|$)/i);
-                  if (followUpMatch && followUpMatch[1]) {
-                    const followUps = followUpMatch[1]
-                      .split('|')
-                      .map((f: string) => f.trim())
-                      .filter((f: string) => f.length > 5);
-                    useAppStore.getState().setPredictedFollowUps(followUps.slice(0, 3));
-                    // Remove the FOLLOW_UPS line from displayed answer
-                    cleanedAnswer = full.replace(/FOLLOW_UPS:\s*.+?(?:\n|$)/i, '').trim();
-                  }
+            onSentence: (sentence, rId) => {
+              if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              globalLatencyTracker.markFirstSentenceOnce();
+              const currentQueue = useAppStore.getState().teleprompterQueue;
+              useAppStore.getState().enqueueSentences([...currentQueue, sentence]);
+            },
+            onComplete: (res) => {
+              const state = useAppStore.getState();
+              if (res.requestId !== activeRequestId || res.requestId !== state.activeRequestId || state.generationId !== currentGen) {
+                console.warn('[InterviewEngine] Discarded stale generation result:', res.requestId);
+                return;
+              }
+              globalLatencyTracker.mark('generationEnd');
+              console.log('Latency Report:', globalLatencyTracker.getReport());
 
-                  useAppStore.getState().setCurrentAnswer(cleanedAnswer);
+              state.setPredictedFollowUps(res.predictedFollowUps);
+              state.setCurrentAnswer(res.cleanAnswer);
+              state.setAnswerConfidence(res.confidence);
+              state.setAnswerValidationStatus(res.validationStatus);
+              state.setIsAnswerValidated(res.validationStatus === 'VALIDATED');
+              state.setGroundingResult(res.groundingScore ?? 100, res.groundingViolations ?? []);
 
-                  // Add to conversation memory for context threading
-                  const currentQ = useAppStore.getState().currentQuestion;
-                  if (currentQ) {
-                    useAppStore.getState().addToConversationHistory({
-                      question: currentQ,
-                      answer: cleanedAnswer.slice(0, 300),
-                      category: detectedCategory,
-                    });
-                  }
+              const currentQ = useAppStore.getState().currentQuestion;
+              if (currentQ) {
+                useAppStore.getState().addToConversationHistory({
+                  question: currentQ,
+                  answer: res.cleanAnswer.slice(0, 300),
+                  category: res.detectedCategory,
+                });
+              }
 
-                  // Transition back to listening
-                  useAppStore.getState().setRecitalState('listening');
+              useAppStore.getState().setRecitalState('listening');
+              useAppStore.getState().setStatus('ready');
+            },
+            onError: (err, rId) => {
+              if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              console.error('[InterviewEngine] Generation stream error:', err);
+              useAppStore.getState().updateDiagnostics({
+                whisperStatus: 'gen error: ' + (err.message || String(err)),
+              });
+              useAppStore.getState().setStatus('error');
+              setTimeout(() => {
+                if (useAppStore.getState().status === 'error') {
                   useAppStore.getState().setStatus('listening');
                 }
-              },
-              onError: (err) => {
-                console.error('[InterviewEngine] Generation stream error:', err);
-                store.updateDiagnostics({
-                  whisperStatus: 'gen error: ' + (err.message || String(err)),
-                });
-              },
+              }, 3000);
             },
-            activeAbortController.signal
-          );
-        } catch (e: any) {
-          if (e.name !== 'AbortError') {
-            console.error('[InterviewEngine] Generation Failed:', e.message);
-            store.updateDiagnostics({
-              whisperStatus: 'generation error: ' + (e.message || String(e)),
-            });
-            store.setStatus('error');
-            setTimeout(() => {
-              if (useAppStore.getState().status === 'error') {
-                console.log('[InterviewEngine] Auto-recovering to listening state.');
-                store.setStatus('listening');
-              }
-            }, 3000);
           }
-        }
+        );
         break;
       }
 
       case 'SCREEN_PROBLEM_DETECTED': {
         globalLatencyTracker.mark('questionDetected');
+
         if (store.currentQuestion && store.currentQuestion.trim() !== '') {
           store.pushToQuestionHistory({
             question: store.currentQuestion,
@@ -368,13 +400,19 @@ export class InterviewEngine {
             confidence: store.answerConfidence,
           });
         }
+
         InterviewEngine.abortActiveGeneration();
 
         activeAbortController = new AbortController();
+        const requestId = event.requestId || 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        activeRequestId = requestId;
+
         store.incrementGenerationId();
+        const screenGen = useAppStore.getState().generationId;
+
         store.clearAnswerQueue();
 
-        const cleanedOcr = cleanExtractedOcrText(event.rawText || event.text);
+        const cleanedOcr = cleanExtractedOcrText(event.rawText || event.text || '');
         const headline = extractProblemHeadline(cleanedOcr);
         const lang = detectLanguageHint(cleanedOcr);
 
@@ -384,6 +422,8 @@ export class InterviewEngine {
 
         store.setCurrentQuestion(`${titlePrefix} ${headline}`);
         store.setCurrentAnswer('');
+        store.setIsAnswerValidated(false);
+        store.setGroundingResult(null, []);
         store.setStatus('analyzing');
         store.setRecitalState('listening');
 
@@ -397,106 +437,95 @@ export class InterviewEngine {
           );
         }
 
-        const screenGen = useAppStore.getState().generationId;
+        globalLatencyTracker.mark('generationStart');
+        const currentStore = useAppStore.getState();
 
-        try {
-          globalLatencyTracker.mark('generationStart');
-          const currentStore = useAppStore.getState();
-          const provider = currentStore.settings?.aiProvider || 'groq';
-          let apiKey =
-            (await window.electronAPI?.getApiKey?.(provider)) ||
-            (provider === 'groq' ? await window.electronAPI?.getApiKey?.('openai') : null) ||
-            (typeof import.meta !== 'undefined'
-              ? (import.meta as any).env?.VITE_GROQ_API_KEY
-              : null);
-          if (apiKey && provider === 'groq') {
-            const m = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
-            if (m) apiKey = m[0];
-          }
-
-          if (!apiKey && provider !== 'ollama') {
-            throw new Error(
-              `No API key configured for ${provider}. Please configure your API key in Settings.`
-            );
-          }
-
-          const mode = currentStore.responseMode || 'coding';
-          const isCoding = mode === 'coding';
-          const preferredLang = currentStore.settings?.preferredLanguage || 'Java';
-
-          const screenSolverPrompt = buildScreenSolverPrompt(
-            cleanedOcr,
-            preferredLang,
-            currentStore.targetRole,
-            mode
-          );
-
-          await streamAnswer(
-            screenSolverPrompt,
-            {
-              type: provider as any,
-              apiKey: apiKey || '',
-              model: currentStore.settings?.aiModel || 'openai/gpt-oss-120b',
-              temperature: 0.1,
-              maxTokens: isCoding ? 3500 : store.settings?.maxTokens || 1500,
-              systemPrompt:
-                'You are a world-class Principal Software Engineer and ACM ICPC World Finalist. You deliver 100% verified, bug-free, optimal, compilable code and rigorous algorithmic proofs with ZERO hallucinations.',
+        await answerService.generateAnswer(
+          {
+            requestId,
+            type: 'screen',
+            text: headline,
+            rawText: event.rawText || event.text || '',
+            provider: currentStore.settings?.aiProvider || 'groq',
+            model: currentStore.settings?.aiModel,
+            preferredLanguage: currentStore.settings?.preferredLanguage || 'Java',
+            responseMode: 'coding',
+            targetRole: currentStore.targetRole,
+            signal: activeAbortController.signal,
+          },
+          {
+            onToken: (token, rId) => {
+              if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen) return;
+              useAppStore.getState().appendAnswerToken(token);
+              if (useAppStore.getState().status !== 'generating') {
+                useAppStore.getState().setStatus('generating');
+              }
             },
-            preferredLang.toLowerCase() as any,
-            {
-              onToken: (token) => {
-                if (useAppStore.getState().generationId === screenGen) {
-                  useAppStore.getState().appendAnswerToken(token);
-                  if (useAppStore.getState().status !== 'generating') {
-                    useAppStore.getState().setStatus('generating');
-                  }
-                }
-              },
-              onSentence: (sentence) => {
-                if (useAppStore.getState().generationId === screenGen) {
-                  const currentQueue = useAppStore.getState().teleprompterQueue;
-                  useAppStore.getState().enqueueSentences([...currentQueue, sentence]);
-                }
-              },
-              onComplete: (full) => {
-                globalLatencyTracker.mark('generationEnd');
-                if (useAppStore.getState().generationId === screenGen) {
-                  useAppStore.getState().setCurrentAnswer(full);
-                  useAppStore.getState().setRecitalState('listening');
-                  useAppStore.getState().setStatus('listening');
-                }
-              },
-              onError: (err) => {
-                console.error('[InterviewEngine] Screen Solve error:', err);
-                store.updateDiagnostics({
-                  whisperStatus: 'screen solve error: ' + (err.message || String(err)),
-                });
-              },
+            onSentence: (sentence, rId) => {
+              if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen) return;
+              const currentQueue = useAppStore.getState().teleprompterQueue;
+              useAppStore.getState().enqueueSentences([...currentQueue, sentence]);
             },
-            activeAbortController.signal
-          );
-        } catch (e: any) {
-          if (e.name !== 'AbortError') {
-            console.error('[InterviewEngine] Screen Solver Failed:', e.message);
-            store.updateDiagnostics({
-              whisperStatus: 'solver error: ' + (e.message || String(e)),
-            });
-            store.setStatus('error');
+            onComplete: (res) => {
+              const state = useAppStore.getState();
+              if (res.requestId !== activeRequestId || res.requestId !== state.activeRequestId || state.generationId !== screenGen) {
+                console.warn('[InterviewEngine] Discarded stale screen result:', res.requestId);
+                return;
+              }
+              globalLatencyTracker.mark('generationEnd');
+              state.setCurrentAnswer(res.cleanAnswer);
+              state.setAnswerValidationStatus(res.validationStatus);
+              state.setIsAnswerValidated(res.validationStatus === 'VALIDATED');
+              state.setGroundingResult(res.groundingScore ?? 100, res.groundingViolations ?? []);
+              state.setRecitalState('listening');
+              state.setStatus('ready');
+            },
+            onError: (err, rId) => {
+              if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen) return;
+              console.error('[InterviewEngine] Screen Solver Failed:', err.message);
+              useAppStore.getState().updateDiagnostics({
+                whisperStatus: 'solver error: ' + (err.message || String(err)),
+              });
+              useAppStore.getState().setStatus('error');
+            },
           }
+        );
+        break;
+      }
+
+      case 'REGENERATE_ACTIVE_ANSWER': {
+        const q = store.currentQuestion;
+        if (q && q.trim()) {
+          await InterviewEngine.handleEvent({
+            type: 'QUESTION_DETECTED',
+            text: q.replace(/^📸\s*\[.*?\]\s*/, ''),
+          });
         }
         break;
       }
 
-      case 'STOP_LISTENING':
-        if (activeAbortController) {
-          activeAbortController.abort();
-          activeAbortController = null;
-        }
-        await audioService.stop();
-        store.setStatus('idle');
-        store.setRecitalState('idle');
-        store.setToast('⏹️ Audio recording stopped.');
+      case 'CANCEL_ACTIVE_REQUEST': {
+        InterviewEngine.cancelAllActiveWork();
+        store.clearAnswerQueue();
+        store.setStatus(audioService.getCaptureState() === 'active' ? 'listening' : 'idle');
+        store.setToast('Active request cancelled.');
         break;
+      }
+
+      case 'STOP_LISTENING': {
+        InterviewEngine.abortActiveTranscription();
+        await audioService.stop(false); // Discard in-progress chunks cleanly
+
+        // Decouple audio capture stop from active AI answer generation:
+        // If an answer is currently generating or analyzing, do NOT abort generation!
+        const currentStatus = useAppStore.getState().status;
+        if (currentStatus !== 'generating' && currentStatus !== 'analyzing') {
+          useAppStore.getState().setStatus('idle');
+          useAppStore.getState().setRecitalState('idle');
+        }
+        useAppStore.getState().setToast('⏹️ Audio recording stopped.');
+        break;
+      }
     }
   }
 }

@@ -183,7 +183,11 @@ export function isPermissionAllowed(
   requestingOrigin: string,
   devServerUrl?: string
 ): boolean {
-  if (permission !== 'media') {
+  if (
+    permission !== 'media' &&
+    permission !== 'clipboard-sanitized-write' &&
+    permission !== 'clipboard-write'
+  ) {
     return false;
   }
 
@@ -221,4 +225,67 @@ export function buildCspHeader(isDev: boolean): string {
  */
 export function getSandboxConfig(isProduction: boolean): boolean {
   return isProduction;
+}
+
+/**
+ * Redacts sensitive credentials, API keys, tokens, and secrets from text.
+ * Prevents secrets from leaking into logs, OCR buffers, telemetry, or error messages.
+ */
+export function redactSensitiveData(text: string): string {
+  if (!text || typeof text !== 'string') return '';
+
+  return text
+    // Groq API keys
+    .replace(/gsk_[A-Za-z0-9_-]{20,}/g, '[REDACTED_GROQ_KEY]')
+    // OpenAI API keys
+    .replace(/sk-(?:proj-)?[A-Za-z0-9_-]{20,}/g, '[REDACTED_OPENAI_KEY]')
+    // Google AI keys
+    .replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_GOOGLE_KEY]')
+    // AWS Access Key ID
+    .replace(/\b(AKIA|ASIA)[0-9A-Z]{16}\b/g, '[REDACTED_AWS_KEY]')
+    // JWT tokens
+    .replace(/eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+/g, '[REDACTED_JWT_TOKEN]')
+    // Bearer auth tokens
+    .replace(/Bearer\s+[A-Za-z0-9_.-]{20,}/gi, 'Bearer [REDACTED_AUTH_TOKEN]')
+    // DB connection passwords
+    .replace(/(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@)/gi, '$1[REDACTED_PASSWORD]$3')
+    .replace(/(password\s*[:=]\s*['"]?)[^'"\s;]+(['"]?)/gi, '$1[REDACTED_PASSWORD]$2');
+}
+
+/**
+ * Validates that an IPC event was dispatched exclusively by the trusted main window frame.
+ */
+export function isTrustedSender(
+  event: { senderFrame?: any; sender?: any },
+  mainWindow: any
+): boolean {
+  if (!mainWindow || !mainWindow.webContents) return false;
+
+  // Validate senderFrame is the top-level main frame
+  if (event?.senderFrame) {
+    if (mainWindow.webContents.mainFrame) {
+      return event.senderFrame === mainWindow.webContents.mainFrame;
+    }
+    return event.senderFrame.parent === null;
+  }
+
+  // Fallback to checking webContents equality
+  if (event?.sender) {
+    return event.sender === mainWindow.webContents;
+  }
+
+  return false;
+}
+
+/**
+ * Validates external URL protocols: only http: and https: are permitted.
+ */
+export function isSafeExternalUrl(url: string): boolean {
+  if (typeof url !== 'string' || !url.trim()) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }

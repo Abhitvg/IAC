@@ -195,43 +195,50 @@ export async function loadResume(filePath: string): Promise<ResumeContext> {
 }
 
 /**
- * Extract text from PDF buffer (basic extraction)
+ * Extract text from PDF buffer using client-side pdfjs-dist fallback
  */
 async function extractPdfText(buffer: Buffer | ArrayBuffer): Promise<string> {
-  // In browser context, we do basic text extraction
-  // For proper PDF parsing, the main process handles it
   try {
     const uint8 = new Uint8Array(buffer instanceof ArrayBuffer ? buffer : buffer.buffer);
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(uint8);
-
-    // Try to extract readable text from PDF
-    const textParts: string[] = [];
-    const streamRegex = /stream\s*([\s\S]*?)endstream/g;
-    let match;
-
-    while ((match = streamRegex.exec(text)) !== null) {
-      const content = match[1];
-      // Extract text between parentheses (PDF text objects)
-      const textRegex = /\(([^)]*)\)/g;
-      let textMatch;
-      while ((textMatch = textRegex.exec(content)) !== null) {
-        const decoded = textMatch[1]
-          .replace(/\\n/g, '\n')
-          .replace(/\\\(/g, '(')
-          .replace(/\\\)/g, ')');
-        if (decoded.length > 1) {
-          textParts.push(decoded);
-        }
-      }
+    const pdfjs = await import('pdfjs-dist');
+    
+    // Configure worker source for browser environment if not yet configured
+    if (pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version || '4.0.379'}/pdf.worker.min.mjs`;
     }
 
-    return (
-      textParts.join(' ').replace(/\s+/g, ' ').trim() ||
-      'PDF parsing limited in browser. Please use TXT or MD format for best results.'
-    );
-  } catch {
-    return 'Could not parse PDF. Please try TXT or MD format.';
+    const loadingTask = pdfjs.getDocument({
+      data: uint8,
+      useSystemFonts: true,
+      disableFontFace: true,
+    });
+
+    const doc = await loadingTask.promise;
+    let fullText = '';
+
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      const pageStrings: string[] = [];
+
+      for (const item of content.items) {
+        if ('str' in item && typeof item.str === 'string') {
+          pageStrings.push(item.str);
+        }
+      }
+
+      fullText += pageStrings.join(' ') + '\n\n';
+    }
+
+    const cleaned = fullText.trim();
+    if (cleaned) {
+      return cleaned;
+    }
+  } catch (err) {
+    console.warn('[extractPdfText] Browser PDF parsing error:', err);
   }
+
+  return 'Could not extract readable text from PDF. The document may be image-only or scanned. Please paste your resume text directly into the editor below or upload as .txt, .md, or .docx.';
 }
 
 /**

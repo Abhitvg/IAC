@@ -1,3 +1,5 @@
+import { EvidenceVerificationService } from "../services/evidenceVerificationService";
+import { isTrustedSender } from '../services/security';
 import fs from 'fs';
 import path from 'path';
 import { ipcMain, BrowserWindow } from 'electron';
@@ -120,33 +122,9 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
 
   const credentialStore = new CredentialStore(store);
 
-  // Validate Groq key on startup
-  credentialStore.getKey('groq').then(async (testKey) => {
-    console.log('[CredentialStore Startup Test] Validating Groq key configured:', !!testKey);
-    if (testKey) {
-      try {
-        const fetchRes = await fetch('https://api.groq.com/openai/v1/models', {
-          headers: { Authorization: `Bearer ${testKey}` },
-        });
-        console.log('[CredentialStore Startup Test] Groq API HTTP Status:', fetchRes.status);
-        if (fetchRes.status === 401) {
-          console.warn(
-            '[CredentialStore Startup Test] 401 detected. Refreshing key from .env.local fallback...'
-          );
-          const envPath = require('path').join(process.cwd(), '.env.local');
-          if (fs.existsSync(envPath)) {
-            const raw = fs.readFileSync(envPath, 'utf8');
-            const m = raw.match(/(?:VITE_)?GROQ_API_KEY\s*=\s*['"]?(gsk_[A-Za-z0-9_-]+)['"]?/);
-            if (m && m[1]) {
-              await credentialStore.setKey('groq', m[1]);
-              console.log('[CredentialStore Startup Test] Key successfully re-synced.');
-            }
-          }
-        }
-      } catch (err) {
-        console.error('[CredentialStore Startup Test] Groq test error:', err);
-      }
-    }
+  // Check and log configured credentials locally without unprompted remote network calls
+  credentialStore.hasKey('groq').then((has) => {
+    console.log('[CredentialStore] Groq credential present:', has);
   });
 
   // Automatic credential & model migration
@@ -169,7 +147,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
 
     // Auto-heal provider/model settings if set to broken or missing models
     const curProvider = store.get('aiProvider');
-    if (!curProvider || curProvider === 'openrouter') {
+    if (!curProvider) {
       store.set('aiProvider', 'groq');
       store.set('aiModel', 'openai/gpt-oss-120b');
       store.set('whisperModel', 'whisper-large-v3-turbo');
@@ -189,21 +167,24 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
 
   // Settings IPC with schema validation
   ipcMain.handle('settings:get', () => store.store);
-  ipcMain.handle('settings:set', (_event, key: string, value: any) => {
+  ipcMain.handle('settings:set', (event, key: string, value: any) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     validateSetting(key, value);
     store.set(key, value);
     return true;
   });
 
   // Secure safeStorage credential handlers
-  ipcMain.handle('credentials:get', async (_event, service: string) => {
+  ipcMain.handle('credentials:get', async (event, service: string) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     const k = await credentialStore.getKey(service);
     // Key retrieved securely
     console.log('[IPC credentials:get]', service, 'configured:', !!k);
     return k;
   });
 
-  ipcMain.handle('credentials:set', async (_event, service: string, key: string) => {
+  ipcMain.handle('credentials:set', async (event, service: string, key: string) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     return credentialStore.setKey(service, key);
   });
 
@@ -211,11 +192,13 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     return credentialStore.hasKey(service);
   });
 
-  ipcMain.handle('credentials:delete', async (_event, service: string) => {
+  ipcMain.handle('credentials:delete', async (event, service: string) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     return credentialStore.deleteKey(service);
   });
 
-  ipcMain.handle('credentials:list', async () => {
+  ipcMain.handle('credentials:list', async (event) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     return credentialStore.listConfigured();
   });
 
@@ -325,6 +308,46 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     });
 
     return { port: 31415, token };
+  });
+
+  
+  // Privileged Evidence Inspection Handlers (Sender-validated, payload-sanitized)
+  ipcMain.handle("evidence:inspect-repository", async (event, request: any) => {
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error("Unauthorized IPC sender");
+    }
+    if (!request || typeof request !== "object" || !request.repositoryUrl) {
+      throw new Error("Invalid repository inspection request payload");
+    }
+    return EvidenceVerificationService.inspectRepository(request);
+  });
+
+  ipcMain.handle("evidence:inspect-document", async (event, request: any) => {
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error("Unauthorized IPC sender");
+    }
+    if (!request || typeof request !== "object" || !request.documentBytes) {
+      throw new Error("Invalid document inspection request payload");
+    }
+    return EvidenceVerificationService.inspectDocument(request);
+  });
+
+  ipcMain.handle("evidence:verify-audit", async (event, attestation: any) => {
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error("Unauthorized IPC sender");
+    }
+    if (!attestation || typeof attestation !== "object") {
+      throw new Error("Invalid independent audit attestation payload");
+    }
+    return EvidenceVerificationService.verifySignedAttestation(attestation);
+  });
+
+  ipcMain.handle("evidence:verify-seal", async (event, result: any) => {
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error("Unauthorized IPC sender");
+    }
+    if (!result || typeof result !== "object") return false;
+    return EvidenceVerificationService.verifySeal(result);
   });
 
   ipcMain.handle('ws:stop', () => {

@@ -35,13 +35,10 @@ export function evaluateJobHeuristically(
   const roleMatches = roleTokens.filter((token) => resumeLower.includes(token));
   const roleRatio = roleTokens.length > 0 ? roleMatches.length / roleTokens.length : 0.4;
 
-  let matchRatio = 0.2;
-  if (jdTechMatches.length > 0) {
-    matchRatio = (matchedInResume.length / jdTechMatches.length) * 0.7 + roleRatio * 0.3;
-  } else {
-    // If no tracked modern keywords match the JD, score accurately low
-    matchRatio = Math.min(0.3, roleRatio * 0.5);
-  }
+  const matchRatio =
+    jdTechMatches.length > 0
+      ? (matchedInResume.length / jdTechMatches.length) * 0.7 + roleRatio * 0.3
+      : Math.min(0.3, roleRatio * 0.5);
   const rawScore = 2.0 + matchRatio * 3.0;
   const score = Math.round(Math.min(5.0, Math.max(1.0, rawScore)) * 10) / 10;
   const recommendation = score >= 4.0 ? 'apply' : 'skip';
@@ -316,8 +313,8 @@ export const SB2NOV_LATEX_TEMPLATE = `%-------------------------
 %-----------PROJECTS-----------------
 \\section{Projects}
   \\resumeSubHeadingListStart
-    \\resumeSubItem{DocFlow Collaborative Engine}
-      {Open-source CRDT real-time collaborative document platform with zero-latency synchronization, conflict resolution, and WebSocket transport.}
+    \\resumeSubItem{Collaborative Document Engine}
+      {Real-time collaborative document platform with document synchronization, conflict resolution, and WebSocket transport.}
     \\resumeSubItem{Quorum Enterprise Monorepo}
       {High-reliability full-stack platform featuring end-to-end type safety, automated CI/CD deployment pipelines, and zero-downtime database migrations.}
   \\resumeSubHeadingListEnd
@@ -376,7 +373,7 @@ STRICT LATEX REQUIREMENTS (sb2nov/resume standard):
 4. SECTIONS (IN ORDER):
    - Header with Candidate Name, Email, GitHub/Portfolio, and Target Role
    - \\section{Experience}: Tailor bullet points to mirror high-priority tech keywords from the JD (e.g. distributed systems, Kafka, Java, Docker, AWS) without fabricating facts. Use \\resumeItem{Keyword}{Accomplishment + Metric}.
-   - \\section{Projects}: Highlight matching production projects (e.g. DocFlow collaborative editor, Quorum).
+   - \\section{Projects}: Highlight matching verified production projects from candidate experience.
    - \\section{Programming Skills}: Group Languages and Technologies prioritized for this specific JD.
    - \\section{Education}: Candidate's verified educational background.
 5. Single-Page ATS Optimization: Keep bullet points punchy and dense so it compiles to a perfect 1-page PDF.
