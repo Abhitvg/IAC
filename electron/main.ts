@@ -34,6 +34,7 @@ import {
   redactSensitiveData,
   isTrustedSender,
   isSafeExternalUrl,
+  isTrustedAppOrigin,
   validateSafeFetchPinnedIpc,
 } from './services/security';
 
@@ -102,16 +103,18 @@ function createWindow() {
 
   // Intercept internal page navigation escaping the app origin
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const currentUrl = mainWindow?.webContents.getURL() || '';
-    if (
-      url !== currentUrl &&
-      !url.startsWith('file://') &&
-      !url.startsWith(process.env.VITE_DEV_SERVER_URL || 'http://localhost')
-    ) {
+    if (!isTrustedAppOrigin(url, process.env.VITE_DEV_SERVER_URL)) {
       event.preventDefault();
       if (isSafeExternalUrl(url)) {
         shell.openExternal(url);
       }
+    }
+  });
+
+  // Intercept subframe navigations escaping the app origin
+  mainWindow.webContents.on('will-frame-navigate', (event) => {
+    if (!isTrustedAppOrigin(event.url, process.env.VITE_DEV_SERVER_URL)) {
+      event.preventDefault();
     }
   });
 

@@ -253,28 +253,69 @@ export function redactSensitiveData(text: string): string {
 }
 
 /**
- * Validates that an IPC event was dispatched exclusively by the trusted main window frame.
+ * Checks if a given URL belongs to the trusted local application origin.
+ */
+export function isTrustedAppOrigin(url: string, devServerUrl?: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  if (url.startsWith('file://')) return true;
+  if (devServerUrl && url.startsWith(devServerUrl)) return true;
+  return false;
+}
+
+/**
+ * Validates that an IPC event was dispatched exclusively by the trusted main window frame
+ * and that the sender's origin matches the allowed application origin.
+ * Rejects unexpected frames, subframes, redirected navigations, and destroyed windows.
  */
 export function isTrustedSender(
   event: { senderFrame?: any; sender?: any },
-  mainWindow: any
+  mainWindow: any,
+  devServerUrl: string | undefined = process.env.VITE_DEV_SERVER_URL
 ): boolean {
-  if (!mainWindow || !mainWindow.webContents) return false;
+  if (!mainWindow) return false;
+  if (typeof mainWindow.isDestroyed === 'function' && mainWindow.isDestroyed()) return false;
+  if (!mainWindow.webContents) return false;
+  if (
+    typeof mainWindow.webContents.isDestroyed === 'function' &&
+    mainWindow.webContents.isDestroyed()
+  ) {
+    return false;
+  }
 
-  // Validate senderFrame is the top-level main frame
-  if (event?.senderFrame) {
-    if (mainWindow.webContents.mainFrame) {
-      return event.senderFrame === mainWindow.webContents.mainFrame;
+  // Sender webContents identity check
+  if (event?.sender && event.sender !== mainWindow.webContents) {
+    return false;
+  }
+
+  // Sender frame validation
+  const frame = event?.senderFrame;
+  if (frame) {
+    // 1. Subframes / iframes are strictly rejected
+    if (frame.parent) {
+      return false;
     }
-    return event.senderFrame.parent === null;
+    // If mainWindow provides mainFrame, verify exact match
+    if (mainWindow.webContents.mainFrame && frame !== mainWindow.webContents.mainFrame) {
+      return false;
+    }
+
+    // 2. Origin & URL validation: frame URL must be trusted application origin
+    const frameUrl = frame.url || '';
+    if (frameUrl && !isTrustedAppOrigin(frameUrl, devServerUrl)) {
+      return false;
+    }
   }
 
-  // Fallback to checking webContents equality
-  if (event?.sender) {
-    return event.sender === mainWindow.webContents;
+  // 3. Current webContents URL must also be a trusted application origin
+  const currentUrl =
+    typeof mainWindow.webContents.getURL === 'function'
+      ? mainWindow.webContents.getURL()
+      : '';
+  if (currentUrl && !isTrustedAppOrigin(currentUrl, devServerUrl)) {
+    return false;
   }
 
-  return false;
+  return true;
 }
 
 /**

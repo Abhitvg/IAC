@@ -36,6 +36,7 @@ export interface PinnedFetchOptions {
   customResolver?: (hostname: string) => Promise<Array<{ address: string; family: number }>>;
   customRequester?: PinnedRequester;
   userAgent?: string;
+  _testOnlyAllowLoopback?: boolean;
 }
 
 export interface PinnedFetchResponse {
@@ -360,7 +361,12 @@ export class SafeConnectionFetcher {
       customResolver,
       customRequester,
       userAgent = 'IAC-InterviewAssistant/1.0 (+https://github.com/Abhitvg/IAC; Candidate Research)',
+      _testOnlyAllowLoopback = false,
     } = options;
+
+    const allowTestLoopback = Boolean(
+      process.env.NODE_ENV === 'test' && _testOnlyAllowLoopback
+    );
 
     const startTime = Date.now();
     const redirects: string[] = [];
@@ -408,11 +414,15 @@ export class SafeConnectionFetcher {
           }
 
           const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
-          if (BLOCKED_HOSTNAMES.has(hostname) || hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+          if (
+            (BLOCKED_HOSTNAMES.has(hostname) && !allowTestLoopback) ||
+            hostname.endsWith('.local') ||
+            hostname.endsWith('.internal')
+          ) {
             throw new Error(`Blocked restricted hostname: ${hostname}`);
           }
 
-          if (isPrivateOrReservedIp(hostname)) {
+          if (isPrivateOrReservedIp(hostname) && !allowTestLoopback) {
             throw new Error(`Blocked connection to private or reserved IP: ${hostname}`);
           }
 
@@ -459,7 +469,7 @@ export class SafeConnectionFetcher {
 
             // Reject if ANY address in the DNS response is private/prohibited
             for (const addr of addresses) {
-              if (isPrivateOrReservedIp(addr.address)) {
+              if (isPrivateOrReservedIp(addr.address) && !allowTestLoopback) {
                 throw new Error(
                   `DNS resolution for ${hostname} returned prohibited internal IP: ${addr.address} (mixed answer defense)`
                 );
@@ -539,7 +549,7 @@ export class SafeConnectionFetcher {
     }
   }
 
-  private static executePinnedRequest(params: {
+  public static executePinnedRequest(params: {
     targetUrl: URL;
     isHttps: boolean;
     pinnedIp: string;
@@ -564,11 +574,18 @@ export class SafeConnectionFetcher {
 
       const lookupFn = (
         _hostname: string,
-        _options: any,
-        callback: (err: Error | null, address: string, family: number) => void
+        options: any,
+        callback: any
       ) => {
-        // Enforce pinned connection to validated IP
-        callback(null, pinnedIp, ipFamily);
+        const cb = typeof options === 'function' ? options : callback;
+        const isAll = Boolean(options && typeof options === 'object' && options.all);
+
+        // Enforce pinned connection to validated IP, handling both standard and all: true (Node 20+ autoSelectFamily)
+        if (isAll) {
+          cb(null, [{ address: pinnedIp, family: ipFamily }]);
+        } else {
+          cb(null, pinnedIp, ipFamily);
+        }
       };
 
       const requestOptions: http.RequestOptions = {
