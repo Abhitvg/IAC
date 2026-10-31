@@ -28,6 +28,12 @@ function resolveWorkerSrc(): string {
 }
 
 function resolveCMapUrl(): string {
+  if (process.resourcesPath) {
+    const packagedPath = path.join(process.resourcesPath, 'cmaps');
+    if (fs.existsSync(packagedPath)) {
+      return packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep;
+    }
+  }
   try {
     const pkgPath = require.resolve('pdfjs-dist/package.json');
     const cMapDir = path.join(path.dirname(pkgPath), 'cmaps');
@@ -43,6 +49,12 @@ function resolveCMapUrl(): string {
 }
 
 function resolveStandardFontUrl(): string {
+  if (process.resourcesPath) {
+    const packagedPath = path.join(process.resourcesPath, 'standard_fonts');
+    if (fs.existsSync(packagedPath)) {
+      return packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep;
+    }
+  }
   try {
     const pkgPath = require.resolve('pdfjs-dist/package.json');
     const fontDir = path.join(path.dirname(pkgPath), 'standard_fonts');

@@ -2,12 +2,16 @@ import Cocoa
 import Vision
 import PDFKit
 
+// Global process watchdog: terminate if total execution exceeds 45s
+DispatchQueue.global().asyncAfter(deadline: .now() + 45.0) {
+    fputs("ERROR: OCR process exceeded global watchdog limit (45s)\n", stderr)
+    exit(2)
+}
+
 func performOcrOnCgImage(cgImage: CGImage) -> String {
     var resultText = ""
-    let semaphore = DispatchSemaphore(value: 0)
 
     let request = VNRecognizeTextRequest { request, error in
-        defer { semaphore.signal() }
         if let error = error {
             fputs("WARNING: Vision OCR page error: \(error.localizedDescription)\n", stderr)
             return
@@ -42,13 +46,12 @@ func performOcrOnCgImage(cgImage: CGImage) -> String {
 
     let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
     do {
+        // VNImageRequestHandler.perform is synchronous and blocks until request completion
         try handler.perform([request])
     } catch {
-        fputs("WARNING: Handler failed: \(error.localizedDescription)\n", stderr)
-        semaphore.signal()
+        fputs("WARNING: Vision handler failed: \(error.localizedDescription)\n", stderr)
     }
 
-    _ = semaphore.wait(timeout: .now() + 10.0) // 10s per-page timeout
     return resultText
 }
 
@@ -68,11 +71,30 @@ func performOCR(filePath: String) {
         for i in 0..<maxPages {
             guard let page = doc.page(at: i) else { continue }
             let pageRect = page.bounds(for: .mediaBox)
-            let scale: CGFloat = 2.0 // 144 DPI rendering for crisp OCR
+
+            // Dimension bound: reject invalid, zero, or absurd dimensions (> 5000 points = ~70 inches)
+            if pageRect.width <= 0 || pageRect.height <= 0 || pageRect.width > 5000 || pageRect.height > 5000 {
+                fputs("WARNING: Skipping page \(i + 1): out-of-bounds dimensions (\(pageRect.width) x \(pageRect.height))\n", stderr)
+                continue
+            }
+
+            // Clamp scale so rendered dimension never exceeds 3000 x 3000 pixels
+            var scale: CGFloat = 2.0 // Standard 144 DPI
+            if (pageRect.width * scale > 3000) || (pageRect.height * scale > 3000) {
+                scale = min(3000.0 / pageRect.width, 3000.0 / pageRect.height)
+            }
+
             let width = max(Int(pageRect.width * scale), 100)
             let height = max(Int(pageRect.height * scale), 100)
-            let colorSpace = CGColorSpaceCreateDeviceRGB()
 
+            // Memory bound: max 36MB bitmap buffer per page
+            let estimatedMemoryBytes = width * height * 4
+            if estimatedMemoryBytes > 36 * 1024 * 1024 {
+                fputs("WARNING: Skipping page \(i + 1): rendered bitmap memory footprint exceeds 36MB\n", stderr)
+                continue
+            }
+
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
             guard let ctx = CGContext(
                 data: nil,
                 width: width,

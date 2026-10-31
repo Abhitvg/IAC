@@ -1,136 +1,210 @@
-import { describe, it, expect, afterAll } from 'vitest';
-import http from 'http';
-import { SafeConnectionFetcher } from '../electron/services/safeConnectionFetcher';
+import { describe, it, expect } from 'vitest';
+import {
+  SafeConnectionFetcher,
+  PinnedRequester,
+  isPrivateOrReservedIp,
+  parseIpv4ToOctets,
+  parseIpv6ToHextets,
+} from '../electron/services/safeConnectionFetcher';
 
-describe('Crawler DNS Rebinding & Lifecycle Timeout Enforcement (P0)', () => {
-  const activeServers: http.Server[] = [];
+describe('Crawler DNS Rebinding, Lifecycle Timeout & Security Tests (P0)', () => {
+  const publicExampleIp = '93.184.216.34';
+  const validResolver = async () => [{ address: publicExampleIp, family: 4 }];
 
-  const startTestServer = (
-    handler: (req: http.IncomingMessage, res: http.ServerResponse) => void
-  ): Promise<{ port: number; close: () => Promise<void> }> => {
-    return new Promise((resolve) => {
-      const server = http.createServer(handler);
-      server.listen(0, '127.0.0.1', () => {
-        activeServers.push(server);
-        const addr = server.address() as any;
-        resolve({
-          port: addr.port,
-          close: () => new Promise((res) => server.close(() => res())),
-        });
-      });
+  it('enforces connection-level pinning to validated destination and preserves SNI/Host headers', async () => {
+    let capturedParams: any = null;
+
+    const mockRequester: PinnedRequester = async (params) => {
+      capturedParams = params;
+      return {
+        statusCode: 200,
+        contentType: 'text/html',
+        body: '<html><body>Mock Public Site</body></html>',
+        byteSize: 45,
+      };
+    };
+
+    const result = await SafeConnectionFetcher.fetch({
+      url: 'https://example.com/research?candidate=1',
+      customResolver: validResolver,
+      customRequester: mockRequester,
     });
-  };
 
-  afterAll(async () => {
-    for (const s of activeServers) {
-      try {
-        s.close();
-      } catch {}
-    }
+    expect(capturedParams).not.toBeNull();
+    // Validated IP must be pinned to the outbound request
+    expect(capturedParams.pinnedIp).toBe(publicExampleIp);
+    expect(capturedParams.ipFamily).toBe(4);
+    // SNI and Host header target hostname must match original URL
+    expect(capturedParams.targetUrl.hostname).toBe('example.com');
+    expect(capturedParams.isHttps).toBe(true);
+    expect(result.statusCode).toBe(200);
+    expect(result.pinnedIp).toBe(publicExampleIp);
+    expect(result.body).toContain('Mock Public Site');
   });
 
   it('rejects mixed DNS answers containing any prohibited address (mixed answer defense)', async () => {
     // Custom resolver simulating attacker DNS returning both public IP and internal loopback
-    const mixedResolver = async (_hostname: string) => [
-      { address: '93.184.216.34', family: 4 }, // public example.com IP
-      { address: '127.0.0.1', family: 4 }, // internal loopback (attacker attempt)
+    const mixedResolver = async () => [
+      { address: publicExampleIp, family: 4 },
+      { address: '127.0.0.1', family: 4 },
     ];
+
+    let requestAttempted = false;
+    const mockRequester: PinnedRequester = async () => {
+      requestAttempted = true;
+      return { statusCode: 200, contentType: 'text/html', body: '', byteSize: 0 };
+    };
 
     await expect(
       SafeConnectionFetcher.fetch({
         url: 'http://example.com/index.html',
         customResolver: mixedResolver,
+        customRequester: mockRequester,
       })
     ).rejects.toThrow(/prohibited internal IP.*mixed answer defense/i);
+
+    // Mixed answer defense must abort BEFORE initiating any socket connection
+    expect(requestAttempted).toBe(false);
   });
 
-  it('pins connection to pre-validated IP and prevents DNS rebinding to internal addresses', async () => {
-    // Resolver returns private address
-    const rebindingResolver = async (_hostname: string) => [
-      { address: '169.254.169.254', family: 4 },
-    ];
+  it('defeats DNS rebinding during redirect hops by re-validating every destination', async () => {
+    let hopCount = 0;
+
+    // Hop 1 resolves to public IP; Hop 2 resolves to cloud metadata IP
+    const rebindingResolver = async (_hostname: string) => {
+      hopCount++;
+      if (hopCount === 1) {
+        return [{ address: publicExampleIp, family: 4 }];
+      }
+      return [{ address: '169.254.169.254', family: 4 }];
+    };
+
+    let secondHopExecuted = false;
+    const redirectRequester: PinnedRequester = async (params) => {
+      if (params.targetUrl.pathname === '/hop1') {
+        return {
+          statusCode: 302,
+          contentType: 'text/html',
+          location: 'https://example.com/hop2',
+          body: '',
+          byteSize: 0,
+        };
+      }
+      secondHopExecuted = true;
+      return { statusCode: 200, contentType: 'text/html', body: 'Sensitive AWS Metadata', byteSize: 22 };
+    };
 
     await expect(
       SafeConnectionFetcher.fetch({
-        url: 'http://test-rebinding.com/latest/meta-data',
+        url: 'https://example.com/hop1',
         customResolver: rebindingResolver,
+        customRequester: redirectRequester,
       })
-    ).rejects.toThrow(/prohibited internal IP|private or reserved/i);
+    ).rejects.toThrow(/prohibited internal IP.*mixed answer defense|Blocked restricted hostname|private or reserved/i);
+
+    // The second hop must never be dispatched to the internal address
+    expect(secondHopExecuted).toBe(false);
   });
 
   it('aborts when server sends headers immediately and then stalls indefinitely (lifecycle timeout)', async () => {
-    const { port, close } = await startTestServer((_req, res) => {
-      // Send headers immediately
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.write('<html><body>Starting stream...');
-      // Stalls indefinitely without ending the response
-    });
+    let actualRequestMade = false;
 
-    try {
-      // Allow custom resolver pointing to 127.0.0.1 for this test harness server,
-      // but override private check via test server port
-      const testResolver = async () => [{ address: '127.0.0.1', family: 4 }];
+    const stalledRequester: PinnedRequester = ({ signal }) => {
+      actualRequestMade = true;
+      return new Promise((_, reject) => {
+        const onAbort = () => reject(new Error('Request aborted by signal (simulated stall)'));
+        if (signal.aborted) return onAbort();
+        signal.addEventListener('abort', onAbort, { once: true });
+      });
+    };
 
-      // We expect the request to timeout within 400ms
-      const start = Date.now();
-      await expect(
-        SafeConnectionFetcher.fetch({
-          url: `http://localhost:${port}/stalled.html`,
-          timeoutMs: 400,
-          customResolver: testResolver,
-        })
-      ).rejects.toThrow(/restricted|private|timed out/i);
-      const duration = Date.now() - start;
-      expect(duration).toBeLessThan(1500);
-    } finally {
-      await close();
-    }
+    const start = Date.now();
+    await expect(
+      SafeConnectionFetcher.fetch({
+        url: 'https://example.com/stalled.html',
+        timeoutMs: 300,
+        customResolver: validResolver,
+        customRequester: stalledRequester,
+      })
+    ).rejects.toThrow(/Crawler request timed out after 300ms/i);
+
+    const elapsed = Date.now() - start;
+    expect(actualRequestMade).toBe(true);
+    // Timeout must abort close to 300ms budget
+    expect(elapsed).toBeLessThan(1000);
   });
 
   it('aborts response streaming immediately when payload exceeds maxByteSize', async () => {
-    let chunksSent = 0;
-    const { port, close } = await startTestServer((_req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      // Stream 5MB of chunks
-      const interval = setInterval(() => {
-        if (chunksSent > 20) {
-          clearInterval(interval);
-          res.end();
-          return;
+    let actualStreamStarted = false;
+
+    const oversizedRequester: PinnedRequester = async ({ maxByteSize }) => {
+      actualStreamStarted = true;
+      let total = 0;
+      for (let i = 0; i < 5; i++) {
+        total += 4000;
+        if (total > maxByteSize) {
+          throw new Error(`Response exceeded maximum size limit of ${maxByteSize} bytes`);
         }
-        res.write('A'.repeat(50000));
-        chunksSent++;
-      }, 10);
-      res.on('close', () => clearInterval(interval));
-    });
+      }
+      return { statusCode: 200, contentType: 'text/html', body: 'OK', byteSize: total };
+    };
 
-    try {
-      // In this test, we verify byte limit enforcement
-      // Directly test SafeConnectionFetcher on a valid domain simulation
-      const largeContentResolver = async () => [{ address: '127.0.0.1', family: 4 }];
+    await expect(
+      SafeConnectionFetcher.fetch({
+        url: 'https://example.com/large.html',
+        maxByteSize: 10000, // 10KB limit
+        customResolver: validResolver,
+        customRequester: oversizedRequester,
+      })
+    ).rejects.toThrow(/Response exceeded maximum size limit of 10000 bytes/i);
 
-      await expect(
-        SafeConnectionFetcher.fetch({
-          url: `http://test-overflow.com:${port}/large.html`,
-          maxByteSize: 10000, // 10KB limit
-          customResolver: largeContentResolver,
-        })
-      ).rejects.toThrow(/prohibited internal IP|exceeded maximum size limit/i);
-    } finally {
-      await close();
-    }
+    expect(actualStreamStarted).toBe(true);
+  });
+
+  it('strictly rejects redirects that violate allowedOrigin policy', async () => {
+    let crossOriginHopAttempted = false;
+
+    const crossOriginRequester: PinnedRequester = async (params) => {
+      if (params.targetUrl.hostname === 'example.com') {
+        return {
+          statusCode: 302,
+          contentType: 'text/html',
+          location: 'https://malicious-attacker.com/steal-creds',
+          body: '',
+          byteSize: 0,
+        };
+      }
+      crossOriginHopAttempted = true;
+      return { statusCode: 200, contentType: 'text/html', body: '', byteSize: 0 };
+    };
+
+    await expect(
+      SafeConnectionFetcher.fetch({
+        url: 'https://example.com/portfolio',
+        allowedOrigin: 'https://example.com',
+        customResolver: validResolver,
+        customRequester: crossOriginRequester,
+      })
+    ).rejects.toThrow(/Cross-origin request rejected: expected example.com, got malicious-attacker.com/i);
+
+    expect(crossOriginHopAttempted).toBe(false);
   });
 
   it('strictly rejects HTTPS to HTTP protocol downgrade on redirects', async () => {
-    // Custom resolver mapping test domain
-    const downgradeResolver = async () => [{ address: '93.184.216.34', family: 4 }];
+    const downgradeRequester: PinnedRequester = async () => ({
+      statusCode: 302,
+      contentType: 'text/html',
+      location: 'http://example.com/insecure-target',
+      body: '',
+      byteSize: 0,
+    });
 
-    // An HTTPS target redirecting to HTTP
     await expect(
       SafeConnectionFetcher.fetch({
-        url: 'https://secure-target.com/page',
-        customResolver: downgradeResolver,
+        url: 'https://example.com/secure-start',
+        customResolver: validResolver,
+        customRequester: downgradeRequester,
       })
-    ).rejects.toThrow();
+    ).rejects.toThrow(/Prohibited HTTPS to HTTP protocol downgrade on redirect/i);
   });
 });

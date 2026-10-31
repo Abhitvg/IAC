@@ -643,16 +643,13 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         activeWorkspaceId: loadedWorkspaces[0]?.id || null,
         jobDescriptionText:
           !savedJD ||
-          savedJD.includes('IBM Consulting') ||
-          savedJD.includes('Global Enterprise Cloud') ||
-          savedJD.includes('Alignerr')
+          savedJD.includes('IBM Consulting Demo Sample') ||
+          savedJD.includes('Global Enterprise Cloud Mock')
             ? ''
             : savedJD,
         targetRole:
           !savedRole ||
-          savedRole === 'Application Developer' ||
-          savedRole === 'Senior DevOps & Cloud Engineer' ||
-          savedRole.includes('Alignerr')
+          savedRole === 'Legacy Sample Developer'
             ? ''
             : savedRole,
         responseMode:

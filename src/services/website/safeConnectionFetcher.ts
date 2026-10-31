@@ -6,6 +6,22 @@
  * In Node.js / Vitest test environments, dynamically delegates to the main implementation.
  */
 
+export type PinnedRequester = (params: {
+  targetUrl: URL;
+  isHttps: boolean;
+  pinnedIp: string;
+  ipFamily: 4 | 6;
+  maxByteSize: number;
+  userAgent: string;
+  signal: AbortSignal;
+}) => Promise<{
+  statusCode: number;
+  contentType: string;
+  location?: string;
+  body: string;
+  byteSize: number;
+}>;
+
 export interface PinnedFetchOptions {
   url: string;
   allowedOrigin?: string;
@@ -13,6 +29,7 @@ export interface PinnedFetchOptions {
   maxByteSize?: number;
   maxRedirects?: number;
   customResolver?: (hostname: string) => Promise<Array<{ address: string; family: number }>>;
+  customRequester?: PinnedRequester;
   userAgent?: string;
 }
 

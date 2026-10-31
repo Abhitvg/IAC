@@ -289,3 +289,114 @@ export function isSafeExternalUrl(url: string): boolean {
     return false;
   }
 }
+
+/**
+ * Validates IPC sender and options for the privileged net:safe-fetch-pinned handler.
+ * Rejects unauthorized senders, subframes, untrusted origins, and malformed options.
+ * Enforces mandatory allowedOrigin matching to prevent open proxying.
+ */
+export function validateSafeFetchPinnedIpc(
+  event: any,
+  options: any,
+  mainWindow: any
+): {
+  url: string;
+  allowedOrigin: string;
+  timeoutMs: number;
+  maxByteSize: number;
+  maxRedirects: number;
+  userAgent?: string;
+} {
+  // 1. Validate sender is the trusted main window
+  if (!isTrustedSender(event, mainWindow)) {
+    throw new Error('Unauthorized IPC sender');
+  }
+
+  // 2. Reject subframes / iframes
+  if (event?.senderFrame && event.senderFrame.parent !== null) {
+    throw new Error('Unauthorized IPC sender: subframe requests are prohibited');
+  }
+
+  // 3. Validate options object
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    throw new Error('Invalid arguments: options must be an object');
+  }
+
+  // 4. Validate URL
+  if (typeof options.url !== 'string' || !options.url.trim() || options.url.length > 2048) {
+    throw new Error('Invalid options: url must be a non-empty string under 2048 characters');
+  }
+
+  // 5. Require valid allowedOrigin for renderer-initiated requests
+  if (
+    typeof options.allowedOrigin !== 'string' ||
+    !options.allowedOrigin.trim() ||
+    options.allowedOrigin.length > 2048
+  ) {
+    throw new Error('Unauthorized: allowedOrigin is required for renderer-initiated network requests');
+  }
+
+  let parsedUrl: URL;
+  let parsedOrigin: URL;
+  try {
+    parsedUrl = new URL(options.url.trim());
+    parsedOrigin = new URL(options.allowedOrigin.trim());
+  } catch {
+    throw new Error('Invalid URL or allowedOrigin format');
+  }
+
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new Error(`Unsupported protocol "${parsedUrl.protocol}". Only http: and https: are allowed.`);
+  }
+
+  if (parsedOrigin.protocol !== 'http:' && parsedOrigin.protocol !== 'https:') {
+    throw new Error(`Unsupported allowedOrigin protocol "${parsedOrigin.protocol}"`);
+  }
+
+  if (parsedUrl.username || parsedUrl.password) {
+    throw new Error('URLs containing embedded credentials (userinfo) are prohibited');
+  }
+
+  // Enforce origin match: protocol, hostname, and port
+  const urlPort = parsedUrl.port || (parsedUrl.protocol === 'https:' ? '443' : '80');
+  const originPort = parsedOrigin.port || (parsedOrigin.protocol === 'https:' ? '443' : '80');
+  if (
+    parsedUrl.protocol !== parsedOrigin.protocol ||
+    parsedUrl.hostname.toLowerCase() !== parsedOrigin.hostname.toLowerCase() ||
+    urlPort !== originPort
+  ) {
+    throw new Error(
+      `Cross-origin fetch blocked: URL origin (${parsedUrl.origin}) does not match allowedOrigin (${parsedOrigin.origin})`
+    );
+  }
+
+  // 6. Validate numerical boundaries
+  const timeoutMs =
+    typeof options.timeoutMs === 'number' && Number.isFinite(options.timeoutMs)
+      ? Math.min(Math.max(Math.floor(options.timeoutMs), 1000), 30000)
+      : 8000;
+
+  const maxByteSize =
+    typeof options.maxByteSize === 'number' && Number.isFinite(options.maxByteSize)
+      ? Math.min(Math.max(Math.floor(options.maxByteSize), 1024), 5 * 1024 * 1024)
+      : 1024 * 1024;
+
+  const maxRedirects =
+    typeof options.maxRedirects === 'number' && Number.isFinite(options.maxRedirects)
+      ? Math.min(Math.max(Math.floor(options.maxRedirects), 0), 10)
+      : 5;
+
+  const userAgent =
+    typeof options.userAgent === 'string' && options.userAgent.length <= 256
+      ? options.userAgent
+      : undefined;
+
+  return {
+    url: parsedUrl.toString(),
+    allowedOrigin: parsedOrigin.origin,
+    timeoutMs,
+    maxByteSize,
+    maxRedirects,
+    userAgent,
+  };
+}

@@ -73,4 +73,17 @@ describe('Candidate Data Integrity & Fictional Persona Elimination (P1)', () => 
     expect(useAppStore.getState().resumeText).toBe('');
     expect(mockLocalStorage.getItem('candidate_resume')).toBeNull();
   });
+
+  it('preserves user-supplied target role and job description without false-positive wiping', async () => {
+    const userRole = 'Software Developer (Alignerr — AI Assisted Coding)';
+    const userJd = 'Mercor partners with leading AI labs and enterprises to train and enhance AI models...';
+
+    mockLocalStorage.setItem('target_role', userRole);
+    mockLocalStorage.setItem('target_job_description', userJd);
+
+    await useAppStore.getState().loadSettings();
+
+    expect(useAppStore.getState().targetRole).toBe(userRole);
+    expect(useAppStore.getState().jobDescriptionText).toBe(userJd);
+  });
 });

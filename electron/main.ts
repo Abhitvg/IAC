@@ -34,6 +34,7 @@ import {
   redactSensitiveData,
   isTrustedSender,
   isSafeExternalUrl,
+  validateSafeFetchPinnedIpc,
 } from './services/security';
 
 let mainWindow: BrowserWindow | null = null;
@@ -558,7 +559,10 @@ ipcMain.handle('clipboard:read-text', () => {
 });
 
 // PDF parsing via modern pdfjs-dist
-ipcMain.handle('fs:parse-pdf', async (_event, arrayBuffer: ArrayBuffer) => {
+ipcMain.handle('fs:parse-pdf', async (event, arrayBuffer: ArrayBuffer) => {
+  if (!isTrustedSender(event, mainWindow)) {
+    throw new Error('Unauthorized IPC sender');
+  }
   if (!(arrayBuffer instanceof ArrayBuffer) && !Buffer.isBuffer(arrayBuffer)) {
     throw new Error('Invalid argument: expected ArrayBuffer or Buffer');
   }
@@ -566,9 +570,16 @@ ipcMain.handle('fs:parse-pdf', async (_event, arrayBuffer: ArrayBuffer) => {
 });
 
 // DNS resolution for SSRF verification
-ipcMain.handle('net:resolve-dns', async (_event, hostname: string) => {
+ipcMain.handle('net:resolve-dns', async (event, hostname: string) => {
+  if (!isTrustedSender(event, mainWindow)) {
+    throw new Error('Unauthorized IPC sender');
+  }
+  if (typeof hostname !== 'string' || !hostname.trim() || hostname.length > 255) {
+    throw new Error('Invalid hostname argument');
+  }
+  const clean = hostname.trim().toLowerCase();
   return new Promise((resolve) => {
-    dns.lookup(hostname, { all: true }, (err, addresses) => {
+    dns.lookup(clean, { all: true }, (err, addresses) => {
       if (err) return resolve([]);
       resolve(addresses);
     });
@@ -576,12 +587,16 @@ ipcMain.handle('net:resolve-dns', async (_event, hostname: string) => {
 });
 
 // Destination-pinned HTTP/HTTPS fetch for SSRF & DNS rebinding protection
-ipcMain.handle('net:safe-fetch-pinned', async (_event, options: PinnedFetchOptions) => {
-  return SafeConnectionFetcher.fetch(options);
+ipcMain.handle('net:safe-fetch-pinned', async (event, options: PinnedFetchOptions) => {
+  const sanitized = validateSafeFetchPinnedIpc(event, options, mainWindow);
+  return SafeConnectionFetcher.fetch(sanitized);
 });
 
 // DOCX parsing
-ipcMain.handle('fs:parse-docx', async (_event, arrayBuffer: ArrayBuffer) => {
+ipcMain.handle('fs:parse-docx', async (event, arrayBuffer: ArrayBuffer) => {
+  if (!isTrustedSender(event, mainWindow)) {
+    throw new Error('Unauthorized IPC sender');
+  }
   if (!(arrayBuffer instanceof ArrayBuffer) && !Buffer.isBuffer(arrayBuffer)) {
     throw new Error('Invalid argument: expected ArrayBuffer or Buffer');
   }
