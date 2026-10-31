@@ -78,8 +78,14 @@ export function isGarbledOrMojibakeText(text: string): boolean {
   const clean = text.trim();
 
   // 1. Check for unmapped CID font byte interleaving (e.g. "00i03000G0", "d06000000 0 :0'00500000")
-  const zeroRunMatches = clean.match(/(?:[a-zA-Z0-9][0\x00]){4,}|(?:00[A-Za-z0-9]){3,}/g);
-  if (zeroRunMatches && zeroRunMatches.length > 3) {
+  const zeroRunMatches = clean.match(/(?:[a-zA-Z0-9][0\x00]){4,}|(?:00[A-Za-z0-9]){2,}/g);
+  if (zeroRunMatches && zeroRunMatches.length >= 2) {
+    return true;
+  }
+
+  // 1b. Check for raw CID notation output from pdfjs when font lacks ToUnicode mapping
+  const cidNotationMatches = clean.match(/(?:\(?cid:\d+\)?)/gi);
+  if (cidNotationMatches && cidNotationMatches.length > 2) {
     return true;
   }
 

@@ -1,19 +1,101 @@
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import http from 'http';
 import https from 'https';
 import { URL } from 'url';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { execSync } from 'child_process';
 import { SafeConnectionFetcher } from '../electron/services/safeConnectionFetcher';
 
 describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Lookup)', () => {
-  const activeServers: http.Server[] = [];
+  const activeHttpServers: http.Server[] = [];
+  const activeHttpsServers: https.Server[] = [];
 
-  const startTestServer = (
+  let tlsFixtureDir: string;
+  let caCert: Buffer;
+  let validServerKey: Buffer;
+  let validServerCert: Buffer;
+  let mismatchedServerKey: Buffer;
+  let mismatchedServerCert: Buffer;
+  let untrustedServerKey: Buffer;
+  let untrustedServerCert: Buffer;
+
+  beforeAll(() => {
+    // Generate deterministic test CA and X.509 certificates for genuine TLS verification
+    tlsFixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'iac-tls-gate-'));
+
+    // 1. Root Certificate Authority
+    execSync(
+      'openssl req -x509 -newkey rsa:2048 -nodes -keyout ca.key -out ca.crt -days 1 -subj "/CN=IACTestRootCA"',
+      { cwd: tlsFixtureDir, stdio: 'pipe' }
+    );
+    caCert = fs.readFileSync(path.join(tlsFixtureDir, 'ca.crt'));
+
+    // 2. Valid server cert for candidate-secure.test with SAN
+    const validExt =
+      'basicConstraints=CA:FALSE\nsubjectAltName=@alt_names\n[alt_names]\nDNS.1=candidate-secure.test\nDNS.2=localhost';
+    fs.writeFileSync(path.join(tlsFixtureDir, 'valid_ext.cnf'), validExt);
+    execSync(
+      'openssl req -newkey rsa:2048 -nodes -keyout server_valid.key -out server_valid.csr -subj "/CN=candidate-secure.test"',
+      { cwd: tlsFixtureDir, stdio: 'pipe' }
+    );
+    execSync(
+      'openssl x509 -req -in server_valid.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server_valid.crt -days 1 -extfile valid_ext.cnf',
+      { cwd: tlsFixtureDir, stdio: 'pipe' }
+    );
+    validServerKey = fs.readFileSync(path.join(tlsFixtureDir, 'server_valid.key'));
+    validServerCert = fs.readFileSync(path.join(tlsFixtureDir, 'server_valid.crt'));
+
+    // 3. Mismatched server cert for mismatched-domain.test
+    const mismatchExt =
+      'basicConstraints=CA:FALSE\nsubjectAltName=@alt_names\n[alt_names]\nDNS.1=mismatched-domain.test';
+    fs.writeFileSync(path.join(tlsFixtureDir, 'mismatch_ext.cnf'), mismatchExt);
+    execSync(
+      'openssl req -newkey rsa:2048 -nodes -keyout server_mismatch.key -out server_mismatch.csr -subj "/CN=mismatched-domain.test"',
+      { cwd: tlsFixtureDir, stdio: 'pipe' }
+    );
+    execSync(
+      'openssl x509 -req -in server_mismatch.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server_mismatch.crt -days 1 -extfile mismatch_ext.cnf',
+      { cwd: tlsFixtureDir, stdio: 'pipe' }
+    );
+    mismatchedServerKey = fs.readFileSync(path.join(tlsFixtureDir, 'server_mismatch.key'));
+    mismatchedServerCert = fs.readFileSync(path.join(tlsFixtureDir, 'server_mismatch.crt'));
+
+    // 4. Untrusted self-signed certificate (not signed by IACTestRootCA)
+    execSync(
+      'openssl req -x509 -newkey rsa:2048 -nodes -keyout untrusted.key -out untrusted.crt -days 1 -subj "/CN=candidate-secure.test"',
+      { cwd: tlsFixtureDir, stdio: 'pipe' }
+    );
+    untrustedServerKey = fs.readFileSync(path.join(tlsFixtureDir, 'untrusted.key'));
+    untrustedServerCert = fs.readFileSync(path.join(tlsFixtureDir, 'untrusted.crt'));
+  });
+
+  afterAll(async () => {
+    for (const server of activeHttpServers) {
+      try {
+        server.close();
+      } catch {}
+    }
+    for (const server of activeHttpsServers) {
+      try {
+        server.close();
+      } catch {}
+    }
+    try {
+      if (tlsFixtureDir && fs.existsSync(tlsFixtureDir)) {
+        fs.rmSync(tlsFixtureDir, { recursive: true, force: true });
+      }
+    } catch {}
+  });
+
+  const startHttpServer = (
     handler: (req: http.IncomingMessage, res: http.ServerResponse) => void
   ): Promise<{ port: number; close: () => Promise<void> }> => {
     return new Promise((resolve) => {
       const server = http.createServer(handler);
       server.listen(0, '127.0.0.1', () => {
-        activeServers.push(server);
+        activeHttpServers.push(server);
         const addr = server.address() as any;
         resolve({
           port: addr.port,
@@ -23,20 +105,30 @@ describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Loo
     });
   };
 
-  afterAll(async () => {
-    for (const server of activeServers) {
-      try {
-        server.close();
-      } catch {}
-    }
-  });
+  const startHttpsServer = (
+    key: Buffer,
+    cert: Buffer,
+    handler: (req: http.IncomingMessage, res: http.ServerResponse) => void
+  ): Promise<{ port: number; close: () => Promise<void> }> => {
+    return new Promise((resolve) => {
+      const server = https.createServer({ key, cert }, handler);
+      server.listen(0, '127.0.0.1', () => {
+        activeHttpsServers.push(server);
+        const addr = server.address() as any;
+        resolve({
+          port: addr.port,
+          close: () => new Promise((res) => server.close(() => res())),
+        });
+      });
+    });
+  };
 
   it('connects socket to exact validated IP while preserving original Host header (production executePinnedRequest)', async () => {
     let capturedHost = '';
     let capturedRemoteIp = '';
     let capturedPath = '';
 
-    const { port, close } = await startTestServer((req, res) => {
+    const { port, close } = await startHttpServer((req, res) => {
       capturedHost = req.headers.host || '';
       capturedRemoteIp = req.socket.remoteAddress || '';
       capturedPath = req.url || '';
@@ -46,7 +138,6 @@ describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Loo
 
     try {
       const controller = new AbortController();
-      // Hostname does not need to resolve in DNS because pinnedIp 127.0.0.1 is passed directly to the lookup callback
       const targetUrl = new URL(`http://unresolvable-candidate-vault-site.org:${port}/portfolio/cv.html?view=full`);
 
       const result = await SafeConnectionFetcher.executePinnedRequest({
@@ -61,9 +152,7 @@ describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Loo
 
       expect(result.statusCode).toBe(200);
       expect(result.body).toContain('Real Socket Response');
-      // Verify the socket physically connected to 127.0.0.1
       expect(capturedRemoteIp).toBe('127.0.0.1');
-      // Verify Host header preserved original hostname + port
       expect(capturedHost).toBe(`unresolvable-candidate-vault-site.org:${port}`);
       expect(capturedPath).toBe('/portfolio/cv.html?view=full');
     } finally {
@@ -73,21 +162,19 @@ describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Loo
 
   it('guarantees DNS changes after validation cannot redirect the socket', async () => {
     let connectionCount = 0;
-    const { port, close } = await startTestServer((_req, res) => {
+    const { port, close } = await startHttpServer((_req, res) => {
       connectionCount++;
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end('<html>Connected to pinned local port</html>');
     });
 
     try {
-      // Custom resolver initially returns 127.0.0.1, then changes to another IP
       let lookupCallCount = 0;
       const changingResolver = async () => {
         lookupCallCount++;
         if (lookupCallCount === 1) {
           return [{ address: '127.0.0.1', family: 4 }];
         }
-        // Attacker attempts to change DNS to a different IP
         return [{ address: '198.51.100.1', family: 4 }];
       };
 
@@ -105,65 +192,98 @@ describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Loo
     }
   });
 
-  it('preserves TLS SNI servername and certificate verification parameters on HTTPS requests', async () => {
-    // Assert on executePinnedRequest https options
-    let capturedHttpsOptions: any = null;
-    const originalRequest = https.request;
+  it('executes genuine HTTPS transport: connects to pinned IP, verifies TLS SNI and Host header with TLS validation intact', async () => {
+    let serverReceivedSni = '';
+    let serverReceivedHost = '';
+    let serverReceivedRemoteIp = '';
 
-    (https as any).request = (options: any, callback: any) => {
-      capturedHttpsOptions = options;
-      // Return a mock client request to avoid needing a live SSL cert
-      const req: any = new http.ClientRequest({
-        hostname: options.hostname,
-        port: options.port,
-        path: options.path,
-        method: options.method,
-      });
-      process.nextTick(() => {
-        const res: any = {
-          statusCode: 200,
-          headers: { 'content-type': 'text/html' },
-          on: (event: string, cb: any) => {
-            if (event === 'data') cb(Buffer.from('<html>HTTPS SNI OK</html>'));
-            if (event === 'end') cb();
-            return res;
-          },
-          resume: () => {},
-        };
-        if (callback) callback(res);
-      });
-      return req;
-    };
+    const { port, close } = await startHttpsServer(validServerKey, validServerCert, (req, res) => {
+      serverReceivedSni = (req.socket as any).servername || '';
+      serverReceivedHost = req.headers.host || '';
+      serverReceivedRemoteIp = req.socket.remoteAddress || '';
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<html><body>GENUINE_HTTPS_VERIFIED_SUCCESS</body></html>');
+    });
 
     try {
-      const controller = new AbortController();
-      const targetUrl = new URL('https://secure-candidate-domain.org:8443/projects');
+      let resolverCount = 0;
+      const mutatingResolver = async () => {
+        resolverCount++;
+        // First lookup returns 127.0.0.1; subsequent lookups mutate to attacker IP
+        return resolverCount === 1
+          ? [{ address: '127.0.0.1', family: 4 }]
+          : [{ address: '203.0.113.99', family: 4 }];
+      };
 
-      await SafeConnectionFetcher.executePinnedRequest({
-        targetUrl,
-        isHttps: true,
-        pinnedIp: '93.184.216.34',
-        ipFamily: 4,
-        maxByteSize: 1024 * 1024,
-        userAgent: 'IAC-Production-Verifier/1.0',
-        signal: controller.signal,
+      const result = await SafeConnectionFetcher.fetch({
+        url: `https://candidate-secure.test:${port}/profile/evidence`,
+        customResolver: mutatingResolver,
+        customCa: caCert,
+        _testOnlyAllowLoopback: true,
       });
 
-      expect(capturedHttpsOptions).not.toBeNull();
-      // Crucial: SNI servername must match original domain for TLS certificate validation
-      expect(capturedHttpsOptions.servername).toBe('secure-candidate-domain.org');
-      expect(capturedHttpsOptions.headers.Host).toBe('secure-candidate-domain.org:8443');
+      // Assert successful encrypted TLS exchange
+      expect(result.statusCode).toBe(200);
+      expect(result.body).toContain('GENUINE_HTTPS_VERIFIED_SUCCESS');
+      expect(result.pinnedIp).toBe('127.0.0.1');
+
+      // Assert server received the original domain for TLS SNI and Host header
+      expect(serverReceivedSni).toBe('candidate-secure.test');
+      expect(serverReceivedHost).toBe(`candidate-secure.test:${port}`);
+      expect(serverReceivedRemoteIp).toBe('127.0.0.1');
     } finally {
-      https.request = originalRequest;
+      await close();
+    }
+  });
+
+  it('enforces certificate hostname verification: rejects connections when certificate SAN does not match requested host', async () => {
+    // Server presents certificate for mismatched-domain.test
+    const { port, close } = await startHttpsServer(mismatchedServerKey, mismatchedServerCert, (_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('Should not be reached');
+    });
+
+    try {
+      // Client requests candidate-secure.test, but server cert is for mismatched-domain.test
+      await expect(
+        SafeConnectionFetcher.fetch({
+          url: `https://candidate-secure.test:${port}/secure-data`,
+          customCa: caCert,
+          _testOnlyAllowLoopback: true,
+          customResolver: async () => [{ address: '127.0.0.1', family: 4 }],
+        })
+      ).rejects.toThrow(/ERR_TLS_CERT_ALTNAME_INVALID|does not match|certificate/i);
+    } finally {
+      await close();
+    }
+  });
+
+  it('enforces certificate authority verification: rejects untrusted or self-signed certificates without root CA trust', async () => {
+    // Server presents untrusted certificate not signed by trusted root CA
+    const { port, close } = await startHttpsServer(untrustedServerKey, untrustedServerCert, (_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('Should not be reached');
+    });
+
+    try {
+      // Client connects with caCert (which did NOT sign untrustedServerCert)
+      await expect(
+        SafeConnectionFetcher.fetch({
+          url: `https://candidate-secure.test:${port}/untrusted-data`,
+          customCa: caCert,
+          _testOnlyAllowLoopback: true,
+          customResolver: async () => [{ address: '127.0.0.1', family: 4 }],
+        })
+      ).rejects.toThrow(/DEPTH_ZERO_SELF_SIGNED_CERT|UNABLE_TO_VERIFY_LEAF_SIGNATURE|self-signed/i);
+    } finally {
+      await close();
     }
   });
 
   it('terminates a stalled response body over a real socket via lifecycle timeout', async () => {
-    const { port, close } = await startTestServer((_req, res) => {
-      // Send 200 headers immediately
+    const { port, close } = await startHttpServer((_req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.write('<html><body>Chunk 1 received...');
-      // Never call res.end() to simulate a server stalled mid-stream
     });
 
     try {
@@ -178,7 +298,6 @@ describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Loo
       ).rejects.toThrow(/timed out.*lifecycle budget exceeded|Request aborted/i);
 
       const elapsed = Date.now() - start;
-      // Must abort promptly around 400ms budget
       expect(elapsed).toBeLessThan(1500);
     } finally {
       await close();
@@ -188,13 +307,12 @@ describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Loo
   it('destroys real socket and rejects request immediately when response body exceeds maxByteSize', async () => {
     let clientDisconnected = false;
 
-    const { port, close } = await startTestServer((req, res) => {
+    const { port, close } = await startHttpServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       req.on('close', () => {
         clientDisconnected = true;
       });
 
-      // Write 25KB chunks in rapid succession
       res.write('B'.repeat(25000));
       res.write('B'.repeat(25000));
       res.end();
@@ -204,13 +322,12 @@ describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Loo
       await expect(
         SafeConnectionFetcher.fetch({
           url: `http://overflow-test-server.org:${port}/oversized`,
-          maxByteSize: 10000, // 10KB limit
+          maxByteSize: 10000,
           _testOnlyAllowLoopback: true,
           customResolver: async () => [{ address: '127.0.0.1', family: 4 }],
         })
       ).rejects.toThrow(/Response exceeded maximum size limit of 10000 bytes/i);
 
-      // Verify the connection was severed
       expect(clientDisconnected).toBe(true);
     } finally {
       await close();
@@ -220,15 +337,13 @@ describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Loo
   it('re-validates redirects before initiating a new socket connection', async () => {
     let serverBReached = false;
 
-    // Server B (rogue / internal server)
-    const serverB = await startTestServer((_req, res) => {
+    const serverB = await startHttpServer((_req, res) => {
       serverBReached = true;
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end('Sensitive data');
     });
 
-    // Server A (initial server) redirects to prohibited metadata host
-    const serverA = await startTestServer((_req, res) => {
+    const serverA = await startHttpServer((_req, res) => {
       res.writeHead(302, {
         Location: `http://metadata.google.internal:${serverB.port}/secrets`,
       });
@@ -244,7 +359,6 @@ describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Loo
         })
       ).rejects.toThrow(/Blocked restricted hostname: metadata\.google\.internal/i);
 
-      // Server B must never have received any request
       expect(serverBReached).toBe(false);
     } finally {
       await serverA.close();
@@ -252,4 +366,3 @@ describe('Production HTTP Transport Integration Tests (Real Sockets & Pinned Loo
     }
   });
 });
-

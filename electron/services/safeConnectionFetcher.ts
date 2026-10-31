@@ -36,6 +36,7 @@ export interface PinnedFetchOptions {
   customResolver?: (hostname: string) => Promise<Array<{ address: string; family: number }>>;
   customRequester?: PinnedRequester;
   userAgent?: string;
+  customCa?: string | Buffer | Array<string | Buffer>;
   _testOnlyAllowLoopback?: boolean;
 }
 
@@ -361,6 +362,7 @@ export class SafeConnectionFetcher {
       customResolver,
       customRequester,
       userAgent = 'IAC-InterviewAssistant/1.0 (+https://github.com/Abhitvg/IAC; Candidate Research)',
+      customCa,
       _testOnlyAllowLoopback = false,
     } = options;
 
@@ -500,6 +502,7 @@ export class SafeConnectionFetcher {
                 maxByteSize,
                 userAgent,
                 signal: globalController.signal,
+                ca: customCa,
               });
 
           if ([301, 302, 303, 307, 308].includes(singleHopResult.statusCode)) {
@@ -557,6 +560,7 @@ export class SafeConnectionFetcher {
     maxByteSize: number;
     userAgent: string;
     signal: AbortSignal;
+    ca?: string | Buffer | Array<string | Buffer>;
   }): Promise<{
     statusCode: number;
     contentType: string;
@@ -564,7 +568,7 @@ export class SafeConnectionFetcher {
     body: string;
     byteSize: number;
   }> {
-    const { targetUrl, isHttps, pinnedIp, ipFamily, maxByteSize, userAgent, signal } = params;
+    const { targetUrl, isHttps, pinnedIp, ipFamily, maxByteSize, userAgent, signal, ca } = params;
 
     return new Promise((resolve, reject) => {
       let aborted = false;
@@ -605,6 +609,9 @@ export class SafeConnectionFetcher {
 
       if (isHttps) {
         (requestOptions as https.RequestOptions).servername = targetUrl.hostname;
+        if (ca) {
+          (requestOptions as https.RequestOptions).ca = ca;
+        }
       }
 
       const req = requestLib.request(requestOptions, (res) => {

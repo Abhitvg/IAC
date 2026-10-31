@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 export const MAX_WRITE_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB max write limit
 
@@ -253,12 +254,117 @@ export function redactSensitiveData(text: string): string {
 }
 
 /**
- * Checks if a given URL belongs to the trusted local application origin.
+ * Resolves the canonical list of approved local application entry points for file: URLs.
  */
-export function isTrustedAppOrigin(url: string, devServerUrl?: string): boolean {
-  if (!url || typeof url !== 'string') return false;
-  if (url.startsWith('file://')) return true;
-  if (devServerUrl && url.startsWith(devServerUrl)) return true;
+export function getApprovedAppHtmlPaths(): string[] {
+  const candidates: string[] = [];
+  if (typeof __dirname !== 'undefined') {
+    candidates.push(path.resolve(__dirname, '../dist/index.html'));
+    candidates.push(path.resolve(__dirname, '../../dist/index.html'));
+    candidates.push(path.resolve(__dirname, 'index.html'));
+  }
+  if (process.cwd()) {
+    candidates.push(path.resolve(process.cwd(), 'dist/index.html'));
+  }
+  if (process.resourcesPath) {
+    candidates.push(path.resolve(process.resourcesPath, 'app.asar', 'dist/index.html'));
+    candidates.push(path.resolve(process.resourcesPath, 'dist/index.html'));
+  }
+  try {
+    const electronApp = require('electron')?.app;
+    if (electronApp?.getAppPath) {
+      const appPath = electronApp.getAppPath();
+      candidates.push(path.resolve(appPath, 'dist/index.html'));
+      candidates.push(path.resolve(appPath, 'index.html'));
+    }
+  } catch {}
+  return Array.from(new Set(candidates.map((p) => path.normalize(p))));
+}
+
+/**
+ * Checks if a given URL belongs to the trusted local application origin.
+ * Strict URL parsing, credentials rejection, effective port matching,
+ * and canonical entry point validation are enforced.
+ */
+export function isTrustedAppOrigin(
+  url: string,
+  devServerUrl: string | undefined = process.env.VITE_DEV_SERVER_URL,
+  allowedFilePaths?: string[]
+): boolean {
+  if (!url || typeof url !== 'string' || !url.trim()) return false;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return false;
+  }
+
+  // Reject credentials in userinfo (e.g. http://localhost:5173@attacker.example)
+  if (parsed.username || parsed.password) {
+    return false;
+  }
+
+  // Production file: protocol validation
+  if (parsed.protocol === 'file:') {
+    // Hostname must be empty or localhost (reject Windows UNC or remote hostnames)
+    if (parsed.hostname && parsed.hostname !== 'localhost') {
+      return false;
+    }
+
+    let filePath: string;
+    try {
+      filePath = fileURLToPath(parsed);
+    } catch {
+      return false;
+    }
+
+    const normalizedPath = path.normalize(filePath);
+    const approvedPaths =
+      allowedFilePaths && allowedFilePaths.length > 0
+        ? allowedFilePaths.map((p) => path.normalize(p))
+        : getApprovedAppHtmlPaths();
+
+    return approvedPaths.includes(normalizedPath);
+  }
+
+  // Development http: / https: protocol validation
+  if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+    if (!devServerUrl || typeof devServerUrl !== 'string' || !devServerUrl.trim()) {
+      return false;
+    }
+
+    let devParsed: URL;
+    try {
+      devParsed = new URL(devServerUrl.trim());
+    } catch {
+      return false;
+    }
+
+    if (devParsed.username || devParsed.password) {
+      return false;
+    }
+
+    // Strict protocol equality
+    if (parsed.protocol !== devParsed.protocol) {
+      return false;
+    }
+
+    // Strict hostname equality (disallow hostname-prefix, suffix, or domain lookalikes)
+    if (parsed.hostname.toLowerCase() !== devParsed.hostname.toLowerCase()) {
+      return false;
+    }
+
+    // Strict effective port comparison
+    const getEffectivePort = (u: URL) => u.port || (u.protocol === 'https:' ? '443' : '80');
+    if (getEffectivePort(parsed) !== getEffectivePort(devParsed)) {
+      return false;
+    }
+
+    // Normalized origin comparison
+    return parsed.origin === devParsed.origin;
+  }
+
   return false;
 }
 
@@ -270,7 +376,8 @@ export function isTrustedAppOrigin(url: string, devServerUrl?: string): boolean 
 export function isTrustedSender(
   event: { senderFrame?: any; sender?: any },
   mainWindow: any,
-  devServerUrl: string | undefined = process.env.VITE_DEV_SERVER_URL
+  devServerUrl: string | undefined = process.env.VITE_DEV_SERVER_URL,
+  allowedFilePaths?: string[]
 ): boolean {
   if (!mainWindow) return false;
   if (typeof mainWindow.isDestroyed === 'function' && mainWindow.isDestroyed()) return false;
@@ -301,7 +408,7 @@ export function isTrustedSender(
 
     // 2. Origin & URL validation: frame URL must be trusted application origin
     const frameUrl = frame.url || '';
-    if (frameUrl && !isTrustedAppOrigin(frameUrl, devServerUrl)) {
+    if (frameUrl && !isTrustedAppOrigin(frameUrl, devServerUrl, allowedFilePaths)) {
       return false;
     }
   }
@@ -311,7 +418,7 @@ export function isTrustedSender(
     typeof mainWindow.webContents.getURL === 'function'
       ? mainWindow.webContents.getURL()
       : '';
-  if (currentUrl && !isTrustedAppOrigin(currentUrl, devServerUrl)) {
+  if (currentUrl && !isTrustedAppOrigin(currentUrl, devServerUrl, allowedFilePaths)) {
     return false;
   }
 
