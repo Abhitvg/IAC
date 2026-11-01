@@ -304,21 +304,24 @@ function setupNativeApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-// Enforce single-instance lock to prevent multiple application instances/windows from opening
-const gotTheLock = app.requestSingleInstanceLock();
+// Enforce single-instance lock to prevent multiple application instances/windows from opening in production
+const isDev = !app.isPackaged && Boolean(process.env.VITE_DEV_SERVER_URL);
+const gotTheLock = isDev ? true : app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
   console.log('[Electron] Another application instance is already running. Quitting duplicate instance.');
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    // When a second instance tries to launch, focus our existing main window
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      if (!mainWindow.isVisible()) mainWindow.show();
-      mainWindow.focus();
-    }
-  });
+  if (!isDev) {
+    app.on('second-instance', () => {
+      // When a second instance tries to launch, focus our existing main window
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        if (!mainWindow.isVisible()) mainWindow.show();
+        mainWindow.focus();
+      }
+    });
+  }
 
   app.whenReady().then(() => {
   RECORDINGS_DIR = path.join(app.getPath('userData'), 'recordings');
