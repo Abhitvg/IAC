@@ -176,7 +176,7 @@ function GroundingBadge({
   violationsCount,
   isGenerating,
 }: {
-  validationStatus?: 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FAILED' | 'ABORTED';
+  validationStatus?: 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FLAGGED_BUT_QUALIFIED' | 'BLOCKED' | 'FAILED' | 'ABORTED';
   isValidated: boolean;
   score: number | null;
   violationsCount: number;
@@ -200,6 +200,28 @@ function GroundingBadge({
         title="Streaming live token stream. Factual grounding validation occurs upon completion."
       >
         ⚡ Live Stream (Validation Pending)
+      </span>
+    );
+  }
+
+  if (validationStatus === 'BLOCKED') {
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontSize: '11px',
+          fontWeight: 700,
+          color: '#f87171',
+          background: 'rgba(239, 68, 68, 0.2)',
+          border: '1px solid rgba(239, 68, 68, 0.6)',
+        }}
+        title="Candidate claims in this answer could not be safely verified or qualified; answer is blocked from speaking queue."
+      >
+        🚫 Speaking Blocked (Ungrounded Claims)
       </span>
     );
   }
@@ -285,13 +307,13 @@ function GroundingBadge({
         borderRadius: '12px',
         fontSize: '11px',
         fontWeight: 700,
-        color: '#f87171',
-        background: 'rgba(239, 68, 68, 0.15)',
-        border: '1px solid rgba(248, 113, 113, 0.4)',
+        color: '#fbbf24',
+        background: 'rgba(245, 158, 11, 0.15)',
+        border: '1px solid rgba(245, 158, 11, 0.45)',
       }}
-      title={`${violationsCount} ungrounded claims qualified/adjusted.`}
+      title={`${violationsCount} ungrounded claims neutralized and qualified for speaking safety.`}
     >
-      ⚠️ Grounding: FLAGGED ({violationsCount} Claim{violationsCount > 1 ? 's' : ''} Qualified)
+      ⚠️ Grounding: Qualified ({violationsCount} Claim{violationsCount > 1 ? 's' : ''} Neutralized)
     </span>
   );
 }
@@ -707,17 +729,28 @@ function CodeBlockCard({ language, code, index, onCopy, isCopied }: CodeBlockCar
 
 /**
  * Real presentation selector: returns speakable candidate answer text
- * only if factual grounding validation has passed or been appropriately flagged/qualified.
+ * only if factual grounding validation has passed or been appropriately flagged and qualified.
+ * Raw or unneutralized BLOCKED, FAILED, or ABORTED answers strictly return null.
  */
 export function selectSpeakableCandidateAnswer(state: {
   currentAnswer: string | null;
   isAnswerValidated: boolean;
   answerValidationStatus: string;
 }): string | null {
-  if (state.isAnswerValidated || state.answerValidationStatus === 'FLAGGED') {
+  if (state.isAnswerValidated || state.answerValidationStatus === 'FLAGGED_BUT_QUALIFIED') {
     return state.currentAnswer;
   }
   return null;
+}
+
+/**
+ * Presentation selector for general impersonal technical guidance.
+ * Available for reference when personal candidate experience cannot be safely verified.
+ */
+export function selectTechnicalGuidance(state: {
+  technicalGuidance?: string | null;
+}): string | null {
+  return state.technicalGuidance || null;
 }
 
 export default function TeleprompterView() {
@@ -725,6 +758,8 @@ export default function TeleprompterView() {
     currentQuestion,
     currentAnswer,
     draftAnswer,
+    technicalGuidance,
+    blockedReason,
     status,
     isAnswerValidated,
     answerValidationStatus,
@@ -818,10 +853,10 @@ export default function TeleprompterView() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showControlsPopover, setShowControlsPopover] = useState(false);
   const [windowWidth, setWindowWidth] = useState(
-    typeof window !== 'undefined' ? window.innerWidth : 900
+    typeof window !== 'undefined' && window.innerWidth > 0 ? window.innerWidth : 900
   );
   const [windowHeight, setWindowHeight] = useState(
-    typeof window !== 'undefined' ? window.innerHeight : 720
+    typeof window !== 'undefined' && window.innerHeight > 0 ? window.innerHeight : 720
   );
 
   useEffect(() => {
@@ -2506,7 +2541,60 @@ export default function TeleprompterView() {
               '0 1px 3px rgba(0, 0, 0, 0.98), 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 16px rgba(0, 0, 0, 0.7)',
           }}
         >
-          {currentAnswer ? (
+          {answerValidationStatus === 'BLOCKED' ? (
+            <div
+              className="blocked-speaking-card"
+              style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                borderRadius: '12px',
+                padding: '20px',
+                margin: '12px 0',
+                color: '#fecaca',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <span style={{ fontSize: '18px' }}>🚫</span>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#f87171' }}>
+                  Candidate Recital Blocked (Factual Grounding Safety Gate)
+                </span>
+              </div>
+              <p style={{ fontSize: '13px', color: '#fca5a5', lineHeight: '1.5', margin: '0 0 12px 0' }}>
+                {blockedReason ||
+                  'This generated answer contains unsupported personal claims that could not be validated against your candidate knowledge vault. To protect your interview credibility, raw claims cannot be recited.'}
+              </p>
+
+              {technicalGuidance && technicalGuidance.trim().length > 0 && (
+                <div
+                  className="technical-guidance-card"
+                  style={{
+                    background: 'rgba(0, 0, 0, 0.45)',
+                    border: '1px solid rgba(148, 163, 184, 0.25)',
+                    borderRadius: '8px',
+                    padding: '14px',
+                    marginTop: '12px',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: '#93c5fd',
+                      marginBottom: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <span>📘 Impersonal Technical Guidance (Reference Only — Do Not Present as Past Personal Experience):</span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#e2e8f0', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                    {technicalGuidance}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : currentAnswer ? (
             <div>
               {/* Live Answer Steering Actions */}
               {!isRibbonMode && !isGenerating && (

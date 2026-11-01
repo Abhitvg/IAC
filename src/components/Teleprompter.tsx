@@ -10,7 +10,7 @@ export function isTeleprompterSpeakableReady(state: {
   isAnswerValidated: boolean;
   answerValidationStatus: string;
 }): boolean {
-  return state.isAnswerValidated || state.answerValidationStatus === 'FLAGGED';
+  return state.isAnswerValidated || state.answerValidationStatus === 'FLAGGED_BUT_QUALIFIED';
 }
 
 export default function Teleprompter() {

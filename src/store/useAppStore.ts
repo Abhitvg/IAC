@@ -66,12 +66,16 @@ interface InterviewState {
   currentQuestion: string | null;
   currentAnswer: string | null;
   isAnswerValidated: boolean;
-  answerValidationStatus: 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FAILED' | 'ABORTED';
+  answerValidationStatus: 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FLAGGED_BUT_QUALIFIED' | 'BLOCKED' | 'FAILED' | 'ABORTED';
+  technicalGuidance: string | null;
+  blockedReason: string | null;
   groundingScore: number | null;
   groundingViolations: string[];
   activeRequestId: string | null;
   setIsAnswerValidated: (isValidated: boolean) => void;
-  setAnswerValidationStatus: (status: 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FAILED' | 'ABORTED') => void;
+  setAnswerValidationStatus: (status: 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FLAGGED_BUT_QUALIFIED' | 'BLOCKED' | 'FAILED' | 'ABORTED') => void;
+  setTechnicalGuidance: (g: string | null) => void;
+  setBlockedReason: (r: string | null) => void;
   setGroundingResult: (score: number | null, violations: string[]) => void;
   setActiveRequestId: (id: string | null) => void;
   transcript: TranscriptMessage[];
@@ -234,11 +238,15 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   currentAnswer: null,
   isAnswerValidated: false,
   answerValidationStatus: 'PENDING',
+  technicalGuidance: null,
+  blockedReason: null,
   activeRequestId: null,
   groundingScore: null,
   groundingViolations: [],
   setIsAnswerValidated: (isAnswerValidated) => set({ isAnswerValidated }),
   setAnswerValidationStatus: (answerValidationStatus) => set({ answerValidationStatus }),
+  setTechnicalGuidance: (technicalGuidance) => set({ technicalGuidance }),
+  setBlockedReason: (blockedReason) => set({ blockedReason }),
   setActiveRequestId: (activeRequestId) => set({ activeRequestId }),
   setGroundingResult: (groundingScore, groundingViolations) => set({ groundingScore, groundingViolations }),
   transcript: [],
@@ -571,6 +579,8 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       currentAnswer: null,
       isAnswerValidated: false,
       answerValidationStatus: 'PENDING',
+      technicalGuidance: null,
+      blockedReason: null,
       activeRequestId: null,
       groundingScore: null,
       groundingViolations: [],

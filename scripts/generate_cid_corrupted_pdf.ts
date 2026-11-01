@@ -3,11 +3,11 @@ import zlib from 'zlib';
 
 /**
  * Generates a valid PDF with an embedded visual image layer of a candidate resume
- * overlaid with an unmapped Type 0 / CIDFont text layer:
+ * overlaid with a Type 0 / CIDFont text layer having a deliberately corrupted ToUnicode mapping:
  * - Declares a genuine Type 0 font (/Subtype /Type0) referencing descendant /CIDFontType2
- *   with /Encoding /Identity-H and an unmapped ToUnicode CMap.
+ *   with /Encoding /Identity-H and a deliberately corrupted ToUnicode CMap.
  * - Injects text operations into the reachable page content stream.
- * - Proves that PDF.js extracts unmapped mojibake/control bytes, triggering
+ * - Proves that PDF.js extracts corrupted text via the defective ToUnicode mapping, triggering
  *   isGarbledOrMojibakeText and falling back to native Apple Vision OCR.
  */
 export function generateCidCorruptedPdf(outputPath: string, basePdfPath: string) {

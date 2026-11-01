@@ -394,11 +394,17 @@ export class AnswerGenerationService {
         }
       }
 
-      const isStrictlyValidated = validation.validationStatus === 'VALIDATED';
+      const decision = FactualGroundingValidator.evaluateSpeakingDecision(
+        cleanAnswer,
+        groundedAnswer,
+        validation,
+        kb
+      );
+
       completionResult = {
-        status: isStrictlyValidated ? 'VALIDATED' : 'FLAGGED',
-        isValidated: isStrictlyValidated,
-        cleanAnswer: groundedAnswer,
+        status: validation.validationStatus,
+        isValidated: decision.outcome === 'VALIDATED',
+        cleanAnswer: decision.speakableAnswer || (decision.outcome === 'BLOCKED' ? '' : cleanAnswer),
         detectedCategory,
         confidence,
         followUps: validatedFollowUps,
@@ -409,7 +415,10 @@ export class AnswerGenerationService {
         groundingScore: validation.score,
         groundingViolations: validation.violations,
         structuredViolations: validation.structuredViolations,
-      };
+        speakingDecision: decision,
+        technicalGuidance: decision.technicalGuidance,
+        blockedReason: decision.blockedReason,
+      } as any;
       (completionResult as any).answer = completionResult.cleanAnswer;
       cb.onComplete?.(completionResult);
     };

@@ -88,7 +88,7 @@ describe('Genuine OCR Accuracy, Multilingual Recognition & Text Layer Distinctio
     expect(text).toContain('25 million events per second');
   });
 
-  it('Test 4 (Corrupted Text Layer Over Scanned Image Fallback): proves PDF.js extracts unmapped Type 0/CIDFont text triggering OCR fallback', async () => {
+  it('Test 4 (Corrupted Text Layer Over Scanned Image Fallback): proves PDF.js extracts corrupted Type 0/CIDFont text triggering OCR fallback', async () => {
     if (process.platform !== 'darwin') return;
 
     const pdfPath = path.join(fixturesDir, 'corrupted_text_layer_fallback.pdf');
@@ -117,7 +117,7 @@ describe('Genuine OCR Accuracy, Multilingual Recognition & Text Layer Distinctio
     const pdfjsExtractedText = textContent.items.map((i: any) => i.str).join(' ');
 
     expect(pdfjsExtractedText.length).toBeGreaterThan(0);
-    // PDF.js extracts unmapped control codes/mojibake from the Type 0 font without valid character mapping
+    // PDF.js extracts corrupted control codes/mojibake from the Type 0 font via the defective ToUnicode mapping
     expect(isGarbledOrMojibakeText(pdfjsExtractedText)).toBe(true);
 
     // 3. Verify underlying PDF objects declare Type 0 font and descendant CIDFontType2
@@ -131,7 +131,7 @@ describe('Genuine OCR Accuracy, Multilingual Recognition & Text Layer Distinctio
     const extractedText = await parsePdfBuffer(rawBuffer);
 
     expect(extractedText).toBeTruthy();
-    // Must NOT contain the unmapped mojibake string
+    // Must NOT contain the corrupted text layer string
     expect(extractedText).not.toContain(pdfjsExtractedText);
     // Must contain the visually rendered candidate details from OCR
     expect(extractedText).toContain('Jordan Lee');

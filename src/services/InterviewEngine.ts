@@ -17,6 +17,11 @@ import { useAppStore } from '../store/useAppStore';
 import { AudioRecorder } from './audio';
 import { transcribeAudio } from './whisper';
 import { AnswerGenerationService } from './AnswerGenerationService';
+import {
+  FactualGroundingValidator,
+  CandidateKnowledgeBase,
+  SpeakingDecision,
+} from './candidateIntelligence';
 
 export type EngineEvent =
   | { type: 'START_LISTENING' }
@@ -358,26 +363,28 @@ export class InterviewEngine {
               // Clear unvalidated streaming draft
               state.clearDraft();
 
-              const isValid = res.validationStatus === 'VALIDATED';
-              const isFlagged = res.validationStatus === 'FLAGGED';
+              const decision: SpeakingDecision =
+                (res as any).speakingDecision ||
+                FactualGroundingValidator.evaluateSpeakingDecision(
+                  res.cleanAnswer || '',
+                  res.cleanAnswer,
+                  res.validationResult,
+                  currentStore.resumeText ? new CandidateKnowledgeBase(currentStore.resumeText) : CandidateKnowledgeBase.getActiveKnowledgeBase()
+                );
 
-              if (isValid || isFlagged) {
-                const finalAnswer = res.cleanAnswer;
+              if (decision.isSpeakable) {
+                const finalAnswer = decision.speakableAnswer;
                 state.setCurrentAnswer(finalAnswer);
                 state.setAnswerConfidence(res.confidence);
-                state.setAnswerValidationStatus(res.validationStatus);
-                state.setIsAnswerValidated(isValid);
+                state.setAnswerValidationStatus(decision.outcome);
+                state.setIsAnswerValidated(decision.outcome === 'VALIDATED');
                 state.setGroundingResult(res.groundingScore ?? 100, res.groundingViolations ?? []);
-
-                // Populate speakable teleprompter queue with sentences from the validated/adjusted answer
-                const speakableSentences = finalAnswer
-                  .split(/(?<=[.?!])\s+/)
-                  .map((s) => s.trim())
-                  .filter((s) => s.length > 0);
-                state.enqueueSentences(speakableSentences.length > 0 ? speakableSentences : [finalAnswer]);
+                state.enqueueSentences(decision.speakableQueue);
+                state.setTechnicalGuidance(null);
+                state.setBlockedReason(null);
 
                 const currentQ = state.currentQuestion;
-                if (currentQ) {
+                if (currentQ && finalAnswer) {
                   state.addToConversationHistory({
                     question: currentQ,
                     answer: finalAnswer.slice(0, 300),
@@ -385,12 +392,14 @@ export class InterviewEngine {
                   });
                 }
               } else {
-                // FAILED or ABORTED: keep speakable queue empty and do not promote unvalidated claims
-                state.setCurrentAnswer(res.cleanAnswer || null);
+                // BLOCKED, FAILED, or ABORTED: keep speakable queue strictly empty
+                state.setCurrentAnswer(null);
                 state.setIsAnswerValidated(false);
-                state.setAnswerValidationStatus(res.validationStatus);
+                state.setAnswerValidationStatus(decision.outcome);
                 state.setGroundingResult(0, res.groundingViolations ?? []);
                 state.enqueueSentences([]);
+                state.setTechnicalGuidance(decision.technicalGuidance || null);
+                state.setBlockedReason(decision.blockedReason || 'Blocked by factual grounding gate');
               }
 
               state.setPredictedFollowUps(res.predictedFollowUps || []);
@@ -510,27 +519,32 @@ export class InterviewEngine {
               globalLatencyTracker.mark('generationEnd');
               state.clearDraft();
 
-              const isValid = res.validationStatus === 'VALIDATED';
-              const isFlagged = res.validationStatus === 'FLAGGED';
+              const decision: SpeakingDecision =
+                (res as any).speakingDecision ||
+                FactualGroundingValidator.evaluateSpeakingDecision(
+                  res.cleanAnswer || '',
+                  res.cleanAnswer,
+                  res.validationResult,
+                  currentStore.resumeText ? new CandidateKnowledgeBase(currentStore.resumeText) : CandidateKnowledgeBase.getActiveKnowledgeBase()
+                );
 
-              if (isValid || isFlagged) {
-                const finalAnswer = res.cleanAnswer;
+              if (decision.isSpeakable) {
+                const finalAnswer = decision.speakableAnswer;
                 state.setCurrentAnswer(finalAnswer);
-                state.setAnswerValidationStatus(res.validationStatus);
-                state.setIsAnswerValidated(isValid);
+                state.setAnswerValidationStatus(decision.outcome);
+                state.setIsAnswerValidated(decision.outcome === 'VALIDATED');
                 state.setGroundingResult(res.groundingScore ?? 100, res.groundingViolations ?? []);
-
-                const speakable = finalAnswer
-                  .split(/(?<=[.?!])\s+/)
-                  .map((s) => s.trim())
-                  .filter((s) => s.length > 0);
-                state.enqueueSentences(speakable.length > 0 ? speakable : [finalAnswer]);
+                state.enqueueSentences(decision.speakableQueue);
+                state.setTechnicalGuidance(null);
+                state.setBlockedReason(null);
               } else {
-                state.setCurrentAnswer(res.cleanAnswer || null);
+                state.setCurrentAnswer(null);
                 state.setIsAnswerValidated(false);
-                state.setAnswerValidationStatus(res.validationStatus);
+                state.setAnswerValidationStatus(decision.outcome);
                 state.setGroundingResult(0, res.groundingViolations ?? []);
                 state.enqueueSentences([]);
+                state.setTechnicalGuidance(decision.technicalGuidance || null);
+                state.setBlockedReason(decision.blockedReason || 'Blocked by factual grounding gate');
               }
 
               state.setRecitalState('listening');

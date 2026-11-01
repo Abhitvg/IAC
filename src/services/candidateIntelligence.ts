@@ -357,7 +357,32 @@ export interface GroundingViolation {
   evidenceReference?: string;
 }
 
-export type AnswerValidationStatus = 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FAILED';
+export type AnswerValidationStatus =
+  | 'PENDING'
+  | 'VALIDATED'
+  | 'FLAGGED'
+  | 'FLAGGED_BUT_QUALIFIED'
+  | 'BLOCKED'
+  | 'FAILED'
+  | 'ABORTED';
+
+export type SpeakingDecisionOutcome =
+  | 'VALIDATED'
+  | 'FLAGGED_BUT_QUALIFIED'
+  | 'BLOCKED'
+  | 'FAILED'
+  | 'ABORTED';
+
+export interface SpeakingDecision {
+  outcome: SpeakingDecisionOutcome;
+  isSpeakable: boolean;
+  speakableAnswer: string | null;
+  speakableQueue: string[];
+  blockedReason?: string;
+  technicalGuidance?: string | null;
+  neutralizedViolations: GroundingViolation[];
+  unneutralizedViolations: GroundingViolation[];
+}
 
 export interface GroundingValidationResult {
   isGrounded: boolean;
@@ -675,6 +700,16 @@ export class CandidateKnowledgeBase {
           if (archText) {
             currentProject.architecture = archText;
           }
+        } else if (/^Proposed(?:\s+Future)?\s*Designs?\s*[:|-]/i.test(line)) {
+          const designs = line.split(/[:,|-]/).slice(1).join(',').split(',').map((d) => d.trim()).filter(Boolean);
+          currentProject.proposedDesigns = [...(currentProject.proposedDesigns || []), ...designs];
+          projectClaims.push({
+            id: `claim-${currentProject.id}-proposed-${lineNum}`,
+            claimType: 'description',
+            rawText: line,
+            sourceLine: lineNum,
+            confidence: 0.8,
+          });
         }
       }
     }
@@ -2504,6 +2539,77 @@ export class FactualGroundingValidator {
         /\bI\s+(?:personally\s+)?(?:optimized|scaled)\s+([^.?!;\n]+)/gi,
         'The system was optimized: $1 (personal optimization unverified in candidate profile)'
       );
+
+      // Qualify latency / cost / benchmark improvements
+      adjustedAnswer = adjustedAnswer.replace(
+        /\b(?:I\s+)?(?:reduc(?:ed?|ing)|improv(?:ed?|ing)|boost(?:ed?|ing)|cut(?:ting)?|slash(?:ed|ing)?|increas(?:ed?|ing)|decreas(?:ed?|ing)|achiev(?:ed?|ing)|reach(?:ed?|ing))\s+(?:(?:[A-Za-z0-9_-]+\s+){0,3})?(?:latency|response times?|costs?|query execution(?: times?)?|runtime|throughput|memory(?:\s+usage)?|p\d+\s+(?:latency|response times?)|connections|users|transactions)\s+(?:by\s+)?(?:\d+|[a-z]+(?:-[a-z]+)?)\s*(?:%|percent\b)/gi,
+        'the team optimized performance (percentage improvement unverified in candidate records; consulting internal project telemetry)'
+      );
+
+      // Neutralize unverified architecture claims
+      adjustedAnswer = adjustedAnswer.replace(
+        /\bI\s+(?:single-handedly\s+|personally\s+)?(?:architected|designed|spearheaded)\s+(?:the\s+)?(?:entire|complete|whole|core)?\s*(system|backend|platform|infrastructure|architecture|database\s+architecture)\b/gi,
+        'The $1 architecture was established (personal architectural ownership unverified in candidate profile)'
+      );
+
+      // Neutralize unverified database design claims
+      adjustedAnswer = adjustedAnswer.replace(
+        /\bI\s+(?:personally\s+)?(?:designed|architected|created)\s+(?:the\s+)?(database\s+schema|data\s+model|sharding\s+strategy|partitioning\s+scheme|replication\s+topology)\b/gi,
+        'The $1 was established (database design ownership unverified in candidate profile)'
+      );
+
+      // Neutralize unverified security claims
+      adjustedAnswer = adjustedAnswer.replace(
+        /\bI\s+(?:personally\s+)?(?:secured|hardened)\s+(?:the\s+)?([A-Za-z0-9_-]+)/gi,
+        'The security posture of $1 was evaluated (personal security implementation unverified in candidate profile)'
+      );
+      adjustedAnswer = adjustedAnswer.replace(
+        /\bI\s+(?:personally\s+)?(?:implemented|architected|engineered|built)\s+(?:the\s+)?(security|auth|authentication|authorization|oauth\d?|jwt|encryption|rbac|zero-trust)\s*(framework|system|pipeline|service|layer|protocol)?\b/gi,
+        'The $1 $2 was integrated into the system (security implementation ownership unverified in candidate profile)'
+      );
+
+      // Neutralize unverified backend subsystem claims
+      adjustedAnswer = adjustedAnswer.replace(
+        /\bI\s+(?:personally\s+|single-handedly\s+)?(?:built|implemented|wrote|developed|engineered|designed|architected|created)\s+(?:the\s+)?(?:complete\s+|entire\s+)?([a-z0-9_-]+(?:\s+[a-z0-9_-]+){0,3}\s+(?:engine|subsystem|gateway|pipeline|service|layer|queue|topology|clustering|consumer|broker|producer|framework|logger|limiter|module|cluster|protocol))\b/gi,
+        'The engineering scope included the $1 (personal implementation unverified in candidate profile)'
+      );
+
+      // Neutralize unverified deployment claims (broadened)
+      adjustedAnswer = adjustedAnswer.replace(
+        /\bI\s+(?:personally\s+|single-handedly\s+)?(?:deployed|provisioned|maintained|orchestrated|managed\s+production\s+deployments\s+(?:on|in)?|configured\s+and\s+deployed)\s+(?:the\s+)?(?:system|service|cluster|platform|infrastructure)?\s*(?:on|in|to|using|with|via)\s+([A-Za-z0-9.-]+)\s*(?:in\s+production)?\b/gi,
+        'The system was deployed on $1 (deployment ownership unverified in candidate profile)'
+      );
+
+      // Neutralize unverified technology implementation claims
+      adjustedAnswer = adjustedAnswer.replace(
+        /\bI\s+(?:personally\s+|single-handedly\s+)?(?:built|implemented|architected|designed|developed|engineered|created|wrote)\s+([^.?!;\n]+?\s+(?:using|in|with|via|on))\s+([A-Za-z0-9#+.-]+)/gi,
+        'The system utilized $2: $1 $2 (personal implementation with $2 unverified in candidate profile)'
+      );
+
+      // Neutralize proposed designs presented as completed
+      for (const proj of kb.getAllProjects()) {
+        if (proj.proposedDesigns && proj.proposedDesigns.length > 0) {
+          for (const proposed of proj.proposedDesigns) {
+            const escProposed = proposed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            adjustedAnswer = adjustedAnswer.replace(
+              new RegExp(`\\bI\\s+(?:implemented|deployed|built)\\s+${escProposed}\\b`, 'gi'),
+              `The proposed design for "${proposed}" was specified as a forward-looking proposal (completed implementation unverified in candidate profile)`
+            );
+          }
+        }
+      }
+
+      // Neutralize unverified tier-1 employer claims
+      adjustedAnswer = adjustedAnswer.replace(
+        /\b(?:at|for)\s+(Google|Amazon|Meta|Apple|Netflix|Microsoft|Uber|Airbnb)\b/gi,
+        '(employer unverified in candidate profile)'
+      );
+
+      // Neutralize unverified team achievements
+      adjustedAnswer = adjustedAnswer.replace(
+        /\b(?:our\s+team|the\s+team|my\s+team)\s+(?:delivered|achieved|built|migrated|scaled|launched|replaced|rebuilt|overhauled|transitioned|implemented)\s+([^.?!;\n]+)/gi,
+        'The engineering deliverables included $1 (team delivery unverified in candidate profile)'
+      );
     }
 
     return {
@@ -2516,4 +2622,239 @@ export class FactualGroundingValidator {
       adjustedAnswer,
     };
   }
+
+  /**
+   * Fail-Closed Candidate Speaking Gate:
+   * Evaluates validation outcome and structured violations to strictly determine whether
+   * an answer can enter the speakable queue.
+   *
+   * Outcomes:
+   * - VALIDATED: 100% grounded in verified candidate evidence. Speakable.
+   * - FLAGGED_BUT_QUALIFIED: All ungrounded claims successfully neutralized and qualified. Speakable.
+   * - BLOCKED: Contains unneutralized unsupported candidate claims or unchanged text. NOT speakable.
+   * - FAILED / ABORTED: Generation error or user abort. NOT speakable.
+   */
+  public static evaluateSpeakingDecision(
+    rawAnswer: string,
+    adjustedAnswer: string | undefined,
+    validationResult: GroundingValidationResult | any,
+    kb: CandidateKnowledgeBase
+  ): SpeakingDecision {
+    if (!validationResult) {
+      return {
+        outcome: 'FAILED',
+        isSpeakable: false,
+        speakableAnswer: null,
+        speakableQueue: [],
+        blockedReason: 'Factual grounding validation was not executed or failed',
+        technicalGuidance: extractGeneralTechnicalGuidance(rawAnswer),
+        neutralizedViolations: [],
+        unneutralizedViolations: [],
+      };
+    }
+
+    if (validationResult.validationStatus === 'ABORTED') {
+      return {
+        outcome: 'ABORTED',
+        isSpeakable: false,
+        speakableAnswer: null,
+        speakableQueue: [],
+        blockedReason: 'Generation was aborted before completion',
+        technicalGuidance: null,
+        neutralizedViolations: [],
+        unneutralizedViolations: [],
+      };
+    }
+
+    if (validationResult.validationStatus === 'FAILED') {
+      return {
+        outcome: 'FAILED',
+        isSpeakable: false,
+        speakableAnswer: null,
+        speakableQueue: [],
+        blockedReason: validationResult.violations?.[0] || 'Generation failed',
+        technicalGuidance: extractGeneralTechnicalGuidance(rawAnswer),
+        neutralizedViolations: [],
+        unneutralizedViolations: validationResult.structuredViolations || [],
+      };
+    }
+
+    // Fully validated: 0 violations, score 100
+    if (validationResult.isGrounded && (!validationResult.structuredViolations || validationResult.structuredViolations.length === 0)) {
+      const finalClean = (adjustedAnswer || rawAnswer).trim();
+      const speakableQueue = finalClean
+        .split(/(?<=[.?!])\s+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      return {
+        outcome: 'VALIDATED',
+        isSpeakable: true,
+        speakableAnswer: finalClean,
+        speakableQueue: speakableQueue.length > 0 ? speakableQueue : [finalClean],
+        technicalGuidance: null,
+        neutralizedViolations: [],
+        unneutralizedViolations: [],
+      };
+    }
+
+    // If FLAGGED, evaluate whether every structured violation was neutralized
+    const candidateAdj = (adjustedAnswer || '').trim();
+    const cleanRaw = rawAnswer.trim();
+
+    // Condition 1: If adjusted answer is identical to raw answer, NO neutralization occurred
+    if (!candidateAdj || candidateAdj === cleanRaw) {
+      return {
+        outcome: 'BLOCKED',
+        isSpeakable: false,
+        speakableAnswer: null,
+        speakableQueue: [],
+        blockedReason: 'Blocked: adjusted answer remained identical to raw ungrounded generation; no violations were neutralized.',
+        technicalGuidance: extractGeneralTechnicalGuidance(rawAnswer),
+        neutralizedViolations: [],
+        unneutralizedViolations: [...validationResult.structuredViolations],
+      };
+    }
+
+    // Condition 2: Check each violation individually
+    const neutralized: GroundingViolation[] = [];
+    const unneutralized: GroundingViolation[] = [];
+
+    const qualificationMarkers = [
+      'unverified in candidate',
+      'unverified in candidate profile',
+      'unverified in candidate records',
+      'consulting internal project telemetry',
+      'delivery guarantees depend on consumer deduplication',
+      'personal ownership unverified',
+      'deployment ownership unverified',
+      'personal implementation unverified',
+      'personal optimization unverified',
+      'scale metric unverified',
+      'individual sole authorship unverified',
+      'database design ownership unverified',
+      'personal architectural ownership unverified',
+      'security implementation ownership unverified',
+      'completed implementation unverified',
+      'team delivery unverified',
+      'employer unverified',
+      'forward-looking proposal',
+    ];
+
+    for (const v of validationResult.structuredViolations) {
+      const claim = v.claimText ? v.claimText.trim().toLowerCase() : '';
+      if (!claim) {
+        neutralized.push(v);
+        continue;
+      }
+
+      // If the verbatim claim text is no longer in the adjusted answer, it was replaced/removed
+      const stillContainsClaim = candidateAdj.toLowerCase().includes(claim);
+
+      if (!stillContainsClaim) {
+        neutralized.push(v);
+      } else {
+        // If it's still present, check if there is an adjacent qualification marker in the surrounding context
+        const claimIdx = candidateAdj.toLowerCase().indexOf(claim);
+        const sentStart = Math.max(0, candidateAdj.lastIndexOf('.', claimIdx) + 1, candidateAdj.lastIndexOf('\n', claimIdx) + 1);
+        let sentEnd = candidateAdj.indexOf('.', claimIdx);
+        if (sentEnd === -1) sentEnd = candidateAdj.length;
+        const surroundingSentence = candidateAdj.slice(sentStart, sentEnd).toLowerCase();
+
+        const hasMarker = qualificationMarkers.some((m) => surroundingSentence.includes(m));
+        if (hasMarker) {
+          neutralized.push(v);
+        } else {
+          unneutralized.push(v);
+        }
+      }
+    }
+
+    // Condition 3: Check for surviving unverified first-person claims in candidateAdj
+    // Strip parenthetical qualification notices so we check the actual asserted text
+    const strippedCandidate = candidateAdj.replace(/\([^)]*(?:unverified|telemetry|deduplication|proposal)[^)]*\)/gi, '');
+    const survivingPersonalClaimRegex = /\bI\s+(?:personally\s+|single-handedly\s+)?(?:built|implemented|architected|designed|deployed|managed|optimized|scaled)\s+([^.?!;\n]+)/i;
+    const survivingMatch = strippedCandidate.match(survivingPersonalClaimRegex);
+    if (survivingMatch) {
+      const claimedAction = survivingMatch[1].toLowerCase().trim();
+      const isActionGrounded = kb.getAllProjects().some((p) =>
+        isCandidateOrIndependentlyVerified(p.verificationStatus) &&
+        ((p.personalContribution && p.personalContribution !== 'UNKNOWN' && p.personalContribution.toLowerCase().includes(claimedAction)) ||
+         (p.technologyStack && p.technologyStack.some((t) => claimedAction.includes(t.toLowerCase()))))
+      );
+
+      if (!isActionGrounded) {
+        unneutralized.push({
+          claimText: survivingMatch[0],
+          category: 'unsupported_personal_action',
+          severity: 'critical',
+          reason: `Surviving unsupported personal claim detected in adjusted answer: "${survivingMatch[0]}"`,
+        });
+      }
+    }
+
+    // Final Outcome Determination
+    if (unneutralized.length > 0) {
+      const guidance = extractGeneralTechnicalGuidance(rawAnswer);
+      return {
+        outcome: 'BLOCKED',
+        isSpeakable: false,
+        speakableAnswer: null,
+        speakableQueue: [],
+        blockedReason: `Blocked: ${unneutralized.length} unsupported claim(s) survived neutralization (${unneutralized.map((u) => u.category).join(', ')})`,
+        technicalGuidance: guidance,
+        neutralizedViolations: neutralized,
+        unneutralizedViolations: unneutralized,
+      };
+    }
+
+    const speakableQueue = candidateAdj
+      .split(/(?<=[.?!])\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    return {
+      outcome: 'FLAGGED_BUT_QUALIFIED',
+      isSpeakable: true,
+      speakableAnswer: candidateAdj,
+      speakableQueue: speakableQueue.length > 0 ? speakableQueue : [candidateAdj],
+      technicalGuidance: null,
+      neutralizedViolations: neutralized,
+      unneutralizedViolations: [],
+    };
+  }
+}
+
+/**
+ * Extracts impersonal, objective technical explanations from raw answer text,
+ * discarding ungrounded personal claims while preserving conceptual value.
+ */
+export function extractGeneralTechnicalGuidance(answer: string): string {
+  if (!answer || !answer.trim()) return '';
+  const sentences = answer
+    .split(/(?<=[.?!])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const objectiveSentences = sentences.filter((s) => {
+    // Drop first-person claims
+    if (
+      /\b(?:I|my|we|our|my team)\s+(?:built|implemented|architected|designed|deployed|scaled|achieved|handled|reduced|cut|led|worked|managed|owned)\b/i.test(s)
+    ) {
+      return false;
+    }
+    if (/\b(?:was|were)\s+(?:built|implemented|architected|designed|deployed|scaled)\s+by\s+me\b/i.test(s)) {
+      return false;
+    }
+    if (/\bI\s+was\s+(?:responsible|the\s+sole)\b/i.test(s)) {
+      return false;
+    }
+    // Drop fabricated scale numbers
+    if (/\b\d+\s*(?:million|thousand|billion)\s+(?:concurrent\s+)?(?:users|requests|qps|rps)\b/i.test(s)) {
+      return false;
+    }
+    return true;
+  });
+
+  return objectiveSentences.join(' ');
 }

@@ -65,7 +65,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
     expect(speakableQueue.some((s) => s.includes('50 million concurrent users') && !s.includes('telemetry'))).toBe(false);
 
     // Speakable queue contains the validator's qualified adjusted answer
-    expect(finalState.answerValidationStatus).toBe('FLAGGED');
+    expect(finalState.answerValidationStatus).toBe('FLAGGED_BUT_QUALIFIED');
     expect(finalState.isAnswerValidated).toBe(false);
     expect(speakableQueue.length).toBeGreaterThan(0);
     expect(speakableQueue.join(' ')).toContain('consulting internal project telemetry');
@@ -92,7 +92,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
     const finalState = useAppStore.getState();
     // Must NOT be marked as validated
     expect(finalState.isAnswerValidated).toBe(false);
-    expect(finalState.answerValidationStatus).toBe('FLAGGED');
+    expect(finalState.answerValidationStatus).toBe('FLAGGED_BUT_QUALIFIED');
     expect(isTeleprompterSpeakableReady(finalState)).toBe(true); // Flagged answers are ready with qualifiers
     expect(finalState.groundingViolations.length).toBeGreaterThan(0);
 
@@ -156,7 +156,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
 
     const finalState = useAppStore.getState();
     expect(finalState.isAnswerValidated).toBe(false);
-    expect(finalState.answerValidationStatus).toBe('FLAGGED');
+    expect(finalState.answerValidationStatus).toBe('FLAGGED_BUT_QUALIFIED');
 
     const speakableQueue = selectTeleprompterSpeakableQueue(finalState);
     // Raw claim must NOT be speakable
@@ -313,7 +313,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
 
     const finalState = useAppStore.getState();
     expect(finalState.isAnswerValidated).toBe(false);
-    expect(finalState.answerValidationStatus).toBe('FLAGGED');
+    expect(finalState.answerValidationStatus).toBe('FLAGGED_BUT_QUALIFIED');
     // Speakable queue does NOT contain the raw hallucinated 80 million requests
     expect(finalState.teleprompterQueue.some((s) => s.includes('80 million requests') && !s.includes('telemetry'))).toBe(false);
     expect(finalState.teleprompterQueue.join(' ')).toContain('consulting internal project telemetry');
@@ -348,7 +348,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
 
     const finalState = useAppStore.getState();
     expect(finalState.isAnswerValidated).toBe(false);
-    expect(finalState.answerValidationStatus).toBe('FLAGGED');
+    expect(finalState.answerValidationStatus).toBe('FLAGGED_BUT_QUALIFIED');
 
     const speakableQueue = selectTeleprompterSpeakableQueue(finalState);
     expect(speakableQueue.some((s) => s.includes('30 million linked lists') && !s.includes('telemetry'))).toBe(false);
