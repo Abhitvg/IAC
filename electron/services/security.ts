@@ -255,36 +255,51 @@ export function redactSensitiveData(text: string): string {
 
 /**
  * Resolves the canonical list of approved local application entry points for file: URLs.
+ * In packaged production, strictly derives from Electron's application path and asar resources;
+ * process.cwd() is prohibited in packaged production to prevent working-directory spoofing.
  */
 export function getApprovedAppHtmlPaths(): string[] {
   const candidates: string[] = [];
-  if (typeof __dirname !== 'undefined') {
-    candidates.push(path.resolve(__dirname, '../dist/index.html'));
-    candidates.push(path.resolve(__dirname, '../../dist/index.html'));
-    candidates.push(path.resolve(__dirname, 'index.html'));
+
+  let electronApp: any;
+  try {
+    electronApp = require('electron')?.app;
+  } catch {}
+
+  const isPackaged = Boolean(electronApp?.isPackaged);
+
+  if (electronApp?.getAppPath) {
+    try {
+      const appPath = electronApp.getAppPath();
+      candidates.push(path.resolve(appPath, 'dist/index.html'));
+      candidates.push(path.resolve(appPath, 'index.html'));
+    } catch {}
   }
-  if (process.cwd()) {
-    candidates.push(path.resolve(process.cwd(), 'dist/index.html'));
-  }
+
   if (process.resourcesPath) {
     candidates.push(path.resolve(process.resourcesPath, 'app.asar', 'dist/index.html'));
     candidates.push(path.resolve(process.resourcesPath, 'dist/index.html'));
   }
-  try {
-    const electronApp = require('electron')?.app;
-    if (electronApp?.getAppPath) {
-      const appPath = electronApp.getAppPath();
-      candidates.push(path.resolve(appPath, 'dist/index.html'));
-      candidates.push(path.resolve(appPath, 'index.html'));
+
+  // In packaged production, strictly omit cwd and local dev directory relatives
+  if (!isPackaged) {
+    if (typeof __dirname !== 'undefined') {
+      candidates.push(path.resolve(__dirname, '../dist/index.html'));
+      candidates.push(path.resolve(__dirname, '../../dist/index.html'));
+      candidates.push(path.resolve(__dirname, 'index.html'));
     }
-  } catch {}
+    if (process.cwd()) {
+      candidates.push(path.resolve(process.cwd(), 'dist/index.html'));
+    }
+  }
+
   return Array.from(new Set(candidates.map((p) => path.normalize(p))));
 }
 
 /**
  * Checks if a given URL belongs to the trusted local application origin.
  * Strict URL parsing, credentials rejection, effective port matching,
- * and canonical entry point validation are enforced.
+ * traversal rejection, and canonical entry point validation are enforced.
  */
 export function isTrustedAppOrigin(
   url: string,
@@ -307,8 +322,23 @@ export function isTrustedAppOrigin(
 
   // Production file: protocol validation
   if (parsed.protocol === 'file:') {
-    // Hostname must be empty or localhost (reject Windows UNC or remote hostnames)
+    // 1. Hostname must be empty or localhost (reject Windows UNC or remote hostnames)
     if (parsed.hostname && parsed.hostname !== 'localhost') {
+      return false;
+    }
+
+    // 2. Reject path traversal sequences, URL-encoded traversal, alternate backslash separators
+    const rawPath = parsed.pathname;
+    if (
+      rawPath.includes('/..') ||
+      rawPath.includes('\\..') ||
+      rawPath.includes('..') ||
+      rawPath.includes('\\') ||
+      url.includes('%2e%2e') ||
+      url.includes('%2E%2E') ||
+      url.includes('%2f%2e%2e') ||
+      url.includes('%2F%2E%2E')
+    ) {
       return false;
     }
 
@@ -319,13 +349,49 @@ export function isTrustedAppOrigin(
       return false;
     }
 
+    // 3. Reject paths that contain traversal or alternate separators even after decoding
+    if (filePath.includes('..') || filePath.includes('\\')) {
+      return false;
+    }
+
     const normalizedPath = path.normalize(filePath);
+
+    // 4. Must strictly target an approved application html entry point (not package.json, js, etc.)
+    if (!normalizedPath.endsWith('/index.html') && !normalizedPath.endsWith('\\index.html')) {
+      return false;
+    }
+
     const approvedPaths =
       allowedFilePaths && allowedFilePaths.length > 0
         ? allowedFilePaths.map((p) => path.normalize(p))
         : getApprovedAppHtmlPaths();
 
-    return approvedPaths.includes(normalizedPath);
+    if (!approvedPaths.includes(normalizedPath)) {
+      return false;
+    }
+
+    // 5. If destination exists, verify realpath is within approved entry points (preventing symlink aliases)
+    if (fs.existsSync(normalizedPath)) {
+      try {
+        const real = fs.realpathSync(normalizedPath);
+        const approvedReals = approvedPaths
+          .filter((p) => fs.existsSync(p))
+          .map((p) => {
+            try {
+              return fs.realpathSync(p);
+            } catch {
+              return p;
+            }
+          });
+        if (approvedReals.length > 0 && !approvedReals.includes(real)) {
+          return false;
+        }
+      } catch {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   // Development http: / https: protocol validation
@@ -446,7 +512,8 @@ export function isSafeExternalUrl(url: string): boolean {
 export function validateSafeFetchPinnedIpc(
   event: any,
   options: any,
-  mainWindow: any
+  mainWindow: any,
+  devServerUrl: string | undefined = process.env.VITE_DEV_SERVER_URL
 ): {
   url: string;
   allowedOrigin: string;
@@ -456,7 +523,7 @@ export function validateSafeFetchPinnedIpc(
   userAgent?: string;
 } {
   // 1. Validate sender is the trusted main window
-  if (!isTrustedSender(event, mainWindow)) {
+  if (!isTrustedSender(event, mainWindow, devServerUrl)) {
     throw new Error('Unauthorized IPC sender');
   }
 
@@ -468,6 +535,23 @@ export function validateSafeFetchPinnedIpc(
   // 3. Validate options object
   if (!options || typeof options !== 'object' || Array.isArray(options)) {
     throw new Error('Invalid arguments: options must be an object');
+  }
+
+  // 3b. Prohibit renderer callers from injecting customCa, TLS certificate overrides, or test hooks
+  if (
+    options.customCa !== undefined ||
+    options.ca !== undefined ||
+    options.cert !== undefined ||
+    options.key !== undefined ||
+    options.rejectUnauthorized !== undefined ||
+    options.checkServerIdentity !== undefined ||
+    options._testOnlyAllowLoopback !== undefined ||
+    options.customResolver !== undefined ||
+    options.customRequester !== undefined
+  ) {
+    throw new Error(
+      'Security violation: customCa, TLS certificate overrides, and test hooks cannot be supplied by IPC callers'
+    );
   }
 
   // 4. Validate URL

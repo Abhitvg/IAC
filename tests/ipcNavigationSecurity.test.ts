@@ -138,6 +138,33 @@ describe('IPC Navigation Security & Sender Validation (Blocking Release Gate)', 
     it('rejects path traversal attempts on file: URLs', () => {
       const traversalUrl = `${trustedFileUrl}/../../package.json`;
       expect(isTrustedAppOrigin(traversalUrl, undefined)).toBe(false);
+      expect(isTrustedAppOrigin(`${trustedFileUrl}/../`, undefined)).toBe(false);
+      expect(isTrustedAppOrigin(`${trustedFileUrl}/..`, undefined)).toBe(false);
+    });
+
+    it('rejects URL-encoded traversal sequences (%2e%2e / %2E%2E)', () => {
+      expect(isTrustedAppOrigin(`file:///app/dist/%2e%2e/package.json`, undefined)).toBe(false);
+      expect(isTrustedAppOrigin(`file:///app/dist/%2E%2E/package.json`, undefined)).toBe(false);
+      expect(isTrustedAppOrigin(`file:///app/dist/%2f%2e%2e%2fevil.html`, undefined)).toBe(false);
+    });
+
+    it('rejects alternate backslash separators in file: URLs', () => {
+      expect(isTrustedAppOrigin(`file:///app/dist\\index.html`, undefined)).toBe(false);
+      expect(isTrustedAppOrigin(`file:///app\\dist\\index.html`, undefined)).toBe(false);
+    });
+
+    it('rejects symlink aliases pointing to outside resources or unapproved files', () => {
+      const outsideSymlink = 'file:///tmp/symlink_to_index.html';
+      expect(isTrustedAppOrigin(outsideSymlink, undefined)).toBe(false);
+    });
+
+    it('getApprovedAppHtmlPaths derives from getAppPath and omits process.cwd() in packaged mode', () => {
+      const paths = getApprovedAppHtmlPaths();
+      expect(Array.isArray(paths)).toBe(true);
+      expect(paths.length).toBeGreaterThan(0);
+      for (const p of paths) {
+        expect(p.endsWith('index.html')).toBe(true);
+      }
     });
 
     it('rejects remote or UNC hostnames on file: URLs (file://attacker.com/evil.html)', () => {
@@ -257,6 +284,104 @@ describe('IPC Navigation Security & Sender Validation (Blocking Release Gate)', 
           redirectedWindow
         )
       ).toThrow(/Unauthorized IPC sender/i);
+    });
+  });
+
+  describe('Audit & Proof of Custom CA / TLS Override Isolation (Requirement 4)', () => {
+    const mockWindow = createMockWindow(trustedFileUrl);
+    const validEvent = {
+      sender: mockWindow.webContents,
+      senderFrame: mockWindow.webContents.mainFrame,
+    };
+    const validOptions = {
+      url: 'https://example.com/page',
+      allowedOrigin: 'https://example.com',
+    };
+
+    it('proves an IPC caller cannot supply customCa to bypass or alter TLS validation', () => {
+      expect(() =>
+        validateSafeFetchPinnedIpc(
+          validEvent,
+          { ...validOptions, customCa: '-----BEGIN CERTIFICATE-----\nMOCK_CA\n-----END CERTIFICATE-----' },
+          mockWindow
+        )
+      ).toThrow(/Security violation: customCa, TLS certificate overrides, and test hooks cannot be supplied by IPC callers/i);
+    });
+
+    it('proves an IPC caller cannot supply ca, cert, or key TLS options', () => {
+      expect(() =>
+        validateSafeFetchPinnedIpc(
+          validEvent,
+          { ...validOptions, ca: 'CERT_STRING' },
+          mockWindow
+        )
+      ).toThrow(/Security violation: customCa, TLS certificate overrides, and test hooks cannot be supplied by IPC callers/i);
+
+      expect(() =>
+        validateSafeFetchPinnedIpc(
+          validEvent,
+          { ...validOptions, cert: 'CLIENT_CERT' },
+          mockWindow
+        )
+      ).toThrow(/Security violation: customCa, TLS certificate overrides, and test hooks cannot be supplied by IPC callers/i);
+
+      expect(() =>
+        validateSafeFetchPinnedIpc(
+          validEvent,
+          { ...validOptions, key: 'PRIVATE_KEY' },
+          mockWindow
+        )
+      ).toThrow(/Security violation: customCa, TLS certificate overrides, and test hooks cannot be supplied by IPC callers/i);
+    });
+
+    it('proves an IPC caller cannot disable certificate validation via rejectUnauthorized: false', () => {
+      expect(() =>
+        validateSafeFetchPinnedIpc(
+          validEvent,
+          { ...validOptions, rejectUnauthorized: false },
+          mockWindow
+        )
+      ).toThrow(/Security violation: customCa, TLS certificate overrides, and test hooks cannot be supplied by IPC callers/i);
+    });
+
+    it('proves an IPC caller cannot supply _testOnlyAllowLoopback to circumvent SSRF guards', () => {
+      expect(() =>
+        validateSafeFetchPinnedIpc(
+          validEvent,
+          { ...validOptions, _testOnlyAllowLoopback: true },
+          mockWindow
+        )
+      ).toThrow(/Security violation: customCa, TLS certificate overrides, and test hooks cannot be supplied by IPC callers/i);
+    });
+
+    it('proves an IPC caller cannot supply customResolver or customRequester dependency injections', () => {
+      expect(() =>
+        validateSafeFetchPinnedIpc(
+          validEvent,
+          { ...validOptions, customResolver: () => {} },
+          mockWindow
+        )
+      ).toThrow(/Security violation: customCa, TLS certificate overrides, and test hooks cannot be supplied by IPC callers/i);
+
+      expect(() =>
+        validateSafeFetchPinnedIpc(
+          validEvent,
+          { ...validOptions, customRequester: () => {} },
+          mockWindow
+        )
+      ).toThrow(/Security violation: customCa, TLS certificate overrides, and test hooks cannot be supplied by IPC callers/i);
+    });
+
+    it('proves valid sanitized IPC options strictly exclude any CA or test hook properties', () => {
+      const sanitized = validateSafeFetchPinnedIpc(validEvent, validOptions, mockWindow);
+      expect(sanitized.url).toBe('https://example.com/page');
+      expect(sanitized.allowedOrigin).toBe('https://example.com');
+      expect((sanitized as any).customCa).toBeUndefined();
+      expect((sanitized as any).ca).toBeUndefined();
+      expect((sanitized as any).rejectUnauthorized).toBeUndefined();
+      expect((sanitized as any)._testOnlyAllowLoopback).toBeUndefined();
+      expect((sanitized as any).customResolver).toBeUndefined();
+      expect((sanitized as any).customRequester).toBeUndefined();
     });
   });
 });

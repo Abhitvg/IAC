@@ -88,16 +88,19 @@ describe('Genuine OCR Accuracy, Multilingual Recognition & Text Layer Distinctio
     expect(text).toContain('25 million events per second');
   });
 
-  it('Test 4 (Real Embedded CID Mapping Issue): distinguishes corrupted PDF text layer from visual OCR fallback', async () => {
+  it('Test 4 (Corrupted Text Layer Over Scanned Image Fallback): distinguishes corrupted PDF text layer from visual OCR fallback', async () => {
     if (process.platform !== 'darwin') return;
 
-    const pdfPath = path.join(fixturesDir, 'real_cid_mapping_issue.pdf');
+    const pdfPath = path.join(fixturesDir, 'corrupted_text_layer_fallback.pdf');
     expect(fs.existsSync(pdfPath)).toBe(true);
 
     const rawBuffer = fs.readFileSync(pdfPath);
 
-    // 1. Verify that raw PDF has the unmapped CID stream
+    // 1. Verify that raw PDF has the unmapped Type 0/CIDFont and corrupted text stream
     const rawString = rawBuffer.toString('binary');
+    expect(rawString).toContain('/Subtype /Type0');
+    expect(rawString).toContain('/Subtype /CIDFontType2');
+    expect(rawString).toContain('/Encoding /Identity-H');
     expect(rawString).toContain('00i03000G000d060000000:000500000');
     expect(isGarbledOrMojibakeText('00i03000G000d060000000:000500000 00A01000B0 00C02000D0')).toBe(true);
 
