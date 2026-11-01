@@ -31,7 +31,7 @@
     "react-syntax-highlighter": "^15.6.1",
     "uuid": "^11.0.3",
     "ws": "^8.18.0",
-    "zod": "^3.25.76",
+    "zod": "^4.6.7",
     "zustand": "^5.0.1"
   },
   "devDependencies": {
