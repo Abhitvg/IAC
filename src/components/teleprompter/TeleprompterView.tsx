@@ -705,10 +705,26 @@ function CodeBlockCard({ language, code, index, onCopy, isCopied }: CodeBlockCar
   );
 }
 
+/**
+ * Real presentation selector: returns speakable candidate answer text
+ * only if factual grounding validation has passed or been appropriately flagged/qualified.
+ */
+export function selectSpeakableCandidateAnswer(state: {
+  currentAnswer: string | null;
+  isAnswerValidated: boolean;
+  answerValidationStatus: string;
+}): string | null {
+  if (state.isAnswerValidated || state.answerValidationStatus === 'FLAGGED') {
+    return state.currentAnswer;
+  }
+  return null;
+}
+
 export default function TeleprompterView() {
   const {
     currentQuestion,
     currentAnswer,
+    draftAnswer,
     status,
     isAnswerValidated,
     answerValidationStatus,
@@ -2857,33 +2873,57 @@ export default function TeleprompterView() {
                     Synthesizing Verified Interview Solution...
                   </span>
                 </div>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  {responseMode.toUpperCase()} STREAM
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  {draftAnswer ? '⚡ DRAFT (VALIDATION ACTIVE)' : `${responseMode.toUpperCase()} STREAM`}
                 </span>
               </div>
 
-              {/* Shimmer Skeleton Blocks */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingTop: "4px" }}>
-                <div className="skeleton-shimmer" style={{ height: "18px", width: "75%" }} />
-                <div className="skeleton-shimmer" style={{ height: "14px", width: "92%" }} />
-                <div className="skeleton-shimmer" style={{ height: "14px", width: "85%" }} />
-                <div className="skeleton-shimmer" style={{ height: "14px", width: "60%" }} />
-              </div>
+              {draftAnswer && draftAnswer.trim().length > 0 ? (
+                <div
+                  style={{
+                    background: "rgba(0, 0, 0, 0.45)",
+                    borderRadius: "10px",
+                    padding: "16px",
+                    border: "1px solid rgba(251, 191, 36, 0.25)",
+                    color: "#f1f5f9",
+                    fontSize: "15px",
+                    lineHeight: "1.6",
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  <div style={{ fontSize: "11px", color: "#f59e0b", fontWeight: 700, marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span>🛡️ Live Generation Draft</span>
+                    <span style={{ color: "#94a3b8", fontWeight: 400 }}>— Grounding validation in progress; ready-to-speak answer will display upon completion.</span>
+                  </div>
+                  {draftAnswer}
+                  <span style={{ display: 'inline-block', width: '8px', height: '16px', background: '#f59e0b', marginLeft: '6px', verticalAlign: 'middle', animation: 'pulse 1s infinite' }} />
+                </div>
+              ) : (
+                <>
+                  {/* Shimmer Skeleton Blocks */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingTop: "4px" }}>
+                    <div className="skeleton-shimmer" style={{ height: "18px", width: "75%" }} />
+                    <div className="skeleton-shimmer" style={{ height: "14px", width: "92%" }} />
+                    <div className="skeleton-shimmer" style={{ height: "14px", width: "85%" }} />
+                    <div className="skeleton-shimmer" style={{ height: "14px", width: "60%" }} />
+                  </div>
 
-              <div
-                style={{
-                  background: "rgba(0, 0, 0, 0.4)",
-                  borderRadius: "10px",
-                  padding: "14px",
-                  border: "1px solid rgba(255, 255, 255, 0.05)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "6px",
-                }}
-              >
-                <div className="skeleton-shimmer" style={{ height: "12px", width: "40%" }} />
-                <div className="skeleton-shimmer" style={{ height: "12px", width: "65%" }} />
-              </div>
+                  <div
+                    style={{
+                      background: "rgba(0, 0, 0, 0.4)",
+                      borderRadius: "10px",
+                      padding: "14px",
+                      border: "1px solid rgba(255, 255, 255, 0.05)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "6px",
+                    }}
+                  >
+                    <div className="skeleton-shimmer" style={{ height: "12px", width: "40%" }} />
+                    <div className="skeleton-shimmer" style={{ height: "12px", width: "65%" }} />
+                  </div>
+                </>
+              )}
             </div>
           ) : isRibbonMode ? (
             <div className="floating-prompter-card p-4 sm:p-5 my-auto max-w-xl mx-auto flex flex-col items-center justify-center text-center shadow-2xl select-none">

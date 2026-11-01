@@ -6,6 +6,7 @@ import {
   isTrustedAppOrigin,
   validateSafeFetchPinnedIpc,
   getApprovedAppHtmlPaths,
+  isPermissionAllowed,
 } from '../electron/services/security';
 
 describe('IPC Navigation Security & Sender Validation (Blocking Release Gate)', () => {
@@ -382,6 +383,63 @@ describe('IPC Navigation Security & Sender Validation (Blocking Release Gate)', 
       expect((sanitized as any)._testOnlyAllowLoopback).toBeUndefined();
       expect((sanitized as any).customResolver).toBeUndefined();
       expect((sanitized as any).customRequester).toBeUndefined();
+    });
+  });
+
+  describe('Permission Origin Validation Hardening (Requirement 3)', () => {
+    it('allows media and clipboard write permissions for legitimate dev and file origins', () => {
+      expect(isPermissionAllowed('media', trustedDevUrl, trustedDevUrl)).toBe(true);
+      expect(isPermissionAllowed('clipboard-write', trustedDevUrl, trustedDevUrl)).toBe(true);
+      expect(isPermissionAllowed('clipboard-sanitized-write', trustedDevUrl, trustedDevUrl)).toBe(true);
+
+      expect(isPermissionAllowed('media', trustedFileUrl, undefined)).toBe(true);
+      expect(isPermissionAllowed('clipboard-write', trustedFileUrl, undefined)).toBe(true);
+      expect(isPermissionAllowed('clipboard-sanitized-write', trustedFileUrl, undefined)).toBe(true);
+    });
+
+    it('denies unapproved permissions even from legitimate origins', () => {
+      expect(isPermissionAllowed('geolocation', trustedDevUrl, trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('notifications', trustedDevUrl, trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('camera', trustedDevUrl, trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('midi', trustedDevUrl, trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('clipboard-read', trustedDevUrl, trustedDevUrl)).toBe(false);
+    });
+
+    it('denies media and clipboard permissions for file URL lookalikes and unapproved files', () => {
+      expect(isPermissionAllowed('media', 'file:///tmp/attacker.html', undefined)).toBe(false);
+      expect(isPermissionAllowed('media', 'file:///etc/passwd', undefined)).toBe(false);
+      expect(isPermissionAllowed('clipboard-write', 'file:///tmp/attacker.html', undefined)).toBe(false);
+      expect(isPermissionAllowed('media', `${trustedFileUrl}/../../package.json`, undefined)).toBe(false);
+    });
+
+    it('denies permissions for remote file hosts (file://attacker.com/evil.html)', () => {
+      expect(isPermissionAllowed('media', 'file://attacker.com/evil.html', undefined)).toBe(false);
+      expect(isPermissionAllowed('clipboard-write', 'file://attacker.com/evil.html', undefined)).toBe(false);
+    });
+
+    it('denies permissions for dev-server hostname-prefix lookalikes', () => {
+      expect(isPermissionAllowed('media', 'http://localhost:5173.attacker.example', trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('media', 'http://localhost.evil/', trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('clipboard-write', 'http://localhost:5173.attacker.example', trustedDevUrl)).toBe(false);
+    });
+
+    it('denies permissions for different or mismatched ports', () => {
+      expect(isPermissionAllowed('media', 'http://localhost:3000', trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('media', 'http://localhost:5174', trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('clipboard-write', 'http://localhost:8080', trustedDevUrl)).toBe(false);
+    });
+
+    it('denies permissions for credential-embedded URLs', () => {
+      expect(isPermissionAllowed('media', 'http://localhost:5173@attacker.example', trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('media', 'http://admin:secret@localhost:5173/', trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('clipboard-write', 'http://localhost:5173@attacker.example', trustedDevUrl)).toBe(false);
+    });
+
+    it('denies permissions for empty or malformed strings', () => {
+      expect(isPermissionAllowed('media', '', trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('media', '   ', trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('media', null as any, trustedDevUrl)).toBe(false);
+      expect(isPermissionAllowed('media', undefined as any, trustedDevUrl)).toBe(false);
     });
   });
 });

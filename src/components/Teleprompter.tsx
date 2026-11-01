@@ -2,6 +2,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Play, Pause } from 'lucide-react';
 
+export function selectTeleprompterSpeakableQueue(state: { teleprompterQueue: string[] }): string[] {
+  return state.teleprompterQueue;
+}
+
+export function isTeleprompterSpeakableReady(state: {
+  isAnswerValidated: boolean;
+  answerValidationStatus: string;
+}): boolean {
+  return state.isAnswerValidated || state.answerValidationStatus === 'FLAGGED';
+}
+
 export default function Teleprompter() {
   const { teleprompterQueue, isGenerating } = useAppStore();
   const [currentIndex, setCurrentIndex] = useState(0);

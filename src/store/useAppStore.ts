@@ -86,6 +86,13 @@ interface InterviewState {
   appendAnswerToken: (token: string) => void;
   addTranscript: (msg: TranscriptMessage) => void;
 
+  // Unvalidated Generation Draft State (quarantined during streaming)
+  draftAnswer: string;
+  draftQueue: string[];
+  appendDraftToken: (token: string) => void;
+  enqueueDraftSentences: (sentences: string[]) => void;
+  clearDraft: () => void;
+
   teleprompterQueue: string[];
   currentSentenceIndex: number;
   generationId: number;
@@ -512,16 +519,33 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     }
     set({ currentAnswer: a });
   },
-  appendAnswerToken: (token) => {
+
+  // Unvalidated draft streaming implementation
+  draftAnswer: '',
+  draftQueue: [],
+  appendDraftToken: (token) => {
     _pendingTokens += token;
     if (!_tokenBatchTimeout) {
       _tokenBatchTimeout = setTimeout(() => {
         const batch = _pendingTokens;
         _pendingTokens = '';
         _tokenBatchTimeout = null;
-        set((state) => ({ currentAnswer: (state.currentAnswer || '') + batch }));
+        set((state) => ({ draftAnswer: (state.draftAnswer || '') + batch }));
       }, 25);
     }
+  },
+  appendAnswerToken: (token) => {
+    // Quarantines streaming tokens into draftAnswer so unvalidated tokens never leak into currentAnswer
+    get().appendDraftToken(token);
+  },
+  enqueueDraftSentences: (s) => set({ draftQueue: s }),
+  clearDraft: () => {
+    _pendingTokens = '';
+    if (_tokenBatchTimeout) {
+      clearTimeout(_tokenBatchTimeout);
+      _tokenBatchTimeout = null;
+    }
+    set({ draftAnswer: '', draftQueue: [] });
   },
 
   addTranscript: (msg) => set((state) => ({ transcript: [...state.transcript, msg] })),
@@ -532,8 +556,15 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   enqueueSentences: (s) => set({ teleprompterQueue: s, currentSentenceIndex: 0 }),
   incrementGenerationId: () => set((state) => ({ generationId: state.generationId + 1 })),
 
-  clearAnswerQueue: () =>
+  clearAnswerQueue: () => {
+    _pendingTokens = '';
+    if (_tokenBatchTimeout) {
+      clearTimeout(_tokenBatchTimeout);
+      _tokenBatchTimeout = null;
+    }
     set({
+      draftAnswer: '',
+      draftQueue: [],
       teleprompterQueue: [],
       currentSentenceIndex: 0,
       answerSentences: [],
@@ -545,7 +576,8 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       groundingViolations: [],
       currentQuestion: null,
       recitalState: 'listening',
-    }),
+    });
+  },
 
   clearAndResetToListen: () => {
     const { currentQuestion, currentAnswer, answerConfidence } = get();

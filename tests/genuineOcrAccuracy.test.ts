@@ -88,7 +88,7 @@ describe('Genuine OCR Accuracy, Multilingual Recognition & Text Layer Distinctio
     expect(text).toContain('25 million events per second');
   });
 
-  it('Test 4 (Corrupted Text Layer Over Scanned Image Fallback): distinguishes corrupted PDF text layer from visual OCR fallback', async () => {
+  it('Test 4 (Corrupted Text Layer Over Scanned Image Fallback): proves PDF.js extracts unmapped Type 0/CIDFont text triggering OCR fallback', async () => {
     if (process.platform !== 'darwin') return;
 
     const pdfPath = path.join(fixturesDir, 'corrupted_text_layer_fallback.pdf');
@@ -96,20 +96,43 @@ describe('Genuine OCR Accuracy, Multilingual Recognition & Text Layer Distinctio
 
     const rawBuffer = fs.readFileSync(pdfPath);
 
-    // 1. Verify that raw PDF has the unmapped Type 0/CIDFont and corrupted text stream
+    // 1. Independent PDF.js inspection: verify AST structure and reachable font/content stream
+    const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const loadingTask = pdfjs.getDocument({
+      data: new Uint8Array(rawBuffer),
+      disableFontFace: true,
+      stopAtErrors: false,
+    });
+    const doc = await loadingTask.promise;
+    expect(doc.numPages).toBe(1);
+
+    const page = await doc.getPage(1);
+    const opList = await page.getOperatorList();
+
+    // Verify injected content stream is executed: opList contains text show operators
+    expect(opList.fnArray.length).toBeGreaterThan(12);
+
+    // 2. Extract raw text with PDF.js and prove it triggers isGarbledOrMojibakeText
+    const textContent = await page.getTextContent();
+    const pdfjsExtractedText = textContent.items.map((i: any) => i.str).join(' ');
+
+    expect(pdfjsExtractedText.length).toBeGreaterThan(0);
+    // PDF.js extracts unmapped control codes/mojibake from the Type 0 font without valid character mapping
+    expect(isGarbledOrMojibakeText(pdfjsExtractedText)).toBe(true);
+
+    // 3. Verify underlying PDF objects declare Type 0 font and descendant CIDFontType2
     const rawString = rawBuffer.toString('binary');
     expect(rawString).toContain('/Subtype /Type0');
     expect(rawString).toContain('/Subtype /CIDFontType2');
     expect(rawString).toContain('/Encoding /Identity-H');
-    expect(rawString).toContain('00i03000G000d060000000:000500000');
-    expect(isGarbledOrMojibakeText('00i03000G000d060000000:000500000 00A01000B0 00C02000D0')).toBe(true);
+    expect(rawString).toContain('/ToUnicode');
 
-    // 2. Run full application PDF parser: it must detect the corrupted text layer, reject it, and trigger OCR
+    // 4. Run full application PDF parser: it must detect the corrupted text layer, reject it, and trigger native Apple Vision OCR
     const extractedText = await parsePdfBuffer(rawBuffer);
 
     expect(extractedText).toBeTruthy();
     // Must NOT contain the unmapped mojibake string
-    expect(extractedText).not.toContain('00i03000G000d060000000:000500000');
+    expect(extractedText).not.toContain(pdfjsExtractedText);
     // Must contain the visually rendered candidate details from OCR
     expect(extractedText).toContain('Jordan Lee');
     expect(extractedText).toContain('Senior Distributed Database Architect');

@@ -1,42 +1,84 @@
 import fs from 'fs';
-import path from 'path';
+import zlib from 'zlib';
 
 /**
- * Generates a valid PDF with an embedded image layer of a candidate resume
- * overlaid with a corrupted text layer:
- * - Declares a genuine Type 0 / CIDFont structure (/Subtype /Type0 with descendant /CIDFontType2)
- *   with /Encoding /Identity-H lacking a valid /ToUnicode mapping table.
- * - Injects unmapped glyph character sequences and garbled mojibake tokens into the content stream.
- * 
- * In PDF.js, unmapped/corrupted text layers extract as garbled mojibake or unmapped character
- * codes, triggering isGarbledOrMojibakeText and falling back to native Apple Vision OCR.
+ * Generates a valid PDF with an embedded visual image layer of a candidate resume
+ * overlaid with an unmapped Type 0 / CIDFont text layer:
+ * - Declares a genuine Type 0 font (/Subtype /Type0) referencing descendant /CIDFontType2
+ *   with /Encoding /Identity-H and an unmapped ToUnicode CMap.
+ * - Injects text operations into the reachable page content stream.
+ * - Proves that PDF.js extracts unmapped mojibake/control bytes, triggering
+ *   isGarbledOrMojibakeText and falling back to native Apple Vision OCR.
  */
 export function generateCidCorruptedPdf(outputPath: string, basePdfPath: string) {
-  // Read the visual single-page scanned PDF that contains the image of the resume
   const baseBytes = fs.readFileSync(basePdfPath);
   let pdfStr = baseBytes.toString('binary');
 
-  // Text content stream with unmapped CID character tokens and mojibake interleaving
-  const textStreamContent = `BT\n/F_UNMAPPED 12 Tf\n50 700 Td\n(00i03000G000d060000000:000500000 00A01000B0 00C02000D0) Tj\nET\n`;
-  const streamLength = textStreamContent.length;
+  // Text content operator with 16-bit Identity-H CIDs
+  const textOp = '\nBT /F_UNMAPPED 12 Tf 50 700 Td <000100020003000400050006000700080009000a000b000c000d000e000f> Tj ET\n';
 
-  const fontObjNum = 901;
-  const descendantCidObjNum = 903;
-  const descriptorObjNum = 904;
-  const streamObjNum = 902;
+  // Find stream in object 3, decompress, append text operator, and recompress
+  const streamStart = pdfStr.indexOf('stream\n', pdfStr.indexOf('3 0 obj')) + 7;
+  const streamEnd = pdfStr.indexOf('endstream', streamStart);
+  const streamBytes = baseBytes.subarray(streamStart, streamEnd);
+  const decompressed = zlib.inflateSync(streamBytes);
+  const newStreamContent = Buffer.concat([decompressed, Buffer.from(textOp)]);
+  const newCompressed = zlib.deflateSync(newStreamContent);
 
-  // Genuine Type 0 font referencing descendant CIDFontType2 without a /ToUnicode CMap
+  const oldObj3 = pdfStr.slice(pdfStr.indexOf('3 0 obj'), pdfStr.indexOf('endobj', pdfStr.indexOf('3 0 obj')) + 6);
+  const newObj3 = `3 0 obj\n<< /Filter /FlateDecode /Length ${newCompressed.length} >>\nstream\n${newCompressed.toString('binary')}\nendstream\nendobj`;
+  pdfStr = pdfStr.replace(oldObj3, newObj3);
+
+  // In Object 4 (/Resources): wire /Font << /F_UNMAPPED 901 0 R >>
+  pdfStr = pdfStr.replace(
+    '4 0 obj\n<< /ProcSet [ /PDF /ImageB /ImageC /ImageI ] /XObject << /Im1 5 0 R >> >>',
+    '4 0 obj\n<< /ProcSet [ /PDF /ImageB /ImageC /ImageI /Text ] /XObject << /Im1 5 0 R >> /Font << /F_UNMAPPED 901 0 R >> >>'
+  );
+
+  // ToUnicode CMap mapping
+  const toUnicodeContent = `/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def
+/CMapName /Custom-ToUnicode def
+/CMapType 2 def
+1 begincodespacerange
+<0001> <0020>
+endcodespacerange
+15 beginbfchar
+<0001> <0030>
+<0002> <0030>
+<0003> <0069>
+<0004> <0030>
+<0005> <0033>
+<0006> <0030>
+<0007> <0030>
+<0008> <0030>
+<0009> <0047>
+<000a> <0030>
+<000b> <0030>
+<000c> <0030>
+<000d> <0064>
+<000e> <0030>
+<000f> <0036>
+endbfchar
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end`;
+
   const injectedObjects = `
-${fontObjNum} 0 obj
+901 0 obj
 <<
   /Type /Font
   /Subtype /Type0
   /BaseFont /CustomCIDFont-Identity-H
   /Encoding /Identity-H
-  /DescendantFonts [ ${descendantCidObjNum} 0 R ]
+  /DescendantFonts [ 903 0 R ]
+  /ToUnicode 905 0 R
 >>
 endobj
-${descendantCidObjNum} 0 obj
+903 0 obj
 <<
   /Type /Font
   /Subtype /CIDFontType2
@@ -46,11 +88,11 @@ ${descendantCidObjNum} 0 obj
     /Ordering (Identity)
     /Supplement 0
   >>
-  /FontDescriptor ${descriptorObjNum} 0 R
+  /FontDescriptor 904 0 R
   /DW 1000
 >>
 endobj
-${descriptorObjNum} 0 obj
+904 0 obj
 <<
   /Type /FontDescriptor
   /FontName /CustomCIDFont
@@ -63,50 +105,19 @@ ${descriptorObjNum} 0 obj
   /StemV 80
 >>
 endobj
-${streamObjNum} 0 obj
-<< /Length ${streamLength} >>
+905 0 obj
+<< /Length ${toUnicodeContent.length} >>
 stream
-${textStreamContent}
+${toUnicodeContent}
 endstream
 endobj
 `;
 
-  // Find page object and add the stream to /Contents
-  const contentsMatch = pdfStr.match(/\/Contents\s+(\d+\s+\d+\s+R)/);
-  if (contentsMatch) {
-    const existingContents = contentsMatch[1];
-    pdfStr = pdfStr.replace(
-      contentsMatch[0],
-      `/Contents [${existingContents} ${streamObjNum} 0 R]`
-    );
-  }
-
-  // Inject Type 0 font into /Resources /Font
-  const fontMatch = pdfStr.match(/\/Font\s*<<[^>]*>>/);
-  if (fontMatch) {
-    pdfStr = pdfStr.replace(
-      fontMatch[0],
-      fontMatch[0].replace('>>', ` /F_UNMAPPED ${fontObjNum} 0 R >>`)
-    );
-  } else {
-    const resMatch = pdfStr.match(/\/Resources\s*<<([^>]*)>>/);
-    if (resMatch) {
-      pdfStr = pdfStr.replace(
-        resMatch[0],
-        `/Resources << ${resMatch[1]} /Font << /F_UNMAPPED ${fontObjNum} 0 R >> >>`
-      );
-    }
-  }
-
-  // Append new objects before xref
-  const xrefIndex = pdfStr.lastIndexOf('xref');
-  if (xrefIndex !== -1) {
-    pdfStr = pdfStr.slice(0, xrefIndex) + injectedObjects + pdfStr.slice(xrefIndex);
-  } else {
-    pdfStr = pdfStr + injectedObjects;
-  }
+  const xrefIdx = pdfStr.lastIndexOf('xref');
+  pdfStr = pdfStr.slice(0, xrefIdx) + injectedObjects + pdfStr.slice(xrefIdx);
 
   fs.writeFileSync(outputPath, Buffer.from(pdfStr, 'binary'));
 }
+
 
 

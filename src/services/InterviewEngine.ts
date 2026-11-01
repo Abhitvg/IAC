@@ -43,6 +43,8 @@ export class InterviewEngine {
       activeAbortController.abort();
       activeAbortController = null;
       const store = useAppStore.getState();
+      store.clearDraft();
+      store.enqueueSentences([]);
       store.setAnswerValidationStatus('ABORTED');
       store.setIsAnswerValidated(false);
     }
@@ -333,7 +335,7 @@ export class InterviewEngine {
           {
             onToken: (token, rId) => {
               if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
-              useAppStore.getState().appendAnswerToken(token);
+              useAppStore.getState().appendDraftToken(token);
               if (useAppStore.getState().status !== 'generating') {
                 useAppStore.getState().setStatus('generating');
               }
@@ -341,8 +343,8 @@ export class InterviewEngine {
             onSentence: (sentence, rId) => {
               if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
               globalLatencyTracker.markFirstSentenceOnce();
-              const currentQueue = useAppStore.getState().teleprompterQueue;
-              useAppStore.getState().enqueueSentences([...currentQueue, sentence]);
+              const currentDraftQueue = useAppStore.getState().draftQueue;
+              useAppStore.getState().enqueueDraftSentences([...currentDraftQueue, sentence]);
             },
             onComplete: (res) => {
               const state = useAppStore.getState();
@@ -353,32 +355,61 @@ export class InterviewEngine {
               globalLatencyTracker.mark('generationEnd');
               console.log('Latency Report:', globalLatencyTracker.getReport());
 
-              state.setPredictedFollowUps(res.predictedFollowUps);
-              state.setCurrentAnswer(res.cleanAnswer);
-              state.setAnswerConfidence(res.confidence);
-              state.setAnswerValidationStatus(res.validationStatus);
-              state.setIsAnswerValidated(res.validationStatus === 'VALIDATED');
-              state.setGroundingResult(res.groundingScore ?? 100, res.groundingViolations ?? []);
+              // Clear unvalidated streaming draft
+              state.clearDraft();
 
-              const currentQ = useAppStore.getState().currentQuestion;
-              if (currentQ) {
-                useAppStore.getState().addToConversationHistory({
-                  question: currentQ,
-                  answer: res.cleanAnswer.slice(0, 300),
-                  category: res.detectedCategory,
-                });
+              const isValid = res.validationStatus === 'VALIDATED';
+              const isFlagged = res.validationStatus === 'FLAGGED';
+
+              if (isValid || isFlagged) {
+                const finalAnswer = res.cleanAnswer;
+                state.setCurrentAnswer(finalAnswer);
+                state.setAnswerConfidence(res.confidence);
+                state.setAnswerValidationStatus(res.validationStatus);
+                state.setIsAnswerValidated(isValid);
+                state.setGroundingResult(res.groundingScore ?? 100, res.groundingViolations ?? []);
+
+                // Populate speakable teleprompter queue with sentences from the validated/adjusted answer
+                const speakableSentences = finalAnswer
+                  .split(/(?<=[.?!])\s+/)
+                  .map((s) => s.trim())
+                  .filter((s) => s.length > 0);
+                state.enqueueSentences(speakableSentences.length > 0 ? speakableSentences : [finalAnswer]);
+
+                const currentQ = state.currentQuestion;
+                if (currentQ) {
+                  state.addToConversationHistory({
+                    question: currentQ,
+                    answer: finalAnswer.slice(0, 300),
+                    category: res.detectedCategory,
+                  });
+                }
+              } else {
+                // FAILED or ABORTED: keep speakable queue empty and do not promote unvalidated claims
+                state.setCurrentAnswer(res.cleanAnswer || null);
+                state.setIsAnswerValidated(false);
+                state.setAnswerValidationStatus(res.validationStatus);
+                state.setGroundingResult(0, res.groundingViolations ?? []);
+                state.enqueueSentences([]);
               }
 
-              useAppStore.getState().setRecitalState('listening');
-              useAppStore.getState().setStatus('ready');
+              state.setPredictedFollowUps(res.predictedFollowUps || []);
+              state.setRecitalState('listening');
+              state.setStatus('ready');
             },
             onError: (err, rId) => {
               if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
               console.error('[InterviewEngine] Generation stream error:', err);
-              useAppStore.getState().updateDiagnostics({
+              const state = useAppStore.getState();
+              state.clearDraft();
+              state.enqueueSentences([]);
+              state.setCurrentAnswer(null);
+              state.setIsAnswerValidated(false);
+              state.setAnswerValidationStatus('FAILED');
+              state.updateDiagnostics({
                 whisperStatus: 'gen error: ' + (err.message || String(err)),
               });
-              useAppStore.getState().setStatus('error');
+              state.setStatus('error');
               setTimeout(() => {
                 if (useAppStore.getState().status === 'error') {
                   useAppStore.getState().setStatus('listening');
@@ -422,6 +453,8 @@ export class InterviewEngine {
 
         store.setCurrentQuestion(`${titlePrefix} ${headline}`);
         store.setCurrentAnswer('');
+        store.setActiveRequestId(requestId);
+        store.setAnswerValidationStatus('PENDING');
         store.setIsAnswerValidated(false);
         store.setGroundingResult(null, []);
         store.setStatus('analyzing');
@@ -450,21 +483,23 @@ export class InterviewEngine {
             model: currentStore.settings?.aiModel,
             preferredLanguage: currentStore.settings?.preferredLanguage || 'Java',
             responseMode: 'coding',
+            resumeText: currentStore.resumeText,
+            jobDescriptionText: currentStore.jobDescriptionText,
             targetRole: currentStore.targetRole,
             signal: activeAbortController.signal,
           },
           {
             onToken: (token, rId) => {
               if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen) return;
-              useAppStore.getState().appendAnswerToken(token);
+              useAppStore.getState().appendDraftToken(token);
               if (useAppStore.getState().status !== 'generating') {
                 useAppStore.getState().setStatus('generating');
               }
             },
             onSentence: (sentence, rId) => {
               if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen) return;
-              const currentQueue = useAppStore.getState().teleprompterQueue;
-              useAppStore.getState().enqueueSentences([...currentQueue, sentence]);
+              const currentDraftQueue = useAppStore.getState().draftQueue;
+              useAppStore.getState().enqueueDraftSentences([...currentDraftQueue, sentence]);
             },
             onComplete: (res) => {
               const state = useAppStore.getState();
@@ -473,20 +508,47 @@ export class InterviewEngine {
                 return;
               }
               globalLatencyTracker.mark('generationEnd');
-              state.setCurrentAnswer(res.cleanAnswer);
-              state.setAnswerValidationStatus(res.validationStatus);
-              state.setIsAnswerValidated(res.validationStatus === 'VALIDATED');
-              state.setGroundingResult(res.groundingScore ?? 100, res.groundingViolations ?? []);
+              state.clearDraft();
+
+              const isValid = res.validationStatus === 'VALIDATED';
+              const isFlagged = res.validationStatus === 'FLAGGED';
+
+              if (isValid || isFlagged) {
+                const finalAnswer = res.cleanAnswer;
+                state.setCurrentAnswer(finalAnswer);
+                state.setAnswerValidationStatus(res.validationStatus);
+                state.setIsAnswerValidated(isValid);
+                state.setGroundingResult(res.groundingScore ?? 100, res.groundingViolations ?? []);
+
+                const speakable = finalAnswer
+                  .split(/(?<=[.?!])\s+/)
+                  .map((s) => s.trim())
+                  .filter((s) => s.length > 0);
+                state.enqueueSentences(speakable.length > 0 ? speakable : [finalAnswer]);
+              } else {
+                state.setCurrentAnswer(res.cleanAnswer || null);
+                state.setIsAnswerValidated(false);
+                state.setAnswerValidationStatus(res.validationStatus);
+                state.setGroundingResult(0, res.groundingViolations ?? []);
+                state.enqueueSentences([]);
+              }
+
               state.setRecitalState('listening');
               state.setStatus('ready');
             },
             onError: (err, rId) => {
               if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen) return;
               console.error('[InterviewEngine] Screen Solver Failed:', err.message);
-              useAppStore.getState().updateDiagnostics({
+              const state = useAppStore.getState();
+              state.clearDraft();
+              state.enqueueSentences([]);
+              state.setCurrentAnswer(null);
+              state.setIsAnswerValidated(false);
+              state.setAnswerValidationStatus('FAILED');
+              state.updateDiagnostics({
                 whisperStatus: 'solver error: ' + (err.message || String(err)),
               });
-              useAppStore.getState().setStatus('error');
+              state.setStatus('error');
             },
           }
         );
@@ -507,6 +569,7 @@ export class InterviewEngine {
       case 'CANCEL_ACTIVE_REQUEST': {
         InterviewEngine.cancelAllActiveWork();
         store.clearAnswerQueue();
+        store.clearDraft();
         store.setStatus(audioService.getCaptureState() === 'active' ? 'listening' : 'idle');
         store.setToast('Active request cancelled.');
         break;

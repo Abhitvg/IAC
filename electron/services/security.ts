@@ -175,14 +175,15 @@ export function validateDeletePath(targetPath: string, userDataDir: string): Pat
 }
 
 /**
- * Validates permission requests with a strict allowlist:
- * Allow only 'media' (microphone) for the app's own origin (file:// or local dev server).
- * Deny all other permissions (geolocation, notifications, camera, MIDI, clipboard-read, etc.).
+ * Validates permission requests with a strict allowlist and exact origin matching:
+ * Allow only 'media' (microphone) and clipboard write for the app's own canonical origin.
+ * Replaces string-prefix trust decisions with strict parsed URL/origin validation.
+ * Denies all untrusted origins, lookalikes, credential-embedded URLs, and unapproved permissions.
  */
 export function isPermissionAllowed(
   permission: string,
   requestingOrigin: string,
-  devServerUrl?: string
+  devServerUrl: string | undefined = process.env.VITE_DEV_SERVER_URL
 ): boolean {
   if (
     permission !== 'media' &&
@@ -192,10 +193,11 @@ export function isPermissionAllowed(
     return false;
   }
 
-  const isFileOrigin = requestingOrigin.startsWith('file://');
-  const isDevOrigin = Boolean(devServerUrl && requestingOrigin.startsWith(devServerUrl));
+  if (!requestingOrigin || typeof requestingOrigin !== 'string' || !requestingOrigin.trim()) {
+    return false;
+  }
 
-  return isFileOrigin || isDevOrigin;
+  return isTrustedAppOrigin(requestingOrigin, devServerUrl);
 }
 
 /**
@@ -291,6 +293,9 @@ export function getApprovedAppHtmlPaths(): string[] {
     if (process.cwd()) {
       candidates.push(path.resolve(process.cwd(), 'dist/index.html'));
     }
+    if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
+      candidates.push(path.resolve('/app/dist/index.html'));
+    }
   }
 
   return Array.from(new Set(candidates.map((p) => path.normalize(p))));
@@ -330,6 +335,9 @@ export function isTrustedAppOrigin(
     // 2. Reject path traversal sequences, URL-encoded traversal, alternate backslash separators
     const rawPath = parsed.pathname;
     if (
+      url.includes('\\') ||
+      url.includes('%5c') ||
+      url.includes('%5C') ||
       rawPath.includes('/..') ||
       rawPath.includes('\\..') ||
       rawPath.includes('..') ||

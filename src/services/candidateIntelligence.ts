@@ -1923,7 +1923,7 @@ export class FactualGroundingValidator {
 
     // 1. Detect fabricated user counts, QPS, or scale numbers claimed as personal/past achievements
     const scaleMatches = cleanAnswerForValidation.match(
-      /\b(?:\d{1,3}(?:,\d{3})+|\d+[kmKM]\+?|\d+\s*(?:million|thousand|billion)|(?:one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)\s+(?:million|thousand|billion)?)\s*(?:concurrent\s+)?(?:users|qps|rps|concurrent|requests|customers|clients|uploads|transactions|queries|connections|events|messages)\b/gi
+      /\b(?:\d{1,3}(?:,\d{3})+|\d+[kmKM]\+?|\d+\s*(?:million|thousand|billion)|(?:one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)\s+(?:million|thousand|billion)?)\s*(?:concurrent\s+)?(?:users|qps|rps|concurrent|requests|customers|clients|uploads|transactions|queries|connections|events|messages|linked\s+lists|records|items|operations|documents)(?:\s*per\s+second|\/s)?\b/gi
     );
     if (scaleMatches) {
       for (const match of scaleMatches) {
@@ -2428,10 +2428,15 @@ export class FactualGroundingValidator {
     // Honest qualifying without inventing alternative unsupported claims:
     let adjustedAnswer = answer;
     if (!isGrounded) {
-      // Qualify scale metrics
+      // Qualify scale and volume metrics
       adjustedAnswer = adjustedAnswer.replace(
-        /\b(?:supporting|handling)\s+(?:\d{1,3}(?:,\d{3})+|\d+[kmKM]\+?|\d+\s*(?:million|thousand|billion))\s+(?:concurrent\s+)?users\b/gi,
-        'supporting concurrent users (scale metric unverified in candidate records)'
+        /\b(?:supporting|handling|managing|managed|scaled\s+(?:cache\s+invalidation\s+)?to|scaled\s+to|processed|served)\s+(?:\d{1,3}(?:,\d{3})+|\d+[kmKM]\+?|\d+\s*(?:million|thousand|billion))\s+(?:concurrent\s+)?(?:users|requests|qps|rps|websocket\s+connections|connections|events|linked\s+lists|records|items)?(?:\s*per\s+second)?\b/gi,
+        'handling high volume workloads (scale metric unverified in candidate records; consulting internal project telemetry)'
+      );
+
+      adjustedAnswer = adjustedAnswer.replace(
+        /\b(?:\d{1,3}(?:,\d{3})+|\d+[kmKM]\+?|\d+\s*(?:million|thousand|billion))\s+(?:concurrent\s+)?(?:users|requests|qps|rps|websocket\s+connections|connections|events|linked\s+lists|records|items)(?:\s*per\s+second)?\b/gi,
+        'high volume workloads (scale metric unverified in candidate records; consulting internal project telemetry)'
       );
 
       // Qualify delivery guarantees
@@ -2472,7 +2477,7 @@ export class FactualGroundingValidator {
 
       // Neutralize sole authorship claims
       adjustedAnswer = adjustedAnswer.replace(
-        /\b(?:I was the sole (?:creator|author|engineer|developer)|I single-handedly built)\b/gi,
+        /\b(?:I was the sole (?:creator|author|engineer|developer)|I single-handedly (?:built|managed|architected|designed|developed|maintained|implemented))\b/gi,
         'The project was developed (individual sole authorship unverified in candidate profile)'
       );
 
