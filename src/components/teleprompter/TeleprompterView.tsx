@@ -35,6 +35,7 @@ import {
   Keyboard,
   SlidersHorizontal,
   X,
+  Power,
 } from 'lucide-react';
 
 interface CodeBlockCardProps {
@@ -1283,7 +1284,13 @@ export default function TeleprompterView() {
   };
 
   const handleExit = () => {
-    window.electronAPI?.close();
+    if (typeof window !== 'undefined' && window.electronAPI?.quitApp) {
+      window.electronAPI.quitApp();
+    } else if (typeof window !== 'undefined' && window.electronAPI?.close) {
+      window.electronAPI.close();
+    } else {
+      window.close();
+    }
   };
 
   const handleTriggerQuestion = (q: string) => {
@@ -1718,22 +1725,28 @@ export default function TeleprompterView() {
             <span>Controls</span>
           </button>
 
-          {/* Exit Button */}
+          {/* Quit Button */}
           <button
+            type="button"
             onClick={handleExit}
+            title="Quit Application (⌘Q)"
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
               background: "#e11d48",
               color: "#ffffff",
               border: "none",
               borderRadius: "4px",
               padding: "4px 10px",
               fontSize: "11px",
-              fontWeight: 600,
+              fontWeight: 650,
               cursor: "pointer",
               transition: "background 0.15s ease",
             }}
           >
-            Exit
+            <Power size={11} />
+            <span>Quit</span>
           </button>
         </div>
       </div>
@@ -2190,6 +2203,16 @@ export default function TeleprompterView() {
                 title="Instant Stealth Vanish (Esc or ⌘\)"
               >
                 <EyeOff size={11} />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExit}
+                className="card-interactive px-2 py-1 rounded-lg text-[10px] font-bold bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/40 flex items-center gap-1 transition"
+                title="Quit Application (⌘Q)"
+              >
+                <Power size={11} />
+                <span className="hidden sm:inline">Quit</span>
               </button>
             </div>
           </div>

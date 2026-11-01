@@ -19,6 +19,7 @@ import {
   Bell,
   User,
   Mic,
+  Power,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { usePracticeStore } from '../store/usePracticeStore';
@@ -248,54 +249,120 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         }}
       >
         {collapsed ? (
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            aria-label="Expand Sidebar"
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#9299AA',
-              cursor: 'pointer',
-              padding: '8px',
-              display: 'flex',
-              justifyContent: 'center',
-            }}
-            className="hover:text-[#F3F4F8]"
-          >
-            <ChevronRight size={16} />
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              aria-label="Expand Sidebar"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#9299AA',
+                cursor: 'pointer',
+                padding: '6px',
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+              className="hover:text-[#F3F4F8]"
+            >
+              <ChevronRight size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.electronAPI?.quitApp) {
+                  window.electronAPI.quitApp();
+                } else if (typeof window !== 'undefined' && window.electronAPI?.close) {
+                  window.electronAPI.close();
+                } else {
+                  window.close();
+                }
+              }}
+              aria-label="Quit Application"
+              title="Quit Application (⌘Q)"
+              style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: '6px',
+                color: '#f87171',
+                cursor: 'pointer',
+                padding: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              className="hover:bg-red-500/25 hover:border-red-500/60"
+            >
+              <Power size={13} />
+            </button>
+          </div>
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '6px 8px',
-              borderRadius: '6px',
-              background: '#171B24',
-              border: '1px solid #292E3A',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div
-                style={{
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '50%',
-                  background: '#1E2330',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#8B7CFF',
-                  fontSize: '11px',
-                }}
-              >
-                <User size={12} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 8px',
+                borderRadius: '6px',
+                background: '#171B24',
+                border: '1px solid #292E3A',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div
+                  style={{
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '50%',
+                    background: '#1E2330',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#8B7CFF',
+                    fontSize: '11px',
+                  }}
+                >
+                  <User size={12} />
+                </div>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#F3F4F8' }}>Candidate</span>
               </div>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#F3F4F8' }}>Candidate</span>
+              <span style={{ fontSize: '10px', color: '#35C991', fontWeight: 600 }}>Active</span>
             </div>
-            <span style={{ fontSize: '10px', color: '#35C991', fontWeight: 600 }}>Active</span>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.electronAPI?.quitApp) {
+                  window.electronAPI.quitApp();
+                } else if (typeof window !== 'undefined' && window.electronAPI?.close) {
+                  window.electronAPI.close();
+                } else {
+                  window.close();
+                }
+              }}
+              aria-label="Quit Application"
+              title="Quit Application (⌘Q)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '5px 8px',
+                borderRadius: '6px',
+                background: 'rgba(239, 68, 68, 0.12)',
+                color: '#f87171',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 600,
+                transition: 'all 0.15s ease',
+              }}
+              className="hover:bg-red-500/25 hover:border-red-500/60"
+            >
+              <Power size={12} />
+              <span>Quit Application</span>
+            </button>
           </div>
         )}
       </div>

@@ -304,7 +304,23 @@ function setupNativeApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-app.whenReady().then(() => {
+// Enforce single-instance lock to prevent multiple application instances/windows from opening
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  console.log('[Electron] Another application instance is already running. Quitting duplicate instance.');
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    // When a second instance tries to launch, focus our existing main window
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
   RECORDINGS_DIR = path.join(app.getPath('userData'), 'recordings');
   SESSIONS_DIR = path.join(app.getPath('userData'), 'sessions');
   // Strict permission handler: only allow "media" (microphone) for the app's own origin
@@ -346,12 +362,11 @@ app.whenReady().then(() => {
     }
   });
 });
+}
 
 app.on('window-all-closed', () => {
   globalShortcut.unregisterAll();
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  app.quit();
 });
 
 // Window controls IPC
@@ -363,7 +378,14 @@ ipcMain.on('window:maximize', () => {
     mainWindow?.maximize();
   }
 });
-ipcMain.on('window:close', () => mainWindow?.close());
+ipcMain.on('window:close', () => {
+  globalShortcut.unregisterAll();
+  app.quit();
+});
+ipcMain.on('app:quit', () => {
+  globalShortcut.unregisterAll();
+  app.quit();
+});
 ipcMain.on('window:toggle-always-on-top', () => {
   if (mainWindow) {
     const isOnTop = mainWindow.isAlwaysOnTop();

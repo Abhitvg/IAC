@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Maximize2,
   Minimize2,
+  Power,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { isSoundMuted, toggleSoundMuted } from '../utils/soundEffects';
@@ -159,6 +160,40 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({ currentTitle }) => {
           }}
         >
           {soundMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+        </button>
+
+        {/* Quit Application */}
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.electronAPI?.quitApp) {
+              window.electronAPI.quitApp();
+            } else if (typeof window !== 'undefined' && window.electronAPI?.close) {
+              window.electronAPI.close();
+            } else {
+              window.close();
+            }
+          }}
+          aria-label="Quit Application"
+          title="Quit Application (⌘Q)"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontWeight: 650,
+            cursor: 'pointer',
+            background: 'rgba(239, 68, 68, 0.16)',
+            color: '#f87171',
+            border: '1px solid rgba(239, 68, 68, 0.45)',
+            transition: 'all 0.15s ease',
+          }}
+          className="hover:bg-red-500/25 hover:border-red-500/60"
+        >
+          <Power size={13} />
+          <span>Quit</span>
         </button>
       </div>
     </header>

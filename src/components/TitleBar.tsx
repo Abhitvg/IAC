@@ -63,9 +63,15 @@ export default function TitleBar() {
           <Square size={11} />
         </button>
         <button
-          className="title-bar__btn"
-          onClick={() => window.electronAPI?.close()}
-          title="Close"
+          className="title-bar__btn title-bar__btn--close"
+          onClick={() => {
+            if (window.electronAPI?.quitApp) {
+              window.electronAPI.quitApp();
+            } else {
+              window.electronAPI?.close();
+            }
+          }}
+          title="Quit Application"
         >
           <X size={13} />
         </button>

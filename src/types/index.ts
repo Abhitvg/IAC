@@ -221,6 +221,7 @@ export interface ElectronAPI {
   minimize: () => void;
   maximize: () => void;
   close: () => void;
+  quitApp?: () => void;
   toggleAlwaysOnTop: () => void;
   isAlwaysOnTop: () => Promise<boolean>;
   setContentProtection?: (enable: boolean) => Promise<boolean>;
