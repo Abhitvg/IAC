@@ -339,7 +339,7 @@ export function extractStructuredResume(
       }
 
       const parts = line.split(/[|•–—\t]+/).map((p) => p.trim());
-      let role = 'Software Engineer';
+      let role: string;
       let employer = 'Company';
       let dates = '';
 

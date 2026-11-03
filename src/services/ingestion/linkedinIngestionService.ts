@@ -131,6 +131,9 @@ export class LinkedInIngestionService {
     if (lines.length > 1 && !lines[1].toLowerCase().includes('contact') && !lines[1].toLowerCase().includes('page')) {
       headline = lines[1];
     }
+    if (lines.length > 2 && !lines[2].toLowerCase().includes('contact') && !lines[2].toLowerCase().includes('page')) {
+      location = lines[2];
+    }
 
     // Extract contact links & email
     const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);

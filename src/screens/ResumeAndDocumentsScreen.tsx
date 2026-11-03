@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   FileText,
   Upload,
@@ -25,6 +25,7 @@ import { LinkedInIngestionService } from '../services/ingestion/linkedinIngestio
 import { SourceReconciliationService, ContradictionAlert } from '../services/ingestion/sourceReconciliationService';
 import { DocumentIngestionService } from '../services/ingestion/documentIngestionService';
 import { CanonicalProfileService } from '../services/knowledgeVault/canonicalProfileService';
+import { GitHubRepoSelector } from '../components/github/GitHubRepoSelector';
 
 export const ResumeAndDocumentsScreen: React.FC = () => {
   const { resumeText, jobDescriptionText, setResumeModalOpen, setToast } = useAppStore();
@@ -36,6 +37,8 @@ export const ResumeAndDocumentsScreen: React.FC = () => {
   const [ghToken, setGhToken] = useState('');
   const [isConnectingGh, setIsConnectingGh] = useState(false);
   const [ghRepos, setGhRepos] = useState<GitHubRepoSummary[]>([]);
+  const [isLoadingGhRepos, setIsLoadingGhRepos] = useState(false);
+  const [ghError, setGhError] = useState<string | null>(null);
   const [isIngestingGh, setIsIngestingGh] = useState(false);
   const ghService = GitHubIngestionService.getInstance();
   const [isGhConnected, setIsGhConnected] = useState(() => ghService.isConnected());
@@ -48,11 +51,27 @@ export const ResumeAndDocumentsScreen: React.FC = () => {
   const reconciler = SourceReconciliationService.getInstance();
   const [contradictions, setContradictions] = useState<ContradictionAlert[]>(() => reconciler.detectContradictions());
 
+  const loadGitHubRepositories = useCallback(async () => {
+    if (!ghService.isConnected()) return;
+    setIsLoadingGhRepos(true);
+    setGhError(null);
+    try {
+      const repos = await ghService.listRepositories();
+      setGhRepos(repos);
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      setGhError(msg);
+      console.warn('[GitHub] Failed to list repositories:', err);
+    } finally {
+      setIsLoadingGhRepos(false);
+    }
+  }, [ghService]);
+
   useEffect(() => {
     if (isGhConnected) {
-      ghService.listRepositories().then(setGhRepos).catch(console.warn);
+      loadGitHubRepositories();
     }
-  }, [isGhConnected]);
+  }, [isGhConnected, loadGitHubRepositories]);
 
   const handleCrawlWebsite = async (sourceId: string) => {
     setIsCrawling(true);
@@ -81,23 +100,30 @@ export const ResumeAndDocumentsScreen: React.FC = () => {
   const handleConnectGitHub = async () => {
     if (!ghToken.trim()) return;
     setIsConnectingGh(true);
+    setGhError(null);
     try {
       const user = await ghService.verifyAndConnect(ghToken);
       setIsGhConnected(true);
       setToast?.(`✅ Connected GitHub account: @${user.login}`);
-      const repos = await ghService.listRepositories();
-      setGhRepos(repos);
+      await loadGitHubRepositories();
     } catch (err: any) {
-      setToast?.(`GitHub connection failed: ${err?.message || err}`);
+      const msg = err?.message || String(err);
+      setGhError(msg);
+      setToast?.(`GitHub connection failed: ${msg}`);
     } finally {
       setIsConnectingGh(false);
     }
   };
 
   const handleIngestGitHub = async () => {
+    const selectedCount = ghService.getSelectedRepositoryNames().length;
+    if (selectedCount === 0) {
+      setToast?.('Please select at least one repository to audit.');
+      return;
+    }
     setIsIngestingGh(true);
     try {
-      setToast?.('Auditing selected GitHub repositories and commit authorship...');
+      setToast?.(`Auditing ${selectedCount} selected GitHub repositories and commit authorship...`);
       const result = await ghService.ingestSelectedRepositories();
       setToast?.(`✅ Audited ${result.inspectedRepositories.length} repositories with verified commit SHAs!`);
       setContradictions(reconciler.detectContradictions());
@@ -400,6 +426,7 @@ export const ResumeAndDocumentsScreen: React.FC = () => {
                     ghService.disconnect();
                     setIsGhConnected(false);
                     setGhRepos([]);
+                    setGhError(null);
                   }}
                   style={{
                     padding: '4px 8px',
@@ -428,50 +455,30 @@ export const ResumeAndDocumentsScreen: React.FC = () => {
                   color: '#F3F4F8',
                   fontSize: '12px',
                   fontWeight: 600,
-                  cursor: isIngestingGh ? 'not-allowed' : 'pointer',
+                  cursor: isIngestingGh || ghService.getSelectedRepositoryNames().length === 0 ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
                 }}
               >
                 <RefreshCw size={13} className={isIngestingGh ? 'animate-spin' : ''} />
-                {isIngestingGh ? 'Auditing Repos...' : 'Audit Selected Repositories'}
+                {isIngestingGh
+                  ? 'Auditing Repos...'
+                  : `Audit ${ghService.getSelectedRepositoryNames().length} Selected Repositor${
+                      ghService.getSelectedRepositoryNames().length === 1 ? 'y' : 'ies'
+                    }`}
               </button>
             )}
           </div>
-          {isGhConnected && ghRepos.length > 0 && (
-            <div style={{ maxHeight: '200px', overflowY: 'auto', padding: '8px 20px' }}>
-              {ghRepos.slice(0, 10).map((r) => {
-                const isSelected = ghService.getSelectedRepositoryNames().includes(r.fullName);
-                return (
-                  <div
-                    key={r.id}
-                    style={{
-                      padding: '8px 0',
-                      borderBottom: '1px solid #1E2330',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      fontSize: '12px',
-                    }}
-                  >
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#F3F4F8' }}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={(e) => {
-                          ghService.toggleRepositorySelection(r.fullName, e.target.checked);
-                          setGhRepos([...ghRepos]);
-                        }}
-                      />
-                      <strong>{r.name}</strong>
-                      <span style={{ color: '#9299AA', fontSize: '11px' }}>{r.description || 'No description'}</span>
-                    </label>
-                    <span style={{ color: '#8B7CFF', fontSize: '11px' }}>{r.primaryLanguage || 'Code'}</span>
-                  </div>
-                );
-              })}
-            </div>
+          {isGhConnected && (
+            <GitHubRepoSelector
+              repos={ghRepos}
+              isLoading={isLoadingGhRepos}
+              error={ghError}
+              onRetry={loadGitHubRepositories}
+              onSelectionChange={() => setGhRepos([...ghRepos])}
+              service={ghService}
+            />
           )}
         </Card>
       </div>

@@ -397,7 +397,7 @@ export function validateCanonicalProfile(data: unknown): ValidationOutcome {
   }
 
   // 4. Sequential version migration
-  let profileToValidate = rawObj;
+  let profileToValidate: any;
   try {
     profileToValidate = migrateProfileIfNeeded(rawObj);
   } catch (err: any) {

@@ -179,8 +179,29 @@ export class GitHubIngestionService {
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`GitHub API error (${res.status}): ${errText || res.statusText}`);
+      let errDetail: string;
+      try {
+        const json = await res.json();
+        errDetail = json.message || '';
+      } catch {
+        errDetail = await res.text();
+      }
+
+      if (
+        res.status === 403 &&
+        (errDetail.toLowerCase().includes('rate limit') || res.headers.get('x-ratelimit-remaining') === '0')
+      ) {
+        const resetHeader = res.headers.get('x-ratelimit-reset');
+        const resetMin = resetHeader ? Math.ceil((Number(resetHeader) * 1000 - Date.now()) / 60000) : null;
+        const resetMsg = resetMin && resetMin > 0 ? ` Try again in ~${resetMin} min.` : '';
+        throw new Error(`GitHub API rate limit exceeded (HTTP 403).${resetMsg}`);
+      }
+
+      if (res.status === 401) {
+        throw new Error('GitHub authentication failed (HTTP 401). Invalid or expired personal access token.');
+      }
+
+      throw new Error(`GitHub API error (${res.status}): ${errDetail || res.statusText}`);
     }
 
     return res.json();
@@ -223,17 +244,37 @@ export class GitHubIngestionService {
     const allRepos: any[] = [];
     const perPage = 100;
     for (let page = 1; ; page += 1) {
-      const rawPage = await this.fetchGitHub(
-        `/user/repos?per_page=${perPage}&page=${page}&sort=updated&affiliation=owner,collaborator`
-      );
-      if (!Array.isArray(rawPage)) {
-        throw new Error('Unexpected GitHub repositories response. Please reconnect and try again.');
+      try {
+        const rawPage = await this.fetchGitHub(
+          `/user/repos?per_page=${perPage}&page=${page}&sort=updated&affiliation=owner,collaborator`
+        );
+        if (!Array.isArray(rawPage)) {
+          throw new Error('Unexpected GitHub repositories response. Please reconnect and try again.');
+        }
+        allRepos.push(...rawPage);
+        if (rawPage.length < perPage) break;
+      } catch (err: any) {
+        if (page > 1) {
+          throw new Error(
+            `Failed while retrieving repository page ${page} (${allRepos.length} loaded): ${err?.message || String(err)}`,
+            { cause: err }
+          );
+        }
+        throw err;
       }
-      allRepos.push(...rawPage);
-      if (rawPage.length < perPage) break;
     }
 
-    return allRepos.map((r: any) => ({
+    // Deduplicate in case a repo was modified during multi-page traversal
+    const seenIds = new Set<number>();
+    const uniqueRepos: any[] = [];
+    for (const repo of allRepos) {
+      if (!seenIds.has(repo.id)) {
+        seenIds.add(repo.id);
+        uniqueRepos.push(repo);
+      }
+    }
+
+    return uniqueRepos.map((r: any) => ({
       id: r.id,
       name: r.name,
       fullName: r.full_name,
@@ -256,6 +297,24 @@ export class GitHubIngestionService {
       this.selectedRepoFullNames.add(fullName);
     } else {
       this.selectedRepoFullNames.delete(fullName);
+    }
+    this.persistState();
+  }
+
+  public selectRepositories(fullNames: string[]): void {
+    for (const name of fullNames) {
+      this.selectedRepoFullNames.add(name);
+    }
+    this.persistState();
+  }
+
+  public deselectRepositories(fullNames?: string[]): void {
+    if (fullNames && fullNames.length > 0) {
+      for (const name of fullNames) {
+        this.selectedRepoFullNames.delete(name);
+      }
+    } else {
+      this.selectedRepoFullNames.clear();
     }
     this.persistState();
   }
