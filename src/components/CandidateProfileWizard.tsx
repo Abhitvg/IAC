@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   User,
   GraduationCap,
@@ -21,6 +21,7 @@ import {
   RotateCcw,
   Sparkles,
   FileText,
+  SkipForward,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import {
@@ -63,9 +64,11 @@ const WIZARD_STEPS: StepDef[] = [
   { id: 'projects', label: 'F. Projects & Provenance', shortLabel: 'Projects', icon: <FolderGit2 size={16} /> },
   { id: 'achievements', label: 'G. Achievements', shortLabel: 'Achievements', icon: <Trophy size={16} /> },
   { id: 'preferences', label: 'H. Answer Preferences', shortLabel: 'Preferences', icon: <Sliders size={16} /> },
-  { id: 'declarations', label: 'I. Declarations (Audit)', shortLabel: 'Declarations', icon: <ShieldAlert size={16} />, required: true },
+  { id: 'declarations', label: 'I. Declarations (Audit)', shortLabel: 'Declarations', icon: <ShieldAlert size={16} />, required: false },
   { id: 'review', label: 'Review & Confirm', shortLabel: 'Review', icon: <CheckCircle2 size={16} />, required: true },
 ];
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const CandidateProfileWizard: React.FC = () => {
   const { profileWizardOpen, setProfileWizardOpen, setToast } = useAppStore();
@@ -73,9 +76,14 @@ export const CandidateProfileWizard: React.FC = () => {
 
   const [activeStep, setActiveStep] = useState<WizardSection>('identity');
   const [profile, setProfile] = useState<CanonicalCandidateProfile>(() => profileService.getProfile());
-  const [autosaveNotice, setAutosaveNotice] = useState<string>('Autosaved to local vault');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [saveStatusText, setSaveStatusText] = useState<string>('All changes saved');
   const [isImporting, setIsImporting] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [importErrors, setImportErrors] = useState<string[] | null>(null);
+
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Subscribe to service updates
   useEffect(() => {
@@ -83,30 +91,113 @@ export const CandidateProfileWizard: React.FC = () => {
     return () => unsub();
   }, [profileService]);
 
-  // Debounced Autosave
+  // Keyboard navigation & accessibility: Close on Escape key
+  useEffect(() => {
+    if (!profileWizardOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setProfileWizardOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [profileWizardOpen, setProfileWizardOpen]);
+
+  // Genuine Debounced Autosave with error handling
   const triggerSave = useCallback(
     (nextProfile: CanonicalCandidateProfile) => {
       setProfile(nextProfile);
-      profileService.saveProfile(nextProfile);
-      setAutosaveNotice('Saved at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setSaveStatus('saving');
+      setSaveStatusText('Saving...');
+
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        try {
+          profileService.saveProfile(nextProfile);
+          setSaveStatus('saved');
+          const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          setSaveStatusText(`Autosaved at ${time}`);
+        } catch (err) {
+          console.error('[CandidateProfileWizard] Autosave failed:', err);
+          setSaveStatus('error');
+          setSaveStatusText('Error saving changes to local storage');
+        }
+      }, 500);
     },
     [profileService]
   );
 
-  // Calculate completion percentage
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
+
+  // Strict completion calculation based on valid, sufficiently complete fields
   const completionPercentage = useMemo(() => {
     let score = 0;
     const maxScore = 9;
 
-    if (profile.identity.fullName.trim() && profile.identity.email.trim()) score += 1;
-    if (profile.education.length > 0) score += 1;
-    if (profile.career.currentRole.trim()) score += 1;
-    if (profile.skills.length > 0) score += 1;
-    if (profile.experience.length > 0) score += 1;
-    if (profile.projects.length > 0) score += 1;
-    if (profile.achievements.length > 0) score += 1;
-    if (profile.preferences.preferredCodingLanguage) score += 1;
-    if (profile.declarations.workAuthorization.confirmed || profile.declarations.sponsorshipRequired.confirmed) score += 1;
+    // 1. Identity: Valid full name (>= 2 chars) and valid email
+    if (profile.identity.fullName.trim().length >= 2 && EMAIL_REGEX.test(profile.identity.email.trim())) {
+      score += 1;
+    }
+
+    // 2. Education: Institution & Degree specified
+    if (profile.education.length > 0 && profile.education.some((e) => e.institution.trim() && e.degree.trim())) {
+      score += 1;
+    }
+
+    // 3. Career: Current role non-empty and target seniority specified (not UNKNOWN)
+    if (profile.career.currentRole.trim().length > 0 && profile.career.targetSeniority && profile.career.targetSeniority !== 'UNKNOWN') {
+      score += 1;
+    }
+
+    // 4. Skills: Has skills; practical skills must have at least one project reference
+    if (
+      profile.skills.length > 0 &&
+      profile.skills.some((s) => s.name.trim().length > 0 && (s.experienceType === 'theoretical' || s.projectReferences.length > 0))
+    ) {
+      score += 1;
+    }
+
+    // 5. Experience: Employer and title non-empty
+    if (profile.experience.length > 0 && profile.experience.some((exp) => exp.employer.trim() && exp.title.trim())) {
+      score += 1;
+    }
+
+    // 6. Projects: Name and non-trivial exact contribution (>= 10 chars)
+    if (
+      profile.projects.length > 0 &&
+      profile.projects.some((p) => p.name.trim().length > 0 && p.exactContribution.trim().length >= 10)
+    ) {
+      score += 1;
+    }
+
+    // 7. Achievements: Title non-empty
+    if (profile.achievements.length > 0 && profile.achievements.some((a) => a.title.trim().length > 0)) {
+      score += 1;
+    }
+
+    // 8. Preferences: Preferred language & coding language specified
+    if (profile.preferences.language.trim().length > 0 && profile.preferences.preferredCodingLanguage.trim().length > 0) {
+      score += 1;
+    }
+
+    // 9. Declarations: At least one explicitly confirmed declaration
+    if (
+      profile.declarations.workAuthorization.confirmed ||
+      profile.declarations.sponsorshipRequired.confirmed ||
+      profile.declarations.willingToRelocate.confirmed ||
+      profile.declarations.securityClearance.confirmed
+    ) {
+      score += 1;
+    }
 
     return Math.round((score / maxScore) * 100);
   }, [profile]);
@@ -114,6 +205,8 @@ export const CandidateProfileWizard: React.FC = () => {
   if (!profileWizardOpen) return null;
 
   const currentStepIdx = WIZARD_STEPS.findIndex((s) => s.id === activeStep);
+  const currentStep = WIZARD_STEPS[currentStepIdx];
+  const isSkippable = !currentStep.required;
 
   const handleNext = () => {
     if (currentStepIdx < WIZARD_STEPS.length - 1) {
@@ -125,6 +218,10 @@ export const CandidateProfileWizard: React.FC = () => {
     if (currentStepIdx > 0) {
       setActiveStep(WIZARD_STEPS[currentStepIdx - 1].id);
     }
+  };
+
+  const handleSkip = () => {
+    handleNext();
   };
 
   // Export profile
@@ -139,19 +236,22 @@ export const CandidateProfileWizard: React.FC = () => {
     setToast?.('Candidate profile exported successfully.');
   };
 
-  // Import JSON profile
+  // Import JSON profile with rigorous schema validation
   const handleImportJsonFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setImportErrors(null);
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
       if (content) {
-        const ok = profileService.importJson(content);
-        if (ok) {
-          setToast?.('Imported profile successfully.');
+        const result = profileService.importJson(content);
+        if (result.success) {
+          setToast?.('Imported and verified profile successfully.');
+          setImportErrors(null);
         } else {
-          setToast?.('Failed to parse candidate profile JSON.');
+          setImportErrors(result.errors || ['Schema validation error']);
+          setToast?.(`Import rejected: ${result.errors?.length || 1} schema errors detected.`);
         }
       }
     };
@@ -176,6 +276,10 @@ export const CandidateProfileWizard: React.FC = () => {
     }
   };
 
+  // Field validation flags
+  const isFullNameValid = profile.identity.fullName.trim().length >= 2;
+  const isEmailValid = EMAIL_REGEX.test(profile.identity.email.trim());
+
   return (
     <div
       role="dialog"
@@ -190,33 +294,74 @@ export const CandidateProfileWizard: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px',
+        padding: '16px',
       }}
     >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '1100px',
-          height: '90vh',
-          maxHeight: '850px',
-          background: '#11141B',
-          border: '1px solid #292E3A',
-          borderRadius: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6)',
-          overflow: 'hidden',
-        }}
-      >
+      <style>{`
+        .wizard-shell {
+          width: 95vw;
+          max-width: 1120px;
+          height: 90vh;
+          max-height: 860px;
+          background: #11141B;
+          border: 1px solid #292E3A;
+          border-radius: 16px;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+          overflow: hidden;
+        }
+        .wizard-main-layout {
+          flex: 1;
+          display: flex;
+          overflow: hidden;
+        }
+        .wizard-sidebar {
+          width: 230px;
+          border-right: 1px solid #292E3A;
+          background: #0F1218;
+          padding: 12px 8px;
+          display: flex;
+          flex-direction: column;
+          justifyContent: space-between;
+          overflow-y: auto;
+        }
+        .wizard-grid-2col {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+        @media (max-width: 768px) {
+          .wizard-main-layout {
+            flex-direction: column;
+          }
+          .wizard-sidebar {
+            width: 100%;
+            border-right: none;
+            border-bottom: 1px solid #292E3A;
+            flex-direction: row;
+            overflow-x: auto;
+            padding: 8px;
+            gap: 6px;
+          }
+          .wizard-grid-2col {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      <div className="wizard-shell" ref={containerRef}>
         {/* Wizard Header */}
         <div
           style={{
-            padding: '16px 24px',
+            padding: '14px 20px',
             borderBottom: '1px solid #292E3A',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             background: '#171B24',
+            flexWrap: 'wrap',
+            gap: '10px',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -236,8 +381,8 @@ export const CandidateProfileWizard: React.FC = () => {
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h2 id="wizard-title" style={{ fontSize: '16px', fontWeight: 700, color: '#F3F4F8', margin: 0 }}>
-                  Candidate Profile &amp; Grounding Wizard
+                <h2 id="wizard-title" style={{ fontSize: '15px', fontWeight: 700, color: '#F3F4F8', margin: 0 }}>
+                  Candidate Intelligence Wizard
                 </h2>
                 <span
                   style={{
@@ -253,63 +398,67 @@ export const CandidateProfileWizard: React.FC = () => {
                 </span>
               </div>
               <p style={{ fontSize: '11px', color: '#9299AA', margin: '2px 0 0 0' }}>
-                All sensitive declarations require explicit confirmation. Unverified claims remain quarantined.
+                Factual grounding: Declarations require explicit confirmation. Unverified claims are quarantined.
               </p>
             </div>
           </div>
 
-          {/* Quick Actions (Autosave, Export, Close) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '11px', color: '#687082' }}>{autosaveNotice}</span>
+          {/* Quick Actions (Autosave, Export, Import, Close) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span
+              style={{
+                fontSize: '11px',
+                color: saveStatus === 'error' ? '#f87171' : saveStatus === 'saving' ? '#F7B955' : '#35C991',
+                marginRight: '6px',
+              }}
+            >
+              {saveStatusText}
+            </span>
 
             <button
               type="button"
               onClick={handleExportJson}
               title="Export Profile JSON"
               style={{
-                padding: '6px 12px',
+                padding: '5px 10px',
                 borderRadius: '6px',
                 background: '#1E2330',
                 border: '1px solid #292E3A',
                 color: '#CBD5E1',
-                fontSize: '12px',
+                fontSize: '11px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '5px',
               }}
             >
-              <Download size={13} /> Export
+              <Download size={12} /> Export
             </button>
 
             <label
               title="Import Profile JSON"
               style={{
-                padding: '6px 12px',
+                padding: '5px 10px',
                 borderRadius: '6px',
                 background: '#1E2330',
                 border: '1px solid #292E3A',
                 color: '#CBD5E1',
-                fontSize: '12px',
+                fontSize: '11px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '5px',
               }}
             >
-              <Upload size={13} /> Import JSON
-              <input
-                type="file"
-                accept=".json"
-                style={{ display: 'none' }}
-                onChange={handleImportJsonFile}
-              />
+              <Upload size={12} /> Import JSON
+              <input type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportJsonFile} />
             </label>
 
             <button
               type="button"
               onClick={() => setProfileWizardOpen(false)}
-              aria-label="Resume Later / Close Wizard"
+              aria-label="Resume Later / Close Wizard (Esc)"
+              title="Close Wizard (Esc)"
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -323,26 +472,42 @@ export const CandidateProfileWizard: React.FC = () => {
               }}
               className="hover:text-white"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* Wizard Main Container: Sidebar + Form Content */}
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {/* Step Navigation Sidebar */}
+        {/* Validation Errors Banner */}
+        {importErrors && (
           <div
+            role="alert"
             style={{
-              width: '230px',
-              borderRight: '1px solid #292E3A',
-              background: '#0F1218',
-              padding: '12px 8px',
+              padding: '10px 16px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              borderBottom: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#f87171',
+              fontSize: '12px',
               display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              overflowY: 'auto',
+              alignItems: 'flex-start',
+              gap: '8px',
             }}
           >
+            <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div>
+              <strong>Profile Import Rejected (Schema Invariant Violation):</strong>
+              <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                {importErrors.slice(0, 4).map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Wizard Main Container: Sidebar + Form Content */}
+        <div className="wizard-main-layout">
+          {/* Step Navigation Sidebar */}
+          <div className="wizard-sidebar">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               {WIZARD_STEPS.map((step) => {
                 const isActive = step.id === activeStep;
@@ -354,7 +519,7 @@ export const CandidateProfileWizard: React.FC = () => {
                     style={{
                       width: '100%',
                       textAlign: 'left',
-                      padding: '8px 12px',
+                      padding: '8px 10px',
                       borderRadius: '8px',
                       background: isActive ? 'rgba(139, 124, 255, 0.15)' : 'transparent',
                       color: isActive ? '#8B7CFF' : '#9299AA',
@@ -371,19 +536,20 @@ export const CandidateProfileWizard: React.FC = () => {
                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {step.shortLabel}
                     </span>
+                    {step.required && <span style={{ fontSize: '9px', color: '#F7B955' }}>*</span>}
                   </button>
                 );
               })}
             </div>
 
             {/* Ingestion & Reset Utilities */}
-            <div style={{ paddingTop: '12px', borderTop: '1px solid #1E2330', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ paddingTop: '10px', borderTop: '1px solid #1E2330', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '6px 10px',
+                  padding: '5px 8px',
                   borderRadius: '6px',
                   background: '#171B24',
                   border: '1px solid #292E3A',
@@ -393,8 +559,8 @@ export const CandidateProfileWizard: React.FC = () => {
                   justifyContent: 'center',
                 }}
               >
-                <FileText size={13} />
-                <span>{isImporting ? 'Ingesting...' : 'Import Resume (PDF/DOCX)'}</span>
+                <FileText size={12} />
+                <span>{isImporting ? 'Ingesting...' : 'Import Resume File'}</span>
                 <input
                   type="file"
                   accept=".pdf,.docx,.txt"
@@ -411,7 +577,7 @@ export const CandidateProfileWizard: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '6px 10px',
+                  padding: '5px 8px',
                   borderRadius: '6px',
                   background: 'rgba(239, 68, 68, 0.08)',
                   border: '1px solid rgba(239, 68, 68, 0.2)',
@@ -421,7 +587,7 @@ export const CandidateProfileWizard: React.FC = () => {
                   justifyContent: 'center',
                 }}
               >
-                <RotateCcw size={13} /> Reset All Data
+                <RotateCcw size={12} /> Reset Data
               </button>
             </div>
           </div>
@@ -431,27 +597,29 @@ export const CandidateProfileWizard: React.FC = () => {
             style={{
               flex: 1,
               overflowY: 'auto',
-              padding: '24px 32px',
+              padding: '24px 28px',
               background: '#11141B',
             }}
           >
             {/* Step A: Personal Identity */}
             {activeStep === 'identity' && (
               <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#F3F4F8', marginBottom: '4px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', marginBottom: '4px' }}>
                   A. Personal Identity
                 </h3>
-                <p style={{ fontSize: '12px', color: '#9299AA', marginBottom: '20px' }}>
-                  Basic identity information for personalizing interviews and form assistance.
+                <p style={{ fontSize: '12px', color: '#9299AA', marginBottom: '16px' }}>
+                  Required core identity for grounding candidate answers and application assistance.
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="wizard-grid-2col">
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
-                      Full Legal Name *
+                      Full Legal Name <span style={{ color: '#F7B955' }}>*</span>
                     </label>
                     <input
                       type="text"
+                      aria-required="true"
+                      aria-invalid={!isFullNameValid && profile.identity.fullName.length > 0}
                       value={profile.identity.fullName}
                       onChange={(e) => {
                         const next = {
@@ -465,12 +633,17 @@ export const CandidateProfileWizard: React.FC = () => {
                         width: '100%',
                         padding: '8px 12px',
                         background: '#171B24',
-                        border: '1px solid #292E3A',
+                        border: !isFullNameValid && profile.identity.fullName.length > 0 ? '1px solid #f87171' : '1px solid #292E3A',
                         borderRadius: '6px',
                         color: '#F3F4F8',
                         fontSize: '13px',
                       }}
                     />
+                    {!isFullNameValid && profile.identity.fullName.length > 0 && (
+                      <span style={{ fontSize: '10px', color: '#f87171', marginTop: '2px', display: 'block' }}>
+                        Please enter your full name (at least 2 characters)
+                      </span>
+                    )}
                   </div>
 
                   <div>
@@ -502,10 +675,12 @@ export const CandidateProfileWizard: React.FC = () => {
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
-                      Email Address *
+                      Email Address <span style={{ color: '#F7B955' }}>*</span>
                     </label>
                     <input
                       type="email"
+                      aria-required="true"
+                      aria-invalid={!isEmailValid && profile.identity.email.length > 0}
                       value={profile.identity.email}
                       onChange={(e) => {
                         const next = {
@@ -519,12 +694,17 @@ export const CandidateProfileWizard: React.FC = () => {
                         width: '100%',
                         padding: '8px 12px',
                         background: '#171B24',
-                        border: '1px solid #292E3A',
+                        border: !isEmailValid && profile.identity.email.length > 0 ? '1px solid #f87171' : '1px solid #292E3A',
                         borderRadius: '6px',
                         color: '#F3F4F8',
                         fontSize: '13px',
                       }}
                     />
+                    {!isEmailValid && profile.identity.email.length > 0 && (
+                      <span style={{ fontSize: '10px', color: '#f87171', marginTop: '2px', display: 'block' }}>
+                        Please enter a valid email address
+                      </span>
+                    )}
                   </div>
 
                   <div>
@@ -609,11 +789,11 @@ export const CandidateProfileWizard: React.FC = () => {
                   </div>
                 </div>
 
-                <div style={{ marginTop: '20px' }}>
+                <div style={{ marginTop: '16px' }}>
                   <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
                     Links &amp; Profiles
                   </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="wizard-grid-2col">
                     <input
                       type="text"
                       placeholder="GitHub URL (https://github.com/...)"
@@ -670,11 +850,11 @@ export const CandidateProfileWizard: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <div>
-                    <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
-                      B. Education &amp; Certifications
+                    <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
+                      B. Education &amp; Certifications (Optional)
                     </h3>
                     <p style={{ fontSize: '12px', color: '#9299AA', margin: '2px 0 0 0' }}>
-                      Academic degrees, institutions, and graduation timelines.
+                      Academic degrees and graduation timelines.
                     </p>
                   </div>
                   <button
@@ -723,7 +903,7 @@ export const CandidateProfileWizard: React.FC = () => {
                       fontSize: '13px',
                     }}
                   >
-                    No education records added yet. Click &quot;Add Degree&quot; or import your resume.
+                    No education records added yet. Click &quot;Add Degree&quot; or skip to the next section.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -752,7 +932,7 @@ export const CandidateProfileWizard: React.FC = () => {
                             <Trash2 size={14} />
                           </button>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div className="wizard-grid-2col">
                           <input
                             type="text"
                             placeholder="Institution (e.g. Stanford University)"
@@ -836,14 +1016,14 @@ export const CandidateProfileWizard: React.FC = () => {
             {/* Step C: Career Overview */}
             {activeStep === 'career' && (
               <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#F3F4F8', marginBottom: '4px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', marginBottom: '4px' }}>
                   C. Career &amp; Target Roles
                 </h3>
-                <p style={{ fontSize: '12px', color: '#9299AA', marginBottom: '20px' }}>
-                  Define your current trajectory and target seniority for tailored response depth.
+                <p style={{ fontSize: '12px', color: '#9299AA', marginBottom: '16px' }}>
+                  Zero invented defaults: target seniority defaults to UNKNOWN until you specify it.
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="wizard-grid-2col">
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
                       Current Role / Title
@@ -878,15 +1058,16 @@ export const CandidateProfileWizard: React.FC = () => {
                     <input
                       type="number"
                       min={0}
-                      value={profile.career.totalExperienceYears || ''}
+                      value={profile.career.totalExperienceYears !== undefined ? profile.career.totalExperienceYears : ''}
                       onChange={(e) => {
+                        const val = e.target.value.trim() === '' ? undefined : Number(e.target.value);
                         const next = {
                           ...profile,
-                          career: { ...profile.career, totalExperienceYears: Number(e.target.value) || 0 },
+                          career: { ...profile.career, totalExperienceYears: val },
                         };
                         triggerSave(next);
                       }}
-                      placeholder="e.g. 6"
+                      placeholder="Leave blank if unstated"
                       style={{
                         width: '100%',
                         padding: '8px 12px',
@@ -904,7 +1085,7 @@ export const CandidateProfileWizard: React.FC = () => {
                       Target Seniority Level
                     </label>
                     <select
-                      value={profile.career.targetSeniority}
+                      value={profile.career.targetSeniority || 'UNKNOWN'}
                       onChange={(e) => {
                         const next = {
                           ...profile,
@@ -922,6 +1103,7 @@ export const CandidateProfileWizard: React.FC = () => {
                         fontSize: '13px',
                       }}
                     >
+                      <option value="UNKNOWN">Unspecified / Unknown</option>
                       <option value="junior">Junior Engineer</option>
                       <option value="mid">Mid-Level Engineer</option>
                       <option value="senior">Senior Engineer</option>
@@ -957,34 +1139,6 @@ export const CandidateProfileWizard: React.FC = () => {
                       }}
                     />
                   </div>
-
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
-                      Target Roles (Comma-separated)
-                    </label>
-                    <input
-                      type="text"
-                      value={profile.career.targetRoles.join(', ')}
-                      onChange={(e) => {
-                        const roles = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
-                        const next = {
-                          ...profile,
-                          career: { ...profile.career, targetRoles: roles },
-                        };
-                        triggerSave(next);
-                      }}
-                      placeholder="Distributed Systems Engineer, Senior Backend Engineer, Cloud Architect"
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        background: '#171B24',
-                        border: '1px solid #292E3A',
-                        borderRadius: '6px',
-                        color: '#F3F4F8',
-                        fontSize: '13px',
-                      }}
-                    />
-                  </div>
                 </div>
               </div>
             )}
@@ -994,11 +1148,11 @@ export const CandidateProfileWizard: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <div>
-                    <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
-                      D. Skills &amp; Experience Rigor
+                    <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
+                      D. Skills &amp; Rigorous Experience Bounds
                     </h3>
                     <p style={{ fontSize: '12px', color: '#9299AA', margin: '2px 0 0 0' }}>
-                      Differentiate practical production experience from theoretical knowledge.
+                      Practical production skills must resolve against registered projects demonstrating actual implementation.
                     </p>
                   </div>
                   <button
@@ -1007,11 +1161,11 @@ export const CandidateProfileWizard: React.FC = () => {
                       const newSkill: CandidateSkill = {
                         id: `skill_${Date.now()}`,
                         name: '',
-                        proficiency: 'intermediate',
-                        experienceType: 'practical',
-                        yearsUsed: 1,
+                        proficiency: 'UNSPECIFIED',
+                        experienceType: 'theoretical',
+                        yearsUsed: undefined,
                         projectReferences: [],
-                        evidenceSource: 'Candidate Self-Declared',
+                        evidenceSource: 'Candidate Manual Entry',
                         status: 'CANDIDATE_CONFIRMED',
                         candidateConfirmed: true,
                       };
@@ -1047,10 +1201,10 @@ export const CandidateProfileWizard: React.FC = () => {
                       fontSize: '13px',
                     }}
                   >
-                    No skills added yet. Add key technologies or import from resume.
+                    No skills added yet. Add a skill or skip.
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="wizard-grid-2col">
                     {profile.skills.map((skill, idx) => (
                       <div
                         key={skill.id}
@@ -1115,12 +1269,12 @@ export const CandidateProfileWizard: React.FC = () => {
                               fontSize: '11px',
                             }}
                           >
-                            <option value="practical">Practical / Production</option>
                             <option value="theoretical">Theoretical Only</option>
+                            <option value="practical">Practical / Production</option>
                           </select>
 
                           <select
-                            value={skill.proficiency}
+                            value={skill.proficiency || 'UNSPECIFIED'}
                             onChange={(e) => {
                               const next = [...profile.skills];
                               next[idx].proficiency = e.target.value as any;
@@ -1136,12 +1290,41 @@ export const CandidateProfileWizard: React.FC = () => {
                               fontSize: '11px',
                             }}
                           >
+                            <option value="UNSPECIFIED">Proficiency Unspecified</option>
                             <option value="beginner">Beginner</option>
                             <option value="intermediate">Intermediate</option>
                             <option value="advanced">Advanced</option>
                             <option value="expert">Expert</option>
                           </select>
                         </div>
+
+                        {skill.experienceType === 'practical' && (
+                          <div>
+                            <label style={{ display: 'block', fontSize: '10px', color: '#35C991', marginBottom: '2px' }}>
+                              Referenced Projects (Required for Practical Claims):
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Comma-separated project names (e.g. TelemetryPipeline)"
+                              value={skill.projectReferences.join(', ')}
+                              onChange={(e) => {
+                                const refs = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
+                                const next = [...profile.skills];
+                                next[idx].projectReferences = refs;
+                                triggerSave({ ...profile, skills: next });
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '4px 8px',
+                                background: '#0F1218',
+                                border: '1px solid #292E3A',
+                                borderRadius: '4px',
+                                color: '#F3F4F8',
+                                fontSize: '11px',
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1154,11 +1337,11 @@ export const CandidateProfileWizard: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <div>
-                    <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
-                      E. Work Experience &amp; Personal Contributions
+                    <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
+                      E. Work Experience &amp; Authorship
                     </h3>
                     <p style={{ fontSize: '12px', color: '#9299AA', margin: '2px 0 0 0' }}>
-                      Distinguish what you personally built from collective team responsibilities.
+                      Distinguish what you personally built from collective team duties.
                     </p>
                   </div>
                   <button
@@ -1229,7 +1412,7 @@ export const CandidateProfileWizard: React.FC = () => {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                           <span style={{ fontSize: '13px', fontWeight: 700, color: '#F3F4F8' }}>
-                            Role #{idx + 1}: {exp.title || 'Untitled Role'} {exp.employer ? `@ ${exp.employer}` : ''}
+                            Role #{idx + 1}: {exp.title || 'Untitled'} {exp.employer ? `@ ${exp.employer}` : ''}
                           </span>
                           <button
                             type="button"
@@ -1243,7 +1426,7 @@ export const CandidateProfileWizard: React.FC = () => {
                           </button>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                        <div className="wizard-grid-2col" style={{ marginBottom: '10px' }}>
                           <input
                             type="text"
                             placeholder="Employer / Company"
@@ -1284,11 +1467,11 @@ export const CandidateProfileWizard: React.FC = () => {
 
                         <div>
                           <label style={{ display: 'block', fontSize: '11px', color: '#35C991', fontWeight: 600, marginBottom: '4px' }}>
-                            Personally Implemented Work (Verified Contributions Only)
+                            Personally Implemented Work (Strictly Your Own Code / Architecture)
                           </label>
                           <textarea
                             rows={3}
-                            placeholder="State exactly what modules, services, or APIs you personally authored..."
+                            placeholder="Detail exactly what services, algorithms, or modules you personally implemented..."
                             value={exp.personallyImplemented.join('\n')}
                             onChange={(e) => {
                               const next = [...profile.experience];
@@ -1319,11 +1502,11 @@ export const CandidateProfileWizard: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <div>
-                    <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
                       F. Projects &amp; Provenance Tracking
                     </h3>
                     <p style={{ fontSize: '12px', color: '#9299AA', margin: '2px 0 0 0' }}>
-                      Repositories and architectures. Code presence does not prove authorship without verified contribution.
+                      Repository code presence does not prove personal authorship without explicit contribution.
                     </p>
                   </div>
                   <button
@@ -1334,10 +1517,10 @@ export const CandidateProfileWizard: React.FC = () => {
                         name: '',
                         description: '',
                         repositoryUrl: '',
-                        ownership: 'PRIMARY_CONTRIBUTOR',
+                        ownership: 'UNKNOWN',
                         exactContribution: '',
                         technologyStack: [],
-                        deploymentStatus: 'deployed_production',
+                        deploymentStatus: 'UNKNOWN',
                         outcomes: [],
                         evidenceReferences: [],
                         status: 'CANDIDATE_CONFIRMED',
@@ -1391,7 +1574,7 @@ export const CandidateProfileWizard: React.FC = () => {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                           <span style={{ fontSize: '13px', fontWeight: 700, color: '#F3F4F8' }}>
-                            Project #{idx + 1}: {proj.name || 'Untitled Project'}
+                            Project #{idx + 1}: {proj.name || 'Untitled'}
                           </span>
                           <button
                             type="button"
@@ -1405,10 +1588,10 @@ export const CandidateProfileWizard: React.FC = () => {
                           </button>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                        <div className="wizard-grid-2col" style={{ marginBottom: '10px' }}>
                           <input
                             type="text"
-                            placeholder="Project Title"
+                            placeholder="Project Name (e.g. RaftKV)"
                             value={proj.name}
                             onChange={(e) => {
                               const next = [...profile.projects];
@@ -1444,7 +1627,7 @@ export const CandidateProfileWizard: React.FC = () => {
                           />
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                        <div className="wizard-grid-2col" style={{ marginBottom: '10px' }}>
                           <div>
                             <label style={{ display: 'block', fontSize: '11px', color: '#CBD5E1', marginBottom: '2px' }}>
                               Ownership Category
@@ -1466,22 +1649,25 @@ export const CandidateProfileWizard: React.FC = () => {
                                 fontSize: '11px',
                               }}
                             >
+                              <option value="UNKNOWN">Unknown / Unspecified</option>
                               <option value="SOLE_OWNER">Sole Owner / Author</option>
                               <option value="PRIMARY_CONTRIBUTOR">Primary Contributor</option>
                               <option value="COLLABORATOR">Collaborator / Maintenance</option>
-                              <option value="UNKNOWN">Unknown / Unspecified</option>
                             </select>
                           </div>
 
                           <div>
                             <label style={{ display: 'block', fontSize: '11px', color: '#CBD5E1', marginBottom: '2px' }}>
-                              Deployment Status
+                              Technology Stack (Comma-separated)
                             </label>
-                            <select
-                              value={proj.deploymentStatus}
+                            <input
+                              type="text"
+                              placeholder="Go, gRPC, Protobuf, Docker"
+                              value={proj.technologyStack.join(', ')}
                               onChange={(e) => {
+                                const techs = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
                                 const next = [...profile.projects];
-                                next[idx].deploymentStatus = e.target.value as any;
+                                next[idx].technologyStack = techs;
                                 triggerSave({ ...profile, projects: next });
                               }}
                               style={{
@@ -1493,23 +1679,17 @@ export const CandidateProfileWizard: React.FC = () => {
                                 color: '#F3F4F8',
                                 fontSize: '11px',
                               }}
-                            >
-                              <option value="deployed_production">Deployed to Production</option>
-                              <option value="staging_demo">Staging / Demo</option>
-                              <option value="prototype">Prototype / PoC</option>
-                              <option value="proposed_design">Proposed Design (Not built)</option>
-                              <option value="unreleased">Unreleased</option>
-                            </select>
+                            />
                           </div>
                         </div>
 
                         <div>
                           <label style={{ display: 'block', fontSize: '11px', color: '#35C991', fontWeight: 600, marginBottom: '2px' }}>
-                            Exact Contribution &amp; Architecture (Mandatory for Speaking Gate)
+                            Exact Personal Contribution (Required to Enable Live Answers)
                           </label>
                           <textarea
                             rows={3}
-                            placeholder="Describe your exact personal contribution and components implemented..."
+                            placeholder="State exactly what modules, logic, or optimizations you authored..."
                             value={proj.exactContribution}
                             onChange={(e) => {
                               const next = [...profile.projects];
@@ -1540,8 +1720,8 @@ export const CandidateProfileWizard: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <div>
-                    <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
-                      G. Achievements &amp; Publications
+                    <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
+                      G. Achievements &amp; Publications (Optional)
                     </h3>
                     <p style={{ fontSize: '12px', color: '#9299AA', margin: '2px 0 0 0' }}>
                       Awards, research papers, patents, and measurable recognitions.
@@ -1667,14 +1847,14 @@ export const CandidateProfileWizard: React.FC = () => {
             {/* Step H: Answer Preferences */}
             {activeStep === 'preferences' && (
               <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#F3F4F8', marginBottom: '4px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', marginBottom: '4px' }}>
                   H. Teleprompter &amp; Answer Preferences
                 </h3>
-                <p style={{ fontSize: '12px', color: '#9299AA', marginBottom: '20px' }}>
+                <p style={{ fontSize: '12px', color: '#9299AA', marginBottom: '16px' }}>
                   Tune how answers are structured and paced during live interviews.
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="wizard-grid-2col">
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
                       Answer Length
@@ -1796,28 +1976,28 @@ export const CandidateProfileWizard: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                   <ShieldAlert size={20} color="#F7B955" />
-                  <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
-                    I. Employment Declarations &amp; Work Eligibility
+                  <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
+                    I. Employment Declarations (Candidate Confirmation Required)
                   </h3>
                 </div>
                 <div
                   style={{
-                    padding: '12px 16px',
+                    padding: '12px 14px',
                     borderRadius: '8px',
                     background: 'rgba(247, 185, 85, 0.1)',
                     border: '1px solid rgba(247, 185, 85, 0.3)',
                     color: '#FDE047',
                     fontSize: '12px',
-                    marginBottom: '20px',
+                    marginBottom: '16px',
                     lineHeight: '1.4',
                   }}
                 >
-                  <strong>Zero-Fabrication Guarantee:</strong> IAC will NEVER infer your citizenship, visa status, or security clearance from your name, location, or education. You must explicitly confirm these declarations to enable automatic form answering.
+                  <strong>Zero-Inference Invariant:</strong> These declarations are strictly optional. Unconfirmed declarations remain unstated and will prompt for clarification rather than being fabricated.
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {/* Work Authorization */}
-                  <div style={{ padding: '16px', background: '#171B24', border: '1px solid #292E3A', borderRadius: '8px' }}>
+                  <div style={{ padding: '14px', background: '#171B24', border: '1px solid #292E3A', borderRadius: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: '#F3F4F8' }}>
                         1. Work Authorization Status
@@ -1922,7 +2102,7 @@ export const CandidateProfileWizard: React.FC = () => {
                   </div>
 
                   {/* Visa Sponsorship */}
-                  <div style={{ padding: '16px', background: '#171B24', border: '1px solid #292E3A', borderRadius: '8px' }}>
+                  <div style={{ padding: '14px', background: '#171B24', border: '1px solid #292E3A', borderRadius: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: '#F3F4F8' }}>
                         2. Visa Sponsorship Requirements
@@ -1972,7 +2152,7 @@ export const CandidateProfileWizard: React.FC = () => {
                             triggerSave(next);
                           }}
                         />
-                        <span>Will NOT now or in the future require sponsorship</span>
+                        <span>Will NOT require sponsorship</span>
                       </label>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#CBD5E1' }}>
                         <input
@@ -1995,66 +2175,7 @@ export const CandidateProfileWizard: React.FC = () => {
                             triggerSave(next);
                           }}
                         />
-                        <span>WILL require visa sponsorship (e.g. H-1B, O-1)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Relocation & Clearance */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div style={{ padding: '14px', background: '#171B24', border: '1px solid #292E3A', borderRadius: '8px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#F3F4F8', display: 'block', marginBottom: '8px' }}>
-                        3. Relocation Willingness
-                      </span>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#CBD5E1', marginBottom: '6px' }}>
-                        <input
-                          type="checkbox"
-                          checked={profile.declarations.willingToRelocate.willing === true}
-                          onChange={(e) => {
-                            const next = {
-                              ...profile,
-                              declarations: {
-                                ...profile.declarations,
-                                willingToRelocate: {
-                                  ...profile.declarations.willingToRelocate,
-                                  willing: e.target.checked,
-                                  confirmed: true,
-                                  confirmedAt: Date.now(),
-                                },
-                              },
-                            };
-                            triggerSave(next);
-                          }}
-                        />
-                        <span>Willing to relocate for the right role</span>
-                      </label>
-                    </div>
-
-                    <div style={{ padding: '14px', background: '#171B24', border: '1px solid #292E3A', borderRadius: '8px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#F3F4F8', display: 'block', marginBottom: '8px' }}>
-                        4. Security Clearance
-                      </span>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#CBD5E1', marginBottom: '6px' }}>
-                        <input
-                          type="checkbox"
-                          checked={profile.declarations.securityClearance.active === true}
-                          onChange={(e) => {
-                            const next = {
-                              ...profile,
-                              declarations: {
-                                ...profile.declarations,
-                                securityClearance: {
-                                  ...profile.declarations.securityClearance,
-                                  active: e.target.checked,
-                                  confirmed: true,
-                                  confirmedAt: Date.now(),
-                                },
-                              },
-                            };
-                            triggerSave(next);
-                          }}
-                        />
-                        <span>Active government security clearance</span>
+                        <span>WILL require visa sponsorship</span>
                       </label>
                     </div>
                   </div>
@@ -2065,33 +2186,32 @@ export const CandidateProfileWizard: React.FC = () => {
             {/* Step: Review & Confirm */}
             {activeStep === 'review' && (
               <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#F3F4F8', marginBottom: '4px' }}>
-                  Review Candidate Profile &amp; Provenance Ledger
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', marginBottom: '4px' }}>
+                  Review Candidate Intelligence &amp; Provenance Ledger
                 </h3>
-                <p style={{ fontSize: '12px', color: '#9299AA', marginBottom: '20px' }}>
+                <p style={{ fontSize: '12px', color: '#9299AA', marginBottom: '16px' }}>
                   Verify that all claims accurately reflect your verified background before closing.
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                  <div style={{ padding: '16px', background: '#171B24', borderRadius: '8px', border: '1px solid #292E3A' }}>
+                <div className="wizard-grid-2col" style={{ marginBottom: '16px' }}>
+                  <div style={{ padding: '14px', background: '#171B24', borderRadius: '8px', border: '1px solid #292E3A' }}>
                     <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: '#8B7CFF', margin: '0 0 8px 0' }}>
                       Identity &amp; Career
                     </h4>
-                    <div style={{ fontSize: '13px', color: '#F3F4F8', lineHeight: '1.6' }}>
+                    <div style={{ fontSize: '12px', color: '#F3F4F8', lineHeight: '1.6' }}>
                       <div><strong>Name:</strong> {profile.identity.fullName || 'Not provided'}</div>
                       <div><strong>Email:</strong> {profile.identity.email || 'Not provided'}</div>
                       <div><strong>Location:</strong> {profile.identity.location || 'Not provided'}</div>
                       <div><strong>Current Role:</strong> {profile.career.currentRole || 'Not specified'}</div>
-                      <div><strong>Experience:</strong> {profile.career.totalExperienceYears} years</div>
-                      <div><strong>Target Level:</strong> {profile.career.targetSeniority}</div>
+                      <div><strong>Seniority:</strong> {profile.career.targetSeniority || 'UNKNOWN'}</div>
                     </div>
                   </div>
 
-                  <div style={{ padding: '16px', background: '#171B24', borderRadius: '8px', border: '1px solid #292E3A' }}>
+                  <div style={{ padding: '14px', background: '#171B24', borderRadius: '8px', border: '1px solid #292E3A' }}>
                     <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: '#35C991', margin: '0 0 8px 0' }}>
                       Grounding &amp; Declarations
                     </h4>
-                    <div style={{ fontSize: '13px', color: '#F3F4F8', lineHeight: '1.6' }}>
+                    <div style={{ fontSize: '12px', color: '#F3F4F8', lineHeight: '1.6' }}>
                       <div>
                         <strong>Work Authorization:</strong>{' '}
                         {profile.declarations.workAuthorization.confirmed
@@ -2111,12 +2231,12 @@ export const CandidateProfileWizard: React.FC = () => {
                   </div>
                 </div>
 
-                <div style={{ textAlign: 'center', marginTop: '24px' }}>
+                <div style={{ textAlign: 'center', marginTop: '20px' }}>
                   <button
                     type="button"
                     onClick={() => {
                       profileService.saveProfile(profile);
-                      setToast?.('Candidate profile saved & locked for live grounding.');
+                      setToast?.('Candidate profile locked and saved for live grounding.');
                       setProfileWizardOpen(false);
                     }}
                     style={{
@@ -2125,7 +2245,7 @@ export const CandidateProfileWizard: React.FC = () => {
                       background: '#8B7CFF',
                       border: 'none',
                       color: '#fff',
-                      fontSize: '14px',
+                      fontSize: '13px',
                       fontWeight: 700,
                       cursor: 'pointer',
                       display: 'inline-flex',
@@ -2145,7 +2265,7 @@ export const CandidateProfileWizard: React.FC = () => {
         {/* Wizard Footer Navigation */}
         <div
           style={{
-            padding: '14px 24px',
+            padding: '12px 20px',
             borderTop: '1px solid #292E3A',
             display: 'flex',
             alignItems: 'center',
@@ -2177,26 +2297,50 @@ export const CandidateProfileWizard: React.FC = () => {
             Step {currentStepIdx + 1} of {WIZARD_STEPS.length}: {WIZARD_STEPS[currentStepIdx].label}
           </span>
 
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={currentStepIdx === WIZARD_STEPS.length - 1}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              background: currentStepIdx === WIZARD_STEPS.length - 1 ? '#0F1218' : '#8B7CFF',
-              border: 'none',
-              color: currentStepIdx === WIZARD_STEPS.length - 1 ? '#475569' : '#fff',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: currentStepIdx === WIZARD_STEPS.length - 1 ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            Next <ChevronRight size={14} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {isSkippable && currentStepIdx < WIZARD_STEPS.length - 1 && (
+              <button
+                type="button"
+                onClick={handleSkip}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  background: 'transparent',
+                  border: '1px solid #334155',
+                  color: '#94a3b8',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>Skip</span>
+                <SkipForward size={13} />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={currentStepIdx === WIZARD_STEPS.length - 1}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '6px',
+                background: currentStepIdx === WIZARD_STEPS.length - 1 ? '#0F1218' : '#8B7CFF',
+                border: 'none',
+                color: currentStepIdx === WIZARD_STEPS.length - 1 ? '#475569' : '#fff',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: currentStepIdx === WIZARD_STEPS.length - 1 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              Next <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -2211,11 +2355,13 @@ export const CandidateProfileWizard: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            padding: '16px',
           }}
         >
           <div
             style={{
               maxWidth: '400px',
+              width: '100%',
               padding: '24px',
               background: '#171B24',
               borderRadius: '12px',
@@ -2224,10 +2370,10 @@ export const CandidateProfileWizard: React.FC = () => {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#EF4444', marginBottom: '12px' }}>
               <AlertTriangle size={24} />
-              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Reset All Candidate Data?</h4>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>Reset All Candidate Data?</h4>
             </div>
             <p style={{ fontSize: '12px', color: '#CBD5E1', marginBottom: '20px', lineHeight: '1.4' }}>
-              This will erase all personal identity, education, projects, skills, and employment declarations from your local browser vault. This action cannot be undone.
+              This will erase all personal identity, education, projects, skills, and employment declarations from your local browser vault.
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button

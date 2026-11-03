@@ -4,12 +4,11 @@
  * Implements the single source of truth for candidate identity, education, career,
  * skills, work experience, projects, achievements, preferences, and employment declarations.
  *
- * Guarantees:
- * - Every fact has a unique ID, status, provenance source, confidence, and audit trail.
- * - Sensitive employment declarations are NEVER inferred; they require explicit candidate confirmation.
- * - Code in a repository does NOT establish personal authorship without verified contribution evidence.
- * - Technologies in resumes do NOT establish production experience without validated project association.
- * - Project descriptions do NOT prove deployment or leadership without verified outcomes.
+ * Strict Provenance Rules:
+ * - Zero invented defaults: seniority is UNKNOWN, yearsUsed unstated, no auto-inferred declarations.
+ * - Distinct verification tiers: INDEPENDENTLY_VERIFIED vs CANDIDATE_REPORTED vs UNVERIFIED.
+ * - Project references must resolve against real candidate projects with verified technology usage.
+ * - Repository presence does not establish personal authorship.
  */
 
 import { EvidenceClassification } from './types';
@@ -27,9 +26,10 @@ export type FactCategory =
 
 export interface FactEditHistoryEntry {
   timestamp: number;
-  previousValue: any;
+  previousValue?: any;
   updatedBy: 'candidate' | 'ingestion' | 'system';
   reason?: string;
+  action?: 'CREATED' | 'UPDATED' | 'DELETED' | 'CONFIRMED';
 }
 
 export interface CanonicalFact<T = any> {
@@ -46,6 +46,7 @@ export interface CanonicalFact<T = any> {
   createdAt: number;
   lastVerifiedAt?: number;
   isExpired?: boolean;
+  isDeleted?: boolean;
   editHistory: FactEditHistoryEntry[];
 }
 
@@ -53,7 +54,7 @@ export interface CandidateEducation {
   id: string;
   institution: string;
   degree: string;
-  fieldOfStudy: string;
+  fieldOfStudy?: string;
   startDate?: string;
   endDate?: string;
   grade?: string;
@@ -65,9 +66,9 @@ export interface CandidateEducation {
 export interface CandidateSkill {
   id: string;
   name: string;
-  proficiency: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  proficiency?: 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'UNSPECIFIED';
   experienceType: 'theoretical' | 'practical';
-  yearsUsed: number;
+  yearsUsed?: number;
   lastUsed?: string | number;
   projectReferences: string[];
   evidenceSource: string;
@@ -104,7 +105,7 @@ export interface CandidateProject {
   teamContributions?: string;
   technologyStack: string[];
   architecture?: string;
-  deploymentStatus: 'deployed_production' | 'staging_demo' | 'prototype' | 'proposed_design' | 'unreleased';
+  deploymentStatus: 'deployed_production' | 'staging_demo' | 'prototype' | 'proposed_design' | 'unreleased' | 'UNKNOWN';
   outcomes: string[];
   evidenceReferences: string[];
   status: EvidenceClassification;
@@ -170,7 +171,7 @@ export interface CanonicalCandidateProfile {
   id: string;
   version: number;
   updatedAt: number;
-  
+
   // Section A: Personal Identity
   identity: {
     fullName: string;
@@ -195,14 +196,14 @@ export interface CanonicalCandidateProfile {
   // Section B: Education
   education: CandidateEducation[];
 
-  // Section C: Career Overview
+  // Section C: Career Overview (Zero invented defaults: targetSeniority is UNKNOWN until supplied)
   career: {
     currentRole: string;
     currentEmployer?: string;
-    totalExperienceYears: number;
+    totalExperienceYears?: number;
     targetRoles: string[];
     preferredIndustries: string[];
-    targetSeniority: 'junior' | 'mid' | 'senior' | 'staff' | 'lead' | 'principal' | 'executive';
+    targetSeniority?: 'junior' | 'mid' | 'senior' | 'staff' | 'lead' | 'principal' | 'executive' | 'UNKNOWN';
     noticePeriod: string;
     salaryExpectations?: string;
     candidateConfirmed: boolean;
@@ -249,10 +250,10 @@ export function createDefaultCanonicalProfile(): CanonicalCandidateProfile {
     education: [],
     career: {
       currentRole: '',
-      totalExperienceYears: 0,
+      totalExperienceYears: undefined,
       targetRoles: [],
       preferredIndustries: [],
-      targetSeniority: 'senior',
+      targetSeniority: 'UNKNOWN',
       noticePeriod: '',
       candidateConfirmed: false,
     },
@@ -284,7 +285,7 @@ export function createDefaultCanonicalProfile(): CanonicalCandidateProfile {
 export const DEFAULT_CANONICAL_PROFILE: CanonicalCandidateProfile = createDefaultCanonicalProfile();
 
 /**
- * Creates a new Canonical Candidate Fact with rigorous validation.
+ * Creates a new Canonical Candidate Fact with status-upgrade protection.
  */
 export function createCanonicalFact<T>(
   field: string,
@@ -310,6 +311,7 @@ export function createCanonicalFact<T>(
     createdAt: now,
     lastVerifiedAt: status === 'INDEPENDENTLY_VERIFIED' || candidateConfirmed ? now : undefined,
     isExpired: false,
+    isDeleted: false,
     editHistory: [],
   };
 }
@@ -321,36 +323,286 @@ export function createCanonicalFact<T>(
 export function validateDeclarationSafety(
   declaration: { confirmed: boolean; authorized?: boolean | null; required?: boolean | null }
 ): boolean {
-  if (!declaration.confirmed) return false;
+  if (!declaration || !declaration.confirmed) return false;
   return declaration.authorized !== null || declaration.required !== null;
 }
 
-/**
- * Invariant Check: Does a repository or code observation establish personal authorship?
- * Rule: Repository presence alone only grants REPOSITORY_SUPPORTED; personal claims require
- * verified contribution notes and explicit candidate confirmation.
- */
-export function canClaimPersonalAuthorship(project: CandidateProject): boolean {
-  if (!project.candidateConfirmed) return false;
-  if (!project.exactContribution || project.exactContribution.trim().length === 0) return false;
-  if (project.ownership === 'UNKNOWN') return false;
-  return (
-    project.status === 'CANDIDATE_CONFIRMED' ||
-    project.status === 'DOCUMENT_SUPPORTED' ||
-    project.status === 'INDEPENDENTLY_VERIFIED'
-  );
+// -------------------------------------------------------------------------------------------------
+// Rigorous Personal Authorship Verification Tier
+// -------------------------------------------------------------------------------------------------
+
+export type AuthorshipVerificationTier =
+  | 'INDEPENDENTLY_VERIFIED'
+  | 'REPOSITORY_SUPPORTED_CONTRIBUTION'
+  | 'CANDIDATE_REPORTED'
+  | 'UNVERIFIED';
+
+export interface AuthorshipEvaluationResult {
+  canClaim: boolean;
+  tier: AuthorshipVerificationTier;
+  reason?: string;
+  isIndependentlyVerified: boolean;
+  isCandidateReportedOnly: boolean;
 }
 
 /**
- * Invariant Check: Does a skill qualify for production-level experience claims?
- * Rule: Skills must have practical experience type, at least 1 verified project reference, and not be theoretical-only.
+ * Evaluates whether a candidate can truthfully claim personal authorship of a project.
+ *
+ * Invariants:
+ * 1. Merely having code in a repository does NOT establish personal authorship.
+ * 2. Candidate confirmation alone is strictly CANDIDATE_REPORTED, never INDEPENDENTLY_VERIFIED.
+ * 3. Must require valid project references and explicit personal contribution description.
  */
-export function canClaimProductionSkillExperience(skill: CandidateSkill): boolean {
-  if (skill.experienceType !== 'practical') return false;
-  if (!skill.projectReferences || skill.projectReferences.length === 0) return false;
-  return (
-    skill.status === 'CANDIDATE_CONFIRMED' ||
-    skill.status === 'DOCUMENT_SUPPORTED' ||
-    skill.status === 'INDEPENDENTLY_VERIFIED'
+export function evaluatePersonalAuthorship(project: CandidateProject): AuthorshipEvaluationResult {
+  if (!project) {
+    return {
+      canClaim: false,
+      tier: 'UNVERIFIED',
+      reason: 'Project record does not exist',
+      isIndependentlyVerified: false,
+      isCandidateReportedOnly: false,
+    };
+  }
+
+  // Personal contribution must be explicitly documented
+  if (!project.exactContribution || project.exactContribution.trim().length === 0) {
+    return {
+      canClaim: false,
+      tier: 'UNVERIFIED',
+      reason: 'No exact personal implementation contribution documented',
+      isIndependentlyVerified: false,
+      isCandidateReportedOnly: false,
+    };
+  }
+
+  // Ownership cannot be UNKNOWN
+  if (project.ownership === 'UNKNOWN') {
+    return {
+      canClaim: false,
+      tier: 'UNVERIFIED',
+      reason: 'Project ownership category is UNKNOWN',
+      isIndependentlyVerified: false,
+      isCandidateReportedOnly: false,
+    };
+  }
+
+  // Independent verification requires external cryptographic attestation or document audit
+  if (project.status === 'INDEPENDENTLY_VERIFIED' && project.evidenceReferences && project.evidenceReferences.length > 0) {
+    return {
+      canClaim: true,
+      tier: 'INDEPENDENTLY_VERIFIED',
+      isIndependentlyVerified: true,
+      isCandidateReportedOnly: false,
+    };
+  }
+
+  // Repository-supported: repository exists with inspectable commit/PR evidence AND candidate confirmation
+  const hasRepoEvidence = Boolean(
+    project.repositoryUrl &&
+    project.evidenceReferences &&
+    project.evidenceReferences.some((ref) =>
+      ref.toLowerCase().includes('github') || ref.toLowerCase().includes('repo') || ref.toLowerCase().includes('git:')
+    )
   );
+
+  if (hasRepoEvidence && (project.status === 'REPOSITORY_SUPPORTED' || project.status === 'DOCUMENT_SUPPORTED') && project.candidateConfirmed) {
+    return {
+      canClaim: true,
+      tier: 'REPOSITORY_SUPPORTED_CONTRIBUTION',
+      isIndependentlyVerified: false,
+      isCandidateReportedOnly: false,
+    };
+  }
+
+  // Candidate confirmation alone (without repository evidence) is strictly candidate-reported
+  if (project.candidateConfirmed || project.status === 'CANDIDATE_CONFIRMED') {
+    return {
+      canClaim: true,
+      tier: 'CANDIDATE_REPORTED',
+      reason: 'Candidate reported personal implementation; pending independent audit evidence',
+      isIndependentlyVerified: false,
+      isCandidateReportedOnly: true,
+    };
+  }
+
+  return {
+    canClaim: false,
+    tier: 'UNVERIFIED',
+    reason: 'Unverified project claim cannot be presented as personal implementation',
+    isIndependentlyVerified: false,
+    isCandidateReportedOnly: false,
+  };
+}
+
+export function canClaimPersonalAuthorship(project: CandidateProject): boolean {
+  return evaluatePersonalAuthorship(project).canClaim;
+}
+
+// -------------------------------------------------------------------------------------------------
+// Rigorous Production Skill Experience Verification Tier
+// -------------------------------------------------------------------------------------------------
+
+export type SkillExperienceTier =
+  | 'INDEPENDENTLY_VERIFIED'
+  | 'PROJECT_BACKED_PRACTICAL'
+  | 'CANDIDATE_REPORTED_PRACTICAL'
+  | 'THEORETICAL_ONLY'
+  | 'UNRESOLVED_PROJECT_REF'
+  | 'UNVERIFIED';
+
+export interface SkillExperienceEvaluationResult {
+  canClaimProduction: boolean;
+  tier: SkillExperienceTier;
+  reason?: string;
+  resolvedProjects: CandidateProject[];
+  isIndependentlyVerified: boolean;
+}
+
+/**
+ * Evaluates whether a skill qualifies for production implementation claims.
+ *
+ * Invariants:
+ * 1. Resolves every project reference against registered projects.
+ * 2. Requires evidence that the candidate used the skill in that project (in techStack or contribution).
+ * 3. Does not infer production use merely from a skill appearing in a repository or resume.
+ * 4. Theoretical knowledge cannot claim production implementation experience.
+ */
+export function evaluateProductionSkillExperience(
+  skill: CandidateSkill,
+  registeredProjects: CandidateProject[] = []
+): SkillExperienceEvaluationResult {
+  if (!skill) {
+    return {
+      canClaimProduction: false,
+      tier: 'UNVERIFIED',
+      reason: 'Skill record does not exist',
+      resolvedProjects: [],
+      isIndependentlyVerified: false,
+    };
+  }
+
+  // Theoretical knowledge check
+  if (skill.experienceType !== 'practical') {
+    return {
+      canClaimProduction: false,
+      tier: 'THEORETICAL_ONLY',
+      reason: 'Skill is designated as theoretical knowledge only',
+      resolvedProjects: [],
+      isIndependentlyVerified: false,
+    };
+  }
+
+  // Must have project references
+  if (!skill.projectReferences || skill.projectReferences.length === 0) {
+    return {
+      canClaimProduction: false,
+      tier: 'UNVERIFIED',
+      reason: 'Practical skills must reference at least one project demonstrating implementation',
+      resolvedProjects: [],
+      isIndependentlyVerified: false,
+    };
+  }
+
+  const resolvedProjects: CandidateProject[] = [];
+  const skillLower = skill.name.toLowerCase().trim();
+
+  for (const ref of skill.projectReferences) {
+    const refLower = ref.toLowerCase().trim();
+    const matched = registeredProjects.find(
+      (p) => p.id.toLowerCase() === refLower || p.name.toLowerCase().trim() === refLower
+    );
+
+    if (!matched) {
+      return {
+        canClaimProduction: false,
+        tier: 'UNRESOLVED_PROJECT_REF',
+        reason: `Project reference "${ref}" cannot be resolved against registered candidate projects`,
+        resolvedProjects: [],
+        isIndependentlyVerified: false,
+      };
+    }
+
+    // Technology must exist in technologyStack or exactContribution
+    const techMatches = (matched.technologyStack || []).some(
+      (t) => t.toLowerCase().trim() === skillLower || skillLower.includes(t.toLowerCase().trim()) || t.toLowerCase().trim().includes(skillLower)
+    );
+    const contributionMatches = (matched.exactContribution || '').toLowerCase().includes(skillLower);
+
+    if (!techMatches && !contributionMatches) {
+      return {
+        canClaimProduction: false,
+        tier: 'UNVERIFIED',
+        reason: `Referenced project "${matched.name}" does not include skill "${skill.name}" in its technology stack or personal contribution`,
+        resolvedProjects: [],
+        isIndependentlyVerified: false,
+      };
+    }
+
+    // Referenced project cannot be unverified proposed design or expired
+    if (matched.status === 'UNKNOWN' || matched.status === 'PROPOSED_DESIGN' || matched.status === 'EXPIRED') {
+      return {
+        canClaimProduction: false,
+        tier: 'UNVERIFIED',
+        reason: `Referenced project "${matched.name}" has invalid verification status "${matched.status}"`,
+        resolvedProjects: [],
+        isIndependentlyVerified: false,
+      };
+    }
+
+    // Merely appearing in a repository without verified candidate contribution is insufficient
+    if (matched.status === 'REPOSITORY_SUPPORTED' && !matched.candidateConfirmed && !matched.exactContribution) {
+      return {
+        canClaimProduction: false,
+        tier: 'UNVERIFIED',
+        reason: `Presence of technology in repository does not infer candidate production use without personal contribution evidence`,
+        resolvedProjects: [],
+        isIndependentlyVerified: false,
+      };
+    }
+
+    resolvedProjects.push(matched);
+  }
+
+  // Distinguish independent verification from candidate confirmation
+  const allIndependentlyVerified =
+    skill.status === 'INDEPENDENTLY_VERIFIED' &&
+    resolvedProjects.every((p) => p.status === 'INDEPENDENTLY_VERIFIED');
+
+  if (allIndependentlyVerified) {
+    return {
+      canClaimProduction: true,
+      tier: 'INDEPENDENTLY_VERIFIED',
+      resolvedProjects,
+      isIndependentlyVerified: true,
+    };
+  }
+
+  const isCandidateReported =
+    (skill.candidateConfirmed || skill.status === 'CANDIDATE_CONFIRMED') &&
+    resolvedProjects.every((p) => p.candidateConfirmed || p.status === 'CANDIDATE_CONFIRMED' || p.status === 'DOCUMENT_SUPPORTED');
+
+  if (isCandidateReported) {
+    return {
+      canClaimProduction: true,
+      tier: 'CANDIDATE_REPORTED_PRACTICAL',
+      reason: 'Validated by candidate-confirmed project implementation evidence',
+      resolvedProjects,
+      isIndependentlyVerified: false,
+    };
+  }
+
+  return {
+    canClaimProduction: true,
+    tier: 'PROJECT_BACKED_PRACTICAL',
+    resolvedProjects,
+    isIndependentlyVerified: false,
+  };
+}
+
+export function canClaimProductionSkillExperience(
+  skill: CandidateSkill,
+  registeredProjects?: CandidateProject[]
+): boolean {
+  if (!registeredProjects || registeredProjects.length === 0) return false;
+  return evaluateProductionSkillExperience(skill, registeredProjects).canClaimProduction;
 }

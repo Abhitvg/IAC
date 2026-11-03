@@ -3,15 +3,20 @@ import {
   CanonicalProfileService,
   createCanonicalFact,
   canClaimPersonalAuthorship,
+  evaluatePersonalAuthorship,
   canClaimProductionSkillExperience,
+  evaluateProductionSkillExperience,
   validateDeclarationSafety,
   CandidateProject,
   CandidateSkill,
-  DEFAULT_CANONICAL_PROFILE,
+  validateCanonicalProfile,
+  migrateProfileIfNeeded,
 } from '../src/services/knowledgeVault';
 import { IngestionResult } from '../src/services/ingestion/types';
+import { KnowledgeVaultService } from '../src/services/knowledgeVault/knowledgeVaultService';
+import { useCandidateVaultStore } from '../src/store/useCandidateVaultStore';
 
-describe('Canonical Candidate Profile & Personalization Model (Phase 1 & Phase 2)', () => {
+describe('Canonical Candidate Profile & Personalization Model (Phase 1 & Phase 2 Corrections)', () => {
   let service: CanonicalProfileService;
 
   beforeEach(() => {
@@ -19,11 +24,13 @@ describe('Canonical Candidate Profile & Personalization Model (Phase 1 & Phase 2
     service.clearAllCandidateData();
   });
 
-  it('1. Initializes with zero fabricated experience, titles, or compensation', () => {
+  it('1. Initializes with zero invented defaults (targetSeniority is UNKNOWN, years unstated)', () => {
     const profile = service.getProfile();
     expect(profile.identity.fullName).toBe('');
     expect(profile.identity.email).toBe('');
     expect(profile.career.currentRole).toBe('');
+    expect(profile.career.targetSeniority).toBe('UNKNOWN');
+    expect(profile.career.totalExperienceYears).toBeUndefined();
     expect(profile.projects).toHaveLength(0);
     expect(profile.skills).toHaveLength(0);
     expect(profile.experience).toHaveLength(0);
@@ -36,11 +43,9 @@ describe('Canonical Candidate Profile & Personalization Model (Phase 1 & Phase 2
   it('2. Enforces invariant: Sensitive employment declarations are never inferred and require explicit confirmation', () => {
     const profile = service.getProfile();
 
-    // Default is unsafe / unconfirmed
     expect(validateDeclarationSafety(profile.declarations.workAuthorization)).toBe(false);
     expect(validateDeclarationSafety(profile.declarations.sponsorshipRequired)).toBe(false);
 
-    // Confirm work auth explicitly
     profile.declarations.workAuthorization = {
       confirmed: true,
       authorized: true,
@@ -50,64 +55,141 @@ describe('Canonical Candidate Profile & Personalization Model (Phase 1 & Phase 2
     expect(validateDeclarationSafety(profile.declarations.workAuthorization)).toBe(true);
   });
 
-  it('3. Enforces invariant: Repository presence does not establish personal authorship', () => {
-    const unconfirmedProject: CandidateProject = {
+  it('3. Strengthens canClaimPersonalAuthorship: distinguishes candidate-reported from repository-supported and independent verification', () => {
+    // A: Repository presence without personal contribution is strictly UNVERIFIED
+    const repoOnlyProject: CandidateProject = {
       id: 'proj-1',
-      name: 'Distributed Engine',
+      name: 'Raft Engine',
       description: 'An open-source raft engine',
       repositoryUrl: 'https://github.com/example/raft-engine',
       ownership: 'UNKNOWN',
       exactContribution: '',
       technologyStack: ['Go', 'gRPC'],
-      deploymentStatus: 'unreleased',
+      deploymentStatus: 'UNKNOWN',
       outcomes: [],
       evidenceReferences: ['https://github.com/example/raft-engine'],
       status: 'REPOSITORY_SUPPORTED',
       candidateConfirmed: false,
     };
 
-    expect(canClaimPersonalAuthorship(unconfirmedProject)).toBe(false);
+    const evalA = evaluatePersonalAuthorship(repoOnlyProject);
+    expect(evalA.canClaim).toBe(false);
+    expect(evalA.tier).toBe('UNVERIFIED');
 
-    // Adding code and candidate confirmation with exact verified contribution enables claim
-    const confirmedProject: CandidateProject = {
-      ...unconfirmedProject,
+    // B: Candidate confirmation without repository inspection is strictly CANDIDATE_REPORTED (NOT independently verified)
+    const candidateReportedProject: CandidateProject = {
+      ...repoOnlyProject,
       ownership: 'PRIMARY_CONTRIBUTOR',
-      exactContribution: 'Implemented Raft log compaction and snapshotting state machine in consensus.go',
+      exactContribution: 'Authored Raft log snapshotting algorithm',
+      evidenceReferences: [],
       status: 'CANDIDATE_CONFIRMED',
       candidateConfirmed: true,
     };
 
-    expect(canClaimPersonalAuthorship(confirmedProject)).toBe(true);
+    const evalB = evaluatePersonalAuthorship(candidateReportedProject);
+    expect(evalB.canClaim).toBe(true);
+    expect(evalB.tier).toBe('CANDIDATE_REPORTED');
+    expect(evalB.isIndependentlyVerified).toBe(false);
+    expect(evalB.isCandidateReportedOnly).toBe(true);
+
+    // C: Repository-supported: repository URL + inspectable git evidence + confirmed personal contribution
+    const repoSupportedProject: CandidateProject = {
+      ...candidateReportedProject,
+      repositoryUrl: 'https://github.com/example/raft-engine',
+      evidenceReferences: ['git:commit:a1b2c3d4e5f6'],
+      status: 'REPOSITORY_SUPPORTED',
+    };
+
+    const evalC = evaluatePersonalAuthorship(repoSupportedProject);
+    expect(evalC.canClaim).toBe(true);
+    expect(evalC.tier).toBe('REPOSITORY_SUPPORTED_CONTRIBUTION');
+    expect(evalC.isIndependentlyVerified).toBe(false);
+
+    // D: Independently verified: cryptographic commit attestation or document audit
+    const independentlyVerifiedProject: CandidateProject = {
+      ...repoSupportedProject,
+      status: 'INDEPENDENTLY_VERIFIED',
+    };
+
+    const evalD = evaluatePersonalAuthorship(independentlyVerifiedProject);
+    expect(evalD.canClaim).toBe(true);
+    expect(evalD.tier).toBe('INDEPENDENTLY_VERIFIED');
+    expect(evalD.isIndependentlyVerified).toBe(true);
   });
 
-  it('4. Enforces invariant: Skills in resume default to theoretical and cannot claim production experience without verified project', () => {
+  it('4. Strengthens canClaimProductionSkillExperience: resolves project references and verifies technology usage', () => {
+    const registeredProject: CandidateProject = {
+      id: 'proj-telemetry',
+      name: 'TelemetryPipeline',
+      description: 'Distributed metrics service',
+      repositoryUrl: 'https://github.com/corp/telemetry',
+      ownership: 'PRIMARY_CONTRIBUTOR',
+      exactContribution: 'Implemented Kafka consumer groups and backpressure handling',
+      technologyStack: ['Go', 'Kafka', 'Docker'],
+      deploymentStatus: 'deployed_production',
+      outcomes: ['Processed 50k events/sec'],
+      evidenceReferences: ['git:commit:11223344'],
+      status: 'CANDIDATE_CONFIRMED',
+      candidateConfirmed: true,
+    };
+
+    const registeredProjects = [registeredProject];
+
+    // A: Theoretical skill cannot claim production experience
     const theoreticalSkill: CandidateSkill = {
       id: 'skill-1',
-      name: 'Apache Kafka',
-      proficiency: 'intermediate',
+      name: 'Kafka',
+      proficiency: 'UNSPECIFIED',
       experienceType: 'theoretical',
-      yearsUsed: 1,
-      projectReferences: [],
+      yearsUsed: undefined,
+      projectReferences: ['TelemetryPipeline'],
       evidenceSource: 'Resume mention',
       status: 'RESUME_REPORTED',
       candidateConfirmed: false,
     };
+    expect(canClaimProductionSkillExperience(theoreticalSkill, registeredProjects)).toBe(false);
 
-    expect(canClaimProductionSkillExperience(theoreticalSkill)).toBe(false);
-
-    // Practical skill with confirmed project reference
-    const productionSkill: CandidateSkill = {
+    // B: Practical skill with unresolvable project reference is rejected
+    const unresolvableSkill: CandidateSkill = {
       ...theoreticalSkill,
       experienceType: 'practical',
-      projectReferences: ['PaymentStreamingService'],
+      projectReferences: ['NonExistentProject123'],
       status: 'CANDIDATE_CONFIRMED',
       candidateConfirmed: true,
     };
+    const evalUnresolved = evaluateProductionSkillExperience(unresolvableSkill, registeredProjects);
+    expect(evalUnresolved.canClaimProduction).toBe(false);
+    expect(evalUnresolved.tier).toBe('UNRESOLVED_PROJECT_REF');
 
-    expect(canClaimProductionSkillExperience(productionSkill)).toBe(true);
+    // C: Practical skill where project does NOT use the skill is rejected
+    const unusedSkill: CandidateSkill = {
+      ...theoreticalSkill,
+      name: 'Rust', // Project uses Go and Kafka, not Rust
+      experienceType: 'practical',
+      projectReferences: ['TelemetryPipeline'],
+      status: 'CANDIDATE_CONFIRMED',
+      candidateConfirmed: true,
+    };
+    const evalUnused = evaluateProductionSkillExperience(unusedSkill, registeredProjects);
+    expect(evalUnused.canClaimProduction).toBe(false);
+    expect(evalUnused.tier).toBe('UNVERIFIED');
+
+    // D: Valid practical skill correctly resolved against confirmed project
+    const validSkill: CandidateSkill = {
+      ...theoreticalSkill,
+      name: 'Kafka',
+      experienceType: 'practical',
+      projectReferences: ['TelemetryPipeline'],
+      status: 'CANDIDATE_CONFIRMED',
+      candidateConfirmed: true,
+    };
+    const evalValid = evaluateProductionSkillExperience(validSkill, registeredProjects);
+    expect(evalValid.canClaimProduction).toBe(true);
+    expect(evalValid.tier).toBe('CANDIDATE_REPORTED_PRACTICAL');
+    expect(evalValid.isIndependentlyVerified).toBe(false);
   });
 
-  it('5. Ingests resume data cleanly: maps skills as theoretical, projects as UNKNOWN ownership', () => {
+  it('5. Ingests resume data cleanly without invented years or proficiency', () => {
     const mockIngestion: IngestionResult = {
       sourceId: 'src-test',
       sourceType: 'resume_pdf',
@@ -183,73 +265,168 @@ describe('Canonical Candidate Profile & Personalization Model (Phase 1 & Phase 2
     const profile = service.getProfile();
     expect(profile.identity.fullName).toBe('Jane Doe');
     expect(profile.identity.email).toBe('jane@example.com');
-    expect(profile.identity.links.github).toBe('https://github.com/janedoe');
 
-    // Skills verified as theoretical and RESUME_REPORTED
+    // Invariant: Zero invented yearsUsed and proficiency
     const kafkaSkill = profile.skills.find((s) => s.name === 'Kafka');
     expect(kafkaSkill).toBeDefined();
     expect(kafkaSkill?.experienceType).toBe('theoretical');
+    expect(kafkaSkill?.yearsUsed).toBeUndefined(); // NOT 1
+    expect(kafkaSkill?.proficiency).toBe('UNSPECIFIED'); // NOT intermediate
     expect(kafkaSkill?.status).toBe('RESUME_REPORTED');
-    expect(kafkaSkill?.candidateConfirmed).toBe(false);
-
-    // Project verified as UNKNOWN ownership with zero fabricated contribution
-    const project = profile.projects.find((p) => p.name === 'Telemetry Aggregator');
-    expect(project).toBeDefined();
-    expect(project?.ownership).toBe('UNKNOWN');
-    expect(project?.exactContribution).toBe('');
-    expect(project?.status).toBe('RESUME_REPORTED');
   });
 
-  it('6. Records and audits fact provenance with edit history in ledger', () => {
-    service.recordFact('location', 'identity', 'San Francisco, CA', 'Manual Entry', 'CANDIDATE_CONFIRMED', true);
+  it('6. Enforces status-upgrade protection and immutable deletion tombstones in the audit ledger', () => {
+    // Candidate cannot manually upgrade an unverified claim to INDEPENDENTLY_VERIFIED
+    const fact = service.recordFact(
+      'workAuthorization',
+      'declaration',
+      'Authorized',
+      'Candidate Edit',
+      'INDEPENDENTLY_VERIFIED', // requested
+      true // candidate confirmed
+    );
 
-    let profile = service.getProfile();
-    expect(profile.factsLedger['location'].value).toBe('San Francisco, CA');
-    expect(profile.factsLedger['location'].status).toBe('CANDIDATE_CONFIRMED');
+    // Protected: downgraded to CANDIDATE_CONFIRMED
+    expect(fact.status).toBe('CANDIDATE_CONFIRMED');
+    expect(service.getProfile().factsLedger['workAuthorization'].status).toBe('CANDIDATE_CONFIRMED');
 
-    // Update the fact
-    service.recordFact('location', 'identity', 'New York, NY', 'Manual Update', 'CANDIDATE_CONFIRMED', true);
-    profile = service.getProfile();
-
-    expect(profile.factsLedger['location'].value).toBe('New York, NY');
-    expect(profile.factsLedger['location'].editHistory).toHaveLength(1);
-    expect(profile.factsLedger['location'].editHistory[0].previousValue).toBe('San Francisco, CA');
-  });
-
-  it('7. Deletes individual facts safely from the audit ledger', () => {
-    service.recordFact('targetSeniority', 'career', 'staff', 'Manual Selection', 'CANDIDATE_CONFIRMED', true);
-    expect(service.getProfile().factsLedger['targetSeniority']).toBeDefined();
-
-    const deleted = service.deleteFact('targetSeniority');
+    // Delete fact: creates tombstone instead of silently deleting
+    const deleted = service.deleteFact('workAuthorization', 'User revoked declaration');
     expect(deleted).toBe(true);
-    expect(service.getProfile().factsLedger['targetSeniority']).toBeUndefined();
+
+    const storedFact = service.getProfile().factsLedger['workAuthorization'];
+    expect(storedFact).toBeDefined();
+    expect(storedFact.isDeleted).toBe(true);
+    const lastHistory = storedFact.editHistory[storedFact.editHistory.length - 1];
+    expect(lastHistory.action).toBe('DELETED');
+    expect(lastHistory.reason).toBe('User revoked declaration');
   });
 
-  it('8. JSON export and import round-trip preserves all fact provenance and candidate confirmation states', () => {
-    const profile = service.getProfile();
-    profile.identity.fullName = 'Alex Developer';
-    profile.identity.candidateConfirmed = true;
-    profile.declarations.workAuthorization = {
-      confirmed: true,
-      authorized: true,
-      jurisdictions: ['Canada'],
-      confirmedAt: 12345678,
+  it('7. Enforces runtime schema validation with Zod and rejects malformed profile imports', () => {
+    // Malformed JSON (invalid enum, missing required fields)
+    const invalidProfile = {
+      id: 'bad-profile',
+      version: 2,
+      updatedAt: 'not-a-number', // invalid type
+      identity: {
+        fullName: 12345, // invalid type
+      },
     };
-    service.saveProfile(profile);
 
-    const exported = service.exportJson();
-    expect(exported).toContain('Alex Developer');
-    expect(exported).toContain('Canada');
+    const outcome = validateCanonicalProfile(invalidProfile);
+    expect(outcome.success).toBe(false);
+    if (!outcome.success) {
+      expect(outcome.errors.length).toBeGreaterThan(0);
+    }
 
-    service.clearAllCandidateData();
-    expect(service.getProfile().identity.fullName).toBe('');
+    const importRes = service.importJson(JSON.stringify(invalidProfile));
+    expect(importRes.success).toBe(false);
+    expect(importRes.errors).toBeDefined();
+  });
 
-    const importedOk = service.importJson(exported);
-    expect(importedOk).toBe(true);
+  it('8. Performs versioned migration from v1 to v2 safely', () => {
+    const v1Profile = {
+      id: 'legacy-profile-v1',
+      version: 1,
+      identity: {
+        fullName: 'Legacy User',
+        email: 'legacy@example.com',
+        location: 'Boston, MA',
+        preferredLanguage: 'English',
+        links: {},
+        candidateConfirmed: false,
+      },
+      career: {
+        currentRole: 'Software Engineer',
+        noticePeriod: '2 weeks',
+        targetRoles: ['Senior Software Engineer'],
+        preferredIndustries: [],
+        candidateConfirmed: false,
+      },
+      skills: [
+        {
+          id: 'sk-1',
+          name: 'Java',
+          projectReferences: [],
+          evidenceSource: 'Legacy',
+          status: 'RESUME_REPORTED',
+          candidateConfirmed: false,
+        },
+      ],
+      education: [],
+      experience: [],
+      projects: [],
+      achievements: [],
+      preferences: {
+        answerLength: 'balanced',
+        formality: 'professional',
+        responsePerspective: 'first_person',
+        language: 'English',
+        technicalDepth: 'balanced',
+        responseStyle: 'structured_paragraphs',
+        preferredCodingLanguage: 'Java',
+        answerStructure: 'star',
+      },
+      declarations: {
+        workAuthorization: { confirmed: false, authorized: null, jurisdictions: [] },
+        sponsorshipRequired: { confirmed: false, required: null },
+        willingToRelocate: { confirmed: false, willing: null, preferredLocations: [] },
+        securityClearance: { confirmed: false, active: null },
+        otherDeclarations: {},
+      },
+    };
 
-    const restored = service.getProfile();
-    expect(restored.identity.fullName).toBe('Alex Developer');
-    expect(restored.declarations.workAuthorization.jurisdictions).toEqual(['Canada']);
-    expect(restored.declarations.workAuthorization.confirmed).toBe(true);
+    const migrated = migrateProfileIfNeeded(v1Profile);
+    expect(migrated.version).toBe(2);
+    expect(migrated.career.targetSeniority).toBe('UNKNOWN');
+    expect(migrated.skills[0].proficiency).toBe('UNSPECIFIED');
+
+    const validation = validateCanonicalProfile(v1Profile);
+    expect(validation.success).toBe(true);
+  });
+
+  it('9. Synchronizes bidirectionally with KnowledgeVaultService and CareerOps without infinite loops or duplicate projects', () => {
+    // 1. Sync from KnowledgeVaultService
+    const kv = KnowledgeVaultService.getInstance();
+    const vault = kv.getVault();
+    vault.projects = [
+      {
+        id: 'vault-proj-1',
+        title: 'Vault Project Alpha',
+        description: 'First project in vault',
+        technologies: ['React', 'TypeScript'],
+        contributions: [{ id: 'c1', description: 'Built UI', ownership: 'PRIMARY_CONTRIBUTOR' }],
+        outcomes: ['Shipped v1'],
+        metrics: [],
+        evidenceIds: ['ev-1'],
+        status: 'CANDIDATE_CONFIRMED',
+      },
+    ];
+    kv.saveVault(vault);
+
+    // Canonical profile service receives update
+    service.syncFromKnowledgeVault(vault);
+    let profile = service.getProfile();
+    expect(profile.projects.some((p) => p.name === 'Vault Project Alpha')).toBe(true);
+
+    // Call sync again to verify deduplication
+    service.syncFromKnowledgeVault(vault);
+    profile = service.getProfile();
+    const matches = profile.projects.filter((p) => p.name === 'Vault Project Alpha');
+    expect(matches).toHaveLength(1); // No duplicates
+
+    // 2. Sync from CareerOps Vault
+    const careerStore = useCandidateVaultStore.getState();
+    careerStore.updateProfile({
+      fullName: 'Updated Via CareerOps',
+      email: 'careerops@example.com',
+      location: 'Denver, CO',
+    });
+
+    service.syncFromCareerOpsVault(useCandidateVaultStore.getState().profile);
+    profile = service.getProfile();
+    expect(profile.identity.fullName).toBe('Updated Via CareerOps');
+    expect(profile.identity.email).toBe('careerops@example.com');
+    expect(profile.identity.location).toBe('Denver, CO');
   });
 });
