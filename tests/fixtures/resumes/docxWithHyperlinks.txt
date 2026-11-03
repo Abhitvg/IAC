@@ -1,0 +1,31 @@
+David Kim
+Cloud Infrastructure & Security Engineer
+Boston, MA | david.kim@example.org | 617-555-7733
+Portfolio Website (https://davidkim.cloud) | GitHub Profile (https://github.com/davidkim) | LinkedIn Profile (https://linkedin.com/in/davidkim)
+
+Summary
+DevOps engineer focused on Kubernetes automation, Terraform infrastructure-as-code, and zero-trust security postures.
+
+Experience
+CyberShield Systems | Lead DevOps Engineer | 2021 - Present
+• Designed multi-tenant Kubernetes platform using Terraform and Helm on AWS.
+• Reduced container security vulnerabilities by 80% with automated Trivy and Snyk CI scans.
+• Maintained 99.99% availability for 50+ microservice workloads.
+
+TechFlow Solutions | Cloud Engineer | 2018 - 2021
+• Migrated on-premise infrastructure to AWS saving $180,000 annually.
+• Built GitOps continuous delivery pipelines using ArgoCD and GitHub Actions.
+
+Education
+Boston University | B.S. in Information Systems | 2014 - 2018
+
+Projects
+Terraform Security Scanner (https://github.com/davidkim/tf-sec-scan)
+• Open-source static analysis tool for detecting IAM misconfigurations in Terraform files.
+
+KubeVault Operator (https://github.com/davidkim/kubevault)
+• Custom Kubernetes operator in Go for automated HashiCorp Vault token renewal.
+
+Certifications
+• AWS Certified Solutions Architect (https://aws.amazon.com/verify)
+• Certified Information Systems Security Professional (CISSP)

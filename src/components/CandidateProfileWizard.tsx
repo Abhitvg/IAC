@@ -81,6 +81,8 @@ export const CandidateProfileWizard: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [importErrors, setImportErrors] = useState<string[] | null>(null);
+  const [skillFilterCategory, setSkillFilterCategory] = useState<string>('all');
+  const [skillSearchQuery, setSkillSearchQuery] = useState<string>('');
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1252,38 +1254,115 @@ export const CandidateProfileWizard: React.FC = () => {
                       Practical production skills must resolve against registered projects demonstrating actual implementation.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newSkill: CandidateSkill = {
-                        id: `skill_${Date.now()}`,
-                        name: '',
-                        proficiency: 'UNSPECIFIED',
-                        experienceType: 'theoretical',
-                        yearsUsed: undefined,
-                        projectReferences: [],
-                        evidenceSource: 'Candidate Manual Entry',
-                        status: 'CANDIDATE_CONFIRMED',
-                        candidateConfirmed: true,
-                      };
-                      triggerSave({ ...profile, skills: [...profile.skills, newSkill] });
-                    }}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = profile.skills.map((s) => ({
+                          ...s,
+                          candidateConfirmed: true,
+                          status: 'CANDIDATE_CONFIRMED' as const,
+                        }));
+                        triggerSave({ ...profile, skills: next });
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        background: '#1E2330',
+                        border: '1px solid #292E3A',
+                        color: '#35C991',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <CheckCircle2 size={14} /> Confirm All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newSkill: CandidateSkill = {
+                          id: `skill_${Date.now()}`,
+                          name: '',
+                          category: 'other',
+                          proficiency: 'UNSPECIFIED',
+                          experienceType: 'theoretical',
+                          yearsUsed: undefined,
+                          projectReferences: [],
+                          evidenceSource: 'Candidate Manual Entry',
+                          status: 'CANDIDATE_CONFIRMED',
+                          candidateConfirmed: true,
+                        };
+                        triggerSave({ ...profile, skills: [...profile.skills, newSkill] });
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        background: '#8B7CFF',
+                        border: 'none',
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <Plus size={14} /> Add Skill
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter and Search Bar for Skills across 14 categories */}
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
+                  <input
+                    type="text"
+                    placeholder="Search skills by name or category..."
+                    value={skillSearchQuery}
+                    onChange={(e) => setSkillSearchQuery(e.target.value)}
                     style={{
-                      padding: '6px 12px',
+                      flex: 1,
+                      padding: '6px 10px',
+                      background: '#171B24',
+                      border: '1px solid #292E3A',
                       borderRadius: '6px',
-                      background: '#8B7CFF',
-                      border: 'none',
-                      color: '#fff',
+                      color: '#F3F4F8',
+                      fontSize: '12px',
+                    }}
+                  />
+                  <select
+                    value={skillFilterCategory}
+                    onChange={(e) => setSkillFilterCategory(e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      background: '#171B24',
+                      border: '1px solid #292E3A',
+                      borderRadius: '6px',
+                      color: '#8B7CFF',
                       fontSize: '12px',
                       fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
                     }}
                   >
-                    <Plus size={14} /> Add Skill
-                  </button>
+                    <option value="all">All 14 Categories ({profile.skills.length})</option>
+                    <option value="languages">Languages</option>
+                    <option value="frontend">Frontend</option>
+                    <option value="backend">Backend</option>
+                    <option value="databases">Databases</option>
+                    <option value="cloud">Cloud</option>
+                    <option value="devops">DevOps</option>
+                    <option value="aiMl">AI & Machine Learning</option>
+                    <option value="testing">Testing</option>
+                    <option value="security">Security</option>
+                    <option value="tools">Tools</option>
+                    <option value="design">Design</option>
+                    <option value="softSkills">Soft Skills</option>
+                    <option value="domainKnowledge">Domain Knowledge</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
 
                 {profile.skills.length === 0 ? (
@@ -1302,7 +1381,18 @@ export const CandidateProfileWizard: React.FC = () => {
                   </div>
                 ) : (
                   <div className="wizard-grid-2col">
-                    {profile.skills.map((skill, idx) => (
+                    {profile.skills
+                      .filter((s) => {
+                        if (skillFilterCategory !== 'all' && s.category !== skillFilterCategory) return false;
+                        if (skillSearchQuery.trim()) {
+                          const q = skillSearchQuery.toLowerCase();
+                          return s.name.toLowerCase().includes(q) || (s.category || '').toLowerCase().includes(q);
+                        }
+                        return true;
+                      })
+                      .map((skill) => {
+                        const originalIdx = profile.skills.findIndex((s) => s.id === skill.id);
+                        return (
                       <div
                         key={skill.id}
                         style={{
@@ -1315,14 +1405,14 @@ export const CandidateProfileWizard: React.FC = () => {
                           gap: '8px',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                           <input
                             type="text"
                             placeholder="Skill Name (e.g. Go, Kafka)"
                             value={skill.name}
                             onChange={(e) => {
                               const next = [...profile.skills];
-                              next[idx].name = e.target.value;
+                              next[originalIdx].name = e.target.value;
                               triggerSave({ ...profile, skills: next });
                             }}
                             style={{
@@ -1336,13 +1426,50 @@ export const CandidateProfileWizard: React.FC = () => {
                               fontWeight: 600,
                             }}
                           />
+                          <select
+                            value={skill.category || 'other'}
+                            onChange={(e) => {
+                              const next = [...profile.skills];
+                              next[originalIdx].category = e.target.value;
+                              triggerSave({ ...profile, skills: next });
+                            }}
+                            style={{
+                              padding: '4px 6px',
+                              background: '#0F1218',
+                              border: '1px solid #292E3A',
+                              borderRadius: '4px',
+                              color: '#8B7CFF',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            <option value="languages">Languages</option>
+                            <option value="frontend">Frontend</option>
+                            <option value="backend">Backend</option>
+                            <option value="databases">Databases</option>
+                            <option value="cloud">Cloud</option>
+                            <option value="devops">DevOps</option>
+                            <option value="aiMl">AI &amp; ML</option>
+                            <option value="testing">Testing</option>
+                            <option value="security">Security</option>
+                            <option value="tools">Tools</option>
+                            <option value="design">Design</option>
+                            <option value="softSkills">Soft Skills</option>
+                            <option value="domainKnowledge">Domain</option>
+                            <option value="other">Other</option>
+                          </select>
                           <button
                             type="button"
                             onClick={() => {
-                              const next = profile.skills.filter((_, i) => i !== idx);
+                              const skillToRemove = profile.skills[originalIdx];
+                              if (skillToRemove?.name) {
+                                profileService.deleteFact(`skill:${skillToRemove.name}`, 'Removed by candidate in wizard');
+                              }
+                              const next = profile.skills.filter((_, i) => i !== originalIdx);
                               triggerSave({ ...profile, skills: next });
                             }}
-                            style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', marginLeft: '6px' }}
+                            style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                            title="Delete skill (writes tombstone to ledger)"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -1353,7 +1480,7 @@ export const CandidateProfileWizard: React.FC = () => {
                             value={skill.experienceType}
                             onChange={(e) => {
                               const next = [...profile.skills];
-                              next[idx].experienceType = e.target.value as any;
+                              next[originalIdx].experienceType = e.target.value as any;
                               triggerSave({ ...profile, skills: next });
                             }}
                             style={{
@@ -1374,7 +1501,7 @@ export const CandidateProfileWizard: React.FC = () => {
                             value={skill.proficiency || 'UNSPECIFIED'}
                             onChange={(e) => {
                               const next = [...profile.skills];
-                              next[idx].proficiency = e.target.value as any;
+                              next[originalIdx].proficiency = e.target.value as any;
                               triggerSave({ ...profile, skills: next });
                             }}
                             style={{
@@ -1407,7 +1534,7 @@ export const CandidateProfileWizard: React.FC = () => {
                               onChange={(e) => {
                                 const refs = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
                                 const next = [...profile.skills];
-                                next[idx].projectReferences = refs;
+                                next[originalIdx].projectReferences = refs;
                                 triggerSave({ ...profile, skills: next });
                               }}
                               style={{
@@ -1423,7 +1550,8 @@ export const CandidateProfileWizard: React.FC = () => {
                           </div>
                         )}
                       </div>
-                    ))}
+                    );
+                  })}
                   </div>
                 )}
               </div>
@@ -2290,6 +2418,46 @@ export const CandidateProfileWizard: React.FC = () => {
                   Verify that all claims accurately reflect your verified background before closing.
                 </p>
 
+                {/* Completeness & Grounding Progress Metrics */}
+                {(() => {
+                  const totalItems = (profile.identity.fullName ? 1 : 0) +
+                    (profile.declarations.workAuthorization.confirmed ? 1 : 0) +
+                    profile.skills.length +
+                    profile.projects.length +
+                    profile.experience.length;
+
+                  const confirmedItems = (profile.identity.candidateConfirmed ? 1 : 0) +
+                    (profile.declarations.workAuthorization.confirmed ? 1 : 0) +
+                    profile.skills.filter((s) => s.candidateConfirmed).length +
+                    profile.projects.filter((p) => p.candidateConfirmed).length +
+                    profile.experience.filter((e) => e.candidateConfirmed).length;
+
+                  const pct = totalItems > 0 ? Math.round((confirmedItems / totalItems) * 100) : 0;
+
+                  return (
+                    <div style={{ padding: '14px', background: '#171B24', borderRadius: '8px', border: '1px solid #292E3A', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#F3F4F8' }}>
+                          Candidate Grounding &amp; Confirmation Progress
+                        </span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: pct >= 80 ? '#35C991' : '#F7B955' }}>
+                          {confirmedItems} / {totalItems} confirmed ({pct}%)
+                        </span>
+                      </div>
+                      <div style={{ height: '6px', background: '#0F1218', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${pct}%`,
+                            background: pct >= 80 ? '#35C991' : '#8B7CFF',
+                            transition: 'width 0.3s ease',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="wizard-grid-2col" style={{ marginBottom: '16px' }}>
                   <div style={{ padding: '14px', background: '#171B24', borderRadius: '8px', border: '1px solid #292E3A' }}>
                     <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: '#8B7CFF', margin: '0 0 8px 0' }}>
@@ -2321,9 +2489,9 @@ export const CandidateProfileWizard: React.FC = () => {
                           ? profile.declarations.sponsorshipRequired.required ? 'Required' : 'Not Required'
                           : 'Unconfirmed'}
                       </div>
-                      <div><strong>Registered Skills:</strong> {profile.skills.length} skills</div>
-                      <div><strong>Verified Projects:</strong> {profile.projects.length} projects</div>
-                      <div><strong>Employment Roles:</strong> {profile.experience.length} roles</div>
+                      <div><strong>Registered Skills:</strong> {profile.skills.length} skills ({profile.skills.filter(s => s.candidateConfirmed).length} confirmed)</div>
+                      <div><strong>Verified Projects:</strong> {profile.projects.length} projects ({profile.projects.filter(p => p.candidateConfirmed).length} confirmed)</div>
+                      <div><strong>Employment Roles:</strong> {profile.experience.length} roles ({profile.experience.filter(e => e.candidateConfirmed).length} confirmed)</div>
                     </div>
                   </div>
                 </div>

@@ -1,0 +1,27 @@
+Alexander Wright
+Staff Systems Engineer & Technical Founder
+Denver, CO | alex.wright@example.io | 720-555-9012
+https://wrightsystems.dev | https://github.com/awright | https://linkedin.com/in/awright
+
+Professional Experience
+Vanguard Cloud Systems | Staff Infrastructure Engineer | January 2021 - Present
+• Designed distributed consensus protocols in Go and Raft.
+• Scaled multi-cluster Kubernetes deployments handling 10B monthly requests.
+
+Wright Analytics Co | Co-Founder & CTO | June 2022 - Present
+• Built telemetry SaaS platform using Next.js, Rust, and ClickHouse.
+• Acquired 5,000 active developer accounts in first 6 months.
+
+Peak Performance Labs | Senior Backend Developer | March 2018 - December 2020
+• Developed asynchronous microservices in Go and Kafka.
+
+Education
+University of Colorado Boulder | B.S. in Computer Science | 2014 - 2018
+
+Skills
+Languages: Go, Rust, TypeScript, Python, SQL
+Technologies: Kubernetes, Docker, Kafka, ClickHouse, PostgreSQL, AWS, Terraform
+
+Projects
+ClickStream Raft | https://github.com/awright/clickstream-raft
+• High-performance distributed log server achieving 500k writes/sec.

@@ -1,0 +1,44 @@
+Sophia Chen
+Distributed Systems Architect
+Seattle, WA | sophia.chen@example.org | (206) 555-8821
+https://sophiachen.tech | https://github.com/sophiachen | https://linkedin.com/in/sophiachen
+
+EDUCATION
+University of Washington
+M.S. in Computer Science | 2016 - 2018
+GPA: 3.92 / 4.0
+Coursework: Distributed Consensus, Cloud Computing, Advanced Compilers
+
+B.S. in Computer Engineering | 2012 - 2016
+Summa Cum Laude
+
+TECHNICAL SKILLS
+Languages: Rust, Go, C++, Python, SQL
+Backend: Tokio, Actix, gRPC, Protobuf, Kafka, RabbitMQ
+Databases: PostgreSQL, Cassandra, RocksDB, Redis
+Infrastructure: Kubernetes, Docker, Envoy, Prometheus, Grafana
+Security: OAuth2, Zero Trust, mTLS, Cryptography
+
+CERTIFICATIONS
+CKA: Certified Kubernetes Administrator
+AWS Security Specialty
+
+EXPERIENCE
+Beacon Distributed Labs | Lead Infrastructure Engineer | 2021 - Present
+• Designed consensus-backed replication engine in Rust achieving sub-millisecond failover.
+• Scaled multi-region cluster across 4 cloud regions sustaining 99.999% uptime.
+• Led architectural reviews and mentored 6 distributed systems engineers.
+• Reduced storage egress costs by $120,000 annually through delta compression.
+
+HyperScale Networks | Senior Systems Engineer | 2018 - 2021
+• Implemented high-performance service mesh proxy handling 100k requests/sec.
+• Built distributed rate-limiter using Redis and Go preventing API cascading failures.
+• Decreased p95 packet latency by 35% using eBPF network tracing.
+
+PROJECTS
+RaftKV | Rust, RocksDB, gRPC | https://github.com/sophiachen/raftkv
+• Linearizable distributed key-value store implementing the Raft consensus algorithm.
+• Validated correctness using Jepsen fault-injection testing under network partitions.
+
+MicroEnvoy | Go, Envoy | https://github.com/sophiachen/microenvoy
+• Lightweight sidecar proxy for Kubernetes microservices with mTLS authentication.

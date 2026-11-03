@@ -1,0 +1,30 @@
+Rachel Goldberg
+Lead Frontend & Mobile Architect
+Los Angeles, CA | rachel.goldberg@example.net | 310-555-3344
+https://rachelgoldberg.design | https://github.com/rachelg | https://linkedin.com/in/rachelg
+
+Summary
+Frontend engineering leader with 7+ years of experience building consumer-facing web and mobile applications with React, React Native, and TypeScript.
+
+Work Experience
+Streamline Media | Lead Frontend Architect | 2021 - Present
+• Project: Global Video Player Redesign
+  - Rebuilt video player engine in TypeScript and WebGL reducing playback buffering by 50%.
+  - Supported 12M concurrent active streams during live sports broadcasts.
+• Project: Mobile Content Hub
+  - Developed cross-platform React Native iOS and Android application with 4.8 star App Store rating.
+  - Implemented offline caching mechanism with SQLite and Redux Persist.
+
+CreativePulse Agency | Senior Frontend Developer | 2017 - 2021
+• Project: E-Commerce Storefront Transformation
+  - Led migration from monolithic PHP to Next.js, GraphQL, and Tailwind CSS.
+  - Improved checkout conversion rate by 22% and reduced average page load time from 4.2s to 1.1s.
+
+Education
+University of California, Los Angeles (UCLA) | B.A. in Design & Computer Science | 2013 - 2017
+
+Skills
+Frontend: React, Next.js, React Native, TypeScript, Tailwind CSS, Redux, GraphQL
+Design: Figma, UI/UX, Design Systems, Accessibility, WCAG 2.1 AA
+Testing: Jest, Cypress, Storybook
+Tools: Webpack, Vite, Git, GitHub

@@ -1,0 +1,41 @@
+Priya Sharma
+AI Systems Engineer
+Chicago, IL | priya.sharma@example.edu | 312-555-8910
+https://priyasharma.ai | https://github.com/priyasharma | https://linkedin.com/in/priyasharma
+
+Career Journey
+NeuralCraft AI | Senior ML Engineer | 2022 - Present
+• Built retrieval-augmented generation (RAG) platform with LangChain, Pinecone, and PyTorch.
+• Improved semantic search relevance by 40% across 5M internal corporate documents.
+• Reduced inference latency by 55% using model quantization and vLLM serving.
+
+DataMind Analytics | Machine Learning Engineer | 2019 - 2022
+• Trained transformer classification models in TensorFlow processing 1M daily user reviews.
+• Deployed models to AWS SageMaker with automated A/B testing canary rollouts.
+
+Academic Qualifications
+Northwestern University | M.S. in Artificial Intelligence | 2017 - 2019
+GPA: 3.9 / 4.0 | Coursework: Deep Learning, Natural Language Processing, Reinforcement Learning
+
+Indian Institute of Technology | B.Tech in Computer Science | 2013 - 2017
+
+Core Toolset
+Languages: Python, C++, SQL, Bash
+AI & ML: PyTorch, TensorFlow, Hugging Face, LangChain, LlamaIndex, vLLM
+Vector DBs: Pinecone, Qdrant, Chroma, Milvus
+Cloud & Ops: AWS, Docker, Kubernetes, MLflow
+
+Systems Built
+RAGFlow Engine | Python, LangChain, Pinecone | https://github.com/priyasharma/ragflow
+• Modular retrieval pipeline with hybrid BM25 and dense vector reranking.
+
+LLMGuard Evaluator | Python, PyTorch | https://github.com/priyasharma/llmguard
+• Automated hallucination and toxicity evaluation harness for LLM generations.
+
+Recognitions & Fellowships
+• Best Research Paper Award, IEEE ICMLA 2021
+• National Merit Scholarship, 2013
+
+Community & Volunteering
+• Women in Machine Learning (WiML) | Mentor | 2020 - Present
+• Organized monthly coding workshops for underrepresented students in AI.

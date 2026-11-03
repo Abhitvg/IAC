@@ -9,6 +9,41 @@ export interface DocxExtractionResult {
   warnings: string[];
 }
 
+export function formatMammothHtmlToText(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<tr[^>]*>/gi, '\n')
+    .replace(/<td[^>]*>/gi, ' | ')
+    .replace(/<\/td>/gi, '')
+    .replace(/<\/tr>/gi, '')
+    .replace(/<table[^>]*>/gi, '\n')
+    .replace(/<\/table>/gi, '\n')
+    .replace(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_match, url, text) => {
+      const cleanText = text.replace(/<[^>]+>/g, '').trim();
+      const cleanUrl = url.trim();
+      if (!cleanText || cleanText === cleanUrl) return cleanUrl;
+      return `${cleanText} (${cleanUrl})`;
+    })
+    .replace(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi, '\n\n$1\n')
+    .replace(/<p[^>]*>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '\n• ')
+    .replace(/<\/li>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .split('\n')
+    .map((l) => l.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export async function extractDocxDocument(arrayBuffer: ArrayBuffer): Promise<DocxExtractionResult> {
   const warnings: string[] = [];
 
@@ -41,13 +76,27 @@ export async function extractDocxDocument(arrayBuffer: ArrayBuffer): Promise<Doc
     }
   }
 
-  // 2. Client-side Mammoth fallback
+  // 2. Client-side Mammoth fallback with HTML conversion to preserve tables and links
   try {
     const mammoth = await import('mammoth');
-    const result = await mammoth.extractRawText({ arrayBuffer });
-    const cleanText = (result.value || '').trim();
-    if (result.messages && result.messages.length > 0) {
-      warnings.push(...result.messages.map((m) => m.message));
+    let cleanText = '';
+
+    try {
+      const htmlResult = await mammoth.convertToHtml({ arrayBuffer });
+      if (htmlResult.value && htmlResult.value.trim()) {
+        cleanText = formatMammothHtmlToText(htmlResult.value);
+      }
+      if (htmlResult.messages && htmlResult.messages.length > 0) {
+        warnings.push(...htmlResult.messages.map((m) => m.message));
+      }
+    } catch {}
+
+    if (!cleanText) {
+      const rawResult = await mammoth.extractRawText({ arrayBuffer });
+      cleanText = (rawResult.value || '').trim();
+      if (rawResult.messages && rawResult.messages.length > 0) {
+        warnings.push(...rawResult.messages.map((m) => m.message));
+      }
     }
 
     const headings = cleanText

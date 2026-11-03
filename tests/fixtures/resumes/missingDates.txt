@@ -1,0 +1,25 @@
+Carlos Mendez
+Full-Stack Engineer
+Miami, FL | carlos.mendez@example.com | 305-555-6677
+https://github.com/carlosmendez
+
+Experience
+Solstice Media | Full-Stack Engineer
+• Built responsive web applications using Vue.js, Node.js, and MongoDB.
+• Integrated Stripe payment processing for subscription management.
+
+Apex Digital Labs | Junior Developer | 2020 - 2021
+• Developed REST APIs in Express and maintained PostgreSQL databases.
+
+Education
+Florida International University | B.S. in Computer Science
+Graduated Magna Cum Laude
+
+Skills
+Languages: JavaScript, TypeScript, Python, SQL
+Frameworks: Vue, React, Node.js, Express
+Databases: MongoDB, PostgreSQL, Redis
+
+Projects
+TaskMatrix App | Vue, Node.js | https://github.com/carlosmendez/taskmatrix
+• Collaborative task tracking board with real-time drag-and-drop updates.

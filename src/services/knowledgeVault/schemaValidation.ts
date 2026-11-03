@@ -94,6 +94,7 @@ export const CandidateSkillSchema = z
   .object({
     id: z.string().min(1),
     name: z.string().min(1),
+    category: z.string().optional(),
     proficiency: z.enum(['beginner', 'intermediate', 'advanced', 'expert', 'UNSPECIFIED']).optional(),
     experienceType: z.enum(['theoretical', 'practical']),
     yearsUsed: z.number().min(0).max(100).optional(),

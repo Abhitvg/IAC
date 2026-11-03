@@ -1,0 +1,43 @@
+Marcus Vance
+Principal Backend Engineer
+Austin, TX | marcus.vance@example.com | (512) 555-4321
+https://marcusvance.io | https://github.com/marcusvance | https://linkedin.com/in/marcusvance
+
+Professional Summary
+Senior backend leader specializing in high-load transactional systems, enterprise Kafka integration, and cloud migrations.
+
+Work Experience
+Fintech Global Corp | Principal Engineer | 2021 - Present
+• Designed real-time payment settlement engine processing $40M daily volume with zero dropped events.
+• Reduced database load by 60% with Redis clustering and read replicas.
+• Led team of 14 distributed backend developers across US and Europe.
+
+CloudCore Platforms | Staff Backend Engineer | 2017 - 2021
+• Migrated 45 monolith services to Spring Boot microservices on AWS EKS.
+• Authored high-throughput ingestion pipeline in Java and Kafka handling 50k msgs/sec.
+
+--- Page Break ---
+
+Marcus Vance - Page 2
+
+Technical Skills
+Languages: Java, Kotlin, Python, Go, SQL
+Frameworks: Spring Boot, Micronaut, Node.js, Express
+Databases: PostgreSQL, MySQL, Redis, Cassandra
+Cloud & Tools: AWS, Docker, Kubernetes, Terraform, Git, Jenkins
+
+Education
+University of Texas at Austin | B.S. in Computer Science | 2013 - 2017
+GPA: 3.8 / 4.0
+
+Technical Projects
+EventStreamer | Java, Kafka, Spring Boot | https://github.com/marcusvance/event-streamer
+• High-performance event ingestion gateway with guaranteed at-least-once delivery semantics.
+• Deployed across 6 Docker containers handling 100k events/sec.
+
+Certifications
+• AWS Certified DevOps Engineer - Professional | 2023
+• Oracle Certified Professional Java SE 11 Developer | 2020
+
+Publications
+• "Zero-Downtime Database Migrations in Financial Microservices" | InfoQ, 2022

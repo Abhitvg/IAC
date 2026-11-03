@@ -88,6 +88,7 @@ export interface CandidateEducation {
 export interface CandidateSkill {
   id: string;
   name: string;
+  category?: string;
   proficiency?: 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'UNSPECIFIED';
   experienceType: 'theoretical' | 'practical';
   yearsUsed?: number;

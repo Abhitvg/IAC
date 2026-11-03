@@ -119,6 +119,30 @@ export function validateChronology(
     }
   }
 
+  // Detect overlapping employment records
+  for (let i = 0; i < parsed.length; i++) {
+    for (let j = i + 1; j < parsed.length; j++) {
+      const a = parsed[i];
+      const b = parsed[j];
+      if (a.start && a.end && b.start && b.end && a.start.isValid && a.end.isValid && b.start.isValid && b.end.isValid) {
+        const aStart = a.start.year * 12 + a.start.month;
+        const aEnd = a.end.year * 12 + a.end.month;
+        const bStart = b.start.year * 12 + b.start.month;
+        const bEnd = b.end.year * 12 + b.end.month;
+
+        // Overlap if each starts before the other ends
+        if (aStart < bEnd && bStart < aEnd) {
+          alerts.push({
+            type: 'overlap',
+            severity: 'info',
+            message: `Overlapping employment detected between "${a.title}" and "${b.title}".`,
+            recordIds: [a.id, b.id],
+          });
+        }
+      }
+    }
+  }
+
   return alerts;
 }
 

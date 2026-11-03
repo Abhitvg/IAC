@@ -1,0 +1,29 @@
+Elena Rostova
+Full-Stack Developer
+New York, NY | elena.rostova@example.com | 212-555-0987
+https://elena-dev.com | https://github.com/erostova | https://linkedin.com/in/erostova
+
+Experience
+ | Datadrive Inc | Senior Frontend Engineer | 2022 - Present
+• Built React dashboard with Tailwind CSS and Next.js handling 50k DAU.
+• Improved Lighthouse performance score from 58 to 96 across core landing pages.
+• Implemented WebSocket streaming client for live market order books.
+
+ | Algorithmic Labs | Software Developer | 2019 - 2022
+• Developed Python FastAPI endpoints integrated with PostgreSQL.
+• Reduced API response times by 35% through query optimization and indexing.
+
+Education
+ | Columbia University | B.S. in Computer Science | 2015 - 2019
+ | Minor in Mathematics | GPA: 3.78
+
+Skills
+ | Category | Technologies
+ | Languages | TypeScript, JavaScript, Python, SQL, HTML, CSS
+ | Frontend | React, Next.js, Vue, Tailwind, Redux, WebSockets
+ | Backend | Node.js, Express, FastAPI, Django
+ | Databases | PostgreSQL, MongoDB, Redis
+
+Projects
+ | CryptoTracker UI | React, TypeScript, Chart.js | https://github.com/erostova/cryptotracker
+• Live cryptocurrency asset tracker with candlestick visualizations and portfolio calculations.

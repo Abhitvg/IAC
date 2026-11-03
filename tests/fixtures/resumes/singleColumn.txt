@@ -1,0 +1,51 @@
+Alex Mercer
+Senior Full-Stack & Distributed Systems Engineer
+San Francisco, CA | alex.mercer@example.com | +1 (415) 555-0199
+https://alexmercer.dev | https://github.com/alexmercer | https://linkedin.com/in/alexmercer
+
+Professional Summary
+Distinguished software engineer with 8+ years of experience designing scalable microservices, low-latency streaming pipelines, and modern web architectures. Proven track record of reducing latency by 45% and mentoring engineering teams.
+
+Technical Skills
+Languages: TypeScript, JavaScript, Python, Go, Java, SQL, Bash
+Frontend: React, Next.js, Tailwind CSS, Redux, WebSockets
+Backend: Node.js, Express, Spring Boot, FastAPI, gRPC, Kafka
+Databases: PostgreSQL, Redis, MongoDB, Elasticsearch
+Cloud & DevOps: AWS, Docker, Kubernetes, Terraform, GitHub Actions
+Testing: Jest, Vitest, Playwright, JUnit
+
+Work Experience
+Acme Cloud Systems | Staff Software Engineer | March 2022 - Present
+• Architected high-throughput event processing pipeline using Go, Kafka, and Redis handling 2.5B events daily.
+• Reduced p99 query latency by 45% across distributed databases through intelligent caching strategies.
+• Spearheaded team of 8 engineers transitioning legacy monolithic services to gRPC microservices.
+• Deployed real-time analytics engine to AWS EKS using Terraform and Docker.
+
+Nexus Technologies | Senior Software Engineer | August 2018 - February 2022
+• Developed core financial transaction ledger using Node.js, TypeScript, and PostgreSQL with ACID compliance.
+• Improved transaction throughput by 300% from 500 TPS to 2,000 TPS under peak load.
+• Built end-to-end testing suite with Vitest and Playwright achieving 92% code coverage.
+• Owned automated deployment pipelines with GitHub Actions cutting release cycles from 2 days to 30 minutes.
+
+Education
+University of California, Berkeley | B.S. in Computer Science | 2014 - 2018
+• GPA: 3.85 / 4.0
+• Relevant Coursework: Distributed Systems, Operating Systems, Algorithms, Database Internals
+• Honors: Dean's Honor List (6 semesters)
+
+Technical Projects
+StreamLake Engine | https://github.com/alexmercer/streamlake
+• Open-source distributed stream processing library written in Go and Kafka.
+• Built zero-allocation serializer achieving 1.2M msgs/sec throughput on commodity hardware.
+• Adopted by 15+ organizations in production.
+
+CloudTelemetry Dashboard | React, TypeScript, Next.js, Tailwind | https://cloudtelemetry.dev
+• Real-time observability UI showing distributed trace waterfalls and metrics.
+• Built custom virtualized canvas renderer for displaying 100k+ spans at 60 FPS.
+
+Certifications
+• AWS Certified Solutions Architect - Professional | Amazon Web Services | 2023
+• Certified Kubernetes Administrator (CKA) | Cloud Native Computing Foundation | 2022
+
+Publications
+• "Optimizing Low-Latency Event Processing in Multi-Tenant Clouds" | IEEE Cloud Computing, 2023

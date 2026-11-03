@@ -647,7 +647,42 @@ ipcMain.handle('net:safe-fetch-pinned', async (event, options: PinnedFetchOption
   return SafeConnectionFetcher.fetch(sanitized);
 });
 
-// DOCX parsing
+function formatMammothHtmlToText(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<tr[^>]*>/gi, '\n')
+    .replace(/<td[^>]*>/gi, ' | ')
+    .replace(/<\/td>/gi, '')
+    .replace(/<\/tr>/gi, '')
+    .replace(/<table[^>]*>/gi, '\n')
+    .replace(/<\/table>/gi, '\n')
+    .replace(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_match, url, text) => {
+      const cleanText = text.replace(/<[^>]+>/g, '').trim();
+      const cleanUrl = url.trim();
+      if (!cleanText || cleanText === cleanUrl) return cleanUrl;
+      return `${cleanText} (${cleanUrl})`;
+    })
+    .replace(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi, '\n\n$1\n')
+    .replace(/<p[^>]*>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '\n• ')
+    .replace(/<\/li>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .split('\n')
+    .map((l) => l.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// DOCX parsing with table and hyperlink preservation
 ipcMain.handle('fs:parse-docx', async (event, arrayBuffer: ArrayBuffer) => {
   if (!isTrustedSender(event, mainWindow)) {
     throw new Error('Unauthorized IPC sender');
@@ -656,6 +691,12 @@ ipcMain.handle('fs:parse-docx', async (event, arrayBuffer: ArrayBuffer) => {
     throw new Error('Invalid argument: expected ArrayBuffer or Buffer');
   }
   const buffer = Buffer.from(arrayBuffer);
+  try {
+    const htmlResult = await mammoth.convertToHtml({ buffer });
+    if (htmlResult.value && htmlResult.value.trim()) {
+      return formatMammothHtmlToText(htmlResult.value);
+    }
+  } catch {}
   const result = await mammoth.extractRawText({ buffer });
   return result.value || '';
 });

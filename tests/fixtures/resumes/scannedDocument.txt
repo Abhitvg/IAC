@@ -1,0 +1,8 @@
+John Doe
+Resume Scan Page 1
+Software Engineer
+Tel: 555-0123
+Email: john.doe@scanmail.com
+Skills: Java, C++, SQL
+Acme Corp | Engineer | 2020 - 2022
+Built database modules.

@@ -305,45 +305,62 @@ export class CanonicalProfileService {
         updated.identity.location = result.personalProfile.location;
         this.recordFact('identity.location', 'identity', result.personalProfile.location, sourceLabel, 'RESUME_REPORTED', false);
       }
-      if (result.personalProfile.githubUrl || result.personalProfile.linkedinUrl) {
+      if (result.personalProfile.githubUrl || result.personalProfile.linkedinUrl || result.personalProfile.portfolioUrl || (result.personalProfile.otherLinks && result.personalProfile.otherLinks.length > 0)) {
         updated.identity.links = {
           ...updated.identity.links,
           github: result.personalProfile.githubUrl || updated.identity.links.github,
           linkedin: result.personalProfile.linkedinUrl || updated.identity.links.linkedin,
+          portfolio: result.personalProfile.portfolioUrl || updated.identity.links.portfolio,
+          other: Array.from(new Set([...(updated.identity.links.other || []), ...(result.personalProfile.otherLinks || [])])),
         };
       }
     }
 
-    // Skills: No invented yearsUsed or proficiency
+    // Skills: 14 categories, zero invented yearsUsed or proficiency
     if (result.skills) {
-      const allExtractedSkills = [
-        ...(result.skills.languages || []),
-        ...(result.skills.frameworks || []),
-        ...(result.skills.databases || []),
-        ...(result.skills.cloud || []),
-        ...(result.skills.messaging || []),
-        ...(result.skills.devops || []),
-        ...(result.skills.tools || []),
-        ...(result.skills.architecture || []),
-        ...(result.skills.aiMl || []),
+      const categoryEntries: Array<[string, string[]]> = [
+        ['languages', result.skills.languages || []],
+        ['frontend', result.skills.frontend || []],
+        ['backend', result.skills.backend || []],
+        ['databases', result.skills.databases || []],
+        ['cloud', result.skills.cloud || []],
+        ['devops', result.skills.devops || []],
+        ['aiMl', result.skills.aiMl || []],
+        ['testing', result.skills.testing || []],
+        ['security', result.skills.security || []],
+        ['tools', result.skills.tools || []],
+        ['design', result.skills.design || []],
+        ['softSkills', result.skills.softSkills || []],
+        ['domainKnowledge', result.skills.domainKnowledge || []],
+        ['other', result.skills.other || []],
       ];
 
-      const existingSkillNames = new Set(updated.skills.map((s) => s.name.toLowerCase()));
-      for (const skillName of allExtractedSkills) {
-        if (!existingSkillNames.has(skillName.toLowerCase())) {
-          const newSkill: CandidateSkill = {
-            id: `skill_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            name: skillName,
-            proficiency: 'UNSPECIFIED', // Zero invented proficiency
-            experienceType: 'theoretical', // Resume mentions default to theoretical until linked to verified project
-            yearsUsed: undefined, // Zero invented years
-            projectReferences: [],
-            evidenceSource: sourceLabel,
-            status: 'RESUME_REPORTED',
-            candidateConfirmed: false,
-          };
-          updated.skills.push(newSkill);
-          this.recordFact(`skill:${skillName}`, 'skill', skillName, sourceLabel, 'RESUME_REPORTED', false);
+      const existingSkillMap = new Map(updated.skills.map((s) => [s.name.toLowerCase(), s]));
+      for (const [catName, skillList] of categoryEntries) {
+        for (const skillName of skillList) {
+          const norm = skillName.toLowerCase();
+          if (!existingSkillMap.has(norm)) {
+            const newSkill: CandidateSkill = {
+              id: `skill_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+              name: skillName,
+              category: catName,
+              proficiency: 'UNSPECIFIED', // Zero invented proficiency
+              experienceType: 'theoretical', // Resume mentions default to theoretical until linked to verified project
+              yearsUsed: undefined, // Zero invented years
+              projectReferences: [],
+              evidenceSource: sourceLabel,
+              status: 'RESUME_REPORTED',
+              candidateConfirmed: false,
+            };
+            updated.skills.push(newSkill);
+            existingSkillMap.set(norm, newSkill);
+            this.recordFact(`skill:${skillName}`, 'skill', skillName, sourceLabel, 'RESUME_REPORTED', false);
+          } else {
+            const existing = existingSkillMap.get(norm)!;
+            if (!existing.category) {
+              existing.category = catName;
+            }
+          }
         }
       }
     }
@@ -358,7 +375,7 @@ export class CanonicalProfileService {
             id: `edu_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
             institution: edu.institution,
             degree: edu.degree,
-            fieldOfStudy: edu.department || '',
+            fieldOfStudy: edu.department || edu.specialization || '',
             startDate: edu.startDate,
             endDate: edu.endDate,
             grade: edu.gradeGpa,
@@ -387,7 +404,7 @@ export class CanonicalProfileService {
             responsibilities: exp.responsibilities || [],
             personallyImplemented: [], // Invariant: Raw resume bullets are unverified
             teamContributions: [],
-            leadershipResponsibilities: [],
+            leadershipResponsibilities: exp.ownershipClaims || [],
             outcomesAndMetrics: exp.metrics || [],
             technologiesUsed: exp.technologies || [],
             missingOrUncertainFacts: ['Personal implementation ownership unconfirmed'],
@@ -410,11 +427,11 @@ export class CanonicalProfileService {
             name: proj.name,
             description: proj.description || '',
             repositoryUrl: proj.repositoryUrl,
-            projectUrl: proj.documentationUrl,
+            projectUrl: proj.projectUrl || proj.documentationUrl,
             ownership: 'UNKNOWN', // Zero invented authorship
-            exactContribution: '',
+            exactContribution: proj.exactContribution || '',
             technologyStack: proj.technologies || [],
-            deploymentStatus: 'UNKNOWN',
+            deploymentStatus: proj.deploymentStatus || 'UNKNOWN',
             outcomes: proj.outcomes || [],
             evidenceReferences: [sourceLabel],
             status: 'RESUME_REPORTED',
@@ -426,9 +443,47 @@ export class CanonicalProfileService {
       }
     }
 
-    // Achievements
+    // Certifications & Achievements
+    const existingAchievements = new Set(updated.achievements.map((a) => a.title.toLowerCase()));
+
+    if (result.certifications && result.certifications.length > 0) {
+      for (const cert of result.certifications) {
+        if (!existingAchievements.has(cert.name.toLowerCase())) {
+          const newCert: CandidateAchievement = {
+            id: cert.id || `cert_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            title: cert.name,
+            category: 'certification',
+            issuerOrPublisher: cert.issuer,
+            evidenceUrlOrRef: cert.url,
+            status: 'RESUME_REPORTED',
+            candidateConfirmed: false,
+          };
+          updated.achievements.push(newCert);
+          existingAchievements.add(cert.name.toLowerCase());
+          this.recordFact(`certification:${cert.name}`, 'achievement', cert.name, sourceLabel, 'RESUME_REPORTED', false);
+        }
+      }
+    }
+
+    if (result.publications && result.publications.length > 0) {
+      for (const pub of result.publications) {
+        if (!existingAchievements.has(pub.title.toLowerCase())) {
+          const newPub: CandidateAchievement = {
+            id: pub.id || `pub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            title: pub.title,
+            category: 'publication',
+            evidenceUrlOrRef: pub.url,
+            status: 'RESUME_REPORTED',
+            candidateConfirmed: false,
+          };
+          updated.achievements.push(newPub);
+          existingAchievements.add(pub.title.toLowerCase());
+          this.recordFact(`publication:${pub.title}`, 'achievement', pub.title, sourceLabel, 'RESUME_REPORTED', false);
+        }
+      }
+    }
+
     if (result.achievements && result.achievements.length > 0) {
-      const existingAchievements = new Set(updated.achievements.map((a) => a.title.toLowerCase()));
       for (const ach of result.achievements) {
         if (!existingAchievements.has(ach.headline.toLowerCase())) {
           const newAch: CandidateAchievement = {
@@ -440,6 +495,7 @@ export class CanonicalProfileService {
             candidateConfirmed: false,
           };
           updated.achievements.push(newAch);
+          existingAchievements.add(ach.headline.toLowerCase());
           this.recordFact(`achievement:${ach.headline}`, 'achievement', ach.headline, sourceLabel, 'RESUME_REPORTED', false);
         }
       }
