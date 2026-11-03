@@ -37,7 +37,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Arrays",
-      "ciuSectionReference": "jwasham/coding-interview-university#arrays",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#arrays",
       "referenceNotes": "CLRS Chapter 10 (Elementary Data Structures)",
       "iacAdditionNote": "Expanded with migrated sliding window and Kadane key concepts from GFG_CODING_PATTERNS"
     },
@@ -45,33 +45,36 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
     "concepts": [
       {
         "text": "Contiguous memory allocation, byte indexing, and cache line locality",
-        "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#arrays_strings"
+        "provenance": "general_cs",
+        "sourceReference": "Cormen, Leiserson, Rivest, Stein. Introduction to Algorithms (3rd ed., MIT Press, 2009), Chapter 10.1; Hennessy & Patterson. Computer Architecture (6th ed., 2017)"
       },
       {
         "text": "Dynamic array doubling strategy providing amortized O(1) append",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#arrays_strings"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#arrays"
       },
       {
         "text": "Two-pointer inward contraction and outward expansion techniques",
         "provenance": "other",
-        "sourceReference": "GFG_CODING_PATTERNS (migrated)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CODING_PATTERNS)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Dynamic sliding window state maintenance using frequency tables",
         "provenance": "other",
-        "sourceReference": "GFG_CODING_PATTERNS (migrated)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CODING_PATTERNS)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Kadane algorithm for maximum contiguous subarray in O(N) time and O(1) space",
         "provenance": "other",
-        "sourceReference": "GFG_CODING_PATTERNS (migrated); Bentley Programming Pearls (1984)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CODING_PATTERNS); Bentley, J. Programming Pearls, CACM (1984)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "String immutability tradeoffs, StringBuilder buffers, and prefix arrays",
-        "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#arrays_strings"
+        "provenance": "general_cs",
+        "sourceReference": "Standard computer science runtime semantics (String immutability and dynamic string buffers)"
       }
     ]
   },
@@ -112,7 +115,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Linked Lists",
-      "ciuSectionReference": "jwasham/coding-interview-university#linked-lists",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#linked-lists",
       "referenceNotes": "CLRS Chapter 10.2 (Linked lists)",
       "iacAdditionNote": "Integrated Floyd cycle detection and doubly-linked sentinel caches from GFG_CODING_PATTERNS"
     },
@@ -121,27 +124,28 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Node structure with data and successor/predecessor pointer links",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#linked_lists"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#linked-lists"
       },
       {
         "text": "In-place reversal via iterative three-pointer sliding window (prev, curr, next)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#linked_lists"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#linked-lists"
       },
       {
         "text": "Floyd cycle detection (tortoise and hare) and cycle entry point calculation",
         "provenance": "other",
-        "sourceReference": "GFG_CODING_PATTERNS (migrated); Floyd (1967)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CODING_PATTERNS); Floyd, R. W. (1967)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Doubly linked lists with sentinel head and tail nodes for O(1) arbitrary deletion",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#linked_lists"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#linked-lists"
       },
       {
         "text": "Memory overhead of pointer metadata compared to contiguous arrays",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#linked_lists"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#linked-lists"
       }
     ]
   },
@@ -184,7 +188,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Stack & Queue",
-      "ciuSectionReference": "jwasham/coding-interview-university#stack and #queue",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#stack",
       "referenceNotes": "CLRS Chapter 10.1 (Stacks and queues)",
       "iacAdditionNote": "Added monotonic queue/stack patterns from GFG_CODING_PATTERNS"
     },
@@ -193,27 +197,28 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "LIFO stack semantics and call-stack frame simulation",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#stacks_queues"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#stack"
       },
       {
         "text": "FIFO queue semantics and bounded circular buffer pointer wraparound",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#stacks_queues"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#stack"
       },
       {
         "text": "Monotonic stack invariants for nearest greater/smaller element queries in O(N)",
         "provenance": "other",
-        "sourceReference": "GFG_CODING_PATTERNS (migrated)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CODING_PATTERNS)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Two-stack queue construction with amortized O(1) enqueue and dequeue",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#stacks_queues"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#stack"
       },
       {
         "text": "Deque (double-ended queue) representation and sliding window maximum",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#stacks_queues"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#stack"
       }
     ]
   },
@@ -255,7 +260,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Hash table",
-      "ciuSectionReference": "jwasham/coding-interview-university#hash-table",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#hash-table",
       "referenceNotes": "CLRS Chapter 11 (Hash Tables)",
       "iacAdditionNote": "Expanded collision resolution mechanics and load-factor management"
     },
@@ -264,27 +269,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Deterministic uniform hashing and modulo table indexing",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#hash_tables"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#hash-table"
       },
       {
         "text": "Collision resolution via separate chaining (linked lists or self-balancing trees)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#hash_tables"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#hash-table"
       },
       {
         "text": "Open addressing strategies: linear probing, quadratic probing, and double hashing",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#hash_tables"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#hash-table"
       },
       {
         "text": "Primary and secondary clustering phenomena in open addressing",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#hash_tables"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#hash-table"
       },
       {
         "text": "Load factor thresholds, tombstone markers for deletion, and O(N) dynamic rehashing",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#hash_tables"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#hash-table"
       }
     ]
   },
@@ -327,7 +332,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Trees",
-      "ciuSectionReference": "jwasham/coding-interview-university#trees and #binary-search-trees",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#trees",
       "referenceNotes": "CLRS Chapters 12 (BST) and 13 (Red-Black Trees)",
       "iacAdditionNote": "Preserved BST invariant range checks and LCA properties from GFG_CODING_PATTERNS"
     },
@@ -336,27 +341,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Binary tree recursive definitions, height, depth, and diameter calculations",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#trees_bst"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#trees"
       },
       {
         "text": "In-order traversal yielding monotonic sorted sequences for BSTs",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#trees_bst"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#trees"
       },
       {
         "text": "BST insertion, lookup, and deletion (handling two-child node replacement with successor)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#trees_bst"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#trees"
       },
       {
         "text": "Self-balancing tree guarantees (AVL height-balance rotations, Red-Black color invariants)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#trees_bst"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#trees"
       },
       {
         "text": "Lowest Common Ancestor (LCA) in general binary trees and BSTs",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#trees_bst"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#trees"
       }
     ]
   },
@@ -398,7 +403,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Binary search tree & Heaps",
-      "ciuSectionReference": "jwasham/coding-interview-university#heap--priority-queue--binary-heap",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#heap--priority-queue--binary-heap",
       "referenceNotes": "CLRS Chapter 6 (Heapsort / Priority Queues)",
       "iacAdditionNote": "Preserved two-heap running median and heapification mechanics from GFG_CODING_PATTERNS"
     },
@@ -407,27 +412,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Zero-indexed array representation: left child = 2i + 1, right child = 2i + 2, parent = floor((i - 1)/2)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#heaps"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#heap--priority-queue--binary-heap"
       },
       {
         "text": "Sift-up and sift-down operations maintaining heap-order property in O(log N)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#heaps"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#heap--priority-queue--binary-heap"
       },
       {
         "text": "Linear-time bottom-up heap construction (buildHeap in O(N))",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#heaps"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#heap--priority-queue--binary-heap"
       },
       {
         "text": "Top-K element tracking with bounded min-heap in O(N log K)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#heaps"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#heap--priority-queue--binary-heap"
       },
       {
         "text": "Dual-heap partition (max-heap for lower half, min-heap for upper half) for O(1) streaming median",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#heaps"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#heap--priority-queue--binary-heap"
       }
     ]
   },
@@ -469,7 +474,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Tries",
-      "ciuSectionReference": "jwasham/coding-interview-university#tries",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#tries",
       "referenceNotes": "Algorithms (Sedgewick & Wayne) Chapter 5.2",
       "iacAdditionNote": "Preserved Trie prefix matching patterns from GFG_CODING_PATTERNS"
     },
@@ -478,27 +483,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Trie node alphabet branching maps and terminal word indicators",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#tries"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#tries"
       },
       {
         "text": "Prefix search and full-word lookup in O(L) time where L is word length",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#tries"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#tries"
       },
       {
         "text": "Space-saving variants: compressed tries (radix trees / Patricia tries)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#tries"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#tries"
       },
       {
         "text": "Bitwise tries for maximum XOR subarray complement searches",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#tries"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#tries"
       },
       {
         "text": "Wildcard search and prefix autocomplete exploration via recursive traversal",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#tries"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#tries"
       }
     ]
   },
@@ -541,7 +546,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Graphs",
-      "ciuSectionReference": "jwasham/coding-interview-university#graphs",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#graphs",
       "referenceNotes": "CLRS Chapter 22 (Elementary Graph Algorithms)",
       "iacAdditionNote": "Incorporated DSU path compression and rank heuristics from GFG_CODING_PATTERNS"
     },
@@ -550,27 +555,28 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Adjacency list (sparse graph space O(V + E)) vs Adjacency matrix (dense graph O(V^2))",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#graphs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#graphs"
       },
       {
         "text": "Degree, connectivity, components, and DAG (Directed Acyclic Graph) invariants",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#graphs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#graphs"
       },
       {
         "text": "Disjoint Set Union (Union-Find) with path compression and union-by-rank in alpha(N) amortized time",
         "provenance": "other",
-        "sourceReference": "GFG_CODING_PATTERNS (migrated); Tarjan (1975)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CODING_PATTERNS); Tarjan, R. E. (1975)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Bipartite graph verification using 2-color BFS/DFS",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#graphs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#graphs"
       },
       {
         "text": "Transpose graph construction for strongly connected component discovery",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#graphs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#graphs"
       }
     ]
   },
@@ -618,27 +624,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "HashSet / HashMap using hashing with O(1) average lookup and no order guarantees",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Cormen, Leiserson, Rivest, Stein. Introduction to Algorithms (3rd ed., MIT Press, 2009), Chapter 11 (Hash Tables)"
       },
       {
         "text": "TreeSet / TreeMap backed by Red-Black trees with O(log N) lookup and ordered key iteration",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Cormen, Leiserson, Rivest, Stein. Introduction to Algorithms (3rd ed., MIT Press, 2009), Chapter 11 (Hash Tables)"
       },
       {
         "text": "Set mathematical operations: union, intersection, difference, and subset checks",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Cormen, Leiserson, Rivest, Stein. Introduction to Algorithms (3rd ed., MIT Press, 2009), Chapter 11 (Hash Tables)"
       },
       {
         "text": "Key immutability requirements (mutating key hashcode breaks map retrieval)",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Cormen, Leiserson, Rivest, Stein. Introduction to Algorithms (3rd ed., MIT Press, 2009), Chapter 11 (Hash Tables)"
       },
       {
         "text": "Concurrent collections and bucket-level striping vs global locks",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Cormen, Leiserson, Rivest, Stein. Introduction to Algorithms (3rd ed., MIT Press, 2009), Chapter 11 (Hash Tables)"
       }
     ]
   },
@@ -676,7 +682,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Algorithmic complexity / Big-O / Asymptotic analysis",
-      "ciuSectionReference": "jwasham/coding-interview-university#algorithmic-complexity--big-o--asymptotic-analysis",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#algorithmic-complexity--big-o--asymptotic-analysis",
       "referenceNotes": "CLRS Chapter 3 (Growth of Functions)",
       "iacAdditionNote": "Preserved Big-O interview best practices from GFG_CODING_PATTERNS"
     },
@@ -685,27 +691,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Asymptotic growth rates: O(1), O(log N), O(N), O(N log N), O(N^2), O(2^N), O(N!)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#big_o"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#algorithmic-complexity--big-o--asymptotic-analysis"
       },
       {
         "text": "Worst-case, average-case, and best-case performance distinctions",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#big_o"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#algorithmic-complexity--big-o--asymptotic-analysis"
       },
       {
         "text": "Auxiliary space vs total space complexity (including recursion call stack frames)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#big_o"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#algorithmic-complexity--big-o--asymptotic-analysis"
       },
       {
         "text": "Amortized analysis using aggregate, accounting, and potential methods",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#big_o"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#algorithmic-complexity--big-o--asymptotic-analysis"
       },
       {
         "text": "Master theorem for divide-and-conquer recurrences: T(N) = aT(N/b) + f(N)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#big_o"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#algorithmic-complexity--big-o--asymptotic-analysis"
       }
     ]
   },
@@ -746,7 +752,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Binary search",
-      "ciuSectionReference": "jwasham/coding-interview-university#binary-search",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#binary-search",
       "referenceNotes": "CLRS Chapter 2 (Getting Started)",
       "iacAdditionNote": "Incorporated binary search on solution space from GFG_CODING_PATTERNS"
     },
@@ -755,27 +761,28 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Mid-point computation without integer overflow: mid = low + floor((high - low) / 2)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#binary_search"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#binary-search"
       },
       {
         "text": "Boundary update invariants: closed intervals [low, high] vs half-open [low, high)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#binary_search"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#binary-search"
       },
       {
         "text": "Lower bound (first index where val >= target) and upper bound (first index where val > target)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#binary_search"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#binary-search"
       },
       {
         "text": "Binary search on answer/solution space (optimizing a monotonic feasibility predicate)",
         "provenance": "other",
-        "sourceReference": "GFG_CODING_PATTERNS (migrated)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CODING_PATTERNS)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Search in rotated sorted arrays with discontinuity detection",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#binary_search"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#binary-search"
       }
     ]
   },
@@ -817,7 +824,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Sorting",
-      "ciuSectionReference": "jwasham/coding-interview-university#sorting",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#sorting",
       "referenceNotes": "CLRS Chapters 7 (Quicksort) and 8 (Sorting in Linear Time)",
       "iacAdditionNote": "Expanded with Dutch National Flag 3-way partitioning and stability analysis"
     },
@@ -826,27 +833,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Stability definition: preserving relative input order of identical key records",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#sorting"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#sorting"
       },
       {
         "text": "Merge Sort: guaranteed O(N log N) time, stable, auxiliary space O(N)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#sorting"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#sorting"
       },
       {
         "text": "Quick Sort: in-place Lomuto/Hoare partitioning, O(N log N) average, O(N^2) worst-case with poor pivots",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#sorting"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#sorting"
       },
       {
         "text": "Median-of-three pivot selection and 3-way Dutch National Flag partitioning for duplicate handling",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#sorting"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#sorting"
       },
       {
         "text": "Non-comparison integer sorting: Counting Sort O(N + K) and Radix Sort O(d * (N + K))",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#sorting"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#sorting"
       }
     ]
   },
@@ -887,7 +894,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Recursion",
-      "ciuSectionReference": "jwasham/coding-interview-university#recursion",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#recursion",
       "referenceNotes": "CLRS Chapter 4 (Divide-and-Conquer Recurrences)",
       "iacAdditionNote": "Standardized call-stack frame analysis and recursion tree visualization"
     },
@@ -896,27 +903,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Base cases preventing unbounded recursion and stack overflow errors",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#recursion"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#recursion"
       },
       {
         "text": "State progression towards termination invariants at each recursive invocation",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#recursion"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#recursion"
       },
       {
         "text": "Recursion tree visualization for branching factor and depth analysis",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#recursion"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#recursion"
       },
       {
         "text": "Call stack frame memory consumption O(depth) and stack overflow risks",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#recursion"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#recursion"
       },
       {
         "text": "Tail recursion transformation and iterative conversion techniques",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#recursion"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#recursion"
       }
     ]
   },
@@ -957,7 +964,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Recursion",
-      "ciuSectionReference": "jwasham/coding-interview-university#recursion",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#recursion",
       "referenceNotes": "Algorithm Design (Kleinberg & Tardos) Chapter 6",
       "iacAdditionNote": "Dedicated topic for constraint satisfaction and decision tree pruning"
     },
@@ -966,27 +973,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "State space decision tree traversal with three steps: make choice, recurse, undo choice (backtrack)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#backtracking"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#recursion"
       },
       {
         "text": "Pruning invalid candidate search branches early using bounding constraints",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#backtracking"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#recursion"
       },
       {
         "text": "Combinatorial generation: subsets, permutations, combinations, and partitions",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#backtracking"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#recursion"
       },
       {
         "text": "Constraint satisfaction problems (N-Queens, Sudoku solver, Word Search)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#backtracking"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#recursion"
       },
       {
         "text": "Time complexity estimation: O(K^N) or O(N!) bounded by effective pruning",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#backtracking"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#recursion"
       }
     ]
   },
@@ -1029,7 +1036,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Breadth-First Search",
-      "ciuSectionReference": "jwasham/coding-interview-university#breadth-first-search-bfs",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#breadth-first-search-bfs",
       "referenceNotes": "CLRS Chapter 22.2 (Breadth-first search)",
       "iacAdditionNote": "Included multi-source BFS and grid traversal mechanics from GFG_CODING_PATTERNS"
     },
@@ -1038,27 +1045,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "FIFO queue discipline exploring nodes in strict increasing order of distance from source",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#bfs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#breadth-first-search-bfs"
       },
       {
         "text": "Shortest path optimality property on unweighted graphs",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#bfs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#breadth-first-search-bfs"
       },
       {
         "text": "Level-by-level batch processing (tracking queue length at current depth)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#bfs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#breadth-first-search-bfs"
       },
       {
         "text": "Multi-source BFS initialization (pushing all start nodes before traversal)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#bfs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#breadth-first-search-bfs"
       },
       {
         "text": "Visited set tracking upon enqueue (not dequeue) to avoid duplicate queue insertions",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#bfs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#breadth-first-search-bfs"
       }
     ]
   },
@@ -1102,7 +1109,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Depth-First Search",
-      "ciuSectionReference": "jwasham/coding-interview-university#depth-first-search-dfs",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#depth-first-search-dfs",
       "referenceNotes": "CLRS Chapter 22.3 (Depth-first search)",
       "iacAdditionNote": "Incorporated three-state graph coloring and island counting patterns from GFG_CODING_PATTERNS"
     },
@@ -1111,27 +1118,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "LIFO traversal exploring path to terminal leaf before backtracking",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#dfs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#depth-first-search-dfs"
       },
       {
         "text": "Connected components counting in undirected graphs and matrix grids",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#dfs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#depth-first-search-dfs"
       },
       {
         "text": "Three-state coloring (white/unvisited, gray/visiting, black/visited) for directed cycle detection",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#dfs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#depth-first-search-dfs"
       },
       {
         "text": "Eulerian path and Hamiltonian path distinctions",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#dfs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#depth-first-search-dfs"
       },
       {
         "text": "Recursion call stack vs explicit stack implementation for deep trees",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#dfs"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#depth-first-search-dfs"
       }
     ]
   },
@@ -1173,7 +1180,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Greedy algorithms",
-      "ciuSectionReference": "jwasham/coding-interview-university#greedy-algorithms",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#greedy-algorithms",
       "referenceNotes": "CLRS Chapter 16 (Greedy Algorithms)",
       "iacAdditionNote": "Added interval scheduling and exchange argument verification"
     },
@@ -1182,27 +1189,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Greedy-choice property: global optimum achieved via locally optimal steps without backtracking",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#greedy"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#greedy-algorithms"
       },
       {
         "text": "Optimal substructure: optimal solution contains optimal solutions to subproblems",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#greedy"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#greedy-algorithms"
       },
       {
         "text": "Activity selection / interval scheduling by sorting endpoints",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#greedy"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#greedy-algorithms"
       },
       {
         "text": "Huffman optimal prefix coding and fractional knapsack problem",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#greedy"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#greedy-algorithms"
       },
       {
         "text": "Proving correctness via exchange arguments (showing no other choice can beat greedy choice)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#greedy"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#greedy-algorithms"
       }
     ]
   },
@@ -1244,7 +1251,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Dynamic Programming",
-      "ciuSectionReference": "jwasham/coding-interview-university#dynamic-programming",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#dynamic-programming",
       "referenceNotes": "CLRS Chapter 15 (Dynamic Programming)",
       "iacAdditionNote": "Preserved state reduction, knapsack, and LCS patterns from GFG_CODING_PATTERNS"
     },
@@ -1253,27 +1260,28 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Overlapping subproblems and optimal substructure identification",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#dynamic_programming"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#dynamic-programming"
       },
       {
         "text": "Top-down memoization (recursive caching) vs bottom-up tabulation (iterative state tables)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#dynamic_programming"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#dynamic-programming"
       },
       {
         "text": "State transition equations: defining dp[i] or dp[i][j] rigorously",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#dynamic_programming"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#dynamic-programming"
       },
       {
         "text": "Classical archetypes: 0/1 Knapsack, Longest Common Subsequence (LCS), Longest Increasing Subsequence (LIS), Matrix Chain Multiplication",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#dynamic_programming"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#dynamic-programming"
       },
       {
         "text": "Space reduction via rolling buffers (reducing O(N * M) auxiliary space to O(M) or O(1))",
         "provenance": "other",
-        "sourceReference": "GFG_CODING_PATTERNS (migrated); CLRS Chapter 15"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CODING_PATTERNS)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       }
     ]
   },
@@ -1315,7 +1323,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Divide and conquer",
-      "ciuSectionReference": "jwasham/coding-interview-university#divide-and-conquer",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#divide-and-conquer",
       "referenceNotes": "CLRS Chapter 4 (Divide-and-Conquer)",
       "iacAdditionNote": "Formalized divide-conquer-combine phases and Master Theorem application"
     },
@@ -1324,27 +1332,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Three phases: Divide into smaller subproblems, Conquer via recursion, Combine subproblem solutions",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#divide_and_conquer"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#divide-and-conquer"
       },
       {
         "text": "Independence of subproblems (contrasting with overlapping subproblems in Dynamic Programming)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#divide_and_conquer"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#divide-and-conquer"
       },
       {
         "text": "Solving recurrences via Master Theorem and substitution",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#divide_and_conquer"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#divide-and-conquer"
       },
       {
         "text": "Closest pair of points in 2D space in O(N log N) time",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#divide_and_conquer"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#divide-and-conquer"
       },
       {
         "text": "Fast exponentiation and Karatsuba integer multiplication",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#divide_and_conquer"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#divide-and-conquer"
       }
     ]
   },
@@ -1389,7 +1397,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Graphs",
-      "ciuSectionReference": "jwasham/coding-interview-university#graphs",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#graphs",
       "referenceNotes": "CLRS Chapters 23 (Minimum Spanning Trees) and 24 (Single-Source Shortest Paths)",
       "iacAdditionNote": "Preserved Dijkstra, Kahn in-degree, and DSU Kruskal from GFG_CODING_PATTERNS"
     },
@@ -1398,27 +1406,29 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Dijkstra shortest path algorithm with priority queues in O((V + E) log V)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#graph_algorithms"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#graphs"
       },
       {
         "text": "Negative weight edges and negative cycle detection using Bellman-Ford O(V * E)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#graph_algorithms"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#graphs"
       },
       {
         "text": "Kahn algorithm for topological sorting via in-degree tracking in O(V + E)",
         "provenance": "other",
-        "sourceReference": "GFG_CODING_PATTERNS (migrated); Kahn (1962)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CODING_PATTERNS); Kahn, A. B. Topological Sorting of Large Networks, CACM (1962)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Cycle detection via topological sort (incomplete ordering implies presence of cycle)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#graph_algorithms"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#graphs"
       },
       {
         "text": "Minimum Spanning Trees: Kruskal with Disjoint Set Union vs Prim with priority queues",
         "provenance": "other",
-        "sourceReference": "GFG_CODING_PATTERNS (migrated); Tarjan (1975)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CODING_PATTERNS); Tarjan, R. E. (1975)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       }
     ]
   },
@@ -1458,7 +1468,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Bit manipulation",
-      "ciuSectionReference": "jwasham/coding-interview-university#bit-manipulation",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#bit-manipulation",
       "referenceNotes": "Hacker's Delight (Henry S. Warren Jr.)",
       "iacAdditionNote": "Standardized bitmask operations and two complement arithmetic"
     },
@@ -1467,27 +1477,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Bitwise operations and truths: AND, OR, XOR (self-canceling property: x ^ x = 0), NOT",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#bit_manipulation"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#bit-manipulation"
       },
       {
         "text": "Bit shifting: arithmetic shift preserving sign vs logical shift filling zeros",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#bit_manipulation"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#bit-manipulation"
       },
       {
         "text": "Brian Kernighan algorithm for counting set bits: n = n & (n - 1) in O(set bits)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#bit_manipulation"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#bit-manipulation"
       },
       {
         "text": "Isolating lowest set bit: n & (-n) using two complement arithmetic",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#bit_manipulation"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#bit-manipulation"
       },
       {
         "text": "Bitmask state representation for compact subset and dynamic programming tracking",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#bit_manipulation"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#bit-manipulation"
       }
     ]
   },
@@ -1502,7 +1512,8 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "Process Control Block (PCB), process memory layout (text, data, BSS, heap, stack)",
       "Context switching overhead: register saving, program counter, and cache pollution",
       "Inter-Process Communication (IPC): pipes, shared memory, message queues, Unix domain sockets",
-      "CPU scheduling algorithms: Round Robin, Multi-Level Feedback Queues (MLFQ), and CFS"
+      "CPU scheduling algorithms: Round Robin, Multi-Level Feedback Queues (MLFQ), and CFS",
+      "Linux namespaces (pid, net, mnt) and cgroups for process container isolation"
     ],
     "prerequisites": [],
     "difficulty": "intermediate",
@@ -1525,7 +1536,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "general_cs",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Threads, Processes",
-      "ciuSectionReference": "jwasham/coding-interview-university#threads-processes",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#threads-processes",
       "referenceNotes": "Operating Systems: Three Easy Pieces (OSTEP); Remzi & Andrea Arpaci-Dusseau",
       "iacAdditionNote": "Preserved Linux process management and PCB models from GFG_CORE_CS_SUBJECTS and GFG_DEVOPS_KNOWLEDGE"
     },
@@ -1534,27 +1545,33 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Dual-mode operation: User mode vs privileged Kernel mode and trap/system call transitions",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Arpaci-Dusseau & Arpaci-Dusseau. Operating Systems: Three Easy Pieces (v1.10, 2023), Chapters 4-8 (Processes, Scheduling)"
       },
       {
         "text": "Process Control Block (PCB), process memory layout (text, data, BSS, heap, stack)",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Arpaci-Dusseau & Arpaci-Dusseau. Operating Systems: Three Easy Pieces (v1.10, 2023), Chapters 4-8 (Processes, Scheduling)"
       },
       {
         "text": "Context switching overhead: register saving, program counter, and cache pollution",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Arpaci-Dusseau & Arpaci-Dusseau. Operating Systems: Three Easy Pieces (v1.10, 2023), Chapters 4-8 (Processes, Scheduling)"
       },
       {
         "text": "Inter-Process Communication (IPC): pipes, shared memory, message queues, Unix domain sockets",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Arpaci-Dusseau & Arpaci-Dusseau. Operating Systems: Three Easy Pieces (v1.10, 2023), Chapters 4-8 (Processes, Scheduling)"
       },
       {
         "text": "CPU scheduling algorithms: Round Robin, Multi-Level Feedback Queues (MLFQ), and CFS",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Arpaci-Dusseau & Arpaci-Dusseau. Operating Systems: Three Easy Pieces (v1.10, 2023), Chapters 4-8 (Processes, Scheduling)"
+      },
+      {
+        "text": "Linux namespaces (pid, net, mnt) and cgroups for process container isolation",
+        "provenance": "other",
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_DEVOPS_KNOWLEDGE); Linux Kernel Documentation (cgroups-v2)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       }
     ]
   },
@@ -1594,7 +1611,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "general_cs",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Threads & Processes",
-      "ciuSectionReference": "jwasham/coding-interview-university#threads-processes",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#threads-processes",
       "referenceNotes": "The Art of Multiprocessor Programming; Herlihy & Shavit",
       "iacAdditionNote": "Preserved deadlock conditions and mutual exclusion from GFG_CORE_CS_SUBJECTS"
     },
@@ -1602,28 +1619,29 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
     "concepts": [
       {
         "text": "Threads sharing process address space while maintaining independent stacks and program counters",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#threads-processes"
       },
       {
         "text": "Race conditions and critical section protection via mutual exclusion",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#threads-processes"
       },
       {
         "text": "Synchronization primitives: Mutexes vs Counting Semaphores vs Condition Variables",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#threads-processes"
       },
       {
         "text": "Coffman four deadlock conditions: Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait",
         "provenance": "other",
-        "sourceReference": "GFG_CORE_CS_SUBJECTS (migrated); Coffman et al. (1971)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CORE_CS_SUBJECTS); Coffman, Elphick, Shoshani. System Deadlocks, Computing Surveys (1971)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Atomic operations, compare-and-swap (CAS), and lock-free data structures",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#threads-processes"
       }
     ]
   },
@@ -1663,7 +1681,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "general_cs",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Memory management",
-      "ciuSectionReference": "jwasham/coding-interview-university#memory-management",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#memory-management",
       "referenceNotes": "Operating Systems: Three Easy Pieces (OSTEP) Virtualization chapters",
       "iacAdditionNote": "Preserved virtual memory, paging, and TLB concepts from GFG_CORE_CS_SUBJECTS"
     },
@@ -1672,27 +1690,28 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Virtual memory abstraction isolating processes and enabling overcommitment",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Arpaci-Dusseau & Arpaci-Dusseau. Operating Systems: Three Easy Pieces (v1.10, 2023), Chapters 18-20 (Paging, TLBs)"
       },
       {
         "text": "Address translation via multi-level Page Tables and Memory Management Unit (MMU)",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Arpaci-Dusseau & Arpaci-Dusseau. Operating Systems: Three Easy Pieces (v1.10, 2023), Chapters 18-20 (Paging, TLBs)"
       },
       {
         "text": "Translation Lookaside Buffer (TLB) caching and TLB shootdown penalties",
         "provenance": "other",
-        "sourceReference": "GFG_CORE_CS_SUBJECTS (migrated); OSTEP Chapter 19"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CORE_CS_SUBJECTS); Arpaci-Dusseau & Arpaci-Dusseau. Operating Systems: Three Easy Pieces (v1.10, 2023), Chapter 19",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Page fault workflow: trap to kernel, disk fetch from swap/backing file, frame mapping, resume",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Arpaci-Dusseau & Arpaci-Dusseau. Operating Systems: Three Easy Pieces (v1.10, 2023), Chapters 18-20 (Paging, TLBs)"
       },
       {
         "text": "Heap allocation fragmentation: internal vs external fragmentation, free lists, buddy allocators",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Arpaci-Dusseau & Arpaci-Dusseau. Operating Systems: Three Easy Pieces (v1.10, 2023), Chapters 18-20 (Paging, TLBs)"
       }
     ]
   },
@@ -1730,7 +1749,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "general_cs",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Networking",
-      "ciuSectionReference": "jwasham/coding-interview-university#networking",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#networking",
       "referenceNotes": "Computer Networking: A Top-Down Approach (Kurose & Ross)",
       "iacAdditionNote": "Preserved computer networking fundamentals from GFG_CORE_CS_SUBJECTS"
     },
@@ -1738,28 +1757,28 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
     "concepts": [
       {
         "text": "Encapsulation and decapsulation across Physical, Data Link, Network, Transport, and Application layers",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#networking"
       },
       {
         "text": "IP routing: subnet masks, CIDR notation, NAT, and BGP/OSPF overview",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#networking"
       },
       {
         "text": "DNS resolution hierarchy: Root, TLD, Authoritative servers, and recursive resolvers",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#networking"
       },
       {
         "text": "Socket API workflow: socket, bind, listen, accept, connect, send, recv",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#networking"
       },
       {
         "text": "TCP vs UDP tradeoffs: reliable byte stream vs low-latency datagram transport",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#networking"
       }
     ]
   },
@@ -1801,7 +1820,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "general_cs",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Networking",
-      "ciuSectionReference": "jwasham/coding-interview-university#networking",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#networking",
       "referenceNotes": "RFC 9110 (HTTP Semantics), RFC 9113 (HTTP/2), RFC 9000 (QUIC)",
       "iacAdditionNote": "Preserved HTTP protocol evolution, head-of-line blocking, and TCP congestion from GFG_WEB_TECHNOLOGY and GFG_CORE_CS_SUBJECTS"
     },
@@ -1810,32 +1829,33 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "TCP 3-way handshake (SYN, SYN-ACK, ACK) and 4-way connection teardown (FIN, ACK, TIME_WAIT)",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "RFC 9110 (HTTP Semantics), RFC 9113 (HTTP/2), RFC 9000 (QUIC); Kurose & Ross (7th ed., 2016), Chapter 3"
       },
       {
         "text": "TCP congestion control: slow start, congestion avoidance, fast retransmit, and fast recovery",
         "provenance": "other",
-        "sourceReference": "GFG_CORE_CS_SUBJECTS (migrated); RFC 5681 (TCP Congestion Control)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CORE_CS_SUBJECTS); RFC 5681: TCP Congestion Control (2009)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "TLS 1.3 cryptographic handshake: key exchange, digital certificates, forward secrecy",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "RFC 9110 (HTTP Semantics), RFC 9113 (HTTP/2), RFC 9000 (QUIC); Kurose & Ross (7th ed., 2016), Chapter 3"
       },
       {
         "text": "HTTP/1.1 head-of-line blocking and keep-alive connection reuse",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "RFC 9110 (HTTP Semantics), RFC 9113 (HTTP/2), RFC 9000 (QUIC); Kurose & Ross (7th ed., 2016), Chapter 3"
       },
       {
         "text": "HTTP/2 binary framing and stream multiplexing over a single TCP connection",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "RFC 9110 (HTTP Semantics), RFC 9113 (HTTP/2), RFC 9000 (QUIC); Kurose & Ross (7th ed., 2016), Chapter 3"
       },
       {
         "text": "HTTP/3 QUIC protocol running over UDP to eliminate transport-layer head-of-line blocking",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "RFC 9110 (HTTP Semantics), RFC 9113 (HTTP/2), RFC 9000 (QUIC); Kurose & Ross (7th ed., 2016), Chapter 3"
       }
     ]
   },
@@ -1876,7 +1896,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "general_cs",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Databases",
-      "ciuSectionReference": "jwasham/coding-interview-university#databases",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#databases",
       "referenceNotes": "Database System Concepts (Silberschatz); Designing Data-Intensive Applications (Kleppmann)",
       "iacAdditionNote": "Preserved B+ Tree indexing and WAL recovery from GFG_CORE_CS_SUBJECTS"
     },
@@ -1885,27 +1905,29 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Disk-oriented storage engine layout: pages, slotted pages, and row tuple formats",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Silberschatz, Korth, Sudarshan. Database System Concepts (7th ed., McGraw-Hill, 2019), Chapters 11-13"
       },
       {
         "text": "B+ Tree storage: balanced search tree with high fan-out, root-to-leaf paths, and sequential leaf pointers",
         "provenance": "other",
-        "sourceReference": "GFG_CORE_CS_SUBJECTS (migrated); Comer B-Tree Survey (1979)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CORE_CS_SUBJECTS); Comer, D. The Ubiquitous B-Tree, ACM Computing Surveys (1979)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Clustered indexes (table ordered physically by key) vs secondary non-clustered indexes",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Silberschatz, Korth, Sudarshan. Database System Concepts (7th ed., McGraw-Hill, 2019), Chapters 11-13"
       },
       {
         "text": "Buffer pool caching: LRU eviction, dirty page flushing, and checkpointing",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Silberschatz, Korth, Sudarshan. Database System Concepts (7th ed., McGraw-Hill, 2019), Chapters 11-13"
       },
       {
         "text": "Write-Ahead Logging (WAL) and ARIES recovery protocol ensuring crash durability",
         "provenance": "other",
-        "sourceReference": "GFG_CORE_CS_SUBJECTS (migrated); Mohan et al. ARIES (1992)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CORE_CS_SUBJECTS); Mohan et al. ARIES: A Transaction Recovery Method, TODS (1992)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       }
     ]
   },
@@ -1947,7 +1969,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "general_cs",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Databases",
-      "ciuSectionReference": "jwasham/coding-interview-university#databases",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#databases",
       "referenceNotes": "Principles of Transaction Processing (Bernstein & Newcomer); DDIA Chapter 7",
       "iacAdditionNote": "Preserved transaction isolation levels and concurrency phenomena from GFG_CORE_CS_SUBJECTS"
     },
@@ -1956,27 +1978,28 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "ACID properties: Atomicity (all-or-nothing), Consistency (invariants), Isolation (concurrency), Durability (persisted)",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Silberschatz et al. Database System Concepts (7th ed., 2019), Chapters 14-15; Kleppmann, M. DDIA (1st ed., 2017), Chapter 7"
       },
       {
         "text": "Concurrency anomalies: Dirty Reads, Non-Repeatable Reads, Phantom Reads, and Write Skew",
         "provenance": "other",
-        "sourceReference": "GFG_CORE_CS_SUBJECTS (migrated); Berenson et al. ANSI SQL-92 Critique (1995)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CORE_CS_SUBJECTS); Berenson et al. A Critique of ANSI SQL Isolation Levels, ACM SIGMOD (1995)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "ANSI SQL Isolation Levels: Read Uncommitted, Read Committed, Repeatable Read, Serializable",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Silberschatz et al. Database System Concepts (7th ed., 2019), Chapters 14-15; Kleppmann, M. DDIA (1st ed., 2017), Chapter 7"
       },
       {
         "text": "Two-Phase Locking (2PL) and Strict 2PL for pessimistic serializability",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Silberschatz et al. Database System Concepts (7th ed., 2019), Chapters 14-15; Kleppmann, M. DDIA (1st ed., 2017), Chapter 7"
       },
       {
         "text": "Multi-Version Concurrency Control (MVCC) enabling readers to not block writers and writers to not block readers",
         "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "sourceReference": "Silberschatz et al. Database System Concepts (7th ed., 2019), Chapters 14-15; Kleppmann, M. DDIA (1st ed., 2017), Chapter 7"
       }
     ]
   },
@@ -2019,7 +2042,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "System design, scalability, data handling",
-      "ciuSectionReference": "jwasham/coding-interview-university#system-design-scalability-data-handling",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling",
       "referenceNotes": "Designing Data-Intensive Applications; Cache-aside and invalidation patterns",
       "iacAdditionNote": "Preserved Cache-Aside, Write-Through, and CDN caching patterns from GFG_WEB_TECHNOLOGY"
     },
@@ -2028,27 +2051,28 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Multi-level caching hierarchy and latency numbers every engineer should know (L1 vs RAM vs NVMe vs Network)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Cache access patterns: Cache-Aside (Lazy Loading), Read-Through, Write-Through, Write-Back (Write-Behind)",
         "provenance": "other",
-        "sourceReference": "GFG_WEB_TECHNOLOGY (migrated); Microsoft Cloud Design Patterns"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_WEB_TECHNOLOGY); Microsoft Cloud Design Patterns: Cache-Aside",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Eviction algorithms: Least Recently Used (LRU), Least Frequently Used (LFU), First In First Out (FIFO)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Cache Stampede / Thundering Herd and mitigation via mutex locking or probabilistic early expiration",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Cache Penetration, Cache Breakdown, and Cache Avalanche failure modes and defenses",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       }
     ]
   },
@@ -2091,7 +2115,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "System design, scalability, data handling",
-      "ciuSectionReference": "jwasham/coding-interview-university#system-design-scalability-data-handling",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling",
       "referenceNotes": "Designing Data-Intensive Applications (Kleppmann)",
       "iacAdditionNote": "Preserved event-driven architectures and distributed storage models from GFG_WEB_TECHNOLOGY and GFG_CORE_CS_SUBJECTS"
     },
@@ -2100,27 +2124,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Fallacies of distributed computing (network is reliable, latency is zero, bandwidth is infinite)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "CAP Theorem (Consistency, Availability, Partition Tolerance) and PACELC extension for latency/consistency",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Data replication models: Single-Leader, Multi-Leader, Leaderless (Dynamo-style quorum: W + R > N)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Data partitioning / sharding: range-based vs consistent hashing with virtual nodes",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Distributed consensus essentials: Raft leader election, log replication, and split-brain prevention",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       }
     ]
   },
@@ -2158,7 +2182,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "general_cs",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Testing",
-      "ciuSectionReference": "jwasham/coding-interview-university#testing",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#testing",
       "referenceNotes": "Google Software Engineering at Scale; Continuous Delivery (Humble & Farley)",
       "iacAdditionNote": "Preserved OpenTelemetry distributed tracing and reliability engineering from GFG_DEVOPS_KNOWLEDGE"
     },
@@ -2167,27 +2191,29 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Testing pyramid: high-volume unit tests, integration boundaries, minimal flaky E2E tests",
         "provenance": "other",
-        "sourceReference": "GFG_CORE_CS_SUBJECTS (migrated); Mohan et al. ARIES (1992)"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_CORE_CS_SUBJECTS); Mohan et al. ARIES: A Transaction Recovery Method, TODS (1992)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Test doubles: dummies, stubs, spies, mocks, and fakes",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#testing"
       },
       {
         "text": "Boundary value analysis and property-based fuzz testing",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#testing"
       },
       {
         "text": "Distributed tracing using OpenTelemetry, trace IDs, and span context propagation",
         "provenance": "other",
-        "sourceReference": "GFG_DEVOPS_KNOWLEDGE (migrated); W3C Trace Context Recommendation"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_DEVOPS_KNOWLEDGE); W3C Trace Context Recommendation (2020)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Root cause analysis (RCA), blameless postmortems, and regression test guards",
-        "provenance": "general_cs",
-        "sourceReference": "Standard Academic CS Curriculum (CLRS, OSTEP, Kurose & Ross, Silberschatz)"
+        "provenance": "ciu_derived",
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#testing"
       }
     ]
   },
@@ -2226,7 +2252,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Design patterns",
-      "ciuSectionReference": "jwasham/coding-interview-university#design-patterns",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#design-patterns",
       "referenceNotes": "Design Patterns: Elements of Reusable Object-Oriented Software (GoF)",
       "iacAdditionNote": "Expanded with composition over inheritance and vtable dispatch concepts"
     },
@@ -2235,27 +2261,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Four OOP pillars: Encapsulation, Abstraction, Polymorphism (dynamic dispatch), Inheritance",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#design-patterns"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#design-patterns"
       },
       {
         "text": "Composition over inheritance principle preventing fragile base class hierarchies",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#design-patterns"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#design-patterns"
       },
       {
         "text": "Creational patterns: Factory Method, Abstract Factory, Builder, Singleton",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#design-patterns"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#design-patterns"
       },
       {
         "text": "Structural patterns: Adapter, Decorator, Facade, Composite, Proxy",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#design-patterns"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#design-patterns"
       },
       {
         "text": "Behavioral patterns: Strategy, Observer, Command, State, Template Method",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#design-patterns"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#design-patterns"
       }
     ]
   },
@@ -2296,7 +2322,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "Design patterns",
-      "ciuSectionReference": "jwasham/coding-interview-university#design-patterns",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#design-patterns",
       "referenceNotes": "Clean Architecture: A Craftsman Guide to Software Structure and Design (Robert C. Martin)",
       "iacAdditionNote": "Dedicated topic with concrete violation patterns and refactoring criteria"
     },
@@ -2305,27 +2331,27 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Single Responsibility Principle (SRP): one reason to change, high cohesion",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#design-patterns"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#design-patterns"
       },
       {
         "text": "Open/Closed Principle (OCP): open for extension, closed for modification via polymorphism",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#design-patterns"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#design-patterns"
       },
       {
         "text": "Liskov Substitution Principle (LSP): subtypes must be substitutable for base types without breaking invariants",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#design-patterns"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#design-patterns"
       },
       {
         "text": "Interface Segregation Principle (ISP): clients should not depend on interfaces they do not use",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#design-patterns"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#design-patterns"
       },
       {
         "text": "Dependency Inversion Principle (DIP): high-level modules should depend on abstractions, not concrete implementations",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#design-patterns"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#design-patterns"
       }
     ]
   },
@@ -2370,32 +2396,32 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Intention-revealing naming for variables, methods, and types",
         "provenance": "iac_authored",
-        "sourceReference": "IAC Engineering Standards; Clean Code (Martin, 2008)",
-        "notes": "Authored for technical interview live code evaluation"
+        "sourceReference": "IAC Engineering Standards for Code Quality Evaluation; Martin, R. C. Clean Code (1st ed., Prentice Hall, 2008)",
+        "notes": "Authored specifically for IAC technical interview live code evaluation."
       },
       {
         "text": "Function single level of abstraction and command-query separation (CQS)",
         "provenance": "iac_authored",
-        "sourceReference": "IAC Engineering Standards; Clean Code (Martin, 2008)",
-        "notes": "Authored for technical interview live code evaluation"
+        "sourceReference": "IAC Engineering Standards for Code Quality Evaluation; Martin, R. C. Clean Code (1st ed., Prentice Hall, 2008)",
+        "notes": "Authored specifically for IAC technical interview live code evaluation."
       },
       {
         "text": "Side-effect elimination and pure functional transformations where feasible",
         "provenance": "iac_authored",
-        "sourceReference": "IAC Engineering Standards; Clean Code (Martin, 2008)",
-        "notes": "Authored for technical interview live code evaluation"
+        "sourceReference": "IAC Engineering Standards for Code Quality Evaluation; Martin, R. C. Clean Code (1st ed., Prentice Hall, 2008)",
+        "notes": "Authored specifically for IAC technical interview live code evaluation."
       },
       {
         "text": "Defensive programming vs fail-fast principles",
         "provenance": "iac_authored",
-        "sourceReference": "IAC Engineering Standards; Clean Code (Martin, 2008)",
-        "notes": "Authored for technical interview live code evaluation"
+        "sourceReference": "IAC Engineering Standards for Code Quality Evaluation; Martin, R. C. Clean Code (1st ed., Prentice Hall, 2008)",
+        "notes": "Authored specifically for IAC technical interview live code evaluation."
       },
       {
         "text": "Code smells identification (long methods, god classes, feature envy, primitive obsession)",
         "provenance": "iac_authored",
-        "sourceReference": "IAC Engineering Standards; Clean Code (Martin, 2008)",
-        "notes": "Authored for technical interview live code evaluation"
+        "sourceReference": "IAC Engineering Standards for Code Quality Evaluation; Martin, R. C. Clean Code (1st ed., Prentice Hall, 2008)",
+        "notes": "Authored specifically for IAC technical interview live code evaluation."
       }
     ]
   },
@@ -2443,37 +2469,38 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "RESTful resource naming conventions (nouns, plurals, hierarchical nesting)",
         "provenance": "iac_authored",
-        "sourceReference": "IAC Engineering Standards; RESTful API Guidelines",
-        "notes": "Authored for web/backend technical interview interviews"
+        "sourceReference": "IAC Engineering Standards for REST & Web API Evaluation; RFC 9110: HTTP Semantics (2022)",
+        "notes": "Authored specifically for web/backend technical interview interviews."
       },
       {
         "text": "HTTP verbs and idempotency guarantees (GET, PUT, DELETE are idempotent; POST is non-idempotent)",
         "provenance": "iac_authored",
-        "sourceReference": "IAC Engineering Standards; RESTful API Guidelines",
-        "notes": "Authored for web/backend technical interview interviews"
+        "sourceReference": "IAC Engineering Standards for REST & Web API Evaluation; RFC 9110: HTTP Semantics (2022)",
+        "notes": "Authored specifically for web/backend technical interview interviews."
       },
       {
         "text": "Idempotency keys and replay protection for financial transactions",
         "provenance": "other",
-        "sourceReference": "GFG_WEB_TECHNOLOGY (migrated); IETF Draft: The Idempotency-Key HTTP Header Field"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_WEB_TECHNOLOGY); IETF HTTP Working Group: The Idempotency-Key HTTP Header Field",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "RPC protocols: gRPC with Protocol Buffers vs GraphQL field queries vs REST",
         "provenance": "iac_authored",
-        "sourceReference": "IAC Engineering Standards; RESTful API Guidelines",
-        "notes": "Authored for web/backend technical interview interviews"
+        "sourceReference": "IAC Engineering Standards for REST & Web API Evaluation; RFC 9110: HTTP Semantics (2022)",
+        "notes": "Authored specifically for web/backend technical interview interviews."
       },
       {
         "text": "API versioning strategies (URI path, header, query parameter) and deprecation lifecycles",
         "provenance": "iac_authored",
-        "sourceReference": "IAC Engineering Standards; RESTful API Guidelines",
-        "notes": "Authored for web/backend technical interview interviews"
+        "sourceReference": "IAC Engineering Standards for REST & Web API Evaluation; RFC 9110: HTTP Semantics (2022)",
+        "notes": "Authored specifically for web/backend technical interview interviews."
       },
       {
         "text": "Pagination patterns: offset/limit vs keyset/cursor-based pagination for high-volume feeds",
         "provenance": "iac_authored",
-        "sourceReference": "IAC Engineering Standards; RESTful API Guidelines",
-        "notes": "Authored for web/backend technical interview interviews"
+        "sourceReference": "IAC Engineering Standards for REST & Web API Evaluation; RFC 9110: HTTP Semantics (2022)",
+        "notes": "Authored specifically for web/backend technical interview interviews."
       }
     ]
   },
@@ -2518,7 +2545,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "System design, scalability, data handling",
-      "ciuSectionReference": "jwasham/coding-interview-university#system-design-scalability-data-handling",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling",
       "referenceNotes": "System Design Interview – An Insider Guide (Alex Xu); Designing Data-Intensive Applications",
       "iacAdditionNote": "Preserved reverse proxy, load balancing, and async message queue patterns from GFG_WEB_TECHNOLOGY"
     },
@@ -2527,32 +2554,33 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Framework for system design interviews: Requirements scoping, High-level design, Detailed design, Bottlenecks",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Back-of-the-envelope capacity estimations (QPS, storage, bandwidth, memory caching requirements)",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Load balancing algorithms: Round Robin, Weighted Least Connections, IP Hash",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Reverse proxies (Nginx, Envoy) vs Forward proxies and API Gateways",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Message brokers (Kafka, RabbitMQ) for asynchronous decoupling and peak smoothing",
         "provenance": "other",
-        "sourceReference": "GFG_WEB_TECHNOLOGY (migrated); Kleppmann DDIA Chapter 11"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_WEB_TECHNOLOGY); Kleppmann, M. Designing Data-Intensive Applications (1st ed., O'Reilly, 2017), Chapter 11",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Data modeling and schema choices: Relational vs Document vs Columnar vs Graph databases",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       }
     ]
   },
@@ -2594,7 +2622,7 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       "attributionType": "ciu_derived",
       "inCodingInterviewUniversity": true,
       "ciuSection": "System design, scalability, data handling",
-      "ciuSectionReference": "jwasham/coding-interview-university#system-design-scalability-data-handling",
+      "ciuSectionReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling",
       "referenceNotes": "Site Reliability Engineering (Beyer et al., Google SRE)",
       "iacAdditionNote": "Preserved SLIs/SLOs, Error Budgets, and Canary deployments from GFG_DEVOPS_KNOWLEDGE"
     },
@@ -2603,32 +2631,34 @@ export const CURRICULUM_CATALOG: CurriculumTopic[] = [
       {
         "text": "Horizontal scale-out (stateless application tiers) vs vertical scale-up limitations",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Service-Level Indicators (SLIs), Service-Level Objectives (SLOs), and Error Budgets",
         "provenance": "other",
-        "sourceReference": "GFG_DEVOPS_KNOWLEDGE (migrated); Google Site Reliability Engineering"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_DEVOPS_KNOWLEDGE); Beyer et al. Site Reliability Engineering (1st ed., O'Reilly, 2016)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       },
       {
         "text": "Recovery Time Objective (RTO) and Recovery Point Objective (RPO) disaster recovery metrics",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Fault tolerance patterns: Circuit Breaker, Exponential Backoff with Jitter, Bulkhead, Fallback",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Rate limiting algorithms: Token Bucket, Leaky Bucket, Fixed Window, Sliding Window Counter",
         "provenance": "ciu_derived",
-        "sourceReference": "jwasham/coding-interview-university#system-design-scalability-data-handling"
+        "sourceReference": "https://github.com/jwasham/coding-interview-university#system-design-scalability-data-handling"
       },
       {
         "text": "Canary deployments and automated blue/green traffic splitting",
         "provenance": "other",
-        "sourceReference": "GFG_DEVOPS_KNOWLEDGE (migrated); Google SRE Book"
+        "sourceReference": "Migrated from legacy GFG knowledge base (src/data/gfgCurriculum.ts: GFG_DEVOPS_KNOWLEDGE); Beyer et al. Site Reliability Engineering (1st ed., O'Reilly, 2016)",
+        "notes": "Migrated interview preparation content; not an independently verified peer-reviewed academic source."
       }
     ]
   }

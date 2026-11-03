@@ -108,3 +108,4 @@ export interface CurriculumModulePack {
    When a user conducts an interview for a Software Engineer (Backend/Frontend), only the Phase 1 37 core topics are loaded. When the target role is identified as **DevOps Engineer**, **SRE**, or **Cloud Architect**, the engine dynamically activates the `curriculum-pack-devops` module pack.
 2. **Backward Compatibility:**
    Phase 1 topics will remain the root of the dependency graph. No core topic will depend on a DevOps extension topic; rather, DevOps topics will declare dependencies pointing into Phase 1 topics (`cs_operating_systems`, `cs_networking`, `cs_testing_debugging`, `se_scalability`).
+

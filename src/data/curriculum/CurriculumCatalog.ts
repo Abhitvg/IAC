@@ -1,5 +1,6 @@
 import {
   CurriculumTopic,
+  CurriculumConcept,
   CurriculumCategory,
   CurriculumValidationResult,
   CurriculumTopicSchema,
@@ -32,7 +33,18 @@ export class CurriculumCatalogService {
 
   private loadCatalog(catalog: CurriculumTopic[]): void {
     this.topics.clear();
-    for (const topic of catalog) {
+    for (const rawTopic of catalog) {
+      const topic: CurriculumTopic = {
+        ...rawTopic,
+        concepts: rawTopic.concepts && rawTopic.concepts.length > 0
+          ? rawTopic.concepts
+          : rawTopic.coreConcepts.map((text) => ({
+              text,
+              provenance: 'general_cs' as const,
+              isUnverified: true,
+              sourceReference: 'General computer science curriculum consensus; primary source unverified',
+            })),
+      };
       this.topics.set(topic.id, topic);
     }
     this.validationResult = this.validateCatalogInternal(catalog);
@@ -315,7 +327,15 @@ export class CurriculumCatalogService {
         lines.push(`Topic Summary Attribution: ${topic.sourceAttribution.attributionType} (CIU Section: ${topic.sourceAttribution.ciuSection || 'N/A'})`);
         lines.push(`Description: ${topic.description}`);
         lines.push(`Concepts (with provenance):`);
-        for (const concept of topic.concepts) {
+        const conceptsList: CurriculumConcept[] = topic.concepts && topic.concepts.length > 0
+          ? topic.concepts
+          : topic.coreConcepts.map((text): CurriculumConcept => ({
+              text,
+              provenance: 'general_cs',
+              isUnverified: true,
+              sourceReference: 'General computer science curriculum consensus; primary source unverified',
+            }));
+        for (const concept of conceptsList) {
           const ref = concept.sourceReference ? ` [Source: ${concept.sourceReference}]` : (concept.isUnverified ? ' [Source: unverified]' : '');
           lines.push(`  - [${concept.provenance}] ${concept.text}${ref}`);
         }

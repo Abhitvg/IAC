@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   CurriculumCatalogService,
   CurriculumTopic,
+  CurriculumTopicSchema,
   CURRICULUM_CATALOG,
 } from '../src/data/curriculum';
 import {
@@ -56,6 +57,52 @@ describe('Curriculum Knowledge Base & Validation (Phase 1 Acceptance Gate)', () 
     const osTopic = catalogService.getTopicById('cs_operating_systems');
     expect(osTopic?.sourceAttribution.attributionType).toBe('general_cs');
     expect(osTopic?.sourceAttribution.referenceNotes).toBeDefined();
+  });
+
+  it('verifies mixed-source topic semantics and concept provenance in cs_operating_systems and ds_arrays_strings', () => {
+    // 1. cs_operating_systems: topic-level general_cs with mixed academic and migrated concepts
+    const osTopic = catalogService.getTopicById('cs_operating_systems');
+    expect(osTopic).toBeDefined();
+    expect(osTopic?.sourceAttribution.attributionType).toBe('general_cs');
+    expect(osTopic?.sourceAttribution.inCodingInterviewUniversity).toBe(true);
+
+    const osProvenances = osTopic!.concepts!.map((c) => c.provenance);
+    expect(osProvenances).toContain('general_cs');
+    expect(osProvenances).toContain('other');
+
+    // Academic concept
+    const pcbConcept = osTopic!.concepts!.find((c) => c.text.includes('Process Control Block'));
+    expect(pcbConcept?.provenance).toBe('general_cs');
+    expect(pcbConcept?.sourceReference).toContain('Operating Systems: Three Easy Pieces');
+
+    // Migrated concept from GFG
+    const cgroupConcept = osTopic!.concepts!.find((c) => c.text.includes('cgroups'));
+    expect(cgroupConcept?.provenance).toBe('other');
+    expect(cgroupConcept?.sourceReference).toContain('Migrated from legacy GFG knowledge base');
+    expect(cgroupConcept?.notes).toContain('Migrated interview preparation content');
+
+    // 2. ds_arrays_strings: topic-level ciu_derived with CIU, general CS, and migrated concepts
+    const arrayTopic = catalogService.getTopicById('ds_arrays_strings');
+    expect(arrayTopic).toBeDefined();
+    expect(arrayTopic?.sourceAttribution.attributionType).toBe('ciu_derived');
+    expect(arrayTopic?.sourceAttribution.ciuSectionReference).toContain(
+      'https://github.com/jwasham/coding-interview-university#arrays'
+    );
+
+    const arrayProvenances = arrayTopic!.concepts!.map((c) => c.provenance);
+    expect(arrayProvenances).toContain('ciu_derived');
+    expect(arrayProvenances).toContain('other');
+    expect(arrayProvenances).toContain('general_cs');
+
+    // CIU-derived concept
+    const doublingConcept = arrayTopic!.concepts!.find((c) => c.text.includes('doubling strategy'));
+    expect(doublingConcept?.provenance).toBe('ciu_derived');
+    expect(doublingConcept?.sourceReference).toContain('coding-interview-university#arrays');
+
+    // Migrated concept
+    const kadaneConcept = arrayTopic!.concepts!.find((c) => c.text.includes('Kadane'));
+    expect(kadaneConcept?.provenance).toBe('other');
+    expect(kadaneConcept?.sourceReference).toContain('Migrated from legacy GFG knowledge base');
   });
 
   it('proves all topic IDs are strictly unique', () => {
@@ -328,7 +375,7 @@ describe('Curriculum Knowledge Base & Validation (Phase 1 Acceptance Gate)', () 
     expect(prompt).toContain('[ds_hash_tables]');
     expect(prompt).toContain('Concepts (with provenance):');
     expect(prompt).toContain('[ciu_derived]');
-    expect(prompt).toContain('[Source: jwasham/coding-interview-university');
+    expect(prompt).toContain('[Source: https://github.com/jwasham/coding-interview-university');
     expect(prompt).toContain('=== END TECHNICAL CURRICULUM GROUNDING SPECIFICATION ===');
   });
 
@@ -400,11 +447,11 @@ describe('Curriculum Knowledge Base & Validation (Phase 1 Acceptance Gate)', () 
       expect(topic.description.trim().length).toBeGreaterThan(0);
 
       // 2. Concepts must have valid text, provenance, and traceable references
-      expect(topic.concepts.length).toBeGreaterThanOrEqual(1);
-      expect(topic.coreConcepts.length).toBe(topic.concepts.length);
+      expect(topic.concepts!.length).toBeGreaterThanOrEqual(1);
+      expect(topic.coreConcepts.length).toBe(topic.concepts!.length);
 
-      for (let i = 0; i < topic.concepts.length; i++) {
-        const concept = topic.concepts[i];
+      for (let i = 0; i < topic.concepts!.length; i++) {
+        const concept = topic.concepts![i];
         expect(concept.text).toBe(topic.coreConcepts[i]);
         expect(['ciu_derived', 'iac_authored', 'general_cs', 'other']).toContain(concept.provenance);
 
@@ -473,5 +520,58 @@ describe('Curriculum Knowledge Base & Validation (Phase 1 Acceptance Gate)', () 
     expect(catalogService.getTopicById('algo_dynamic_programming')?.difficulty).toBe('advanced');
     expect(catalogService.getTopicById('se_scalability')?.difficulty).toBe('advanced');
     expect(catalogService.getTopicById('cs_distributed_systems')?.difficulty).toBe('advanced');
+  });
+
+  it('preserves backwards compatibility when code constructs a CurriculumTopic without concepts array', () => {
+    // A legacy topic definition with only coreConcepts: string[] and no concepts field
+    const legacyTopic: CurriculumTopic = {
+      id: 'legacy_topic_test',
+      name: 'Legacy Topic Test',
+      category: 'algorithms',
+      subcategory: 'Legacy',
+      description: 'Legacy topic with only coreConcepts array',
+      coreConcepts: [
+        'Concept Alpha for testing',
+        'Concept Beta for testing',
+      ],
+      prerequisites: [],
+      difficulty: 'easy',
+      commonMisconceptions: ['Legacy misconception'],
+      interviewRelevance: 'frequently_tested',
+      expectedLearningOutcomes: ['Apply legacy pattern'],
+      relatedTopics: [],
+      sourceAttribution: {
+        attributionType: 'general_cs',
+        inCodingInterviewUniversity: false,
+      },
+      version: 1,
+    };
+
+    // 1. Zod schema validation passes and automatically normalizes concepts
+    const parseResult = CurriculumTopicSchema.safeParse(legacyTopic);
+    expect(parseResult.success).toBe(true);
+    if (parseResult.success) {
+      expect(parseResult.data.concepts).toBeDefined();
+      expect(parseResult.data.concepts!.length).toBe(2);
+      expect(parseResult.data.concepts![0].text).toBe('Concept Alpha for testing');
+      expect(parseResult.data.concepts![0].provenance).toBe('general_cs');
+      expect(parseResult.data.concepts![0].isUnverified).toBe(true);
+    }
+
+    // 2. Service loader normalizes concepts and preserves coreConcepts consumer access
+    const testService = CurriculumCatalogService.resetInstance([legacyTopic]);
+    const retrieved = testService.getTopicById('legacy_topic_test');
+    expect(retrieved).toBeDefined();
+    // Consumers of coreConcepts continue to receive string[]
+    expect(retrieved?.coreConcepts).toEqual([
+      'Concept Alpha for testing',
+      'Concept Beta for testing',
+    ]);
+    // Consumers of concepts receive normalized CurriculumConcept[]
+    expect(retrieved?.concepts).toBeDefined();
+    expect(retrieved?.concepts?.length).toBe(2);
+
+    // Reset singleton back to standard catalog
+    CurriculumCatalogService.resetInstance();
   });
 });
