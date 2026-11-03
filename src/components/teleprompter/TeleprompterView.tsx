@@ -843,9 +843,16 @@ export default function TeleprompterView() {
     }
   };
 
-  const [isStealthActive, setIsStealthActive] = useState(true);
+  const isLinux = typeof window !== 'undefined' && window.electronAPI?.platform === 'linux';
+  const [isStealthActive, setIsStealthActive] = useState(!isLinux);
 
   const handleToggleStealth = async () => {
+    if (isLinux) {
+      setToast(
+        '🛡️ Linux Stealth: In Zoom/Google Meet/Teams, share your Code Editor or Browser Window directly instead of your Entire Screen! Because IAC runs as a separate window, it remains 100% invisible to interviewers. (Press Esc or Ctrl+Shift+H to panic-hide)'
+      );
+      return;
+    }
     const next = !isStealthActive;
     setIsStealthActive(next);
     await window.electronAPI?.setContentProtection?.(next);
@@ -1677,7 +1684,9 @@ export default function TeleprompterView() {
           <button
             onClick={handleToggleStealth}
             title={
-              isStealthActive
+              isLinux
+                ? "Linux Stealth: Share your IDE/Browser window in Zoom/Meet (IAC is a separate window and will remain 100% invisible). Press Esc or Ctrl+Shift+H to panic-hide."
+                : isStealthActive
                 ? "Screen Stealth ON: Teleprompter is 100% invisible to Zoom, Google Meet, Teams, Discord & recordings"
                 : "Screen Stealth OFF: Teleprompter is visible to screen share"
             }
@@ -1685,11 +1694,17 @@ export default function TeleprompterView() {
               display: "flex",
               alignItems: "center",
               gap: "4px",
-              background: isStealthActive ? "rgba(16, 185, 129, 0.16)" : "rgba(239, 68, 68, 0.16)",
-              border: isStealthActive
+              background: isLinux
+                ? "rgba(59, 130, 246, 0.16)"
+                : isStealthActive
+                ? "rgba(16, 185, 129, 0.16)"
+                : "rgba(239, 68, 68, 0.16)",
+              border: isLinux
+                ? "1px solid rgba(59, 130, 246, 0.4)"
+                : isStealthActive
                 ? "1px solid rgba(52, 211, 153, 0.4)"
                 : "1px solid rgba(239, 68, 68, 0.4)",
-              color: isStealthActive ? "#6ee7b7" : "#fca5a5",
+              color: isLinux ? "#93c5fd" : isStealthActive ? "#6ee7b7" : "#fca5a5",
               borderRadius: "4px",
               padding: "4px 8px",
               fontSize: "11px",
@@ -1699,8 +1714,10 @@ export default function TeleprompterView() {
               transition: "all 0.15s ease",
             }}
           >
-            <Shield size={12} style={{ color: isStealthActive ? "#34d399" : "#f87171" }} />
-            {!isUltraCompact && <span>{isStealthActive ? "Stealth ON" : "Stealth OFF"}</span>}
+            <Shield size={12} style={{ color: isLinux ? "#60a5fa" : isStealthActive ? "#34d399" : "#f87171" }} />
+            {!isUltraCompact && (
+              <span>{isLinux ? "Linux Stealth: Window Share" : isStealthActive ? "Stealth ON" : "Stealth OFF"}</span>
+            )}
           </button>
 
           {/* Progressive Disclosure: Controls & Display Popover Trigger */}

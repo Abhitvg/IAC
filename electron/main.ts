@@ -165,9 +165,11 @@ function toggleWindowVisibility() {
     mainWindow.hide();
   } else {
     mainWindow.show();
-    mainWindow.setAlwaysOnTop(true, 'floating');
     if (process.platform === 'darwin') {
+      mainWindow.setAlwaysOnTop(true, 'floating');
       mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    } else {
+      mainWindow.setAlwaysOnTop(true);
     }
     mainWindow.focus();
   }
