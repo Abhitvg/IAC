@@ -218,10 +218,22 @@ export class GitHubIngestionService {
   public async listRepositories(): Promise<GitHubRepoSummary[]> {
     if (!this.token) throw new Error('Not connected to GitHub');
 
-    const rawRepos = await this.fetchGitHub('/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator');
-    if (!Array.isArray(rawRepos)) return [];
+    // GitHub caps each REST page at 100 items. Fetch every page rather than
+    // silently showing only the first page for accounts with >100 repositories.
+    const allRepos: any[] = [];
+    const perPage = 100;
+    for (let page = 1; ; page += 1) {
+      const rawPage = await this.fetchGitHub(
+        `/user/repos?per_page=${perPage}&page=${page}&sort=updated&affiliation=owner,collaborator`
+      );
+      if (!Array.isArray(rawPage)) {
+        throw new Error('Unexpected GitHub repositories response. Please reconnect and try again.');
+      }
+      allRepos.push(...rawPage);
+      if (rawPage.length < perPage) break;
+    }
 
-    return rawRepos.map((r: any) => ({
+    return allRepos.map((r: any) => ({
       id: r.id,
       name: r.name,
       fullName: r.full_name,
