@@ -658,14 +658,12 @@ export const useAppStore = create<InterviewState>((set, get) => ({
               if (merged.aiProvider === 'groq') {
                 if (
                   !merged.aiModel ||
-                  merged.aiModel === 'openai/gpt-oss-120b' ||
-                  merged.aiModel === 'openai/gpt-oss-20b' ||
-                  merged.aiModel.startsWith('openai/') ||
-                  merged.aiModel.startsWith('qwen/') ||
-                  merged.aiModel.startsWith('meta-llama/') ||
-                  merged.aiModel.startsWith('google/')
+                  typeof merged.aiModel !== 'string' ||
+                  merged.aiModel.toLowerCase().includes('llama') ||
+                  merged.aiModel.toLowerCase().includes('mixtral') ||
+                  merged.aiModel.toLowerCase().includes('gemma')
                 ) {
-                  merged.aiModel = 'llama-3.3-70b-versatile';
+                  merged.aiModel = 'openai/gpt-oss-120b';
                 }
               }
               return { settings: merged };
@@ -923,7 +921,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     } catch {}
     return {
       aiProvider: 'groq',
-      aiModel: 'llama-3.3-70b-versatile',
+      aiModel: 'openai/gpt-oss-120b',
       whisperModel: 'whisper-large-v3-turbo',
       temperature: 0.2,
       maxTokens: 2000,

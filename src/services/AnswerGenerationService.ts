@@ -282,14 +282,12 @@ export class AnswerGenerationService {
     if (provider === 'groq') {
       if (
         !chosenModel ||
-        chosenModel === 'openai/gpt-oss-120b' ||
-        chosenModel === 'openai/gpt-oss-20b' ||
-        chosenModel.startsWith('openai/') ||
-        chosenModel.startsWith('qwen/') ||
-        chosenModel.startsWith('google/') ||
-        chosenModel.startsWith('meta-llama/')
+        typeof chosenModel !== 'string' ||
+        chosenModel.toLowerCase().includes('llama') ||
+        chosenModel.toLowerCase().includes('mixtral') ||
+        chosenModel.toLowerCase().includes('gemma')
       ) {
-        chosenModel = 'llama-3.3-70b-versatile';
+        chosenModel = 'openai/gpt-oss-120b';
       }
     } else if (!chosenModel) {
       if (provider === 'openai') {

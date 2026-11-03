@@ -61,7 +61,7 @@ export default function SettingsPanel() {
     updateSetting('aiProvider', provider);
 
     // Set default model for provider
-    if (provider === 'groq') updateSetting('aiModel', 'llama-3.3-70b-versatile');
+    if (provider === 'groq') updateSetting('aiModel', 'openai/gpt-oss-120b');
     else if (provider === 'openai') updateSetting('aiModel', 'gpt-4o-mini');
     else if (provider === 'openrouter') updateSetting('aiModel', 'google/gemini-3.8-flash');
     else if (provider === 'ollama') updateSetting('aiModel', 'llama3.2:1b');
@@ -221,18 +221,21 @@ export default function SettingsPanel() {
                   id="ai-model-input"
                   className="field__select"
                   value={
-                    ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'].includes(settings.aiModel)
+                    ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'].includes(settings.aiModel)
                       ? settings.aiModel
-                      : 'llama-3.3-70b-versatile'
+                      : 'openai/gpt-oss-120b'
                   }
                   onChange={(e) => updateSetting('aiModel', e.target.value)}
                   aria-label="Groq Model selection"
                 >
-                  <option value="llama-3.3-70b-versatile">
-                    llama-3.3-70b-versatile (Recommended - 70B)
+                  <option value="openai/gpt-oss-120b">
+                    openai/gpt-oss-120b (Recommended — 120B MoE, ~500 tps)
                   </option>
-                  <option value="llama-3.1-8b-instant">
-                    llama-3.1-8b-instant (Ultra-low latency - 8B)
+                  <option value="openai/gpt-oss-20b">
+                    openai/gpt-oss-20b (Ultra-fast — 20B MoE, ~1,000 tps)
+                  </option>
+                  <option value="qwen/qwen3.8-27b">
+                    qwen/qwen3.8-27b (Qwen Reasoning &amp; Multilingual)
                   </option>
                 </select>
               ) : (

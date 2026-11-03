@@ -78,7 +78,7 @@ export default function OnboardingModal() {
         updateSetting('aiModel', 'llama3.2:1b');
       } else {
         if (provider === 'groq') {
-          updateSetting('aiModel', 'llama-3.3-70b-versatile');
+          updateSetting('aiModel', 'openai/gpt-oss-120b');
           updateSetting('whisperModel', 'whisper-large-v3');
         } else if (provider === 'openai') {
           updateSetting('aiModel', 'gpt-4o-mini');

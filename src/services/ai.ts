@@ -893,14 +893,11 @@ export async function streamAnswer(
   if (config.type === 'groq') {
     if (
       !effectiveModel ||
-      effectiveModel === 'openai/gpt-oss-120b' ||
-      effectiveModel === 'openai/gpt-oss-20b' ||
-      effectiveModel.startsWith('openai/') ||
-      effectiveModel.startsWith('qwen/') ||
-      effectiveModel.startsWith('google/') ||
-      effectiveModel.startsWith('meta-llama/')
+      effectiveModel.toLowerCase().includes('llama') ||
+      effectiveModel.toLowerCase().includes('mixtral') ||
+      effectiveModel.toLowerCase().includes('gemma')
     ) {
-      effectiveModel = 'llama-3.3-70b-versatile';
+      effectiveModel = 'openai/gpt-oss-120b';
     }
   }
 
@@ -925,8 +922,9 @@ export async function streamAnswer(
     if (!activeResponse.ok && config.type === 'groq') {
       // Robust fallback chain for Groq models (active Groq model IDs)
       const fallbackModels = [
-        'llama-3.3-70b-versatile',
-        'llama-3.1-8b-instant',
+        'openai/gpt-oss-120b',
+        'openai/gpt-oss-20b',
+        'qwen/qwen3.8-27b',
       ].filter((m) => m !== effectiveModel);
 
       for (const fbModel of fallbackModels) {
@@ -1075,7 +1073,7 @@ export async function generateAIAnswer(
   const config: AIProviderConfig = {
     type: providerConfig?.type || 'groq',
     apiKey: providerConfig?.apiKey || 'mock-key',
-    model: providerConfig?.model || 'llama-3.3-70b-versatile',
+    model: providerConfig?.model || 'openai/gpt-oss-120b',
     temperature: providerConfig?.temperature ?? 0.7,
     maxTokens: providerConfig?.maxTokens || 1500,
     systemPrompt: providerConfig?.systemPrompt || '',

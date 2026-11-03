@@ -93,7 +93,7 @@ export class InterviewerService {
         pressure: params.pressure,
       };
       const prompt = buildInterviewerPrompt(promptParams);
-      const rawResponse = await llmCaller(prompt, 'llama-3.3-70b-versatile');
+      const rawResponse = await llmCaller(prompt, 'openai/gpt-oss-120b');
 
       // Strip potential markdown code fences from JSON
       const cleanJson = rawResponse

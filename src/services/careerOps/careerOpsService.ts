@@ -179,7 +179,7 @@ OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or preamble,
       {
         type: providerConfig.type as any,
         apiKey: providerConfig.apiKey,
-        model: providerConfig.model || 'llama-3.3-70b-versatile',
+        model: providerConfig.model || 'openai/gpt-oss-120b',
         temperature: 0.1,
         maxTokens: 2000,
         systemPrompt: 'You are an expert technical recruiter and career strategist. You return only valid, well-formed JSON.',
@@ -391,7 +391,7 @@ STRICT LATEX REQUIREMENTS (sb2nov/resume standard):
     {
       type: providerConfig.type as any,
       apiKey: providerConfig.apiKey,
-      model: providerConfig.model || 'llama-3.3-70b-versatile',
+      model: providerConfig.model || 'openai/gpt-oss-120b',
       temperature: 0.2,
       maxTokens: 2500,
       systemPrompt: 'You are an elite LaTeX resume architect who outputs 100% valid compilable sb2nov LaTeX resumes with zero preamble or markdown wrapping.',
@@ -565,7 +565,7 @@ Candidate`;
     {
       type: providerConfig.type as any,
       apiKey: providerConfig.apiKey,
-      model: providerConfig.model || 'llama-3.3-70b-versatile',
+      model: providerConfig.model || 'openai/gpt-oss-120b',
       temperature: 0.3,
       maxTokens: 1000,
       systemPrompt: 'You write sharp, authentic, senior-level software engineering cover letters that hiring managers actually enjoy reading, adhering to Indeed and Intuit industry best practices.',

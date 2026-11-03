@@ -91,7 +91,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     name: 'settings',
     defaults: {
       aiProvider: 'groq',
-      aiModel: 'llama-3.3-70b-versatile',
+      aiModel: 'openai/gpt-oss-120b',
       whisperModel: 'whisper-large-v3',
       preferredLanguage: 'java',
       responseMode: 'interview',
@@ -145,22 +145,23 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       });
     }
 
-    // Auto-heal provider/model settings if set to broken or missing models
+    // Auto-heal provider/model settings if set to broken or retired models
     const curProvider = store.get('aiProvider');
     if (!curProvider) {
       store.set('aiProvider', 'groq');
-      store.set('aiModel', 'llama-3.3-70b-versatile');
+      store.set('aiModel', 'openai/gpt-oss-120b');
       store.set('whisperModel', 'whisper-large-v3-turbo');
     }
     const curModel = store.get('aiModel');
     if (
       !curModel ||
       curModel === 'openrouter/free' ||
-      curModel === 'openai/gpt-oss-120b' ||
-      curModel === 'openai/gpt-oss-20b' ||
-      curModel === 'qwen/qwen3.8-27b'
+      typeof curModel !== 'string' ||
+      curModel.toLowerCase().includes('llama') ||
+      curModel.toLowerCase().includes('mixtral') ||
+      curModel.toLowerCase().includes('gemma')
     ) {
-      store.set('aiModel', 'llama-3.3-70b-versatile');
+      store.set('aiModel', 'openai/gpt-oss-120b');
     }
   } catch (err) {
     console.warn('[CredentialStore] Migration notice:', err);

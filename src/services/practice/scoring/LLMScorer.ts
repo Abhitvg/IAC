@@ -92,7 +92,7 @@ export class LLMScorer {
   public static selectScoringModel(providerType: string = 'groq', currentModel?: string): string {
     switch (providerType.toLowerCase()) {
       case 'groq':
-        return 'llama-3.3-70b-versatile';
+        return 'openai/gpt-oss-120b';
       case 'openai':
         return 'gpt-4o';
       case 'openrouter':
@@ -100,7 +100,7 @@ export class LLMScorer {
       case 'ollama':
         return currentModel && currentModel.includes('33') ? currentModel : 'llama3.3:70b';
       default:
-        return currentModel || 'llama-3.3-70b-versatile';
+        return currentModel || 'openai/gpt-oss-120b';
     }
   }
 
