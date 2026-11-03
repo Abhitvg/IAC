@@ -27,3 +27,4 @@ Skills
 Projects
  | CryptoTracker UI | React, TypeScript, Chart.js | https://github.com/erostova/cryptotracker
 • Live cryptocurrency asset tracker with candlestick visualizations and portfolio calculations.
+

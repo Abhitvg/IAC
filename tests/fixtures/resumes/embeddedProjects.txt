@@ -28,3 +28,4 @@ Frontend: React, Next.js, React Native, TypeScript, Tailwind CSS, Redux, GraphQL
 Design: Figma, UI/UX, Design Systems, Accessibility, WCAG 2.1 AA
 Testing: Jest, Cypress, Storybook
 Tools: Webpack, Vite, Git, GitHub
+

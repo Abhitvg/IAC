@@ -23,3 +23,4 @@ Databases: MongoDB, PostgreSQL, Redis
 Projects
 TaskMatrix App | Vue, Node.js | https://github.com/carlosmendez/taskmatrix
 • Collaborative task tracking board with real-time drag-and-drop updates.
+

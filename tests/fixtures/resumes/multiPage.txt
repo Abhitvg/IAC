@@ -41,3 +41,4 @@ Certifications
 
 Publications
 • "Zero-Downtime Database Migrations in Financial Microservices" | InfoQ, 2022
+

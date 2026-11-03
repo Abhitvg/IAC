@@ -542,3 +542,4 @@ export class GitHubIngestionService {
     profileService.saveProfile(updated);
   }
 }
+

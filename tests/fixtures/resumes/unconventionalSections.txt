@@ -39,3 +39,4 @@ Recognitions & Fellowships
 Community & Volunteering
 • Women in Machine Learning (WiML) | Mentor | 2020 - Present
 • Organized monthly coding workshops for underrepresented students in AI.
+
