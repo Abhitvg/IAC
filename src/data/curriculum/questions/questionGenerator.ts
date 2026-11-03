@@ -26,7 +26,7 @@ export class CurriculumQuestionGenerator {
     }
 
     const type = options.questionType || 'conceptual';
-    const tier = options.difficultyTier || (topic.difficultyLevel as QuestionDifficultyTier) || 'intermediate';
+    const tier = options.difficultyTier || (topic.difficulty as QuestionDifficultyTier) || 'intermediate';
     const numericDiff = difficultyTierToNumeric(tier);
     const concept =
       options.targetConcept ||

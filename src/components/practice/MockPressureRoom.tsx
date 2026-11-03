@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { usePracticeStore } from '../../store/usePracticeStore';
 import { useAppStore } from '../../store/useAppStore';
 import { EvidenceScorecard } from './EvidenceScorecard';
+import { InterviewReportGenerator } from '../../services/practice/InterviewReportGenerator';
 
 export const MockPressureRoom: React.FC = () => {
   const {
@@ -470,6 +471,107 @@ export const MockPressureRoom: React.FC = () => {
               </ul>
             </div>
           </div>
+
+          {/* Structured Technical Evaluation Report */}
+          {(() => {
+            const report = InterviewReportGenerator.generateReport(activeSession);
+            return (
+              <div className="mt-6 pt-6 border-t border-slate-800 space-y-5">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div>
+                    <span className="text-xs font-extrabold uppercase tracking-widest text-indigo-400">
+                      CIU Technical Competency Report
+                    </span>
+                    <h4 className="text-lg font-bold text-white mt-0.5">
+                      Technical Performance &amp; Diagnostic Breakdown
+                    </h4>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 font-mono font-bold rounded-lg">
+                      Overall: {report.technicalPerformance.overallWeightedScore.toFixed(1)} / 5.0
+                    </span>
+                    <span className="px-2.5 py-1 bg-purple-500/10 border border-purple-500/30 text-purple-300 font-mono font-bold rounded-lg capitalize">
+                      Next: {report.improvementRecommendations.recommendedNextDifficulty}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 6 Performance Dimensions Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {Object.entries(report.technicalPerformance)
+                    .filter(([key]) => key !== 'overallWeightedScore')
+                    .map(([key, dim]: [string, any]) => (
+                      <div
+                        key={key}
+                        className="p-3.5 bg-slate-950/80 border border-slate-800/80 rounded-xl space-y-1.5"
+                      >
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-200">{dim.name}</span>
+                          <span
+                            className={
+                              'font-mono font-bold text-xs ' +
+                              (dim.score >= 4.0
+                                ? 'text-emerald-400'
+                                : dim.score >= 3.0
+                                ? 'text-amber-400'
+                                : 'text-rose-400')
+                            }
+                          >
+                            {dim.score.toFixed(1)} / 5.0
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-snug">
+                          {dim.qualitativeFeedback}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+
+                {/* Topic-Level Diagnostics */}
+                {report.topicLevelAnalysis.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                      Topic-Level Diagnostics &amp; Misconception Traps
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {report.topicLevelAnalysis.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="p-3 bg-slate-950/90 border border-slate-800 rounded-xl text-xs space-y-1"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-slate-200">{item.topicName}</span>
+                            <span
+                              className={
+                                'px-2 py-0.5 rounded text-[10px] font-bold uppercase ' +
+                                (item.status === 'demonstrated_strength'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                  : item.status === 'weak_area'
+                                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                                  : 'bg-slate-800 text-slate-400 border border-slate-700')
+                              }
+                            >
+                              {item.status.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-relaxed">
+                            {item.details}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
+                  <span>{report.auditMetadata.aiAssistedFeedbackDisclaimer}</span>
+                  <span className="font-mono text-slate-500 text-[10px]">
+                    {report.auditMetadata.rubricVersion}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

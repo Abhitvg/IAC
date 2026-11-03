@@ -1,5 +1,4 @@
-import { CurriculumCatalogService } from '../../data/curriculum/CurriculumCatalog';
-import { CompetencyProfileService, TopicCompetency } from './CompetencyProfileService';
+import { CompetencyProfileService } from './CompetencyProfileService';
 import { QuestionBank, QuestionEntry } from './QuestionBank';
 
 export interface JDRequirementAnalysis {

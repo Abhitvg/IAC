@@ -171,11 +171,16 @@ export class InterviewReportGenerator {
     }
 
     // Next difficulty recommendation
-    let nextDifficulty: 'beginner' | 'easy' | 'intermediate' | 'advanced' | 'expert' = 'intermediate';
-    if (weightedOverall >= 4.5) nextDifficulty = 'expert';
-    else if (weightedOverall >= 3.8) nextDifficulty = 'advanced';
-    else if (weightedOverall >= 2.8) nextDifficulty = 'intermediate';
-    else nextDifficulty = 'easy';
+    let nextDifficulty: 'beginner' | 'easy' | 'intermediate' | 'advanced' | 'expert';
+    if (weightedOverall >= 4.5) {
+      nextDifficulty = 'expert';
+    } else if (weightedOverall >= 3.8) {
+      nextDifficulty = 'advanced';
+    } else if (weightedOverall >= 2.8) {
+      nextDifficulty = 'intermediate';
+    } else {
+      nextDifficulty = 'easy';
+    }
 
     return {
       sessionId: `session_${Date.now()}`,

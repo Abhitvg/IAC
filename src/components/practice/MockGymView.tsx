@@ -2,6 +2,7 @@ import { playRoundStartChime } from '../../utils/soundEffects';
 import React, { useState } from 'react';
 import { usePracticeStore } from '../../store/usePracticeStore';
 import { MockRoundType, InterviewPersona, InterviewPressure } from '../../services/practice/types';
+import { CurriculumCatalogService } from '../../data/curriculum/CurriculumCatalog';
 import { MockPressureRoom } from './MockPressureRoom';
 import { StoryBankView } from './StoryBankView';
 import { SpacedRepetitionView } from './SpacedRepetitionView';
@@ -45,8 +46,12 @@ export const MockGymView: React.FC = () => {
 
   const [selectedPersona, setSelectedPersona] = useState<InterviewPersona>('strict_big_tech');
   const [selectedPressure, setSelectedPressure] = useState<InterviewPressure>('normal');
+  const [selectedTopicId, setSelectedTopicId] = useState<string>('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('intermediate');
   const [interruptionEnabled, setInterruptionEnabled] = useState(false);
   const [showLauncher, setShowLauncher] = useState(false);
+
+  const catalogTopics = CurriculumCatalogService.getInstance().getAllTopics();
 
   const handleLaunch = (roundType: MockRoundType) => {
     try { playRoundStartChime(); } catch (_e) {}
@@ -239,7 +244,7 @@ export const MockGymView: React.FC = () => {
                 </p>
 
                 {/* Quick Presets Grid with Differentiated Vibrant Accents */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
                   {/* Rehearsal */}
                   <button
                     onClick={() => handleLaunch("dress_rehearsal")}
@@ -263,6 +268,29 @@ export const MockGymView: React.FC = () => {
                     </div>
                   </button>
 
+                  {/* Adaptive Loop */}
+                  <button
+                    onClick={() => handleLaunch("adaptive_loop")}
+                    className="card-interactive drill-card-rehearsal p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
+                  >
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-lg">🧠</span>
+                      <span className="px-2 py-0.5 bg-black/40 text-[10px] font-mono font-bold rounded text-purple-200 border border-purple-400/30">
+                        45m · CIU DAG
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold text-white group-hover:text-purple-200 transition">
+                      Adaptive Technical Loop
+                    </div>
+                    <div className="text-[11px] text-purple-100/80 mt-0.5 leading-snug">
+                      Dynamic difficulty, DAG traversal, and targeted probes
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-1 text-[10px] text-purple-300 font-semibold">
+                      <span>⚡</span>
+                      <span>Evidence-guided progression</span>
+                    </div>
+                  </button>
+
                   {/* DSA */}
                   <button
                     onClick={() => handleLaunch("dsa_coding")}
@@ -283,6 +311,29 @@ export const MockGymView: React.FC = () => {
                     <div className="mt-2.5 flex items-center gap-1 text-[10px] text-sky-300 font-semibold">
                       <span>⚡</span>
                       <span>Big-O rigor &amp; edge cases</span>
+                    </div>
+                  </button>
+
+                  {/* Core CS */}
+                  <button
+                    onClick={() => handleLaunch("core_cs")}
+                    className="card-interactive drill-card-rehearsal p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
+                  >
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-lg">⚙️</span>
+                      <span className="px-2 py-0.5 bg-black/40 text-[10px] font-mono font-bold rounded text-emerald-200 border border-emerald-400/30">
+                        30m · Fundamentals
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold text-white group-hover:text-emerald-200 transition">
+                      Core CS Fundamentals
+                    </div>
+                    <div className="text-[11px] text-emerald-100/80 mt-0.5 leading-snug">
+                      OS virtual memory, concurrency, networking, &amp; ACID
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-1 text-[10px] text-emerald-300 font-semibold">
+                      <span>🔬</span>
+                      <span>Kernel &amp; low-level systems</span>
                     </div>
                   </button>
 
@@ -477,21 +528,76 @@ export const MockGymView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Curriculum Topic & Difficulty Selectors */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">
+                    Curriculum Topic Focus
+                  </label>
+                  <select
+                    value={selectedTopicId}
+                    onChange={(e) => setSelectedTopicId(e.target.value)}
+                    className="w-full p-2 bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="all">Dynamic Curriculum (Prerequisite DAG)</option>
+                    {catalogTopics.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.category.replace(/_/g, ' ')})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">
+                    Difficulty Caliber
+                  </label>
+                  <select
+                    value={selectedDifficulty}
+                    onChange={(e) => setSelectedDifficulty(e.target.value)}
+                    className="w-full p-2 bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl focus:outline-none focus:border-indigo-500 capitalize"
+                  >
+                    {['beginner', 'easy', 'intermediate', 'advanced', 'expert'].map((d) => (
+                      <option key={d} value={d}>
+                        {d.charAt(0).toUpperCase() + d.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="pt-2 border-t border-slate-800">
                 <label className="text-slate-300 font-semibold block mb-2">
                   Select Round Preset
                 </label>
                 <div className="space-y-2">
                   <button
+                    onClick={() => handleLaunch('adaptive_loop')}
+                    className="w-full p-3 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-purple-500/40 rounded-xl text-left flex justify-between items-center transition group"
+                  >
+                    <div>
+                      <span className="font-bold text-white block group-hover:text-purple-300 transition">
+                        🧠 Adaptive Technical Loop
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        Dynamic prerequisite progression, targeted probing, and real-time difficulty
+                      </span>
+                    </div>
+                    <span className="text-purple-400 font-bold px-2 py-0.5 bg-purple-500/10 rounded">
+                      45m
+                    </span>
+                  </button>
+
+                  <button
                     onClick={() => handleLaunch('dress_rehearsal')}
                     className="w-full p-3 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/40 rounded-xl text-left flex justify-between items-center transition group"
                   >
                     <div>
                       <span className="font-bold text-white block group-hover:text-indigo-300 transition">
-                        45-Minute Dress Rehearsal
+                        🚀 45-Minute Dress Rehearsal
                       </span>
                       <span className="text-[11px] text-slate-400">
-                        Icebreaker → STAR → Tech Deep Dive → Q&A → Scorecard
+                        Icebreaker → STAR → Tech Deep Dive → Q&amp;A → Scorecard
                       </span>
                     </div>
                     <span className="text-indigo-400 font-bold px-2 py-0.5 bg-indigo-500/10 rounded">
@@ -501,51 +607,68 @@ export const MockGymView: React.FC = () => {
 
                   <button
                     onClick={() => handleLaunch('dsa_coding')}
-                    className="w-full p-3 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/40 rounded-xl text-left flex justify-between items-center transition group"
+                    className="w-full p-3 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-sky-500/40 rounded-xl text-left flex justify-between items-center transition group"
                   >
                     <div>
-                      <span className="font-bold text-white block group-hover:text-indigo-300 transition">
-                        DSA Coding Pressure Sprint
+                      <span className="font-bold text-white block group-hover:text-sky-300 transition">
+                        💻 DSA Coding Pressure Sprint
                       </span>
                       <span className="text-[11px] text-slate-400">
                         Problem understanding, Big-O proof, dry run testing
                       </span>
                     </div>
-                    <span className="text-indigo-400 font-bold px-2 py-0.5 bg-indigo-500/10 rounded">
+                    <span className="text-sky-400 font-bold px-2 py-0.5 bg-sky-500/10 rounded">
                       25m
                     </span>
                   </button>
 
                   <button
-                    onClick={() => handleLaunch('system_design')}
-                    className="w-full p-3 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-purple-500/40 rounded-xl text-left flex justify-between items-center transition group"
+                    onClick={() => handleLaunch('core_cs')}
+                    className="w-full p-3 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-500/40 rounded-xl text-left flex justify-between items-center transition group"
                   >
                     <div>
-                      <span className="font-bold text-white block group-hover:text-purple-300 transition">
-                        System Design Deep Dive
+                      <span className="font-bold text-white block group-hover:text-emerald-300 transition">
+                        ⚙️ Core CS Fundamentals
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        Virtual memory, concurrency, OS kernel, and ACID isolation
+                      </span>
+                    </div>
+                    <span className="text-emerald-400 font-bold px-2 py-0.5 bg-emerald-500/10 rounded">
+                      30m
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => handleLaunch('system_design')}
+                    className="w-full p-3 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-amber-500/40 rounded-xl text-left flex justify-between items-center transition group"
+                  >
+                    <div>
+                      <span className="font-bold text-white block group-hover:text-amber-300 transition">
+                        🏗️ System Design Deep Dive
                       </span>
                       <span className="text-[11px] text-slate-400">
                         Requirements, QPS math, sharding, caching, failure modes
                       </span>
                     </div>
-                    <span className="text-purple-400 font-bold px-2 py-0.5 bg-purple-500/10 rounded">
+                    <span className="text-amber-400 font-bold px-2 py-0.5 bg-amber-500/10 rounded">
                       35m
                     </span>
                   </button>
 
                   <button
                     onClick={() => handleLaunch('behavioral')}
-                    className="w-full p-3 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-500/40 rounded-xl text-left flex justify-between items-center transition group"
+                    className="w-full p-3 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-rose-500/40 rounded-xl text-left flex justify-between items-center transition group"
                   >
                     <div>
-                      <span className="font-bold text-white block group-hover:text-emerald-300 transition">
-                        Behavioral STAR Drill
+                      <span className="font-bold text-white block group-hover:text-rose-300 transition">
+                        🎙️ Behavioral STAR Drill
                       </span>
                       <span className="text-[11px] text-slate-400">
                         Conflict, failure ownership, ambiguity, quantified impact
                       </span>
                     </div>
-                    <span className="text-emerald-400 font-bold px-2 py-0.5 bg-emerald-500/10 rounded">
+                    <span className="text-rose-400 font-bold px-2 py-0.5 bg-rose-500/10 rounded">
                       15m
                     </span>
                   </button>

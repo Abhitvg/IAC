@@ -7,7 +7,10 @@ export type MockRoundType =
   | 'dsa_coding'
   | 'system_design'
   | 'behavioral'
-  | 'role_specific';
+  | 'role_specific'
+  | 'conceptual'
+  | 'core_cs'
+  | 'adaptive_loop';
 
 export type RehearsalPhase =
   | 'icebreaker' // 3 min

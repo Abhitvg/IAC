@@ -296,7 +296,7 @@ export class CurriculumCatalogService {
    * inerrancy, evaluates candidates against established technical principles,
    * preserves concept provenance, and acknowledges uncertainty.
    */
-  public generateGroundingPromptSection(): string {
+  public generateGroundingPromptSection(targetTopicId?: string): string {
     const lines: string[] = [
       '================================================================================',
       '=== TECHNICAL CURRICULUM GROUNDING SPECIFICATION & EVALUATION GUIDELINES ===',
@@ -319,6 +319,42 @@ export class CurriculumCatalogService {
       '================================================================================',
     ];
 
+    const formatTopic = (topic: CurriculumTopic) => {
+      lines.push(`\n### Topic: [${topic.id}] ${topic.name} (${topic.difficulty}, relevance: ${topic.interviewRelevance})`);
+      lines.push(`Topic Summary Attribution: ${topic.sourceAttribution.attributionType} (CIU Section: ${topic.sourceAttribution.ciuSection || 'N/A'})`);
+      lines.push(`Description: ${topic.description}`);
+      lines.push(`Concepts (with provenance):`);
+      const conceptsList: CurriculumConcept[] = topic.concepts && topic.concepts.length > 0
+        ? topic.concepts
+        : topic.coreConcepts.map((text): CurriculumConcept => ({
+            text,
+            provenance: 'general_cs',
+            isUnverified: true,
+            sourceReference: 'General computer science curriculum consensus; primary source unverified',
+          }));
+      for (const concept of conceptsList) {
+        const ref = concept.sourceReference ? ` [Source: ${concept.sourceReference}]` : (concept.isUnverified ? ' [Source: unverified]' : '');
+        lines.push(`  - [${concept.provenance}] ${concept.text}${ref}`);
+      }
+      lines.push(`Common Candidate Misconceptions:`);
+      for (const misconception of topic.commonMisconceptions) {
+        lines.push(`  - ${misconception}`);
+      }
+      lines.push(`Expected Outcomes:`);
+      for (const outcome of topic.expectedLearningOutcomes) {
+        lines.push(`  - ${outcome}`);
+      }
+    };
+
+    if (targetTopicId) {
+      const topic = this.getTopicById(targetTopicId);
+      if (topic) {
+        formatTopic(topic);
+        lines.push('\n=== END TECHNICAL CURRICULUM GROUNDING SPECIFICATION ===');
+        return lines.join('\n');
+      }
+    }
+
     const categories: Array<{ id: CurriculumCategory; label: string }> = [
       { id: 'data_structures', label: '1. Data Structures' },
       { id: 'algorithms', label: '2. Algorithms' },
@@ -330,30 +366,7 @@ export class CurriculumCatalogService {
       lines.push(`\n## ${cat.label}`);
       const catTopics = this.getTopicsByCategory(cat.id);
       for (const topic of catTopics) {
-        lines.push(`\n### Topic: [${topic.id}] ${topic.name} (${topic.difficulty}, relevance: ${topic.interviewRelevance})`);
-        lines.push(`Topic Summary Attribution: ${topic.sourceAttribution.attributionType} (CIU Section: ${topic.sourceAttribution.ciuSection || 'N/A'})`);
-        lines.push(`Description: ${topic.description}`);
-        lines.push(`Concepts (with provenance):`);
-        const conceptsList: CurriculumConcept[] = topic.concepts && topic.concepts.length > 0
-          ? topic.concepts
-          : topic.coreConcepts.map((text): CurriculumConcept => ({
-              text,
-              provenance: 'general_cs',
-              isUnverified: true,
-              sourceReference: 'General computer science curriculum consensus; primary source unverified',
-            }));
-        for (const concept of conceptsList) {
-          const ref = concept.sourceReference ? ` [Source: ${concept.sourceReference}]` : (concept.isUnverified ? ' [Source: unverified]' : '');
-          lines.push(`  - [${concept.provenance}] ${concept.text}${ref}`);
-        }
-        lines.push(`Common Candidate Misconceptions:`);
-        for (const misconception of topic.commonMisconceptions) {
-          lines.push(`  - ${misconception}`);
-        }
-        lines.push(`Expected Outcomes:`);
-        for (const outcome of topic.expectedLearningOutcomes) {
-          lines.push(`  - ${outcome}`);
-        }
+        formatTopic(topic);
       }
     }
 

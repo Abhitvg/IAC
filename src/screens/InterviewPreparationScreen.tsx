@@ -13,6 +13,8 @@ import {
 import { PageHeader, Card, StatusBadge, EmptyState } from '../design-system/components';
 import { useAppStore } from '../store/useAppStore';
 import { CandidateKnowledgeBase } from '../services/candidateIntelligence';
+import { JDInterviewMapper } from '../services/practice/JDInterviewMapper';
+import { CurriculumCatalogService } from '../data/curriculum/CurriculumCatalog';
 
 interface InterviewPreparationScreenProps {
   onLaunchLive: () => void;
@@ -28,6 +30,12 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
   }, [resumeText]);
 
   const projects = kb.getAllProjects();
+
+  const jdAnalysis = React.useMemo(() => {
+    return JDInterviewMapper.analyzeJD(jobDescriptionText || '');
+  }, [jobDescriptionText]);
+
+  const catalog = React.useMemo(() => CurriculumCatalogService.getInstance(), []);
 
   // Extraction of relevant technical & behavioral topics from JD / Candidate Profile
   const relevantSkills = React.useMemo(() => {
@@ -183,6 +191,66 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
                     {s}
                   </span>
                 ))
+              )}
+            </div>
+          </Card>
+
+          {/* Curriculum Competency Match & Practice Drill Recommendations */}
+          <Card>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
+                Curriculum Topic Match &amp; Gaps
+              </h3>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background: '#232048',
+                  color: '#A99DFF',
+                  border: '1px solid #3F3779',
+                }}
+              >
+                {jdAnalysis.seniority} Level
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+              <div>
+                <span style={{ color: '#9299AA' }}>Mapped Topics: </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                  {jdAnalysis.mappedCurriculumTopicIds.slice(0, 6).map((id) => {
+                    const topic = catalog.getTopic(id);
+                    return (
+                      <span
+                        key={id}
+                        style={{
+                          fontSize: '10px',
+                          background: '#151922',
+                          border: '1px solid #292E3A',
+                          borderRadius: '4px',
+                          padding: '2px 6px',
+                          color: '#C5C9D3',
+                        }}
+                      >
+                        {topic ? topic.name : id}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {jdAnalysis.gapAnalysis.unassessedTopics.length > 0 && (
+                <div style={{ marginTop: '4px' }}>
+                  <span style={{ color: '#E09F3E', fontWeight: 600 }}>Unverified Gaps to Practice: </span>
+                  <span style={{ color: '#9299AA' }}>
+                    {jdAnalysis.gapAnalysis.unassessedTopics
+                      .slice(0, 3)
+                      .map((id) => catalog.getTopic(id)?.name || id)
+                      .join(', ')}
+                  </span>
+                </div>
               )}
             </div>
           </Card>

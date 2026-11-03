@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { TieredHint } from './types';
-import { CurriculumCatalogService } from '../../data/curriculum/CurriculumCatalog';
 
 export const CodingExecutionStatusSchema = z.enum([
   'executed_passed',
@@ -159,7 +158,7 @@ export class CodingEvaluationService {
   /**
    * Static syntactic and structural code analysis.
    */
-  private static performStaticAnalysis(code: string, language: string): {
+  private static performStaticAnalysis(code: string, _language: string): {
     hasSyntaxError: boolean;
     hasLoops: boolean;
     hasRecursion: boolean;
@@ -192,7 +191,7 @@ export class CodingEvaluationService {
     expectedOptimal?: { time: string; space: string }
   ): ComplexityAnalysisResult {
     // Extract stated Big-O from explanation
-    const timeMatch = transcript.match(/O\([0-9nNlogkK\s\^\+\*]+\)/);
+    const timeMatch = transcript.match(/O\([0-9nNlogkK\s^+*]+\)/);
     const statedTime = timeMatch ? timeMatch[0] : undefined;
 
     // Detect algorithmic patterns: sliding window with two pointers is O(N)
@@ -246,7 +245,7 @@ export class CodingEvaluationService {
     hintsUsed: TieredHint[];
     curriculumTopicId?: string;
   }): CodingAssessmentRecord['dimensions'] {
-    const { code, transcript, staticCheck, complexity, hintsUsed } = params;
+    const { code, transcript, staticCheck, complexity } = params;
 
     // 1. Functional Correctness
     let correctnessScore = 3;

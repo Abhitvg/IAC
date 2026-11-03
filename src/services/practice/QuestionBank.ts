@@ -15,7 +15,6 @@ import {
 } from '../../data/curriculum/questions/types';
 import { CURRICULUM_QUESTIONS } from '../../data/curriculum/questions/curriculumQuestions';
 import { CurriculumQuestionGenerator } from '../../data/curriculum/questions/questionGenerator';
-import { QuestionValidator } from '../../data/curriculum/questions/questionValidator';
 import { CurriculumCatalogService } from '../../data/curriculum/CurriculumCatalog';
 
 export const QuestionEntrySchema = z.object({

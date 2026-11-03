@@ -669,17 +669,26 @@ export class MockInterviewerEngine {
         return 'Tell me about a time you had a technical disagreement with another engineer or product manager. How did you handle it and what was the resolution?';
       case 'role_specific':
         return 'Can you describe the architectural anatomy of a high-concurrency Node.js / React application and how you debug memory leaks or event loop blockages?';
+      case 'adaptive_loop':
+        return "Welcome to the adaptive technical interview. We will explore core data structures, algorithms, and system mechanics across dynamic depth levels. To begin: explain how dynamic arrays allocate memory and achieve amortized O(1) append time.";
+      case 'core_cs':
+        return 'Welcome to the Core Computer Science round. Trace what occurs in the CPU, MMU, and OS kernel during a major virtual memory page fault.';
+      case 'conceptual':
+        return 'Explain collision resolution strategies in hash tables, contrasting separate chaining and open addressing in terms of CPU cache locality and deletion.';
+      default:
+        return 'Welcome to the technical interview session. Please introduce yourself and highlight a recent challenging technical project you led.';
     }
   }
 
   private static getCategoryForRound(roundType: MockRoundType, phase?: RehearsalPhase): string {
-    if (roundType === 'dress_rehearsal') {
+    if (roundType === 'dress_rehearsal' || roundType === 'adaptive_loop') {
       if (phase === 'icebreaker' || phase === 'behavioral') return 'behavioral';
       if (phase === 'technical') return 'coding';
       return 'behavioral';
     }
     if (roundType === 'dsa_coding') return 'coding';
     if (roundType === 'system_design') return 'system_design';
+    if (roundType === 'conceptual' || roundType === 'core_cs') return 'technical_concept';
     return 'behavioral';
   }
 
