@@ -2,8 +2,14 @@ import { copyToClipboard } from '../utils/clipboard';
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { usePracticeStore } from '../store/usePracticeStore';
-import { X, Save, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
+import { X, Save, AlertTriangle, Volume2, VolumeX, CheckCircle, ShieldAlert } from 'lucide-react';
 import { isSoundMuted, toggleSoundMuted } from '../utils/soundEffects';
+import {
+  getActiveModelsForProvider,
+  getDefaultModelForProvider,
+  validateModelPreflight,
+  AIProviderId,
+} from '../services/models/modelRegistry';
 
 export default function SettingsPanel() {
   const { deleteAllFeedbackAndPracticeData } = usePracticeStore();
@@ -22,6 +28,13 @@ export default function SettingsPanel() {
   const [extensionToken, setExtensionToken] = useState('');
   const [tokenCopied, setTokenCopied] = useState(false);
   const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted());
+  const [preflightStatus, setPreflightStatus] = useState<{
+    running: boolean;
+    valid?: boolean;
+    code?: string;
+    message?: string;
+  }>({ running: false });
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -57,14 +70,35 @@ export default function SettingsPanel() {
   if (!settings) return null;
 
   const handleProviderChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const provider = e.target.value;
+    const provider = e.target.value as AIProviderId;
     updateSetting('aiProvider', provider);
+    updateSetting('aiModel', getDefaultModelForProvider(provider, 'llm'));
+    updateSetting('whisperModel', getDefaultModelForProvider(provider, 'stt'));
+  };
 
-    // Set default model for provider
-    if (provider === 'groq') updateSetting('aiModel', 'openai/gpt-oss-120b');
-    else if (provider === 'openai') updateSetting('aiModel', 'gpt-4o-mini');
-    else if (provider === 'openrouter') updateSetting('aiModel', 'google/gemini-3.8-flash');
-    else if (provider === 'ollama') updateSetting('aiModel', 'llama3.2:1b');
+  const runPreflight = async () => {
+    setPreflightStatus({ running: true });
+    try {
+      const res = await validateModelPreflight(
+        settings.aiProvider as AIProviderId,
+        settings.aiModel,
+        apiKey,
+        settings.ollamaEndpoint
+      );
+      setPreflightStatus({
+        running: false,
+        valid: res.valid,
+        code: res.code,
+        message: res.message,
+      });
+    } catch (err: any) {
+      setPreflightStatus({
+        running: false,
+        valid: false,
+        code: 'NETWORK_ERROR',
+        message: err.message || String(err),
+      });
+    }
   };
 
   const saveApiKey = async () => {
@@ -122,6 +156,59 @@ export default function SettingsPanel() {
           )}
 
           {/* AI Engine Settings */}
+          {settings.lastModelMigrationNotice && !noticeDismissed && !settings.lastModelMigrationNotice.dismissed && (
+            <div
+              style={{
+                padding: '12px',
+                marginBottom: '16px',
+                borderRadius: '6px',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                color: '#fef3c7',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertTriangle style={{ width: '18px', height: '18px', color: '#f59e0b', flexShrink: 0 }} />
+                <span>
+                  <strong>Model Update Notice:</strong> Your configured model was automatically updated from{' '}
+                  <code style={{ color: '#fbbf24', fontFamily: 'monospace' }}>
+                    {settings.lastModelMigrationNotice.previousModel}
+                  </code>{' '}
+                  to{' '}
+                  <code style={{ color: '#34d399', fontFamily: 'monospace' }}>
+                    {settings.lastModelMigrationNotice.newModel}
+                  </code>
+                  . {settings.lastModelMigrationNotice.reason}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setNoticeDismissed(true);
+                  updateSetting('lastModelMigrationNotice', {
+                    ...settings.lastModelMigrationNotice,
+                    dismissed: true,
+                  });
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#fbbf24',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           <div className="settings-section">
             <h3 className="settings-section__title">AI Scoring &amp; Interview Provider</h3>
 
@@ -212,41 +299,102 @@ export default function SettingsPanel() {
               </div>
             )}
 
+            {/* LLM Model Selection */}
             <div className="field">
               <label className="field__label" htmlFor="ai-model-input">
-                Model
+                LLM Reasoning &amp; Answer Model
               </label>
-              {settings.aiProvider === 'groq' ? (
-                <select
-                  id="ai-model-input"
-                  className="field__select"
-                  value={
-                    ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'].includes(settings.aiModel)
-                      ? settings.aiModel
-                      : 'openai/gpt-oss-120b'
-                  }
-                  onChange={(e) => updateSetting('aiModel', e.target.value)}
-                  aria-label="Groq Model selection"
-                >
-                  <option value="openai/gpt-oss-120b">
-                    openai/gpt-oss-120b (Recommended — 120B MoE, ~500 tps)
-                  </option>
-                  <option value="openai/gpt-oss-20b">
-                    openai/gpt-oss-20b (Ultra-fast — 20B MoE, ~1,000 tps)
-                  </option>
-                  <option value="qwen/qwen3.8-27b">
-                    qwen/qwen3.8-27b (Qwen Reasoning &amp; Multilingual)
-                  </option>
-                </select>
-              ) : (
-                <input
-                  id="ai-model-input"
-                  type="text"
-                  className="field__input"
-                  value={settings.aiModel}
-                  onChange={(e) => updateSetting('aiModel', e.target.value)}
-                  aria-label="AI Model name"
-                />
+              {(() => {
+                const activeLlmModels = getActiveModelsForProvider(
+                  settings.aiProvider as AIProviderId,
+                  'llm'
+                );
+                if (activeLlmModels.length > 0) {
+                  return (
+                    <select
+                      id="ai-model-input"
+                      className="field__select"
+                      value={settings.aiModel}
+                      onChange={(e) => updateSetting('aiModel', e.target.value)}
+                      aria-label={`${settings.aiProvider} LLM Model selection`}
+                    >
+                      {activeLlmModels.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.displayName}
+                        </option>
+                      ))}
+                    </select>
+                  );
+                }
+                return (
+                  <input
+                    id="ai-model-input"
+                    type="text"
+                    className="field__input"
+                    value={settings.aiModel}
+                    onChange={(e) => updateSetting('aiModel', e.target.value)}
+                    aria-label="AI Model name"
+                  />
+                );
+              })()}
+            </div>
+
+            {/* STT Model Selection */}
+            {(() => {
+              const activeSttModels = getActiveModelsForProvider(
+                settings.aiProvider as AIProviderId,
+                'stt'
+              );
+              if (activeSttModels.length > 0) {
+                return (
+                  <div className="field">
+                    <label className="field__label" htmlFor="whisper-model-input">
+                      Speech-to-Text (Whisper) Model
+                    </label>
+                    <select
+                      id="whisper-model-input"
+                      className="field__select"
+                      value={settings.whisperModel}
+                      onChange={(e) => updateSetting('whisperModel', e.target.value)}
+                      aria-label={`${settings.aiProvider} Whisper Model selection`}
+                    >
+                      {activeSttModels.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.displayName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            {/* Preflight Validation Trigger */}
+            <div style={{ marginTop: '12px' }}>
+              <button
+                type="button"
+                className="action-btn"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={runPreflight}
+                disabled={preflightStatus.running}
+              >
+                {preflightStatus.running ? 'Validating Model & Credentials...' : '⚡ Validate Model Preflight'}
+              </button>
+
+              {preflightStatus.valid === true && (
+                <div style={{ marginTop: '8px', color: '#10b981', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle style={{ width: '14px', height: '14px' }} />
+                  <span>Model and API access verified successfully.</span>
+                </div>
+              )}
+              {preflightStatus.valid === false && (
+                <div style={{ marginTop: '8px', color: '#ef4444', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldAlert style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+                  <span>
+                    <strong>[{preflightStatus.code}]:</strong> {preflightStatus.message}
+                  </span>
+                </div>
               )}
             </div>
           </div>

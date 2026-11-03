@@ -1,4 +1,9 @@
 import { STTProvider, STTOptions, STTResult } from './types';
+import {
+  resolveOrMigrateModel,
+  getDefaultModelForProvider,
+  classifyAIError,
+} from '../models/modelRegistry';
 
 export class OpenAIWhisperProvider implements STTProvider {
   public readonly id = 'openai-whisper' as const;
@@ -67,7 +72,7 @@ export class GroqWhisperProvider implements STTProvider {
 
   constructor(
     private apiKey: string,
-    private model: string = 'whisper-large-v3'
+    private model: string = getDefaultModelForProvider('groq', 'stt')
   ) {}
 
   async transcribe(
@@ -75,13 +80,14 @@ export class GroqWhisperProvider implements STTProvider {
     options?: STTOptions
   ): Promise<STTResult> {
     const startTime = Date.now();
+    const targetModel = resolveOrMigrateModel('groq', this.model, 'stt').resolvedModel;
     const formData = new FormData();
 
     const blob =
       audioData instanceof Blob ? audioData : new Blob([audioData as any], { type: 'audio/webm' });
 
     formData.append('file', blob, 'audio.webm');
-    formData.append('model', this.model);
+    formData.append('model', targetModel);
     if (options?.language) formData.append('language', options.language);
     if (options?.prompt) formData.append('prompt', options.prompt);
 
@@ -95,7 +101,8 @@ export class GroqWhisperProvider implements STTProvider {
 
     if (!response.ok) {
       const err = await response.text();
-      throw new Error(`Groq Whisper error (${response.status}): ${err}`);
+      const classified = classifyAIError('groq', targetModel, response.status, err);
+      throw classified;
     }
 
     const data = await response.json();

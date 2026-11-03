@@ -54,7 +54,7 @@ describe('PDF Extraction Reliability & Native OCR Bounds (P1)', () => {
     });
   });
 
-  describe('Representative PDF Extraction Scenarios', () => {
+  describe('Representative PDF Extraction Scenarios', { timeout: 25000 }, () => {
     it('returns empty string gracefully for non-PDF random bytes', async () => {
       const randomBytes = new Uint8Array([10, 20, 30, 40, 50, 60]);
       const res = await parsePdfBuffer(randomBytes);

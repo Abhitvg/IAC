@@ -1,5 +1,6 @@
 import { JobEvaluationReport, WeightedRequirement } from './types';
 import { streamAnswer } from '../ai';
+import { resolveOrMigrateModel, AIProviderId } from '../models/modelRegistry';
 
 export interface ProviderConfig {
   type: string;
@@ -385,13 +386,19 @@ STRICT LATEX REQUIREMENTS (sb2nov/resume standard):
       .replace(/{{COMPANY_NAME}}/g, companyName);
   }
 
+  const targetModel = resolveOrMigrateModel(
+    (providerConfig.type || 'groq') as AIProviderId,
+    providerConfig.model,
+    'llm'
+  ).resolvedModel;
+
   let full = '';
   await streamAnswer(
     prompt,
     {
       type: providerConfig.type as any,
       apiKey: providerConfig.apiKey,
-      model: providerConfig.model || 'openai/gpt-oss-120b',
+      model: targetModel,
       temperature: 0.2,
       maxTokens: 2500,
       systemPrompt: 'You are an elite LaTeX resume architect who outputs 100% valid compilable sb2nov LaTeX resumes with zero preamble or markdown wrapping.',
@@ -559,13 +566,19 @@ Sincerely,
 Candidate`;
   }
 
+  const coverLetterModel = resolveOrMigrateModel(
+    (providerConfig.type || 'groq') as AIProviderId,
+    providerConfig.model,
+    'llm'
+  ).resolvedModel;
+
   let full = '';
   await streamAnswer(
     prompt,
     {
       type: providerConfig.type as any,
       apiKey: providerConfig.apiKey,
-      model: providerConfig.model || 'openai/gpt-oss-120b',
+      model: coverLetterModel,
       temperature: 0.3,
       maxTokens: 1000,
       systemPrompt: 'You write sharp, authentic, senior-level software engineering cover letters that hiring managers actually enjoy reading, adhering to Indeed and Intuit industry best practices.',

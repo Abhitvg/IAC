@@ -194,7 +194,7 @@ describe('Phase 6 - Progress and Honesty in Reporting Suite', () => {
       useAppStore.setState({
         settings: {
           aiProvider: 'groq',
-          aiModel: 'llama-3.3-70b-versatile',
+          aiModel: 'openai/gpt-oss-120b',
           preferredLanguage: 'typescript',
           systemPrompt: '',
           theme: 'dark',

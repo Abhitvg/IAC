@@ -7,6 +7,11 @@ import {
 import { create } from 'zustand';
 import { InterviewEngine } from '../services/InterviewEngine';
 import { InterviewWorkspace } from '../types';
+import {
+  resolveOrMigrateModel,
+  getDefaultModelForProvider,
+  AIProviderId,
+} from '../services/models/modelRegistry';
 
 export type InterviewStatus =
   | 'idle'
@@ -655,15 +660,31 @@ export const useAppStore = create<InterviewState>((set, get) => ({
           if (electronSettings && typeof electronSettings === 'object') {
             set((state) => {
               const merged = { ...state.settings, ...electronSettings };
-              if (merged.aiProvider === 'groq') {
-                if (
-                  !merged.aiModel ||
-                  typeof merged.aiModel !== 'string' ||
-                  merged.aiModel.toLowerCase().includes('llama') ||
-                  merged.aiModel.toLowerCase().includes('mixtral') ||
-                  merged.aiModel.toLowerCase().includes('gemma')
-                ) {
-                  merged.aiModel = 'openai/gpt-oss-120b';
+              const provider = (merged.aiProvider || 'groq') as AIProviderId;
+              const res = resolveOrMigrateModel(provider, merged.aiModel, 'llm');
+              if (res.wasMigrated) {
+                merged.aiModel = res.resolvedModel;
+                merged.lastModelMigrationNotice = {
+                  timestamp: Date.now(),
+                  previousModel: res.requestedModel,
+                  newModel: res.resolvedModel,
+                  reason: res.notice || 'Model retired on provider',
+                  dismissed: false,
+                };
+                if (typeof window !== 'undefined' && window.electronAPI?.setSettings) {
+                  try {
+                    window.electronAPI.setSettings('aiModel', res.resolvedModel);
+                    window.electronAPI.setSettings('lastModelMigrationNotice', merged.lastModelMigrationNotice);
+                  } catch {}
+                }
+              }
+              const sttRes = resolveOrMigrateModel(provider, merged.whisperModel, 'stt');
+              if (sttRes.wasMigrated) {
+                merged.whisperModel = sttRes.resolvedModel;
+                if (typeof window !== 'undefined' && window.electronAPI?.setSettings) {
+                  try {
+                    window.electronAPI.setSettings('whisperModel', sttRes.resolvedModel);
+                  } catch {}
                 }
               }
               return { settings: merged };
@@ -921,8 +942,8 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     } catch {}
     return {
       aiProvider: 'groq',
-      aiModel: 'openai/gpt-oss-120b',
-      whisperModel: 'whisper-large-v3-turbo',
+      aiModel: getDefaultModelForProvider('groq', 'llm'),
+      whisperModel: getDefaultModelForProvider('groq', 'stt'),
       temperature: 0.2,
       maxTokens: 2000,
       type: 'groq',

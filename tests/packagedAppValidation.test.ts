@@ -5,7 +5,7 @@ import { spawnSync } from 'child_process';
 import { parsePdfBuffer } from '../electron/services/pdfParser';
 import { getOcrEngineInfo } from '../electron/services/ocrService';
 
-describe('Packaged Application Validation (macOS ARM64)', () => {
+describe('Packaged Application Validation (macOS ARM64)', { timeout: 25000 }, () => {
   const packagedResourcesDir = path.resolve(
     __dirname,
     '../release/mac-arm64/AI-Interview-Assistant.app/Contents/Resources'

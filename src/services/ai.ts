@@ -2,6 +2,15 @@ import { AIStreamParser } from './AIStreamParser';
 import { SentenceBuffer } from './SentenceBuffer';
 import { globalLatencyTracker } from './LatencyTracker';
 import {
+  resolveOrMigrateModel,
+  getModelFallbackChain,
+  classifyAIError,
+  sanitizeDiagnosticSecret,
+  FallbackDiagnosticRecord,
+  AIProviderId,
+  getDefaultModelForProvider,
+} from './models/modelRegistry';
+import {
   AIProviderConfig,
   AIResponse,
   CodingSolution,
@@ -851,6 +860,7 @@ export interface AIStreamCallbacks {
   onSentence?: (sentence: string) => void;
   onComplete?: (fullResponse: string) => void;
   onError?: (error: Error) => void;
+  onDiagnostic?: (diagnostic: FallbackDiagnosticRecord) => void;
 }
 
 export async function streamAnswer(
@@ -889,17 +899,10 @@ export async function streamAnswer(
   };
   if (config.type === 'openrouter') headers['HTTP-Referer'] = 'ai-interview-assistant';
 
-  let effectiveModel = config.model;
-  if (config.type === 'groq') {
-    if (
-      !effectiveModel ||
-      effectiveModel.toLowerCase().includes('llama') ||
-      effectiveModel.toLowerCase().includes('mixtral') ||
-      effectiveModel.toLowerCase().includes('gemma')
-    ) {
-      effectiveModel = 'openai/gpt-oss-120b';
-    }
-  }
+  // Authoritative model resolution & migration check
+  const providerId = (config.type || 'groq') as AIProviderId;
+  const resolution = resolveOrMigrateModel(providerId, config.model, 'llm');
+  const effectiveModel = resolution.resolvedModel;
 
   try {
     const response = await fetch(url, {
@@ -919,18 +922,56 @@ export async function streamAnswer(
     });
 
     let activeResponse = response;
-    if (!activeResponse.ok && config.type === 'groq') {
-      // Robust fallback chain for Groq models (active Groq model IDs)
-      const fallbackModels = [
-        'openai/gpt-oss-120b',
-        'openai/gpt-oss-20b',
-        'qwen/qwen3.8-27b',
-      ].filter((m) => m !== effectiveModel);
 
-      for (const fbModel of fallbackModels) {
+    if (!activeResponse.ok) {
+      let rawErrorBody: any = '';
+      try {
+        const raw = await activeResponse.text();
+        try {
+          rawErrorBody = JSON.parse(raw);
+        } catch {
+          rawErrorBody = raw;
+        }
+      } catch {
+        rawErrorBody = activeResponse.statusText;
+      }
+
+      // Explicitly classify error: distinguish auth/quota/rate-limit from model-not-found
+      const classifiedError = classifyAIError(
+        providerId,
+        effectiveModel,
+        activeResponse.status,
+        rawErrorBody
+      );
+
+      // CRITICAL: NEVER silently fallback for invalid keys (401), forbidden (403),
+      // billing (402), quota/rate-limits (429), or network dropouts.
+      if (!classifiedError.isRecoverableByModelFallback) {
+        throw classifiedError;
+      }
+
+      // Safe fallback ONLY for model-not-found (404) or decommissioned model errors
+      const fallbackChain = getModelFallbackChain(providerId, effectiveModel, 'llm');
+      let fallbackSucceeded = false;
+
+      for (const fbModel of fallbackChain) {
+        const diag: FallbackDiagnosticRecord = {
+          timestamp: Date.now(),
+          provider: providerId,
+          originalModel: effectiveModel,
+          fallbackModel: fbModel,
+          triggerError: {
+            code: classifiedError.code,
+            status: activeResponse.status,
+            message: sanitizeDiagnosticSecret(classifiedError.originalErrorDetail || ''),
+          },
+          successful: false,
+        };
+
         console.warn(
-          `[AI] Primary Groq model ${effectiveModel} returned ${activeResponse.status}. Auto-fallback to ${fbModel}...`
+          `[AI] Model '${effectiveModel}' failed with ${classifiedError.code}. Attempting safe fallback to '${fbModel}'...`
         );
+
         try {
           const fallbackRes = await fetch(url, {
             method: 'POST',
@@ -947,46 +988,27 @@ export async function streamAnswer(
             }),
             signal,
           });
+
           if (fallbackRes.ok && fallbackRes.body) {
             activeResponse = fallbackRes;
+            (diag as any).successful = true;
+            callbacks.onDiagnostic?.(diag);
+            fallbackSucceeded = true;
             break;
+          } else {
+            callbacks.onDiagnostic?.(diag);
           }
-        } catch (fbErr) {
-          console.warn(`[AI] Fallback to ${fbModel} failed:`, fbErr);
+        } catch (fbErr: any) {
+          callbacks.onDiagnostic?.(diag);
+          console.warn(`[AI] Fallback to '${fbModel}' encountered error:`, fbErr?.message);
         }
       }
 
-      if (!activeResponse.ok) {
-        let errDetail = '';
-        try {
-          const raw = await activeResponse.text();
-          try {
-            const parsed = JSON.parse(raw);
-            errDetail = parsed?.error?.message || raw;
-          } catch {
-            errDetail = raw;
-          }
-        } catch {}
-        const retryAfter =
-          activeResponse.headers.get('retry-after') ||
-          activeResponse.headers.get('x-ratelimit-reset-requests');
-        throw new Error(
-          `Stream Error: ${activeResponse.status}${errDetail ? ` (${errDetail})` : ''}. ${retryAfter ? `Retry after ${retryAfter}` : ''}`
-        );
+      if (!fallbackSucceeded && !activeResponse.ok) {
+        throw classifiedError;
       }
-    } else if (!activeResponse.ok) {
-      let errDetail = '';
-      try {
-        const raw = await activeResponse.text();
-        try {
-          const parsed = JSON.parse(raw);
-          errDetail = parsed?.error?.message || raw;
-        } catch {
-          errDetail = raw;
-        }
-      } catch {}
-      throw new Error(`Stream Error: ${activeResponse.status}${errDetail ? ` (${errDetail})` : ''}`);
     }
+
     if (!activeResponse.body) throw new Error(`No response body`);
 
     const reader = activeResponse.body.getReader();
@@ -1070,10 +1092,12 @@ export async function generateAIAnswer(
   providerConfig?: Partial<AIProviderConfig>,
   language?: ProgrammingLanguage
 ): Promise<string> {
+  const provider = (providerConfig?.type || 'groq') as AIProviderId;
+  const resolution = resolveOrMigrateModel(provider, providerConfig?.model, 'llm');
   const config: AIProviderConfig = {
-    type: providerConfig?.type || 'groq',
+    type: provider,
     apiKey: providerConfig?.apiKey || 'mock-key',
-    model: providerConfig?.model || 'openai/gpt-oss-120b',
+    model: resolution.resolvedModel,
     temperature: providerConfig?.temperature ?? 0.7,
     maxTokens: providerConfig?.maxTokens || 1500,
     systemPrompt: providerConfig?.systemPrompt || '',

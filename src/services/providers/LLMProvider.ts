@@ -14,7 +14,7 @@ export class GroqProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = 'openai/gpt-oss-120b'
-  ) {}
+  ) { }
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -83,7 +83,7 @@ export class OpenAIProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = 'gpt-4o-mini'
-  ) {}
+  ) { }
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -150,7 +150,7 @@ export class OpenRouterProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = 'meta-llama/llama-3.3-70b-instruct'
-  ) {}
+  ) { }
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -219,7 +219,7 @@ export class OllamaProvider implements LLMProvider {
   constructor(
     private endpoint: string = 'http://127.0.0.1:11434',
     private defaultModel: string = 'llama3.2:1b'
-  ) {}
+  ) { }
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();

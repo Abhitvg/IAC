@@ -12,6 +12,7 @@ import {
   HardDriveDownload,
   Flame,
 } from 'lucide-react';
+import { getDefaultModelForProvider, AIProviderId } from '../services/models/modelRegistry';
 
 type OnboardingStep = 'mode' | 'credentials_or_models' | 'mic_check' | 'ready';
 
@@ -73,18 +74,13 @@ export default function OnboardingModal() {
 
   const handleFinishAndStart = async () => {
     try {
-      updateSetting('aiProvider', isLocalMode ? 'ollama' : provider);
-      if (isLocalMode) {
-        updateSetting('aiModel', 'llama3.2:1b');
-      } else {
-        if (provider === 'groq') {
-          updateSetting('aiModel', 'openai/gpt-oss-120b');
-          updateSetting('whisperModel', 'whisper-large-v3');
-        } else if (provider === 'openai') {
-          updateSetting('aiModel', 'gpt-4o-mini');
-          updateSetting('whisperModel', 'whisper-1');
-        }
-      }
+      const activeProv = isLocalMode ? 'ollama' : (provider as AIProviderId);
+      updateSetting('aiProvider', activeProv);
+      updateSetting('aiModel', getDefaultModelForProvider(activeProv, 'llm'));
+      updateSetting(
+        'whisperModel',
+        isLocalMode ? 'local-whisper-cpp' : getDefaultModelForProvider(activeProv, 'stt')
+      );
 
       if (!isLocalMode && apiKey.trim()) {
         await window.electronAPI?.setApiKey?.(provider, apiKey.trim());

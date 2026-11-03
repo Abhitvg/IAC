@@ -32,6 +32,7 @@ const ALLOWED_SETTING_KEYS = new Set([
   'hasCompletedOnboarding',
   'extensionToken',
   'windowOpacity',
+  'lastModelMigrationNotice',
 ]);
 
 export function validateSetting(key: string, value: any): boolean {
@@ -72,6 +73,11 @@ export function validateSetting(key: string, value: any): boolean {
         throw new Error(`Setting "${key}" must be a boolean.`);
       }
       break;
+    case 'lastModelMigrationNotice':
+      if (value !== null && typeof value !== 'object') {
+        throw new Error(`Setting "${key}" must be an object or null.`);
+      }
+      break;
     case 'ollamaEndpoint':
     case 'customApiEndpoint':
       if (typeof value !== 'string' || value.length > 512) {
@@ -92,7 +98,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     defaults: {
       aiProvider: 'groq',
       aiModel: 'openai/gpt-oss-120b',
-      whisperModel: 'whisper-large-v3',
+      whisperModel: 'whisper-large-v3-turbo',
       preferredLanguage: 'java',
       responseMode: 'interview',
       temperature: 0.2,
@@ -161,7 +167,15 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       curModel.toLowerCase().includes('mixtral') ||
       curModel.toLowerCase().includes('gemma')
     ) {
-      store.set('aiModel', 'openai/gpt-oss-120b');
+      const newModel = 'openai/gpt-oss-120b';
+      store.set('aiModel', newModel);
+      store.set('lastModelMigrationNotice', {
+        timestamp: Date.now(),
+        previousModel: curModel || 'empty',
+        newModel,
+        reason: 'Legacy Groq model retired. Migrated to active openai/gpt-oss-120b.',
+        dismissed: false,
+      });
     }
   } catch (err) {
     console.warn('[CredentialStore] Migration notice:', err);

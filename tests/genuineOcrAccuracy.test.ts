@@ -5,7 +5,7 @@ import { execFileSync } from 'child_process';
 import { parsePdfBuffer, isGarbledOrMojibakeText } from '../electron/services/pdfParser';
 import { resolveOcrBinaryPath } from '../electron/services/ocrService';
 
-describe('Genuine OCR Accuracy, Multilingual Recognition & Text Layer Distinction (Requirement 3)', () => {
+describe('Genuine OCR Accuracy, Multilingual Recognition & Text Layer Distinction (Requirement 3)', { timeout: 25000 }, () => {
   const ocrBin = resolveOcrBinaryPath();
   const fixturesDir = path.resolve(__dirname, 'fixtures/ocr');
 

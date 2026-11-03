@@ -172,6 +172,14 @@ export interface BrowserContext {
 
 // ─── Settings Types ───
 
+export interface ModelMigrationNotice {
+  timestamp: number;
+  previousModel: string;
+  newModel: string;
+  reason: string;
+  dismissed?: boolean;
+}
+
 export interface AppSettings {
   aiProvider: AIProviderType;
   aiModel: string;
@@ -188,6 +196,7 @@ export interface AppSettings {
   systemPrompt: string;
   customApiEndpoint: string;
   ollamaEndpoint: string;
+  lastModelMigrationNotice?: ModelMigrationNotice | null;
 }
 
 export interface ShortcutMap {

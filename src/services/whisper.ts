@@ -9,6 +9,7 @@ import { TECH_TERMS } from './ai';
 import { getDynamicWhisperVocab } from './candidatePersona';
 import { useAppStore } from '../store/useAppStore';
 import { convertBlobToWav, isValidWav } from '../utils/audioConversion';
+import { resolveOrMigrateModel, classifyAIError } from './models/modelRegistry';
 
 export interface WhisperConfig {
   provider?: 'groq' | 'openai' | 'local';
@@ -123,10 +124,11 @@ async function transcribeGroq(
   config?: WhisperConfig,
   signal?: AbortSignal
 ): Promise<TranscriptionResult> {
+  const targetModel = resolveOrMigrateModel('groq', config?.model, 'stt').resolvedModel;
   const wavBlob = await convertBlobToWav(audioBlob);
   const formData = new FormData();
   formData.append('file', wavBlob, 'recording.wav');
-  formData.append('model', config?.model || 'whisper-large-v3-turbo');
+  formData.append('model', targetModel);
   formData.append('response_format', 'verbose_json');
 
   if (config?.language) formData.append('language', config.language);
@@ -156,7 +158,8 @@ async function transcribeGroq(
 
   if (!response.ok) {
     const detail = await readErrorBody(response);
-    throw new Error(`Groq Whisper error: HTTP ${response.status} — ${detail}`);
+    const classified = classifyAIError('groq', targetModel, response.status, detail);
+    throw classified;
   }
 
   const data = await response.json();

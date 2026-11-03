@@ -39,7 +39,7 @@ export class InterviewerService {
       lastAnswer: string;
       currentProbesCount?: number;
       targetWeakness?:
-        ExtractedWeakness | { topic?: string; skill?: string; requestedFix?: string };
+      ExtractedWeakness | { topic?: string; skill?: string; requestedFix?: string };
       feedbackRecords?: FeedbackRecord[];
       pressure?: InterviewPressure;
     },
@@ -83,12 +83,12 @@ export class InterviewerService {
         ...params,
         target_weakness:
           targetWeakness &&
-          (targetWeakness.skill === 'depth' || targetWeakness.skill === 'concreteness')
+            (targetWeakness.skill === 'depth' || targetWeakness.skill === 'concreteness')
             ? {
-                topic: targetWeakness.topic || '',
-                skill: targetWeakness.skill,
-                requestedFix: targetWeakness.requestedFix,
-              }
+              topic: targetWeakness.topic || '',
+              skill: targetWeakness.skill,
+              requestedFix: targetWeakness.requestedFix,
+            }
             : undefined,
         pressure: params.pressure,
       };

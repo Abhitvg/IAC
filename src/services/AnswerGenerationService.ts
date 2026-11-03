@@ -1,5 +1,6 @@
 import { CandidateKnowledgeBase, FactualGroundingValidator, GroundingValidationResult, GroundingViolation } from './candidateIntelligence';
 import { FollowUpEngine } from './followUpEngine';
+import { resolveOrMigrateModel, AIProviderId } from './models/modelRegistry';
 /**
  * AnswerGenerationService
  *
@@ -277,27 +278,9 @@ export class AnswerGenerationService {
       );
     }
 
-    // Model selection: Honor user setting first; if not set, choose reasonable default
-    let chosenModel = params.model;
-    if (provider === 'groq') {
-      if (
-        !chosenModel ||
-        typeof chosenModel !== 'string' ||
-        chosenModel.toLowerCase().includes('llama') ||
-        chosenModel.toLowerCase().includes('mixtral') ||
-        chosenModel.toLowerCase().includes('gemma')
-      ) {
-        chosenModel = 'openai/gpt-oss-120b';
-      }
-    } else if (!chosenModel) {
-      if (provider === 'openai') {
-        chosenModel = 'gpt-4o';
-      } else if (provider === 'openrouter') {
-        chosenModel = 'meta-llama/llama-3.3-70b-instruct';
-      } else {
-        chosenModel = 'llama3';
-      }
-    }
+    // Model selection: Honor user setting with authoritative registry resolution & deprecation migration
+    const modelResolution = resolveOrMigrateModel(provider as AIProviderId, params.model, 'llm');
+    const chosenModel = modelResolution.resolvedModel;
 
     const confidence = estimateConfidence(
       detectedCategory,
