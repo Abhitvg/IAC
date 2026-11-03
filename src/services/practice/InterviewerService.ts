@@ -1,14 +1,16 @@
 import {
   buildInterviewerPrompt,
   InterviewerResponseSchema,
+  InterviewerAction,
   BuildInterviewerPromptParams,
 } from './prompts/interviewer';
 import { MockInterviewerEngine } from './MockInterviewerEngine';
 import { ExtractedWeakness, FeedbackRecord, InterviewPressure } from './types';
 import { resolveOrMigrateModel, AIProviderId } from '../models/modelRegistry';
+import { CurriculumCatalogService } from '../../data/curriculum/CurriculumCatalog';
 
 export interface InterviewerTurnResult {
-  action: 'ask' | 'probe' | 'move_on' | 'wrap_up';
+  action: InterviewerAction;
   spoken: string;
   reason: string;
   evidence: string;
@@ -17,8 +19,9 @@ export interface InterviewerTurnResult {
 
 export class InterviewerService {
   /**
-   * Validates that evidence cited in a probe is a case- and whitespace-normalized substring
-   * of the candidate's last answer.
+   * Validates that evidence cited in a probe, challenge, or clarify action is a
+   * case- and whitespace-normalized substring of the candidate's actual last answer.
+   * Never accepts empty or whitespace-only evidence.
    */
   public static validateEvidence(evidence: string, lastAnswer: string): boolean {
     if (!evidence || !evidence.trim()) {
@@ -30,25 +33,30 @@ export class InterviewerService {
   }
 
   /**
-   * Generates the next interviewer turn using the configured LLM.
-   * If action is "probe", validates that evidence was actually spoken by the candidate.
-   * If validation fails, drops the probe and advances to the next question.
-   * Falls back to offline heuristic probe if LLM fails or is unavailable.
+   * Generates the next interviewer turn using the configured LLM or offline fallback.
+   * Applies conditional evidence validation:
+   * - "ask": evidence is not required.
+   * - "probe": requires a verifiable quote from the candidate's last response.
+   * - "challenge": requires verifiable evidence of the specific claim being challenged.
+   * - "clarify": requires verifiable evidence of ambiguous terminology.
+   * - "move_on" / "wrap_up": evidence is optional.
    */
   public static async generateTurn(
     params: BuildInterviewerPromptParams & {
       lastAnswer: string;
       currentProbesCount?: number;
       targetWeakness?:
-      ExtractedWeakness | { topic?: string; skill?: string; requestedFix?: string };
+        | ExtractedWeakness
+        | { topic?: string; skill?: string; requestedFix?: string };
       feedbackRecords?: FeedbackRecord[];
       pressure?: InterviewPressure;
+      curriculumTopicId?: string;
     },
     llmCaller?: (prompt: string, model: string) => Promise<string>
   ): Promise<InterviewerTurnResult> {
     const probesCount = params.currentProbesCount ?? 0;
 
-    // Enforce prompt rule: Probe at most twice per question.
+    // Enforce interview pacing rule: at most 2 probes per question.
     if (probesCount >= 2) {
       return {
         action: 'move_on',
@@ -84,21 +92,28 @@ export class InterviewerService {
         ...params,
         target_weakness:
           targetWeakness &&
-            (targetWeakness.skill === 'depth' || targetWeakness.skill === 'concreteness')
+          (targetWeakness.skill === 'depth' || targetWeakness.skill === 'concreteness')
             ? {
-              topic: targetWeakness.topic || '',
-              skill: targetWeakness.skill,
-              requestedFix: targetWeakness.requestedFix,
-            }
+                topic: targetWeakness.topic || '',
+                skill: targetWeakness.skill,
+                requestedFix: targetWeakness.requestedFix,
+              }
             : undefined,
         pressure: params.pressure,
+        curriculumTopicId:
+          params.curriculumTopicId ||
+          (typeof params.question_json === 'object'
+            ? params.question_json?.curriculumTopicId
+            : undefined),
       };
+
       const prompt = buildInterviewerPrompt(promptParams);
       const targetModel = resolveOrMigrateModel(
         ((params as any).provider || 'groq') as AIProviderId,
         (params as any).model,
         'llm'
       ).resolvedModel;
+
       const rawResponse = await llmCaller(prompt, targetModel);
 
       // Strip potential markdown code fences from JSON
@@ -109,20 +124,31 @@ export class InterviewerService {
 
       const parsed = InterviewerResponseSchema.parse(JSON.parse(cleanJson));
 
-      if (parsed.action === 'probe') {
+      // Conditional evidence validation
+      if (
+        parsed.action === 'probe' ||
+        parsed.action === 'challenge' ||
+        parsed.action === 'clarify'
+      ) {
         const isVerifiable = InterviewerService.validateEvidence(
           parsed.evidence,
           params.lastAnswer
         );
 
         if (!isVerifiable) {
-          // Task 4: Validate that "evidence" in a probe is a substring of the candidate's last answer;
-          // if not, drop the probe and ask the next question.
+          // If cited evidence was fabricated or absent from the candidate's last answer,
+          // drop the probe/challenge/clarify to avoid hallucinated confrontation.
+          const actionLabel =
+            parsed.action === 'probe'
+              ? 'Probe'
+              : parsed.action === 'challenge'
+              ? 'Challenge'
+              : 'Clarify';
+
           return {
             action: 'move_on',
             spoken: "Understood. Let's move on to the next question.",
-            reason:
-              "Probe dropped: cited evidence was not a verifiable substring of candidate's last answer.",
+            reason: `${actionLabel} dropped: cited evidence was not a verifiable substring of candidate's last answer.`,
             evidence: '',
             isOffline: false,
           };
@@ -143,8 +169,8 @@ export class InterviewerService {
   }
 
   /**
-   * Deterministic offline fallback using heuristic weakness detectors.
-   * Clearly marked with isOffline: true for UI labeling.
+   * Deterministic offline fallback using curriculum-grounded heuristics and weakness detectors.
+   * Returns action marked with isOffline: true for UI transparency.
    */
   public static generateOfflineFallback(params: {
     lastAnswer: string;
@@ -153,6 +179,7 @@ export class InterviewerService {
     currentProbesCount?: number;
     targetWeakness?: ExtractedWeakness | { topic?: string; skill?: string; requestedFix?: string };
     feedbackRecords?: FeedbackRecord[];
+    curriculumTopicId?: string;
   }): InterviewerTurnResult {
     const questionText =
       typeof params.question_json === 'string'
@@ -169,6 +196,7 @@ export class InterviewerService {
       );
     }
 
+    // 1. Weakness-targeted probe
     if (
       probesCount === 0 &&
       targetWeakness &&
@@ -181,10 +209,49 @@ export class InterviewerService {
       return {
         action: 'probe',
         spoken: targeted.spoken,
-        reason: `Targeted ${targetWeakness.skill} probe for requested fix: ${targetWeakness.requestedFix || 'more depth'}`,
+        reason: `Targeted ${targetWeakness.skill} probe for requested fix: ${
+          targetWeakness.requestedFix || 'more depth'
+        }`,
         evidence: targeted.evidence,
         isOffline: true,
       };
+    }
+
+    // 2. Curriculum-grounded challenge if candidate answer hits common misconceptions
+    const topicId =
+      params.curriculumTopicId ||
+      (typeof params.question_json === 'object'
+        ? params.question_json?.curriculumTopicId
+        : undefined);
+
+    if (topicId) {
+      try {
+        const topic = CurriculumCatalogService.getInstance().getTopic(topicId);
+        if (topic && topic.commonMisconceptions.length > 0) {
+          const answerLower = (params.lastAnswer || '').toLowerCase();
+          for (const misconception of topic.commonMisconceptions) {
+            const keywords = misconception
+              .toLowerCase()
+              .split(/\s+/)
+              .filter((w) => w.length > 4);
+            const matches = keywords.filter((kw) => answerLower.includes(kw));
+            if (matches.length >= 2) {
+              const words = (params.lastAnswer || '').trim().split(/\s+/).filter(Boolean);
+              const matchedPhrase =
+                words.find((w) => matches.some((kw) => w.toLowerCase().includes(kw))) || words[0] || '';
+              return {
+                action: 'challenge',
+                spoken: `You mentioned "${matchedPhrase}". How does that reconcile with the edge-case where ${misconception.toLowerCase()}?`,
+                reason: `Curriculum-grounded challenge on common misconception: ${misconception}`,
+                evidence: matchedPhrase,
+                isOffline: true,
+              };
+            }
+          }
+        }
+      } catch (_e) {
+        // Fall through to general fallback
+      }
     }
 
     const fallbackSpoken = MockInterviewerEngine.generateWeaknessProbe(
