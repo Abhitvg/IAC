@@ -52,6 +52,7 @@ import { useCareerOpsStore } from '../../store/useCareerOpsStore';
 import { useAppStore } from '../../store/useAppStore';
 import { usePracticeStore } from '../../store/usePracticeStore';
 import { ApplicationStatus, JobApplication } from '../../services/careerOps/types';
+import { resolveOrMigrateModel, AIProviderId } from '../../services/models/modelRegistry';
 import {
   generateBrowserAutoFillScript,
   generateAutoFillBookmarklet,
@@ -212,7 +213,11 @@ export function CareerOpsView() {
       ? {
           type: settings.aiProvider,
           apiKey: '',
-          model: settings.aiModel || 'openai/gpt-oss-120b',
+          model: resolveOrMigrateModel(
+            settings.aiProvider as AIProviderId,
+            settings.aiModel,
+            'llm'
+          ).resolvedModel,
         }
       : undefined;
 
@@ -229,7 +234,11 @@ export function CareerOpsView() {
       ? {
           type: settings.aiProvider,
           apiKey: '',
-          model: settings.aiModel || 'openai/gpt-oss-120b',
+          model: resolveOrMigrateModel(
+            settings.aiProvider as AIProviderId,
+            settings.aiModel,
+            'llm'
+          ).resolvedModel,
         }
       : undefined;
 

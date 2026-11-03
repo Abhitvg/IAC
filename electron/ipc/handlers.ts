@@ -151,31 +151,43 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       });
     }
 
-    // Auto-heal provider/model settings if set to broken or retired models
+    // Auto-heal provider/model settings ONLY for Groq retired models, leaving non-Groq and custom models untouched
     const curProvider = store.get('aiProvider');
     if (!curProvider) {
       store.set('aiProvider', 'groq');
       store.set('aiModel', 'openai/gpt-oss-120b');
       store.set('whisperModel', 'whisper-large-v3-turbo');
-    }
-    const curModel = store.get('aiModel');
-    if (
-      !curModel ||
-      curModel === 'openrouter/free' ||
-      typeof curModel !== 'string' ||
-      curModel.toLowerCase().includes('llama') ||
-      curModel.toLowerCase().includes('mixtral') ||
-      curModel.toLowerCase().includes('gemma')
-    ) {
-      const newModel = 'openai/gpt-oss-120b';
-      store.set('aiModel', newModel);
-      store.set('lastModelMigrationNotice', {
-        timestamp: Date.now(),
-        previousModel: curModel || 'empty',
-        newModel,
-        reason: 'Legacy Groq model retired. Migrated to active openai/gpt-oss-120b.',
-        dismissed: false,
-      });
+    } else if (curProvider === 'groq') {
+      const curModel = store.get('aiModel');
+      const RETIRED_GROQ_IDS = new Set([
+        'llama-3.3-70b-versatile',
+        'llama-3.1-70b-versatile',
+        'llama-3.1-8b-instant',
+        'llama-3.2-1b-preview',
+        'llama-3.2-3b-preview',
+        'llama-3.2-11b-vision-preview',
+        'llama-3.2-90b-vision-preview',
+        'llama3-70b-8192',
+        'llama3-8b-8192',
+        'mixtral-8x7b-32768',
+        'gemma2-9b-it',
+        'gemma-7b-it',
+        'openrouter/free',
+      ]);
+      const rawModel = typeof curModel === 'string' ? curModel.trim().toLowerCase().replace(/^groq\//, '') : '';
+      if (!curModel || RETIRED_GROQ_IDS.has(rawModel)) {
+        const newModel = rawModel.includes('8b') || rawModel.includes('9b') || rawModel.includes('1b') || rawModel.includes('3b')
+          ? 'openai/gpt-oss-20b'
+          : 'openai/gpt-oss-120b';
+        store.set('aiModel', newModel);
+        store.set('lastModelMigrationNotice', {
+          timestamp: Date.now(),
+          previousModel: curModel || 'empty',
+          newModel,
+          reason: 'Legacy Groq model retired. Migrated to active replacement.',
+          dismissed: false,
+        });
+      }
     }
   } catch (err) {
     console.warn('[CredentialStore] Migration notice:', err);

@@ -175,12 +175,18 @@ OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or preamble,
 
   try {
     let fullResponse = '';
+    const targetModel = resolveOrMigrateModel(
+      (providerConfig.type || 'groq') as AIProviderId,
+      providerConfig.model,
+      'llm'
+    ).resolvedModel;
+
     await streamAnswer(
       prompt,
       {
         type: providerConfig.type as any,
         apiKey: providerConfig.apiKey,
-        model: providerConfig.model || 'openai/gpt-oss-120b',
+        model: targetModel,
         temperature: 0.1,
         maxTokens: 2000,
         systemPrompt: 'You are an expert technical recruiter and career strategist. You return only valid, well-formed JSON.',

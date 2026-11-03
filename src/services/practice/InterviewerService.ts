@@ -5,6 +5,7 @@ import {
 } from './prompts/interviewer';
 import { MockInterviewerEngine } from './MockInterviewerEngine';
 import { ExtractedWeakness, FeedbackRecord, InterviewPressure } from './types';
+import { resolveOrMigrateModel, AIProviderId } from '../models/modelRegistry';
 
 export interface InterviewerTurnResult {
   action: 'ask' | 'probe' | 'move_on' | 'wrap_up';
@@ -93,7 +94,12 @@ export class InterviewerService {
         pressure: params.pressure,
       };
       const prompt = buildInterviewerPrompt(promptParams);
-      const rawResponse = await llmCaller(prompt, 'openai/gpt-oss-120b');
+      const targetModel = resolveOrMigrateModel(
+        ((params as any).provider || 'groq') as AIProviderId,
+        (params as any).model,
+        'llm'
+      ).resolvedModel;
+      const rawResponse = await llmCaller(prompt, targetModel);
 
       // Strip potential markdown code fences from JSON
       const cleanJson = rawResponse

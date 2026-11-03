@@ -4,6 +4,7 @@ import { buildScorerPrompt } from '../prompts/scorer';
 import { EvidenceValidator } from './EvidenceValidator';
 import { DeterministicSignalsExtractor, DeterministicSignals } from './DeterministicSignals';
 import { AIProviderConfig } from '../../../types';
+import { resolveOrMigrateModel, AIProviderId } from '../../models/modelRegistry';
 
 // ─── Zod Schemas for Strict JSON Output Validation ───
 
@@ -90,18 +91,9 @@ export class LLMScorer {
    * Selects the larger, high-parameter reasoning model for scoring rather than fast conversational models.
    */
   public static selectScoringModel(providerType: string = 'groq', currentModel?: string): string {
-    switch (providerType.toLowerCase()) {
-      case 'groq':
-        return 'openai/gpt-oss-120b';
-      case 'openai':
-        return 'gpt-4o';
-      case 'openrouter':
-        return 'meta-llama/llama-3.3-70b-instruct';
-      case 'ollama':
-        return currentModel && currentModel.includes('33') ? currentModel : 'llama3.3:70b';
-      default:
-        return currentModel || 'openai/gpt-oss-120b';
-    }
+    const provider = (providerType.toLowerCase() || 'groq') as AIProviderId;
+    const res = resolveOrMigrateModel(provider, currentModel, 'llm');
+    return res.resolvedModel;
   }
 
   /**

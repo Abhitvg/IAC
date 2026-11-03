@@ -12,7 +12,7 @@ export class OpenAIWhisperProvider implements STTProvider {
 
   constructor(
     private apiKey: string,
-    private model: string = 'whisper-1'
+    private model: string = getDefaultModelForProvider('openai', 'stt')
   ) {}
 
   async transcribe(

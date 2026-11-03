@@ -904,6 +904,8 @@ export async function streamAnswer(
   const resolution = resolveOrMigrateModel(providerId, config.model, 'llm');
   const effectiveModel = resolution.resolvedModel;
 
+  let hasEmittedTokens = false;
+
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -953,8 +955,15 @@ export async function streamAnswer(
       // Safe fallback ONLY for model-not-found (404) or decommissioned model errors
       const fallbackChain = getModelFallbackChain(providerId, effectiveModel, 'llm');
       let fallbackSucceeded = false;
+      const visitedModels = new Set<string>([effectiveModel.toLowerCase()]);
+      const fallbackDiagnostics: FallbackDiagnosticRecord[] = [];
+      const MAX_FALLBACK_ATTEMPTS = 2;
 
       for (const fbModel of fallbackChain) {
+        if (visitedModels.has(fbModel.toLowerCase())) continue;
+        if (fallbackDiagnostics.length >= MAX_FALLBACK_ATTEMPTS) break;
+        visitedModels.add(fbModel.toLowerCase());
+
         const diag: FallbackDiagnosticRecord = {
           timestamp: Date.now(),
           provider: providerId,
@@ -992,19 +1001,23 @@ export async function streamAnswer(
           if (fallbackRes.ok && fallbackRes.body) {
             activeResponse = fallbackRes;
             (diag as any).successful = true;
+            fallbackDiagnostics.push(diag);
             callbacks.onDiagnostic?.(diag);
             fallbackSucceeded = true;
             break;
           } else {
+            fallbackDiagnostics.push(diag);
             callbacks.onDiagnostic?.(diag);
           }
         } catch (fbErr: any) {
+          fallbackDiagnostics.push(diag);
           callbacks.onDiagnostic?.(diag);
           console.warn(`[AI] Fallback to '${fbModel}' encountered error:`, fbErr?.message);
         }
       }
 
       if (!fallbackSucceeded && !activeResponse.ok) {
+        (classifiedError as any).fallbackDiagnostics = fallbackDiagnostics;
         throw classifiedError;
       }
     }
@@ -1039,6 +1052,7 @@ export async function streamAnswer(
 
               const cleanChunk = parser.parseChunk(token);
               if (cleanChunk) {
+                hasEmittedTokens = true;
                 callbacks.onToken?.(cleanChunk);
                 globalLatencyTracker.markFirstTokenOnce();
 
@@ -1081,8 +1095,16 @@ export async function streamAnswer(
     }
   } catch (e: any) {
     if (e.name !== 'AbortError') {
-      if (callbacks.onError) callbacks.onError(e);
-      else throw e;
+      const sanitizedMsg = sanitizeDiagnosticSecret(e.message || String(e));
+      const streamErr = (hasEmittedTokens
+        ? new Error(`[AI Stream Error] Stream interrupted after partial token emission: ${sanitizedMsg}`)
+        : e) as any;
+      if (hasEmittedTokens) {
+        streamErr.hasEmittedTokens = true;
+        streamErr.originalError = e;
+      }
+      if (callbacks.onError) callbacks.onError(streamErr);
+      else throw streamErr;
     }
   }
 }

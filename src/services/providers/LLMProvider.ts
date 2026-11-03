@@ -5,6 +5,12 @@ import {
   LLMResponse,
   calculateEstimatedCost,
 } from './types';
+import {
+  resolveOrMigrateModel,
+  getDefaultModelForProvider,
+  classifyAIError,
+  sanitizeDiagnosticSecret,
+} from '../models/modelRegistry';
 
 export class GroqProvider implements LLMProvider {
   public readonly id = 'groq' as const;
@@ -13,18 +19,23 @@ export class GroqProvider implements LLMProvider {
 
   constructor(
     private apiKey: string,
-    private defaultModel: string = 'openai/gpt-oss-120b'
+    private defaultModel: string = getDefaultModelForProvider('groq', 'llm')
   ) { }
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
-    const model = options?.model || this.defaultModel;
+    const resolution = resolveOrMigrateModel('groq', options?.model || this.defaultModel, 'llm');
+    const model = resolution.resolvedModel;
+
+    let cleanKey = (this.apiKey || '').trim();
+    const match = cleanKey.match(/gsk_[A-Za-z0-9_-]+/);
+    if (match) cleanKey = match[0];
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${cleanKey}`,
       },
       body: JSON.stringify({
         model,
@@ -37,7 +48,12 @@ export class GroqProvider implements LLMProvider {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Groq API error (${response.status}): ${errText}`);
+      let parsed: any = errText;
+      try {
+        parsed = JSON.parse(errText);
+      } catch {}
+      const classified = classifyAIError('groq', model, response.status, parsed);
+      throw classified;
     }
 
     const data = await response.json();
@@ -82,7 +98,7 @@ export class OpenAIProvider implements LLMProvider {
 
   constructor(
     private apiKey: string,
-    private defaultModel: string = 'gpt-4o-mini'
+    private defaultModel: string = getDefaultModelForProvider('openai', 'llm')
   ) { }
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
@@ -149,7 +165,7 @@ export class OpenRouterProvider implements LLMProvider {
 
   constructor(
     private apiKey: string,
-    private defaultModel: string = 'meta-llama/llama-3.3-70b-instruct'
+    private defaultModel: string = getDefaultModelForProvider('openrouter', 'llm')
   ) { }
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
@@ -218,7 +234,7 @@ export class OllamaProvider implements LLMProvider {
 
   constructor(
     private endpoint: string = 'http://127.0.0.1:11434',
-    private defaultModel: string = 'llama3.2:1b'
+    private defaultModel: string = getDefaultModelForProvider('ollama', 'llm')
   ) { }
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
@@ -395,6 +411,10 @@ export class LLMManager {
         return response;
       } catch (err: any) {
         lastError = err;
+        // Non-recoverable errors (invalid API key, billing failure, quota/rate-limit) must not be silently masked
+        if (err?.isRecoverableByModelFallback === false) {
+          throw err;
+        }
         console.warn(
           `[LLMManager] Provider ${providerId} failed: ${err.message}. Trying next fallback...`
         );

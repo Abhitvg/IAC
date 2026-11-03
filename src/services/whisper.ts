@@ -183,7 +183,8 @@ async function transcribeOpenAI(
   const wavBlob = await convertBlobToWav(audioBlob);
   const formData = new FormData();
   formData.append('file', wavBlob, 'recording.wav');
-  formData.append('model', config.model || 'whisper-1');
+  const targetModel = resolveOrMigrateModel('openai', config.model, 'stt').resolvedModel;
+  formData.append('model', targetModel);
   formData.append('response_format', 'verbose_json');
 
   if (config.language) formData.append('language', config.language);

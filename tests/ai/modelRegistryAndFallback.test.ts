@@ -147,6 +147,40 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(resEmpty.resolvedModel).toBe('openai/gpt-oss-120b');
       expect(resEmpty.wasMigrated).toBe(false);
     });
+
+    it('preserves custom model strings and does not blindly overwrite them', () => {
+      const customGroq = resolveOrMigrateModel('groq', 'custom-enterprise-llama-lora-v2', 'llm');
+      expect(customGroq.wasMigrated).toBe(false);
+      expect(customGroq.resolvedModel).toBe('custom-enterprise-llama-lora-v2');
+
+      const customHf = resolveOrMigrateModel('groq', 'meta-llama/Llama-3-8b-instruct', 'llm');
+      expect(customHf.wasMigrated).toBe(false);
+      expect(customHf.resolvedModel).toBe('meta-llama/Llama-3-8b-instruct');
+    });
+
+    it('preserves non-Groq providers (OpenAI, Ollama, OpenRouter) without rewriting', () => {
+      const openAiRes = resolveOrMigrateModel('openai', 'gpt-4o', 'llm');
+      expect(openAiRes.wasMigrated).toBe(false);
+      expect(openAiRes.resolvedModel).toBe('gpt-4o');
+
+      const ollamaRes = resolveOrMigrateModel('ollama', 'llama3:8b', 'llm');
+      expect(ollamaRes.wasMigrated).toBe(false);
+      expect(ollamaRes.resolvedModel).toBe('llama3:8b');
+
+      const openRouterRes = resolveOrMigrateModel('openrouter', 'anthropic/claude-3.5-sonnet', 'llm');
+      expect(openRouterRes.wasMigrated).toBe(false);
+      expect(openRouterRes.resolvedModel).toBe('anthropic/claude-3.5-sonnet');
+    });
+
+    it('guarantees migration idempotence: re-resolving a migrated model produces no further migration', () => {
+      const firstPass = resolveOrMigrateModel('groq', 'llama-3.3-70b-versatile', 'llm');
+      expect(firstPass.wasMigrated).toBe(true);
+      expect(firstPass.resolvedModel).toBe('openai/gpt-oss-120b');
+
+      const secondPass = resolveOrMigrateModel('groq', firstPass.resolvedModel, 'llm');
+      expect(secondPass.wasMigrated).toBe(false);
+      expect(secondPass.resolvedModel).toBe('openai/gpt-oss-120b');
+    });
   });
 
   // =========================================================================
@@ -285,6 +319,96 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(err.isRecoverableByModelFallback).toBe(false);
     });
 
+    it('throws immediately on 402 Payment Required without attempting fallback', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 402,
+        statusText: 'Payment Required',
+        text: async () => JSON.stringify({ error: { message: 'Billing account suspended or credit exhausted' } }),
+      });
+      global.fetch = mockFetch;
+
+      const errorCallback = vi.fn();
+      await streamAnswer(
+        'Explain red-black trees',
+        {
+          type: 'groq',
+          apiKey: 'gsk_valid_key',
+          model: 'openai/gpt-oss-120b',
+        },
+        'java',
+        {
+          onError: errorCallback,
+        }
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(errorCallback).toHaveBeenCalled();
+      const err = errorCallback.mock.calls[0][0];
+      expect(err.code).toBe('BILLING_PAYMENT_REQUIRED');
+      expect(err.isRecoverableByModelFallback).toBe(false);
+    });
+
+    it('throws immediately on 403 Forbidden without attempting fallback', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        text: async () => JSON.stringify({ error: { message: 'User lacks permission to access this resource' } }),
+      });
+      global.fetch = mockFetch;
+
+      const errorCallback = vi.fn();
+      await streamAnswer(
+        'Explain trie structures',
+        {
+          type: 'groq',
+          apiKey: 'gsk_valid_key',
+          model: 'openai/gpt-oss-120b',
+        },
+        'java',
+        {
+          onError: errorCallback,
+        }
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(errorCallback).toHaveBeenCalled();
+      const err = errorCallback.mock.calls[0][0];
+      expect(err.code).toBe('AUTH_FORBIDDEN');
+      expect(err.isRecoverableByModelFallback).toBe(false);
+    });
+
+    it('throws immediately on Generic 404 (Endpoint Not Found) without attempting fallback', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        text: async () => '<!DOCTYPE html><html><body>404 Not Found: Cannot POST /openai/v1/invalid_path</body></html>',
+      });
+      global.fetch = mockFetch;
+
+      const errorCallback = vi.fn();
+      await streamAnswer(
+        'Explain Dijkstra algorithm',
+        {
+          type: 'groq',
+          apiKey: 'gsk_valid_key',
+          model: 'openai/gpt-oss-120b',
+        },
+        'java',
+        {
+          onError: errorCallback,
+        }
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(errorCallback).toHaveBeenCalled();
+      const err = errorCallback.mock.calls[0][0];
+      expect(err.code).toBe('ENDPOINT_NOT_FOUND');
+      expect(err.isRecoverableByModelFallback).toBe(false);
+    });
+
     it('throws immediately on 429 Rate Limit without attempting fallback', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: false,
@@ -316,6 +440,36 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(err.isRecoverableByModelFallback).toBe(false);
     });
 
+    it('throws immediately on 5xx Server Error without attempting fallback', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        statusText: 'Service Unavailable',
+        text: async () => JSON.stringify({ error: { message: 'Groq upstream service temporarily unavailable' } }),
+      });
+      global.fetch = mockFetch;
+
+      const errorCallback = vi.fn();
+      await streamAnswer(
+        'Explain LRU cache',
+        {
+          type: 'groq',
+          apiKey: 'gsk_valid_key',
+          model: 'openai/gpt-oss-120b',
+        },
+        'java',
+        {
+          onError: errorCallback,
+        }
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(errorCallback).toHaveBeenCalled();
+      const err = errorCallback.mock.calls[0][0];
+      expect(err.code).toBe('SERVER_ERROR');
+      expect(err.isRecoverableByModelFallback).toBe(false);
+    });
+
     it('throws immediately on Network Dropout without attempting fallback', async () => {
       const mockFetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
       global.fetch = mockFetch;
@@ -336,6 +490,104 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       expect(errorCallback).toHaveBeenCalled();
+    });
+
+    it('preserves original error details and attaches fallback diagnostics when all fallbacks fail', async () => {
+      const mockFetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          text: async () => JSON.stringify({
+            error: { code: 'model_decommissioned', message: 'Original model decommissioned' }
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          text: async () => JSON.stringify({
+            error: { code: 'model_not_found', message: 'Fallback model 1 not found' }
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          text: async () => JSON.stringify({
+            error: { code: 'model_not_found', message: 'Fallback model 2 not found' }
+          }),
+        });
+
+      global.fetch = mockFetch;
+      const errorCallback = vi.fn();
+
+      await streamAnswer(
+        'Explain DAG shortest path',
+        {
+          type: 'groq',
+          apiKey: 'gsk_valid_key',
+          model: 'openai/gpt-oss-120b',
+        },
+        'python',
+        { onError: errorCallback }
+      );
+
+      expect(errorCallback).toHaveBeenCalled();
+      const err = errorCallback.mock.calls[0][0];
+      expect(err.code).toBe('MODEL_DECOMMISSIONED');
+      expect(err.originalErrorDetail).toContain('Original model decommissioned');
+      expect(Array.isArray(err.fallbackDiagnostics)).toBe(true);
+      expect(err.fallbackDiagnostics.length).toBeGreaterThan(0);
+    });
+
+    it('handles mid-stream failure after token emission by rejecting and marking hasEmittedTokens', async () => {
+      const encoder = new TextEncoder();
+      let readCount = 0;
+
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => ({
+            read: async () => {
+              readCount++;
+              if (readCount === 1) {
+                return {
+                  done: false,
+                  value: encoder.encode('data: {"choices":[{"delta":{"content":"Partial start"}}]}\n\n'),
+                };
+              }
+              throw new Error('Socket abruptly disconnected mid-transfer');
+            },
+            releaseLock: () => {},
+            cancel: async () => {},
+          }),
+        },
+      });
+
+      const errorCallback = vi.fn();
+      const tokens: string[] = [];
+
+      await streamAnswer(
+        'Explain AVL trees',
+        {
+          type: 'groq',
+          apiKey: 'gsk_valid_key',
+          model: 'openai/gpt-oss-120b',
+        },
+        'typescript',
+        {
+          onToken: (t) => tokens.push(t),
+          onError: errorCallback,
+        }
+      );
+
+      expect(tokens.length).toBeGreaterThan(0);
+      expect(tokens[0]).toContain('Partial start');
+      expect(errorCallback).toHaveBeenCalled();
+      const err = errorCallback.mock.calls[0][0];
+      expect(err.hasEmittedTokens).toBe(true);
+      expect(err.message).toContain('Stream interrupted after partial token emission');
+      // Ensure no second fetch was attempted after mid-stream failure
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -468,9 +720,9 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
   });
 
   // =========================================================================
-  // 8. Model Preflight Validation
+  // 8. Model Preflight Validation (Active Completion Probe)
   // =========================================================================
-  describe('Requirement 5: Model Preflight Validation', () => {
+  describe('Requirement 5: Model Preflight Validation with Active Completion Probe', () => {
     it('validates provider credentials format strictly', async () => {
       const noKey = await validateModelPreflight('groq', 'openai/gpt-oss-120b', '');
       expect(noKey.valid).toBe(false);
@@ -481,33 +733,13 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(badFormat.code).toBe('AUTH_INVALID_KEY');
     });
 
-    it('reports model-not-found separately from authentication errors during preflight', async () => {
-      // Mock models endpoint returning 200 with list of active models
+    it('executes active 1-token completion probe and reports valid: true with latency', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({
-          data: [{ id: 'openai/gpt-oss-120b' }, { id: 'openai/gpt-oss-20b' }],
-        }),
-      });
-
-      const check = await validateModelPreflight(
-        'groq',
-        'llama-3.3-70b-versatile',
-        'gsk_valid_key_123456789012'
-      );
-
-      expect(check.valid).toBe(false);
-      expect(check.code).toBe('MODEL_NOT_FOUND');
-      expect(check.message).toContain("Model 'llama-3.3-70b-versatile' is not available");
-    });
-
-    it('passes preflight when key is valid and model is in account model list', async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          data: [{ id: 'openai/gpt-oss-120b' }, { id: 'openai/gpt-oss-20b' }],
+          id: 'chatcmpl-probe-123',
+          choices: [{ message: { role: 'assistant', content: 'pong' } }],
         }),
       });
 
@@ -518,7 +750,149 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       );
 
       expect(check.valid).toBe(true);
-      expect(check.availableModels).toContain('openai/gpt-oss-120b');
+      expect(typeof check.latencyMs).toBe('number');
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const call = (global.fetch as any).mock.calls[0];
+      expect(call[0]).toBe('https://api.groq.com/openai/v1/chat/completions');
+      const body = JSON.parse(call[1].body);
+      expect(body.model).toBe('openai/gpt-oss-120b');
+      expect(body.max_tokens).toBe(1);
+    });
+
+    it('distinguishes 401 Authentication Failure in preflight completion probe', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: async () => ({ error: { message: 'Invalid API Key provided: gsk_abcdef1234567890123456' } }),
+      });
+
+      const check = await validateModelPreflight(
+        'groq',
+        'openai/gpt-oss-120b',
+        'gsk_invalid_key_123456789012'
+      );
+
+      expect(check.valid).toBe(false);
+      expect(check.code).toBe('AUTH_INVALID_KEY');
+      expect(check.message).not.toContain('gsk_abcdef1234567890123456');
+      expect(check.message).toContain('gsk_[REDACTED_GROQ_KEY]');
+    });
+
+    it('distinguishes 403 Forbidden in preflight completion probe', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        json: async () => ({ error: { message: 'Organization access restricted' } }),
+      });
+
+      const check = await validateModelPreflight(
+        'groq',
+        'openai/gpt-oss-120b',
+        'gsk_valid_key_123456789012'
+      );
+
+      expect(check.valid).toBe(false);
+      expect(check.code).toBe('AUTH_FORBIDDEN');
+    });
+
+    it('distinguishes 402 Billing / Payment Required in preflight completion probe', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 402,
+        statusText: 'Payment Required',
+        json: async () => ({ error: { message: 'Account credit balance exhausted' } }),
+      });
+
+      const check = await validateModelPreflight(
+        'groq',
+        'openai/gpt-oss-120b',
+        'gsk_valid_key_123456789012'
+      );
+
+      expect(check.valid).toBe(false);
+      expect(check.code).toBe('BILLING_PAYMENT_REQUIRED');
+    });
+
+    it('distinguishes 429 Rate Limiting in preflight completion probe', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        json: async () => ({ error: { message: 'TPM or RPM rate limit reached' } }),
+      });
+
+      const check = await validateModelPreflight(
+        'groq',
+        'openai/gpt-oss-120b',
+        'gsk_valid_key_123456789012'
+      );
+
+      expect(check.valid).toBe(false);
+      expect(check.code).toBe('RATE_LIMIT_EXCEEDED');
+    });
+
+    it('distinguishes Model Not Found / Decommissioned in preflight probe', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        json: async () => ({
+          error: {
+            code: 'model_decommissioned',
+            message: "The model 'llama-3.1-70b-versatile' has been decommissioned.",
+          },
+        }),
+      });
+
+      const check = await validateModelPreflight(
+        'groq',
+        'llama-3.1-70b-versatile',
+        'gsk_valid_key_123456789012'
+      );
+
+      expect(check.valid).toBe(false);
+      expect(check.code).toBe('MODEL_DECOMMISSIONED');
+    });
+
+    it('distinguishes Generic 404 Endpoint Not Found in preflight probe', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        text: async () => '<html>404 Not Found: Cannot POST /openai/v1/wrong_route</html>',
+      });
+
+      const check = await validateModelPreflight(
+        'groq',
+        'openai/gpt-oss-120b',
+        'gsk_valid_key_123456789012'
+      );
+
+      expect(check.valid).toBe(false);
+      expect(check.code).toBe('ENDPOINT_NOT_FOUND');
+    });
+
+    it('validates STT Whisper models via models catalog probe', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: [{ id: 'whisper-large-v3-turbo' }, { id: 'whisper-large-v3' }],
+        }),
+      });
+
+      const check = await validateModelPreflight(
+        'groq',
+        'whisper-large-v3-turbo',
+        'gsk_valid_key_123456789012'
+      );
+
+      expect(check.valid).toBe(true);
+      expect(check.availableModels).toContain('whisper-large-v3-turbo');
+      const call = (global.fetch as any).mock.calls[0];
+      expect(call[0]).toBe('https://api.groq.com/openai/v1/models');
     });
   });
 

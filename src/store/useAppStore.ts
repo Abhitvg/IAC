@@ -222,30 +222,30 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     try {
       const saved = localStorage.getItem('teleprompter_opacity');
       if (saved) return parseFloat(saved);
-    } catch {}
+    } catch { }
     return 0.35;
   })(),
   setWindowOpacity: (windowOpacity) => {
     try {
       localStorage.setItem('teleprompter_opacity', String(windowOpacity));
-    } catch {}
+    } catch { }
     set({ windowOpacity });
     try {
       if (typeof window !== 'undefined' && window.electronAPI?.setWindowOpacity) {
         window.electronAPI.setWindowOpacity(windowOpacity);
       }
-    } catch {}
+    } catch { }
   },
   selectedAudioDeviceId: (() => {
     try {
       return localStorage.getItem('interview_audio_device_id') || '';
-    } catch {}
+    } catch { }
     return '';
   })(),
   setSelectedAudioDeviceId: (selectedAudioDeviceId: string) => {
     try {
       localStorage.setItem('interview_audio_device_id', selectedAudioDeviceId);
-    } catch {}
+    } catch { }
     set({ selectedAudioDeviceId });
   },
   status: 'idle',
@@ -290,7 +290,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         const parsed = parseInt(saved, 10);
         if (!isNaN(parsed) && parsed >= 400) return parsed;
       }
-    } catch {}
+    } catch { }
     return 1000;
   })(),
 
@@ -388,7 +388,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     const clamped = Math.max(400, Math.min(3500, ms));
     try {
       localStorage.setItem('interview_speech_pause_tolerance', String(clamped));
-    } catch {}
+    } catch { }
     set({ speechPauseTolerance: clamped });
     get().setToast(`⏱️ Speech pause tolerance: ${clamped}ms`);
   },
@@ -430,7 +430,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     const updated = [newWs, ...get().workspaces];
     try {
       localStorage.setItem('interview_workspaces_v1', JSON.stringify(updated));
-    } catch {}
+    } catch { }
     set({
       workspaces: updated,
       activeWorkspaceId: id,
@@ -464,7 +464,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     const nextActive = get().activeWorkspaceId === id ? updated[0]?.id || null : get().activeWorkspaceId;
     try {
       localStorage.setItem('interview_workspaces_v1', JSON.stringify(updated));
-    } catch {}
+    } catch { }
     if (nextActive) {
       const nextWs = updated.find((w) => w.id === nextActive);
       set({
@@ -489,7 +489,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     );
     try {
       localStorage.setItem('interview_workspaces_v1', JSON.stringify(updated));
-    } catch {}
+    } catch { }
     const active = updated.find((w) => w.id === get().activeWorkspaceId);
     set({
       workspaces: updated,
@@ -500,19 +500,19 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   setResumeText: (resumeText: string) => {
     try {
       localStorage.setItem('candidate_resume', resumeText);
-    } catch {}
+    } catch { }
     set({ resumeText });
   },
   setJobDescriptionText: (jobDescriptionText: string) => {
     try {
       localStorage.setItem('target_job_description', jobDescriptionText);
-    } catch {}
+    } catch { }
     set({ jobDescriptionText });
   },
   setTargetRole: (targetRole: string) => {
     try {
       localStorage.setItem('target_role', targetRole);
-    } catch {}
+    } catch { }
     set({ targetRole });
   },
   setResumeModalOpen: (resumeModalOpen: boolean) => set({ resumeModalOpen }),
@@ -690,7 +690,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
               return { settings: merged };
             });
           }
-        } catch {}
+        } catch { }
       }
       const savedResume = localStorage.getItem('candidate_resume');
       const savedJD = localStorage.getItem('target_job_description');
@@ -712,7 +712,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       if (isLegacyMock && typeof localStorage !== 'undefined') {
         try {
           localStorage.removeItem('candidate_resume');
-        } catch {}
+        } catch { }
       }
 
       let loadedWorkspaces: InterviewWorkspace[] = [];
@@ -722,7 +722,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
           const parsedWs = JSON.parse(rawWs);
           if (Array.isArray(parsedWs)) loadedWorkspaces = parsedWs;
         }
-      } catch {}
+      } catch { }
 
       set({
         resumeText: activeResume,
@@ -730,13 +730,13 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         activeWorkspaceId: loadedWorkspaces[0]?.id || null,
         jobDescriptionText:
           !savedJD ||
-          savedJD.includes('IBM Consulting Demo Sample') ||
-          savedJD.includes('Global Enterprise Cloud Mock')
+            savedJD.includes('IBM Consulting Demo Sample') ||
+            savedJD.includes('Global Enterprise Cloud Mock')
             ? ''
             : savedJD,
         targetRole:
           !savedRole ||
-          savedRole === 'Legacy Sample Developer'
+            savedRole === 'Legacy Sample Developer'
             ? ''
             : savedRole,
         responseMode:
@@ -744,7 +744,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
             ? savedMode
             : 'coding',
       });
-    } catch {}
+    } catch { }
   },
   loadSessionHistory: async () => {
     try {
@@ -768,11 +768,11 @@ export const useAppStore = create<InterviewState>((set, get) => ({
                   if (sessionData && sessionData.id) {
                     sessions.push(sessionData);
                   }
-                } catch {}
+                } catch { }
               }
             }
           }
-        } catch {}
+        } catch { }
       }
 
       if (sessions.length === 0 && typeof localStorage !== 'undefined') {
@@ -784,12 +784,12 @@ export const useAppStore = create<InterviewState>((set, get) => ({
               sessions.push(...parsed);
             }
           }
-        } catch {}
+        } catch { }
       }
 
       sessions.sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
       set({ sessionHistory: sessions });
-    } catch {}
+    } catch { }
   },
 
   saveSession: async (session: any) => {
@@ -802,7 +802,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       if (typeof localStorage !== 'undefined') {
         try {
           localStorage.setItem('iac_session_history', JSON.stringify(updated));
-        } catch {}
+        } catch { }
       }
 
       if (
@@ -815,9 +815,9 @@ export const useAppStore = create<InterviewState>((set, get) => ({
           const sessionPath = `${sessionsDir}/${session.id}.json`;
           const data = JSON.stringify(session, null, 2);
           await window.electronAPI.writeFile(sessionPath, data);
-        } catch {}
+        } catch { }
       }
-    } catch {}
+    } catch { }
   },
 
   deleteSession: async (sessionId: string) => {
@@ -828,7 +828,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       if (typeof localStorage !== 'undefined') {
         try {
           localStorage.setItem('iac_session_history', JSON.stringify(updated));
-        } catch {}
+        } catch { }
       }
 
       if (
@@ -839,9 +839,9 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         try {
           const sessionsDir = await window.electronAPI.getSessionsDir();
           await window.electronAPI.deleteFile(`${sessionsDir}/${sessionId}.json`);
-        } catch {}
+        } catch { }
       }
-    } catch {}
+    } catch { }
   },
 
   copyAnswer: async () => {
@@ -872,13 +872,13 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     try {
       const saved = localStorage.getItem('interview_response_mode');
       if (saved === 'coding' || saved === 'interview' || saved === 'quiz' || saved === 'application') return saved;
-    } catch {}
+    } catch { }
     return 'coding';
   })(),
   setResponseMode: (responseMode) => {
     try {
       localStorage.setItem('interview_response_mode', responseMode);
-    } catch {}
+    } catch { }
     set({ responseMode: responseMode as any });
   },
   applicationSession: null,
@@ -939,7 +939,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     try {
       const saved = localStorage.getItem('preferred_coding_language');
       if (saved) lang = saved;
-    } catch {}
+    } catch { }
     return {
       aiProvider: 'groq',
       aiModel: getDefaultModelForProvider('groq', 'llm'),
@@ -954,12 +954,12 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     if (key === 'preferredLanguage') {
       try {
         localStorage.setItem('preferred_coding_language', String(val));
-      } catch {}
+      } catch { }
     }
     if (typeof window !== 'undefined' && window.electronAPI?.setSettings) {
       try {
         window.electronAPI.setSettings(key, val);
-      } catch {}
+      } catch { }
     }
     set((state) => ({
       settings: { ...state.settings, [key]: val },
@@ -971,14 +971,14 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     try {
       const audio = (await import('../services/audio')).AudioRecorder.getInstance();
       await audio.stop(false);
-    } catch {}
+    } catch { }
 
     if (typeof localStorage !== 'undefined') {
       try {
         localStorage.removeItem('iac_session_history');
         localStorage.removeItem('interview_transcript');
         localStorage.removeItem('conversation_history');
-      } catch {}
+      } catch { }
     }
 
     if (
@@ -993,11 +993,11 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         if (Array.isArray(files)) {
           for (const f of files) {
             if (f.name.endsWith('.json')) {
-              await window.electronAPI.deleteFile(f.path).catch(() => {});
+              await window.electronAPI.deleteFile(f.path).catch(() => { });
             }
           }
         }
-      } catch {}
+      } catch { }
     }
 
     set({

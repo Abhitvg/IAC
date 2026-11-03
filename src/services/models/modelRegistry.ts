@@ -66,6 +66,7 @@ export type AIErrorCode =
   | 'NETWORK_ERROR'
   | 'MODEL_NOT_FOUND'
   | 'MODEL_DECOMMISSIONED'
+  | 'ENDPOINT_NOT_FOUND'
   | 'SERVER_ERROR'
   | 'PREFLIGHT_FAILED'
   | 'UNKNOWN';
@@ -495,16 +496,29 @@ export function resolveOrMigrateModel(
     };
   }
 
-  // Heuristic catch for Groq legacy models that are not registered
+  // Known legacy Groq model IDs that must be migrated even if prefixed or unregistered
+  const KNOWN_RETIRED_GROQ_MODELS = new Set([
+    'llama-3.3-70b-versatile',
+    'llama-3.1-70b-versatile',
+    'llama-3.1-8b-instant',
+    'llama-3.2-1b-preview',
+    'llama-3.2-3b-preview',
+    'llama-3.2-11b-vision-preview',
+    'llama-3.2-90b-vision-preview',
+    'llama3-70b-8192',
+    'llama3-8b-8192',
+    'mixtral-8x7b-32768',
+    'gemma2-9b-it',
+    'gemma-7b-it',
+    'openrouter/free',
+  ]);
+
   if (provider === 'groq' && type === 'llm') {
-    const lower = trimmed.toLowerCase();
-    if (
-      lower.includes('llama') ||
-      lower.includes('mixtral') ||
-      lower.includes('gemma') ||
-      lower === 'openrouter/free'
-    ) {
-      const replacement = lower.includes('8b') ? 'openai/gpt-oss-20b' : defaultModel;
+    const rawId = trimmed.toLowerCase().replace(/^groq\//, '');
+    if (KNOWN_RETIRED_GROQ_MODELS.has(rawId)) {
+      const replacement = rawId.includes('8b') || rawId.includes('9b') || rawId.includes('1b') || rawId.includes('3b')
+        ? 'openai/gpt-oss-20b'
+        : defaultModel;
       return {
         requestedModel: trimmed,
         resolvedModel: replacement,
@@ -568,10 +582,12 @@ export function classifyAIError(
   let code: AIErrorCode = 'UNKNOWN';
   let isRecoverableByModelFallback = false;
   let detailMessage = '';
+  let providerErrorCode = '';
 
   if (typeof errorBody === 'string') {
     detailMessage = errorBody;
   } else if (errorBody && typeof errorBody === 'object') {
+    providerErrorCode = String(errorBody.error?.code || errorBody.code || '');
     detailMessage = errorBody.error?.message || errorBody.message || JSON.stringify(errorBody);
   } else if (originalError?.message) {
     detailMessage = originalError.message;
@@ -579,6 +595,20 @@ export function classifyAIError(
 
   const cleanDetail = sanitizeDiagnosticSecret(detailMessage);
   const lowerMsg = cleanDetail.toLowerCase();
+  const lowerCode = providerErrorCode.toLowerCase();
+
+  const isModelSpecific =
+    lowerCode === 'model_not_found' ||
+    lowerCode === 'model_decommissioned' ||
+    lowerCode === 'invalid_model_id' ||
+    lowerMsg.includes('model_not_found') ||
+    lowerMsg.includes('model not found') ||
+    lowerMsg.includes('does not exist') ||
+    lowerMsg.includes('decommissioned') ||
+    lowerMsg.includes('model_retired') ||
+    lowerMsg.includes('invalid_model_id') ||
+    lowerMsg.includes('unknown model') ||
+    lowerMsg.includes('no such model');
 
   if (status === 401 || lowerMsg.includes('invalid api key') || lowerMsg.includes('unauthorized')) {
     code = 'AUTH_INVALID_KEY';
@@ -596,28 +626,28 @@ export function classifyAIError(
       code = 'RATE_LIMIT_EXCEEDED';
     }
     isRecoverableByModelFallback = false;
-  } else if (
-    status === 404 ||
-    lowerMsg.includes('model_not_found') ||
-    lowerMsg.includes('model not found') ||
-    lowerMsg.includes('does not exist') ||
-    lowerMsg.includes('decommissioned') ||
-    lowerMsg.includes('model_retired') ||
-    lowerMsg.includes('invalid_model_id')
-  ) {
-    code = lowerMsg.includes('decommissioned') || lowerMsg.includes('retired')
+  } else if (isModelSpecific) {
+    code = lowerCode.includes('decommissioned') || lowerMsg.includes('decommissioned') || lowerMsg.includes('retired')
       ? 'MODEL_DECOMMISSIONED'
       : 'MODEL_NOT_FOUND';
     isRecoverableByModelFallback = true;
+  } else if (status === 404) {
+    // Generic HTTP 404: Endpoint path or route does not exist. NOT recoverable by model fallback.
+    code = 'ENDPOINT_NOT_FOUND';
+    isRecoverableByModelFallback = false;
   } else if (
-    originalError?.name === 'TypeError' &&
-    (lowerMsg.includes('fetch failed') || lowerMsg.includes('network') || lowerMsg.includes('failed to fetch'))
+    (originalError?.name === 'TypeError' || originalError?.name === 'AbortError' || originalError?.name === 'TimeoutError') ||
+    lowerMsg.includes('fetch failed') ||
+    lowerMsg.includes('network') ||
+    lowerMsg.includes('failed to fetch') ||
+    lowerMsg.includes('timeout') ||
+    lowerMsg.includes('aborted')
   ) {
     code = 'NETWORK_ERROR';
     isRecoverableByModelFallback = false;
   } else if (status && status >= 500) {
     code = 'SERVER_ERROR';
-    // Server 500/503 might be transient or platform outage; does not qualify for silent model fallback
+    // Server 500/502/503 is platform outage; does not qualify for silent model fallback
     isRecoverableByModelFallback = false;
   }
 
@@ -638,8 +668,8 @@ export function classifyAIError(
 /**
  * Preflight Model Validator
  *
- * Validates provider, credential format, and model availability before initiating
- * an interview or answer generation session.
+ * Validates provider credentials and performs an active completion probe
+ * to confirm access and model health before initiating an interview session.
  */
 export async function validateModelPreflight(
   provider: AIProviderId,
@@ -651,9 +681,10 @@ export async function validateModelPreflight(
   valid: boolean;
   code?: AIErrorCode;
   message?: string;
+  latencyMs?: number;
   availableModels?: string[];
 }> {
-  // 1. Provider & Credential Format Check
+  // 1. Groq Provider Preflight
   if (provider === 'groq') {
     const cleanKey = (apiKey || '').trim();
     if (!cleanKey) {
@@ -671,62 +702,95 @@ export async function validateModelPreflight(
       };
     }
 
-    // 2. Query Groq models endpoint to verify key validity and model access
+    // If STT model, probe models catalog endpoint
+    if (model.toLowerCase().includes('whisper')) {
+      try {
+        const startTime = Date.now();
+        const res = await fetch('https://api.groq.com/openai/v1/models', {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${cleanKey}` },
+          signal,
+        });
+        const latencyMs = Date.now() - startTime;
+
+        if (!res.ok) {
+          let errData: any;
+          try { errData = await res.json(); } catch { errData = await res.text(); }
+          const classified = classifyAIError(provider, model, res.status, errData);
+          return {
+            valid: false,
+            code: classified.code,
+            message: sanitizeDiagnosticSecret(classified.originalErrorDetail || res.statusText),
+            latencyMs,
+          };
+        }
+
+        const body = await res.json();
+        const availableIds: string[] = Array.isArray(body?.data) ? body.data.map((m: any) => m.id) : [];
+        const hasModel = availableIds.some((id) => id.toLowerCase() === model.trim().toLowerCase());
+        if (!hasModel) {
+          return {
+            valid: false,
+            code: 'MODEL_NOT_FOUND',
+            message: `Model '${model}' is not available for this Groq account.`,
+            latencyMs,
+            availableModels: availableIds,
+          };
+        }
+        return { valid: true, latencyMs, availableModels: availableIds };
+      } catch (netErr: any) {
+        return {
+          valid: false,
+          code: 'NETWORK_ERROR',
+          message: sanitizeDiagnosticSecret(`Network error verifying Groq STT preflight: ${netErr.message || String(netErr)}`),
+        };
+      }
+    }
+
+    // For LLMs, perform an active 1-token completion probe
     try {
-      const res = await fetch('https://api.groq.com/openai/v1/models', {
-        method: 'GET',
+      const startTime = Date.now();
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${cleanKey}`,
         },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: 'ping' }],
+          max_tokens: 1,
+        }),
         signal,
       });
+      const latencyMs = Date.now() - startTime;
 
       if (!res.ok) {
         let errData: any;
-        try {
-          errData = await res.json();
-        } catch {
-          errData = await res.text();
-        }
+        try { errData = await res.json(); } catch { errData = await res.text(); }
         const classified = classifyAIError(provider, model, res.status, errData);
         return {
           valid: false,
           code: classified.code,
-          message: classified.originalErrorDetail || res.statusText,
-        };
-      }
-
-      const body = await res.json();
-      const availableIds: string[] = Array.isArray(body?.data)
-        ? body.data.map((m: any) => m.id)
-        : [];
-
-      // Check if requested model exists on the account
-      const normModel = model.trim().toLowerCase();
-      const hasModel = availableIds.some((id) => id.toLowerCase() === normModel);
-
-      if (!hasModel) {
-        return {
-          valid: false,
-          code: 'MODEL_NOT_FOUND',
-          message: `Model '${model}' is not available for this Groq account. Available models: ${availableIds.slice(0, 5).join(', ')}`,
-          availableModels: availableIds,
+          message: sanitizeDiagnosticSecret(classified.originalErrorDetail || res.statusText),
+          latencyMs,
         };
       }
 
       return {
         valid: true,
-        availableModels: availableIds,
+        latencyMs,
       };
     } catch (netErr: any) {
       return {
         valid: false,
         code: 'NETWORK_ERROR',
-        message: `Network error verifying Groq preflight: ${netErr.message || String(netErr)}`,
+        message: sanitizeDiagnosticSecret(`Network error verifying Groq preflight: ${netErr.message || String(netErr)}`),
       };
     }
   }
 
+  // 2. OpenAI Provider Preflight
   if (provider === 'openai') {
     const cleanKey = (apiKey || '').trim();
     if (!cleanKey) {
@@ -743,32 +807,95 @@ export async function validateModelPreflight(
         message: 'Invalid OpenAI API key format. Key must start with "sk-".',
       };
     }
-    return { valid: true };
+
+    try {
+      const startTime = Date.now();
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${cleanKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: 'ping' }],
+          max_tokens: 1,
+        }),
+        signal,
+      });
+      const latencyMs = Date.now() - startTime;
+
+      if (!res.ok) {
+        let errData: any;
+        try { errData = await res.json(); } catch { errData = await res.text(); }
+        const classified = classifyAIError(provider, model, res.status, errData);
+        return {
+          valid: false,
+          code: classified.code,
+          message: sanitizeDiagnosticSecret(classified.originalErrorDetail || res.statusText),
+          latencyMs,
+        };
+      }
+
+      return { valid: true, latencyMs };
+    } catch (netErr: any) {
+      return {
+        valid: false,
+        code: 'NETWORK_ERROR',
+        message: sanitizeDiagnosticSecret(`Network error verifying OpenAI preflight: ${netErr.message || String(netErr)}`),
+      };
+    }
   }
 
+  // 3. Ollama Provider Preflight
   if (provider === 'ollama') {
     const targetEndpoint = endpoint || 'http://127.0.0.1:11434';
     try {
+      const startTime = Date.now();
       const res = await fetch(`${targetEndpoint.replace(/\/+$/, '')}/api/tags`, {
         method: 'GET',
         signal,
       });
+      const latencyMs = Date.now() - startTime;
+
       if (!res.ok) {
         return {
           valid: false,
           code: 'PREFLIGHT_FAILED',
           message: `Ollama daemon returned HTTP ${res.status}`,
+          latencyMs,
         };
       }
-      return { valid: true };
+
+      const body = await res.json();
+      const availableModels: string[] = Array.isArray(body?.models)
+        ? body.models.map((m: any) => m.name)
+        : [];
+      const normModel = model.trim().toLowerCase();
+      const hasModel =
+        availableModels.length === 0 ||
+        availableModels.some((name) => name.toLowerCase().includes(normModel) || normModel.includes(name.toLowerCase()));
+
+      if (!hasModel && availableModels.length > 0) {
+        return {
+          valid: false,
+          code: 'MODEL_NOT_FOUND',
+          message: `Model '${model}' not found in local Ollama instance. Available: ${availableModels.join(', ')}`,
+          latencyMs,
+          availableModels,
+        };
+      }
+
+      return { valid: true, latencyMs, availableModels };
     } catch (err: any) {
       return {
         valid: false,
         code: 'NETWORK_ERROR',
-        message: `Could not connect to Ollama at ${targetEndpoint}: ${err.message || String(err)}`,
+        message: sanitizeDiagnosticSecret(`Could not connect to Ollama at ${targetEndpoint}: ${err.message || String(err)}`),
       };
     }
   }
 
   return { valid: true };
 }
+
