@@ -83,7 +83,7 @@ describe('IAC Sixth-Stage Security Remediation — Part 1: 16 Mandatory Adversar
     await expect(
       githubProvider.resolveCommitAndTree('https://github.com/fake-org-iac-audit/non-existent-repo-99999', 'invalid_commit')
     ).rejects.toThrow();
-  });
+  }, 15000);
 
   // 3. A file hash cannot be substituted after inspection
   it('3. A file hash cannot be substituted after inspection', async () => {

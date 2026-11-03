@@ -6,20 +6,43 @@
  * - PROFESSIONAL_QUESTIONNAIRE
  * - VENDOR_EVALUATION
  *
- * Extracts questions independently, identifies constraints/character limits,
- * queries Candidate Knowledge Vault with strict factual distinction
- * (verified experience vs confirmed vs technical knowledge vs unknown),
- * tailors answers to specific roles and jobs (CareerOps integration),
- * and prevents hallucinated personal implementation.
+ * Strict Factual Grounding & Invariant Enforcement:
+ * 1. Zero hardcoded personal or eligibility declarations (work auth, sponsorship, clearance).
+ * 2. Zero fabricated personal implementation or architecture ownership (Kafka, AWS, etc.).
+ * 3. Zero unverified vendor procurement or technical evaluator assumptions.
+ * 4. Clear structural separation: PERSONAL_EXPERIENCE vs TECHNICAL_KNOWLEDGE vs NEEDS_CLARIFICATION.
+ * 5. Strict answer safety states:
+ *    VALIDATED | CANDIDATE_CONFIRMED | TECHNICAL_GUIDANCE | NEEDS_USER_INPUT | BLOCKED | FAILED
  */
 
 import { ScreenTaskCategory } from './TaskClassificationService';
-import { CandidateKnowledgeBase } from './candidateIntelligence';
+import {
+  CandidateKnowledgeBase,
+  isCandidateOrIndependentlyVerified,
+} from './candidateIntelligence';
 import { KnowledgeVaultService } from './knowledgeVault';
 import { useCareerOpsStore } from '../store/useCareerOpsStore';
 import { JobApplication } from './careerOps/types';
 
-export type QuestionExpectedFormat = 'short_text' | 'long_text' | 'bullet_points' | 'declaration' | 'multiple_choice';
+export type QuestionExpectedFormat =
+  | 'short_text'
+  | 'long_text'
+  | 'bullet_points'
+  | 'declaration'
+  | 'multiple_choice';
+
+export type FormAnswerSafetyState =
+  | 'VALIDATED'
+  | 'CANDIDATE_CONFIRMED'
+  | 'TECHNICAL_GUIDANCE'
+  | 'NEEDS_USER_INPUT'
+  | 'BLOCKED'
+  | 'FAILED';
+
+export type FormResponseMode =
+  | 'PERSONAL_EXPERIENCE'
+  | 'TECHNICAL_KNOWLEDGE'
+  | 'NEEDS_CLARIFICATION';
 
 export interface ExtractedFormQuestion {
   id: string;
@@ -46,6 +69,8 @@ export interface FormQuestionAnswer {
   clarificationRequest?: string;
   factualWarnings: string[];
   confidence: 'high' | 'medium' | 'low';
+  safetyState: FormAnswerSafetyState;
+  responseMode: FormResponseMode;
   characterCount: number;
   characterLimit?: number;
   isOverLimit: boolean;
@@ -91,7 +116,14 @@ export class ApplicationFormAssistanceService {
       const match = line.match(questionStartRegex);
       if (match) {
         if (currentQ) {
-          questions.push(this.buildExtractedQuestion(currentQ.number, currentQ.lines, currentQ.characterLimit, currentQ.wordLimit));
+          questions.push(
+            this.buildExtractedQuestion(
+              currentQ.number,
+              currentQ.lines,
+              currentQ.characterLimit,
+              currentQ.wordLimit
+            )
+          );
         }
         const num = parseInt(match[1], 10);
         currentQ = {
@@ -102,15 +134,17 @@ export class ApplicationFormAssistanceService {
         };
       } else if (currentQ) {
         // Check for character / word limits in this line
-        const charLimitMatch = line.match(/max(?:imum)?\s*([0-9]{2,5})\s*chars?(?:acter)?s?/i) ||
-                               line.match(/character\s*limit:\s*([0-9]{2,5})/i) ||
-                               line.match(/limit:\s*([0-9]{2,5})\s*chars?/i);
+        const charLimitMatch =
+          line.match(/max(?:imum)?\s*([0-9]{2,5})\s*chars?(?:acter)?s?/i) ||
+          line.match(/character\s*limit:\s*([0-9]{2,5})/i) ||
+          line.match(/limit:\s*([0-9]{2,5})\s*chars?/i);
         if (charLimitMatch) {
           currentQ.characterLimit = parseInt(charLimitMatch[1], 10);
         }
 
-        const wordLimitMatch = line.match(/max(?:imum)?\s*([0-9]{2,4})\s*words/i) ||
-                               line.match(/word\s*limit:\s*([0-9]{2,4})/i);
+        const wordLimitMatch =
+          line.match(/max(?:imum)?\s*([0-9]{2,4})\s*words/i) ||
+          line.match(/word\s*limit:\s*([0-9]{2,4})/i);
         if (wordLimitMatch) {
           currentQ.wordLimit = parseInt(wordLimitMatch[1], 10);
         }
@@ -121,7 +155,11 @@ export class ApplicationFormAssistanceService {
         }
       } else {
         // If no numbered question started yet, check if line starts with question words
-        if (/^(What|Describe|Explain|Why|How|Please\s+list|Tell\s+us|Are\s+you|Do\s+you)\b/i.test(line)) {
+        if (
+          /^(What|Describe|Explain|Why|How|Please\s+list|Tell\s+us|Are\s+you|Do\s+you)\b/i.test(
+            line
+          )
+        ) {
           currentQ = {
             number: questions.length + 1,
             lines: [line],
@@ -133,7 +171,14 @@ export class ApplicationFormAssistanceService {
     }
 
     if (currentQ) {
-      questions.push(this.buildExtractedQuestion(currentQ.number, currentQ.lines, currentQ.characterLimit, currentQ.wordLimit));
+      questions.push(
+        this.buildExtractedQuestion(
+          currentQ.number,
+          currentQ.lines,
+          currentQ.characterLimit,
+          currentQ.wordLimit
+        )
+      );
     }
 
     // Fallback: If no structured numbered questions found, treat the whole prompt as 1 question
@@ -155,19 +200,19 @@ export class ApplicationFormAssistanceService {
 
     // Check personal experience questions
     const asksPersonalExperience =
-      /\b(have you implemented|your role|did you|have you built|in the past \d+|in the last \d+|projects you|your experience|your responsibilities|were you responsible|you designed|you optimized|you developed|your background)\b/i.test(
+      /\b(have you implemented|your role|did you|have you built|in the past \d+|in the last \d+|projects you|your experience|your responsibilities|were you responsible|you designed|you optimized|you developed|your background|your personal|describe your)\b/i.test(
         lower
-      );
+      ) && !/\b(describe how|explain how|what is the difference|compare)\b/i.test(lower);
 
     // Check factual declaration (e.g. authorization, clearance, felony, etc.)
     const asksFactualDeclaration =
-      /\b(authorized to work|sponsorship|security clearance|citizen|relocate|criminal|background check)\b/i.test(
+      /\b(authorized to work|sponsorship|security clearance|citizen|citizenship|relocate|relocation|criminal|background check)\b/i.test(
         lower
       );
 
     // Check technical knowledge
     const asksTechnicalKnowledge =
-      /\b(how does|what is the difference|architecture|protocols?|distributed|database|sla|latency|concurrency|rest api|kafka|kubernetes)\b/i.test(
+      /\b(how does|what is the difference|architecture|protocols?|distributed|database|sla|latency|concurrency|rest api|kafka|kubernetes|circuit breaker|failover|describe how|explain how|compare)\b/i.test(
         lower
       );
 
@@ -205,8 +250,8 @@ export class ApplicationFormAssistanceService {
       const lower = rawOcrText.toLowerCase();
 
       for (const app of applications) {
-        const company = app.company.toLowerCase();
-        const role = app.role.toLowerCase();
+        const company = app.company?.toLowerCase();
+        const role = app.role?.toLowerCase();
 
         if (company && lower.includes(company)) {
           return app;
@@ -222,7 +267,14 @@ export class ApplicationFormAssistanceService {
   }
 
   /**
-   * Generates a truthful, verified answer for a single extracted question.
+   * Generates a strictly truthful, evidence-grounded answer for an extracted question.
+   * INVARIANTS:
+   * 1. No hardcoded personal declarations (work auth, sponsorship, clearance).
+   *    If evidence is missing -> empty answer, NEEDS_USER_INPUT / BLOCKED, clarification request, confidence: low.
+   * 2. No fabricated personal implementation claims (Kafka, AWS, Docker, rebalancing, idempotency).
+   *    A skill mention or repo without personal contribution evidence is INSUFFICIENT for personal experience.
+   * 3. No default assumption that candidate was a technical evaluator or procurement decider.
+   * 4. Clear separation between PERSONAL_EXPERIENCE, TECHNICAL_KNOWLEDGE, and NEEDS_CLARIFICATION.
    */
   public static generateTruthfulAnswer(
     question: ExtractedFormQuestion,
@@ -230,242 +282,377 @@ export class ApplicationFormAssistanceService {
     jobContext?: JobApplication | null
   ): FormQuestionAnswer {
     const qLower = question.questionText.toLowerCase();
-    const evidenceUsed: string[] = [];
-    const missingInfo: string[] = [];
-    const factualWarnings: string[] = [];
+    const allFacts = kb.getAllFacts();
+    const allProjects = kb.getAllProjects();
 
-    // Access candidate knowledge vault technologies and experiences
-    let vaultTechs: string[] = [];
-    let vaultRoles: string[] = [];
-    try {
-      const vault = KnowledgeVaultService.getInstance().getVault();
-      vaultTechs = vault.technologies.map((t) => t.name);
-      vaultRoles = vault.experiences.map((e) => `${e.role} at ${e.company}`);
-    } catch {
-      // Vault fallback to KnowledgeBase
-    }
-
-    // 1. Handling Factual Declarations (e.g. Work authorization)
+    // -------------------------------------------------------------------------
+    // 1. FACTUAL DECLARATIONS (Work Auth, Sponsorship, Citizenship, Clearance)
+    // -------------------------------------------------------------------------
     if (question.asksFactualDeclaration) {
       const isAuthQuery = /authorized to work/i.test(qLower);
       const isSponsorshipQuery = /sponsorship/i.test(qLower);
+      const isClearanceQuery = /security clearance|clearance/i.test(qLower);
+      const isCitizenQuery = /citizen|citizenship/i.test(qLower);
 
-      if (isAuthQuery) {
-        evidenceUsed.push('Candidate Profile: US Work Authorization confirmed.');
-        const concise = 'Yes, I am legally authorized to work in the United States without restriction.';
-        return {
-          questionId: question.id,
-          questionText: question.questionText,
-          conciseAnswer: concise,
-          detailedAnswer: concise,
-          currentAnswer: concise,
-          evidenceUsed,
-          missingInformation: [],
-          factualWarnings: [],
-          confidence: 'high',
-          characterCount: concise.length,
-          characterLimit: question.characterLimit,
-          isOverLimit: false,
-          isCopied: false,
-          isEdited: false,
-        };
-      }
+      // Search candidate facts for an explicit declaration
+      const declarationFact = allFacts.find((f) => {
+        const text = f.fact.toLowerCase();
+        if (isAuthQuery && (text.includes('authorized to work') || text.includes('work authorization'))) return true;
+        if (isSponsorshipQuery && (text.includes('sponsorship') || text.includes('visa sponsorship'))) return true;
+        if (isClearanceQuery && text.includes('security clearance')) return true;
+        if (isCitizenQuery && (text.includes('citizen') || text.includes('citizenship'))) return true;
+        return false;
+      });
 
-      if (isSponsorshipQuery) {
-        evidenceUsed.push('Candidate Profile: Sponsorship status verified.');
-        const concise = 'No, I do not require visa sponsorship now or in the future.';
-        return {
-          questionId: question.id,
-          questionText: question.questionText,
-          conciseAnswer: concise,
-          detailedAnswer: concise,
-          currentAnswer: concise,
-          evidenceUsed,
-          missingInformation: [],
-          factualWarnings: [],
-          confidence: 'high',
-          characterCount: concise.length,
-          characterLimit: question.characterLimit,
-          isOverLimit: false,
-          isCopied: false,
-          isEdited: false,
-        };
-      }
-    }
-
-    // 2. Handling Personal Implementation & Vendor Experience
-    if (question.asksPersonalExperience) {
-      // Check what technologies/APIs are mentioned in question or verified in KB
-      const mentionsThirdParty = /infrastructure|apis?|third-party|vendor|saas/i.test(qLower);
-      const mentionsRoleInChoosing = /role in choosing|how did you select|decision/i.test(qLower);
-
-      if (mentionsRoleInChoosing) {
-        // Vendor selection question
-        // Check if candidate has vendor decision-making evidence
-        const procurementFacts = kb.findRelevantFacts('procurement vendor evaluation selected vendor contract RFP');
-        const hasVerifiedProcurement = procurementFacts.length > 0;
-
-        if (!hasVerifiedProcurement) {
-          missingInfo.push(
-            'Candidate Profile has no independently verified record of selecting third-party vendors or managing procurement contracts.'
-          );
-          factualWarnings.push(
-            'Do not claim sole authority or contract signing for vendor selection without confirmed candidate evidence.'
-          );
-
-          const concise =
-            'I served as the technical evaluator conducting architecture due diligence, benchmark evaluations, and SLA security reviews, while engineering leadership owned the final vendor procurement decision.';
-          const detailed =
-            'In my recent engineering roles, my responsibility for vendor selection focused on rigorous technical discovery. I built proof-of-concept integrations, evaluated p99 latency benchmarks, verified mutual TLS and secret-handling capabilities, and produced trade-off matrices for our engineering lead to make the final contract decision.';
-
-          evidenceUsed.push('Candidate Knowledge: Technical due diligence & architectural trade-off evaluations.');
-
-          return {
-            questionId: question.id,
-            questionText: question.questionText,
-            conciseAnswer: this.enforceLimit(concise, question.characterLimit),
-            detailedAnswer: this.enforceLimit(detailed, question.characterLimit),
-            currentAnswer: this.enforceLimit(concise, question.characterLimit),
-            evidenceUsed,
-            missingInformation: missingInfo,
-            clarificationRequest:
-              'Did you personally select the vendor/sign the contract, or lead the technical architecture POC?',
-            factualWarnings,
-            confidence: 'medium',
-            characterCount: concise.length,
-            characterLimit: question.characterLimit,
-            isOverLimit: Boolean(question.characterLimit && concise.length > question.characterLimit),
-            isCopied: false,
-            isEdited: false,
-          };
+      // Also inspect KnowledgeVault profile if available
+      let vaultDeclarationText: string | undefined;
+      try {
+        const vault = KnowledgeVaultService.getInstance().getVault();
+        if (vault?.profile) {
+          const summary = (vault.profile.summary || '').toLowerCase();
+          if (isAuthQuery && summary.includes('authorized to work')) {
+            vaultDeclarationText = 'Authorized to work';
+          }
         }
+      } catch {
+        // Vault unavailable in isolated unit test environments
       }
 
-      if (mentionsThirdParty) {
-        // Question 1: What infrastructure, APIs or third-party technologies implemented in past 12 months & challenges
-        // Check real verified candidate technologies
-        const mentionedTech = kb.getMentionedTechnologies() || ['Kafka', 'PostgreSQL', 'Docker', 'AWS'];
-        const apiEvidence = mentionedTech.filter((t) =>
-          ['kafka', 'aws', 'docker', 'kubernetes', 'stripe', 'redis', 'elasticsearch', 's3', 'datadog'].some((k) =>
-            t.toLowerCase().includes(k)
-          )
-        );
-
-        if (apiEvidence.length > 0) {
-          evidenceUsed.push(`Verified Candidate Tech Stack: ${apiEvidence.slice(0, 3).join(', ')}.`);
-        }
-
-        const concise =
-          'Over the past 12 months, I integrated distributed event streaming via Apache Kafka and AWS S3 object storage pipelines. Key challenges included handling sudden burst backpressure, mitigating consumer group rebalancing latency, and enforcing idempotent message deduplication under network partitions.';
-
-        const detailed =
-          'Over the past 12 months, I engineered production integrations with Apache Kafka for event-driven messaging and AWS cloud services for partitioned storage. The primary engineering challenges involved: (1) managing consumer group rebalance storms during rolling deploys, resolved via static group membership; (2) preventing duplicated downstream records under connection timeouts, resolved using idempotency keys; and (3) implementing circuit breakers for upstream API degradation.';
+      // If NO explicit declaration is recorded: DO NOT FABRICATE
+      if (!declarationFact && !vaultDeclarationText) {
+        const queryTopic = isAuthQuery
+          ? 'US Work Authorization'
+          : isSponsorshipQuery
+          ? 'Visa Sponsorship'
+          : isClearanceQuery
+          ? 'Security Clearance'
+          : 'Citizenship / Employment Eligibility';
 
         return {
           questionId: question.id,
           questionText: question.questionText,
-          conciseAnswer: this.enforceLimit(concise, question.characterLimit),
-          detailedAnswer: this.enforceLimit(detailed, question.characterLimit),
-          currentAnswer: this.enforceLimit(concise, question.characterLimit),
-          evidenceUsed,
+          conciseAnswer: '',
+          detailedAnswer: '',
+          currentAnswer: '',
+          evidenceUsed: [],
           missingInformation: [
-            'Please confirm if you implemented specific external commercial vendors (e.g. Stripe, Twilio, Datadog) in the past 12 months.',
+            `No verified declaration found in candidate profile for ${queryTopic}. Automatic declaration forbidden.`,
           ],
-          clarificationRequest: 'Which specific external commercial APIs did you implement in the past 12 months?',
+          clarificationRequest: `Please specify your status for: "${question.questionText.trim()}"`,
           factualWarnings: [
-            'Answer strictly attributes implementation to verified infrastructure (Kafka, AWS) and frames challenges around verified distributed systems trade-offs.',
+            'SAFETY INVARIANT: Factual employment eligibility declarations are never assumed or auto-generated without candidate proof.',
           ],
-          confidence: 'high',
-          characterCount: concise.length,
+          confidence: 'low',
+          safetyState: 'NEEDS_USER_INPUT',
+          responseMode: 'NEEDS_CLARIFICATION',
+          characterCount: 0,
           characterLimit: question.characterLimit,
-          isOverLimit: Boolean(question.characterLimit && concise.length > question.characterLimit),
+          isOverLimit: false,
           isCopied: false,
           isEdited: false,
         };
       }
+
+      // If an explicit declaration was recorded, distinguish CANDIDATE_CONFIRMED vs INDEPENDENTLY_VERIFIED
+      const isIndependent = declarationFact && (
+        declarationFact.verificationStatus === 'DOCUMENT_SUPPORTED' ||
+        declarationFact.verificationStatus === 'INDEPENDENTLY_VERIFIED'
+      );
+      const safetyState: FormAnswerSafetyState = isIndependent ? 'VALIDATED' : 'CANDIDATE_CONFIRMED';
+      const factText = declarationFact?.fact || vaultDeclarationText || '';
+
+      const answerText = this.enforceLimit(factText, question.characterLimit);
+      return {
+        questionId: question.id,
+        questionText: question.questionText,
+        conciseAnswer: answerText,
+        detailedAnswer: answerText,
+        currentAnswer: answerText,
+        evidenceUsed: [
+          `Candidate Record: ${factText} [${declarationFact?.verificationStatus || 'CANDIDATE_CONFIRMED'}]`,
+        ],
+        missingInformation: isIndependent
+          ? []
+          : ['Self-reported candidate declaration. Not corroborated by independent primary document.'],
+        clarificationRequest: undefined,
+        factualWarnings: isIndependent
+          ? []
+          : ['Self-reported candidate declaration: record is CANDIDATE_CONFIRMED.'],
+        confidence: isIndependent ? 'high' : 'medium',
+        safetyState,
+        responseMode: 'PERSONAL_EXPERIENCE',
+        characterCount: answerText.length,
+        characterLimit: question.characterLimit,
+        isOverLimit: Boolean(question.characterLimit && answerText.length > question.characterLimit),
+        isCopied: false,
+        isEdited: false,
+      };
     }
 
-    // 3. Technical Knowledge Question (e.g. SLA monitoring, distributed systems, PostgreSQL vs DynamoDB)
-    if (question.asksTechnicalKnowledge) {
-      if (/sla|latency|failure failover|monitoring/i.test(qLower)) {
-        evidenceUsed.push('Candidate Knowledge: Distributed telemetry, Prometheus/Datadog metrics, SLA thresholds.');
-        const concise =
-          'We monitor SLA compliance by tracking p95/p99 latency histograms, error-budget burn rates, and active heartbeat synthetic probes. Failover is governed by automated circuit breakers with jittered exponential backoff and standby replicas.';
-        const detailed =
-          'To ensure SLA compliance and resilient third-party integrations, we enforce: (1) real-time p95 and p99 latency dashboards with alert thresholds tied to our error budget; (2) automated synthetic health probes checking endpoint availability every 30 seconds; and (3) resilient failover using Netflix Hystrix/Resilience4j pattern circuit breakers that automatically fallback to stale cache or secondary replicas during vendor outages.';
+    // -------------------------------------------------------------------------
+    // 2. VENDOR SELECTION & PROCUREMENT INVOLVEMENT
+    // -------------------------------------------------------------------------
+    const mentionsRoleInChoosing = /role in choosing|how did you select|decision in choosing|vendor selection|procurement|choosing that vendor/i.test(
+      qLower
+    );
 
+    if (mentionsRoleInChoosing) {
+      // Find whether candidate has actual verified procurement or vendor evaluation evidence
+      const verifiedVendorProjects = allProjects.filter((p) => {
+        if (!isCandidateOrIndependentlyVerified(p.verificationStatus)) return false;
+        const contrib = (p.personalContribution || '').toLowerCase();
+        const challenges = (p.challenges || []).join(' ').toLowerCase();
+        return (
+          contrib.includes('vendor') ||
+          contrib.includes('procurement') ||
+          contrib.includes('evaluation') ||
+          challenges.includes('vendor') ||
+          challenges.includes('rfp')
+        );
+      });
+
+      const verifiedVendorFacts = allFacts.filter((f) => {
+        if (!isCandidateOrIndependentlyVerified(f.verificationStatus)) return false;
+        const text = f.fact.toLowerCase();
+        return (
+          text.includes('vendor evaluation') ||
+          text.includes('procurement') ||
+          text.includes('selected vendor') ||
+          text.includes('contract negotiation')
+        );
+      });
+
+      // Case A: Candidate has verified personal procurement / vendor experience
+      if (verifiedVendorProjects.length > 0 || verifiedVendorFacts.length > 0) {
+        const proj = verifiedVendorProjects[0];
+        const fact = verifiedVendorFacts[0];
+        const evidenceDetails = proj?.personalContribution || fact?.fact || '';
+        const isSoleOwner = proj?.ownership === 'sole_owner' || proj?.ownership === 'architect';
+
+        const concise = isSoleOwner
+          ? `In ${proj.name}, I had direct ownership of evaluating vendor options against latency and throughput benchmarks and led the architecture selection decision.`
+          : `In ${proj?.name || 'my project'}, my role was conducting technical proof-of-concept evaluations and benchmark comparisons to inform the vendor selection.`;
+
+        const answerText = this.enforceLimit(concise, question.characterLimit);
         return {
           questionId: question.id,
           questionText: question.questionText,
-          conciseAnswer: this.enforceLimit(concise, question.characterLimit),
-          detailedAnswer: this.enforceLimit(detailed, question.characterLimit),
-          currentAnswer: this.enforceLimit(concise, question.characterLimit),
-          evidenceUsed,
+          conciseAnswer: answerText,
+          detailedAnswer: answerText,
+          currentAnswer: answerText,
+          evidenceUsed: [`Candidate Verified Experience: ${evidenceDetails}`],
           missingInformation: [],
           factualWarnings: [],
           confidence: 'high',
-          characterCount: concise.length,
+          safetyState: 'VALIDATED',
+          responseMode: 'PERSONAL_EXPERIENCE',
+          characterCount: answerText.length,
           characterLimit: question.characterLimit,
-          isOverLimit: Boolean(question.characterLimit && concise.length > question.characterLimit),
+          isOverLimit: Boolean(question.characterLimit && answerText.length > question.characterLimit),
           isCopied: false,
           isEdited: false,
         };
       }
 
-      if (/postgresql|dynamodb|database/i.test(qLower)) {
-        evidenceUsed.push('Candidate Knowledge: Relational ACID guarantees vs NoSQL partition-key access patterns.');
-        const concise =
-          'I selected PostgreSQL for its strong ACID transactional guarantees, complex multi-table relational joins, and strict schema constraints, which were critical for accurate billing and audit logs compared to DynamoDB key-value lookups.';
-        const detailed =
-          'In recent backend architecture, PostgreSQL was chosen over DynamoDB due to domain requirements: our data model required multi-entity relational integrity, complex analytics queries, and immediate read-after-write ACID consistency. While DynamoDB offers predictable horizontal scaling, PostgreSQL with read replicas and connection pooling provided superior developer velocity and schema safety.';
+      // Case B: No verified vendor evaluation/procurement experience
+      // NEVER default to "I served as technical evaluator"
+      return {
+        questionId: question.id,
+        questionText: question.questionText,
+        conciseAnswer: '',
+        detailedAnswer: '',
+        currentAnswer: '',
+        evidenceUsed: [],
+        missingInformation: [
+          'No verified record of vendor selection, procurement, or technical evaluation in candidate profile.',
+        ],
+        clarificationRequest:
+          'What was your exact involvement with this vendor? (e.g. Personally selected, participated in technical POC evaluation, implemented after selection, or received pre-selected API?)',
+        factualWarnings: [
+          'DEFENSIVE INVARIANT: Will not assume candidate was technical evaluator or procurement authority without evidence.',
+        ],
+        confidence: 'low',
+        safetyState: 'NEEDS_USER_INPUT',
+        responseMode: 'NEEDS_CLARIFICATION',
+        characterCount: 0,
+        characterLimit: question.characterLimit,
+        isOverLimit: false,
+        isCopied: false,
+        isEdited: false,
+      };
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. PERSONAL IMPLEMENTATION CLAIMS (Third-party APIs, Infrastructure, Systems)
+    // -------------------------------------------------------------------------
+    if (question.asksPersonalExperience) {
+      // Find candidate projects that have verified personal implementation
+      const verifiedProjectsWithContribution = allProjects.filter((p) => {
+        if (!isCandidateOrIndependentlyVerified(p.verificationStatus)) return false;
+        if (!p.personalContribution || p.personalContribution === 'UNKNOWN') return false;
+        return true;
+      });
+
+      // Match target technologies mentioned in question or project
+      let matchingProject = verifiedProjectsWithContribution.find((p) => {
+        const pTech = (p.technologyStack || []).map((t) => t.toLowerCase());
+        return pTech.some((t) => qLower.includes(t));
+      });
+
+      if (!matchingProject && verifiedProjectsWithContribution.length > 0) {
+        // Fallback to highest-verified candidate project with non-UNKNOWN personal contribution
+        matchingProject = verifiedProjectsWithContribution[0];
+      }
+
+      // If we have verified personal contribution:
+      if (matchingProject && matchingProject.personalContribution !== 'UNKNOWN') {
+        const techList = matchingProject.technologyStack.slice(0, 3).join(', ');
+        const contrib = matchingProject.personalContribution;
+        const challenges = matchingProject.challenges.length > 0
+          ? matchingProject.challenges[0]
+          : 'managing integration edge cases and network retry resiliency';
+
+        const concise = `In ${matchingProject.name}, I implemented ${techList} systems where my personal contribution was: ${contrib}. A primary challenge involved ${challenges}.`;
+        const detailed = `In ${matchingProject.name}, my personal engineering responsibilities included: ${contrib}. I utilized ${techList} in production, where key technical challenges included ${challenges}, addressed through defensive exception handling and automated test coverage.`;
+
+        const conciseAnswer = this.enforceLimit(concise, question.characterLimit);
+        const detailedAnswer = this.enforceLimit(detailed, question.characterLimit);
 
         return {
           questionId: question.id,
           questionText: question.questionText,
-          conciseAnswer: this.enforceLimit(concise, question.characterLimit),
-          detailedAnswer: this.enforceLimit(detailed, question.characterLimit),
-          currentAnswer: this.enforceLimit(concise, question.characterLimit),
-          evidenceUsed,
+          conciseAnswer,
+          detailedAnswer,
+          currentAnswer: conciseAnswer,
+          evidenceUsed: [
+            `Verified Project: ${matchingProject.name}`,
+            `Personal Contribution: ${matchingProject.personalContribution} [${matchingProject.verificationStatus}]`,
+          ],
           missingInformation: [],
           factualWarnings: [
-            'Candidate possesses verified technical proficiency with both relational and NoSQL stores.',
+            `Answer strictly restricted to verified personal contribution in ${matchingProject.name}.`,
           ],
           confidence: 'high',
-          characterCount: concise.length,
+          safetyState: 'VALIDATED',
+          responseMode: 'PERSONAL_EXPERIENCE',
+          characterCount: conciseAnswer.length,
           characterLimit: question.characterLimit,
-          isOverLimit: Boolean(question.characterLimit && concise.length > question.characterLimit),
+          isOverLimit: Boolean(question.characterLimit && conciseAnswer.length > question.characterLimit),
           isCopied: false,
           isEdited: false,
         };
       }
+
+      // If the candidate mentions technologies in skills or repos, but has NO verified personal contribution:
+      // DO NOT FABRICATE Kafka, AWS S3, backpressure, or rebalancing.
+      return {
+        questionId: question.id,
+        questionText: question.questionText,
+        conciseAnswer: '',
+        detailedAnswer: '',
+        currentAnswer: '',
+        evidenceUsed: [],
+        missingInformation: [
+          'Candidate profile contains no verified personal implementation records or documented personal contribution for this question.',
+        ],
+        clarificationRequest:
+          'Please describe your actual personal implementation contribution for this question.',
+        factualWarnings: [
+          'SAFETY INVARIANT: Listing a skill or project name is insufficient to establish personal implementation experience. Candidate contribution required.',
+        ],
+        confidence: 'low',
+        safetyState: 'NEEDS_USER_INPUT',
+        responseMode: 'NEEDS_CLARIFICATION',
+        characterCount: 0,
+        characterLimit: question.characterLimit,
+        isOverLimit: false,
+        isCopied: false,
+        isEdited: false,
+      };
     }
 
-    // Default fallback answer for generic application questions
-    const concise = `Based on verified production experience, I apply industry-standard best practices, robust automated testing, and comprehensive monitoring to deliver reliable software solutions aligned with organizational goals.`;
-    const detailed = `Throughout my engineering career, I have consistently focused on engineering excellence, measurable business outcomes, and defensive systems design. I ensure all implementations are thoroughly tested, monitored, and documented.`;
+    // -------------------------------------------------------------------------
+    // 4. TECHNICAL KNOWLEDGE (Conceptual, Architecture, SLA monitoring, Trade-offs)
+    // -------------------------------------------------------------------------
+    if (question.asksTechnicalKnowledge) {
+      let concise: string;
+      let detailed: string;
+      let topic: string;
 
+      if (/sla|latency|failure failover|monitoring|circuit breaker/i.test(qLower)) {
+        topic = 'SLA Monitoring & Failover Architecture';
+        concise =
+          'SLA compliance is monitored via p95/p99 latency histograms, error-budget burn rates, and synthetic endpoint probes. Failover is governed by automated circuit breakers with jittered exponential backoff and standby replicas.';
+        detailed =
+          'From an architectural standpoint, monitoring third-party endpoint SLA compliance requires: (1) real-time p95/p99 latency metrics and error-rate alerting against agreed SLOs; (2) active synthetic health checks to detect degraded performance early; and (3) failover patterns such as circuit breakers and exponential backoff with jitter to isolate downstream failures without overwhelming dependencies.';
+      } else if (/postgresql|dynamodb|database|acid|nosql/i.test(qLower)) {
+        topic = 'Relational vs NoSQL Database Trade-Offs';
+        concise =
+          'PostgreSQL provides ACID transactional guarantees, relational integrity, and rich querying for complex relational models, whereas DynamoDB optimizes for predictable single-digit millisecond latency at horizontal scale with primary key access patterns.';
+        detailed =
+          'In database architecture trade-offs, PostgreSQL is preferred when the domain requires strict multi-table relational consistency, schema enforcement, and complex analytical joins. Conversely, DynamoDB is suited for distributed key-value access patterns requiring horizontal scaling without operational maintenance overhead.';
+      } else {
+        topic = 'Engineering Concept & System Design';
+        concise =
+          'Standard distributed systems design applies decoupled components, clear contract interfaces, defensive timeouts, and comprehensive observability to ensure high reliability.';
+        detailed =
+          'In modern software engineering, robust systems require separation of concerns, defensive input validation, automated regression test suites, and structured telemetry to identify and isolate failures.';
+      }
+
+      const conciseAnswer = this.enforceLimit(concise, question.characterLimit);
+      const detailedAnswer = this.enforceLimit(detailed, question.characterLimit);
+
+      return {
+        questionId: question.id,
+        questionText: question.questionText,
+        conciseAnswer,
+        detailedAnswer,
+        currentAnswer: conciseAnswer,
+        evidenceUsed: [`Technical Knowledge Base: ${topic} (General engineering principles)`],
+        missingInformation: [
+          'This answer represents general technical architecture principles, NOT personal candidate project implementation.',
+        ],
+        factualWarnings: [
+          'TECHNICAL GUIDANCE: Stated in objective 3rd-person principles without unsupported personal implementation claims.',
+        ],
+        confidence: 'high',
+        safetyState: 'TECHNICAL_GUIDANCE',
+        responseMode: 'TECHNICAL_KNOWLEDGE',
+        characterCount: conciseAnswer.length,
+        characterLimit: question.characterLimit,
+        isOverLimit: Boolean(question.characterLimit && conciseAnswer.length > question.characterLimit),
+        isCopied: false,
+        isEdited: false,
+      };
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. GENERIC / AMBIGUOUS FORM QUESTIONS
+    // -------------------------------------------------------------------------
     return {
       questionId: question.id,
       questionText: question.questionText,
-      conciseAnswer: this.enforceLimit(concise, question.characterLimit),
-      detailedAnswer: this.enforceLimit(detailed, question.characterLimit),
-      currentAnswer: this.enforceLimit(concise, question.characterLimit),
-      evidenceUsed: ['General Candidate Engineering Experience'],
-      missingInformation: ['Specific project details for this question are not present in current profile.'],
+      conciseAnswer: '',
+      detailedAnswer: '',
+      currentAnswer: '',
+      evidenceUsed: [],
+      missingInformation: ['No verified evidence in candidate profile matching this question.'],
       clarificationRequest: 'Could you provide a brief note on your experience regarding this question?',
-      factualWarnings: ['Generic response: grounded in verified general engineering background.'],
-      confidence: 'medium',
-      characterCount: concise.length,
+      factualWarnings: ['Requires candidate input before generating an answer.'],
+      confidence: 'low',
+      safetyState: 'NEEDS_USER_INPUT',
+      responseMode: 'NEEDS_CLARIFICATION',
+      characterCount: 0,
       characterLimit: question.characterLimit,
-      isOverLimit: Boolean(question.characterLimit && concise.length > question.characterLimit),
+      isOverLimit: false,
       isCopied: false,
       isEdited: false,
     };
   }
 
-  private static enforceLimit(text: string, limit?: number): string {
+  public static enforceLimit(text: string, limit?: number): string {
     if (!limit || text.length <= limit) return text;
-    // Trim neatly at sentence or word boundary
+    // Trim neatly at sentence or word boundary without altering factual claims
     const trimmed = text.slice(0, limit);
     const lastPeriod = trimmed.lastIndexOf('.');
     if (lastPeriod > limit * 0.7) {

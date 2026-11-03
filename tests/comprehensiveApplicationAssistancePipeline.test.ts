@@ -7,7 +7,10 @@ import {
   ApplicationFormAssistanceService,
   ExtractedFormQuestion,
 } from '../src/services/ApplicationFormAssistanceService';
-import { CandidateKnowledgeBase } from '../src/services/candidateIntelligence';
+import {
+  CandidateKnowledgeBase,
+  CandidateConfirmationWorkflow,
+} from '../src/services/candidateIntelligence';
 import { useAppStore } from '../src/store/useAppStore';
 import { useCareerOpsStore } from '../src/store/useCareerOpsStore';
 import { InterviewEngine } from '../src/services/InterviewEngine';
@@ -37,15 +40,30 @@ describe('Comprehensive Context-Aware Pipeline & Application Form Assistance Sui
   });
 
   // Requirement 8.2: Job application with personal experience questions
-  it('2. Job application with personal experience questions: accurately flags asksPersonalExperience and retrieves candidate grounding', () => {
+  it('2. Job application with personal experience questions: accurately flags asksPersonalExperience and requires candidate evidence', () => {
     const questions = ApplicationFormAssistanceService.extractQuestions(JOB_APPLICATION_FORM_OCR);
     const q1 = questions[0];
     expect(q1.questionText).toContain('Describe a high-throughput distributed system');
     expect(q1.asksPersonalExperience).toBe(true);
 
-    const kb = new CandidateKnowledgeBase('Candidate: Abhishek Singh\nSkills: Kafka, AWS, Distributed Systems');
+    const kb = new CandidateKnowledgeBase('');
+    kb.registerProject({
+      name: 'HighThroughputRelay',
+      technologyStack: ['Kafka', 'Go'],
+    });
+    const ticket = CandidateConfirmationWorkflow.issueTicket('HighThroughputRelay');
+    kb.confirmProject('HighThroughputRelay', {
+      ticket,
+      ownership: 'core_contributor',
+      personalContribution: 'Designed partitioned event pipeline processing 2M events/sec',
+      verifiedTechnologies: ['Kafka', 'Go'],
+      source: 'explicit_candidate_action',
+      confirmedBy: 'candidate_user_action',
+    });
+
     const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(q1, kb);
     expect(answer.evidenceUsed.length).toBeGreaterThan(0);
+    expect(answer.safetyState).toBe('VALIDATED');
     expect(answer.isOverLimit).toBe(false);
   });
 
@@ -53,23 +71,39 @@ describe('Comprehensive Context-Aware Pipeline & Application Form Assistance Sui
   it('3. API integration experience question: cites verified technologies and concrete technical challenges without inventing APIs', () => {
     const questions = ApplicationFormAssistanceService.extractQuestions(VENDOR_QUESTIONNAIRE_OCR);
     const q1 = questions[0]; // "What infrastructure, APIs or other third-party technologies have you implemented in the past 12 months..."
-    const kb = new CandidateKnowledgeBase('Candidate: Abhishek Singh\nSkills: Apache Kafka, AWS S3, Docker');
-    const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(q1, kb);
+    const kb = new CandidateKnowledgeBase('');
+    kb.registerProject({
+      name: 'CloudSync',
+      technologyStack: ['Kafka', 'AWS S3', 'Docker'],
+      challenges: ['mitigating consumer group rebalance latency and network partitions'],
+    });
+    const ticket = CandidateConfirmationWorkflow.issueTicket('CloudSync');
+    kb.confirmProject('CloudSync', {
+      ticket,
+      ownership: 'core_contributor',
+      personalContribution: 'Integrated Apache Kafka event streaming and S3 storage pipelines',
+      verifiedTechnologies: ['Kafka', 'AWS S3', 'Docker'],
+      source: 'explicit_candidate_action',
+      confirmedBy: 'candidate_user_action',
+    });
 
+    const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(q1, kb);
+    expect(answer.conciseAnswer).toContain('CloudSync');
     expect(answer.conciseAnswer).toContain('Kafka');
-    expect(answer.conciseAnswer).toContain('backpressure');
+    expect(answer.conciseAnswer).toContain('consumer group rebalance');
+    expect(answer.safetyState).toBe('VALIDATED');
     expect(answer.conciseAnswer).not.toContain('I created AWS');
   });
 
   // Requirement 8.4: Vendor selection and ownership question
-  it('4. Vendor selection and ownership question: refuses to fabricate sole procurement authority when candidate only evaluated architecture', () => {
+  it('4. Vendor selection and ownership question: refuses to fabricate sole procurement authority and returns NEEDS_USER_INPUT when unverified', () => {
     const questions = ApplicationFormAssistanceService.extractQuestions(VENDOR_QUESTIONNAIRE_OCR);
     const q2 = questions[1]; // "What was your role in choosing that vendor or API?"
     const kb = new CandidateKnowledgeBase('Candidate: Abhishek Singh\nSkills: System Design, Architecture');
     const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(q2, kb);
 
-    expect(answer.conciseAnswer).toContain('technical evaluator');
-    expect(answer.conciseAnswer).not.toContain('sole decision maker');
+    expect(answer.conciseAnswer).toBe('');
+    expect(answer.safetyState).toBe('NEEDS_USER_INPUT');
     expect(answer.missingInformation.length).toBeGreaterThan(0);
     expect(answer.clarificationRequest).toBeDefined();
   });
@@ -105,12 +139,12 @@ describe('Comprehensive Context-Aware Pipeline & Application Form Assistance Sui
   // Requirement 8.9: Form with character limits
   it('9. Form with character limits: strictly bounds answers within specified character length', () => {
     const questions = ApplicationFormAssistanceService.extractQuestions(VENDOR_QUESTIONNAIRE_OCR);
-    const q2 = questions[1]; // Max 300 characters
-    expect(q2.characterLimit).toBe(300);
+    const q3 = questions[2]; // Max 500 characters
+    expect(q3.characterLimit).toBe(500);
 
-    const kb = new CandidateKnowledgeBase('Candidate: Abhishek Singh');
-    const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(q2, kb);
-    expect(answer.conciseAnswer.length).toBeLessThanOrEqual(300);
+    const kb = new CandidateKnowledgeBase('');
+    const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(q3, kb);
+    expect(answer.conciseAnswer.length).toBeLessThanOrEqual(500);
     expect(answer.isOverLimit).toBe(false);
   });
 
@@ -119,7 +153,21 @@ describe('Comprehensive Context-Aware Pipeline & Application Form Assistance Sui
     const questions = ApplicationFormAssistanceService.extractQuestions(VENDOR_QUESTIONNAIRE_OCR);
     expect(questions.length).toBe(3);
 
-    const kb = new CandidateKnowledgeBase('Candidate: Abhishek Singh\nSkills: Kafka, AWS');
+    const kb = new CandidateKnowledgeBase('');
+    kb.registerProject({
+      name: 'EventBridge',
+      technologyStack: ['Kafka', 'AWS'],
+    });
+    const ticket = CandidateConfirmationWorkflow.issueTicket('EventBridge');
+    kb.confirmProject('EventBridge', {
+      ticket,
+      ownership: 'core_contributor',
+      personalContribution: 'Implemented event stream filters and delivery retry logic',
+      verifiedTechnologies: ['Kafka', 'AWS'],
+      source: 'explicit_candidate_action',
+      confirmedBy: 'candidate_user_action',
+    });
+
     const ans1 = ApplicationFormAssistanceService.generateTruthfulAnswer(questions[0], kb);
     const ans2 = ApplicationFormAssistanceService.generateTruthfulAnswer(questions[1], kb);
     const ans3 = ApplicationFormAssistanceService.generateTruthfulAnswer(questions[2], kb);
@@ -140,8 +188,9 @@ describe('Comprehensive Context-Aware Pipeline & Application Form Assistance Sui
 
     const kb = new CandidateKnowledgeBase('Candidate: Abhishek Singh');
     const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(questions[0], kb);
-    expect(answer.confidence).toBe('medium');
-    expect(answer.conciseAnswer.length).toBeLessThanOrEqual(200);
+    expect(answer.safetyState).toBe('NEEDS_USER_INPUT');
+    expect(answer.conciseAnswer).toBe('');
+    expect(answer.clarificationRequest).toBeDefined();
   });
 
   // Requirement 8.12: Unknown task category
@@ -161,7 +210,8 @@ describe('Comprehensive Context-Aware Pipeline & Application Form Assistance Sui
     const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(questions[0], kb);
 
     expect(answer.missingInformation.length).toBeGreaterThan(0);
-    expect(answer.conciseAnswer).not.toMatch(/I personally managed multimillion dollar procurement contracts/i);
+    expect(answer.conciseAnswer).toBe('');
+    expect(answer.safetyState).toBe('NEEDS_USER_INPUT');
   });
 
   // Requirement 8.14: Screen overlay compact-mode behavior

@@ -776,7 +776,7 @@ export class CandidateKnowledgeBase {
    * 4. verifiedResults is initialized to empty array []; raw claims move to performanceMetrics.
    * 5. Technologies are routed ONLY to mentionedTechnologies, NEVER to verifiedTechnologies.
    */
-  public registerProject(project: ProjectProfile): void {
+  public registerProject(project: Partial<ProjectProfile> & { name: string }): void {
     const fieldProv = CandidateKnowledgeBase.createInitialFieldProvenance(project);
 
     const safeProject: ProjectProfile = {

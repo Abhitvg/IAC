@@ -7,7 +7,10 @@ import {
   ApplicationFormAssistanceService,
   ExtractedFormQuestion,
 } from '../src/services/ApplicationFormAssistanceService';
-import { CandidateKnowledgeBase } from '../src/services/candidateIntelligence';
+import {
+  CandidateKnowledgeBase,
+  CandidateConfirmationWorkflow,
+} from '../src/services/candidateIntelligence';
 import {
   VENDOR_QUESTIONNAIRE_OCR,
   JOB_APPLICATION_FORM_OCR,
@@ -97,16 +100,23 @@ describe('Intelligent Task Classification & Application Form Assistance', () => 
   });
 
   describe('ApplicationFormAssistanceService.generateTruthfulAnswer()', () => {
-    const kb = new CandidateKnowledgeBase(`
-Candidate: Abhishek Singh
-Title: Senior Software Engineer
-Skills: Apache Kafka, PostgreSQL, Docker, AWS, Distributed Systems
-Experience:
-- Senior Backend Engineer at TechCorp (2021-Present):
-  Engineered real-time Kafka event streaming architecture. Evaluated API integrations and latency metrics.
-`);
+    it('generates truthful answer for question 1 when candidate has confirmed implementation contribution', () => {
+      const kb = new CandidateKnowledgeBase('');
+      kb.registerProject({
+        name: 'EventStreamingPlatform',
+        technologyStack: ['Kafka', 'Docker'],
+        challenges: ['consumer partition rebalance latency'],
+      });
+      const ticket = CandidateConfirmationWorkflow.issueTicket('EventStreamingPlatform');
+      kb.confirmProject('EventStreamingPlatform', {
+        ticket,
+        ownership: 'core_contributor',
+        personalContribution: 'Integrated Apache Kafka event consumer groups and idempotent processing',
+        verifiedTechnologies: ['Kafka', 'Docker'],
+        source: 'explicit_candidate_action',
+        confirmedBy: 'candidate_user_action',
+      });
 
-    it('generates truthful answer for question 1 (third-party APIs & challenges) grounded strictly in verified stack', () => {
       const questions = ApplicationFormAssistanceService.extractQuestions(VENDOR_QUESTIONNAIRE_OCR);
       const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(questions[0], kb);
 
@@ -114,39 +124,43 @@ Experience:
       expect(answer.conciseAnswer).toContain('Kafka');
       expect(answer.conciseAnswer.length).toBeLessThanOrEqual(500);
       expect(answer.evidenceUsed.length).toBeGreaterThan(0);
+      expect(answer.safetyState).toBe('VALIDATED');
       expect(answer.isOverLimit).toBe(false);
     });
 
-    it('generates defensive, non-hallucinated answer for question 2 (vendor selection role) and asks clarification when procurement authority is unverified', () => {
+    it('returns NEEDS_USER_INPUT for question 2 (vendor selection role) and asks clarification when procurement authority is unverified', () => {
+      const kb = new CandidateKnowledgeBase('Candidate: Abhishek Singh\nSkills: Java, Spring');
       const questions = ApplicationFormAssistanceService.extractQuestions(VENDOR_QUESTIONNAIRE_OCR);
       const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(questions[1], kb);
 
       expect(answer.questionId).toBe(questions[1].id);
-      // Must not fabricate sole procurement signing or budget ownership
-      expect(answer.conciseAnswer).not.toMatch(/I signed the contract|I managed the multimillion procurement budget/i);
-      expect(answer.conciseAnswer).toContain('technical evaluator');
+      expect(answer.conciseAnswer).toBe('');
+      expect(answer.safetyState).toBe('NEEDS_USER_INPUT');
       expect(answer.missingInformation.length).toBeGreaterThan(0);
       expect(answer.clarificationRequest).toBeDefined();
-      expect(answer.characterCount).toBeLessThanOrEqual(300);
     });
 
-    it('generates verified technical answer for SLA monitoring and failover without unsupported claims', () => {
+    it('generates verified technical guidance for SLA monitoring and failover without unsupported personal claims', () => {
+      const kb = new CandidateKnowledgeBase('');
       const questions = ApplicationFormAssistanceService.extractQuestions(VENDOR_QUESTIONNAIRE_OCR);
       const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(questions[2], kb);
 
       expect(answer.conciseAnswer).toContain('SLA compliance');
       expect(answer.conciseAnswer).toContain('circuit breaker');
       expect(answer.characterCount).toBeLessThanOrEqual(500);
-      expect(answer.confidence).toBe('high');
+      expect(answer.safetyState).toBe('TECHNICAL_GUIDANCE');
+      expect(answer.responseMode).toBe('TECHNICAL_KNOWLEDGE');
+      expect(answer.conciseAnswer).not.toMatch(/\bI implemented\b|\bmy Datadog\b/i);
     });
 
-    it('accurately answers work authorization questions without hesitation', () => {
+    it('refuses to auto-declare work authorization without candidate proof and asks user input', () => {
+      const kb = new CandidateKnowledgeBase('Candidate: Abhishek Singh');
       const questions = ApplicationFormAssistanceService.extractQuestions(JOB_APPLICATION_FORM_OCR);
       const answer = ApplicationFormAssistanceService.generateTruthfulAnswer(questions[2], kb);
 
-      expect(answer.conciseAnswer).toContain('authorized to work in the United States');
-      expect(answer.confidence).toBe('high');
-      expect(answer.factualWarnings.length).toBe(0);
+      expect(answer.conciseAnswer).toBe('');
+      expect(answer.safetyState).toBe('NEEDS_USER_INPUT');
+      expect(answer.clarificationRequest).toBeDefined();
     });
   });
 });

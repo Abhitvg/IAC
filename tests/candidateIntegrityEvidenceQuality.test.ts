@@ -106,9 +106,9 @@ Experience: Contributed to ... distributed sys... throughput approx 4...
 
   // 4. Missing evidence remains UNKNOWN
   it('Invariant 4: Missing evidence remains strictly UNKNOWN across all architecture and ownership fields', () => {
-    const sparseProject: ProjectProfile = {
+    const sparseProject = {
       name: 'EventRelay',
-      technologies: ['Kafka'],
+      technologyStack: ['Kafka'],
       architecture: 'UNKNOWN',
       dataFlow: 'UNKNOWN',
       backendDesign: 'UNKNOWN',
@@ -118,7 +118,7 @@ Experience: Contributed to ... distributed sys... throughput approx 4...
       deployment: 'UNKNOWN',
       personalContribution: 'UNKNOWN',
       teamContribution: 'UNKNOWN',
-      verificationStatus: 'UNKNOWN',
+      verificationStatus: 'UNKNOWN' as const,
       challenges: [],
       outcomes: [],
       metrics: [],
@@ -145,9 +145,9 @@ Experience: Contributed to ... distributed sys... throughput approx 4...
 
   // 5. Proposed designs remain PROPOSED_DESIGN
   it('Invariant 5: Proposed system designs remain PROPOSED_DESIGN and are not confused with past achievements', () => {
-    const hypotheticalDesign: ProjectProfile = {
+    const hypotheticalDesign = {
       name: 'GlobalTelemetryAggregator',
-      technologies: ['ClickHouse', 'Vector'],
+      technologyStack: ['ClickHouse', 'Vector'],
       architecture: 'Multi-tiered time-series aggregation tree',
       dataFlow: 'Edge collectors -> Vector -> ClickHouse cluster',
       backendDesign: 'Golang microservices',
@@ -157,7 +157,7 @@ Experience: Contributed to ... distributed sys... throughput approx 4...
       deployment: 'Kubernetes daemonset',
       personalContribution: 'Proposed architecture for hypothetical scalability challenge',
       teamContribution: 'UNKNOWN',
-      verificationStatus: 'PROPOSED_DESIGN',
+      verificationStatus: 'PROPOSED_DESIGN' as const,
       challenges: ['High ingestion write lock contention'],
       outcomes: [],
       metrics: [],
@@ -169,7 +169,7 @@ Experience: Contributed to ... distributed sys... throughput approx 4...
     // Initial registration forces unverified status
     const project = kb.getProject('GlobalTelemetryAggregator');
     expect(project).toBeDefined();
-    expect(isCandidateOrIndependentlyVerified(project?.verificationStatus)).toBe(false);
+    expect(isCandidateOrIndependentlyVerified(project!.verificationStatus)).toBe(false);
 
     // Validator rejects claiming personal production ownership over a proposed or unverified design
     const dishonestAnswer = 'In my previous company, I built and deployed the GlobalTelemetryAggregator in production with 100,000 concurrent users.';

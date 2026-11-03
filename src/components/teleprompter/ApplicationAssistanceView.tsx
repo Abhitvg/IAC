@@ -283,7 +283,50 @@ export const ApplicationAssistanceView: React.FC<ApplicationAssistanceViewProps>
             </div>
 
             {/* Badges */}
-            <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Safety State Badge */}
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  background:
+                    currentA.safetyState === 'VALIDATED'
+                      ? 'rgba(16, 185, 129, 0.25)'
+                      : currentA.safetyState === 'CANDIDATE_CONFIRMED'
+                      ? 'rgba(59, 130, 246, 0.25)'
+                      : currentA.safetyState === 'TECHNICAL_GUIDANCE'
+                      ? 'rgba(168, 85, 247, 0.25)'
+                      : 'rgba(234, 179, 8, 0.25)',
+                  color:
+                    currentA.safetyState === 'VALIDATED'
+                      ? '#6ee7b7'
+                      : currentA.safetyState === 'CANDIDATE_CONFIRMED'
+                      ? '#93c5fd'
+                      : currentA.safetyState === 'TECHNICAL_GUIDANCE'
+                      ? '#d8b4fe'
+                      : '#fde047',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                }}
+              >
+                {currentA.safetyState || 'NEEDS_USER_INPUT'}
+              </span>
+
+              {/* Response Mode Badge */}
+              <span
+                style={{
+                  fontSize: '10px',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#cbd5e1',
+                }}
+              >
+                {currentA.responseMode || (currentQ.asksPersonalExperience ? 'PERSONAL_EXPERIENCE' : 'TECHNICAL_KNOWLEDGE')}
+              </span>
+
               {currentQ.asksPersonalExperience && (
                 <span style={{ fontSize: '10px', background: 'rgba(168, 85, 247, 0.2)', color: '#d8b4fe', padding: '1px 6px', borderRadius: '4px' }}>
                   Personal Implementation
@@ -471,3 +514,4 @@ export const ApplicationAssistanceView: React.FC<ApplicationAssistanceViewProps>
     </div>
   );
 };
+
