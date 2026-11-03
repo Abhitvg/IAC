@@ -65,6 +65,13 @@ export class CurriculumCatalogService {
   }
 
   /**
+   * Alias for getTopicById.
+   */
+  public getTopic(id: string): CurriculumTopic | undefined {
+    return this.getTopicById(id);
+  }
+
+  /**
    * Returns topics belonging to a specific category.
    */
   public getTopicsByCategory(category: CurriculumCategory): CurriculumTopic[] {
