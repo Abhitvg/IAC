@@ -212,7 +212,7 @@ export function CareerOpsView() {
       ? {
           type: settings.aiProvider,
           apiKey: '',
-          model: settings.aiModel || 'openai/gpt-oss-120b',
+          model: settings.aiModel || 'llama-3.3-70b-versatile',
         }
       : undefined;
 
@@ -229,7 +229,7 @@ export function CareerOpsView() {
       ? {
           type: settings.aiProvider,
           apiKey: '',
-          model: settings.aiModel || 'openai/gpt-oss-120b',
+          model: settings.aiModel || 'llama-3.3-70b-versatile',
         }
       : undefined;
 

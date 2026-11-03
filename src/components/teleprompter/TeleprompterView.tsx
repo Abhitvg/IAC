@@ -37,6 +37,7 @@ import {
   SlidersHorizontal,
   X,
   Power,
+  Settings as SettingsIcon,
 } from 'lucide-react';
 
 interface CodeBlockCardProps {
@@ -2639,6 +2640,69 @@ export default function TeleprompterView() {
                   </div>
                 </div>
               )}
+            </div>
+          ) : answerValidationStatus === 'FAILED' ? (
+            <div
+              className="failed-generation-card"
+              style={{
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: '12px',
+                padding: '20px',
+                margin: '12px 0',
+                color: '#fecaca',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '18px' }}>⚠️</span>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#f87171' }}>
+                  Response Generation Failed
+                </span>
+              </div>
+              <p style={{ fontSize: '13px', color: '#fca5a5', lineHeight: '1.5', margin: '0 0 14px 0' }}>
+                {blockedReason ||
+                  'The AI provider did not return an answer. Please check your internet connection or verify your Groq API key in Settings.'}
+              </p>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => handleRegenerateCurrentAnswer()}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#6366f1',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <RotateCcw size={13} /> Retry Answer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => useAppStore.getState().setSettingsOpen(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    color: '#cbd5e1',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <SettingsIcon size={13} /> Open Settings &amp; Keys
+                </button>
+              </div>
             </div>
           ) : currentAnswer ? (
             <div>

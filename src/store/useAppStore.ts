@@ -653,9 +653,13 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         try {
           const electronSettings = await window.electronAPI.getSettings();
           if (electronSettings && typeof electronSettings === 'object') {
-            set((state) => ({
-              settings: { ...state.settings, ...electronSettings },
-            }));
+            set((state) => {
+              const merged = { ...state.settings, ...electronSettings };
+              if (merged.aiProvider === 'groq' && (!merged.aiModel || merged.aiModel === 'openai/gpt-oss-120b')) {
+                merged.aiModel = 'llama-3.3-70b-versatile';
+              }
+              return { settings: merged };
+            });
           }
         } catch {}
       }
@@ -909,7 +913,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     } catch {}
     return {
       aiProvider: 'groq',
-      aiModel: 'openai/gpt-oss-120b',
+      aiModel: 'llama-3.3-70b-versatile',
       whisperModel: 'whisper-large-v3-turbo',
       temperature: 0.2,
       maxTokens: 2000,

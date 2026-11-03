@@ -908,11 +908,12 @@ export async function streamAnswer(
 
     let activeResponse = response;
     if (!activeResponse.ok && config.type === 'groq') {
-      // Robust multi-tier fallback chain for Groq models
+      // Robust multi-tier fallback chain for Groq models (valid Groq model IDs)
       const fallbackModels = [
-        'openai/gpt-oss-120b',
-        'openai/gpt-oss-20b',
-        'qwen/qwen3.8-27b',
+        'llama-3.3-70b-versatile',
+        'llama-3.1-8b-instant',
+        'mixtral-8x7b-32768',
+        'gemma2-9b-it',
       ].filter((m) => m !== config.model);
 
       for (const fbModel of fallbackModels) {

@@ -404,7 +404,11 @@ export class InterviewEngine {
                 state.setGroundingResult(0, res.groundingViolations ?? []);
                 state.enqueueSentences([]);
                 state.setTechnicalGuidance(decision.technicalGuidance || null);
-                state.setBlockedReason(decision.blockedReason || 'Blocked by factual grounding gate');
+                const genError = (res as any).error;
+                state.setBlockedReason(genError || decision.blockedReason || 'Blocked by factual grounding gate');
+                if (decision.outcome === 'FAILED' && genError) {
+                  state.setToast(`⚠️ Generation Error: ${genError}`);
+                }
               }
 
               state.setPredictedFollowUps(res.predictedFollowUps || []);
@@ -420,6 +424,8 @@ export class InterviewEngine {
               state.setCurrentAnswer(null);
               state.setIsAnswerValidated(false);
               state.setAnswerValidationStatus('FAILED');
+              state.setBlockedReason(err.message || String(err));
+              state.setToast(`⚠️ AI Generation Error: ${err.message || err}`);
               state.updateDiagnostics({
                 whisperStatus: 'gen error: ' + (err.message || String(err)),
               });

@@ -279,10 +279,12 @@ export class AnswerGenerationService {
 
     // Model selection: Honor user setting first; if not set, choose reasonable default
     let chosenModel = params.model;
-    if (!chosenModel) {
-      if (provider === 'groq') {
-        chosenModel = 'openai/gpt-oss-120b';
-      } else if (provider === 'openai') {
+    if (provider === 'groq') {
+      if (!chosenModel || chosenModel === 'openai/gpt-oss-120b') {
+        chosenModel = 'llama-3.3-70b-versatile';
+      }
+    } else if (!chosenModel) {
+      if (provider === 'openai') {
         chosenModel = 'gpt-4o';
       } else if (provider === 'openrouter') {
         chosenModel = 'meta-llama/llama-3.3-70b-instruct';

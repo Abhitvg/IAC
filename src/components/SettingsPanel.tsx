@@ -61,7 +61,7 @@ export default function SettingsPanel() {
     updateSetting('aiProvider', provider);
 
     // Set default model for provider
-    if (provider === 'groq') updateSetting('aiModel', 'openai/gpt-oss-120b');
+    if (provider === 'groq') updateSetting('aiModel', 'llama-3.3-70b-versatile');
     else if (provider === 'openai') updateSetting('aiModel', 'gpt-4o-mini');
     else if (provider === 'openrouter') updateSetting('aiModel', 'google/gemini-3.8-flash');
     else if (provider === 'ollama') updateSetting('aiModel', 'llama3.2:1b');
