@@ -4,6 +4,7 @@ import { readAndParseFile } from '../../services/resume';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
 import { InterviewEngine } from '../../services/InterviewEngine';
+import { ApplicationAssistanceView } from './ApplicationAssistanceView';
 import {
   Play,
   Pause,
@@ -785,6 +786,11 @@ export default function TeleprompterView() {
     clearAndResetToListen,
     responseMode,
     setResponseMode,
+    applicationSession,
+    setApplicationSession,
+    taskClassification,
+    teleprompterViewMode,
+    setTeleprompterViewMode,
     targetRole,
     setResumeModalOpen,
     setResumeText,
@@ -2806,6 +2812,12 @@ export default function TeleprompterView() {
                 />
               )}
 
+              {responseMode === 'application' && applicationSession && (
+                <div style={{ marginBottom: '16px' }}>
+                  <ApplicationAssistanceView session={applicationSession} />
+                </div>
+              )}
+
               {parsedSegments.map((segment, idx) => {
                 if (segment.type === 'code' && segment.code) {
                   return (
@@ -3497,6 +3509,90 @@ export default function TeleprompterView() {
                     }}
                   >
                     Instant Proof + Distractors
+                  </span>
+                </div>
+
+                {/* Option 4: Application Form Assistance */}
+                <div
+                  onClick={() => {
+                    setResponseMode('application');
+                    setToast('Mode set: 📋 Application Form Assistance');
+                  }}
+                  style={{
+                    background:
+                      responseMode === 'application'
+                        ? 'linear-gradient(145deg, rgba(30, 58, 138, 0.6), rgba(15, 23, 42, 0.85))'
+                        : 'rgba(15, 23, 42, 0.55)',
+                    border:
+                      responseMode === 'application'
+                        ? '1.5px solid rgba(96, 165, 250, 0.65)'
+                        : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow:
+                      responseMode === 'application' ? '0 4px 18px rgba(59, 130, 246, 0.25)' : 'none',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontWeight: 800,
+                        fontSize: '13px',
+                        color: '#93c5fd',
+                      }}
+                    >
+                      <ScanText size={14} />
+                      <span>📋 Application Assistance</span>
+                    </div>
+                    {responseMode === 'application' && (
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: '#2563eb',
+                          color: '#fff',
+                        }}
+                      >
+                        ACTIVE
+                      </span>
+                    )}
+                  </div>
+                  <p
+                    style={{
+                      color: '#94a3b8',
+                      fontSize: '11px',
+                      lineHeight: '1.5',
+                      margin: '0 0 10px 0',
+                    }}
+                  >
+                    Question-by-question form assistance for vendor questionnaires and job portals without hallucinated claims.
+                  </p>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      color: '#bfdbfe',
+                      fontWeight: 600,
+                      background: 'rgba(59, 130, 246, 0.2)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    Question Extraction + Fact Grounding
                   </span>
                 </div>
               </div>

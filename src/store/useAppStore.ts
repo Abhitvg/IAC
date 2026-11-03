@@ -172,8 +172,16 @@ interface InterviewState {
 
   copyAnswer: () => void | Promise<void>;
   copyCodeOnly: () => boolean | Promise<boolean>;
-  responseMode: 'coding' | 'interview' | 'quiz';
-  setResponseMode: (mode: 'coding' | 'interview' | 'quiz') => void;
+  responseMode: 'coding' | 'interview' | 'quiz' | 'application';
+  setResponseMode: (mode: 'coding' | 'interview' | 'quiz' | 'application') => void;
+  applicationSession: any | null;
+  setApplicationSession: (session: any | null) => void;
+  updateApplicationAnswer: (questionId: string, answerText: string) => void;
+  markApplicationAnswerCopied: (questionId: string) => void;
+  taskClassification: any | null;
+  setTaskClassification: (c: any | null) => void;
+  teleprompterViewMode: 'full' | 'compact' | 'minimized';
+  setTeleprompterViewMode: (mode: 'full' | 'compact' | 'minimized') => void;
   regenerateAnswer: () => void;
   sessionHistory: any[];
   currentPerformance: any;
@@ -826,7 +834,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   responseMode: (() => {
     try {
       const saved = localStorage.getItem('interview_response_mode');
-      if (saved === 'coding' || saved === 'interview' || saved === 'quiz') return saved;
+      if (saved === 'coding' || saved === 'interview' || saved === 'quiz' || saved === 'application') return saved;
     } catch {}
     return 'coding';
   })(),
@@ -836,6 +844,47 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     } catch {}
     set({ responseMode: responseMode as any });
   },
+  applicationSession: null,
+  setApplicationSession: (applicationSession) => set({ applicationSession }),
+  updateApplicationAnswer: (questionId, answerText) => {
+    const session = get().applicationSession;
+    if (!session || !session.answers[questionId]) return;
+    const existing = session.answers[questionId];
+    const updated = {
+      ...session,
+      answers: {
+        ...session.answers,
+        [questionId]: {
+          ...existing,
+          currentAnswer: answerText,
+          characterCount: answerText.length,
+          isOverLimit: Boolean(existing.characterLimit && answerText.length > existing.characterLimit),
+          isEdited: true,
+        },
+      },
+    };
+    set({ applicationSession: updated });
+  },
+  markApplicationAnswerCopied: (questionId) => {
+    const session = get().applicationSession;
+    if (!session || !session.answers[questionId]) return;
+    const existing = session.answers[questionId];
+    const updated = {
+      ...session,
+      answers: {
+        ...session.answers,
+        [questionId]: {
+          ...existing,
+          isCopied: true,
+        },
+      },
+    };
+    set({ applicationSession: updated });
+  },
+  taskClassification: null,
+  setTaskClassification: (taskClassification) => set({ taskClassification }),
+  teleprompterViewMode: 'full',
+  setTeleprompterViewMode: (teleprompterViewMode) => set({ teleprompterViewMode }),
   regenerateAnswer: () => {
     const { currentQuestion } = get();
     if (currentQuestion && currentQuestion.trim()) {

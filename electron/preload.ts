@@ -19,6 +19,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getWindowOpacity: () => ipcRenderer.invoke('window:get-opacity'),
   setWindowSize: (width: number, height: number) => ipcRenderer.invoke('window:set-size', width, height),
   getWindowSize: () => ipcRenderer.invoke('window:get-size'),
+  setWindowPosition: (x: number, y: number) => ipcRenderer.invoke('window:set-position', x, y),
+  getWindowPosition: () => ipcRenderer.invoke('window:get-position'),
+  setIgnoreMouseEvents: (ignore: boolean, options?: { forward?: boolean }) =>
+    ipcRenderer.invoke('window:set-ignore-mouse-events', ignore, options),
 
   // Paths
   getRecordingsDir: () => ipcRenderer.invoke('get-recordings-dir'),

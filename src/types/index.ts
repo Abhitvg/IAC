@@ -231,6 +231,9 @@ export interface ElectronAPI {
   getWindowOpacity?: () => Promise<number>;
   setWindowSize?: (width: number, height: number) => Promise<boolean>;
   getWindowSize?: () => Promise<{ width: number; height: number }>;
+  setWindowPosition?: (x: number, y: number) => Promise<boolean>;
+  getWindowPosition?: () => Promise<{ x: number; y: number }>;
+  setIgnoreMouseEvents?: (ignore: boolean, options?: { forward?: boolean }) => Promise<boolean>;
   getRecordingsDir: () => Promise<string>;
   getSessionsDir: () => Promise<string>;
   getUserDataPath: () => Promise<string>;

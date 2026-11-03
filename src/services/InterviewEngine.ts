@@ -22,6 +22,11 @@ import {
   CandidateKnowledgeBase,
   SpeakingDecision,
 } from './candidateIntelligence';
+import { TaskClassificationService } from './TaskClassificationService';
+import {
+  ApplicationFormAssistanceService,
+  ApplicationFormSession,
+} from './ApplicationFormAssistanceService';
 
 export type EngineEvent =
   | { type: 'START_LISTENING' }
@@ -453,6 +458,57 @@ export class InterviewEngine {
         store.clearAnswerQueue();
 
         const cleanedOcr = cleanExtractedOcrText(event.rawText || event.text || '');
+        const classification = TaskClassificationService.classify(cleanedOcr, {
+          userSelectedRegion: event.mode === 'snip',
+        });
+        store.setTaskClassification(classification);
+
+        const currentStore = useAppStore.getState();
+
+        // Check if captured content represents an application form, questionnaire, or vendor evaluation
+        if (
+          classification.category === 'JOB_APPLICATION_FORM' ||
+          classification.category === 'PROFESSIONAL_QUESTIONNAIRE' ||
+          classification.category === 'VENDOR_EVALUATION' ||
+          classification.category === 'GENERAL_FORM'
+        ) {
+          const matchedJob = ApplicationFormAssistanceService.matchJobApplication(cleanedOcr);
+          const extractedQuestions = ApplicationFormAssistanceService.extractQuestions(cleanedOcr);
+          const kb = currentStore.resumeText
+            ? new CandidateKnowledgeBase(currentStore.resumeText)
+            : CandidateKnowledgeBase.getActiveKnowledgeBase();
+
+          const answers: Record<string, any> = {};
+          extractedQuestions.forEach((q) => {
+            answers[q.id] = ApplicationFormAssistanceService.generateTruthfulAnswer(q, kb, matchedJob);
+          });
+
+          const formSession: ApplicationFormSession = {
+            id: `app_session_${Date.now()}`,
+            timestamp: Date.now(),
+            rawOcrText: cleanedOcr,
+            category: classification.category,
+            associatedJobId: matchedJob?.id,
+            associatedJobTitle: matchedJob?.role,
+            associatedCompany: matchedJob?.company,
+            questions: extractedQuestions,
+            answers,
+            activeQuestionIndex: 0,
+          };
+
+          store.setApplicationSession(formSession);
+          store.setResponseMode('application');
+          store.setCurrentQuestion(`📝 [${classification.category.replace(/_/g, ' ')}] ${extractedQuestions[0]?.questionText || 'Application Form'}`);
+          store.setCurrentAnswer(extractedQuestions[0] ? answers[extractedQuestions[0].id]?.conciseAnswer : '');
+          store.setAnswerValidationStatus('VALIDATED');
+          store.setIsAnswerValidated(true);
+          store.setStatus('ready');
+          store.setToast(
+            `✨ Extracted ${extractedQuestions.length} application question${extractedQuestions.length === 1 ? '' : 's'} — Application Assistance Active!`
+          );
+          return;
+        }
+
         const headline = extractProblemHeadline(cleanedOcr);
         const lang = detectLanguageHint(cleanedOcr);
 
@@ -480,7 +536,7 @@ export class InterviewEngine {
         }
 
         globalLatencyTracker.mark('generationStart');
-        const currentStore = useAppStore.getState();
+        const activeStore = useAppStore.getState();
 
         await answerService.generateAnswer(
           {
@@ -488,13 +544,13 @@ export class InterviewEngine {
             type: 'screen',
             text: headline,
             rawText: event.rawText || event.text || '',
-            provider: currentStore.settings?.aiProvider || 'groq',
-            model: currentStore.settings?.aiModel,
-            preferredLanguage: currentStore.settings?.preferredLanguage || 'Java',
+            provider: activeStore.settings?.aiProvider || 'groq',
+            model: activeStore.settings?.aiModel,
+            preferredLanguage: activeStore.settings?.preferredLanguage || 'Java',
             responseMode: 'coding',
-            resumeText: currentStore.resumeText,
-            jobDescriptionText: currentStore.jobDescriptionText,
-            targetRole: currentStore.targetRole,
+            resumeText: activeStore.resumeText,
+            jobDescriptionText: activeStore.jobDescriptionText,
+            targetRole: activeStore.targetRole,
             signal: activeAbortController.signal,
           },
           {

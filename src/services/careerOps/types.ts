@@ -37,6 +37,15 @@ export type ApplicationStatus =
   | 'rejected'
   | 'archived';
 
+export interface FormQuestionRecord {
+  questionId: string;
+  questionText: string;
+  answer: string;
+  isCopied: boolean;
+  copiedAt?: number;
+  characterCount: number;
+}
+
 export interface JobApplication {
   id: string;
   company: string;
@@ -53,6 +62,7 @@ export interface JobApplication {
   tailoredResume?: string;
   coverLetter?: string;
   outreachNote?: string;
+  formAnswers?: Record<string, FormQuestionRecord>;
   createdAt: number;
   updatedAt: number;
   appliedAt?: number;

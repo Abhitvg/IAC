@@ -158,6 +158,7 @@ interface CareerOpsState {
   setSearchQuery: (query: string) => void;
   enableDemoMode: () => void;
   clearDemoData: () => void;
+  saveFormAnswer: (jobId: string, questionId: string, questionText: string, answer: string, isCopied?: boolean) => void;
 
   evaluateJob: (
     id: string,
@@ -293,6 +294,29 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
         activeJobId: genuine[0]?.id || null,
         isDemoMode: false,
         stats: calculateStats(genuine),
+      });
+    },
+
+    saveFormAnswer: (jobId: string, questionId: string, questionText: string, answer: string, isCopied: boolean = false) => {
+      const job = get().applications.find((a) => a.id === jobId);
+      if (!job) return;
+
+      const currentAnswers = job.formAnswers || {};
+      const updatedAnswers = {
+        ...currentAnswers,
+        [questionId]: {
+          questionId,
+          questionText,
+          answer,
+          isCopied,
+          copiedAt: isCopied ? Date.now() : currentAnswers[questionId]?.copiedAt,
+          characterCount: answer.length,
+        },
+      };
+
+      get().updateJob(jobId, {
+        formAnswers: updatedAnswers,
+        updatedAt: Date.now(),
       });
     },
 

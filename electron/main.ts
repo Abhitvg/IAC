@@ -414,6 +414,33 @@ ipcMain.handle('window:get-size', () => {
   return { width, height };
 });
 
+ipcMain.handle('window:set-position', (_event, x: number, y: number) => {
+  if (!mainWindow) return false;
+  try {
+    mainWindow.setPosition(Math.round(x), Math.round(y));
+    return true;
+  } catch (err) {
+    console.error('[Electron] Failed to set window position:', err);
+    return false;
+  }
+});
+
+ipcMain.handle('window:get-position', () => {
+  if (!mainWindow) return { x: 100, y: 100 };
+  const [x, y] = mainWindow.getPosition();
+  return { x, y };
+});
+
+ipcMain.handle('window:set-ignore-mouse-events', (_event, ignore: boolean, options?: { forward?: boolean }) => {
+  if (!mainWindow) return false;
+  try {
+    mainWindow.setIgnoreMouseEvents(Boolean(ignore), options || { forward: true });
+    return true;
+  } catch (err) {
+    console.error('[Electron] Failed to set ignore mouse events:', err);
+    return false;
+  }
+});
 
 ipcMain.handle('window:set-opacity', (_event, opacity: number) => {
   if (!mainWindow) return false;
