@@ -8,6 +8,8 @@ import {
   getModelFallbackChain,
   classifyAIError,
   sanitizeDiagnosticSecret,
+  createSafeDiagnosticRecord,
+  createTinyPreflightWavBlob,
   validateModelPreflight,
   FallbackDiagnosticRecord,
 } from '../../src/services/models/modelRegistry';
@@ -406,6 +408,70 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(errorCallback).toHaveBeenCalled();
       const err = errorCallback.mock.calls[0][0];
       expect(err.code).toBe('ENDPOINT_NOT_FOUND');
+      expect(err.isRecoverableByModelFallback).toBe(false);
+    });
+
+    it('refuses fallback on misleading error phrases such as "model does not exist" in unrelated contexts', async () => {
+      // Unrelated database error containing "model does not exist"
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        text: async () =>
+          JSON.stringify({
+            error: { message: 'Database schema: User profile data model does not exist in local SQLite table' },
+          }),
+      });
+      global.fetch = mockFetch;
+
+      const errorCallback = vi.fn();
+      await streamAnswer(
+        'Explain binary trees',
+        {
+          type: 'groq',
+          apiKey: 'gsk_valid_key',
+          model: 'openai/gpt-oss-120b',
+        },
+        'java',
+        { onError: errorCallback }
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(errorCallback).toHaveBeenCalled();
+      const err = errorCallback.mock.calls[0][0];
+      expect(err.isRecoverableByModelFallback).toBe(false);
+      expect(err.code).not.toBe('MODEL_NOT_FOUND');
+      expect(err.code).not.toBe('MODEL_DECOMMISSIONED');
+    });
+
+    it('refuses fallback on proxy/gateway errors containing generic model phrasing', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 502,
+        statusText: 'Bad Gateway',
+        text: async () =>
+          JSON.stringify({
+            error: { message: 'Proxy routing error: upstream cluster model does not exist on gateway' },
+          }),
+      });
+      global.fetch = mockFetch;
+
+      const errorCallback = vi.fn();
+      await streamAnswer(
+        'Explain B-trees',
+        {
+          type: 'groq',
+          apiKey: 'gsk_valid_key',
+          model: 'openai/gpt-oss-120b',
+        },
+        'java',
+        { onError: errorCallback }
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(errorCallback).toHaveBeenCalled();
+      const err = errorCallback.mock.calls[0][0];
+      expect(err.code).toBe('SERVER_ERROR');
       expect(err.isRecoverableByModelFallback).toBe(false);
     });
 
@@ -874,7 +940,8 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(check.code).toBe('ENDPOINT_NOT_FOUND');
     });
 
-    it('validates STT Whisper models via models catalog probe', async () => {
+    it('distinguishes model-list availability from transcription capability in STT preflight', async () => {
+      // 1. Routine preflight: checks model catalog only without sending any audio
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -883,23 +950,83 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
         }),
       });
 
-      const check = await validateModelPreflight(
+      const routineCheck = await validateModelPreflight(
         'groq',
         'whisper-large-v3-turbo',
         'gsk_valid_key_123456789012'
       );
 
-      expect(check.valid).toBe(true);
-      expect(check.availableModels).toContain('whisper-large-v3-turbo');
-      const call = (global.fetch as any).mock.calls[0];
-      expect(call[0]).toBe('https://api.groq.com/openai/v1/models');
+      expect(routineCheck.valid).toBe(true);
+      expect(routineCheck.modelListAvailable).toBe(true);
+      expect(routineCheck.transcriptionCapable).toBeUndefined();
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect((global.fetch as any).mock.calls[0][0]).toBe('https://api.groq.com/openai/v1/models');
+
+      // 2. Deep transcription probe: executes active probe using synthetic WAV fixture (never user recordings)
+      global.fetch = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ data: [{ id: 'whisper-large-v3-turbo' }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ text: 'Preflight probe verified' }),
+        });
+
+      const deepCheck = await validateModelPreflight(
+        'groq',
+        'whisper-large-v3-turbo',
+        'gsk_valid_key_123456789012',
+        undefined,
+        { probeTranscription: true }
+      );
+
+      expect(deepCheck.valid).toBe(true);
+      expect(deepCheck.modelListAvailable).toBe(true);
+      expect(deepCheck.transcriptionCapable).toBe(true);
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect((global.fetch as any).mock.calls[1][0]).toBe(
+        'https://api.groq.com/openai/v1/audio/transcriptions'
+      );
+    });
+
+    it('reports transcriptionCapable: false when audio probe fails without triggering LLM fallback', async () => {
+      global.fetch = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ data: [{ id: 'whisper-large-v3-turbo' }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+          json: async () => ({ error: { message: 'Audio processing node crashed' } }),
+        });
+
+      const failedProbe = await validateModelPreflight(
+        'groq',
+        'whisper-large-v3-turbo',
+        'gsk_valid_key_123456789012',
+        undefined,
+        { probeTranscription: true }
+      );
+
+      expect(failedProbe.valid).toBe(false);
+      expect(failedProbe.modelListAvailable).toBe(true);
+      expect(failedProbe.transcriptionCapable).toBe(false);
+      expect(failedProbe.code).toBe('SERVER_ERROR');
     });
   });
 
   // =========================================================================
-  // 9. Credential Sanitization
+  // 9. Credential Sanitization & Diagnostic Privacy
   // =========================================================================
-  describe('Requirement 6: Credential Sanitization in Error Logs & Diagnostics', () => {
+  describe('Requirement 6: Credential Sanitization & Diagnostic Privacy', () => {
     it('redacts Groq and OpenAI API keys from diagnostic and error strings', () => {
       const rawText =
         'Error occurred calling https://api.groq.com with gsk_abcdef123456789012345678 and Bearer sk-xyz123456789012345678';
@@ -909,6 +1036,51 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(clean).not.toContain('sk-xyz123456789012345678');
       expect(clean).toContain('gsk_[REDACTED_GROQ_KEY]');
       expect(clean).toContain('Bearer [REDACTED_TOKEN]');
+    });
+
+    it('redacts nested authorization headers, JSON objects, and bearer tokens in diagnostics', () => {
+      const nestedPayload = {
+        headers: {
+          authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.sensitive_payload.signature',
+          'x-api-key': 'gsk_nested_secret_1234567890abcdef',
+        },
+        error: {
+          message: 'Failed request with token Bearer sk-proj-1234567890abcdef1234567890',
+          apiKey: 'sk-abcdef1234567890abcdef123456',
+        },
+      };
+
+      const sanitized = sanitizeDiagnosticSecret(nestedPayload);
+      expect(sanitized).not.toContain('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9');
+      expect(sanitized).not.toContain('gsk_nested_secret_1234567890abcdef');
+      expect(sanitized).not.toContain('sk-proj-1234567890abcdef1234567890');
+      expect(sanitized).not.toContain('sk-abcdef1234567890abcdef123456');
+      expect(sanitized).toContain('[REDACTED');
+    });
+
+    it('enforces structured allowlisting via createSafeDiagnosticRecord without leaking request/candidate data', () => {
+      const safeRecord = createSafeDiagnosticRecord(
+        'groq',
+        'openai/gpt-oss-120b',
+        'openai/gpt-oss-20b',
+        'MODEL_NOT_FOUND',
+        404,
+        'Original model failed: gsk_secret_12345678901234567890 with Bearer tok_123',
+        false
+      );
+
+      // Verify only allowlisted properties exist
+      const keys = Object.keys(safeRecord);
+      expect(keys).toEqual(['timestamp', 'provider', 'originalModel', 'fallbackModel', 'triggerError', 'successful']);
+      expect(safeRecord.triggerError.message).not.toContain('gsk_secret_12345678901234567890');
+      expect(safeRecord.triggerError.message).not.toContain('tok_123');
+      expect(safeRecord.triggerError.message).toContain('gsk_[REDACTED_GROQ_KEY]');
+      expect(safeRecord.triggerError.message).toContain('Bearer [REDACTED_TOKEN]');
+
+      // Ensure no candidate question or body property was attached
+      expect((safeRecord as any).requestBody).toBeUndefined();
+      expect((safeRecord as any).candidateAnswer).toBeUndefined();
+      expect((safeRecord as any).headers).toBeUndefined();
     });
   });
 });

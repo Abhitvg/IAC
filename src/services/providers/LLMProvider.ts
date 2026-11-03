@@ -51,7 +51,7 @@ export class GroqProvider implements LLMProvider {
       let parsed: any = errText;
       try {
         parsed = JSON.parse(errText);
-      } catch {}
+      } catch { }
       const classified = classifyAIError('groq', model, response.status, parsed);
       throw classified;
     }

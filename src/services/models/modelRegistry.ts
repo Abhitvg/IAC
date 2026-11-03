@@ -130,6 +130,19 @@ export const MODEL_REGISTRY: readonly ModelDefinition[] = [
     pricing: { promptCostPer1M: 0.075, completionCostPer1M: 0.3 },
   },
   {
+    id: 'openai/gpt-oss-safeguard-20b',
+    provider: 'groq',
+    type: 'llm',
+    displayName: 'GPT-OSS Safeguard 20B (Safety & Moderation Classifier)',
+    capabilities: ['chat', 'streaming', 'json'],
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    supportsStreaming: true,
+    contextWindow: 131072,
+    maxOutputTokens: 8192,
+    status: 'active',
+  },
+  {
     id: 'qwen/qwen3.8-27b',
     provider: 'groq',
     type: 'llm',
@@ -555,14 +568,78 @@ export function getModelFallbackChain(
 
 /**
  * Secret Sanitization
- * Redacts Groq and OpenAI API keys from strings, headers, and logs.
+ * Redacts Groq and OpenAI API keys, authorization headers, bearer tokens, and nested secrets.
  */
-export function sanitizeDiagnosticSecret(text: string): string {
-  if (!text || typeof text !== 'string') return '';
+export function sanitizeDiagnosticSecret(input: any): string {
+  if (input === null || input === undefined) return '';
+  const text = typeof input === 'string' ? input : JSON.stringify(input);
   return text
-    .replace(/gsk_[A-Za-z0-9_-]{20,}/g, 'gsk_[REDACTED_GROQ_KEY]')
-    .replace(/sk-[A-Za-z0-9_-]{20,}/g, 'sk-[REDACTED_OPENAI_KEY]')
-    .replace(/Bearer\s+[A-Za-z0-9_.-]+/gi, 'Bearer [REDACTED_TOKEN]');
+    .replace(/gsk_[A-Za-z0-9_-]{10,}/g, 'gsk_[REDACTED_GROQ_KEY]')
+    .replace(/sk-(?:proj-)?[A-Za-z0-9_-]{10,}/g, 'sk-[REDACTED_OPENAI_KEY]')
+    .replace(/Bearer\s+[A-Za-z0-9_.-]+/gi, 'Bearer [REDACTED_TOKEN]')
+    .replace(/(["']?(?:authorization|api[-_]?key|token|secret|password|access_token)["']?\s*[:=]\s*["'])(?:Bearer\s+)?[^"'\s,;]+(["'])/gi, '$1[REDACTED_SECRET]$2')
+    .replace(/("authorization"\s*:\s*")Bearer\s+[^"]+(")/gi, '$1Bearer [REDACTED_TOKEN]$2');
+}
+
+/**
+ * Creates a synthetic, minimal 0.25-second 16kHz PCM mono WAV fixture for preflight STT validation.
+ * Guaranteed to contain no user voice recordings or PII.
+ */
+export function createTinyPreflightWavBlob(): Blob {
+  const sampleRate = 16000;
+  const numSamples = Math.floor(sampleRate * 0.25); // 0.25 seconds
+  const dataSize = numSamples * 2;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  view.setUint32(0, 0x52494646, false); // "RIFF"
+  view.setUint32(4, 36 + dataSize, true);
+  view.setUint32(8, 0x57415645, false); // "WAVE"
+  view.setUint32(12, 0x666d7420, false); // "fmt "
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // Mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  view.setUint32(36, 0x64617461, false); // "data"
+  view.setUint32(40, dataSize, true);
+
+  for (let i = 0; i < numSamples; i++) {
+    const sample = Math.floor(Math.sin((2 * Math.PI * 440 * i) / sampleRate) * 1000);
+    view.setInt16(44 + i * 2, sample, true);
+  }
+
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+/**
+ * Diagnostic Factory
+ * Builds strictly allowlisted, sanitized diagnostic records without raw request bodies,
+ * credentials, headers, user questions, or candidate answers.
+ */
+export function createSafeDiagnosticRecord(
+  provider: AIProviderId,
+  originalModel: string,
+  fallbackModel: string,
+  errorCode: AIErrorCode,
+  status: number | undefined,
+  rawMessage: string,
+  successful: boolean
+): FallbackDiagnosticRecord {
+  return {
+    timestamp: Date.now(),
+    provider,
+    originalModel: String(originalModel || '').slice(0, 100),
+    fallbackModel: String(fallbackModel || '').slice(0, 100),
+    triggerError: {
+      code: errorCode,
+      status: typeof status === 'number' ? status : undefined,
+      message: sanitizeDiagnosticSecret(String(rawMessage || '')).slice(0, 250),
+    },
+    successful: Boolean(successful),
+  };
 }
 
 /**
@@ -571,6 +648,7 @@ export function sanitizeDiagnosticSecret(text: string): string {
  * Categorizes errors to ensure that fallbacks are ONLY attempted for recoverable
  * model-level errors (404 model_not_found, decommissioning), and NEVER for
  * bad credentials (401), missing permissions (403), billing/quota (402/429), or network dropouts.
+ * Prefers structured provider error codes over loose text matching.
  */
 export function classifyAIError(
   provider: AIProviderId,
@@ -595,20 +673,40 @@ export function classifyAIError(
 
   const cleanDetail = sanitizeDiagnosticSecret(detailMessage);
   const lowerMsg = cleanDetail.toLowerCase();
-  const lowerCode = providerErrorCode.toLowerCase();
+  const lowerCode = providerErrorCode.toLowerCase().trim();
+
+  // 1. Prefer structured provider error codes first
+  const STRUCTURED_MODEL_ERROR_CODES = new Set([
+    'model_not_found',
+    'model_decommissioned',
+    'invalid_model_id',
+    'model_retired',
+  ]);
+  const hasStructuredModelCode = STRUCTURED_MODEL_ERROR_CODES.has(lowerCode);
+
+  // 2. Strict model-specific message matching: must explicitly reference the target model
+  // to prevent unrelated errors (e.g. "data model does not exist" or "routing model does not exist")
+  // from falsely triggering fallback.
+  const normModel = (model || '').trim().toLowerCase();
+  const referencesTargetModel = normModel.length > 0 && lowerMsg.includes(normModel);
+  const isExplicitDecommissionMessage =
+    (lowerMsg.includes('has been decommissioned') ||
+      lowerMsg.includes('model_decommissioned') ||
+      lowerMsg.includes('model retired') ||
+      lowerMsg.includes('is decommissioned')) &&
+    (referencesTargetModel || lowerCode.includes('decommission'));
+
+  const isExplicitModelNotFoundMessage =
+    referencesTargetModel &&
+    (lowerMsg.includes('does not exist') ||
+      lowerMsg.includes('model not found') ||
+      lowerMsg.includes('model_not_found') ||
+      lowerMsg.includes('unknown model') ||
+      lowerMsg.includes('unrecognized model') ||
+      lowerMsg.includes('invalid model'));
 
   const isModelSpecific =
-    lowerCode === 'model_not_found' ||
-    lowerCode === 'model_decommissioned' ||
-    lowerCode === 'invalid_model_id' ||
-    lowerMsg.includes('model_not_found') ||
-    lowerMsg.includes('model not found') ||
-    lowerMsg.includes('does not exist') ||
-    lowerMsg.includes('decommissioned') ||
-    lowerMsg.includes('model_retired') ||
-    lowerMsg.includes('invalid_model_id') ||
-    lowerMsg.includes('unknown model') ||
-    lowerMsg.includes('no such model');
+    hasStructuredModelCode || isExplicitDecommissionMessage || isExplicitModelNotFoundMessage;
 
   if (status === 401 || lowerMsg.includes('invalid api key') || lowerMsg.includes('unauthorized')) {
     code = 'AUTH_INVALID_KEY';
@@ -627,16 +725,21 @@ export function classifyAIError(
     }
     isRecoverableByModelFallback = false;
   } else if (isModelSpecific) {
-    code = lowerCode.includes('decommissioned') || lowerMsg.includes('decommissioned') || lowerMsg.includes('retired')
-      ? 'MODEL_DECOMMISSIONED'
-      : 'MODEL_NOT_FOUND';
+    code =
+      lowerCode.includes('decommissioned') ||
+      lowerMsg.includes('decommissioned') ||
+      lowerMsg.includes('retired')
+        ? 'MODEL_DECOMMISSIONED'
+        : 'MODEL_NOT_FOUND';
     isRecoverableByModelFallback = true;
   } else if (status === 404) {
     // Generic HTTP 404: Endpoint path or route does not exist. NOT recoverable by model fallback.
     code = 'ENDPOINT_NOT_FOUND';
     isRecoverableByModelFallback = false;
   } else if (
-    (originalError?.name === 'TypeError' || originalError?.name === 'AbortError' || originalError?.name === 'TimeoutError') ||
+    originalError?.name === 'TypeError' ||
+    originalError?.name === 'AbortError' ||
+    originalError?.name === 'TimeoutError' ||
     lowerMsg.includes('fetch failed') ||
     lowerMsg.includes('network') ||
     lowerMsg.includes('failed to fetch') ||
@@ -665,6 +768,21 @@ export function classifyAIError(
   return err as ClassifiedAIError;
 }
 
+export interface PreflightOptions {
+  probeTranscription?: boolean;
+  signal?: AbortSignal;
+}
+
+export interface ModelPreflightResult {
+  valid: boolean;
+  code?: AIErrorCode;
+  message?: string;
+  latencyMs?: number;
+  availableModels?: string[];
+  modelListAvailable?: boolean;
+  transcriptionCapable?: boolean;
+}
+
 /**
  * Preflight Model Validator
  *
@@ -676,14 +794,13 @@ export async function validateModelPreflight(
   model: string,
   apiKey?: string,
   endpoint?: string,
-  signal?: AbortSignal
-): Promise<{
-  valid: boolean;
-  code?: AIErrorCode;
-  message?: string;
-  latencyMs?: number;
-  availableModels?: string[];
-}> {
+  optionsOrSignal?: AbortSignal | PreflightOptions
+): Promise<ModelPreflightResult> {
+  const options: PreflightOptions =
+    optionsOrSignal instanceof AbortSignal ? { signal: optionsOrSignal } : optionsOrSignal || {};
+  const signal = options.signal;
+  const probeTranscription = options.probeTranscription === true;
+
   // 1. Groq Provider Preflight
   if (provider === 'groq') {
     const cleanKey = (apiKey || '').trim();
@@ -702,7 +819,7 @@ export async function validateModelPreflight(
       };
     }
 
-    // If STT model, probe models catalog endpoint
+    // If STT model, check models catalog and optionally probe transcription with a tiny fixture
     if (model.toLowerCase().includes('whisper')) {
       try {
         const startTime = Date.now();
@@ -715,18 +832,26 @@ export async function validateModelPreflight(
 
         if (!res.ok) {
           let errData: any;
-          try { errData = await res.json(); } catch { errData = await res.text(); }
+          try {
+            errData = await res.json();
+          } catch {
+            errData = await res.text();
+          }
           const classified = classifyAIError(provider, model, res.status, errData);
           return {
             valid: false,
             code: classified.code,
             message: sanitizeDiagnosticSecret(classified.originalErrorDetail || res.statusText),
             latencyMs,
+            modelListAvailable: false,
+            transcriptionCapable: false,
           };
         }
 
         const body = await res.json();
-        const availableIds: string[] = Array.isArray(body?.data) ? body.data.map((m: any) => m.id) : [];
+        const availableIds: string[] = Array.isArray(body?.data)
+          ? body.data.map((m: any) => m.id)
+          : [];
         const hasModel = availableIds.some((id) => id.toLowerCase() === model.trim().toLowerCase());
         if (!hasModel) {
           return {
@@ -735,14 +860,71 @@ export async function validateModelPreflight(
             message: `Model '${model}' is not available for this Groq account.`,
             latencyMs,
             availableModels: availableIds,
+            modelListAvailable: false,
+            transcriptionCapable: false,
           };
         }
-        return { valid: true, latencyMs, availableModels: availableIds };
+
+        // If deep transcription probe requested, use tiny synthetic WAV fixture (never user recordings)
+        if (probeTranscription) {
+          const testAudio = createTinyPreflightWavBlob();
+          const formData = new FormData();
+          formData.append('file', testAudio, 'preflight.wav');
+          formData.append('model', model);
+
+          const txStart = Date.now();
+          const txRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${cleanKey}` },
+            body: formData,
+            signal,
+          });
+          const txLatencyMs = Date.now() - txStart;
+
+          if (!txRes.ok) {
+            let txErr: any;
+            try {
+              txErr = await txRes.json();
+            } catch {
+              txErr = await txRes.text();
+            }
+            const classifiedTx = classifyAIError(provider, model, txRes.status, txErr);
+            return {
+              valid: false,
+              code: classifiedTx.code,
+              message: sanitizeDiagnosticSecret(classifiedTx.originalErrorDetail || txRes.statusText),
+              latencyMs: txLatencyMs,
+              availableModels: availableIds,
+              modelListAvailable: true,
+              transcriptionCapable: false,
+            };
+          }
+
+          return {
+            valid: true,
+            latencyMs: txLatencyMs,
+            availableModels: availableIds,
+            modelListAvailable: true,
+            transcriptionCapable: true,
+          };
+        }
+
+        return {
+          valid: true,
+          latencyMs,
+          availableModels: availableIds,
+          modelListAvailable: true,
+          transcriptionCapable: undefined,
+        };
       } catch (netErr: any) {
         return {
           valid: false,
           code: 'NETWORK_ERROR',
-          message: sanitizeDiagnosticSecret(`Network error verifying Groq STT preflight: ${netErr.message || String(netErr)}`),
+          message: sanitizeDiagnosticSecret(
+            `Network error verifying Groq STT preflight: ${netErr.message || String(netErr)}`
+          ),
+          modelListAvailable: false,
+          transcriptionCapable: false,
         };
       }
     }
@@ -767,7 +949,11 @@ export async function validateModelPreflight(
 
       if (!res.ok) {
         let errData: any;
-        try { errData = await res.json(); } catch { errData = await res.text(); }
+        try {
+          errData = await res.json();
+        } catch {
+          errData = await res.text();
+        }
         const classified = classifyAIError(provider, model, res.status, errData);
         return {
           valid: false,
@@ -785,7 +971,9 @@ export async function validateModelPreflight(
       return {
         valid: false,
         code: 'NETWORK_ERROR',
-        message: sanitizeDiagnosticSecret(`Network error verifying Groq preflight: ${netErr.message || String(netErr)}`),
+        message: sanitizeDiagnosticSecret(
+          `Network error verifying Groq preflight: ${netErr.message || String(netErr)}`
+        ),
       };
     }
   }

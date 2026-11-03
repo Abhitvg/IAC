@@ -6,6 +6,7 @@ import {
   getModelFallbackChain,
   classifyAIError,
   sanitizeDiagnosticSecret,
+  createSafeDiagnosticRecord,
   FallbackDiagnosticRecord,
   AIProviderId,
   getDefaultModelForProvider,
@@ -964,18 +965,15 @@ export async function streamAnswer(
         if (fallbackDiagnostics.length >= MAX_FALLBACK_ATTEMPTS) break;
         visitedModels.add(fbModel.toLowerCase());
 
-        const diag: FallbackDiagnosticRecord = {
-          timestamp: Date.now(),
-          provider: providerId,
-          originalModel: effectiveModel,
-          fallbackModel: fbModel,
-          triggerError: {
-            code: classifiedError.code,
-            status: activeResponse.status,
-            message: sanitizeDiagnosticSecret(classifiedError.originalErrorDetail || ''),
-          },
-          successful: false,
-        };
+        const diag = createSafeDiagnosticRecord(
+          providerId,
+          effectiveModel,
+          fbModel,
+          classifiedError.code,
+          activeResponse.status,
+          classifiedError.originalErrorDetail || '',
+          false
+        );
 
         console.warn(
           `[AI] Model '${effectiveModel}' failed with ${classifiedError.code}. Attempting safe fallback to '${fbModel}'...`
@@ -1000,9 +998,17 @@ export async function streamAnswer(
 
           if (fallbackRes.ok && fallbackRes.body) {
             activeResponse = fallbackRes;
-            (diag as any).successful = true;
-            fallbackDiagnostics.push(diag);
-            callbacks.onDiagnostic?.(diag);
+            const successDiag = createSafeDiagnosticRecord(
+              providerId,
+              effectiveModel,
+              fbModel,
+              classifiedError.code,
+              activeResponse.status,
+              classifiedError.originalErrorDetail || '',
+              true
+            );
+            fallbackDiagnostics.push(successDiag);
+            callbacks.onDiagnostic?.(successDiag);
             fallbackSucceeded = true;
             break;
           } else {

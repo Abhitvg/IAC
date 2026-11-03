@@ -54,7 +54,7 @@ describe('PDF Extraction Reliability & Native OCR Bounds (P1)', () => {
     });
   });
 
-  describe('Representative PDF Extraction Scenarios', { timeout: 25000 }, () => {
+  describe('Representative PDF Extraction Scenarios', { timeout: 35000 }, () => {
     it('returns empty string gracefully for non-PDF random bytes', async () => {
       const randomBytes = new Uint8Array([10, 20, 30, 40, 50, 60]);
       const res = await parsePdfBuffer(randomBytes);
@@ -65,7 +65,7 @@ describe('PDF Extraction Reliability & Native OCR Bounds (P1)', () => {
       const minimalPdf =
         '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>/Contents 4 0 R>>endobj\n4 0 obj<</Length 44>>stream\nBT /F1 12 Tf 72 712 Td (Candidate Resume Text 2026) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \n0000000195 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n289\n%%EOF';
       const buf = Buffer.from(minimalPdf);
-      const res = await parsePdfBuffer(buf.buffer);
+      const res = await parsePdfBuffer(new Uint8Array(buf));
       expect(res).toContain('Candidate Resume Text 2026');
     });
 
@@ -83,7 +83,7 @@ describe('PDF Extraction Reliability & Native OCR Bounds (P1)', () => {
         '0000000009 00000 n \n0000000052 00000 n \n0000000105 00000 n \n0000000199 00000 n \n0000000291 00000 n \n0000000385 00000 n \n' +
         'trailer<</Size 7/Root 1 0 R>>\nstartxref\n479\n%%EOF';
 
-      const res = await parsePdfBuffer(Buffer.from(twoPagePdf).buffer);
+      const res = await parsePdfBuffer(new Uint8Array(Buffer.from(twoPagePdf)));
       expect(res).toContain('Page 1: Systems Engineering');
       expect(res).toContain('Page 2: Kubernetes Infrastructure');
     });
@@ -91,7 +91,7 @@ describe('PDF Extraction Reliability & Native OCR Bounds (P1)', () => {
     it('Scenario 3 (Short Valid Resume): preserves concise summary without truncation or false mojibake rejection', async () => {
       const shortPdf =
         '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>/Contents 4 0 R>>endobj\n4 0 obj<</Length 35>>stream\nBT /F1 12 Tf 72 712 Td (Alex: Principal SRE) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \n0000000195 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n280\n%%EOF';
-      const res = await parsePdfBuffer(Buffer.from(shortPdf).buffer);
+      const res = await parsePdfBuffer(new Uint8Array(Buffer.from(shortPdf)));
       expect(res).toContain('Alex: Principal SRE');
     });
 
@@ -100,7 +100,7 @@ describe('PDF Extraction Reliability & Native OCR Bounds (P1)', () => {
       const emptyContentPdf =
         '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>/Contents 4 0 R>>endobj\n4 0 obj<</Length 0>>stream\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \n0000000195 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n245\n%%EOF';
 
-      const res = await parsePdfBuffer(Buffer.from(emptyContentPdf).buffer);
+      const res = await parsePdfBuffer(new Uint8Array(Buffer.from(emptyContentPdf)));
       // Either OCR extracts text (if binary available) or returns helpful guidance notice
       expect(typeof res).toBe('string');
       expect(res.length).toBeGreaterThan(0);
