@@ -1,4 +1,5 @@
 import { CompanyPracticePlan } from './types';
+import { JDInterviewMapper } from './JDInterviewMapper';
 
 const TECH_KEYWORD_MAP: Record<string, string[]> = {
   Languages: ['typescript', 'javascript', 'python', 'golang', 'go', 'java', 'c++', 'rust', 'ruby'],
@@ -288,5 +289,20 @@ export class CompanyPlanGenerator {
       ...plan,
       persistentNotes: updatedNotes,
     };
+  }
+
+  /**
+   * Generates a targeted curriculum-grounded multi-round interview plan using JDInterviewMapper.
+   */
+  public static generateCurriculumInterviewPlan(
+    companyName: string,
+    targetRole: string,
+    jobDescription: string
+  ) {
+    return JDInterviewMapper.generateInterviewPlan({
+      jdText: jobDescription,
+      roleTitle: targetRole,
+      companyName,
+    });
   }
 }
