@@ -216,14 +216,35 @@ export default function SettingsPanel() {
               <label className="field__label" htmlFor="ai-model-input">
                 Model
               </label>
-              <input
-                id="ai-model-input"
-                type="text"
-                className="field__input"
-                value={settings.aiModel}
-                onChange={(e) => updateSetting('aiModel', e.target.value)}
-                aria-label="AI Model name"
-              />
+              {settings.aiProvider === 'groq' ? (
+                <select
+                  id="ai-model-input"
+                  className="field__select"
+                  value={
+                    ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'].includes(settings.aiModel)
+                      ? settings.aiModel
+                      : 'llama-3.3-70b-versatile'
+                  }
+                  onChange={(e) => updateSetting('aiModel', e.target.value)}
+                  aria-label="Groq Model selection"
+                >
+                  <option value="llama-3.3-70b-versatile">
+                    llama-3.3-70b-versatile (Recommended - 70B)
+                  </option>
+                  <option value="llama-3.1-8b-instant">
+                    llama-3.1-8b-instant (Ultra-low latency - 8B)
+                  </option>
+                </select>
+              ) : (
+                <input
+                  id="ai-model-input"
+                  type="text"
+                  className="field__input"
+                  value={settings.aiModel}
+                  onChange={(e) => updateSetting('aiModel', e.target.value)}
+                  aria-label="AI Model name"
+                />
+              )}
             </div>
           </div>
 

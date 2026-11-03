@@ -655,8 +655,18 @@ export const useAppStore = create<InterviewState>((set, get) => ({
           if (electronSettings && typeof electronSettings === 'object') {
             set((state) => {
               const merged = { ...state.settings, ...electronSettings };
-              if (merged.aiProvider === 'groq' && (!merged.aiModel || merged.aiModel === 'openai/gpt-oss-120b')) {
-                merged.aiModel = 'llama-3.3-70b-versatile';
+              if (merged.aiProvider === 'groq') {
+                if (
+                  !merged.aiModel ||
+                  merged.aiModel === 'openai/gpt-oss-120b' ||
+                  merged.aiModel === 'openai/gpt-oss-20b' ||
+                  merged.aiModel.startsWith('openai/') ||
+                  merged.aiModel.startsWith('qwen/') ||
+                  merged.aiModel.startsWith('meta-llama/') ||
+                  merged.aiModel.startsWith('google/')
+                ) {
+                  merged.aiModel = 'llama-3.3-70b-versatile';
+                }
               }
               return { settings: merged };
             });
@@ -925,6 +935,11 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     if (key === 'preferredLanguage') {
       try {
         localStorage.setItem('preferred_coding_language', String(val));
+      } catch {}
+    }
+    if (typeof window !== 'undefined' && window.electronAPI?.setSettings) {
+      try {
+        window.electronAPI.setSettings(key, val);
       } catch {}
     }
     set((state) => ({

@@ -280,7 +280,15 @@ export class AnswerGenerationService {
     // Model selection: Honor user setting first; if not set, choose reasonable default
     let chosenModel = params.model;
     if (provider === 'groq') {
-      if (!chosenModel || chosenModel === 'openai/gpt-oss-120b') {
+      if (
+        !chosenModel ||
+        chosenModel === 'openai/gpt-oss-120b' ||
+        chosenModel === 'openai/gpt-oss-20b' ||
+        chosenModel.startsWith('openai/') ||
+        chosenModel.startsWith('qwen/') ||
+        chosenModel.startsWith('google/') ||
+        chosenModel.startsWith('meta-llama/')
+      ) {
         chosenModel = 'llama-3.3-70b-versatile';
       }
     } else if (!chosenModel) {

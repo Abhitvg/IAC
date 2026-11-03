@@ -91,7 +91,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     name: 'settings',
     defaults: {
       aiProvider: 'groq',
-      aiModel: 'openai/gpt-oss-120b',
+      aiModel: 'llama-3.3-70b-versatile',
       whisperModel: 'whisper-large-v3',
       preferredLanguage: 'java',
       responseMode: 'interview',
@@ -149,17 +149,18 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     const curProvider = store.get('aiProvider');
     if (!curProvider) {
       store.set('aiProvider', 'groq');
-      store.set('aiModel', 'openai/gpt-oss-120b');
+      store.set('aiModel', 'llama-3.3-70b-versatile');
       store.set('whisperModel', 'whisper-large-v3-turbo');
     }
     const curModel = store.get('aiModel');
     if (
       !curModel ||
       curModel === 'openrouter/free' ||
-      curModel === 'llama-3.3-70b-versatile' ||
-      curModel === 'llama-3.1-8b-instant'
+      curModel === 'openai/gpt-oss-120b' ||
+      curModel === 'openai/gpt-oss-20b' ||
+      curModel === 'qwen/qwen3.8-27b'
     ) {
-      store.set('aiModel', 'openai/gpt-oss-120b');
+      store.set('aiModel', 'llama-3.3-70b-versatile');
     }
   } catch (err) {
     console.warn('[CredentialStore] Migration notice:', err);

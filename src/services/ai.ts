@@ -889,12 +889,27 @@ export async function streamAnswer(
   };
   if (config.type === 'openrouter') headers['HTTP-Referer'] = 'ai-interview-assistant';
 
+  let effectiveModel = config.model;
+  if (config.type === 'groq') {
+    if (
+      !effectiveModel ||
+      effectiveModel === 'openai/gpt-oss-120b' ||
+      effectiveModel === 'openai/gpt-oss-20b' ||
+      effectiveModel.startsWith('openai/') ||
+      effectiveModel.startsWith('qwen/') ||
+      effectiveModel.startsWith('google/') ||
+      effectiveModel.startsWith('meta-llama/')
+    ) {
+      effectiveModel = 'llama-3.3-70b-versatile';
+    }
+  }
+
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        model: config.model,
+        model: effectiveModel,
         messages: [
           { role: 'system', content: lowLatencyPrompt },
           { role: 'user', content: question },
@@ -908,17 +923,15 @@ export async function streamAnswer(
 
     let activeResponse = response;
     if (!activeResponse.ok && config.type === 'groq') {
-      // Robust multi-tier fallback chain for Groq models (valid Groq model IDs)
+      // Robust fallback chain for Groq models (active Groq model IDs)
       const fallbackModels = [
         'llama-3.3-70b-versatile',
         'llama-3.1-8b-instant',
-        'mixtral-8x7b-32768',
-        'gemma2-9b-it',
-      ].filter((m) => m !== config.model);
+      ].filter((m) => m !== effectiveModel);
 
       for (const fbModel of fallbackModels) {
         console.warn(
-          `[AI] Primary model ${config.model} returned ${activeResponse.status}. Auto-fallback to ${fbModel}...`
+          `[AI] Primary Groq model ${effectiveModel} returned ${activeResponse.status}. Auto-fallback to ${fbModel}...`
         );
         try {
           const fallbackRes = await fetch(url, {
@@ -946,15 +959,35 @@ export async function streamAnswer(
       }
 
       if (!activeResponse.ok) {
+        let errDetail = '';
+        try {
+          const raw = await activeResponse.text();
+          try {
+            const parsed = JSON.parse(raw);
+            errDetail = parsed?.error?.message || raw;
+          } catch {
+            errDetail = raw;
+          }
+        } catch {}
         const retryAfter =
           activeResponse.headers.get('retry-after') ||
           activeResponse.headers.get('x-ratelimit-reset-requests');
         throw new Error(
-          `Stream Error: ${activeResponse.status}. ${retryAfter ? `Retry after ${retryAfter}` : ''}`
+          `Stream Error: ${activeResponse.status}${errDetail ? ` (${errDetail})` : ''}. ${retryAfter ? `Retry after ${retryAfter}` : ''}`
         );
       }
     } else if (!activeResponse.ok) {
-      throw new Error(`Stream Error: ${activeResponse.status}`);
+      let errDetail = '';
+      try {
+        const raw = await activeResponse.text();
+        try {
+          const parsed = JSON.parse(raw);
+          errDetail = parsed?.error?.message || raw;
+        } catch {
+          errDetail = raw;
+        }
+      } catch {}
+      throw new Error(`Stream Error: ${activeResponse.status}${errDetail ? ` (${errDetail})` : ''}`);
     }
     if (!activeResponse.body) throw new Error(`No response body`);
 
