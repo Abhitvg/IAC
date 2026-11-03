@@ -12,6 +12,28 @@
  */
 
 import { EvidenceClassification } from './types';
+import {
+  TrustedIndependentAuditService,
+  TrustedRepositoryInspectionService,
+  ImmutableIndependentAuditResult,
+  ImmutableRepositoryInspectionResult,
+} from '../evidenceInspection';
+
+export interface ProjectVerificationRecord {
+  verificationType: 'INDEPENDENT_AUDIT' | 'REPOSITORY_INSPECTION' | 'DOCUMENT_INSPECTION';
+  verifierId: string;
+  verificationMethod: 'cryptographic_audit' | 'asymmetric_attestation' | 'hmac_sha256_inspection';
+  verifiedAt: number;
+  expiresAt?: number;
+  projectId: string;
+  candidateId?: string;
+  evidenceDigest: string;
+  seal: string;
+  repositoryUrl?: string;
+  commitSha?: string;
+  auditedContribution?: string;
+  revoked?: boolean;
+}
 
 export type FactCategory =
   | 'identity'
@@ -110,6 +132,8 @@ export interface CandidateProject {
   evidenceReferences: string[];
   status: EvidenceClassification;
   candidateConfirmed: boolean;
+  storedInspection?: any;
+  verificationRecord?: ProjectVerificationRecord;
 }
 
 export interface CandidateAchievement {
@@ -348,10 +372,13 @@ export interface AuthorshipEvaluationResult {
 /**
  * Evaluates whether a candidate can truthfully claim personal authorship of a project.
  *
- * Invariants:
- * 1. Merely having code in a repository does NOT establish personal authorship.
- * 2. Candidate confirmation alone is strictly CANDIDATE_REPORTED, never INDEPENDENTLY_VERIFIED.
- * 3. Must require valid project references and explicit personal contribution description.
+ * Invariants (P0.1, P0.2):
+ * 1. INDEPENDENTLY_VERIFIED requires an authentic, non-revoked cryptographic audit record
+ *    bound to this exact project and candidate contribution.
+ * 2. Repository-supported contribution requires a real repository URL, successful sealed inspection,
+ *    resolved 40-hex commit, and confirmed candidate commit authorship.
+ * 3. Candidate confirmation alone is strictly CANDIDATE_REPORTED, never INDEPENDENTLY_VERIFIED.
+ * 4. Fake GitHub evidence strings or unverified repository existence cannot produce verification.
  */
 export function evaluatePersonalAuthorship(project: CandidateProject): AuthorshipEvaluationResult {
   if (!project) {
@@ -386,35 +413,118 @@ export function evaluatePersonalAuthorship(project: CandidateProject): Authorshi
     };
   }
 
-  // Independent verification requires external cryptographic attestation or document audit
-  if (project.status === 'INDEPENDENTLY_VERIFIED' && project.evidenceReferences && project.evidenceReferences.length > 0) {
-    return {
-      canClaim: true,
-      tier: 'INDEPENDENTLY_VERIFIED',
-      isIndependentlyVerified: true,
-      isCandidateReportedOnly: false,
-    };
-  }
+  // 1. Independent Authorship Verification (P0.1)
+  const auditResult = project.storedInspection as ImmutableIndependentAuditResult | undefined;
+  const verRecord = project.verificationRecord;
 
-  // Repository-supported: repository exists with inspectable commit/PR evidence AND candidate confirmation
-  const hasRepoEvidence = Boolean(
-    project.repositoryUrl &&
-    project.evidenceReferences &&
-    project.evidenceReferences.some((ref) =>
-      ref.toLowerCase().includes('github') || ref.toLowerCase().includes('repo') || ref.toLowerCase().includes('git:')
-    )
-  );
+  if (
+    project.status === 'INDEPENDENTLY_VERIFIED' ||
+    (auditResult && typeof auditResult === 'object' && auditResult.__auditSeal) ||
+    (verRecord && verRecord.verificationType === 'INDEPENDENT_AUDIT')
+  ) {
+    let isValidAudit = false;
+    let failureReason = '';
 
-  if (hasRepoEvidence && (project.status === 'REPOSITORY_SUPPORTED' || project.status === 'DOCUMENT_SUPPORTED') && project.candidateConfirmed) {
+    if (auditResult && typeof auditResult === 'object' && auditResult.__auditSeal) {
+      const sealValid = TrustedIndependentAuditService.verifySeal(auditResult);
+      if (!sealValid) {
+        failureReason = 'Independent audit verification record has an invalid or tampered cryptographic seal';
+      } else {
+        const auditorConfigured = TrustedIndependentAuditService.isAuditorConfigured(auditResult.auditorId);
+        if (!auditorConfigured) {
+          failureReason = `Auditor '${auditResult.auditorId}' is not configured, disabled, or revoked`;
+        } else {
+          const targetProj = (auditResult.projectId || '').toLowerCase().trim();
+          const curId = project.id.toLowerCase().trim();
+          const curName = project.name.toLowerCase().trim();
+          if (targetProj !== curId && targetProj !== curName) {
+            failureReason = `Audit record project mismatch: bound to '${auditResult.projectId}', but current project is '${project.id}'`;
+          } else {
+            const now = Date.now();
+            if (auditResult.verifiedAt > now + 60000) {
+              failureReason = 'Audit verification record has invalid future timestamp';
+            } else if (!auditResult.auditedFields?.personalContribution) {
+              failureReason = 'Audit verification record does not attest to personal contribution';
+            } else {
+              isValidAudit = true;
+            }
+          }
+        }
+      }
+    } else if (verRecord && verRecord.verificationType === 'INDEPENDENT_AUDIT') {
+      if (verRecord.revoked) {
+        failureReason = 'Verification record has been revoked';
+      } else if (verRecord.expiresAt && Date.now() > verRecord.expiresAt) {
+        failureReason = 'Verification record has expired';
+      } else if (!TrustedIndependentAuditService.isAuditorConfigured(verRecord.verifierId)) {
+        failureReason = `Verifier '${verRecord.verifierId}' is not a recognized active auditor`;
+      } else {
+        const targetProj = (verRecord.projectId || '').toLowerCase().trim();
+        if (targetProj !== project.id.toLowerCase().trim() && targetProj !== project.name.toLowerCase().trim()) {
+          failureReason = `Verification record project binding mismatch: '${verRecord.projectId}' vs '${project.id}'`;
+        } else if (!verRecord.seal || verRecord.seal.length < 16) {
+          failureReason = 'Verification record lacks a valid immutable cryptographic evidence digest';
+        } else {
+          isValidAudit = true;
+        }
+      }
+    } else {
+      failureReason = 'Claimed INDEPENDENTLY_VERIFIED status lacks an authentic cryptographic audit record';
+    }
+
+    if (isValidAudit) {
+      return {
+        canClaim: true,
+        tier: 'INDEPENDENTLY_VERIFIED',
+        isIndependentlyVerified: true,
+        isCandidateReportedOnly: false,
+      };
+    }
+
+    // Fail closed: if audit was invalid or tampered, do NOT allow INDEPENDENTLY_VERIFIED
+    // If candidate confirmed, fall back to CANDIDATE_REPORTED
+    if (project.candidateConfirmed || project.status === 'CANDIDATE_CONFIRMED') {
+      return {
+        canClaim: true,
+        tier: 'CANDIDATE_REPORTED',
+        reason: `Audit verification failed (${failureReason}); fell back to candidate-reported`,
+        isIndependentlyVerified: false,
+        isCandidateReportedOnly: true,
+      };
+    }
+
     return {
-      canClaim: true,
-      tier: 'REPOSITORY_SUPPORTED_CONTRIBUTION',
+      canClaim: false,
+      tier: 'UNVERIFIED',
+      reason: failureReason || 'Audit verification failed and candidate has not confirmed record',
       isIndependentlyVerified: false,
       isCandidateReportedOnly: false,
     };
   }
 
-  // Candidate confirmation alone (without repository evidence) is strictly candidate-reported
+  // 2. Repository-Supported Contribution (P0.2)
+  const repoInspection = project.storedInspection as ImmutableRepositoryInspectionResult | undefined;
+  const isApprovedRepoUrl = /^https?:\/\/(github\.com|gitlab\.com|bitbucket\.org)\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+/i.test(
+    project.repositoryUrl || ''
+  );
+
+  if (project.repositoryUrl && isApprovedRepoUrl && repoInspection && typeof repoInspection === 'object' && repoInspection.__inspectionSeal) {
+    const sealValid = TrustedRepositoryInspectionService.verifySeal(repoInspection);
+    const repoMatch = (repoInspection.repositoryUrl || '').toLowerCase().trim() === project.repositoryUrl.toLowerCase().trim();
+    const hasValidCommit = /^[a-f0-9]{40}$/i.test(repoInspection.resolvedCommitSha || '');
+    const isAuthor = repoInspection.candidateAuthorshipStatus === 'COMMIT_AUTHOR';
+
+    if (sealValid && repoMatch && hasValidCommit && isAuthor && project.candidateConfirmed) {
+      return {
+        canClaim: true,
+        tier: 'REPOSITORY_SUPPORTED_CONTRIBUTION',
+        isIndependentlyVerified: false,
+        isCandidateReportedOnly: false,
+      };
+    }
+  }
+
+  // 3. Candidate-Reported
   if (project.candidateConfirmed || project.status === 'CANDIDATE_CONFIRMED') {
     return {
       canClaim: true,
@@ -444,6 +554,8 @@ export function canClaimPersonalAuthorship(project: CandidateProject): boolean {
 
 export type SkillExperienceTier =
   | 'INDEPENDENTLY_VERIFIED'
+  | 'REPOSITORY_SUPPORTED_PRODUCTION'
+  | 'CANDIDATE_REPORTED_PRODUCTION'
   | 'PROJECT_BACKED_PRACTICAL'
   | 'CANDIDATE_REPORTED_PRACTICAL'
   | 'THEORETICAL_ONLY'
@@ -459,13 +571,13 @@ export interface SkillExperienceEvaluationResult {
 }
 
 /**
- * Evaluates whether a skill qualifies for production implementation claims.
+ * Evaluates whether a skill qualifies for production implementation claims (P0.3).
  *
  * Invariants:
- * 1. Resolves every project reference against registered projects.
- * 2. Requires evidence that the candidate used the skill in that project (in techStack or contribution).
- * 3. Does not infer production use merely from a skill appearing in a repository or resume.
- * 4. Theoretical knowledge cannot claim production implementation experience.
+ * 1. Do not infer production use from technologyStack alone.
+ * 2. Requires candidate-specific implementation evidence in exactContribution or inspected code.
+ * 3. Requires production deployment context (deploymentStatus === 'deployed_production').
+ * 4. Theoretical knowledge or non-production projects cannot claim production implementation.
  */
 export function evaluateProductionSkillExperience(
   skill: CandidateSkill,
@@ -522,17 +634,33 @@ export function evaluateProductionSkillExperience(
       };
     }
 
-    // Technology must exist in technologyStack or exactContribution
-    const techMatches = (matched.technologyStack || []).some(
+    // Technology must have candidate-specific implementation evidence:
+    // in exactContribution or in inspected repository usage authored by candidate
+    const contributionMatches = (matched.exactContribution || '').toLowerCase().includes(skillLower);
+    const inspectedUsageMatches = (
+      matched.storedInspection?.sourceCodeUsage ||
+      matched.storedInspection?.verifiedTechnologies ||
+      []
+    ).some((t: string) => t.toLowerCase().trim() === skillLower || t.toLowerCase().includes(skillLower));
+
+    const inTechStack = (matched.technologyStack || []).some(
       (t) => t.toLowerCase().trim() === skillLower || skillLower.includes(t.toLowerCase().trim()) || t.toLowerCase().trim().includes(skillLower)
     );
-    const contributionMatches = (matched.exactContribution || '').toLowerCase().includes(skillLower);
 
-    if (!techMatches && !contributionMatches) {
+    if (!contributionMatches && !inspectedUsageMatches) {
+      if (inTechStack) {
+        return {
+          canClaimProduction: false,
+          tier: 'UNVERIFIED',
+          reason: `Skill "${skill.name}" is listed in technologyStack of "${matched.name}" but lacks candidate-specific implementation evidence in exactContribution or inspected code`,
+          resolvedProjects: [],
+          isIndependentlyVerified: false,
+        };
+      }
       return {
         canClaimProduction: false,
         tier: 'UNVERIFIED',
-        reason: `Referenced project "${matched.name}" does not include skill "${skill.name}" in its technology stack or personal contribution`,
+        reason: `Referenced project "${matched.name}" does not include skill "${skill.name}" in its personal implementation evidence`,
         resolvedProjects: [],
         isIndependentlyVerified: false,
       };
@@ -560,13 +688,28 @@ export function evaluateProductionSkillExperience(
       };
     }
 
+    // Deployment context check: Must be deployed to production to claim production experience!
+    if (matched.deploymentStatus !== 'deployed_production') {
+      return {
+        canClaimProduction: false,
+        tier: 'CANDIDATE_REPORTED_PRACTICAL',
+        reason: `Referenced project "${matched.name}" has deployment status "${matched.deploymentStatus}", which does not satisfy production deployment requirement`,
+        resolvedProjects: [matched],
+        isIndependentlyVerified: false,
+      };
+    }
+
     resolvedProjects.push(matched);
   }
 
-  // Distinguish independent verification from candidate confirmation
+  // All resolved projects have candidate implementation evidence and are deployed to production.
+  // Now categorize tier:
   const allIndependentlyVerified =
     skill.status === 'INDEPENDENTLY_VERIFIED' &&
-    resolvedProjects.every((p) => p.status === 'INDEPENDENTLY_VERIFIED');
+    resolvedProjects.every((p) => {
+      const auth = evaluatePersonalAuthorship(p);
+      return auth.isIndependentlyVerified;
+    });
 
   if (allIndependentlyVerified) {
     return {
@@ -577,6 +720,20 @@ export function evaluateProductionSkillExperience(
     };
   }
 
+  const allRepoSupported = resolvedProjects.every((p) => {
+    const auth = evaluatePersonalAuthorship(p);
+    return auth.tier === 'REPOSITORY_SUPPORTED_CONTRIBUTION';
+  });
+
+  if (allRepoSupported) {
+    return {
+      canClaimProduction: true,
+      tier: 'REPOSITORY_SUPPORTED_PRODUCTION',
+      resolvedProjects,
+      isIndependentlyVerified: false,
+    };
+  }
+
   const isCandidateReported =
     (skill.candidateConfirmed || skill.status === 'CANDIDATE_CONFIRMED') &&
     resolvedProjects.every((p) => p.candidateConfirmed || p.status === 'CANDIDATE_CONFIRMED' || p.status === 'DOCUMENT_SUPPORTED');
@@ -584,8 +741,8 @@ export function evaluateProductionSkillExperience(
   if (isCandidateReported) {
     return {
       canClaimProduction: true,
-      tier: 'CANDIDATE_REPORTED_PRACTICAL',
-      reason: 'Validated by candidate-confirmed project implementation evidence',
+      tier: 'CANDIDATE_REPORTED_PRODUCTION',
+      reason: 'Validated by candidate-confirmed project implementation evidence deployed to production',
       resolvedProjects,
       isIndependentlyVerified: false,
     };

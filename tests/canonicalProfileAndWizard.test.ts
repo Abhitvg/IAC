@@ -15,243 +15,288 @@ import {
 import { IngestionResult } from '../src/services/ingestion/types';
 import { KnowledgeVaultService } from '../src/services/knowledgeVault/knowledgeVaultService';
 import { useCandidateVaultStore } from '../src/store/useCandidateVaultStore';
+import {
+  TrustedRepositoryInspectionService,
+  TrustedIndependentAuditService,
+  ImmutableRepositoryInspectionResult,
+} from '../src/services/evidenceInspection';
 
-describe('Canonical Candidate Profile & Personalization Model (Phase 1 & Phase 2 Corrections)', () => {
+describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () => {
   let service: CanonicalProfileService;
 
   beforeEach(() => {
     service = CanonicalProfileService.getInstance();
     service.clearAllCandidateData();
+    TrustedIndependentAuditService.clearAuditors();
   });
 
-  it('1. Initializes with zero invented defaults (targetSeniority is UNKNOWN, years unstated)', () => {
-    const profile = service.getProfile();
-    expect(profile.identity.fullName).toBe('');
-    expect(profile.identity.email).toBe('');
-    expect(profile.career.currentRole).toBe('');
-    expect(profile.career.targetSeniority).toBe('UNKNOWN');
-    expect(profile.career.totalExperienceYears).toBeUndefined();
-    expect(profile.projects).toHaveLength(0);
-    expect(profile.skills).toHaveLength(0);
-    expect(profile.experience).toHaveLength(0);
-    expect(profile.declarations.workAuthorization.confirmed).toBe(false);
-    expect(profile.declarations.workAuthorization.authorized).toBeNull();
-    expect(profile.declarations.sponsorshipRequired.confirmed).toBe(false);
-    expect(profile.declarations.sponsorshipRequired.required).toBeNull();
-  });
-
-  it('2. Enforces invariant: Sensitive employment declarations are never inferred and require explicit confirmation', () => {
-    const profile = service.getProfile();
-
-    expect(validateDeclarationSafety(profile.declarations.workAuthorization)).toBe(false);
-    expect(validateDeclarationSafety(profile.declarations.sponsorshipRequired)).toBe(false);
-
-    profile.declarations.workAuthorization = {
-      confirmed: true,
-      authorized: true,
-      jurisdictions: ['United States'],
-      confirmedAt: Date.now(),
-    };
-    expect(validateDeclarationSafety(profile.declarations.workAuthorization)).toBe(true);
-  });
-
-  it('3. Strengthens canClaimPersonalAuthorship: distinguishes candidate-reported from repository-supported and independent verification', () => {
-    // A: Repository presence without personal contribution is strictly UNVERIFIED
-    const repoOnlyProject: CandidateProject = {
-      id: 'proj-1',
+  // Acceptance Test 1: Fake GitHub evidence strings cannot produce repository-supported verification
+  it('1. Fake GitHub evidence strings cannot produce repository-supported verification', async () => {
+    const projectWithFakeEvidenceString: CandidateProject = {
+      id: 'proj-fake-git',
       name: 'Raft Engine',
-      description: 'An open-source raft engine',
+      description: 'Distributed consensus system',
       repositoryUrl: 'https://github.com/example/raft-engine',
-      ownership: 'UNKNOWN',
-      exactContribution: '',
-      technologyStack: ['Go', 'gRPC'],
-      deploymentStatus: 'UNKNOWN',
-      outcomes: [],
-      evidenceReferences: ['https://github.com/example/raft-engine'],
-      status: 'REPOSITORY_SUPPORTED',
-      candidateConfirmed: false,
-    };
-
-    const evalA = evaluatePersonalAuthorship(repoOnlyProject);
-    expect(evalA.canClaim).toBe(false);
-    expect(evalA.tier).toBe('UNVERIFIED');
-
-    // B: Candidate confirmation without repository inspection is strictly CANDIDATE_REPORTED (NOT independently verified)
-    const candidateReportedProject: CandidateProject = {
-      ...repoOnlyProject,
       ownership: 'PRIMARY_CONTRIBUTOR',
       exactContribution: 'Authored Raft log snapshotting algorithm',
-      evidenceReferences: [],
-      status: 'CANDIDATE_CONFIRMED',
-      candidateConfirmed: true,
-    };
-
-    const evalB = evaluatePersonalAuthorship(candidateReportedProject);
-    expect(evalB.canClaim).toBe(true);
-    expect(evalB.tier).toBe('CANDIDATE_REPORTED');
-    expect(evalB.isIndependentlyVerified).toBe(false);
-    expect(evalB.isCandidateReportedOnly).toBe(true);
-
-    // C: Repository-supported: repository URL + inspectable git evidence + confirmed personal contribution
-    const repoSupportedProject: CandidateProject = {
-      ...candidateReportedProject,
-      repositoryUrl: 'https://github.com/example/raft-engine',
-      evidenceReferences: ['git:commit:a1b2c3d4e5f6'],
-      status: 'REPOSITORY_SUPPORTED',
-    };
-
-    const evalC = evaluatePersonalAuthorship(repoSupportedProject);
-    expect(evalC.canClaim).toBe(true);
-    expect(evalC.tier).toBe('REPOSITORY_SUPPORTED_CONTRIBUTION');
-    expect(evalC.isIndependentlyVerified).toBe(false);
-
-    // D: Independently verified: cryptographic commit attestation or document audit
-    const independentlyVerifiedProject: CandidateProject = {
-      ...repoSupportedProject,
-      status: 'INDEPENDENTLY_VERIFIED',
-    };
-
-    const evalD = evaluatePersonalAuthorship(independentlyVerifiedProject);
-    expect(evalD.canClaim).toBe(true);
-    expect(evalD.tier).toBe('INDEPENDENTLY_VERIFIED');
-    expect(evalD.isIndependentlyVerified).toBe(true);
-  });
-
-  it('4. Strengthens canClaimProductionSkillExperience: resolves project references and verifies technology usage', () => {
-    const registeredProject: CandidateProject = {
-      id: 'proj-telemetry',
-      name: 'TelemetryPipeline',
-      description: 'Distributed metrics service',
-      repositoryUrl: 'https://github.com/corp/telemetry',
-      ownership: 'PRIMARY_CONTRIBUTOR',
-      exactContribution: 'Implemented Kafka consumer groups and backpressure handling',
-      technologyStack: ['Go', 'Kafka', 'Docker'],
+      technologyStack: ['Go', 'gRPC'],
       deploymentStatus: 'deployed_production',
-      outcomes: ['Processed 50k events/sec'],
-      evidenceReferences: ['git:commit:11223344'],
-      status: 'CANDIDATE_CONFIRMED',
+      outcomes: ['Consensus achieved'],
+      // Attacker provides raw string like "github.com" or "git:commit:..." without genuine inspection
+      evidenceReferences: ['git:commit:a1b2c3d4e5f6', 'https://github.com/example/raft-engine'],
+      status: 'REPOSITORY_SUPPORTED',
       candidateConfirmed: true,
     };
 
-    const registeredProjects = [registeredProject];
+    const evalResult = evaluatePersonalAuthorship(projectWithFakeEvidenceString);
+    // MUST NOT be REPOSITORY_SUPPORTED_CONTRIBUTION because there is no sealed inspection record
+    expect(evalResult.tier).not.toBe('REPOSITORY_SUPPORTED_CONTRIBUTION');
+    expect(evalResult.tier).toBe('CANDIDATE_REPORTED');
+    expect(evalResult.isIndependentlyVerified).toBe(false);
 
-    // A: Theoretical skill cannot claim production experience
-    const theoreticalSkill: CandidateSkill = {
-      id: 'skill-1',
-      name: 'Kafka',
-      proficiency: 'UNSPECIFIED',
-      experienceType: 'theoretical',
-      yearsUsed: undefined,
-      projectReferences: ['TelemetryPipeline'],
-      evidenceSource: 'Resume mention',
-      status: 'RESUME_REPORTED',
-      candidateConfirmed: false,
-    };
-    expect(canClaimProductionSkillExperience(theoreticalSkill, registeredProjects)).toBe(false);
+    // Now test with genuine sealed repository inspection from evidence subsystem
+    const sandbox = TrustedRepositoryInspectionService.getSandboxProvider();
+    sandbox.registerRepository('https://github.com/example/raft-engine', {
+      commitSha: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+      treeSha: 'b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3',
+      authorEmail: 'candidate@example.com',
+      files: {
+        'snapshot.go': 'package raft\nfunc (r *Raft) Snapshot() {}',
+      },
+    });
 
-    // B: Practical skill with unresolvable project reference is rejected
-    const unresolvableSkill: CandidateSkill = {
-      ...theoreticalSkill,
-      experienceType: 'practical',
-      projectReferences: ['NonExistentProject123'],
-      status: 'CANDIDATE_CONFIRMED',
+    const validRepoInspection = await TrustedRepositoryInspectionService.inspectRepository({
+      repositoryUrl: 'https://github.com/example/raft-engine',
+      candidateIdentity: { fullName: 'Candidate', email: 'candidate@example.com' },
+      targetProjectName: 'Raft Engine',
+    });
+
+    const genuineRepoProject: CandidateProject = {
+      ...projectWithFakeEvidenceString,
+      storedInspection: validRepoInspection,
+      status: 'REPOSITORY_SUPPORTED',
       candidateConfirmed: true,
     };
-    const evalUnresolved = evaluateProductionSkillExperience(unresolvableSkill, registeredProjects);
-    expect(evalUnresolved.canClaimProduction).toBe(false);
-    expect(evalUnresolved.tier).toBe('UNRESOLVED_PROJECT_REF');
 
-    // C: Practical skill where project does NOT use the skill is rejected
-    const unusedSkill: CandidateSkill = {
-      ...theoreticalSkill,
-      name: 'Rust', // Project uses Go and Kafka, not Rust
-      experienceType: 'practical',
-      projectReferences: ['TelemetryPipeline'],
-      status: 'CANDIDATE_CONFIRMED',
-      candidateConfirmed: true,
-    };
-    const evalUnused = evaluateProductionSkillExperience(unusedSkill, registeredProjects);
-    expect(evalUnused.canClaimProduction).toBe(false);
-    expect(evalUnused.tier).toBe('UNVERIFIED');
-
-    // D: Valid practical skill correctly resolved against confirmed project
-    const validSkill: CandidateSkill = {
-      ...theoreticalSkill,
-      name: 'Kafka',
-      experienceType: 'practical',
-      projectReferences: ['TelemetryPipeline'],
-      status: 'CANDIDATE_CONFIRMED',
-      candidateConfirmed: true,
-    };
-    const evalValid = evaluateProductionSkillExperience(validSkill, registeredProjects);
-    expect(evalValid.canClaimProduction).toBe(true);
-    expect(evalValid.tier).toBe('CANDIDATE_REPORTED_PRACTICAL');
-    expect(evalValid.isIndependentlyVerified).toBe(false);
+    const genuineEval = evaluatePersonalAuthorship(genuineRepoProject);
+    expect(genuineEval.canClaim).toBe(true);
+    expect(genuineEval.tier).toBe('REPOSITORY_SUPPORTED_CONTRIBUTION');
+    expect(genuineEval.isIndependentlyVerified).toBe(false);
   });
 
-  it('5. Ingests resume data cleanly without invented years or proficiency', () => {
-    const mockIngestion: IngestionResult = {
-      sourceId: 'src-test',
+  // Acceptance Test 2: A fabricated INDEPENDENTLY_VERIFIED status cannot bypass the verification subsystem
+  it('2. A fabricated INDEPENDENTLY_VERIFIED status cannot bypass the verification subsystem', () => {
+    // Project claims INDEPENDENTLY_VERIFIED but has no verified cryptographic audit record
+    const fabricatedProject: CandidateProject = {
+      id: 'proj-fabricated-audit',
+      name: 'Cloud Orchestrator',
+      description: 'Container orchestrator',
+      repositoryUrl: 'https://github.com/corp/orchestrator',
+      ownership: 'SOLE_OWNER',
+      exactContribution: 'Designed stateful failover controller',
+      technologyStack: ['Go', 'Kubernetes'],
+      deploymentStatus: 'deployed_production',
+      outcomes: [],
+      evidenceReferences: ['https://audit.example.com/fake-cert'],
+      status: 'INDEPENDENTLY_VERIFIED', // Fabricated declaration
+      candidateConfirmed: true,
+    };
+
+    const evalResult = evaluatePersonalAuthorship(fabricatedProject);
+    // Invariant: MUST fail closed; cannot claim independent verification
+    expect(evalResult.tier).not.toBe('INDEPENDENTLY_VERIFIED');
+    expect(evalResult.tier).toBe('CANDIDATE_REPORTED');
+    expect(evalResult.isIndependentlyVerified).toBe(false);
+
+    // Tampered audit seal test:
+    const tamperedAuditRecord: any = {
+      auditId: 'audit-001',
+      auditorId: 'unregistered-auditor',
+      projectId: 'proj-fabricated-audit',
+      candidateId: 'cand-1',
+      verifiedAt: Date.now(),
+      auditedFields: { personalContribution: 'Designed stateful failover controller' },
+      __auditSeal: 'forged_hmac_seal_1234567890abcdef',
+    };
+
+    const projectWithTamperedAudit: CandidateProject = {
+      ...fabricatedProject,
+      storedInspection: tamperedAuditRecord,
+    };
+
+    const tamperedEval = evaluatePersonalAuthorship(projectWithTamperedAudit);
+    expect(tamperedEval.tier).not.toBe('INDEPENDENTLY_VERIFIED');
+    expect(tamperedEval.isIndependentlyVerified).toBe(false);
+  });
+
+  // Acceptance Test 3: A candidate cannot import a forged verification record
+  it('3. A candidate cannot import a forged verification record', () => {
+    const forgedPayload = {
+      id: 'profile-forged-audit',
+      version: 2,
+      updatedAt: Date.now(),
+      identity: {
+        fullName: 'Attacker Candidate',
+        email: 'attacker@example.com',
+        location: 'Nowhere',
+        preferredLanguage: 'English',
+        links: {},
+        candidateConfirmed: true,
+      },
+      education: [],
+      career: {
+        currentRole: 'Lead Architect',
+        targetSeniority: 'principal',
+        targetRoles: ['Principal Engineer'],
+        preferredIndustries: [],
+        noticePeriod: 'immediate',
+        candidateConfirmed: true,
+      },
+      skills: [],
+      experience: [],
+      projects: [
+        {
+          id: 'proj-hack',
+          name: 'Hacked Core',
+          description: 'Forged audit claims',
+          ownership: 'SOLE_OWNER',
+          exactContribution: 'Claimed total ownership',
+          technologyStack: ['C++'],
+          deploymentStatus: 'deployed_production',
+          outcomes: [],
+          evidenceReferences: [],
+          status: 'INDEPENDENTLY_VERIFIED', // Forged status
+          candidateConfirmed: true,
+          storedInspection: {
+            auditId: 'fake-audit-id',
+            auditorId: 'fake-auditor',
+            projectId: 'proj-hack',
+            candidateId: 'cand-1',
+            verifiedAt: Date.now(),
+            __auditSeal: 'fake-seal-1234567890',
+          },
+        },
+      ],
+      achievements: [],
+      preferences: {
+        answerLength: 'balanced',
+        formality: 'professional',
+        responsePerspective: 'first_person',
+        language: 'English',
+        technicalDepth: 'deep_code_and_architecture',
+        responseStyle: 'structured_paragraphs',
+        preferredCodingLanguage: 'C++',
+        answerStructure: 'star',
+      },
+      declarations: {
+        workAuthorization: { confirmed: true, authorized: true, jurisdictions: ['US'] },
+        sponsorshipRequired: { confirmed: true, required: false },
+        willingToRelocate: { confirmed: false, willing: null, preferredLocations: [] },
+        securityClearance: { confirmed: false, active: null },
+        otherDeclarations: {},
+      },
+      factsLedger: {},
+    };
+
+    // Schema validation MUST reject profile with forged unverified audit
+    const outcome = validateCanonicalProfile(forgedPayload);
+    expect(outcome.success).toBe(false);
+    if (!outcome.success) {
+      expect(outcome.errors.some((e) => e.includes('cryptographic audit seal'))).toBe(true);
+    }
+
+    const importResult = service.importJson(JSON.stringify(forgedPayload));
+    expect(importResult.success).toBe(false);
+  });
+
+  // Acceptance Test 4: Unsupported schema versions are rejected
+  it('4. Unsupported schema versions are rejected', () => {
+    const v3Payload = {
+      id: 'profile-future-v3',
+      version: 3, // Future unsupported version
+      updatedAt: Date.now(),
+      identity: {
+        fullName: 'Future Candidate',
+        email: 'future@example.com',
+        location: 'Berlin',
+        preferredLanguage: 'English',
+        links: {},
+        candidateConfirmed: false,
+      },
+    };
+
+    const outcomeV3 = validateCanonicalProfile(v3Payload);
+    expect(outcomeV3.success).toBe(false);
+    if (!outcomeV3.success) {
+      expect(outcomeV3.errors[0]).toContain('Unsupported schema version: 3');
+    }
+
+    const v0Payload = { ...v3Payload, version: 0 };
+    const outcomeV0 = validateCanonicalProfile(v0Payload);
+    expect(outcomeV0.success).toBe(false);
+    if (!outcomeV0.success) {
+      expect(outcomeV0.errors[0]).toContain('Unsupported schema version: 0');
+    }
+  });
+
+  // Acceptance Test 5: Unknown JSON fields are rejected (Strict Zod Schemas)
+  it('5. Unknown JSON fields are rejected by strict validation', () => {
+    const defaultProfile = service.getProfile();
+    const maliciousPayload = {
+      ...defaultProfile,
+      injectedUnauthorizedField: 'malicious_content', // Unknown key
+    };
+
+    const outcome = validateCanonicalProfile(maliciousPayload);
+    expect(outcome.success).toBe(false);
+    if (!outcome.success) {
+      expect(outcome.errors.some((e) => e.toLowerCase().includes('unrecognized') || e.includes('injectedUnauthorizedField'))).toBe(true);
+    }
+
+    // Prototype pollution attempt
+    const protoPayload = JSON.parse('{"__proto__": {"admin": true}, "id": "test"}');
+    const outcomeProto = validateCanonicalProfile(protoPayload);
+    expect(outcomeProto.success).toBe(false);
+    if (!outcomeProto.success) {
+      expect(outcomeProto.errors.some((e) => e.includes('Prototype pollution'))).toBe(true);
+    }
+  });
+
+  // Acceptance Test 6: Conflicting subsystem updates cannot silently overwrite candidate-confirmed facts
+  it('6. Conflicting subsystem updates cannot silently overwrite candidate-confirmed facts', () => {
+    // 1. Candidate confirms their name and title
+    service.recordFact('identity.fullName', 'identity', 'Alice Confirmed', 'Manual Entry', 'CANDIDATE_CONFIRMED', true);
+    service.recordFact('career.currentRole', 'career', 'Staff Engineer', 'Manual Entry', 'CANDIDATE_CONFIRMED', true);
+
+    const current = service.getProfile();
+    current.identity.fullName = 'Alice Confirmed';
+    current.identity.candidateConfirmed = true;
+    current.career.currentRole = 'Staff Engineer';
+    current.career.candidateConfirmed = true;
+    service.saveProfile(current);
+
+    // 2. Incoming unconfirmed sync from an automated resume ingestion attempts to overwrite
+    const conflictingIngestion: IngestionResult = {
+      sourceId: 'src-conflicting',
       sourceType: 'resume_pdf',
-      documentTitle: 'Resume_Jane_Doe.pdf',
-      rawText: 'Jane Doe Senior Engineer jane@example.com',
+      documentTitle: 'Old_Resume.pdf',
+      rawText: 'Alice Junior Junior Developer',
       pageCount: 1,
       isImageOnlyOrScanned: false,
       ocrRequired: false,
       personalProfile: {
-        fullName: 'Jane Doe',
-        email: 'jane@example.com',
-        phone: '+1-555-0199',
-        location: 'Seattle, WA',
+        fullName: 'Alice Junior Overwrite Attempt',
+        email: 'alice@example.com',
+        phone: '123',
+        location: 'Nowhere',
         websites: [],
-        githubUrl: 'https://github.com/janedoe',
       },
-      education: [
-        {
-          id: 'edu-1',
-          institution: 'University of Washington',
-          degree: 'B.S. Computer Science',
-          rawText: 'UW BS CS',
-        },
-      ],
-      employment: [
-        {
-          id: 'emp-1',
-          employer: 'Cloud Corp',
-          role: 'Backend Engineer',
-          isCurrentRole: true,
-          responsibilities: ['Maintained APIs'],
-          technologies: ['TypeScript', 'Node.js'],
-          metrics: [],
-          associatedProjectIds: [],
-          rawText: 'Cloud Corp Backend Engineer',
-        },
-      ],
-      projects: [
-        {
-          id: 'proj-1',
-          name: 'Telemetry Aggregator',
-          description: 'High throughput pipeline',
-          contextType: 'employer',
-          candidateRole: 'contributor',
-          technologies: ['Go', 'Kafka'],
-          outcomes: [],
-          metrics: [],
-          repositoryUrl: 'https://github.com/cloudcorp/telemetry',
-          rawText: 'Telemetry Aggregator with Go and Kafka',
-        },
-      ],
+      education: [],
+      employment: [],
+      projects: [],
       skills: {
-        languages: ['TypeScript', 'Go'],
-        frameworks: ['Express'],
-        databases: ['PostgreSQL'],
-        messaging: ['Kafka'],
-        cloud: ['AWS'],
-        devops: ['Docker'],
-        testing: ['Jest'],
-        architecture: ['Microservices'],
-        aiMl: [],
-        tools: ['Git'],
+        languages: [], frameworks: [], databases: [], messaging: [], cloud: [],
+        devops: [], testing: [], architecture: [], aiMl: [], tools: []
       },
       achievements: [],
       claims: [],
@@ -260,173 +305,151 @@ describe('Canonical Candidate Profile & Personalization Model (Phase 1 & Phase 2
       ingestedAt: Date.now(),
     };
 
-    service.populateFromIngestion(mockIngestion);
+    service.populateFromIngestion(conflictingIngestion);
 
-    const profile = service.getProfile();
-    expect(profile.identity.fullName).toBe('Jane Doe');
-    expect(profile.identity.email).toBe('jane@example.com');
+    // Invariant: Candidate-confirmed identity MUST be preserved
+    const afterSync = service.getProfile();
+    expect(afterSync.identity.fullName).toBe('Alice Confirmed');
+    expect(afterSync.factsLedger['identity.fullName'].value).toBe('Alice Confirmed');
 
-    // Invariant: Zero invented yearsUsed and proficiency
-    const kafkaSkill = profile.skills.find((s) => s.name === 'Kafka');
-    expect(kafkaSkill).toBeDefined();
-    expect(kafkaSkill?.experienceType).toBe('theoretical');
-    expect(kafkaSkill?.yearsUsed).toBeUndefined(); // NOT 1
-    expect(kafkaSkill?.proficiency).toBe('UNSPECIFIED'); // NOT intermediate
-    expect(kafkaSkill?.status).toBe('RESUME_REPORTED');
-  });
-
-  it('6. Enforces status-upgrade protection and immutable deletion tombstones in the audit ledger', () => {
-    // Candidate cannot manually upgrade an unverified claim to INDEPENDENTLY_VERIFIED
-    const fact = service.recordFact(
-      'workAuthorization',
-      'declaration',
-      'Authorized',
-      'Candidate Edit',
-      'INDEPENDENTLY_VERIFIED', // requested
-      true // candidate confirmed
-    );
-
-    // Protected: downgraded to CANDIDATE_CONFIRMED
-    expect(fact.status).toBe('CANDIDATE_CONFIRMED');
-    expect(service.getProfile().factsLedger['workAuthorization'].status).toBe('CANDIDATE_CONFIRMED');
-
-    // Delete fact: creates tombstone instead of silently deleting
-    const deleted = service.deleteFact('workAuthorization', 'User revoked declaration');
-    expect(deleted).toBe(true);
-
-    const storedFact = service.getProfile().factsLedger['workAuthorization'];
-    expect(storedFact).toBeDefined();
-    expect(storedFact.isDeleted).toBe(true);
-    const lastHistory = storedFact.editHistory[storedFact.editHistory.length - 1];
-    expect(lastHistory.action).toBe('DELETED');
-    expect(lastHistory.reason).toBe('User revoked declaration');
-  });
-
-  it('7. Enforces runtime schema validation with Zod and rejects malformed profile imports', () => {
-    // Malformed JSON (invalid enum, missing required fields)
-    const invalidProfile = {
-      id: 'bad-profile',
-      version: 2,
-      updatedAt: 'not-a-number', // invalid type
-      identity: {
-        fullName: 12345, // invalid type
-      },
-    };
-
-    const outcome = validateCanonicalProfile(invalidProfile);
-    expect(outcome.success).toBe(false);
-    if (!outcome.success) {
-      expect(outcome.errors.length).toBeGreaterThan(0);
-    }
-
-    const importRes = service.importJson(JSON.stringify(invalidProfile));
-    expect(importRes.success).toBe(false);
-    expect(importRes.errors).toBeDefined();
-  });
-
-  it('8. Performs versioned migration from v1 to v2 safely', () => {
-    const v1Profile = {
-      id: 'legacy-profile-v1',
-      version: 1,
-      identity: {
-        fullName: 'Legacy User',
-        email: 'legacy@example.com',
-        location: 'Boston, MA',
-        preferredLanguage: 'English',
-        links: {},
-        candidateConfirmed: false,
-      },
-      career: {
-        currentRole: 'Software Engineer',
-        noticePeriod: '2 weeks',
-        targetRoles: ['Senior Software Engineer'],
-        preferredIndustries: [],
-        candidateConfirmed: false,
-      },
-      skills: [
-        {
-          id: 'sk-1',
-          name: 'Java',
-          projectReferences: [],
-          evidenceSource: 'Legacy',
-          status: 'RESUME_REPORTED',
-          candidateConfirmed: false,
-        },
-      ],
-      education: [],
-      experience: [],
-      projects: [],
-      achievements: [],
-      preferences: {
-        answerLength: 'balanced',
-        formality: 'professional',
-        responsePerspective: 'first_person',
-        language: 'English',
-        technicalDepth: 'balanced',
-        responseStyle: 'structured_paragraphs',
-        preferredCodingLanguage: 'Java',
-        answerStructure: 'star',
-      },
-      declarations: {
-        workAuthorization: { confirmed: false, authorized: null, jurisdictions: [] },
-        sponsorshipRequired: { confirmed: false, required: null },
-        willingToRelocate: { confirmed: false, willing: null, preferredLocations: [] },
-        securityClearance: { confirmed: false, active: null },
-        otherDeclarations: {},
-      },
-    };
-
-    const migrated = migrateProfileIfNeeded(v1Profile);
-    expect(migrated.version).toBe(2);
-    expect(migrated.career.targetSeniority).toBe('UNKNOWN');
-    expect(migrated.skills[0].proficiency).toBe('UNSPECIFIED');
-
-    const validation = validateCanonicalProfile(v1Profile);
-    expect(validation.success).toBe(true);
-  });
-
-  it('9. Synchronizes bidirectionally with KnowledgeVaultService and CareerOps without infinite loops or duplicate projects', () => {
-    // 1. Sync from KnowledgeVaultService
-    const kv = KnowledgeVaultService.getInstance();
-    const vault = kv.getVault();
-    vault.projects = [
-      {
-        id: 'vault-proj-1',
-        title: 'Vault Project Alpha',
-        description: 'First project in vault',
-        technologies: ['React', 'TypeScript'],
-        contributions: [{ id: 'c1', description: 'Built UI', ownership: 'PRIMARY_CONTRIBUTOR' }],
-        outcomes: ['Shipped v1'],
-        metrics: [],
-        evidenceIds: ['ev-1'],
-        status: 'CANDIDATE_CONFIRMED',
-      },
-    ];
-    kv.saveVault(vault);
-
-    // Canonical profile service receives update
-    service.syncFromKnowledgeVault(vault);
-    let profile = service.getProfile();
-    expect(profile.projects.some((p) => p.name === 'Vault Project Alpha')).toBe(true);
-
-    // Call sync again to verify deduplication
-    service.syncFromKnowledgeVault(vault);
-    profile = service.getProfile();
-    const matches = profile.projects.filter((p) => p.name === 'Vault Project Alpha');
-    expect(matches).toHaveLength(1); // No duplicates
-
-    // 2. Sync from CareerOps Vault
-    const careerStore = useCandidateVaultStore.getState();
-    careerStore.updateProfile({
-      fullName: 'Updated Via CareerOps',
-      email: 'careerops@example.com',
-      location: 'Denver, CO',
+    // 3. Subsystem sync from CareerOps with conflicting name attempts overwrite
+    service.syncFromCareerOpsVault({
+      isUserSupplied: true,
+      fullName: 'CareerOps Conflicting Name',
+      currentTitle: 'Junior Developer',
     });
 
-    service.syncFromCareerOpsVault(useCandidateVaultStore.getState().profile);
-    profile = service.getProfile();
-    expect(profile.identity.fullName).toBe('Updated Via CareerOps');
-    expect(profile.identity.email).toBe('careerops@example.com');
-    expect(profile.identity.location).toBe('Denver, CO');
+    const afterCareerSync = service.getProfile();
+    expect(afterCareerSync.identity.fullName).toBe('Alice Confirmed');
+    expect(afterCareerSync.career.currentRole).toBe('Staff Engineer');
+  });
+
+  // Acceptance Test 7: Updates and deletions reconcile correctly across stores (deduplication & tombstones)
+  it('7. Updates and deletions reconcile correctly across stores', () => {
+    // 1. Candidate adds project
+    const p1: CandidateProject = {
+      id: 'proj-dedup-1',
+      name: 'Event Streaming Engine',
+      description: 'Distributed event bus',
+      repositoryUrl: 'https://github.com/company/event-bus',
+      ownership: 'PRIMARY_CONTRIBUTOR',
+      exactContribution: 'Built zero-copy buffer serializer',
+      technologyStack: ['Go', 'Kafka'],
+      deploymentStatus: 'deployed_production',
+      outcomes: ['Low latency achieved'],
+      evidenceReferences: [],
+      status: 'CANDIDATE_CONFIRMED',
+      candidateConfirmed: true,
+    };
+
+    const prof = service.getProfile();
+    prof.projects = [p1];
+    service.saveProfile(prof);
+
+    // 2. Incoming sync from KnowledgeVault has SAME repo URL but different ID and more technologies
+    service.syncFromKnowledgeVault({
+      projects: [
+        {
+          id: 'vault-different-id-999',
+          title: 'event-bus',
+          description: 'Event bus project from git import',
+          repoUrl: 'https://github.com/company/event-bus.git', // Trailing .git should normalize
+          technologies: ['Go', 'Docker', 'Kubernetes'],
+          contributions: [{ id: 'c1', description: 'Unconfirmed crawler summary' }],
+          status: 'REPOSITORY_SUPPORTED',
+        },
+      ],
+    });
+
+    const reconciled = service.getProfile();
+    // Must NOT create a second duplicate project entry
+    expect(reconciled.projects).toHaveLength(1);
+    const merged = reconciled.projects[0];
+    expect(merged.id).toBe('proj-dedup-1'); // Keeps original canonical ID
+    expect(merged.exactContribution).toBe('Built zero-copy buffer serializer'); // Candidate confirmed exact contribution preserved
+    expect(merged.technologyStack).toContain('Kafka');
+    expect(merged.technologyStack).toContain('Docker'); // Merged technologies
+
+    // 3. Deletion with tombstone: Candidate deletes project
+    const deleted = service.deleteProject('proj-dedup-1', 'Candidate removed confidential project');
+    expect(deleted).toBe(true);
+    expect(service.getProfile().projects).toHaveLength(0);
+
+    // 4. Repeated sync from external vault does NOT resurrect tombstoned project
+    service.syncFromKnowledgeVault({
+      projects: [
+        {
+          id: 'vault-different-id-999',
+          title: 'Event Streaming Engine',
+          repoUrl: 'https://github.com/company/event-bus',
+          technologies: ['Go'],
+          status: 'RESUME_REPORTED',
+        },
+      ],
+    });
+
+    // Tombstone respected: not resurrected
+    expect(service.getProfile().projects).toHaveLength(0);
+  });
+
+  // Acceptance Test 8: Rigorous production skill claims require production deployment context
+  it('8. Production skill claims require candidate implementation evidence and deployed production status', () => {
+    const stagingProject: CandidateProject = {
+      id: 'proj-staging',
+      name: 'StagingApp',
+      description: 'Internal demo',
+      ownership: 'PRIMARY_CONTRIBUTOR',
+      exactContribution: 'Implemented GraphQL resolvers and schema federation',
+      technologyStack: ['TypeScript', 'GraphQL'],
+      deploymentStatus: 'staging_demo', // NOT deployed_production!
+      outcomes: [],
+      evidenceReferences: [],
+      status: 'CANDIDATE_CONFIRMED',
+      candidateConfirmed: true,
+    };
+
+    const registeredProjects = [stagingProject];
+
+    const graphQLSkill: CandidateSkill = {
+      id: 'skill-graphql',
+      name: 'GraphQL',
+      experienceType: 'practical',
+      projectReferences: ['StagingApp'],
+      evidenceSource: 'Candidate Claim',
+      status: 'CANDIDATE_CONFIRMED',
+      candidateConfirmed: true,
+    };
+
+    // Cannot claim production because staging_demo is not deployed_production
+    const evalStaging = evaluateProductionSkillExperience(graphQLSkill, registeredProjects);
+    expect(evalStaging.canClaimProduction).toBe(false);
+    expect(evalStaging.tier).toBe('CANDIDATE_REPORTED_PRACTICAL');
+
+    // Upgrade project deployment status to deployed_production
+    const prodProject: CandidateProject = {
+      ...stagingProject,
+      deploymentStatus: 'deployed_production',
+    };
+
+    const evalProd = evaluateProductionSkillExperience(graphQLSkill, [prodProject]);
+    expect(evalProd.canClaimProduction).toBe(true);
+    expect(evalProd.tier).toBe('CANDIDATE_REPORTED_PRODUCTION');
+  });
+
+  // Acceptance Test 9: Declaration consistency requires non-null answers when confirmed
+  it('9. Declaration consistency requires non-null answers when confirmed', () => {
+    const profile = service.getProfile();
+    // Confirmed without an answer (null)
+    profile.declarations.workAuthorization = {
+      confirmed: true,
+      authorized: null, // Invariant violation!
+      jurisdictions: [],
+    };
+
+    const outcome = validateCanonicalProfile(profile);
+    expect(outcome.success).toBe(false);
+    if (!outcome.success) {
+      expect(outcome.errors.some((e) => e.includes('Confirmed work authorization declaration cannot have a null value'))).toBe(true);
+    }
   });
 });

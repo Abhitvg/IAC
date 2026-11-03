@@ -84,6 +84,7 @@ export const CandidateProfileWizard: React.FC = () => {
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   // Subscribe to service updates
   useEffect(() => {
@@ -91,18 +92,103 @@ export const CandidateProfileWizard: React.FC = () => {
     return () => unsub();
   }, [profileService]);
 
-  // Keyboard navigation & accessibility: Close on Escape key
+  // Flush pending debounced autosave immediately to guarantee data persistence
+  const flushPendingSave = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    try {
+      const saved = profileService.saveProfile(profile);
+      if (saved) {
+        setSaveStatus('saved');
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setSaveStatusText(`All changes saved (${time})`);
+      } else {
+        setSaveStatus('error');
+        setSaveStatusText('Storage quota exceeded or save error');
+      }
+    } catch (err) {
+      console.error('[CandidateProfileWizard] Immediate flush failed:', err);
+      setSaveStatus('error');
+      setSaveStatusText('Failed to save profile');
+    }
+  }, [profile, profileService]);
+
+  // Handle application close / beforeunload to safely flush pending changes
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      flushPendingSave();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      flushPendingSave();
+    };
+  }, [flushPendingSave]);
+
+  // Focus restoration & trapping: save active element on open, trap Tab, restore focus on close
+  useEffect(() => {
+    if (profileWizardOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement | null;
+      // Focus modal container or first interactive element
+      const timer = setTimeout(() => {
+        if (containerRef.current) {
+          const firstFocusable = containerRef.current.querySelector<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+          if (firstFocusable) {
+            firstFocusable.focus();
+          } else {
+            containerRef.current.focus();
+          }
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    } else if (previousFocusRef.current) {
+      previousFocusRef.current.focus();
+    }
+  }, [profileWizardOpen]);
+
+  // Keyboard navigation, accessibility, and focus trapping (Tab & Escape)
   useEffect(() => {
     if (!profileWizardOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        flushPendingSave();
         setProfileWizardOpen(false);
+        return;
+      }
+
+      // Trap Tab key within dialog modal
+      if (e.key === 'Tab' && containerRef.current) {
+        const focusable = Array.from(
+          containerRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => el.offsetParent !== null); // only visible elements
+
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || !containerRef.current.contains(document.activeElement)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last || !containerRef.current.contains(document.activeElement)) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [profileWizardOpen, setProfileWizardOpen]);
+  }, [profileWizardOpen, setProfileWizardOpen, flushPendingSave]);
 
   // Genuine Debounced Autosave with error handling
   const triggerSave = useCallback(
@@ -117,10 +203,15 @@ export const CandidateProfileWizard: React.FC = () => {
 
       debounceTimerRef.current = setTimeout(() => {
         try {
-          profileService.saveProfile(nextProfile);
-          setSaveStatus('saved');
-          const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-          setSaveStatusText(`Autosaved at ${time}`);
+          const success = profileService.saveProfile(nextProfile);
+          if (success) {
+            setSaveStatus('saved');
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            setSaveStatusText(`Autosaved at ${time}`);
+          } else {
+            setSaveStatus('error');
+            setSaveStatusText('Storage quota exceeded');
+          }
         } catch (err) {
           console.error('[CandidateProfileWizard] Autosave failed:', err);
           setSaveStatus('error');
@@ -131,10 +222,12 @@ export const CandidateProfileWizard: React.FC = () => {
     [profileService]
   );
 
-  // Clean up debounce timer on unmount
+  // Clean up debounce timer on unmount and flush pending save
   useEffect(() => {
     return () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
     };
   }, []);
 
@@ -224,8 +317,9 @@ export const CandidateProfileWizard: React.FC = () => {
     handleNext();
   };
 
-  // Export profile
+  // Export profile with latest unsaved changes flushed
   const handleExportJson = () => {
+    flushPendingSave();
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(profileService.exportJson());
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
@@ -456,7 +550,10 @@ export const CandidateProfileWizard: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setProfileWizardOpen(false)}
+              onClick={() => {
+                flushPendingSave();
+                setProfileWizardOpen(false);
+              }}
               aria-label="Resume Later / Close Wizard (Esc)"
               title="Close Wizard (Esc)"
               style={{

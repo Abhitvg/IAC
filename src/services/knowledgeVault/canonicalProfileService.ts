@@ -67,23 +67,26 @@ export class CanonicalProfileService {
     }
   }
 
-  public saveProfile(profile: CanonicalCandidateProfile): void {
+  public saveProfile(profile: CanonicalCandidateProfile): boolean {
     this.currentProfile = {
       ...profile,
       updatedAt: Date.now(),
     };
 
+    let savedSuccessfully = true;
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
       } catch (e) {
-        console.error('[CanonicalProfileService] Failed to save profile to localStorage:', e);
+        savedSuccessfully = false;
+        console.error('[CanonicalProfileService] Failed to save profile to localStorage (quota or storage error):', e);
       }
     }
 
     // Bidirectional sync with legacy stores
     this.syncToSubsystems(this.currentProfile);
     this.notify();
+    return savedSuccessfully;
   }
 
   /**
@@ -126,7 +129,17 @@ export class CanonicalProfileService {
   ): CanonicalFact<T> {
     const existing = this.currentProfile.factsLedger[field];
 
-    // Status Upgrade Protection
+    // Deterministic Conflict Policy (P1.6): Candidate-confirmed facts are never overwritten by unconfirmed imported/synced updates
+    if (existing && existing.candidateConfirmed && !candidateConfirmed) {
+      return existing as CanonicalFact<T>;
+    }
+
+    // Tombstone Protection: A deleted fact is not silently resurrected by an unconfirmed update
+    if (existing && existing.isDeleted && !candidateConfirmed) {
+      return existing as CanonicalFact<T>;
+    }
+
+    // Status Upgrade Protection: Candidate manual edits can never elevate status to INDEPENDENTLY_VERIFIED
     let safeStatus = requestedStatus;
     if (candidateConfirmed && requestedStatus === 'INDEPENDENTLY_VERIFIED' && (!existing || existing.status !== 'INDEPENDENTLY_VERIFIED')) {
       safeStatus = 'CANDIDATE_CONFIRMED';
@@ -174,25 +187,71 @@ export class CanonicalProfileService {
 
   /**
    * Deletes an individual fact with an immutable audit tombstone.
-   * Does NOT silently erase history.
+   * Does NOT silently erase history. Creates a tombstone if not already present.
    */
   public deleteFact(field: string, reason = 'Candidate requested deletion'): boolean {
     const existing = this.currentProfile.factsLedger[field];
-    if (existing && !existing.isDeleted) {
-      const now = Date.now();
-      existing.isDeleted = true;
-      existing.editHistory.push({
-        timestamp: now,
-        previousValue: existing.value,
-        updatedBy: 'candidate',
-        reason,
-        action: 'DELETED',
-      });
-      this.currentProfile.factsLedger[field] = existing;
-      this.saveProfile(this.currentProfile);
-      return true;
+    const now = Date.now();
+    if (existing) {
+      if (!existing.isDeleted) {
+        existing.isDeleted = true;
+        existing.editHistory.push({
+          timestamp: now,
+          previousValue: existing.value,
+          updatedBy: 'candidate',
+          reason,
+          action: 'DELETED',
+        });
+        this.currentProfile.factsLedger[field] = existing;
+        this.saveProfile(this.currentProfile);
+        return true;
+      }
+      return false;
     }
-    return false;
+
+    // Record an immutable tombstone even if the fact was not previously stored in the ledger
+    const tombstone: CanonicalFact = {
+      id: `fact_tombstone_${field.replace(/[^a-zA-Z0-9_]/g, '_')}_${now}`,
+      category: 'project',
+      field,
+      value: null,
+      source: 'candidate_deletion',
+      status: 'UNKNOWN',
+      confidence: 1.0,
+      candidateConfirmed: true,
+      confirmedAt: now,
+      createdAt: now,
+      isExpired: false,
+      isDeleted: true,
+      editHistory: [
+        {
+          timestamp: now,
+          updatedBy: 'candidate',
+          reason,
+          action: 'DELETED',
+        },
+      ],
+    };
+    this.currentProfile.factsLedger[field] = tombstone;
+    this.saveProfile(this.currentProfile);
+    return true;
+  }
+
+  /**
+   * Deletes a project by ID and records tombstones by title and repo URL in the facts ledger.
+   */
+  public deleteProject(projectId: string, reason = 'Candidate deleted project'): boolean {
+    const projIndex = this.currentProfile.projects.findIndex((p) => p.id === projectId);
+    if (projIndex === -1) return false;
+    const proj = this.currentProfile.projects[projIndex];
+    this.currentProfile.projects.splice(projIndex, 1);
+    this.deleteFact(`project:${proj.name.toLowerCase().trim()}`, reason);
+    if (proj.repositoryUrl) {
+      const normRepo = proj.repositoryUrl.toLowerCase().replace(/\.git$/, '').replace(/\/$/, '');
+      this.deleteFact(`project:repo:${normRepo}`, reason);
+    }
+    this.saveProfile(this.currentProfile);
+    return true;
   }
 
   /**
@@ -416,6 +475,11 @@ export class CanonicalProfileService {
 
   /**
    * Syncs changes from KnowledgeVaultService into CanonicalProfileService.
+   * Enforces:
+   * 1. Deterministic conflict policy: candidate-confirmed data is preserved.
+   * 2. Project deduplication across differing IDs (by repo URL or normalized title).
+   * 3. Tombstone protection: deleted projects are not resurrected by unconfirmed sync.
+   * 4. Audit trail logging.
    */
   public syncFromKnowledgeVault(vault: any): void {
     if (this.isSyncing || !vault) return;
@@ -426,9 +490,51 @@ export class CanonicalProfileService {
 
       // Sync projects from vault
       if (Array.isArray(vault.projects)) {
-        const existingProjectNames = new Set(updated.projects.map((p) => p.name.toLowerCase()));
         for (const vp of vault.projects) {
-          if (!existingProjectNames.has(vp.title.toLowerCase())) {
+          const normRepo = vp.repoUrl?.toLowerCase().replace(/\.git$/, '').replace(/\/$/, '');
+          const normTitle = (vp.title || '').toLowerCase().trim();
+
+          // Deduplication: find match by ID, normalized repositoryUrl, or title
+          const existingProject = updated.projects.find((p) => {
+            if (p.id && vp.id && p.id.toLowerCase() === vp.id.toLowerCase()) return true;
+            if (normTitle && p.name && p.name.toLowerCase().trim() === normTitle) return true;
+            if (normRepo && p.repositoryUrl) {
+              const curRepo = p.repositoryUrl.toLowerCase().replace(/\.git$/, '').replace(/\/$/, '');
+              if (curRepo === normRepo) return true;
+            }
+            return false;
+          });
+
+          if (existingProject) {
+            // Merge duplicate into existing project
+            // Deterministic Conflict Policy: Never overwrite candidate-confirmed exactContribution
+            if (!existingProject.candidateConfirmed && vp.contributions?.[0]?.description) {
+              existingProject.exactContribution = vp.contributions[0].description;
+            }
+            // Merge technology stack (union)
+            const techSet = new Set([...existingProject.technologyStack, ...(vp.technologies || [])]);
+            existingProject.technologyStack = Array.from(techSet);
+            // Merge evidence references
+            const evSet = new Set([...existingProject.evidenceReferences, ...(vp.evidenceIds || [])]);
+            existingProject.evidenceReferences = Array.from(evSet);
+
+            // Never downgrade verification status
+            if (existingProject.status === 'UNKNOWN' && vp.status) {
+              existingProject.status = vp.status;
+            }
+            changed = true;
+          } else {
+            // Tombstone check: if project was explicitly deleted by candidate, do not resurrect
+            const tombstoneKeyTitle = `project:${normTitle}`;
+            const tombstoneKeyRepo = normRepo ? `project:repo:${normRepo}` : '';
+            if (
+              updated.factsLedger[tombstoneKeyTitle]?.isDeleted ||
+              (tombstoneKeyRepo && updated.factsLedger[tombstoneKeyRepo]?.isDeleted)
+            ) {
+              continue;
+            }
+
+            const isConfirmed = vp.status === 'CANDIDATE_CONFIRMED';
             updated.projects.push({
               id: vp.id || `proj_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
               name: vp.title,
@@ -436,14 +542,23 @@ export class CanonicalProfileService {
               repositoryUrl: vp.repoUrl,
               projectUrl: vp.liveUrl,
               ownership: 'UNKNOWN',
-              exactContribution: (vp.contributions?.[0]?.description) || '',
+              exactContribution: vp.contributions?.[0]?.description || '',
               technologyStack: vp.technologies || [],
               deploymentStatus: 'UNKNOWN',
               outcomes: vp.outcomes || [],
               evidenceReferences: vp.evidenceIds || [],
               status: vp.status || 'UNKNOWN',
-              candidateConfirmed: vp.status === 'CANDIDATE_CONFIRMED',
+              candidateConfirmed: isConfirmed,
             });
+
+            this.recordFact(
+              tombstoneKeyTitle,
+              'project',
+              vp.title,
+              'sync:knowledge_vault',
+              vp.status || 'UNKNOWN',
+              isConfirmed
+            );
             changed = true;
           }
         }
@@ -452,7 +567,11 @@ export class CanonicalProfileService {
       if (changed) {
         this.currentProfile = updated;
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
+          } catch (e) {
+            console.error('[CanonicalProfileService] LocalStorage save error during sync:', e);
+          }
         }
         this.notify();
       }
@@ -463,6 +582,7 @@ export class CanonicalProfileService {
 
   /**
    * Syncs user-supplied values from CareerOps vault into CanonicalProfileService.
+   * Enforces deterministic conflict policy: candidate-confirmed profile data is preserved.
    */
   public syncFromCareerOpsVault(careerVault: any): void {
     if (this.isSyncing || !careerVault || !careerVault.isUserSupplied) return;
@@ -471,31 +591,41 @@ export class CanonicalProfileService {
       const updated = { ...this.currentProfile };
       let changed = false;
 
-      if (careerVault.fullName && careerVault.fullName !== updated.identity.fullName) {
+      // Deterministic conflict policy: if local identity is confirmed, do not overwrite with unconfirmed sync
+      if (careerVault.fullName && !updated.identity.candidateConfirmed && careerVault.fullName !== updated.identity.fullName) {
         updated.identity.fullName = careerVault.fullName;
+        this.recordFact('identity.fullName', 'identity', careerVault.fullName, 'sync:career_ops', 'CANDIDATE_CONFIRMED', true);
         changed = true;
       }
-      if (careerVault.email && careerVault.email !== updated.identity.email) {
+      if (careerVault.email && !updated.identity.candidateConfirmed && careerVault.email !== updated.identity.email) {
         updated.identity.email = careerVault.email;
+        this.recordFact('identity.email', 'identity', careerVault.email, 'sync:career_ops', 'CANDIDATE_CONFIRMED', true);
         changed = true;
       }
-      if (careerVault.phone && careerVault.phone !== updated.identity.phone) {
+      if (careerVault.phone && !updated.identity.candidateConfirmed && careerVault.phone !== updated.identity.phone) {
         updated.identity.phone = careerVault.phone;
+        this.recordFact('identity.phone', 'identity', careerVault.phone, 'sync:career_ops', 'CANDIDATE_CONFIRMED', true);
         changed = true;
       }
-      if (careerVault.location && careerVault.location !== 'unknown' && careerVault.location !== updated.identity.location) {
+      if (careerVault.location && careerVault.location !== 'unknown' && !updated.identity.candidateConfirmed && careerVault.location !== updated.identity.location) {
         updated.identity.location = careerVault.location;
+        this.recordFact('identity.location', 'identity', careerVault.location, 'sync:career_ops', 'CANDIDATE_CONFIRMED', true);
         changed = true;
       }
-      if (careerVault.currentTitle && careerVault.currentTitle !== 'unknown' && careerVault.currentTitle !== updated.career.currentRole) {
+      if (careerVault.currentTitle && careerVault.currentTitle !== 'unknown' && !updated.career.candidateConfirmed && careerVault.currentTitle !== updated.career.currentRole) {
         updated.career.currentRole = careerVault.currentTitle;
+        this.recordFact('career.currentRole', 'career', careerVault.currentTitle, 'sync:career_ops', 'CANDIDATE_CONFIRMED', true);
         changed = true;
       }
 
       if (changed) {
         this.currentProfile = updated;
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
+          } catch (e) {
+            console.error('[CanonicalProfileService] LocalStorage save error during CareerOps sync:', e);
+          }
         }
         this.notify();
       }
