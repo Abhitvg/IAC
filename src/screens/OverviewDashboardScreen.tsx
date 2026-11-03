@@ -14,6 +14,7 @@ import { PageHeader, Card, StatusBadge, EmptyState } from '../design-system/comp
 import { CandidateKnowledgeBase } from '../services/candidateIntelligence';
 import { useAppStore } from '../store/useAppStore';
 import { usePracticeStore } from '../store/usePracticeStore';
+import { CanonicalProfileService } from '../services/knowledgeVault';
 
 interface OverviewDashboardScreenProps {
   onNavigate: (view: any) => void;
@@ -22,7 +23,7 @@ interface OverviewDashboardScreenProps {
 export const OverviewDashboardScreen: React.FC<OverviewDashboardScreenProps> = ({
   onNavigate,
 }) => {
-  const { resumeText, targetRole, sessionHistory: appSessions } = useAppStore();
+  const { resumeText, targetRole, sessionHistory: appSessions, setProfileWizardOpen } = useAppStore();
   const { sessionHistory: practiceSessions, setActiveView } = usePracticeStore();
 
   const kb = React.useMemo(() => {
@@ -170,6 +171,30 @@ export const OverviewDashboardScreen: React.FC<OverviewDashboardScreenProps> = (
           </div>
           <span style={{ fontSize: '11px', color: '#35C991', fontWeight: 600 }}>
             Start Mock Simulation →
+          </span>
+        </Card>
+
+        <Card
+          interactive
+          onClick={() => setProfileWizardOpen(true)}
+          style={{
+            background: 'linear-gradient(135deg, rgba(247, 185, 85, 0.08), #171B24)',
+            border: '1px solid rgba(247, 185, 85, 0.25)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: '0 0 6px 0' }}>
+                Candidate Profile Wizard
+              </h3>
+              <p style={{ fontSize: '12px', color: '#9299AA', margin: '0 0 12px 0', lineHeight: 1.4 }}>
+                Review and edit your 9-part canonical profile, verify employment declarations, and manage fact provenance.
+              </p>
+            </div>
+            <ArrowRight size={18} style={{ color: '#F7B955' }} />
+          </div>
+          <span style={{ fontSize: '11px', color: '#F7B955', fontWeight: 600 }}>
+            Open Profile Wizard →
           </span>
         </Card>
       </div>

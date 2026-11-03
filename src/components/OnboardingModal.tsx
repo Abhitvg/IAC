@@ -16,7 +16,7 @@ import {
 type OnboardingStep = 'mode' | 'credentials_or_models' | 'mic_check' | 'ready';
 
 export default function OnboardingModal() {
-  const { updateSetting, setToast } = useAppStore();
+  const { updateSetting, setToast, setProfileWizardOpen } = useAppStore();
   const { startMockSession } = usePracticeStore();
 
   const [step, setStep] = useState<OnboardingStep>('mode');
@@ -719,27 +719,52 @@ export default function OnboardingModal() {
               round to establish your speech pace baseline.
             </p>
 
-            <button
-              type="button"
-              onClick={handleFinishAndStart}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 24px',
-                background: '#4f46e5',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(79, 70, 229, 0.4)',
-              }}
-            >
-              <span>Start 10-Minute Mock Interview</span>
-              <ArrowRight size={16} />
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleFinishAndStart();
+                  setProfileWizardOpen(true);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 24px',
+                  background: '#8B7CFF',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(139, 124, 255, 0.4)',
+                }}
+              >
+                <span>Customize Candidate Profile (Wizard)</span>
+                <ArrowRight size={16} />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFinishAndStart}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 20px',
+                  background: 'transparent',
+                  color: '#94a3b8',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                <span>Skip to 10-Minute Mock Interview</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

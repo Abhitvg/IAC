@@ -152,6 +152,8 @@ interface InterviewState {
   setJobDescriptionText: (text: string) => void;
   setTargetRole: (role: string) => void;
   setResumeModalOpen: (open: boolean) => void;
+  profileWizardOpen: boolean;
+  setProfileWizardOpen: (open: boolean) => void;
   setToast: (msg: string | null) => void;
 
   // Interview Workspaces
@@ -509,6 +511,8 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     set({ targetRole });
   },
   setResumeModalOpen: (resumeModalOpen: boolean) => set({ resumeModalOpen }),
+  profileWizardOpen: false,
+  setProfileWizardOpen: (profileWizardOpen: boolean) => set({ profileWizardOpen }),
   setToast: (toast: string | null) => {
     set({ toast });
     if (toast) setTimeout(() => set({ toast: null }), 3000);

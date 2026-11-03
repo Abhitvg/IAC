@@ -7,6 +7,7 @@ import { CareerOpsView } from './components/careerOps/CareerOpsView';
 import SettingsPanel from './components/SettingsPanel';
 import SessionsPanel from './components/SessionsPanel';
 import OnboardingModal from './components/OnboardingModal';
+import { CandidateProfileWizard } from './components/CandidateProfileWizard';
 import Toast from './components/Toast';
 import { InterviewEngine } from './services/InterviewEngine';
 import { AppSidebar, AppNavId } from './screens/AppSidebar';
@@ -216,6 +217,7 @@ export default function App() {
 
       {showOnboarding && <OnboardingModal />}
       {resumeModalOpen && <ResumeAndJobModal />}
+      <CandidateProfileWizard />
       {settingsOpen && <SettingsPanel />}
       {sessionsOpen && <SessionsPanel />}
       <Toast />

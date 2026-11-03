@@ -11,6 +11,7 @@ import {
   Maximize2,
   Minimize2,
   Power,
+  UserCheck,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { isSoundMuted, toggleSoundMuted } from '../utils/soundEffects';
@@ -25,6 +26,7 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({ currentTitle }) => {
     toggleRecording,
     setSettingsOpen,
     setSessionsOpen,
+    setProfileWizardOpen,
     targetRole,
   } = useAppStore();
 
@@ -95,6 +97,31 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({ currentTitle }) => {
         >
           <Mic size={13} />
           <span>{isRecording ? 'Rec Active' : 'Mic On'}</span>
+        </button>
+
+        {/* Candidate Profile Wizard */}
+        <button
+          type="button"
+          onClick={() => setProfileWizardOpen(true)}
+          aria-label="Open Candidate Profile Wizard"
+          title="Open Candidate Profile Wizard"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            background: 'rgba(139, 124, 255, 0.12)',
+            color: '#8B7CFF',
+            border: '1px solid rgba(139, 124, 255, 0.3)',
+          }}
+          className="hover:bg-[#8B7CFF]/20"
+        >
+          <UserCheck size={13} />
+          <span>Profile Wizard</span>
         </button>
 
         {/* Sessions History */}
