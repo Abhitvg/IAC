@@ -38,6 +38,21 @@ import {
   validateSafeFetchPinnedIpc,
 } from './services/security';
 
+// Linux stability configurations: prevent XDG portal crashes & GPU driver compositor terminations
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('disable-features', 'UsePortal');
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+}
+
+// Global exception guards to prevent unexpected process crashes
+process.on('uncaughtException', (err) => {
+  console.error('[Electron Main Process Uncaught Exception]:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Electron Main Process Unhandled Rejection]:', reason);
+});
+
 let mainWindow: BrowserWindow | null = null;
 let isContentProtected = true;
 let tray: Tray | null = null;
@@ -69,7 +84,7 @@ function createWindow() {
     minHeight: 160,
     title: 'AI Interview Practice Gym',
     frame: true,
-    transparent: true,
+    transparent: process.platform === 'darwin',
     hasShadow: true,
     resizable: true,
     alwaysOnTop: false,
@@ -116,6 +131,15 @@ function createWindow() {
     if (!isTrustedAppOrigin(event.url, process.env.VITE_DEV_SERVER_URL)) {
       event.preventDefault();
     }
+  });
+
+  // Diagnostic handlers for renderer termination / crash
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[Electron Renderer Process Terminated]:', details.reason, 'exitCode:', details.exitCode);
+  });
+
+  mainWindow.webContents.on('unresponsive', () => {
+    console.warn('[Electron Renderer Unresponsive]');
   });
 
   if (isContentProtected) {
@@ -621,7 +645,12 @@ ipcMain.handle('fs:parse-pdf', async (event, arrayBuffer: ArrayBuffer) => {
   if (!(arrayBuffer instanceof ArrayBuffer) && !Buffer.isBuffer(arrayBuffer)) {
     throw new Error('Invalid argument: expected ArrayBuffer or Buffer');
   }
-  return parsePdfBuffer(arrayBuffer);
+  try {
+    return await parsePdfBuffer(arrayBuffer);
+  } catch (err: any) {
+    console.error('[Electron] parsePdfBuffer error:', err);
+    return '';
+  }
 });
 
 // DNS resolution for SSRF verification

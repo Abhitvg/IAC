@@ -125,7 +125,8 @@ export class CanonicalProfileService {
     source: string,
     requestedStatus: CanonicalFact['status'] = 'UNKNOWN',
     candidateConfirmed = false,
-    sourceUrlOrFile?: string
+    sourceUrlOrFile?: string,
+    skipSave = false
   ): CanonicalFact<T> {
     const existing = this.currentProfile.factsLedger[field];
 
@@ -181,7 +182,9 @@ export class CanonicalProfileService {
     }
 
     this.currentProfile.factsLedger[field] = fact;
-    this.saveProfile(this.currentProfile);
+    if (!skipSave) {
+      this.saveProfile(this.currentProfile);
+    }
     return fact;
   }
 
@@ -291,19 +294,19 @@ export class CanonicalProfileService {
     if (result.personalProfile) {
       if (result.personalProfile.fullName && !updated.identity.candidateConfirmed) {
         updated.identity.fullName = result.personalProfile.fullName;
-        this.recordFact('identity.fullName', 'identity', result.personalProfile.fullName, sourceLabel, 'RESUME_REPORTED', false);
+        this.recordFact('identity.fullName', 'identity', result.personalProfile.fullName, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
       }
       if (result.personalProfile.email && !updated.identity.candidateConfirmed) {
         updated.identity.email = result.personalProfile.email;
-        this.recordFact('identity.email', 'identity', result.personalProfile.email, sourceLabel, 'RESUME_REPORTED', false);
+        this.recordFact('identity.email', 'identity', result.personalProfile.email, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
       }
       if (result.personalProfile.phone && !updated.identity.candidateConfirmed) {
         updated.identity.phone = result.personalProfile.phone;
-        this.recordFact('identity.phone', 'identity', result.personalProfile.phone, sourceLabel, 'RESUME_REPORTED', false);
+        this.recordFact('identity.phone', 'identity', result.personalProfile.phone, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
       }
       if (result.personalProfile.location && !updated.identity.candidateConfirmed) {
         updated.identity.location = result.personalProfile.location;
-        this.recordFact('identity.location', 'identity', result.personalProfile.location, sourceLabel, 'RESUME_REPORTED', false);
+        this.recordFact('identity.location', 'identity', result.personalProfile.location, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
       }
       if (result.personalProfile.githubUrl || result.personalProfile.linkedinUrl || result.personalProfile.portfolioUrl || (result.personalProfile.otherLinks && result.personalProfile.otherLinks.length > 0)) {
         updated.identity.links = {
@@ -354,7 +357,7 @@ export class CanonicalProfileService {
             };
             updated.skills.push(newSkill);
             existingSkillMap.set(norm, newSkill);
-            this.recordFact(`skill:${skillName}`, 'skill', skillName, sourceLabel, 'RESUME_REPORTED', false);
+            this.recordFact(`skill:${skillName}`, 'skill', skillName, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
           } else {
             const existing = existingSkillMap.get(norm)!;
             if (!existing.category) {
@@ -383,7 +386,7 @@ export class CanonicalProfileService {
             candidateConfirmed: false,
           };
           updated.education.push(newEdu);
-          this.recordFact(`education:${key}`, 'education', `${edu.degree} from ${edu.institution}`, sourceLabel, 'RESUME_REPORTED', false);
+          this.recordFact(`education:${key}`, 'education', `${edu.degree} from ${edu.institution}`, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
@@ -412,7 +415,7 @@ export class CanonicalProfileService {
             candidateConfirmed: false,
           };
           updated.experience.push(newExp);
-          this.recordFact(`experience:${key}`, 'experience', `${exp.role} at ${exp.employer}`, sourceLabel, 'RESUME_REPORTED', false);
+          this.recordFact(`experience:${key}`, 'experience', `${exp.role} at ${exp.employer}`, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
@@ -438,7 +441,7 @@ export class CanonicalProfileService {
             candidateConfirmed: false,
           };
           updated.projects.push(newProj);
-          this.recordFact(`project:${proj.name}`, 'project', proj.name, sourceLabel, 'RESUME_REPORTED', false);
+          this.recordFact(`project:${proj.name}`, 'project', proj.name, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
@@ -460,7 +463,7 @@ export class CanonicalProfileService {
           };
           updated.achievements.push(newCert);
           existingAchievements.add(cert.name.toLowerCase());
-          this.recordFact(`certification:${cert.name}`, 'achievement', cert.name, sourceLabel, 'RESUME_REPORTED', false);
+          this.recordFact(`certification:${cert.name}`, 'achievement', cert.name, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
@@ -478,7 +481,7 @@ export class CanonicalProfileService {
           };
           updated.achievements.push(newPub);
           existingAchievements.add(pub.title.toLowerCase());
-          this.recordFact(`publication:${pub.title}`, 'achievement', pub.title, sourceLabel, 'RESUME_REPORTED', false);
+          this.recordFact(`publication:${pub.title}`, 'achievement', pub.title, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
@@ -496,7 +499,7 @@ export class CanonicalProfileService {
           };
           updated.achievements.push(newAch);
           existingAchievements.add(ach.headline.toLowerCase());
-          this.recordFact(`achievement:${ach.headline}`, 'achievement', ach.headline, sourceLabel, 'RESUME_REPORTED', false);
+          this.recordFact(`achievement:${ach.headline}`, 'achievement', ach.headline, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
