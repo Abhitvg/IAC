@@ -17,6 +17,7 @@ import { useAppStore } from '../store/useAppStore';
 import { AudioRecorder } from './audio';
 import { transcribeAudio } from './whisper';
 import { AnswerGenerationService } from './AnswerGenerationService';
+import { DiagnosticLoggerService } from './diagnosticLogger';
 import {
   FactualGroundingValidator,
   CandidateKnowledgeBase,
@@ -57,6 +58,10 @@ export class InterviewEngine {
       store.enqueueSentences([]);
       store.setAnswerValidationStatus('ABORTED');
       store.setIsAnswerValidated(false);
+      store.setRecitalState('listening');
+      if (store.status === 'generating' || store.status === 'analyzing') {
+        store.setStatus('listening');
+      }
     }
   }
 
@@ -172,12 +177,22 @@ export class InterviewEngine {
               whisperStatus: 'no speech detected in utterance',
             });
             useAppStore.getState().setStatus('listening');
+            useAppStore.getState().setPipelineStage('listening');
             return;
           }
 
+          useAppStore.getState().setPipelineStage('transcript_received');
           useAppStore.getState().updateDiagnostics({
             latestTranscript: text,
           });
+
+          DiagnosticLoggerService.getInstance().recordEvent({
+            requestId,
+            pipelineStage: 'transcript_received',
+            message: text.slice(0, 100),
+          });
+
+          useAppStore.getState().setPipelineStage('identifying_question');
 
           // Intelligent Classification: Distinguish Candidate Recital vs. Third-Person Interruption
           const classification = classifyUtterance(
@@ -193,6 +208,16 @@ export class InterviewEngine {
             `"${text}"`
           );
 
+          DiagnosticLoggerService.getInstance().recordEvent({
+            requestId,
+            pipelineStage: 'identifying_question',
+            transcriptClassification: {
+              type: classification.type,
+              confidence: classification.confidence,
+              reason: classification.reason,
+            },
+          });
+
           // 1. CANDIDATE RECITAL: Candidate is speaking/repeating the teleprompted answer
           if (classification.type === 'CANDIDATE_RECITAL') {
             useAppStore.getState().setRecitalState('reciting');
@@ -207,9 +232,13 @@ export class InterviewEngine {
               speaker: 'user',
               text: text,
               timestamp: Date.now(),
+              classification: 'CANDIDATE_RECITAL',
+              confidence: classification.confidence,
+              reason: classification.reason,
             });
 
             useAppStore.getState().setStatus('listening');
+            useAppStore.getState().setPipelineStage('listening');
             return;
           }
 
@@ -218,15 +247,81 @@ export class InterviewEngine {
             useAppStore.getState().updateDiagnostics({
               whisperStatus: `Conversational filler ignored ("${text}")`,
             });
+            useAppStore.getState().addTranscript({
+              id: Date.now().toString(),
+              speaker: 'unknown',
+              text: text,
+              timestamp: Date.now(),
+              classification: 'CONVERSATIONAL_FILLER',
+              confidence: classification.confidence,
+              reason: classification.reason,
+            });
             useAppStore.getState().setStatus('listening');
+            useAppStore.getState().setPipelineStage('listening');
             return;
           }
 
-          // 3. INTERVIEWER INTERRUPTION OR NEW QUESTION
+          // 3. AMBIGUOUS SPEECH: Require confirmation before generating answer
+          if (
+            classification.needsConfirmation ||
+            (classification.confidence < 0.70 && classification.type === 'INTERVIEWER_INTERRUPTION')
+          ) {
+            const questionCandidate = classification.questionText || text;
+            useAppStore.getState().setLastUnconfirmedTranscript({
+              id: Date.now().toString(),
+              text: questionCandidate,
+              confidence: classification.confidence,
+              reason: classification.reason,
+              timestamp: Date.now(),
+            });
+            useAppStore.getState().setPipelineStage('confirmation_required');
+            useAppStore.getState().updateDiagnostics({
+              latestTranscript: questionCandidate,
+              whisperStatus: `Awaiting user confirmation: "${questionCandidate.slice(0, 35)}..."`,
+              questionMatched: false,
+            });
+
+            useAppStore.getState().addTranscript({
+              id: Date.now().toString(),
+              speaker: 'interviewer',
+              text: questionCandidate,
+              timestamp: Date.now(),
+              classification: 'CONFIRMATION_REQUIRED',
+              confidence: classification.confidence,
+              reason: classification.reason,
+            });
+
+            DiagnosticLoggerService.getInstance().recordEvent({
+              requestId,
+              pipelineStage: 'confirmation_required',
+              finalOutcome: 'CONFIRMATION_NEEDED',
+              message: `Awaiting user confirmation for: "${questionCandidate.slice(0, 80)}" (${classification.reason})`,
+            });
+            return;
+          }
+
+          // 4. INTERVIEWER INTERRUPTION OR NEW QUESTION
           if (
             classification.type === 'INTERVIEWER_INTERRUPTION' ||
             classification.type === 'INTERVIEWER_QUESTION'
           ) {
+            const currentStatus = useAppStore.getState().status;
+            // Guard: If an answer is actively generating or analyzing, ONLY abort for explicit interruptions,
+            // not for ambient speech or ambiguous non-interrogative utterances
+            if (
+              (currentStatus === 'generating' || currentStatus === 'analyzing') &&
+              classification.type !== 'INTERVIEWER_INTERRUPTION'
+            ) {
+              console.log(
+                '[InterviewEngine] Suppressed question trigger while generation is in flight:',
+                text
+              );
+              useAppStore.getState().updateDiagnostics({
+                whisperStatus: `Ignored while generating: "${text.slice(0, 30)}"`,
+              });
+              return;
+            }
+
             const questionText = classification.questionText || text;
             const isInterruption = classification.type === 'INTERVIEWER_INTERRUPTION';
 
@@ -250,6 +345,9 @@ export class InterviewEngine {
               speaker: 'interviewer',
               text: questionText,
               timestamp: Date.now(),
+              classification: classification.type,
+              confidence: classification.confidence,
+              reason: classification.reason,
             });
 
             await InterviewEngine.handleEvent({
@@ -261,6 +359,7 @@ export class InterviewEngine {
           }
 
           useAppStore.getState().setStatus('listening');
+          useAppStore.getState().setPipelineStage('listening');
         } catch (e: any) {
           if (e.name !== 'AbortError') {
             useAppStore.getState().updateDiagnostics({
@@ -315,6 +414,10 @@ export class InterviewEngine {
         const currentGen = useAppStore.getState().generationId;
 
         store.clearAnswerQueue();
+        store.clearUnconfirmedTranscript();
+        store.setRecoveredPartialAnswer(null);
+        store.setRateLimitCooldown(null);
+        store.setPipelineStage('generating');
         store.setCurrentQuestion(finalQuestion);
         store.setCurrentAnswer('');
         store.setActiveRequestId(requestId);
@@ -326,6 +429,14 @@ export class InterviewEngine {
 
         globalLatencyTracker.mark('generationStart');
         const currentStore = useAppStore.getState();
+
+        DiagnosticLoggerService.getInstance().recordEvent({
+          requestId,
+          pipelineStage: 'generating',
+          selectedProvider: currentStore.settings?.aiProvider || 'groq',
+          selectedModel: currentStore.settings?.aiModel,
+          message: `Generation started for: "${finalQuestion.slice(0, 80)}"`,
+        });
 
         await answerService.generateAnswer(
           {
@@ -349,6 +460,9 @@ export class InterviewEngine {
               if (useAppStore.getState().status !== 'generating') {
                 useAppStore.getState().setStatus('generating');
               }
+              if (useAppStore.getState().pipelineStage !== 'streaming') {
+                useAppStore.getState().setPipelineStage('streaming');
+              }
             },
             onSentence: (sentence, rId) => {
               if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
@@ -367,6 +481,7 @@ export class InterviewEngine {
 
               // Clear unvalidated streaming draft
               state.clearDraft();
+              state.setPipelineStage('validating');
 
               const decision: SpeakingDecision =
                 (res as any).speakingDecision ||
@@ -387,6 +502,15 @@ export class InterviewEngine {
                 state.enqueueSentences(decision.speakableQueue);
                 state.setTechnicalGuidance(null);
                 state.setBlockedReason(null);
+                state.setPipelineStage('answer_ready');
+
+                DiagnosticLoggerService.getInstance().recordEvent({
+                  requestId: res.requestId,
+                  pipelineStage: 'answer_ready',
+                  finalOutcome: 'SUCCESS',
+                  receivedTokenCount: finalAnswer?.length,
+                  message: `Answer validated and ready (${res.confidence} confidence)`,
+                });
 
                 const currentQ = state.currentQuestion;
                 if (currentQ && finalAnswer) {
@@ -406,6 +530,15 @@ export class InterviewEngine {
                 state.setTechnicalGuidance(decision.technicalGuidance || null);
                 const genError = (res as any).error;
                 state.setBlockedReason(genError || decision.blockedReason || 'Blocked by factual grounding gate');
+                state.setPipelineStage('failed');
+
+                DiagnosticLoggerService.getInstance().recordEvent({
+                  requestId: res.requestId,
+                  pipelineStage: 'failed',
+                  finalOutcome: 'BLOCKED',
+                  message: decision.blockedReason || genError || 'Blocked by factual grounding gate',
+                });
+
                 if (decision.outcome === 'FAILED' && genError) {
                   state.setToast(`⚠️ Generation Error: ${genError}`);
                 }
@@ -424,8 +557,36 @@ export class InterviewEngine {
               state.setCurrentAnswer(null);
               state.setIsAnswerValidated(false);
               state.setAnswerValidationStatus('FAILED');
+              state.setRecitalState('listening');
               state.setBlockedReason(err.message || String(err));
               state.setToast(`⚠️ AI Generation Error: ${err.message || err}`);
+
+              const isRateLimited = Boolean(
+                (err as any).isRateLimited ||
+                (err as any).rateLimit?.isRateLimited ||
+                String(err?.message || err).includes('429') ||
+                String(err?.message || err).includes('RATE_LIMIT_EXCEEDED') ||
+                String(err?.message || err).includes('TPM')
+              );
+
+              if (isRateLimited) {
+                state.setPipelineStage('waiting_quota_reset');
+              } else {
+                state.setPipelineStage('failed');
+              }
+
+              if ((err as any).partialText) {
+                state.setRecoveredPartialAnswer((err as any).partialText);
+              }
+
+              DiagnosticLoggerService.getInstance().recordEvent({
+                requestId: rId,
+                pipelineStage: isRateLimited ? 'waiting_quota_reset' : 'failed',
+                finalOutcome: isRateLimited ? 'RATE_LIMITED' : 'FAILED',
+                httpStatus: (err as any).status || (isRateLimited ? 429 : 500),
+                message: err.message || String(err),
+              });
+
               state.updateDiagnostics({
                 whisperStatus: 'gen error: ' + (err.message || String(err)),
               });

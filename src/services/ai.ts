@@ -906,6 +906,7 @@ export async function streamAnswer(
   const effectiveModel = resolution.resolvedModel;
 
   let hasEmittedTokens = false;
+  let parser: AIStreamParser | null = null;
 
   try {
     const response = await fetch(url, {
@@ -944,7 +945,9 @@ export async function streamAnswer(
         providerId,
         effectiveModel,
         activeResponse.status,
-        rawErrorBody
+        rawErrorBody,
+        undefined,
+        activeResponse.headers
       );
 
       // CRITICAL: NEVER silently fallback for invalid keys (401), forbidden (403),
@@ -1032,7 +1035,7 @@ export async function streamAnswer(
 
     const reader = activeResponse.body.getReader();
     const decoder = new TextDecoder('utf-8');
-    const parser = new AIStreamParser();
+    parser = new AIStreamParser();
     const buffer = new SentenceBuffer();
     let sseBuffer = '';
 
@@ -1050,10 +1053,26 @@ export async function streamAnswer(
           if (signal?.aborted) break;
           const line = rawLine.trim();
           if (!line || line === 'data: [DONE]') continue;
-          if (line.startsWith('data: ')) {
+          if (line.startsWith('data:') || line.startsWith('data: ')) {
+            const jsonStr = line.startsWith('data: ') ? line.slice(6).trim() : line.slice(5).trim();
+            if (!jsonStr || jsonStr === '[DONE]') continue;
             try {
-              const data = JSON.parse(line.slice(6));
-              const token = data.choices[0]?.delta?.content || '';
+              const data = JSON.parse(jsonStr);
+
+              // 1. Detect provider error events delivered inside stream
+              if (data.error) {
+                const streamErr = classifyAIError(
+                  providerId,
+                  effectiveModel,
+                  activeResponse.status || 429,
+                  data,
+                  undefined,
+                  activeResponse.headers
+                );
+                throw streamErr;
+              }
+
+              const token = data.choices?.[0]?.delta?.content || '';
               if (!token) continue;
 
               const cleanChunk = parser.parseChunk(token);
@@ -1067,7 +1086,10 @@ export async function streamAnswer(
                   callbacks.onSentence?.(s);
                 }
               }
-            } catch (_e) {
+            } catch (err: any) {
+              if (err?.name === 'ClassifiedAIError' || err?.code) {
+                throw err;
+              }
               // ignore JSON parse errors for incomplete chunks
             }
           }
@@ -1089,7 +1111,13 @@ export async function streamAnswer(
           callbacks.onSentence?.(s);
         }
 
-        callbacks.onComplete?.(parser.getCleanText());
+        const cleanText = parser.getCleanText().trim();
+        // REQUIREMENT: Ensure onComplete cannot report successful generation with an empty answer!
+        if (!cleanText) {
+          throw new Error('AI stream closed without emitting any answer content (empty response).');
+        }
+
+        callbacks.onComplete?.(cleanText);
       }
     } finally {
       try {
@@ -1102,11 +1130,13 @@ export async function streamAnswer(
   } catch (e: any) {
     if (e.name !== 'AbortError') {
       const sanitizedMsg = sanitizeDiagnosticSecret(e.message || String(e));
+      const partialText = parser ? parser.getCleanText().trim() : '';
       const streamErr = (hasEmittedTokens
         ? new Error(`[AI Stream Error] Stream interrupted after partial token emission: ${sanitizedMsg}`)
         : e) as any;
       if (hasEmittedTokens) {
         streamErr.hasEmittedTokens = true;
+        streamErr.partialText = partialText;
         streamErr.originalError = e;
       }
       if (callbacks.onError) callbacks.onError(streamErr);

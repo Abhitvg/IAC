@@ -22,7 +22,24 @@ export type InterviewStatus =
   | 'generating'
   | 'ready'
   | 'paused'
+  | 'waiting_quota_reset'
+  | 'retrying'
+  | 'confirmation_required'
   | 'error';
+
+export type InterviewPipelineStage =
+  | 'listening'
+  | 'transcribing'
+  | 'transcript_received'
+  | 'identifying_question'
+  | 'generating'
+  | 'streaming'
+  | 'validating'
+  | 'answer_ready'
+  | 'waiting_quota_reset'
+  | 'retrying'
+  | 'failed'
+  | 'confirmation_required';
 
 export type RecitalState = 'idle' | 'listening' | 'reciting' | 'interrupted';
 
@@ -51,6 +68,9 @@ export interface TranscriptMessage {
   speaker: 'interviewer' | 'assistant' | 'user' | 'unknown';
   text: string;
   timestamp: number;
+  classification?: string;
+  confidence?: number;
+  reason?: string;
 }
 
 export type TeleprompterFontSize = 'small' | 'medium' | 'large' | 'xlarge';
@@ -203,6 +223,19 @@ interface InterviewState {
   updateDiagnostics: (updates: Partial<DiagnosticState>) => void;
   selectedAudioDeviceId: string;
   setSelectedAudioDeviceId: (id: string) => void;
+
+  // Pipeline State & Interactive Overrides (Phase 2, 4, 6)
+  pipelineStage: InterviewPipelineStage;
+  setPipelineStage: (stage: InterviewPipelineStage) => void;
+  lastUnconfirmedTranscript: { id: string; text: string; confidence: number; reason: string; timestamp: number } | null;
+  setLastUnconfirmedTranscript: (item: { id: string; text: string; confidence: number; reason: string; timestamp: number } | null) => void;
+  clearUnconfirmedTranscript: () => void;
+  recoveredPartialAnswer: string | null;
+  setRecoveredPartialAnswer: (ans: string | null) => void;
+  rateLimitCooldown: { retryAfterSeconds: number; resetTime: number; modelName?: string } | null;
+  setRateLimitCooldown: (cooldown: { retryAfterSeconds: number; resetTime: number; modelName?: string } | null) => void;
+  generateAnswerFromTranscript: (transcriptText: string, requestId?: string) => Promise<void>;
+  overrideTranscriptAsQuestion: (transcriptText: string) => Promise<void>;
 }
 
 let _pendingTokens = '';
@@ -258,6 +291,35 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   activeRequestId: null,
   groundingScore: null,
   groundingViolations: [],
+  pipelineStage: 'listening',
+  setPipelineStage: (pipelineStage) => set({ pipelineStage }),
+  lastUnconfirmedTranscript: null,
+  setLastUnconfirmedTranscript: (lastUnconfirmedTranscript) => set({ lastUnconfirmedTranscript }),
+  clearUnconfirmedTranscript: () => set({ lastUnconfirmedTranscript: null }),
+  recoveredPartialAnswer: null,
+  setRecoveredPartialAnswer: (recoveredPartialAnswer) => set({ recoveredPartialAnswer }),
+  rateLimitCooldown: null,
+  setRateLimitCooldown: (rateLimitCooldown) => set({ rateLimitCooldown }),
+  generateAnswerFromTranscript: async (transcriptText: string, requestId?: string) => {
+    const text = (transcriptText || '').trim();
+    if (!text) return;
+    set({ lastUnconfirmedTranscript: null });
+    await InterviewEngine.handleEvent({
+      type: 'QUESTION_DETECTED',
+      text,
+      requestId: requestId || 'manual_' + Date.now(),
+    });
+  },
+  overrideTranscriptAsQuestion: async (transcriptText: string) => {
+    const text = (transcriptText || '').trim();
+    if (!text) return;
+    set({ lastUnconfirmedTranscript: null });
+    await InterviewEngine.handleEvent({
+      type: 'QUESTION_DETECTED',
+      text,
+      requestId: 'override_' + Date.now(),
+    });
+  },
   setIsAnswerValidated: (isAnswerValidated) => set({ isAnswerValidated }),
   setAnswerValidationStatus: (answerValidationStatus) => set({ answerValidationStatus }),
   setTechnicalGuidance: (technicalGuidance) => set({ technicalGuidance }),

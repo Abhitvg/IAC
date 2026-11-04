@@ -139,3 +139,4 @@ describe('Phase 5 — Evidence-Based Technical Competency Profile', () => {
     expect(comp?.revisionStatus).toBe('UP_TO_DATE');
   });
 });
+

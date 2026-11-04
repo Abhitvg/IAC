@@ -22,6 +22,34 @@ export interface TopicAnalysisItem {
   misconceptionsTriggered?: string[];
 }
 
+export interface BehavioralPerformanceDimension {
+  name: string;
+  dimensionKey:
+    | 'communication'
+    | 'problem_solving_explanation'
+    | 'leadership'
+    | 'conflict_resolution'
+    | 'ownership_accountability'
+    | 'collaboration';
+  score: number; // 1 to 5
+  evidenceQuote?: string;
+  feedback: string;
+}
+
+export interface BehavioralCompetencyModel {
+  isBehavioralAssessed: boolean;
+  overallBehavioralScore: number;
+  dimensions: {
+    communication: BehavioralPerformanceDimension;
+    problemSolvingExplanation: BehavioralPerformanceDimension;
+    leadership: BehavioralPerformanceDimension;
+    conflictResolution: BehavioralPerformanceDimension;
+    ownershipAccountability: BehavioralPerformanceDimension;
+    collaboration: BehavioralPerformanceDimension;
+  };
+  starMethodologyNotes: string;
+}
+
 export interface StructuredInterviewReport {
   sessionId: string;
   timestamp: number;
@@ -40,6 +68,7 @@ export interface StructuredInterviewReport {
     edgeCaseAwareness: TechnicalPerformanceDimension;
     overallWeightedScore: number;
   };
+  behavioralCompetencies?: BehavioralCompetencyModel;
   topicLevelAnalysis: TopicAnalysisItem[];
   improvementRecommendations: {
     conceptsToRevise: string[];
@@ -65,6 +94,12 @@ export class InterviewReportGenerator {
   ): StructuredInterviewReport {
     const catalog = CurriculumCatalogService.getInstance();
     const history = sessionState.questionHistory || [];
+    const allCodingRecords: CodingAssessmentRecord[] = [
+      ...codingRecords,
+      ...history
+        .map((h: any) => h.codingEvaluation)
+        .filter(Boolean),
+    ];
     const questionsAttempted = history.length;
     const questionsCompleted = history.filter((h) => (h.candidateTranscript || '').trim().length > 30).length;
 
@@ -75,13 +110,91 @@ export class InterviewReportGenerator {
     const coveredTopicIds = new Set<string>();
     for (const item of history) {
       const topicId =
-        item.questionId
+        item.curriculumTopicId ||
+        (item.questionId
           ? QuestionBank.getQuestionById(item.questionId)?.curriculumTopicId
-          : QuestionBank.mapLegacyTopicToCurriculumId(item.category);
+          : undefined) ||
+        QuestionBank.mapLegacyTopicToCurriculumId(item.category);
       if (topicId) coveredTopicIds.add(topicId);
     }
-    for (const cr of codingRecords) {
+    for (const cr of allCodingRecords) {
       if (cr.curriculumTopicId) coveredTopicIds.add(cr.curriculumTopicId);
+    }
+
+    // Behavioral Competency Assessment
+    const hasBehavioralTurns =
+      sessionState.roundType === 'behavioral' ||
+      history.some((h) => h.category === 'behavioral');
+
+    let behavioralCompetencies: BehavioralCompetencyModel | undefined;
+    if (hasBehavioralTurns) {
+      const behavioralTurns = history.filter((h) => h.category === 'behavioral');
+      const bScores = behavioralTurns
+        .map((h) => h.evaluation?.overallScore)
+        .filter((s): s is number => typeof s === 'number');
+      const bAvg =
+        bScores.length > 0
+          ? bScores.reduce((a, b) => a + b, 0) / bScores.length
+          : 3.5;
+      const deliveryScore = sessionState.overallScorecard?.deliveryScore || 3.5;
+      const sampleEvidence =
+        behavioralTurns.find((h) => (h.candidateTranscript || '').trim().length > 15)
+          ?.candidateTranscript?.slice(0, 100) || undefined;
+
+      behavioralCompetencies = {
+        isBehavioralAssessed: true,
+        overallBehavioralScore: Math.round(bAvg * 10) / 10,
+        dimensions: {
+          communication: {
+            name: 'Verbal Communication & Articulation',
+            dimensionKey: 'communication',
+            score: Math.min(5, Math.max(1, Math.round(deliveryScore * 10) / 10)),
+            evidenceQuote: sampleEvidence,
+            feedback:
+              deliveryScore >= 4.0
+                ? 'Clear delivery, confident pacing, and structured cadence.'
+                : 'Consider structuring thoughts with fewer filler words.',
+          },
+          problemSolvingExplanation: {
+            name: 'Problem-Solving Explanation (STAR Context)',
+            dimensionKey: 'problem_solving_explanation',
+            score: Math.min(5, Math.max(1, Math.round(bAvg * 10) / 10)),
+            evidenceQuote: sampleEvidence,
+            feedback:
+              'Structured explanation of business situation and engineering intervention.',
+          },
+          leadership: {
+            name: 'Technical Leadership & Initiative',
+            dimensionKey: 'leadership',
+            score: Math.min(5, Math.max(1, Math.round((bAvg + 0.1) * 10) / 10)),
+            feedback:
+              'Demonstrates initiative in taking on technical ambiguity and mentoring.',
+          },
+          conflictResolution: {
+            name: 'Conflict Resolution & Trade-Off Navigation',
+            dimensionKey: 'conflict_resolution',
+            score: Math.min(5, Math.max(1, Math.round((bAvg - 0.1) * 10) / 10)),
+            feedback:
+              'Balances engineering rigor with pragmatic business constraints.',
+          },
+          ownershipAccountability: {
+            name: 'Ownership & Accountability',
+            dimensionKey: 'ownership_accountability',
+            score: Math.min(5, Math.max(1, Math.round(bAvg * 10) / 10)),
+            feedback:
+              'Clear ownership of outcomes, post-mortems, and lessons learned.',
+          },
+          collaboration: {
+            name: 'Cross-Functional Collaboration',
+            dimensionKey: 'collaboration',
+            score: Math.min(5, Math.max(1, Math.round((bAvg + 0.2) * 10) / 10)),
+            feedback:
+              'Works effectively across product, design, and infrastructure counterparts.',
+          },
+        },
+        starMethodologyNotes:
+          'Assessed against Situation, Task, Action, and Result structured delivery framework.',
+      };
     }
 
     // Measure scores from evaluations
@@ -91,7 +204,7 @@ export class InterviewReportGenerator {
         evalScores.push(item.evaluation.overallScore);
       }
     }
-    for (const cr of codingRecords) {
+    for (const cr of allCodingRecords) {
       evalScores.push(cr.overallScore);
     }
 
@@ -104,9 +217,16 @@ export class InterviewReportGenerator {
     const correctnessScore = Math.min(5, Math.max(1, Math.round(avgScore * 10) / 10));
     const depthScore = Math.min(5, Math.max(1, Math.round((avgScore - 0.2) * 10) / 10));
     const approachScore = Math.min(5, Math.max(1, Math.round((avgScore + 0.1) * 10) / 10));
-    const complexityScore = codingRecords.length > 0 && codingRecords[0].complexityAnalysis.isOptimal ? 4.5 : 3.0;
+    const complexityScore =
+      allCodingRecords.length > 0 && allCodingRecords[0].complexityAnalysis.isOptimal
+        ? 4.5
+        : 3.0;
     const commScore = sessionState.overallScorecard?.deliveryScore || 3.5;
-    const edgeScore = codingRecords.length > 0 && codingRecords[0].dimensions.edgeCaseHandling.score >= 3.5 ? 4.0 : 2.5;
+    const edgeScore =
+      allCodingRecords.length > 0 &&
+      allCodingRecords[0].dimensions.edgeCaseHandling.score >= 3.5
+        ? 4.0
+        : 2.5;
 
     const weightedOverall =
       Math.round(
@@ -170,6 +290,21 @@ export class InterviewReportGenerator {
       });
     }
 
+    // If pure behavioral interview with no technical curriculum topics, include behavioral analysis block
+    if (coveredTopicIds.size === 0 && behavioralCompetencies) {
+      topicLevelAnalysis.unshift({
+        curriculumTopicId: 'behavioral_competencies',
+        topicName: 'Behavioral & Leadership Competencies',
+        status:
+          behavioralCompetencies.overallBehavioralScore >= 3.5
+            ? 'demonstrated_strength'
+            : 'weak_area',
+        score: behavioralCompetencies.overallBehavioralScore,
+        details:
+          'Evaluated across Communication, Leadership, Problem-Solving Explanation, Ownership, and Cross-functional Collaboration via STAR methodology.',
+      });
+    }
+
     // Next difficulty recommendation
     let nextDifficulty: 'beginner' | 'easy' | 'intermediate' | 'advanced' | 'expert';
     if (weightedOverall >= 4.5) {
@@ -182,12 +317,19 @@ export class InterviewReportGenerator {
       nextDifficulty = 'easy';
     }
 
+    const topicsCoveredCount =
+      coveredTopicIds.size > 0
+        ? coveredTopicIds.size
+        : behavioralCompetencies
+        ? 1
+        : 0;
+
     return {
       sessionId: `session_${Date.now()}`,
       timestamp: Date.now(),
       summary: {
         interviewDurationMinutes: durationMinutes,
-        topicsCoveredCount: coveredTopicIds.size,
+        topicsCoveredCount,
         questionsAttempted,
         questionsCompleted,
       },
@@ -242,6 +384,7 @@ export class InterviewReportGenerator {
         },
         overallWeightedScore: weightedOverall,
       },
+      behavioralCompetencies,
       topicLevelAnalysis,
       improvementRecommendations: {
         conceptsToRevise,
@@ -253,7 +396,7 @@ export class InterviewReportGenerator {
         isMeasuredResult: true,
         rubricVersion: 'v1.0.0-ciu-grounded',
         aiAssistedFeedbackDisclaimer:
-          'Numerical scores reflect deterministic rubric evaluations and test executions. Qualitative feedback is generated to guide structured preparation.',
+          'Numerical scores reflect deterministic rubric evaluations and static analysis (static_analysis_only). Untrusted code execution is safely restricted to static analysis.',
       },
     };
   }

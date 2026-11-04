@@ -78,6 +78,20 @@ export interface ClassifiedAIError extends Error {
   readonly provider: AIProviderId;
   readonly model: string;
   readonly originalErrorDetail?: string;
+  readonly rateLimit?: {
+    isRateLimited: boolean;
+    isDailyQuota: boolean;
+    isPerMinute: boolean;
+    limitType: 'tokens' | 'requests' | 'daily' | 'unknown';
+    cooldownSeconds: number;
+    remainingTokens?: number;
+    remainingRequests?: number;
+    resetTokens?: string;
+    resetRequests?: string;
+    shouldAutoRetry: boolean;
+    suggestedFallbackModel?: string;
+  };
+  readonly retryable?: boolean;
 }
 
 export interface FallbackDiagnosticRecord {
@@ -655,7 +669,8 @@ export function classifyAIError(
   model: string,
   status: number | undefined,
   errorBody: any,
-  originalError?: Error
+  originalError?: Error,
+  headers?: any
 ): ClassifiedAIError {
   let code: AIErrorCode = 'UNKNOWN';
   let isRecoverableByModelFallback = false;
@@ -714,15 +729,19 @@ export function classifyAIError(
   } else if (status === 403 || lowerMsg.includes('forbidden') || lowerMsg.includes('permission_denied')) {
     code = 'AUTH_FORBIDDEN';
     isRecoverableByModelFallback = false;
-  } else if (status === 402 || lowerMsg.includes('payment required') || lowerMsg.includes('billing')) {
-    code = 'BILLING_PAYMENT_REQUIRED';
-    isRecoverableByModelFallback = false;
   } else if (status === 429) {
     if (lowerMsg.includes('quota') || lowerMsg.includes('insufficient_quota') || lowerMsg.includes('credit')) {
       code = 'QUOTA_EXHAUSTED';
     } else {
       code = 'RATE_LIMIT_EXCEEDED';
     }
+    isRecoverableByModelFallback = false;
+  } else if (
+    status === 402 ||
+    lowerMsg.includes('payment required') ||
+    (lowerMsg.includes('billing') && !lowerMsg.includes('rate limit') && !lowerMsg.includes('tpm') && !lowerMsg.includes('tokens per minute'))
+  ) {
+    code = 'BILLING_PAYMENT_REQUIRED';
     isRecoverableByModelFallback = false;
   } else if (isModelSpecific) {
     code =
@@ -754,6 +773,61 @@ export function classifyAIError(
     isRecoverableByModelFallback = false;
   }
 
+  let rateLimit: any = undefined;
+  let retryable = false;
+
+  if (status === 429 || code === 'RATE_LIMIT_EXCEEDED' || code === 'QUOTA_EXHAUSTED') {
+    const isDaily =
+      lowerMsg.includes('daily') ||
+      lowerMsg.includes('per day') ||
+      lowerMsg.includes('insufficient_quota') ||
+      lowerCode.includes('insufficient_quota') ||
+      lowerMsg.includes('credit');
+
+    let cooldownSeconds = 0;
+    const getHeader = (name: string): string | null => {
+      if (!headers) return null;
+      if (typeof headers.get === 'function') return headers.get(name);
+      return headers[name] || headers[name.toLowerCase()] || null;
+    };
+
+    const retryAfter = getHeader('retry-after');
+    if (retryAfter) {
+      const parsed = parseFloat(retryAfter);
+      if (!isNaN(parsed) && parsed > 0) cooldownSeconds = Math.ceil(parsed);
+    }
+    if (!cooldownSeconds) {
+      const resetTokens = getHeader('x-ratelimit-reset-tokens');
+      if (resetTokens) {
+        const m = resetTokens.match(/(\d+(?:\.\d+)?)/);
+        if (m) cooldownSeconds = Math.ceil(parseFloat(m[1]));
+      }
+    }
+    if (!cooldownSeconds) {
+      const m = cleanDetail.match(/try again in (\d+(?:\.\d+)?)s/i);
+      if (m) cooldownSeconds = Math.ceil(parseFloat(m[1]));
+    }
+    if (!cooldownSeconds) {
+      cooldownSeconds = isDaily ? 3600 : 15;
+    }
+
+    rateLimit = {
+      isRateLimited: true,
+      isDailyQuota: isDaily,
+      isPerMinute: !isDaily,
+      limitType: isDaily ? 'daily' : lowerMsg.includes('token') || lowerMsg.includes('tpm') ? 'tokens' : 'requests',
+      cooldownSeconds,
+      remainingTokens: getHeader('x-ratelimit-remaining-tokens') ? parseInt(getHeader('x-ratelimit-remaining-tokens')!, 10) : undefined,
+      remainingRequests: getHeader('x-ratelimit-remaining-requests') ? parseInt(getHeader('x-ratelimit-remaining-requests')!, 10) : undefined,
+      resetTokens: getHeader('x-ratelimit-reset-tokens') || undefined,
+      resetRequests: getHeader('x-ratelimit-reset-requests') || undefined,
+      shouldAutoRetry: !isDaily && cooldownSeconds <= 20,
+    };
+    retryable = rateLimit.shouldAutoRetry;
+  } else if (code === 'SERVER_ERROR' || (code === 'NETWORK_ERROR' && !lowerMsg.includes('aborted'))) {
+    retryable = true;
+  }
+
   const err = new Error(
     `[${provider.toUpperCase()}] ${code} (HTTP ${status || 'N/A'}): ${cleanDetail}`
   ) as any;
@@ -764,6 +838,8 @@ export function classifyAIError(
   err.provider = provider;
   err.model = model;
   err.originalErrorDetail = cleanDetail;
+  err.rateLimit = rateLimit;
+  err.retryable = retryable;
 
   return err as ClassifiedAIError;
 }

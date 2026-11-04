@@ -1,6 +1,8 @@
 import { CandidateKnowledgeBase, FactualGroundingValidator, GroundingValidationResult, GroundingViolation } from './candidateIntelligence';
 import { FollowUpEngine } from './followUpEngine';
 import { resolveOrMigrateModel, AIProviderId } from './models/modelRegistry';
+import { RateLimitGovernor } from './rateLimitGovernor';
+import { DiagnosticLoggerService } from './diagnosticLogger';
 /**
  * AnswerGenerationService
  *
@@ -82,6 +84,7 @@ export type AnswerGenerationResult =
       status: 'FAILED';
       isValidated: false;
       cleanAnswer: string;
+      partialAnswer?: string;
       detectedCategory: QuestionCategory;
       confidence: 'low';
       followUps: string[];
@@ -177,6 +180,7 @@ export class AnswerGenerationService {
     const directApiKey = typeof callbacks === 'string' ? callbacks : undefined;
     const cb: GenerationCallbacks = typeof callbacks === 'function' ? { onToken: callbacks } : (typeof callbacks === 'object' && callbacks !== null ? callbacks : {});
     let completionResult: any = undefined;
+    const { useAppStore } = await import('../store/useAppStore');
 
     // Normalize parameters
     const requestId = params.requestId || `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -414,60 +418,149 @@ export class AnswerGenerationService {
       cb.onComplete?.(completionResult);
     };
 
-    try {
-      if (hasMockedAi) {
-        const mockedRes = await (aiModule as any).generateAIAnswer(promptText, providerConfig, preferredLang);
-        handleStreamComplete(mockedRes);
-      } else {
-        await streamAnswer(
-          promptText,
-          providerConfig,
-          preferredLang.toLowerCase() as any,
-          {
-            onToken: (token) => {
-              if (signal?.aborted) return;
-              cb.onToken?.(token, requestId);
+    let retryCount = 0;
+    const maxRetries = 2;
+    let streamSucceeded = false;
+
+    while (retryCount <= maxRetries && !streamSucceeded) {
+      if (signal?.aborted) break;
+
+      try {
+        if (hasMockedAi) {
+          const mockedRes = await (aiModule as any).generateAIAnswer(promptText, providerConfig, preferredLang);
+          handleStreamComplete(mockedRes);
+          streamSucceeded = true;
+        } else {
+          await streamAnswer(
+            promptText,
+            providerConfig,
+            preferredLang.toLowerCase() as any,
+            {
+              onToken: (token) => {
+                if (signal?.aborted) return;
+                cb.onToken?.(token, requestId);
+              },
+              onSentence: (sentence) => {
+                if (signal?.aborted) return;
+                cb.onSentence?.(sentence, requestId);
+              },
+              onComplete: (full) => {
+                handleStreamComplete(full);
+                streamSucceeded = true;
+              },
+              onError: (err) => {
+                if (signal?.aborted) return;
+                cb.onError?.(err, requestId);
+              },
             },
-            onSentence: (sentence) => {
-              if (signal?.aborted) return;
-              cb.onSentence?.(sentence, requestId);
-            },
-            onComplete: (full) => {
-              handleStreamComplete(full);
-            },
-            onError: (err) => {
-              if (signal?.aborted) return;
-              cb.onError?.(err, requestId);
-            },
-          },
-          signal
+            signal
+          );
+          streamSucceeded = true;
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError' || signal?.aborted) {
+          completionResult = {
+            status: 'ABORTED',
+            isValidated: false,
+            cleanAnswer: '',
+            error: 'Generation aborted by user or timeout',
+            detectedCategory,
+            confidence: 'low',
+            followUps: [],
+            predictedFollowUps: [],
+            requestId,
+            validationStatus: 'ABORTED',
+            groundingScore: 0,
+            groundingViolations: ['Request aborted during generation'],
+            structuredViolations: [],
+          };
+          (completionResult as any).answer = completionResult.cleanAnswer;
+          cb.onComplete?.(completionResult);
+          return completionResult;
+        }
+
+        const analysis = RateLimitGovernor.analyzeRateLimit(
+          err.status || (err as any).statusCode,
+          err,
+          (err as any).headers,
+          provider as AIProviderId,
+          providerConfig.model
         );
-      }
-    } catch (err: any) {
-      if (err.name === 'AbortError' || signal?.aborted) {
-        completionResult = {
-          status: 'ABORTED',
-          isValidated: false,
-          cleanAnswer: '',
-          error: 'Generation aborted by user or timeout',
-          detectedCategory,
-          confidence: 'low',
-          followUps: [],
-          predictedFollowUps: [],
-          requestId,
-          validationStatus: 'ABORTED',
-          groundingScore: 0,
-          groundingViolations: ['Request aborted during generation'],
-          structuredViolations: [],
-        };
-        (completionResult as any).answer = completionResult.cleanAnswer;
-        cb.onComplete?.(completionResult);
-      } else {
+
+        if (analysis.isRateLimited && analysis.shouldAutoRetry && retryCount < maxRetries) {
+          retryCount++;
+          const delayMs = RateLimitGovernor.calculateBackoffDelayMs(retryCount, analysis.cooldownSeconds);
+          console.warn(`[AnswerGenerationService] 429 rate limit hit. Auto-retrying attempt ${retryCount}/${maxRetries} after ${delayMs}ms...`);
+
+          const store = useAppStore.getState();
+          store.setPipelineStage('retrying');
+          store.setRateLimitCooldown({
+            retryAfterSeconds: Math.ceil(delayMs / 1000),
+            resetTime: Date.now() + delayMs,
+            modelName: providerConfig.model,
+          });
+          store.setToast(`⏳ Rate limit reached. Auto-retrying in ${Math.ceil(delayMs / 1000)}s (Attempt ${retryCount}/${maxRetries})...`);
+
+          if (analysis.suggestedFallbackModel) {
+            providerConfig.model = analysis.suggestedFallbackModel;
+          }
+
+          DiagnosticLoggerService.getInstance().recordEvent({
+            requestId,
+            pipelineStage: 'retrying',
+            httpStatus: 429,
+            retryAttempt: retryCount,
+            retryDelayMs: delayMs,
+            selectedProvider: provider,
+            selectedModel: providerConfig.model,
+            message: `Auto-retrying rate-limited request after ${delayMs}ms (model: ${providerConfig.model})`,
+          });
+
+          // Wait with signal abort handling
+          try {
+            await new Promise<void>((resolve, reject) => {
+              const timer = setTimeout(resolve, delayMs);
+              if (signal) {
+                signal.addEventListener(
+                  'abort',
+                  () => {
+                    clearTimeout(timer);
+                    reject(new Error('AbortError'));
+                  },
+                  { once: true }
+                );
+              }
+            });
+          } catch {
+            break;
+          }
+
+          continue;
+        }
+
+        // Auto-retry not possible or exhausted
+        const isRateLimited = analysis.isRateLimited;
+        if (isRateLimited) {
+          const store = useAppStore.getState();
+          store.setPipelineStage('waiting_quota_reset');
+          store.setRateLimitCooldown({
+            retryAfterSeconds: analysis.cooldownSeconds,
+            resetTime: Date.now() + analysis.cooldownSeconds * 1000,
+            modelName: providerConfig.model,
+          });
+        }
+
+        const partialText = (err as any).partialText || '';
+        if (partialText) {
+          useAppStore.getState().setRecoveredPartialAnswer(partialText);
+        }
+
         cb.onError?.(err, requestId);
         completionResult = {
           status: 'FAILED',
           isValidated: false,
-          cleanAnswer: 'Answer generation failed due to a provider or network error.',
+          cleanAnswer: partialText || 'Answer generation failed due to a provider or network error.',
+          partialAnswer: partialText || undefined,
           error: err.message || String(err),
           detectedCategory,
           confidence: 'low',
@@ -482,6 +575,7 @@ export class AnswerGenerationService {
         };
         (completionResult as any).answer = completionResult.cleanAnswer;
         cb.onComplete?.(completionResult);
+        break;
       }
     }
 

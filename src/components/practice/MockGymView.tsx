@@ -55,7 +55,14 @@ export const MockGymView: React.FC = () => {
 
   const handleLaunch = (roundType: MockRoundType) => {
     try { playRoundStartChime(); } catch (_e) {}
-    startMockSession(roundType, selectedPersona, interruptionEnabled, selectedPressure);
+    startMockSession(
+      roundType,
+      selectedPersona,
+      interruptionEnabled,
+      selectedPressure,
+      selectedTopicId !== 'all' ? selectedTopicId : undefined,
+      selectedDifficulty
+    );
     setShowLauncher(false);
   };
 

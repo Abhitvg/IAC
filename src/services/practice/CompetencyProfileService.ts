@@ -19,6 +19,7 @@ export type RevisionStatus = z.infer<typeof RevisionStatusSchema>;
 
 export interface CompetencyEvidenceRecord {
   id: string;
+  submissionId?: string;
   timestamp: number;
   curriculumTopicId: string;
   questionId: string;
@@ -44,6 +45,7 @@ export interface TopicCompetency {
 export interface RecordAssessmentParams {
   curriculumTopicId: string;
   questionId: string;
+  submissionId?: string;
   score: number;
   hintsUsed?: TieredHint[];
   candidateQuoteOrSnippet: string;
@@ -124,8 +126,27 @@ export class CompetencyProfileService {
       0
     );
 
+    const stableSubmissionId =
+      params.submissionId ||
+      `${params.curriculumTopicId}::${params.questionId}::${params.candidateQuoteOrSnippet.trim()}`;
+
+    // Stable ID-based deduplication (replaces fragile time-window checks)
+    const existingDuplicate = topic.history.find(
+      (h) =>
+        (h.submissionId && h.submissionId === stableSubmissionId) ||
+        (h.questionId === params.questionId &&
+          h.candidateQuoteOrSnippet === params.candidateQuoteOrSnippet.trim())
+    );
+    if (existingDuplicate) {
+      return {
+        success: true,
+        updatedCompetency: topic,
+      };
+    }
+
     const evidence: CompetencyEvidenceRecord = {
       id: `ev_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      submissionId: stableSubmissionId,
       timestamp: Date.now(),
       curriculumTopicId: params.curriculumTopicId,
       questionId: params.questionId,
@@ -245,3 +266,4 @@ export class CompetencyProfileService {
     } catch (_e) {}
   }
 }
+

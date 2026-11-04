@@ -15,6 +15,10 @@ import { RubricScorer } from './RubricScorer';
 import { DeliveryCoach } from './DeliveryCoach';
 import { CoachingEngine } from './CoachingEngine';
 import { QuestionBank } from './QuestionBank';
+import { CurriculumCatalogService } from '../../data/curriculum/CurriculumCatalog';
+import { difficultyTierToNumeric } from '../../data/curriculum/questions/types';
+import { InterviewerService } from './InterviewerService';
+import { CodingEvaluationService } from './CodingEvaluationService';
 
 export class MockInterviewerEngine {
   /**
@@ -26,14 +30,44 @@ export class MockInterviewerEngine {
     interruptionEnabled: boolean = false,
     topicMasteries?: any[],
     pressure: InterviewPressure = 'normal',
-    feedbackRecords?: FeedbackRecord[]
+    feedbackRecords?: FeedbackRecord[],
+    options?: {
+      topicId?: string;
+      difficulty?: string | number;
+    }
   ): MockSessionState {
     const totalTimeSeconds = roundType === 'dress_rehearsal' ? 45 * 60 : 30 * 60;
     const initialCategory = this.getCategoryForRound(roundType, 'icebreaker');
+
+    // Topic ID validation against curriculum catalog
+    let validatedTopicId: string | undefined;
+    if (options?.topicId && options.topicId !== 'all') {
+      const topic = CurriculumCatalogService.getInstance().getTopic(options.topicId);
+      if (topic) {
+        validatedTopicId = options.topicId;
+      }
+    }
+
+    // Difficulty boundary validation (1..5)
+    let validatedDifficulty = roundType === 'dress_rehearsal' ? 2 : 3;
+    if (options?.difficulty !== undefined) {
+      if (typeof options.difficulty === 'string') {
+        const tierLower = options.difficulty.toLowerCase();
+        if (
+          ['beginner', 'easy', 'intermediate', 'advanced', 'expert'].includes(tierLower)
+        ) {
+          validatedDifficulty = difficultyTierToNumeric(tierLower as any);
+        }
+      } else if (typeof options.difficulty === 'number' && !isNaN(options.difficulty)) {
+        validatedDifficulty = Math.max(1, Math.min(5, Math.round(options.difficulty)));
+      }
+    }
+
     const initialEntry = QuestionBank.selectAdaptiveQuestion({
       type: initialCategory as 'coding' | 'system_design' | 'behavioral',
-      currentDifficulty: roundType === 'dress_rehearsal' ? 2 : 3,
+      currentDifficulty: validatedDifficulty,
       topicMasteries,
+      curriculumTopicId: validatedTopicId,
     });
     const initialQuestion = initialEntry.prompt;
     const targetWeakness = this.findMatchingWeakness(
@@ -56,6 +90,8 @@ export class MockInterviewerEngine {
       isInterviewerSpeaking: false,
       interviewerThinkingSeconds: 0,
       currentQuestion: initialQuestion,
+      selectedTopicId: validatedTopicId,
+      selectedDifficulty: validatedDifficulty,
       questionHistory: [
         {
           question: initialQuestion,
@@ -67,6 +103,7 @@ export class MockInterviewerEngine {
           probeCount: 0,
           targetWeakness,
           questionId: initialEntry.id,
+          curriculumTopicId: initialEntry.curriculumTopicId || validatedTopicId,
         },
       ],
     };
@@ -550,6 +587,7 @@ export class MockInterviewerEngine {
         hintsUsed: [],
         probeCount: currentProbesCount + 1,
         targetWeakness,
+        curriculumTopicId: activeItem.curriculumTopicId || session.selectedTopicId,
       });
     } else {
       // Transition to next phase in dress rehearsal or next question
@@ -582,10 +620,244 @@ export class MockInterviewerEngine {
             probeCount: 0,
             targetWeakness: nextTargetWeakness,
             questionId: progression.questionId,
+            curriculumTopicId: progression.curriculumTopicId || session.selectedTopicId,
           });
         }
       } else {
         // Single round completed
+        session.isActive = false;
+        session.overallScorecard = this.generateConsolidatedScorecard(session);
+      }
+    }
+
+    return {
+      ...session,
+      rehearsalPhase: nextPhase,
+      currentQuestion: nextQuestion || session.currentQuestion,
+      interviewerThinkingSeconds: this.getInterviewerThinkingDelay(
+        session.persona,
+        session.pressure || 'normal'
+      ),
+    };
+  }
+
+  /**
+   * Advances the mock session asynchronously using Phase 3 InterviewerService.generateTurn
+   * and Phase 4 CodingEvaluationService.evaluateSubmission.
+   * Gracefully falls back to deterministic heuristic processing on failure or offline operation.
+   */
+  public static async processAnswerSubmissionAsync(
+    session: MockSessionState,
+    candidateTranscript: string,
+    durationSeconds: number,
+    hintsUsed: TieredHint[],
+    llmCaller?: (prompt: string, model: string) => Promise<string>
+  ): Promise<MockSessionState> {
+    const activeItem = session.questionHistory[session.questionHistory.length - 1];
+    activeItem.candidateTranscript = candidateTranscript;
+    activeItem.hintsUsed = [...hintsUsed];
+
+    const category = (activeItem.category || 'behavioral') as
+      | 'coding'
+      | 'system_design'
+      | 'behavioral';
+
+    // 1. Coding Evaluation Integration (Phase 4)
+    if (category === 'coding' || session.roundType === 'dsa_coding') {
+      try {
+        const codingRecord = await CodingEvaluationService.evaluateSubmission({
+          problemId: activeItem.questionId || 'coding_prob',
+          curriculumTopicId: activeItem.curriculumTopicId || session.selectedTopicId,
+          candidateSubmission: candidateTranscript,
+          explanationTranscript: candidateTranscript,
+          language: 'typescript',
+          hintsUsed,
+          timeTakenSeconds: durationSeconds,
+          llmCaller,
+        });
+        activeItem.codingEvaluation = codingRecord;
+      } catch (_e) {
+        // Fallback gracefully if coding evaluation throws
+      }
+    }
+
+    // 2. Compute evidence-based rubric evaluation
+    const evaluation = RubricScorer.evaluate({
+      category,
+      question: activeItem.question,
+      candidateAnswer: candidateTranscript,
+    });
+
+    // If codingEvaluation was completed, align overallScore for legacy compatibility
+    if (activeItem.codingEvaluation?.overallScore) {
+      evaluation.overallScore = activeItem.codingEvaluation.overallScore;
+    }
+
+    // Deduct points for hints used
+    const hintPenalty = CoachingEngine.calculatePenalty(hintsUsed);
+    evaluation.overallScore = Math.max(
+      1.0,
+      Math.round((evaluation.overallScore - hintPenalty) * 10) / 10
+    );
+    evaluation.percentage = Math.round((evaluation.overallScore / 5.0) * 100);
+
+    // Compute speech & delivery metrics
+    const delivery = DeliveryCoach.analyze(candidateTranscript, durationSeconds);
+    activeItem.evaluation = evaluation;
+    activeItem.delivery = delivery;
+
+    // Count how many probes have occurred for the current root question
+    let currentProbesCount = 0;
+    for (let i = session.questionHistory.length - 1; i >= 0; i--) {
+      if (session.questionHistory[i].isFollowUp) {
+        currentProbesCount++;
+      } else {
+        break;
+      }
+    }
+
+    const pressure = session.pressure || 'normal';
+    let shouldProbe = false;
+
+    // Strict cap: probe at most twice per question
+    if (currentProbesCount < 2) {
+      if (currentProbesCount === 0) {
+        if (pressure === 'low') {
+          shouldProbe = evaluation.overallScore < 2.4 || Boolean(activeItem.targetWeakness);
+        } else if (pressure === 'normal') {
+          shouldProbe = evaluation.overallScore < 4.8 || Boolean(activeItem.targetWeakness);
+        } else {
+          shouldProbe = evaluation.overallScore < 4.95 || Boolean(activeItem.targetWeakness);
+        }
+      } else if (currentProbesCount === 1) {
+        if (pressure === 'low') {
+          shouldProbe = false;
+        } else if (pressure === 'normal') {
+          shouldProbe = evaluation.overallScore < 4.0;
+        } else {
+          shouldProbe = evaluation.overallScore < 4.8;
+        }
+      }
+    }
+
+    let nextQuestion = '';
+    let nextPhase = session.rehearsalPhase;
+
+    if (shouldProbe) {
+      let targetWeakness = activeItem.targetWeakness;
+      if (!targetWeakness && currentProbesCount === 0) {
+        targetWeakness = this.findMatchingWeakness(
+          activeItem.question,
+          category,
+          session.feedbackRecords
+        );
+      }
+
+      // Phase 3: Adaptive Interviewer Integration
+      let turnGenerated: boolean;
+      try {
+        const turnResult = await InterviewerService.generateTurn(
+          {
+            persona_name: session.persona,
+            persona_style:
+              session.persona === 'friendly_recruiter'
+                ? 'friendly'
+                : session.persona === 'startup_pragmatist'
+                ? 'startup'
+                : 'rigorous',
+            interview_type: category,
+            question_json: activeItem.question,
+            rolling_transcript: `Candidate: ${candidateTranscript}`,
+            lastAnswer: candidateTranscript,
+            currentProbesCount,
+            targetWeakness,
+            feedbackRecords: session.feedbackRecords,
+            pressure:
+              session.pressure === 'high'
+                ? 'high'
+                : session.pressure === 'low'
+                ? 'low'
+                : 'normal',
+            curriculumTopicId: activeItem.curriculumTopicId || session.selectedTopicId,
+          },
+          llmCaller
+        );
+
+        if (turnResult.action === 'move_on' || turnResult.action === 'wrap_up') {
+          shouldProbe = false;
+          turnGenerated = true;
+        } else {
+          nextQuestion = turnResult.spoken;
+          session.questionHistory.push({
+            question: nextQuestion,
+            category: activeItem.category,
+            isFollowUp: true,
+            candidateTranscript: '',
+            hintsUsed: [],
+            probeCount: currentProbesCount + 1,
+            targetWeakness,
+            curriculumTopicId: activeItem.curriculumTopicId || session.selectedTopicId,
+          });
+          turnGenerated = true;
+        }
+      } catch (_err) {
+        turnGenerated = false;
+      }
+
+      // Fallback heuristic probe if turn generation threw or wasn't completed
+      if (!turnGenerated) {
+        nextQuestion = this.generateWeaknessProbe(
+          candidateTranscript,
+          activeItem.question,
+          category,
+          currentProbesCount === 0 ? targetWeakness : undefined
+        );
+        session.questionHistory.push({
+          question: nextQuestion,
+          category: activeItem.category,
+          isFollowUp: true,
+          candidateTranscript: '',
+          hintsUsed: [],
+          probeCount: currentProbesCount + 1,
+          targetWeakness,
+          curriculumTopicId: activeItem.curriculumTopicId || session.selectedTopicId,
+        });
+      }
+    }
+
+    if (!shouldProbe) {
+      if (session.roundType === 'dress_rehearsal') {
+        const usedIds = session.questionHistory.map((q: any) => q.questionId).filter(Boolean);
+        const progression = this.advanceRehearsalPhase(
+          session.rehearsalPhase,
+          usedIds,
+          evaluation.overallScore
+        );
+        nextPhase = progression.nextPhase;
+        nextQuestion = progression.question;
+
+        if (nextPhase === 'wrapup') {
+          session.isActive = false;
+          session.overallScorecard = this.generateConsolidatedScorecard(session);
+        } else {
+          const nextTargetWeakness = this.findMatchingWeakness(
+            nextQuestion,
+            progression.category,
+            session.feedbackRecords
+          );
+          session.questionHistory.push({
+            question: nextQuestion,
+            category: progression.category,
+            isFollowUp: false,
+            candidateTranscript: '',
+            hintsUsed: [],
+            probeCount: 0,
+            targetWeakness: nextTargetWeakness,
+            questionId: progression.questionId,
+            curriculumTopicId: progression.curriculumTopicId || session.selectedTopicId,
+          });
+        }
+      } else {
         session.isActive = false;
         session.overallScorecard = this.generateConsolidatedScorecard(session);
       }
@@ -702,6 +974,7 @@ export class MockInterviewerEngine {
     question: string;
     category: string;
     questionId: string;
+    curriculumTopicId?: string;
   } {
     switch (currentPhase) {
       case 'icebreaker': {
@@ -716,6 +989,7 @@ export class MockInterviewerEngine {
           question: q.prompt,
           category: 'behavioral',
           questionId: q.id,
+          curriculumTopicId: q.curriculumTopicId,
         };
       }
       case 'behavioral': {
@@ -730,6 +1004,7 @@ export class MockInterviewerEngine {
           question: q.prompt,
           category: 'coding',
           questionId: q.id,
+          curriculumTopicId: q.curriculumTopicId,
         };
       }
       case 'technical': {
@@ -744,6 +1019,7 @@ export class MockInterviewerEngine {
           question: q.prompt,
           category: 'system_design',
           questionId: q.id,
+          curriculumTopicId: q.curriculumTopicId,
         };
       }
       case 'candidate_qa':

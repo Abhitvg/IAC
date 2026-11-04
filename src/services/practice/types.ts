@@ -181,6 +181,8 @@ export interface MockSessionState {
   isInterviewerSpeaking: boolean;
   interviewerThinkingSeconds: number; // Simulated pause after candidate finishes
   currentQuestion: string;
+  selectedTopicId?: string;
+  selectedDifficulty?: number | string;
   questionHistory: Array<{
     question: string;
     category: string;
@@ -193,6 +195,8 @@ export interface MockSessionState {
     probeCount?: number;
     targetWeakness?: ExtractedWeakness;
     questionId?: string;
+    curriculumTopicId?: string;
+    codingEvaluation?: any;
   }>;
   isOfflineInterviewer?: boolean;
   overallScorecard?: {

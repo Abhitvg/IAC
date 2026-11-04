@@ -55,6 +55,12 @@ describe('interruptionDetector & Utterance Classification', () => {
       expect(classifyUtterance('Understood thank you.', referenceAnswer).type).toBe(
         'CONVERSATIONAL_FILLER'
       );
+      expect(classifyUtterance('Thank you.', null).type).toBe('CONVERSATIONAL_FILLER');
+      expect(classifyUtterance('Thanks', null).type).toBe('CONVERSATIONAL_FILLER');
+      expect(classifyUtterance('Thank you so much.', referenceAnswer).type).toBe('CONVERSATIONAL_FILLER');
+      expect(classifyUtterance('Tvr.', null).type).toBe('CONVERSATIONAL_FILLER');
+      expect(classifyUtterance('Okay.', null).type).toBe('CONVERSATIONAL_FILLER');
+      expect(classifyUtterance('Can you hear me?', null).type).toBe('CONVERSATIONAL_FILLER');
     });
 
     it('classifies direct reciting of teleprompter as CANDIDATE_RECITAL', () => {

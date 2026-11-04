@@ -19,6 +19,9 @@ export const MockPressureRoom: React.FC = () => {
     dismissInterruption,
     submitCurrentAnswer,
     endSession,
+    discardActiveSession,
+    isEvaluatingAnswer,
+    evaluationError,
   } = usePracticeStore();
 
   const { isRecording, toggleRecording, transcript } = useAppStore();
@@ -212,11 +215,18 @@ export const MockPressureRoom: React.FC = () => {
           </div>
 
           <button
+            onClick={discardActiveSession}
+            aria-label="Discard interrupted practice session"
+            className="px-3 py-2 bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 rounded-xl text-xs font-semibold transition"
+          >
+            Discard
+          </button>
+          <button
             onClick={endSession}
-            aria-label="End practice session early"
+            aria-label="End practice session early and view debrief"
             className="px-3.5 py-2 bg-slate-800/90 hover:bg-rose-950/40 text-slate-300 hover:text-rose-300 border border-slate-700/80 hover:border-rose-500/40 rounded-xl text-xs font-semibold transition"
           >
-            End Session
+            End & Debrief
           </button>
         </div>
       </div>
@@ -404,6 +414,12 @@ export const MockPressureRoom: React.FC = () => {
               className="w-full h-36 p-3.5 bg-slate-950/90 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none leading-relaxed font-mono shadow-inner transition"
             />
 
+            {evaluationError && (
+              <div className="p-3 bg-amber-950/40 border border-amber-500/40 rounded-xl text-xs text-amber-200 flex items-center justify-between">
+                <span>⚠️ {evaluationError}</span>
+              </div>
+            )}
+
             <div className="flex justify-between items-center pt-1">
               <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
                 <span>Words: {currentCandidateAnswer.split(/\s+/).filter(Boolean).length}</span>
@@ -412,12 +428,21 @@ export const MockPressureRoom: React.FC = () => {
               </div>
 
               <button
-                onClick={submitCurrentAnswer}
-                disabled={currentCandidateAnswer.trim().length === 0}
+                onClick={() => { void submitCurrentAnswer(); }}
+                disabled={currentCandidateAnswer.trim().length === 0 || isEvaluatingAnswer}
                 className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-40 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/25 transition active:scale-[0.98] flex items-center gap-2"
               >
-                <span>Submit Answer & Get Evidence Assessment</span>
-                <span>→</span>
+                {isEvaluatingAnswer ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Evaluating Evidence & Formulating Turn...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Submit Answer & Get Evidence Assessment</span>
+                    <span>→</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -21,6 +21,9 @@ import { StoryBank } from '../services/practice/StoryBank';
 import { SpacedScheduler } from '../services/practice/SpacedScheduler';
 import { QuestionBank } from '../services/practice/QuestionBank';
 import { CompanyPlanGenerator } from '../services/practice/CompanyPlanGenerator';
+import { CompetencyProfileService } from '../services/practice/CompetencyProfileService';
+import { CurriculumCatalogService } from '../data/curriculum/CurriculumCatalog';
+import { LLMManager } from '../services/providers/LLMProvider';
 
 interface PracticeState {
   activeView: 'teleprompter' | 'mock_gym' | 'career_ops';
@@ -65,14 +68,19 @@ interface PracticeState {
     roundType: MockRoundType,
     persona?: InterviewPersona,
     interruptionEnabled?: boolean,
-    pressure?: InterviewPressure
+    pressure?: InterviewPressure,
+    topicId?: string,
+    difficulty?: string | number
   ) => void;
   tickTimer: () => void;
   setCurrentCandidateAnswer: (text: string) => void;
   requestHint: (tier: 1 | 2 | 3) => void;
-  submitCurrentAnswer: () => void;
+  submitCurrentAnswer: () => Promise<void>;
   dismissInterruption: () => void;
   endSession: () => void;
+  discardActiveSession: () => void;
+  isEvaluatingAnswer: boolean;
+  evaluationError: string | null;
 
   // Story bank actions
   loadStoryBankFromResume: (resumeText: string) => void;
@@ -116,6 +124,7 @@ interface PracticeState {
 }
 
 const STORAGE_KEYS = {
+  ACTIVE_SESSION: 'ai_practice_active_session_v1',
   SESSIONS: 'ai_practice_sessions_v1',
   STORIES: 'ai_practice_stories_v1',
   TOPICS: 'ai_practice_topics_v1',
@@ -143,10 +152,37 @@ function persist<T>(key: string, data: T) {
   }
 }
 
+function isValidMockSessionState(data: any): data is MockSessionState {
+  return (
+    data !== null &&
+    typeof data === 'object' &&
+    typeof data.isActive === 'boolean' &&
+    typeof data.roundType === 'string' &&
+    typeof data.persona === 'string' &&
+    typeof data.totalTimeSeconds === 'number' &&
+    typeof data.timeRemainingSeconds === 'number' &&
+    typeof data.currentQuestion === 'string' &&
+    Array.isArray(data.questionHistory)
+  );
+}
+
+function loadStoredSession(): MockSessionState | null {
+  const loaded = loadStored<any>(STORAGE_KEYS.ACTIVE_SESSION, null);
+  if (!loaded) return null;
+  if (!isValidMockSessionState(loaded)) {
+    console.warn('Corrupted or malformed active session state detected. Discarding.');
+    persist(STORAGE_KEYS.ACTIVE_SESSION, null);
+    return null;
+  }
+  return loaded;
+}
+
 export const usePracticeStore = create<PracticeState>((set, get) => ({
   activeView: 'mock_gym',
   activeTab: 'arena',
-  activeSession: null,
+  activeSession: loadStoredSession(),
+  isEvaluatingAnswer: false,
+  evaluationError: null,
   sessionHistory: loadStored<MockSessionState[]>(STORAGE_KEYS.SESSIONS, []),
   storyBank: loadStored<BehavioralStory[]>(STORAGE_KEYS.STORIES, []),
   topicMasteries: loadStored<TopicMastery[]>(
@@ -174,7 +210,9 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     roundType,
     persona = 'strict_big_tech',
     interruptionEnabled = false,
-    pressure = 'normal'
+    pressure = 'normal',
+    topicId,
+    difficulty
   ) => {
     const session = MockInterviewerEngine.createSession(
       roundType,
@@ -182,10 +220,13 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       interruptionEnabled,
       get().topicMasteries,
       pressure,
-      get().feedbackRecords
+      get().feedbackRecords,
+      { topicId, difficulty }
     );
     const category = session.questionHistory[0]?.category || 'behavioral';
     const availableHints = CoachingEngine.getTieredHints(session.currentQuestion, category);
+
+    persist(STORAGE_KEYS.ACTIVE_SESSION, session);
 
     set({
       activeSession: session,
@@ -195,6 +236,8 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       availableHints,
       interruptionBanner: null,
       activeTab: 'arena',
+      isEvaluatingAnswer: false,
+      evaluationError: null,
     });
   },
 
@@ -246,31 +289,61 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     }
   },
 
-  submitCurrentAnswer: () => {
+  submitCurrentAnswer: async () => {
     const {
       activeSession,
       currentCandidateAnswer,
       speakingStartTime,
       activeHintsUsed,
       topicMasteries,
+      isEvaluatingAnswer,
     } = get();
-    if (!activeSession || !activeSession.isActive) return;
+    if (!activeSession || !activeSession.isActive || isEvaluatingAnswer) return;
+
+    set({ isEvaluatingAnswer: true, evaluationError: null });
 
     const durationSeconds = speakingStartTime ? (Date.now() - speakingStartTime) / 1000 : 45;
-    const updatedSession = MockInterviewerEngine.processAnswerSubmission(
-      activeSession,
-      currentCandidateAnswer,
-      durationSeconds,
-      activeHintsUsed
-    );
 
-    // Update topic mastery in spaced repetition table
+    let updatedSession: MockSessionState;
+    try {
+      let llmCaller: ((prompt: string, model: string) => Promise<string>) | undefined;
+      try {
+        const llm = new LLMManager();
+        llmCaller = async (prompt: string, _model: string) => {
+          const res = await llm.executeWithFallback(
+            [{ role: 'user', content: prompt }],
+            { temperature: 0.2 }
+          );
+          return res.text;
+        };
+      } catch (_e) {
+        // Fallback to offline
+      }
+
+      updatedSession = await MockInterviewerEngine.processAnswerSubmissionAsync(
+        activeSession,
+        currentCandidateAnswer,
+        durationSeconds,
+        activeHintsUsed,
+        llmCaller
+      );
+    } catch (err: any) {
+      console.warn('Asynchronous turn processing failed, falling back to heuristic engine:', err);
+      updatedSession = MockInterviewerEngine.processAnswerSubmission(
+        activeSession,
+        currentCandidateAnswer,
+        durationSeconds,
+        activeHintsUsed
+      );
+    }
+
+    // Update topic mastery in spaced repetition table (backward compatibility)
     const lastQuestion = activeSession.currentQuestion;
     const topicId = SpacedScheduler.identifyTopicForQuestion(lastQuestion);
-    const lastEval =
-      updatedSession.questionHistory[
-        updatedSession.questionHistory.length - (updatedSession.isActive ? 2 : 1)
-      ]?.evaluation;
+    const lastItemIndex =
+      updatedSession.questionHistory.length - (updatedSession.isActive ? 2 : 1);
+    const lastItem = updatedSession.questionHistory[lastItemIndex];
+    const lastEval = lastItem?.evaluation;
 
     let updatedTopics = topicMasteries;
     if (lastEval) {
@@ -280,11 +353,45 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       persist(STORAGE_KEYS.TOPICS, updatedTopics);
     }
 
-    // If session just ended, add to history
+    // 3. Competency Assessment Integration (Phase 5)
+    if (lastEval && currentCandidateAnswer.trim().length > 0) {
+      const targetTopicId =
+        lastItem.curriculumTopicId ||
+        (lastItem.questionId
+          ? QuestionBank.getQuestionById(lastItem.questionId)?.curriculumTopicId
+          : undefined) ||
+        QuestionBank.mapLegacyTopicToCurriculumId(lastItem.category) ||
+        updatedSession.selectedTopicId;
+
+      if (targetTopicId && CurriculumCatalogService.getInstance().getTopic(targetTopicId)) {
+        const isCodingRound =
+          lastItem.category === 'coding' || updatedSession.roundType === 'dsa_coding';
+        const submissionId = `turn_${lastItemIndex}_${lastItem.questionId || 'q'}_${targetTopicId}`;
+        CompetencyProfileService.getInstance().recordAssessment({
+          curriculumTopicId: targetTopicId,
+          questionId: lastItem.questionId || `turn_${lastItemIndex}`,
+          submissionId,
+          score: lastEval.overallScore,
+          hintsUsed: activeHintsUsed,
+          candidateQuoteOrSnippet: currentCandidateAnswer.trim(),
+          sourceType: isCodingRound ? 'coding_assessment' : 'live_interview',
+          rationale:
+            lastEval.diffMissingPoints?.[0] ||
+            lastItem.codingEvaluation?.summaryFeedback ||
+            'Evaluated from live practice session turn.',
+          isAiGeneratedText: false,
+        });
+      }
+    }
+
+    // If session just ended, add to history and clear active session storage
     let newHistory = get().sessionHistory;
     if (!updatedSession.isActive) {
       newHistory = [updatedSession, ...newHistory].slice(0, 30);
       persist(STORAGE_KEYS.SESSIONS, newHistory);
+      persist(STORAGE_KEYS.ACTIVE_SESSION, null);
+    } else {
+      persist(STORAGE_KEYS.ACTIVE_SESSION, updatedSession);
     }
 
     // Refresh available hints for next question if continuing
@@ -305,6 +412,8 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       activeHintsUsed: [],
       availableHints,
       interruptionBanner: null,
+      isEvaluatingAnswer: false,
+      evaluationError: null,
     });
   },
 
@@ -322,10 +431,21 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
 
     const newHistory = [terminatedSession, ...sessionHistory].slice(0, 30);
     persist(STORAGE_KEYS.SESSIONS, newHistory);
+    persist(STORAGE_KEYS.ACTIVE_SESSION, null);
 
     set({
       activeSession: terminatedSession,
       sessionHistory: newHistory,
+    });
+  },
+
+  discardActiveSession: () => {
+    persist(STORAGE_KEYS.ACTIVE_SESSION, null);
+    set({
+      activeSession: null,
+      currentCandidateAnswer: '',
+      isEvaluatingAnswer: false,
+      evaluationError: null,
     });
   },
 

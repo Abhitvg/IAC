@@ -293,15 +293,11 @@ export class QuestionBank {
     currentDifficulty?: number;
     excludedIds?: string[];
     topicMasteries?: TopicMastery[];
+    curriculumTopicId?: string;
   }): QuestionEntry {
     const candidates = this.getQuestionsByType(params.type).filter(
       (q) => !(params.excludedIds || []).includes(q.id)
     );
-
-    if (candidates.length === 0) {
-      const fallbackList = this.getQuestionsByType(params.type);
-      return fallbackList[0];
-    }
 
     let targetDifficulty = params.currentDifficulty || 3;
     if (params.previousScore !== undefined) {
@@ -310,6 +306,42 @@ export class QuestionBank {
       } else if (params.previousScore <= 2.5) {
         targetDifficulty = Math.max(1, targetDifficulty - 1);
       }
+    }
+
+    // If a specific curriculum topic is requested, attempt to select from that topic
+    if (params.curriculumTopicId) {
+      const topicCandidates = candidates.filter(
+        (q) => q.curriculumTopicId === params.curriculumTopicId
+      );
+      if (topicCandidates.length > 0) {
+        const diffMatch = topicCandidates.filter((q) => q.difficulty === targetDifficulty);
+        if (diffMatch.length > 0) return diffMatch[0];
+        topicCandidates.sort(
+          (a, b) =>
+            Math.abs(a.difficulty - targetDifficulty) - Math.abs(b.difficulty - targetDifficulty)
+        );
+        return topicCandidates[0];
+      }
+
+      // If no candidate exists in the bank for this topic/type, generate one on demand
+      const tier = numericToDifficultyTier(targetDifficulty);
+      const questionType: TechnicalQuestionType =
+        params.type === 'coding'
+          ? 'coding_problem'
+          : params.type === 'system_design'
+          ? 'architecture_tradeoff'
+          : 'conceptual';
+      return this.selectQuestionForCurriculumTopic(
+        params.curriculumTopicId,
+        tier,
+        questionType,
+        params.excludedIds || []
+      );
+    }
+
+    if (candidates.length === 0) {
+      const fallbackList = this.getQuestionsByType(params.type);
+      return fallbackList[0];
     }
 
     const weakTopicNames = new Set(

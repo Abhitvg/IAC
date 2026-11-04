@@ -24,6 +24,7 @@ export interface UtteranceClassification {
   questionText?: string;
   overlapScore?: number;
   isIncomplete?: boolean;
+  needsConfirmation?: boolean;
 }
 
 const STOP_WORDS = new Set([
@@ -177,11 +178,15 @@ const CANDIDATE_NARRATIVE_PATTERNS = [
   /\b(the approach i took|the reason i chose|so basically|to answer that)\b/i,
 ];
 
-/** Short conversational fillers that shouldn't trigger questions */
+/** Short conversational fillers and courtesies that shouldn't trigger questions */
 const FILLER_PATTERNS = [
   /^(yeah|yes|yep|right|ok|okay|sure|got it|cool|i see|uh huh|hmm|yup|alright|understood)[.!?]?$/i,
   /^(yeah exactly|yes exactly|okay sure|got it thanks|right exactly|understood thank you)[.!?]?$/i,
   /^(let me see|let me think|give me a second)[.!?]?$/i,
+  /^(thank you|thanks|thank you very much|thanks a lot|thank you so much)[.!?]?$/i,
+  /^(great thank you|okay thank you|perfect thank you|alright thank you|yes thank you|thanks again)[.!?]?$/i,
+  /^(great|awesome|perfect|nice|good|sounds good|makes sense|no problem|you're welcome|anytime)[.!?]?$/i,
+  /^(hello|hi|hey|good morning|good afternoon|good evening|can you hear me|am i audible)[.!?]?$/i,
 ];
 
 /**
@@ -225,6 +230,7 @@ export function classifyUtterance(
           confidence: 0.95,
           reason: `Interruption marker matched: ${pattern}`,
           questionText: trimmed,
+          isIncomplete: isIncompleteSentence(trimmed),
         };
       }
     }
@@ -242,12 +248,16 @@ export function classifyUtterance(
 
     // B. First-person narrative phrasing without questions = Candidate speaking/answering
     const isFirstPersonNarrative = CANDIDATE_NARRATIVE_PATTERNS.some((p) => p.test(trimmed));
+    // Broad interrogative or prompt indicators anywhere in utterance (handles "So how do you...", "Now explain...", "Let's discuss...", etc.)
     const hasQuestionSign =
       trimmed.includes('?') ||
-      /^(what|why|how|who|when|where|which|can|could|would|tell|explain|describe|define|compare|difference|implement|solve|write|give|walk)\b/i.test(
+      /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|will|is|are|was|were|do|does|did)\b/i.test(
         trimmed
       ) ||
-      /^(kya|kaise|kyun|batao|samjhao)\b/i.test(trimmed);
+      /\b(tell|explain|describe|define|compare|difference|implement|solve|write|give|walk|discuss|elaborate|clarify|consider|suppose|imagine|talk about|talk to me about)\b/i.test(
+        trimmed
+      ) ||
+      /^(kya|kaise|kyun|batao|samjhao|bataiye|samjhaiye)\b/i.test(trimmed);
 
     if (isFirstPersonNarrative && !hasQuestionSign) {
       return {
@@ -258,43 +268,67 @@ export function classifyUtterance(
       };
     }
 
-    // C. If the speech has interrogative structure and does NOT match the answer = Interruption!
+    // C. If the speech has interrogative/prompt structure = Interruption/New Question!
     if (hasQuestionSign) {
       return {
         type: 'INTERVIEWER_INTERRUPTION',
-        confidence: 0.9,
-        reason: `Third person asked question with low overlap (${Math.round(compositeScore * 100)}%)`,
+        confidence: 0.92,
+        reason: `Interviewer question detected (${Math.round(compositeScore * 100)}% overlap)`,
         questionText: trimmed,
         overlapScore: compositeScore,
+        isIncomplete: isIncompleteSentence(trimmed),
       };
     }
 
-    // D. Low overlap (>= 2 words, < 8% overlap) that isn't first-person recital -> New prompt/question
-    const wordCount = trimmed.split(/\s+/).length;
-    if (wordCount >= 4 && compositeScore < 0.08 && !isFirstPersonNarrative) {
+    // D. Non-narrative multi-word speech (>= 3 words) that isn't first-person recital -> Interviewer prompt
+    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+    if (wordCount >= 3 && !isFirstPersonNarrative) {
       return {
         type: 'INTERVIEWER_INTERRUPTION',
-        confidence: 0.88,
-        reason: `Distinct question detected (${Math.round(compositeScore * 100)}% overlap to active answer)`,
+        confidence: compositeScore < 0.12 ? 0.85 : 0.70,
+        reason: `Interviewer prompt / statement (${Math.round(compositeScore * 100)}% overlap to active answer)`,
         questionText: trimmed,
         overlapScore: compositeScore,
+        isIncomplete: isIncompleteSentence(trimmed),
+        needsConfirmation: compositeScore >= 0.12,
       };
     }
 
-    // Fallback while answer is active: default to candidate reciting
+    // Fallback while answer is active: default to candidate reciting only if very short fragment
     return {
       type: 'CANDIDATE_RECITAL',
-      confidence: 0.65,
+      confidence: 0.60,
       overlapScore: compositeScore,
       reason: `Defaulting to candidate speech while answer is active (overlap ${Math.round(compositeScore * 100)}%)`,
     };
   }
 
-  // 4. No active answer: Any interview utterance is an interviewer prompt/question
+  // 4. No active answer: Guard against short noise, conversational courtesies, or single words
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  const hasQuestionSign =
+    trimmed.includes('?') ||
+    /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|will|is|are|was|were|do|does|did)\b/i.test(
+      trimmed
+    ) ||
+    /\b(tell|explain|describe|define|compare|difference|implement|solve|write|give|walk|discuss|elaborate|clarify|consider|suppose|imagine|talk about|talk to me about)\b/i.test(
+      trimmed
+    ) ||
+    /^(kya|kaise|kyun|batao|samjhao)\b/i.test(trimmed);
+
+  if (words.length < 3 && !hasQuestionSign) {
+    return {
+      type: 'CONVERSATIONAL_FILLER',
+      confidence: 0.85,
+      reason: `Short non-question utterance ignored ("${trimmed}")`,
+    };
+  }
+
+  // Substantial prompt or question detected from interviewer
   return {
     type: 'INTERVIEWER_QUESTION',
     confidence: 0.9,
     reason: 'New question detected from interviewer',
     questionText: trimmed,
+    isIncomplete: isIncompleteSentence(trimmed),
   };
 }

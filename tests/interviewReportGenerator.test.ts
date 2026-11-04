@@ -152,3 +152,4 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
     expect(report.improvementRecommendations.recommendedNextDifficulty).toBe('easy');
   });
 });
+

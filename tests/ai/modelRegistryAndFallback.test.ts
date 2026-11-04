@@ -506,6 +506,43 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(err.isRecoverableByModelFallback).toBe(false);
     });
 
+    it('correctly classifies Groq 429 TPM error containing settings/billing URL as RATE_LIMIT_EXCEEDED', async () => {
+      const groq429Body = {
+        error: {
+          message:
+            "Rate limit reached for model 'openai/gpt-oss-120b' on tokens per minute (TPM): Limit 8000, Used 5713, Requested 4321. Please try again in 15.254s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing",
+          type: 'tokens',
+          code: 'rate_limit_exceeded',
+        },
+      };
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        text: async () => JSON.stringify(groq429Body),
+      });
+      global.fetch = mockFetch;
+
+      const errorCallback = vi.fn();
+      await streamAnswer(
+        'Describe a bug you fixed',
+        {
+          type: 'groq',
+          apiKey: 'gsk_valid_key',
+          model: 'openai/gpt-oss-120b',
+        },
+        'java',
+        { onError: errorCallback }
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(errorCallback).toHaveBeenCalled();
+      const err = errorCallback.mock.calls[0][0];
+      expect(err.code).toBe('RATE_LIMIT_EXCEEDED');
+      expect(err.code).not.toBe('BILLING_PAYMENT_REQUIRED');
+      expect(err.isRecoverableByModelFallback).toBe(false);
+    });
+
     it('throws immediately on 5xx Server Error without attempting fallback', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: false,

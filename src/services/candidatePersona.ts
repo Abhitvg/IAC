@@ -138,10 +138,10 @@ export function buildConversationMemoryContext(
   if (!history || history.length === 0) return '';
 
   const contextPairs = history
-    .slice(-4)
+    .slice(-3)
     .map(
       (h, i) =>
-        `[Q${i + 1}]: ${h.question.slice(0, 120)}\n[A${i + 1} Summary]: ${h.answer.slice(0, 200)}...`
+        `[Q${i + 1}]: ${h.question.slice(0, 100)}\n[A${i + 1} Summary]: ${h.answer.slice(0, 150)}...`
     )
     .join('\n\n');
 
@@ -567,6 +567,19 @@ ${
     : 'Ground your answer strictly in your verified resume and project experience using the first-person ("I").'
 }`;
 
+  // Token budget guard: cap extensive raw resumes and job descriptions so live prompt remains within TPM limits
+  const maxResumeChars = 3000;
+  const budgetedResume =
+    resume && resume.length > maxResumeChars
+      ? `${resume.slice(0, maxResumeChars)}\n[...resume truncated for live prompt token budget]`
+      : resume;
+
+  const maxJdChars = 1500;
+  const budgetedJd =
+    jd && jd.length > maxJdChars
+      ? `${jd.slice(0, maxJdChars)}\n[...job description truncated for live prompt token budget]`
+      : jd;
+
   return `You are an experienced, articulate software engineer acting as the candidate in a live technical interview for the role of "${role}".
 You are speaking directly to the interviewer.
 NEVER say "As an AI", "The candidate should say", or break character under any circumstances.
@@ -581,10 +594,10 @@ ${orchestrationSection}
 ${roleIntroInstruction}
 
 ════════════ CANDIDATE RESUME & VERIFIED BACKGROUND ════════════
-${resume || '[No resume provided — answer general technical questions objectively, conversationally, and factually without inventing personal employers or project metrics.]'}
+${budgetedResume || '[No resume provided — answer general technical questions objectively, conversationally, and factually without inventing personal employers or project metrics.]'}
 
 ════════════ TARGET JOB DESCRIPTION ════════════
-${jd}
+${budgetedJd}
 ${memoryContext}
 ${conversationalSection}
 ${reasoningSection}

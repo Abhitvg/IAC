@@ -4,6 +4,7 @@ import { readAndParseFile } from '../../services/resume';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
 import { InterviewEngine } from '../../services/InterviewEngine';
+import { DiagnosticLoggerService } from '../../services/diagnosticLogger';
 import { ApplicationAssistanceView } from './ApplicationAssistanceView';
 import {
   Play,
@@ -814,6 +815,12 @@ export default function TeleprompterView() {
     setIsIncompleteQuestionMode,
     markQuestionIncomplete,
     setSpeechPauseTolerance,
+    pipelineStage,
+    lastUnconfirmedTranscript,
+    clearUnconfirmedTranscript,
+    recoveredPartialAnswer,
+    rateLimitCooldown,
+    generateAnswerFromTranscript,
   } = useAppStore();
 
   const isListening =
@@ -2286,6 +2293,87 @@ export default function TeleprompterView() {
             </ul>
           </div>
         )}
+        {lastUnconfirmedTranscript && (
+          <div
+            style={{
+              background: 'rgba(99, 102, 241, 0.22)',
+              border: '1px solid rgba(129, 140, 248, 0.55)',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              marginBottom: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              color: '#f8fafc',
+            }}
+          >
+            <div style={{ minWidth: 0, overflow: 'hidden' }}>
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: '#a5b4fc',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  marginBottom: '2px',
+                }}
+              >
+                Interviewer Speech Transcribed ({lastUnconfirmedTranscript.reason})
+              </div>
+              <div
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                }}
+                title={lastUnconfirmedTranscript.text}
+              >
+                "{lastUnconfirmedTranscript.text}"
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => generateAnswerFromTranscript(lastUnconfirmedTranscript.text)}
+                style={{
+                  background: '#6366f1',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '11px',
+                  fontWeight: 650,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Zap size={11} /> Generate Answer
+              </button>
+              <button
+                type="button"
+                onClick={() => clearUnconfirmedTranscript()}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#cbd5e1',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '6px',
+                  padding: '6px 10px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         {currentQuestion && (
           <div
             style={{
@@ -2528,7 +2616,7 @@ export default function TeleprompterView() {
         )}
 
         {/* Dynamic Recital / Interruption Banner */}
-        {recitalState === 'reciting' && (
+        {recitalState === 'reciting' && Boolean(currentAnswer) && answerValidationStatus !== 'ABORTED' && answerValidationStatus !== 'FAILED' && (
           <div
             style={{
               display: 'inline-flex',
@@ -2656,12 +2744,16 @@ export default function TeleprompterView() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <span style={{ fontSize: '18px' }}>⚠️</span>
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#f87171' }}>
-                  Response Generation Failed
+                  {blockedReason && (blockedReason.includes('RATE_LIMIT_EXCEEDED') || blockedReason.includes('429') || blockedReason.includes('Rate limit') || blockedReason.includes('TPM'))
+                    ? 'Provider Rate Limit Reached (TPM Limit)'
+                    : 'Response Generation Failed'}
                 </span>
               </div>
               <p style={{ fontSize: '13px', color: '#fca5a5', lineHeight: '1.5', margin: '0 0 14px 0' }}>
-                {blockedReason ||
-                  'The AI provider did not return an answer. Please check your internet connection or verify your Groq API key in Settings.'}
+                {blockedReason && (blockedReason.includes('RATE_LIMIT_EXCEEDED') || blockedReason.includes('429') || blockedReason.includes('Rate limit') || blockedReason.includes('TPM'))
+                  ? `The AI provider temporarily throttled this request due to its per-minute token limit (TPM). Wait ~15 seconds to retry, or switch to a faster model (like GPT-OSS 20B) in Settings.\n\nDiagnostic: ${blockedReason}`
+                  : (blockedReason ||
+                    'The AI provider did not return an answer. Please check your internet connection or verify your Groq API key in Settings.')}
               </p>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button
@@ -2702,6 +2794,152 @@ export default function TeleprompterView() {
                 >
                   <SettingsIcon size={13} /> Open Settings &amp; Keys
                 </button>
+              </div>
+            </div>
+          ) : answerValidationStatus === 'ABORTED' ? (
+            <div
+              className="aborted-generation-card"
+              style={{
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                borderRadius: '12px',
+                padding: '20px',
+                margin: '12px 0',
+                color: '#fef3c7',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '18px' }}>⏹️</span>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#fbbf24' }}>
+                  Answer Generation Cancelled or Aborted
+                </span>
+              </div>
+              <p style={{ fontSize: '13px', color: '#fde68a', lineHeight: '1.5', margin: '0 0 14px 0' }}>
+                {blockedReason || 'Generation was stopped before completion. You can generate an answer for this question with one click:'}
+              </p>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => handleRegenerateCurrentAnswer()}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#d97706',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Zap size={13} /> Generate Answer Now
+                </button>
+              </div>
+            </div>
+          ) : (pipelineStage === 'waiting_quota_reset' || rateLimitCooldown) ? (
+            <div
+              className="rate-limit-card"
+              style={{
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: '12px',
+                padding: '20px',
+                margin: '12px 0',
+                color: '#fecaca',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <Clock size={18} style={{ color: '#f87171' }} />
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#f87171' }}>
+                  AI Provider Rate Limit Cooldown Active
+                </span>
+              </div>
+              <p style={{ fontSize: '13px', color: '#fca5a5', lineHeight: '1.5', margin: '0 0 14px 0' }}>
+                {rateLimitCooldown
+                  ? `Groq per-minute token quota reached. Quota resets in ${rateLimitCooldown.retryAfterSeconds}s. You can wait or retry now.`
+                  : 'The AI provider is temporarily throttling requests due to per-minute limits.'}
+              </p>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => handleRegenerateCurrentAnswer()}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <RotateCcw size={13} /> Retry Answer Now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => useAppStore.getState().setSettingsOpen(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    color: '#cbd5e1',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <SettingsIcon size={13} /> Switch Model (GPT-OSS 20B)
+                </button>
+              </div>
+            </div>
+          ) : (recoveredPartialAnswer && !currentAnswer) ? (
+            <div
+              className="partial-recovery-card"
+              style={{
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: '12px',
+                padding: '16px',
+                margin: '12px 0',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#fbbf24' }}>
+                  ⚠️ Stream Interrupted — Recovered Partial Answer:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRegenerateCurrentAnswer()}
+                  style={{
+                    background: '#d97706',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <RotateCcw size={11} /> Regenerate Full Answer
+                </button>
+              </div>
+              <div style={{ fontSize: '13px', color: '#fef3c7', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                {recoveredPartialAnswer}
               </div>
             </div>
           ) : currentAnswer ? (
@@ -4077,7 +4315,7 @@ export default function TeleprompterView() {
             {diagnosticState.latestTranscript && diagnosticState.latestTranscript !== '(empty)' && (
               <span
                 style={{
-                  maxWidth: '240px',
+                  maxWidth: '220px',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -4088,6 +4326,58 @@ export default function TeleprompterView() {
                 Heard: "{diagnosticState.latestTranscript}"
               </span>
             )}
+
+            {diagnosticState.latestTranscript && diagnosticState.latestTranscript !== '(empty)' && (
+              <button
+                type="button"
+                onClick={() => generateAnswerFromTranscript(diagnosticState.latestTranscript)}
+                title="Force AI answer generation from this heard speech"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  background: 'rgba(99, 102, 241, 0.25)',
+                  border: '1px solid rgba(129, 140, 248, 0.4)',
+                  color: '#c7d2fe',
+                  borderRadius: '4px',
+                  padding: '2px 6px',
+                  fontSize: '10px',
+                  fontWeight: 650,
+                  cursor: 'pointer',
+                  marginLeft: '4px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Zap size={10} /> Ask This
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                const text = DiagnosticLoggerService.getInstance().exportLogsAsText();
+                copyToClipboard(text);
+                setToast('📋 Diagnostic logs copied to clipboard!');
+              }}
+              title="Copy sanitized diagnostic logs to clipboard"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                color: '#94a3b8',
+                borderRadius: '4px',
+                padding: '2px 6px',
+                fontSize: '10px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                marginLeft: '4px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Logs
+            </button>
           </div>
 
           {/* Right: Action Buttons (Clear & Copy) */}
