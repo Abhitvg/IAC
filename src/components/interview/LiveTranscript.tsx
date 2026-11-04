@@ -50,6 +50,8 @@ export default function LiveTranscript() {
   const handleSkip = () => {
     clearAnswerQueue();
     clearUnconfirmedTranscript();
+    setLastUnconfirmedTranscript(null);
+    setCurrentQuestion('');
     setPipelineStage('listening');
     setStatus('listening');
   };
