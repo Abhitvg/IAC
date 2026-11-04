@@ -506,23 +506,27 @@ export class AnswerGenerationService {
         }
       } catch (err: any) {
         if (err.name === 'AbortError' || signal?.aborted) {
+          const timeoutMessage = err?.message || signal?.reason?.message || '';
+          const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
           completionResult = {
-            status: 'ABORTED',
+            status: timedOut ? 'FAILED' : 'ABORTED',
             isValidated: false,
             cleanAnswer: '',
-            error: 'Generation aborted by user or timeout',
+            error: timedOut ? timeoutMessage : 'Generation cancelled by user',
             detectedCategory,
             confidence: 'low',
             followUps: [],
             predictedFollowUps: [],
             requestId,
-            validationStatus: 'ABORTED',
+            validationStatus: timedOut ? 'FAILED' : 'ABORTED',
             groundingScore: 0,
-            groundingViolations: ['Request aborted during generation'],
+            groundingViolations: [timedOut ? 'Generation deadline exceeded' : 'Request cancelled during generation'],
             structuredViolations: [],
           };
           (completionResult as any).answer = completionResult.cleanAnswer;
           cb.onComplete?.(completionResult);
+          clearTimeout(overallTimer);
+          callerSignal?.removeEventListener('abort', abortFromCaller);
           return completionResult;
         }
 
