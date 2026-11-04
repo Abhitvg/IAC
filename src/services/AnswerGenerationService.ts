@@ -237,6 +237,7 @@ export class AnswerGenerationService {
 
     const provider = params.provider || 'groq';
     let apiKey = directApiKey || '';
+    let secondaryGroqApiKey = '';
     if (!directApiKey) {
       apiKey = await new Promise<string>((resolve, reject) => {
         let onAbort: () => void;
@@ -275,6 +276,21 @@ export class AnswerGenerationService {
         return '';
       });
     }
+    if (!directApiKey && provider === 'groq' && typeof window !== 'undefined' && window.electronAPI?.getApiKey) {
+      try {
+        secondaryGroqApiKey = (await window.electronAPI.getApiKey('groq-secondary') || '').trim();
+        const match = secondaryGroqApiKey.match(/gsk_[A-Za-z0-9_-]+/);
+        secondaryGroqApiKey = match?.[0] || '';
+        if (secondaryGroqApiKey === apiKey) secondaryGroqApiKey = '';
+        if (!apiKey && secondaryGroqApiKey) {
+          apiKey = secondaryGroqApiKey;
+          secondaryGroqApiKey = '';
+        }
+      } catch {
+        // Secondary credentials are optional; primary-key operation remains available.
+      }
+    }
+
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
@@ -637,6 +653,31 @@ export class AnswerGenerationService {
           provider as AIProviderId,
           providerConfig.model
         );
+
+        if (
+          analysis.isRateLimited &&
+          !analysis.isDailyQuota &&
+          provider === 'groq' &&
+          secondaryGroqApiKey &&
+          providerConfig.apiKey !== secondaryGroqApiKey &&
+          retryCount < maxRetries
+        ) {
+          retryCount++;
+          providerConfig.apiKey = secondaryGroqApiKey;
+          console.warn('[AnswerGenerationService] Primary Groq key rate-limited; switching to configured secondary key.');
+          DiagnosticLoggerService.getInstance().recordEvent({
+            requestId,
+            pipelineStage: 'retrying',
+            httpStatus: 429,
+            retryAttempt: retryCount,
+            selectedProvider: provider,
+            selectedModel: providerConfig.model,
+            message: 'Primary Groq credential rate-limited; switched to secondary credential slot.',
+          });
+          useAppStore.getState().setPipelineStage('retrying');
+          useAppStore.getState().setToast('⏳ Primary Groq key rate-limited. Retrying with secondary key...');
+          continue;
+        }
 
         if (analysis.isRateLimited && analysis.shouldAutoRetry && retryCount < maxRetries) {
           retryCount++;

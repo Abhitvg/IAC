@@ -23,6 +23,7 @@ export default function SettingsPanel() {
   } = useAppStore();
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [apiKey, setApiKey] = useState('');
+  const [secondaryGroqKey, setSecondaryGroqKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [extensionToken, setExtensionToken] = useState('');
@@ -56,6 +57,12 @@ export default function SettingsPanel() {
         try {
           const key = await window.electronAPI?.getApiKey(settings.aiProvider);
           setApiKey(key || '');
+          if (settings.aiProvider === 'groq') {
+            const secondary = await window.electronAPI?.getApiKey('groq-secondary');
+            setSecondaryGroqKey(secondary || '');
+          } else {
+            setSecondaryGroqKey('');
+          }
         } catch {
           setErrorMessage('Unable to retrieve stored API key from keychain.');
         }
@@ -98,6 +105,22 @@ export default function SettingsPanel() {
         code: 'NETWORK_ERROR',
         message: err.message || String(err),
       });
+    }
+  };
+
+  const saveSecondaryGroqKey = async () => {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      if (secondaryGroqKey.trim()) {
+        await window.electronAPI?.setApiKey('groq-secondary', secondaryGroqKey.trim());
+      } else {
+        await window.electronAPI?.deleteApiKey('groq-secondary');
+      }
+    } catch {
+      setErrorMessage('Failed to encrypt and store the secondary Groq API key.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -262,6 +285,38 @@ export default function SettingsPanel() {
                 </div>
                 <span className="field__hint">
                   🔒 Stored securely in your OS keychain via Electron safeStorage.
+                </span>
+              </div>
+            )}
+
+            {settings.aiProvider === 'groq' && (
+              <div className="field">
+                <label className="field__label" htmlFor="groq-secondary-key-input">
+                  Secondary Groq API Key (Failover)
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    id="groq-secondary-key-input"
+                    type="password"
+                    className="field__input"
+                    style={{ flex: 1 }}
+                    value={secondaryGroqKey}
+                    onChange={(e) => setSecondaryGroqKey(e.target.value)}
+                    placeholder="Optional second Groq key"
+                    aria-label="Secondary Groq API key"
+                  />
+                  <button
+                    className="action-btn action-btn--primary"
+                    style={{ padding: '0 12px' }}
+                    onClick={saveSecondaryGroqKey}
+                    disabled={loading}
+                    aria-label="Save secondary Groq API key securely"
+                  >
+                    {loading ? <div className="spinner" style={{ width: 14, height: 14 }} /> : <Save size={14} />}
+                  </button>
+                </div>
+                <span className="field__hint">
+                  Optional. Stored separately in OS secure storage and used only when the primary key is rate-limited.
                 </span>
               </div>
             )}
