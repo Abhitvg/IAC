@@ -73,6 +73,17 @@ describe('interruptionDetector & Utterance Classification', () => {
       ).toBe(true);
     });
 
+    it('does not mistake a candidate explanation for a question', () => {
+      const speech = 'I can explain how our deployment pipeline works';
+      expect(detectQuestionIntent(speech).plausibleQuestion).toBe(false);
+      expect(classifyUtterance(speech, referenceAnswer).type).toBe('UNCLASSIFIED');
+    });
+
+    it('detects a Hindi imperative at the end of a Devanagari utterance', () => {
+      const speech = 'AWS के fundamentals के बारे में कुछ बताओ';
+      expect(classifyUtterance(speech, referenceAnswer).type).toBe('INTERVIEWER_INTERRUPTION');
+    });
+
     it('does not call a technical follow-up recital merely because it overlaps the answer', () => {
       const question = 'How does Kubernetes control plane availability affect scheduling?';
       expect(classifyUtterance(question, referenceAnswer).type).toBe('INTERVIEWER_INTERRUPTION');
