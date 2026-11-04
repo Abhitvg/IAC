@@ -204,10 +204,16 @@ export function detectQuestionIntent(text: string): {
   if (!trimmed) return { plausibleQuestion: false, incomplete: false };
   const hasInterrogativeSyntax =
     /[?]$/.test(trimmed) ||
-    /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|explain|describe|define|compare|implement|discuss|outline|elaborate|give me|tell me|walk me through)\b/i.test(
+    /^(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|is|are|was|were)\b/i.test(
       trimmed
     ) ||
-    /^(kya|kaise|kyun|batao|samjhao|bataiye|samjhaiye)\b/i.test(trimmed);
+    /^(please\s+)?(explain|describe|define|compare|implement|discuss|outline|elaborate)\b/i.test(
+      trimmed
+    ) ||
+    /^(give me|tell me|walk me through)\b/i.test(trimmed) ||
+    /^(kya|kaise|kyun|batao|samjhao|bataiye|samjhaiye)\b/i.test(trimmed) ||
+    /(?:बताओ|समझाओ|बताइए|समझाइए)[.!?]?$/u.test(trimmed) ||
+    /^(क्या|कैसे|क्यों)\b/u.test(trimmed);
   return {
     // Do not infer a question from length alone: that was incorrectly turning
     // ordinary candidate recital sentences into interviewer interruptions.
