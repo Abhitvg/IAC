@@ -473,7 +473,11 @@ export const CandidateProfileWizard: React.FC = () => {
   }, [profileService, setToast]);
 
   const handleResetProfile = useCallback(() => {
-    profileService.clearAllCandidateData();
+    const cleared = profileService.clearAllCandidateData();
+    if (!cleared) {
+      setToast?.('Profile was not deleted because browser storage rejected the request. Your existing profile remains available.');
+      return;
+    }
     setProfile(profileService.getProfile());
     setShowClearConfirm(false);
     setToast?.('Profile reset to clean state.');
