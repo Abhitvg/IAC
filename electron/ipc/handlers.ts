@@ -348,7 +348,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
             return;
           }
 
-          const sanitizedContent = `<<<EXTERNAL_UNTRUSTED_CONTENT>>>\\n${message.content}\\n<<<END_EXTERNAL_UNTRUSTED_CONTENT>>>`;
+          const sanitizedContent = `<<<EXTERNAL_UNTRUSTED_CONTENT>>>\n${message.content}\n<<<END_EXTERNAL_UNTRUSTED_CONTENT>>>`;
           mainWindowRef?.webContents.send('browser-context', {
             ...message,
             content: sanitizedContent,
