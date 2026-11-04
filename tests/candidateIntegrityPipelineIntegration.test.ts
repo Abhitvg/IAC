@@ -48,7 +48,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
       expect(selectTeleprompterSpeakableQueue(useAppStore.getState())).toHaveLength(0);
       expect(useAppStore.getState().draftQueue).toContain(rawHallucinatedMetric);
 
-      callbacks.onComplete?.(rawHallucinatedMetric);
+      await callbacks.onComplete?.(rawHallucinatedMetric);
     });
 
     await InterviewEngine.handleEvent({
@@ -80,7 +80,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
 
     vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
       callbacks.onToken?.(ownershipFabrication);
-      callbacks.onComplete?.(ownershipFabrication);
+      await callbacks.onComplete?.(ownershipFabrication);
     });
 
     await InterviewEngine.handleEvent({
@@ -114,7 +114,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
       callbacks.onSentence?.('In DataMesh, we utilized Kafka to optimize message latency by 35%.');
       callbacks.onToken?.('This reduced P99 latency significantly.');
       callbacks.onSentence?.('This reduced P99 latency significantly across our distributed cluster.');
-      callbacks.onComplete?.(validAnswer);
+      await callbacks.onComplete?.(validAnswer);
     });
 
     await InterviewEngine.handleEvent({
@@ -145,7 +145,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
 
     vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
       callbacks.onToken?.(ungroundedScale);
-      callbacks.onComplete?.(ungroundedScale);
+      await callbacks.onComplete?.(ungroundedScale);
     });
 
     await InterviewEngine.handleEvent({
@@ -252,7 +252,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
         newCallbacks = callbacks;
         callbacks.onToken?.('New stream tokens for Question 2');
         callbacks.onSentence?.('In ProjectB, I implemented memory-safe zero-copy deserialization in Rust.');
-        callbacks.onComplete?.('In ProjectB, I implemented memory-safe zero-copy deserialization in Rust.');
+        await callbacks.onComplete?.('In ProjectB, I implemented memory-safe zero-copy deserialization in Rust.');
       }
     });
 
@@ -289,7 +289,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
 
     // 8a: First generation is valid
     vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
-      callbacks.onComplete?.('Distributed cache invalidation strategies include write-through and cache-aside.');
+      await callbacks.onComplete?.('Distributed cache invalidation strategies include write-through and cache-aside.');
     });
 
     await InterviewEngine.handleEvent({
@@ -304,7 +304,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
       callbacks.onToken?.('In my project RedisCluster, I scaled cache invalidation to 80 million requests per second.');
       // While regenerating, speakable queue must be cleared
       expect(useAppStore.getState().teleprompterQueue).toHaveLength(0);
-      callbacks.onComplete?.('In my project RedisCluster, I scaled cache invalidation to 80 million requests per second.');
+      await callbacks.onComplete?.('In my project RedisCluster, I scaled cache invalidation to 80 million requests per second.');
     });
 
     await InterviewEngine.handleEvent({
@@ -336,7 +336,7 @@ describe('Candidate-Facing Integrity & Teleprompter Queue Safeguards (Section 1 
       callbacks.onSentence?.(hallucinatedAnswer);
       expect(useAppStore.getState().teleprompterQueue).toHaveLength(0);
 
-      callbacks.onComplete?.(hallucinatedAnswer);
+      await callbacks.onComplete?.(hallucinatedAnswer);
     });
 
     await InterviewEngine.handleEvent({
