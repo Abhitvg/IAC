@@ -51,8 +51,10 @@ let pendingQuestionTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingQuestionText = '';
 let pendingQuestionTranscript = '';
 let pendingQuestionDeadline = 0;
+let pendingQuestionHardDeadline = 0;
 
 export const QUESTION_CONTINUATION_GRACE_MS = 4000;
+export const QUESTION_CONTINUATION_MAX_MS = 15000;
 
 function clearPendingQuestionTimer(): void {
   if (pendingQuestionTimer) clearTimeout(pendingQuestionTimer);
@@ -72,10 +74,14 @@ export class InterviewEngine {
     InterviewEngine.abortActiveGeneration();
     pendingQuestionText = existing;
     pendingQuestionTranscript = existing;
-    pendingQuestionDeadline =
-      Date.now() +
-      Math.min(3500, Math.max(400, state.speechPauseTolerance)) +
-      QUESTION_CONTINUATION_GRACE_MS;
+    const now = Date.now();
+    pendingQuestionHardDeadline = now + QUESTION_CONTINUATION_MAX_MS;
+    pendingQuestionDeadline = Math.min(
+      pendingQuestionHardDeadline,
+      now +
+        Math.min(3500, Math.max(400, state.speechPauseTolerance)) +
+        QUESTION_CONTINUATION_GRACE_MS
+    );
     state.setIsIncompleteQuestionMode(true);
     state.setPipelineStage('pending_finalization');
     state.setStatus('listening');
@@ -90,17 +96,27 @@ export class InterviewEngine {
 
   static appendPendingQuestionUtterance(text: string): boolean {
     const incoming = (text || '').trim();
-    if (!incoming || !pendingQuestionText || Date.now() > pendingQuestionDeadline) return false;
+    const now = Date.now();
+    if (
+      !incoming ||
+      !pendingQuestionText ||
+      now > pendingQuestionDeadline ||
+      now > pendingQuestionHardDeadline
+    ) {
+      return false;
+    }
     pendingQuestionText = `${pendingQuestionText.replace(/[.?!…]+$/, '')} ${incoming}`.trim();
     pendingQuestionTranscript = `${pendingQuestionTranscript} ${incoming}`.trim();
     const state = useAppStore.getState();
     state.setCurrentQuestion(pendingQuestionText);
     state.setIsIncompleteQuestionMode(true);
     clearPendingQuestionTimer();
-    pendingQuestionDeadline =
-      Date.now() +
-      Math.min(3500, Math.max(400, state.speechPauseTolerance)) +
-      QUESTION_CONTINUATION_GRACE_MS;
+    pendingQuestionDeadline = Math.min(
+      pendingQuestionHardDeadline,
+      now +
+        Math.min(3500, Math.max(400, state.speechPauseTolerance)) +
+        QUESTION_CONTINUATION_GRACE_MS
+    );
     pendingQuestionTimer = setTimeout(
       () => {
         void InterviewEngine.finalizePendingQuestion();
@@ -115,6 +131,7 @@ export class InterviewEngine {
     clearPendingQuestionTimer();
     pendingQuestionText = '';
     pendingQuestionDeadline = 0;
+    pendingQuestionHardDeadline = 0;
     useAppStore.getState().setIsIncompleteQuestionMode(false);
     if (!question) return;
     const fullTranscript = pendingQuestionTranscript;
