@@ -7,6 +7,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
 import { CredentialStore } from '../services/credentialStore';
+import { MessageRateLimiter, parseBrowserContextMessage } from '../services/browserContextValidation';
 
 let wsServer: WebSocketServer | null = null;
 let httpServer: http.Server | null = null;
@@ -268,72 +269,93 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       res.end();
     });
 
-    wsServer = new WebSocketServer({ server: httpServer });
+    wsServer = new WebSocketServer({ server: httpServer, maxPayload: 256 * 1024 });
 
     wsServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
-      // 1. Check Origin: Reject malicious web pages attempting to connect to localhost WS
+      // Reject web pages and non-extension origins. Authentication remains mandatory.
       const origin = req.headers['origin'];
-      if (origin && !origin.startsWith('chrome-extension://')) {
-        console.warn(
-          `[Security] Rejected WebSocket connection from unauthorized origin: ${origin}`
-        );
-        ws.close(1008, 'Unauthorized origin');
-        return;
+      if (origin) {
+        let parsedOrigin: URL;
+        try {
+          parsedOrigin = new URL(origin);
+        } catch {
+          ws.close(1008, 'Invalid origin');
+          return;
+        }
+        if (
+          parsedOrigin.protocol !== 'chrome-extension:' ||
+          !/^[a-p]{32}$/.test(parsedOrigin.hostname)
+        ) {
+          console.warn(`[Security] Rejected WebSocket origin: ${origin}`);
+          ws.close(1008, 'Unauthorized origin');
+          return;
+        }
       }
 
-      // 2. Token Authentication via query param or header
-      const reqUrl = new URL(req.url || '', 'http://127.0.0.1');
-      const providedToken = req.headers['x-extension-token'];
+      // Authentication material is never accepted in the URL.
+      const reqUrl = new URL(req.url || '/', 'http://127.0.0.1');
       if (reqUrl.searchParams.has('token')) {
-        console.warn('[Security] Rejected WebSocket token supplied in URL query string.');
         ws.close(1008, 'Token must not be supplied in URL');
         return;
       }
       const expectedToken = store.get('extensionToken');
+      const providedToken = req.headers['x-extension-token'];
+      let isAuthenticated = Boolean(
+        typeof providedToken === 'string' &&
+        typeof expectedToken === 'string' &&
+        providedToken === expectedToken
+      );
+      const rateLimiter = new MessageRateLimiter(30, 60_000);
 
-      let isAuthenticated = Boolean(providedToken && providedToken === expectedToken);
-
-      // If token not provided in URL, allow first message to be an auth packet
       const authTimeout = setTimeout(() => {
         if (!isAuthenticated) {
-          console.warn('[Security] WebSocket client failed to authenticate within timeout.');
           ws.close(1008, 'Authentication timeout');
         }
       }, 5000);
 
       ws.on('message', (rawMessage: Buffer) => {
-        // Enforce max payload size of 256KB
-        if (rawMessage.length > 256 * 1024) {
-          console.warn('[Security] Dropped oversized WebSocket payload.');
+        if (!rateLimiter.allow()) {
+          console.warn('[Security] WebSocket connection exceeded message rate limit.');
+          ws.close(1008, 'Message rate limit exceeded');
           return;
         }
 
         try {
-          const data = JSON.parse(rawMessage.toString('utf8'));
+          const data: unknown = JSON.parse(rawMessage.toString('utf8'));
 
           if (!isAuthenticated) {
-            if (data.type === 'auth' && data.token === expectedToken) {
+            if (
+              data &&
+              typeof data === 'object' &&
+              !Array.isArray(data) &&
+              (data as Record<string, unknown>).type === 'auth' &&
+              typeof (data as Record<string, unknown>).token === 'string' &&
+              (data as Record<string, unknown>).token === expectedToken
+            ) {
               isAuthenticated = true;
               clearTimeout(authTimeout);
               ws.send(JSON.stringify({ type: 'auth-success' }));
               return;
-            } else {
-              ws.close(1008, 'Invalid token');
-              return;
             }
+            ws.close(1008, 'Invalid token');
+            return;
           }
 
-          // Authenticated message: treat all text as untrusted external content
-          if (data.type && data.content && typeof data.content === 'string') {
-            const sanitizedContent = `<<<EXTERNAL_UNTRUSTED_CONTENT>>>\n${data.content.slice(0, 10000)}\n<<<END_EXTERNAL_UNTRUSTED_CONTENT>>>`;
-            mainWindowRef?.webContents.send('browser-context', {
-              ...data,
-              content: sanitizedContent,
-              isUntrusted: true,
-            });
+          const message = parseBrowserContextMessage(data);
+          if (!message) {
+            console.warn('[Security] Rejected malformed browser context payload.');
+            ws.close(1008, 'Invalid message payload');
+            return;
           }
-        } catch (e) {
-          console.error('[WebSocket] Invalid JSON received:', e);
+
+          const sanitizedContent = `<<<EXTERNAL_UNTRUSTED_CONTENT>>>\\n${message.content}\\n<<<END_EXTERNAL_UNTRUSTED_CONTENT>>>`;
+          mainWindowRef?.webContents.send('browser-context', {
+            ...message,
+            content: sanitizedContent,
+            isUntrusted: true,
+          });
+        } catch {
+          ws.close(1008, 'Invalid JSON message');
         }
       });
 
