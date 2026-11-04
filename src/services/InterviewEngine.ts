@@ -1054,9 +1054,10 @@ export class InterviewEngine {
         // If an answer is currently generating or analyzing, do NOT abort generation!
         const currentStatus = useAppStore.getState().status;
         if (currentStatus !== 'generating' && currentStatus !== 'analyzing') {
-          useAppStore.getState().setStatus('idle');
-          useAppStore.getState().setPipelineStage('idle');
-          useAppStore.getState().setRecitalState('idle');
+          const store = useAppStore.getState();
+          store.setStatus('idle');
+          store.setPipelineStage(store.currentAnswer ? 'answer_ready' : 'listening');
+          store.setRecitalState('idle');
         }
         useAppStore.getState().setToast('⏹️ Audio recording stopped.');
         break;
