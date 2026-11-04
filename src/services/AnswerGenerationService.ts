@@ -596,10 +596,6 @@ export class AnswerGenerationService {
                 handleStreamComplete(full);
                 streamSucceeded = true;
               },
-              onError: (err) => {
-                if (signal?.aborted) return;
-                cb.onError?.(err, requestId);
-              },
             },
             signal,
             { overallTimeoutMs: 60000, inactivityTimeoutMs: 15000 }
