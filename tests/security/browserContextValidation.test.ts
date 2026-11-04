@@ -13,8 +13,9 @@ describe('browser extension context validation', () => {
   });
 
   it('accepts a valid selected-text payload and strips unknown fields', () => {
-    const parsed = parseBrowserContextMessage({ ...validMessage(), extra: 'ignored' });
-    expect(parsed).toMatchObject(validMessage());
+    const message = validMessage();
+    const parsed = parseBrowserContextMessage({ ...message, extra: 'ignored' });
+    expect(parsed).toMatchObject(message);
     expect(Object.keys(parsed ?? {}).sort()).toEqual(['content', 'source', 'timestamp', 'type']);
     expect(parsed).not.toHaveProperty('extra');
   });
