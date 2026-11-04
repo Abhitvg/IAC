@@ -399,31 +399,42 @@ app.on('window-all-closed', () => {
 });
 
 // Window controls IPC
-ipcMain.on('window:minimize', () => mainWindow?.minimize());
-ipcMain.on('window:maximize', () => {
+ipcMain.on('window:minimize', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
+  mainWindow?.minimize();
+});
+ipcMain.on('window:maximize', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
   if (mainWindow?.isMaximized()) {
     mainWindow.unmaximize();
   } else {
     mainWindow?.maximize();
   }
 });
-ipcMain.on('window:close', () => {
+ipcMain.on('window:close', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
   globalShortcut.unregisterAll();
   app.quit();
 });
-ipcMain.on('app:quit', () => {
+ipcMain.on('app:quit', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
   globalShortcut.unregisterAll();
   app.quit();
 });
-ipcMain.on('window:toggle-always-on-top', () => {
+ipcMain.on('window:toggle-always-on-top', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
   if (mainWindow) {
     const isOnTop = mainWindow.isAlwaysOnTop();
     mainWindow.setAlwaysOnTop(!isOnTop);
   }
 });
-ipcMain.handle('window:is-always-on-top', () => mainWindow?.isAlwaysOnTop() ?? false);
+ipcMain.handle('window:is-always-on-top', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  return mainWindow?.isAlwaysOnTop() ?? false;
 
-ipcMain.handle('window:set-size', (_event, width: number, height: number) => {
+ipcMain.handle('window:set-size', (event, width: number, height: number) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (!Number.isFinite(width) || !Number.isFinite(height)) throw new Error('Invalid window dimensions');
   if (!mainWindow) return false;
   try {
     mainWindow.setSize(Math.round(width), Math.round(height));
@@ -434,13 +445,16 @@ ipcMain.handle('window:set-size', (_event, width: number, height: number) => {
   }
 });
 
-ipcMain.handle('window:get-size', () => {
+ipcMain.handle('window:get-size', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (!mainWindow) return { width: 1024, height: 720 };
   const [width, height] = mainWindow.getSize();
   return { width, height };
 });
 
-ipcMain.handle('window:set-position', (_event, x: number, y: number) => {
+ipcMain.handle('window:set-position', (event, x: number, y: number) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error('Invalid window position');
   if (!mainWindow) return false;
   try {
     mainWindow.setPosition(Math.round(x), Math.round(y));
@@ -451,13 +465,24 @@ ipcMain.handle('window:set-position', (_event, x: number, y: number) => {
   }
 });
 
-ipcMain.handle('window:get-position', () => {
+ipcMain.handle('window:get-position', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (!mainWindow) return { x: 100, y: 100 };
   const [x, y] = mainWindow.getPosition();
   return { x, y };
 });
 
-ipcMain.handle('window:set-ignore-mouse-events', (_event, ignore: boolean, options?: { forward?: boolean }) => {
+ipcMain.handle('window:set-ignore-mouse-events', (event, ignore: boolean, options?: { forward?: boolean }) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (
+    typeof ignore !== 'boolean' ||
+    (options !== undefined &&
+      (typeof options !== 'object' ||
+        options === null ||
+        (options.forward !== undefined && typeof options.forward !== 'boolean')))
+  ) {
+    throw new Error('Invalid mouse event options');
+  }
   if (!mainWindow) return false;
   try {
     mainWindow.setIgnoreMouseEvents(Boolean(ignore), options || { forward: true });
@@ -468,7 +493,8 @@ ipcMain.handle('window:set-ignore-mouse-events', (_event, ignore: boolean, optio
   }
 });
 
-ipcMain.handle('window:set-opacity', (_event, opacity: number) => {
+ipcMain.handle('window:set-opacity', (event, opacity: number) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (!mainWindow) return false;
   if (typeof opacity !== 'number' || isNaN(opacity)) return false;
   const clamped = Math.max(0.12, Math.min(1.0, opacity));
@@ -481,7 +507,8 @@ ipcMain.handle('window:set-opacity', (_event, opacity: number) => {
   }
 });
 
-ipcMain.handle('window:get-opacity', () => {
+ipcMain.handle('window:get-opacity', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (!mainWindow) return 1.0;
   try {
     return mainWindow.getOpacity();
@@ -491,12 +518,22 @@ ipcMain.handle('window:get-opacity', () => {
 });
 
 // File system paths
-ipcMain.handle('get-recordings-dir', () => RECORDINGS_DIR);
-ipcMain.handle('get-sessions-dir', () => SESSIONS_DIR);
-ipcMain.handle('get-user-data-path', () => app.getPath('userData'));
+ipcMain.handle('get-recordings-dir', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  return RECORDINGS_DIR;
+});
+ipcMain.handle('get-sessions-dir', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  return SESSIONS_DIR;
+});
+ipcMain.handle('get-user-data-path', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  return app.getPath('userData');
+});
 
 // File dialog with path approval registration
-ipcMain.handle('dialog:open-file', async (_event, options: Electron.OpenDialogOptions) => {
+ipcMain.handle('dialog:open-file', async (event, options: Electron.OpenDialogOptions) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, options || {});
   if (result.canceled || result.filePaths.length === 0) return null;
@@ -620,7 +657,9 @@ ipcMain.handle('shell:open-external', async (event, url: string) => {
 });
 
 // Native OS Clipboard handlers (guarantees clipboard writes work even when window is unfocused or transparent)
-ipcMain.handle('clipboard:write-text', (_event, text: string) => {
+ipcMain.handle('clipboard:write-text', (event, text: string) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (typeof text !== 'string' || text.length > 1024 * 1024) throw new Error('Invalid clipboard text');
   try {
     const cleanText = typeof text === 'string' ? text : String(text ?? '');
     clipboard.writeText(cleanText);
@@ -631,7 +670,8 @@ ipcMain.handle('clipboard:write-text', (_event, text: string) => {
   }
 });
 
-ipcMain.handle('clipboard:read-text', () => {
+ipcMain.handle('clipboard:read-text', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   try {
     return clipboard.readText();
   } catch {
@@ -733,15 +773,24 @@ ipcMain.handle('fs:parse-docx', async (event, arrayBuffer: ArrayBuffer) => {
 });
 
 // Window visibility & protection IPC
-ipcMain.on('window:toggle-visibility', () => toggleWindowVisibility());
-ipcMain.on('window:hide', () => mainWindow?.hide());
-ipcMain.on('window:show', () => {
+ipcMain.on('window:toggle-visibility', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
+  toggleWindowVisibility();
+});
+ipcMain.on('window:hide', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
+  mainWindow?.hide();
+});
+ipcMain.on('window:show', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
   if (!mainWindow) return;
   mainWindow.show();
   mainWindow.setAlwaysOnTop(true, 'floating');
   mainWindow.focus();
 });
-ipcMain.handle('window:set-content-protection', (_event, enable: boolean) => {
+ipcMain.handle('window:set-content-protection', (event, enable: boolean) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (typeof enable !== 'boolean') throw new Error('Invalid content protection value');
   if (mainWindow) {
     mainWindow.setContentProtection(enable);
     isContentProtected = enable;
@@ -749,8 +798,11 @@ ipcMain.handle('window:set-content-protection', (_event, enable: boolean) => {
   }
   return false;
 });
-ipcMain.handle('window:is-content-protected', () => isContentProtected);
-ipcMain.on('window:toggle-content-protection', () => {
+ipcMain.handle('window:is-content-protected', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  return isContentProtected;
+ipcMain.on('window:toggle-content-protection', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
   if (mainWindow) {
     isContentProtected = !isContentProtected;
     mainWindow.setContentProtection(isContentProtected);
@@ -760,7 +812,9 @@ ipcMain.on('window:toggle-content-protection', () => {
 // Screen Capture & Neural OCR
 ipcMain.handle(
   'screen:capture-and-ocr',
-  async (_event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
+  async (event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
+    if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+    if (mode !== 'fullscreen' && mode !== 'snip') throw new Error('Invalid screen capture mode');
     const tmpImg = path.join(app.getPath('temp'), `iac_screen_${Date.now()}.jpg`);
     const isMac = process.platform === 'darwin';
     const ocrBin = resolveOcrBinaryPath();
@@ -828,8 +882,12 @@ ipcMain.handle(
 );
 
 
-ipcMain.handle('screen:get-last-ocr-text', () => lastCapturedOcrText);
-ipcMain.handle('screen:set-last-ocr-text', (_event, text: string) => {
+ipcMain.handle('screen:get-last-ocr-text', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  return lastCapturedOcrText;
+ipcMain.handle('screen:set-last-ocr-text', (event, text: string) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (typeof text !== 'string' || text.length > 100000) throw new Error('Invalid OCR text');
   lastCapturedOcrText = text || '';
   return true;
 });
@@ -837,7 +895,9 @@ ipcMain.handle('screen:set-last-ocr-text', (_event, text: string) => {
 // Append Screen Capture (Scroll down & stitch multi-page problem descriptions)
 ipcMain.handle(
   'screen:append-capture-and-ocr',
-  async (_event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
+  async (event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
+    if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+    if (mode !== 'fullscreen' && mode !== 'snip') throw new Error('Invalid screen capture mode');
     const tmpImg = path.join(app.getPath('temp'), `iac_screen_append_${Date.now()}.jpg`);
     const isMac = process.platform === 'darwin';
     const ocrBin = resolveOcrBinaryPath();
@@ -904,7 +964,10 @@ ipcMain.handle(
 );
 
 // Stealth Keystroke Auto-Typer: Dispatches native OS keyboard HID events directly into active editor window
-ipcMain.handle('system:auto-type', async (_event, code: string, delayMs: number = 1500) => {
+ipcMain.handle('system:auto-type', async (event, code: string, delayMs: number = 1500) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (typeof code !== 'string' || code.length > 100000) throw new Error('Invalid auto-type payload');
+  if (!Number.isFinite(delayMs) || delayMs < 0 || delayMs > 30000) throw new Error('Invalid auto-type delay');
   if (!code || typeof code !== 'string') {
     return { success: false, error: 'No code provided.' };
   }
@@ -968,9 +1031,12 @@ end tell
   }
 });
 
-ipcMain.handle('screen:get-ocr-engine-info', () => getOcrEngineInfo());
+ipcMain.handle('screen:get-ocr-engine-info', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  return getOcrEngineInfo();
 
-ipcMain.handle('screen:ocr-image', async (_event, filePath: string) => {
+ipcMain.handle('screen:ocr-image', async (event, filePath: string) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (typeof filePath !== 'string') {
     return { success: false, error: 'Invalid argument: filePath must be a string' };
   }
