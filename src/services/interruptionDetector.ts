@@ -204,12 +204,12 @@ export function detectQuestionIntent(text: string): {
   const tokens = trimmed.split(/\s+/).filter(Boolean);
   const hasInterrogativeSyntax =
     /[?]$/.test(trimmed) ||
-    /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|explain|describe|define|compare|implement|tell me|walk me through)\b/i.test(trimmed) ||
+    /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|explain|describe|define|compare|implement|discuss|outline|elaborate|give me|tell me|walk me through)\b/i.test(trimmed) ||
     /^(kya|kaise|kyun|batao|samjhao|bataiye|samjhaiye)\b/i.test(trimmed);
-  // A full declarative question/prompt often has no punctuation in speech transcripts.
-  const substantialPrompt = tokens.length >= 5 && !/^(i|we|my|our)\b/i.test(trimmed);
   return {
-    plausibleQuestion: hasInterrogativeSyntax || substantialPrompt,
+    // Do not infer a question from length alone: that was incorrectly turning
+    // ordinary candidate recital sentences into interviewer interruptions.
+    plausibleQuestion: hasInterrogativeSyntax,
     incomplete: isIncompleteSentence(trimmed),
   };
 }
