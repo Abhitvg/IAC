@@ -1,0 +1,59 @@
+name: Temporary PR 24 full validation
+
+on:
+  push:
+    branches:
+      - fix/post-merge-prettier-formatting
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/post-merge-prettier-formatting
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Format changed files
+        run: |
+          git diff --name-only --diff-filter=ACMR 61a95949515ea0b38bd0f3c03c9b72f35cf42d7a...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' > /tmp/changed-files.txt
+          if [[ -s /tmp/changed-files.txt ]]; then
+            xargs -r npx prettier --write < /tmp/changed-files.txt
+          fi
+      - name: Commit formatting corrections
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No formatting changes required."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "style: format remaining PR 24 changes"
+            git push origin HEAD:fix/post-merge-prettier-formatting
+          fi
+      - name: Verify formatting
+        run: |
+          git diff --name-only --diff-filter=ACMR 61a95949515ea0b38bd0f3c03c9b72f35cf42d7a...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' > /tmp/changed-files.txt
+          if [[ -s /tmp/changed-files.txt ]]; then
+            xargs -r npx prettier --check < /tmp/changed-files.txt
+          fi
+      - name: Lint source files
+        run: npm run lint
+      - name: Type check
+        run: npm run typecheck
+      - name: Tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Secret scan
+        run: npm run security:check
