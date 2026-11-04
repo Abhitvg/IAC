@@ -141,7 +141,7 @@ export class CredentialStore {
     }
 
     // Fallback AES-256-GCM
-    const aesKey = getFallbackAesKey(this.userDataPath);
+    const aesKey = getFallbackAesKey(this.userDataPath, false);
     const cipherText = aesEncrypt(trimmed, aesKey);
     this.store.set(`secure_credentials.${service}`, {
       type: 'aes-gcm',
