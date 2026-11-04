@@ -678,7 +678,11 @@ export class InterviewEngine {
                     : CandidateKnowledgeBase.getActiveKnowledgeBase()
                 );
 
-              if (res.status === 'FAILED' || res.status === 'ABORTED' || !res.cleanAnswer?.trim()) {
+              if (
+                res.status === 'FAILED' ||
+                res.status === 'ABORTED' ||
+                (!res.cleanAnswer?.trim() && decision.outcome !== 'BLOCKED')
+              ) {
                 state.setCurrentAnswer(null);
                 state.setIsAnswerValidated(false);
                 state.setAnswerValidationStatus(res.status === 'ABORTED' ? 'ABORTED' : 'FAILED');
