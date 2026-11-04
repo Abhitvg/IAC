@@ -123,6 +123,12 @@ describe('interruptionDetector & Utterance Classification', () => {
       expect(res.type).toBe('INTERVIEWER_INTERRUPTION');
     });
 
+    it('detects explicit interruption phrases without a question mark', () => {
+      expect(classifyUtterance('Wait, let me stop you for a second', referenceAnswer).type).toBe(
+        'INTERVIEWER_INTERRUPTION'
+      );
+    });
+
     it('classifies question with question mark as INTERVIEWER_INTERRUPTION', () => {
       const speech = 'What about latency and replication lag?';
       const res = classifyUtterance(speech, referenceAnswer);
