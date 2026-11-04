@@ -594,6 +594,17 @@ export class InterviewEngine {
                   currentStore.resumeText ? new CandidateKnowledgeBase(currentStore.resumeText) : CandidateKnowledgeBase.getActiveKnowledgeBase()
                 );
 
+              if (res.status === 'FAILED' || res.status === 'ABORTED' || !res.cleanAnswer?.trim()) {
+                state.setCurrentAnswer(null);
+                state.setIsAnswerValidated(false);
+                state.setAnswerValidationStatus(res.status === 'ABORTED' ? 'ABORTED' : 'FAILED');
+                state.enqueueSentences([]);
+                state.setBlockedReason((res as any).error || 'The model returned no usable answer.');
+                state.setPipelineStage('failed');
+                state.setStatus(res.status === 'ABORTED' ? 'paused' : 'error');
+                return;
+              }
+
               if (decision.isSpeakable) {
                 const finalAnswer = decision.speakableAnswer;
                 state.setCurrentAnswer(finalAnswer);
@@ -693,11 +704,7 @@ export class InterviewEngine {
                 whisperStatus: 'gen error: ' + (err.message || String(err)),
               });
               state.setStatus('error');
-              setTimeout(() => {
-                if (useAppStore.getState().status === 'error') {
-                  useAppStore.getState().setStatus('listening');
-                }
-              }, 3000);
+              // Keep failure visible and recoverable; do not auto-clear it after a toast timeout.
             },
           }
         );
