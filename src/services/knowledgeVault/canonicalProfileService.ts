@@ -92,16 +92,20 @@ export class CanonicalProfileService {
   /**
    * Resets all candidate data to initial clean state with zero fabrications.
    */
-  public clearAllCandidateData(): void {
-    this.currentProfile = createDefaultCanonicalProfile();
-
+  public clearAllCandidateData(): boolean {
+    // Do not clear the in-memory profile or downstream stores unless the canonical
+    // persisted profile can also be removed. Otherwise a restart could restore data
+    // that the UI told the candidate had been deleted.
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
         localStorage.removeItem(STORAGE_KEY);
       } catch (e) {
         console.error('[CanonicalProfileService] Failed to clear localStorage:', e);
+        return false;
       }
     }
+
+    this.currentProfile = createDefaultCanonicalProfile();
 
     try {
       KnowledgeVaultService.getInstance().resetVault();
@@ -111,6 +115,7 @@ export class CanonicalProfileService {
 
     this.syncToSubsystems(this.currentProfile);
     this.notify();
+    return true;
   }
 
   /**
