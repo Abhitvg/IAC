@@ -298,7 +298,7 @@ export function classifyUtterance(
   if (hasActiveAnswer) {
     return {
       type: 'UNCLASSIFIED',
-      confidence: Math.max(0.25, 0.55 - compositeScore * 0.2),
+      confidence: Math.max(0.25, 0.35 - compositeScore * 0.1),
       reason: 'Speaker cannot be reliably attributed without audio diarization',
       questionText: trimmed,
       overlapScore: compositeScore,
