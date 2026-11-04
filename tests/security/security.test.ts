@@ -10,6 +10,7 @@ import {
   buildCspHeader,
   getSandboxConfig,
   MAX_WRITE_FILE_SIZE_BYTES,
+  isTrustedSender,
 } from '../../electron/services/security';
 
 describe('Security Hardening & Path Validation', () => {
@@ -196,5 +197,96 @@ describe('Security Hardening & Path Validation', () => {
       const devSandbox = getSandboxConfig(false);
       expect(devSandbox).toBe(false);
     });
+  });
+});
+
+
+describe('IPC sender identity validation', () => {
+  const trustedUrl = 'http://localhost:5173/index.html';
+
+  function createWindow() {
+    const mainFrame = { parent: null, url: trustedUrl };
+    const webContents = {
+      mainFrame,
+      isDestroyed: () => false,
+      getURL: () => trustedUrl,
+    };
+    return {
+      mainFrame,
+      webContents,
+      isDestroyed: () => false,
+    };
+  }
+
+  it('accepts only the exact trusted main frame and WebContents', () => {
+    const window = createWindow();
+    expect(
+      isTrustedSender(
+        { sender: window.webContents, senderFrame: window.mainFrame },
+        window,
+        'http://localhost:5173'
+      )
+    ).toBe(true);
+  });
+
+  it('rejects missing sender or sender frame metadata', () => {
+    const window = createWindow();
+    expect(
+      isTrustedSender(
+        { senderFrame: window.mainFrame },
+        window,
+        'http://localhost:5173'
+      )
+    ).toBe(false);
+    expect(
+      isTrustedSender(
+        { sender: window.webContents },
+        window,
+        'http://localhost:5173'
+      )
+    ).toBe(false);
+  });
+
+  it('rejects foreign WebContents, subframes, and mismatched frame URLs', () => {
+    const window = createWindow();
+    expect(
+      isTrustedSender(
+        { sender: {}, senderFrame: window.mainFrame },
+        window,
+        'http://localhost:5173'
+      )
+    ).toBe(false);
+    expect(
+      isTrustedSender(
+        {
+          sender: window.webContents,
+          senderFrame: { parent: window.mainFrame, url: trustedUrl },
+        },
+        window,
+        'http://localhost:5173'
+      )
+    ).toBe(false);
+    expect(
+      isTrustedSender(
+        {
+          sender: window.webContents,
+          senderFrame: { parent: null, url: 'https://attacker.example' },
+        },
+        window,
+        'http://localhost:5173'
+      )
+    ).toBe(false);
+  });
+
+  it('rejects a navigated current document even if the event frame was trusted', () => {
+    const window = createWindow();
+    window.webContents.getURL = () => 'https://attacker.example';
+    expect(
+      isTrustedSender(
+        { sender: window.webContents, senderFrame: window.mainFrame },
+        window,
+        'http://localhost:5173'
+      )
+    ).toBe(false);
   });
 });
