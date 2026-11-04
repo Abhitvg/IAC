@@ -60,5 +60,6 @@ describe('Ambiguous transcript confirmation flow', () => {
     );
     expect(state.status).toBe('confirmation_required');
     expect(state.pipelineStage).toBe('confirmation_required');
+    expect(state.isRecording).toBe(true);
   });
 });
