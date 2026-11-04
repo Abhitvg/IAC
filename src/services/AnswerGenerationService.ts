@@ -185,7 +185,16 @@ export class AnswerGenerationService {
     // Normalize parameters
     const requestId = params.requestId || `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const type = params.type || 'interview';
-    const signal = params.signal;
+    const callerSignal = params.signal;
+    const generationController = new AbortController();
+    const abortFromCaller = () => generationController.abort(callerSignal?.reason);
+    if (callerSignal?.aborted) generationController.abort(callerSignal.reason);
+    else callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
+    const overallTimer = setTimeout(
+      () => generationController.abort(new Error('Overall answer-generation deadline exceeded (75s).')),
+      75000
+    );
+    const signal = generationController.signal;
     if (params.candidateKnowledgeBase && !params.knowledgeBase) {
       params.knowledgeBase = params.candidateKnowledgeBase;
     }
@@ -453,7 +462,8 @@ export class AnswerGenerationService {
                 cb.onError?.(err, requestId);
               },
             },
-            signal
+            signal,
+            { overallTimeoutMs: 60000, inactivityTimeoutMs: 15000 }
           );
           streamSucceeded = true;
         }
@@ -599,6 +609,8 @@ export class AnswerGenerationService {
       (completionResult as any).answer = completionResult.cleanAnswer;
     }
 
+    clearTimeout(overallTimer);
+    callerSignal?.removeEventListener('abort', abortFromCaller);
     return completionResult!;
   }
 }
