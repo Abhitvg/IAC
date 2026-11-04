@@ -431,6 +431,7 @@ ipcMain.on('window:toggle-always-on-top', (event) => {
 ipcMain.handle('window:is-always-on-top', (event) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   return mainWindow?.isAlwaysOnTop() ?? false;
+});
 
 ipcMain.handle('window:set-size', (event, width: number, height: number) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
@@ -801,6 +802,7 @@ ipcMain.handle('window:set-content-protection', (event, enable: boolean) => {
 ipcMain.handle('window:is-content-protected', (event) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   return isContentProtected;
+});
 ipcMain.on('window:toggle-content-protection', (event) => {
   if (!isTrustedSender(event, mainWindow)) return;
   if (mainWindow) {
@@ -885,6 +887,7 @@ ipcMain.handle(
 ipcMain.handle('screen:get-last-ocr-text', (event) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   return lastCapturedOcrText;
+});
 ipcMain.handle('screen:set-last-ocr-text', (event, text: string) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (typeof text !== 'string' || text.length > 100000) throw new Error('Invalid OCR text');
@@ -1034,6 +1037,7 @@ end tell
 ipcMain.handle('screen:get-ocr-engine-info', (event) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   return getOcrEngineInfo();
+});
 
 ipcMain.handle('screen:ocr-image', async (event, filePath: string) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
