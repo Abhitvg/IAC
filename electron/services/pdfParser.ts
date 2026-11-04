@@ -32,7 +32,9 @@ function resolveCMapUrl(): string {
   if (process.resourcesPath) {
     const packagedPath = path.join(process.resourcesPath, 'cmaps');
     if (fs.existsSync(packagedPath)) {
-      return pathToFileURL(packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep).href;
+      return pathToFileURL(
+        packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep
+      ).href;
     }
   }
   try {
