@@ -103,9 +103,19 @@ export class KnowledgeVaultService {
     this.notify();
   }
 
-  public resetVault(): void {
-    const empty = createInitialVault();
-    this.saveVault(empty);
+  public resetVault(): boolean {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {
+        console.error('[KnowledgeVault] Reset failed:', e);
+        return false;
+      }
+    }
+
+    this.currentVault = createInitialVault();
+    this.notify();
+    return true;
   }
 
   private loadFromStorage(): CandidateKnowledgeVault {
