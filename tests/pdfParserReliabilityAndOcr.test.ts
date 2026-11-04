@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parsePdfBuffer, isGarbledOrMojibakeText } from '../electron/services/pdfParser';
 import { getOcrEngineInfo, executeOcr } from '../electron/services/ocrService';
+import { createTextPdf } from './helpers/pdfFixtures';
 
 describe('PDF Extraction Reliability & Native OCR Bounds (P1)', () => {
   describe('Mojibake & Corrupt Text Detection', () => {
@@ -62,36 +63,20 @@ describe('PDF Extraction Reliability & Native OCR Bounds (P1)', () => {
     });
 
     it('Scenario 1 (Normal Text PDF): extracts readable text accurately', async () => {
-      const minimalPdf =
-        '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>/Contents 4 0 R>>endobj\n4 0 obj<</Length 44>>stream\nBT /F1 12 Tf 72 712 Td (Candidate Resume Text 2026) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \n0000000195 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n289\n%%EOF';
-      const buf = Buffer.from(minimalPdf);
-      const res = await parsePdfBuffer(new Uint8Array(buf));
+      const res = await parsePdfBuffer(createTextPdf(['Candidate Resume Text 2026']));
       expect(res).toContain('Candidate Resume Text 2026');
     });
 
     it('Scenario 2 (Multi-Page PDF): extracts and aggregates text across multiple pages', async () => {
-      // 2-page valid PDF
-      const twoPagePdf =
-        '%PDF-1.4\n' +
-        '1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n' +
-        '2 0 obj<</Type/Pages/Count 2/Kids[3 0 R 5 0 R]>>endobj\n' +
-        '3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>/Contents 4 0 R>>endobj\n' +
-        '4 0 obj<</Length 42>>stream\nBT /F1 12 Tf 72 712 Td (Page 1: Systems Engineering) Tj ET\nendstream\nendobj\n' +
-        '5 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>/Contents 6 0 R>>endobj\n' +
-        '6 0 obj<</Length 44>>stream\nBT /F1 12 Tf 72 712 Td (Page 2: Kubernetes Infrastructure) Tj ET\nendstream\nendobj\n' +
-        'xref\n0 7\n0000000000 65535 f \n' +
-        '0000000009 00000 n \n0000000052 00000 n \n0000000105 00000 n \n0000000199 00000 n \n0000000291 00000 n \n0000000385 00000 n \n' +
-        'trailer<</Size 7/Root 1 0 R>>\nstartxref\n479\n%%EOF';
-
-      const res = await parsePdfBuffer(new Uint8Array(Buffer.from(twoPagePdf)));
+      const res = await parsePdfBuffer(
+        createTextPdf(['Page 1: Systems Engineering', 'Page 2: Kubernetes Infrastructure'])
+      );
       expect(res).toContain('Page 1: Systems Engineering');
       expect(res).toContain('Page 2: Kubernetes Infrastructure');
     });
 
     it('Scenario 3 (Short Valid Resume): preserves concise summary without truncation or false mojibake rejection', async () => {
-      const shortPdf =
-        '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>/Contents 4 0 R>>endobj\n4 0 obj<</Length 35>>stream\nBT /F1 12 Tf 72 712 Td (Alex: Principal SRE) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \n0000000195 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n280\n%%EOF';
-      const res = await parsePdfBuffer(new Uint8Array(Buffer.from(shortPdf)));
+      const res = await parsePdfBuffer(createTextPdf(['Alex: Principal SRE']));
       expect(res).toContain('Alex: Principal SRE');
     });
 
