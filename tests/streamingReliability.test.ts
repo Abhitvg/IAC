@@ -205,14 +205,16 @@ describe('Suite B: Streaming Reliability', () => {
     } as any);
 
     let streamError: any = null;
-    await streamAnswer('Explain B-trees', baseConfig, 'java' as any, {
-      onToken: () => {},
-      onSentence: () => {},
-      onComplete: () => {},
-      onError: (err) => {
-        streamError = err;
-      },
-    });
+    await expect(
+      streamAnswer('Explain B-trees', baseConfig, 'java' as any, {
+        onToken: () => {},
+        onSentence: () => {},
+        onComplete: () => {},
+        onError: (err) => {
+          streamError = err;
+        },
+      })
+    ).rejects.toMatchObject({ hasEmittedTokens: true });
 
     expect(streamError).not.toBeNull();
     expect(streamError.hasEmittedTokens).toBe(true);
