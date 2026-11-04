@@ -92,32 +92,53 @@ export class CanonicalProfileService {
   /**
    * Resets all candidate data to initial clean state with zero fabrications.
    */
-  public clearAllCandidateData(): boolean {
-    // Do not clear the in-memory profile or downstream stores unless the canonical
-    // persisted profile can also be removed. Otherwise a restart could restore data
-    // that the UI told the candidate had been deleted.
+  public clearAllCandidateData(): { success: boolean; failedStores: string[] } {
+    // First remove the canonical source of truth. If this fails, leave every copy
+    // untouched so the UI cannot claim that candidate data was deleted.
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
         localStorage.removeItem(STORAGE_KEY);
       } catch (e) {
-        console.error('[CanonicalProfileService] Failed to clear localStorage:', e);
-        return false;
+        console.error('[CanonicalProfileService] Failed to clear canonical profile:', e);
+        return { success: false, failedStores: ['canonical-profile'] };
       }
     }
 
     this.currentProfile = createDefaultCanonicalProfile();
+    const failedStores: string[] = [];
 
     try {
-      KnowledgeVaultService.getInstance().resetVault();
+      if (!KnowledgeVaultService.getInstance().resetVault()) {
+        failedStores.push('knowledge-vault');
+      }
     } catch (e) {
-      console.warn('[CanonicalProfileService] Vault reset warning:', e);
+      console.error('[CanonicalProfileService] Knowledge Vault reset failed:', e);
+      failedStores.push('knowledge-vault');
     }
 
-    this.syncToSubsystems(this.currentProfile);
-    this.notify();
-    return true;
-  }
+    try {
+      if (!useCandidateVaultStore.getState().resetToDefaults()) {
+        failedStores.push('career-ops-vault');
+      }
+    } catch (e) {
+      console.error('[CanonicalProfileService] CareerOps vault reset failed:', e);
+      failedStores.push('career-ops-vault');
+    }
 
+    try {
+      const knowledgeBase = CandidateKnowledgeBase.getActiveKnowledgeBase();
+      knowledgeBase.loadFromResume('');
+      knowledgeBase.setCandidateProfile('');
+    } catch (e) {
+      console.error('[CanonicalProfileService] In-memory candidate knowledge reset failed:', e);
+      failedStores.push('candidate-knowledge-base');
+    }
+
+    // Do not call syncToSubsystems here: it merges non-empty values from the old
+    // CareerOps profile and appends projects to the Knowledge Vault.
+    this.notify();
+    return { success: failedStores.length === 0, failedStores };
+  }
   /**
    * Adds or updates a single fact in the granular audit ledger.
    * Enforces Status-Upgrade Protection: manual candidate edits can never
