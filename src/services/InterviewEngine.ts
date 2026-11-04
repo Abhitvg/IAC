@@ -610,6 +610,12 @@ export class InterviewEngine {
                 state.setBlockedReason((res as any).error || 'The model returned no usable answer.');
                 state.setPipelineStage('failed');
                 state.setStatus(res.status === 'ABORTED' ? 'paused' : 'error');
+                DiagnosticLoggerService.getInstance().recordEvent({
+                  requestId: res.requestId,
+                  pipelineStage: 'failed',
+                  finalOutcome: res.status === 'ABORTED' ? 'ABORTED' : 'FAILED',
+                  message: (res as any).error || 'The model returned no usable answer.',
+                });
                 return;
               }
 
