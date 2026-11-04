@@ -677,19 +677,49 @@ export class AnswerGenerationService {
           // Wait with signal abort handling
           try {
             await new Promise<void>((resolve, reject) => {
-              const timer = setTimeout(resolve, delayMs);
-              if (signal) {
-                signal.addEventListener(
-                  'abort',
-                  () => {
-                    clearTimeout(timer);
-                    reject(new Error('AbortError'));
-                  },
-                  { once: true }
+              let timer: ReturnType<typeof setTimeout>;
+              const onAbort = () => {
+                clearTimeout(timer);
+                signal?.removeEventListener('abort', onAbort);
+                reject(
+                  Object.assign(
+                    new Error(signal?.reason?.message || 'Generation cancelled during retry backoff'),
+                    { name: 'AbortError' }
+                  )
                 );
-              }
+              };
+              timer = setTimeout(() => {
+                signal?.removeEventListener('abort', onAbort);
+                resolve();
+              }, delayMs);
+              signal?.addEventListener('abort', onAbort, { once: true });
+              if (signal?.aborted) onAbort();
             });
-          } catch {
+          } catch (waitError: any) {
+            if (signal?.aborted || waitError?.name === 'AbortError') {
+              const timeoutMessage =
+                signal?.reason?.message || waitError?.message || 'Generation cancelled';
+              const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
+              completionResult = {
+                status: timedOut ? 'FAILED' : 'ABORTED',
+                isValidated: false,
+                cleanAnswer: '',
+                error: timedOut ? timeoutMessage : 'Generation cancelled by user',
+                detectedCategory,
+                confidence: 'low',
+                followUps: [],
+                predictedFollowUps: [],
+                requestId,
+                validationStatus: timedOut ? 'FAILED' : 'ABORTED',
+                groundingScore: 0,
+                groundingViolations: [
+                  timedOut ? 'Generation deadline exceeded' : 'Request cancelled during retry backoff',
+                ],
+                structuredViolations: [],
+              };
+              (completionResult as any).answer = completionResult.cleanAnswer;
+              cb.onComplete?.(completionResult);
+            }
             break;
           }
 
