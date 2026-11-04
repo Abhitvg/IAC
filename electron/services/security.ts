@@ -363,6 +363,10 @@ export function isTrustedAppOrigin(
     }
 
     const normalizedPath = path.normalize(filePath);
+    const comparisonPath = (value: string) => {
+      const resolved = path.resolve(value);
+      return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+    };
 
     // 4. Must strictly target an approved application html entry point (not package.json, js, etc.)
     if (!normalizedPath.endsWith('/index.html') && !normalizedPath.endsWith('\\index.html')) {
@@ -374,7 +378,7 @@ export function isTrustedAppOrigin(
         ? allowedFilePaths.map((p) => path.normalize(p))
         : getApprovedAppHtmlPaths();
 
-    if (!approvedPaths.includes(normalizedPath)) {
+    if (!approvedPaths.some((approvedPath) => comparisonPath(approvedPath) === comparisonPath(normalizedPath))) {
       return false;
     }
 
@@ -391,7 +395,7 @@ export function isTrustedAppOrigin(
               return p;
             }
           });
-        if (approvedReals.length > 0 && !approvedReals.includes(real)) {
+        if (approvedReals.length > 0 && !approvedReals.some((approvedPath) => comparisonPath(approvedPath) === comparisonPath(real))) {
           return false;
         }
       } catch {
