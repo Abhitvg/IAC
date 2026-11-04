@@ -198,7 +198,9 @@ export class KnowledgeVaultService {
       portfolio: result.personalProfile.websites?.[0] || vault.profile.links.portfolio,
       other: result.personalProfile.websites?.slice(1) || vault.profile.links.other,
     };
-    vault.profile.evidenceIds = Array.from(new Set([...vault.profile.evidenceIds, ...sourceEvidenceIds]));
+    vault.profile.evidenceIds = Array.from(
+      new Set([...vault.profile.evidenceIds, ...sourceEvidenceIds])
+    );
 
     // 4. Ingest and Deduplicate Experience Records
     for (const emp of result.employment) {
@@ -210,10 +212,16 @@ export class KnowledgeVaultService {
 
       if (existingExp) {
         // Merge responsibilities and technologies
-        existingExp.responsibilities = Array.from(new Set([...existingExp.responsibilities, ...emp.responsibilities]));
-        existingExp.technologies = Array.from(new Set([...existingExp.technologies, ...emp.technologies]));
+        existingExp.responsibilities = Array.from(
+          new Set([...existingExp.responsibilities, ...emp.responsibilities])
+        );
+        existingExp.technologies = Array.from(
+          new Set([...existingExp.technologies, ...emp.technologies])
+        );
         existingExp.metrics = Array.from(new Set([...existingExp.metrics, ...emp.metrics]));
-        existingExp.evidenceIds = Array.from(new Set([...existingExp.evidenceIds, ...sourceEvidenceIds]));
+        existingExp.evidenceIds = Array.from(
+          new Set([...existingExp.evidenceIds, ...sourceEvidenceIds])
+        );
       } else {
         const expId = `exp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         const newExp: ExperienceRecord = {
@@ -253,10 +261,14 @@ export class KnowledgeVaultService {
       );
 
       if (existingProj) {
-        existingProj.technologies = Array.from(new Set([...existingProj.technologies, ...proj.technologies]));
+        existingProj.technologies = Array.from(
+          new Set([...existingProj.technologies, ...proj.technologies])
+        );
         existingProj.outcomes = Array.from(new Set([...existingProj.outcomes, ...proj.outcomes]));
         existingProj.metrics = Array.from(new Set([...existingProj.metrics, ...proj.metrics]));
-        existingProj.evidenceIds = Array.from(new Set([...existingProj.evidenceIds, ...sourceEvidenceIds]));
+        existingProj.evidenceIds = Array.from(
+          new Set([...existingProj.evidenceIds, ...sourceEvidenceIds])
+        );
       } else {
         const projId = `proj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         const newProj: ProjectRecord = {
@@ -301,9 +313,19 @@ export class KnowledgeVaultService {
       { cat: 'language', list: result.skills.languages || [] },
       { cat: 'framework', list: result.skills.frameworks || [] },
       { cat: 'database', list: result.skills.databases || [] },
-      { cat: 'tool', list: [...(result.skills.tools || []), ...(result.skills.devops || []), ...(result.skills.testing || [])] },
+      {
+        cat: 'tool',
+        list: [
+          ...(result.skills.tools || []),
+          ...(result.skills.devops || []),
+          ...(result.skills.testing || []),
+        ],
+      },
       { cat: 'cloud', list: result.skills.cloud || [] },
-      { cat: 'architecture', list: [...(result.skills.architecture || []), ...(result.skills.messaging || [])] },
+      {
+        cat: 'architecture',
+        list: [...(result.skills.architecture || []), ...(result.skills.messaging || [])],
+      },
       { cat: 'ai_ml', list: result.skills.aiMl || [] },
     ];
 
@@ -314,7 +336,9 @@ export class KnowledgeVaultService {
           (t) => t.name.toLowerCase().trim() === techName.toLowerCase().trim()
         );
         if (existingTech) {
-          existingTech.evidenceIds = Array.from(new Set([...existingTech.evidenceIds, ...sourceEvidenceIds]));
+          existingTech.evidenceIds = Array.from(
+            new Set([...existingTech.evidenceIds, ...sourceEvidenceIds])
+          );
         } else {
           vault.technologies.push({
             name: techName,
@@ -466,7 +490,9 @@ export class KnowledgeVaultService {
       const primary = vault.projects[pIdx];
       const secondary = vault.projects[sIdx];
 
-      primary.technologies = Array.from(new Set([...primary.technologies, ...secondary.technologies]));
+      primary.technologies = Array.from(
+        new Set([...primary.technologies, ...secondary.technologies])
+      );
       primary.outcomes = Array.from(new Set([...primary.outcomes, ...secondary.outcomes]));
       primary.metrics = Array.from(new Set([...primary.metrics, ...secondary.metrics]));
       primary.evidenceIds = Array.from(new Set([...primary.evidenceIds, ...secondary.evidenceIds]));
@@ -488,8 +514,12 @@ export class KnowledgeVaultService {
       const primary = vault.experiences[pIdx];
       const secondary = vault.experiences[sIdx];
 
-      primary.responsibilities = Array.from(new Set([...primary.responsibilities, ...secondary.responsibilities]));
-      primary.technologies = Array.from(new Set([...primary.technologies, ...secondary.technologies]));
+      primary.responsibilities = Array.from(
+        new Set([...primary.responsibilities, ...secondary.responsibilities])
+      );
+      primary.technologies = Array.from(
+        new Set([...primary.technologies, ...secondary.technologies])
+      );
       primary.metrics = Array.from(new Set([...primary.metrics, ...secondary.metrics]));
       primary.evidenceIds = Array.from(new Set([...primary.evidenceIds, ...secondary.evidenceIds]));
 
@@ -558,9 +588,7 @@ export class KnowledgeVaultService {
     );
 
     const hasMatch =
-      matchedProjects.length > 0 ||
-      matchedExperiences.length > 0 ||
-      matchedTechnologies.length > 0;
+      matchedProjects.length > 0 || matchedExperiences.length > 0 || matchedTechnologies.length > 0;
 
     return {
       matchedProjects,
