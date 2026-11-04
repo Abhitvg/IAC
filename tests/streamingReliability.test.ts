@@ -52,7 +52,11 @@ describe('Suite B: Streaming Reliability', () => {
     let fetchSignal: AbortSignal | undefined;
     global.fetch = vi.fn((_url: any, init: any) => {
       fetchSignal = init.signal;
-      return new Promise(() => {});
+      return new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => {
+          reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+        }, { once: true });
+      });
     }) as any;
 
     await expect(
@@ -68,7 +72,7 @@ describe('Suite B: Streaming Reliability', () => {
   it('aborts a stalled stream reader on inactivity deadline', async () => {
     let cancelled = false;
     const stream = new ReadableStream<Uint8Array>({
-      pull() { return new Promise(() => {}); },
+      start() {},
       cancel() { cancelled = true; },
     });
     global.fetch = vi.fn().mockResolvedValue({
