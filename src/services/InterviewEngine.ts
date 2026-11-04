@@ -538,11 +538,13 @@ export class InterviewEngine {
           message: `Generation started for: "${finalQuestion.slice(0, 80)}"`,
         });
 
+        const requestController = activeAbortController;
         await answerService.generateAnswer(
           {
             requestId,
             type: 'interview',
             text: finalQuestion,
+            originalTranscript: pendingQuestionTranscript || finalQuestion,
             provider: currentStore.settings?.aiProvider || 'groq',
             model: currentStore.settings?.aiModel,
             preferredLanguage: currentStore.settings?.preferredLanguage || 'Java',
@@ -551,11 +553,11 @@ export class InterviewEngine {
             jobDescriptionText: currentStore.jobDescriptionText,
             targetRole: currentStore.targetRole,
             conversationHistory: currentStore.conversationHistory || [],
-            signal: activeAbortController.signal,
+            signal: requestController.signal,
           },
           {
             onToken: (token, rId) => {
-              if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              if (requestController.signal.aborted || rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
               useAppStore.getState().appendDraftToken(token);
               if (useAppStore.getState().status !== 'generating') {
                 useAppStore.getState().setStatus('generating');
@@ -565,14 +567,14 @@ export class InterviewEngine {
               }
             },
             onSentence: (sentence, rId) => {
-              if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              if (requestController.signal.aborted || rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
               globalLatencyTracker.markFirstSentenceOnce();
               const currentDraftQueue = useAppStore.getState().draftQueue;
               useAppStore.getState().enqueueDraftSentences([...currentDraftQueue, sentence]);
             },
             onComplete: (res) => {
               const state = useAppStore.getState();
-              if (res.requestId !== activeRequestId || res.requestId !== state.activeRequestId || state.generationId !== currentGen) {
+              if (requestController.signal.aborted || res.requestId !== activeRequestId || res.requestId !== state.activeRequestId || state.generationId !== currentGen) {
                 console.warn('[InterviewEngine] Discarded stale generation result:', res.requestId);
                 return;
               }
@@ -646,10 +648,10 @@ export class InterviewEngine {
 
               state.setPredictedFollowUps(res.predictedFollowUps || []);
               state.setRecitalState('listening');
-              state.setStatus('ready');
+              state.setStatus(decision.isSpeakable ? 'ready' : 'error');
             },
             onError: (err, rId) => {
-              if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              if (requestController.signal.aborted || rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
               console.error('[InterviewEngine] Generation stream error:', err);
               const state = useAppStore.getState();
               state.clearDraft();
