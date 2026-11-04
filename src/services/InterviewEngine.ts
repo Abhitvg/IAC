@@ -927,6 +927,10 @@ export class InterviewEngine {
       }
 
       case 'CANCEL_ACTIVE_REQUEST': {
+        clearPendingQuestionTimer();
+        pendingQuestionText = '';
+        pendingQuestionTranscript = '';
+        pendingQuestionDeadline = 0;
         InterviewEngine.cancelAllActiveWork();
         store.clearAnswerQueue();
         store.clearDraft();
