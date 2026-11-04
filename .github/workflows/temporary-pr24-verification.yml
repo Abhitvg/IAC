@@ -1,0 +1,32 @@
+name: Temporary PR 24 verification
+
+on:
+  push:
+    branches:
+      - fix/post-merge-prettier-formatting
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/post-merge-prettier-formatting
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Check formatting
+        run: |
+          git diff --name-only --diff-filter=ACMR 61a95949515ea0b38bd0f3c03c9b72f35cf42d7a...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' > /tmp/changed-files.txt
+          if [[ -s /tmp/changed-files.txt ]]; then xargs -r npx prettier --check < /tmp/changed-files.txt; fi
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run security:check
