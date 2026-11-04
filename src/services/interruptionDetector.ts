@@ -15,6 +15,7 @@ export type UtteranceClassificationType =
   | 'INTERVIEWER_INTERRUPTION'
   | 'INTERVIEWER_QUESTION'
   | 'CONVERSATIONAL_FILLER'
+  | 'UNCLASSIFIED'
   | 'EMPTY';
 
 export interface UtteranceClassification {
