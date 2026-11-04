@@ -228,7 +228,31 @@ export class AnswerGenerationService {
     }
 
     const provider = params.provider || 'groq';
-    const apiKey = directApiKey || await this.resolveApiKey(provider);
+    let apiKey = directApiKey || '';
+    if (!directApiKey) {
+      apiKey = await new Promise<string>((resolve, reject) => {
+        const cleanup = () => signal.removeEventListener('abort', onAbort);
+        const onAbort = () => {
+          cleanup();
+          reject(Object.assign(
+            new Error(signal.reason?.message || 'Generation cancelled while resolving provider credentials.'),
+            { name: 'AbortError' }
+          ));
+        };
+        signal.addEventListener('abort', onAbort, { once: true });
+        if (signal.aborted) {
+          onAbort();
+          return;
+        }
+        this.resolveApiKey(provider).then(
+          (resolvedKey) => { cleanup(); resolve(resolvedKey); },
+          (error) => { cleanup(); reject(error); }
+        );
+      }).catch((error: any) => {
+        if (error?.name !== 'AbortError') throw error;
+        return '';
+      });
+    }
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
@@ -260,6 +284,8 @@ export class AnswerGenerationService {
         structuredViolations: [],
       };
       cb.onComplete?.(failedResult);
+      clearTimeout(overallTimer);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
       return failedResult;
     }
 
