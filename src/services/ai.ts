@@ -932,7 +932,7 @@ export async function streamAnswer(
         temperature: config.temperature,
         max_tokens: config.maxTokens,
       }),
-      signal,
+      signal: requestSignal,
     });
 
     let activeResponse = response;
@@ -1006,7 +1006,7 @@ export async function streamAnswer(
               temperature: config.temperature,
               max_tokens: Math.min(config.maxTokens || 1500, 1500),
             }),
-            signal,
+            signal: requestSignal,
           });
 
           if (fallbackRes.ok && fallbackRes.body) {
@@ -1052,7 +1052,7 @@ export async function streamAnswer(
 
     try {
       while (true) {
-        if (signal?.aborted) break;
+        if (requestSignal.aborted) throw Object.assign(new Error('Generation cancelled or timed out.'), { name: 'AbortError' });
         let readTimer: ReturnType<typeof setTimeout> | undefined;
         let readResult: ReadableStreamReadResult<Uint8Array>;
         try {
@@ -1123,7 +1123,8 @@ export async function streamAnswer(
         }
       }
 
-      if (!signal?.aborted) {
+      if (requestSignal.aborted) throw Object.assign(new Error('Generation cancelled or timed out.'), { name: 'AbortError' });
+      {
         const finalChunk = parser.flush();
         if (finalChunk) {
           callbacks.onToken?.(finalChunk);
