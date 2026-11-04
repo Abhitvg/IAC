@@ -1,5 +1,14 @@
 import React from 'react';
-import { Check, X, Pencil, RefreshCw, FileText, SkipForward, Square, WandSparkles } from 'lucide-react';
+import {
+  Check,
+  X,
+  Pencil,
+  RefreshCw,
+  FileText,
+  SkipForward,
+  Square,
+  WandSparkles,
+} from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function LiveTranscript() {
@@ -25,7 +34,6 @@ export default function LiveTranscript() {
     if (!lastUnconfirmedTranscript?.text.trim()) return;
     await overrideTranscriptAsQuestion(lastUnconfirmedTranscript.text);
   };
-
 
   const handleRetry = async () => {
     const question = currentQuestion || lastUnconfirmedTranscript?.text || '';
@@ -86,9 +94,7 @@ export default function LiveTranscript() {
           <h3 id="unconfirmed-transcript-title" style={{ margin: '0 0 8px', fontSize: '13px' }}>
             Confirm detected speech
           </h3>
-          <p style={{ margin: '0 0 8px', lineHeight: 1.5 }}>
-            {lastUnconfirmedTranscript.text}
-          </p>
+          <p style={{ margin: '0 0 8px', lineHeight: 1.5 }}>{lastUnconfirmedTranscript.text}</p>
           <p style={{ margin: '0 0 12px', color: '#fbbf24', fontSize: '11px' }}>
             Speaker uncertain · {Math.round(lastUnconfirmedTranscript.confidence * 100)}% confidence
           </p>
@@ -131,20 +137,70 @@ export default function LiveTranscript() {
         </section>
       )}
 
-
-      {(currentQuestion || lastUnconfirmedTranscript || status === 'error' || status === 'paused') && (
-        <section aria-label="Question recovery actions" style={{ marginBottom: 14, padding: 12, border: '1px solid #334155', borderRadius: 8 }}>
+      {(currentQuestion ||
+        lastUnconfirmedTranscript ||
+        status === 'error' ||
+        status === 'paused') && (
+        <section
+          aria-label="Question recovery actions"
+          style={{ marginBottom: 14, padding: 12, border: '1px solid #334155', borderRadius: 8 }}
+        >
           <h3 style={{ margin: '0 0 10px', fontSize: 13 }}>Question recovery</h3>
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => void generateAnswerFromTranscript(lastUnconfirmedTranscript?.text || currentQuestion || '')} style={actionStyle}><WandSparkles size={13} /> Finalize &amp; Generate</button>
-            <button type="button" onClick={() => void handleRetry()} disabled={status !== 'error' && status !== 'ready'} style={actionStyle}><RefreshCw size={13} /> Retry Answer</button>
-            <button type="button" onClick={() => void generateAnswerFromTranscript(transcript.map(t => t.text).join(' ').trim())} style={actionStyle}><FileText size={13} /> Generate from Transcript</button>
-            <button type="button" onClick={handleEdit} style={actionStyle}><Pencil size={13} /> Edit Question</button>
-            <button type="button" onClick={handleSkip} style={actionStyle}><SkipForward size={13} /> Skip Question</button>
-            <button type="button" onClick={handleCancel} style={actionStyle}><Square size={13} /> Cancel Current Request</button>
+            <button
+              type="button"
+              onClick={() =>
+                void generateAnswerFromTranscript(
+                  lastUnconfirmedTranscript?.text || currentQuestion || ''
+                )
+              }
+              style={actionStyle}
+            >
+              <WandSparkles size={13} /> Finalize &amp; Generate
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleRetry()}
+              disabled={status !== 'error' && status !== 'ready'}
+              style={actionStyle}
+            >
+              <RefreshCw size={13} /> Retry Answer
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                void generateAnswerFromTranscript(
+                  transcript
+                    .map((t) => t.text)
+                    .join(' ')
+                    .trim()
+                )
+              }
+              style={actionStyle}
+            >
+              <FileText size={13} /> Generate from Transcript
+            </button>
+            <button type="button" onClick={handleEdit} style={actionStyle}>
+              <Pencil size={13} /> Edit Question
+            </button>
+            <button type="button" onClick={handleSkip} style={actionStyle}>
+              <SkipForward size={13} /> Skip Question
+            </button>
+            <button type="button" onClick={handleCancel} style={actionStyle}>
+              <Square size={13} /> Cancel Current Request
+            </button>
           </div>
-          {(status === 'error' || blockedReason) && <p role="alert" style={{ color: '#fca5a5', fontSize: 12, margin: '10px 0 0' }}>{blockedReason || 'Generation failed. Transcript retained for recovery.'}</p>}
-          {(draftAnswer || recoveredPartialAnswer) && <p style={{ color: '#94a3b8', fontSize: 11, marginBottom: 0 }}>Partial output retained locally ({(draftAnswer || recoveredPartialAnswer || '').length} characters).</p>}
+          {(status === 'error' || blockedReason) && (
+            <p role="alert" style={{ color: '#fca5a5', fontSize: 12, margin: '10px 0 0' }}>
+              {blockedReason || 'Generation failed. Transcript retained for recovery.'}
+            </p>
+          )}
+          {(draftAnswer || recoveredPartialAnswer) && (
+            <p style={{ color: '#94a3b8', fontSize: 11, marginBottom: 0 }}>
+              Partial output retained locally (
+              {(draftAnswer || recoveredPartialAnswer || '').length} characters).
+            </p>
+          )}
         </section>
       )}
 

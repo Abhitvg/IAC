@@ -1,4 +1,9 @@
-import { CandidateKnowledgeBase, FactualGroundingValidator, GroundingValidationResult, GroundingViolation } from './candidateIntelligence';
+import {
+  CandidateKnowledgeBase,
+  FactualGroundingValidator,
+  GroundingValidationResult,
+  GroundingViolation,
+} from './candidateIntelligence';
 import { FollowUpEngine } from './followUpEngine';
 import { resolveOrMigrateModel, AIProviderId } from './models/modelRegistry';
 import { RateLimitGovernor } from './rateLimitGovernor';
@@ -14,11 +19,7 @@ import { DiagnosticLoggerService } from './diagnosticLogger';
 import * as aiModule from './ai';
 import { streamAnswer, classifyQuestion } from './ai';
 import { buildCandidateSystemPrompt, estimateConfidence } from './candidatePersona';
-import {
-  classifyQuestionIntent,
-  LENGTH_TARGETS,
-  QuestionIntent,
-} from './responseStyle';
+import { classifyQuestionIntent, LENGTH_TARGETS, QuestionIntent } from './responseStyle';
 import {
   cleanExtractedOcrText,
   extractProblemHeadline,
@@ -178,12 +179,18 @@ export class AnswerGenerationService {
   ): Promise<AnswerGenerationResult> {
     const requestSeq = ++this.currentSequence;
     const directApiKey = typeof callbacks === 'string' ? callbacks : undefined;
-    const cb: GenerationCallbacks = typeof callbacks === 'function' ? { onToken: callbacks } : (typeof callbacks === 'object' && callbacks !== null ? callbacks : {});
+    const cb: GenerationCallbacks =
+      typeof callbacks === 'function'
+        ? { onToken: callbacks }
+        : typeof callbacks === 'object' && callbacks !== null
+          ? callbacks
+          : {};
     let completionResult: any = undefined;
     const { useAppStore } = await import('../store/useAppStore');
 
     // Normalize parameters
-    const requestId = params.requestId || `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const requestId =
+      params.requestId || `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const type = params.type || 'interview';
     const callerSignal = params.signal;
     const generationController = new AbortController();
@@ -191,7 +198,8 @@ export class AnswerGenerationService {
     if (callerSignal?.aborted) generationController.abort(callerSignal.reason);
     else callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
     const overallTimer = setTimeout(
-      () => generationController.abort(new Error('Overall answer-generation deadline exceeded (75s).')),
+      () =>
+        generationController.abort(new Error('Overall answer-generation deadline exceeded (75s).')),
       75000
     );
     const signal = generationController.signal;
@@ -235,10 +243,15 @@ export class AnswerGenerationService {
         const cleanup = () => signal.removeEventListener('abort', onAbort);
         onAbort = () => {
           cleanup();
-          reject(Object.assign(
-            new Error(signal.reason?.message || 'Generation cancelled while resolving provider credentials.'),
-            { name: 'AbortError' }
-          ));
+          reject(
+            Object.assign(
+              new Error(
+                signal.reason?.message ||
+                  'Generation cancelled while resolving provider credentials.'
+              ),
+              { name: 'AbortError' }
+            )
+          );
         };
         signal.addEventListener('abort', onAbort, { once: true });
         if (signal.aborted) {
@@ -246,8 +259,14 @@ export class AnswerGenerationService {
           return;
         }
         this.resolveApiKey(provider).then(
-          (resolvedKey) => { cleanup(); resolve(resolvedKey); },
-          (error) => { cleanup(); reject(error); }
+          (resolvedKey) => {
+            cleanup();
+            resolve(resolvedKey);
+          },
+          (error) => {
+            cleanup();
+            reject(error);
+          }
         );
       }).catch((error: any) => {
         clearTimeout(overallTimer);
@@ -280,7 +299,11 @@ export class AnswerGenerationService {
         followUps: [],
         predictedFollowUps: [],
         requestId,
-        validationResult: { isGrounded: false, validationStatus: 'FAILED', violations: [err.message] },
+        validationResult: {
+          isGrounded: false,
+          validationStatus: 'FAILED',
+          violations: [err.message],
+        },
         validationStatus: 'FAILED',
         groundingScore: 0,
         groundingViolations: [err.message],
@@ -305,7 +328,12 @@ export class AnswerGenerationService {
       const cleanedOcr = cleanExtractedOcrText(params.rawText || params.text);
       const _headline = extractProblemHeadline(cleanedOcr);
       detectLanguageHint(cleanedOcr);
-      promptText = buildScreenSolverPrompt(cleanedOcr, preferredLang, params.targetRole || '', mode);
+      promptText = buildScreenSolverPrompt(
+        cleanedOcr,
+        preferredLang,
+        params.targetRole || '',
+        mode
+      );
       systemPrompt =
         'You are an experienced software engineer assisting a candidate in a live technical evaluation. Deliver verified, optimal code and natural, conversational verbal explanations.';
       detectedCategory = 'Coding';
@@ -336,11 +364,7 @@ export class AnswerGenerationService {
     const modelResolution = resolveOrMigrateModel(provider as AIProviderId, params.model, 'llm');
     const chosenModel = modelResolution.resolvedModel;
 
-    const confidence = estimateConfidence(
-      detectedCategory,
-      params.resumeText || '',
-      promptText
-    );
+    const confidence = estimateConfidence(detectedCategory, params.resumeText || '', promptText);
 
     const lengthTarget = LENGTH_TARGETS[questionIntent] || LENGTH_TARGETS.conceptual;
     const isHardQuestion =
@@ -359,7 +383,8 @@ export class AnswerGenerationService {
 
     const hasMockedAi = Boolean(
       (aiModule as any).generateAIAnswer &&
-      ((aiModule as any).generateAIAnswer._isMockFunction || (aiModule as any).generateAIAnswer.mock)
+      ((aiModule as any).generateAIAnswer._isMockFunction ||
+        (aiModule as any).generateAIAnswer.mock)
     );
 
     const handleStreamComplete = (full: string) => {
@@ -377,15 +402,31 @@ export class AnswerGenerationService {
         cleanAnswer = full.replace(/FOLLOW_UPS:\s*.+?(?:\n|$)/i, '').trim();
       }
 
-      const technicalIntent = ['Coding', 'DSA', 'System Design'].includes(detectedCategory) ||
-        /\b(explain|define|compare|difference|implement|algorithm|complexity|architecture|how does|what is)\b/i.test(params.text);
-      const hasCandidateContext = Boolean((params.resumeText || '').trim() || params.knowledgeBase || CandidateKnowledgeBase.getActiveKnowledgeBase());
-      const kb = params.knowledgeBase || (params.resumeText ? new CandidateKnowledgeBase(params.resumeText) : CandidateKnowledgeBase.getActiveKnowledgeBase());
+      const technicalIntent =
+        ['Coding', 'DSA', 'System Design'].includes(detectedCategory) ||
+        /\b(explain|define|compare|difference|implement|algorithm|complexity|architecture|how does|what is)\b/i.test(
+          params.text
+        );
+      const hasCandidateContext = Boolean(
+        (params.resumeText || '').trim() ||
+        params.knowledgeBase ||
+        CandidateKnowledgeBase.getActiveKnowledgeBase()
+      );
+      const kb =
+        params.knowledgeBase ||
+        (params.resumeText
+          ? new CandidateKnowledgeBase(params.resumeText)
+          : CandidateKnowledgeBase.getActiveKnowledgeBase());
       let validation: any;
       try {
         // General technical explanations are not candidate-experience claims. Keep
         // candidate grounding enabled for personal history, metrics and achievements.
-        if (technicalIntent && !/\b(my|our|i led|i built|i designed|my experience|my role|my achievement|my project)\b/i.test(cleanAnswer)) {
+        if (
+          technicalIntent &&
+          !/\b(my|our|i led|i built|i designed|my experience|my role|my achievement|my project)\b/i.test(
+            cleanAnswer
+          )
+        ) {
           validation = {
             adjustedAnswer: cleanAnswer,
             validationStatus: 'VALIDATED',
@@ -394,12 +435,19 @@ export class AnswerGenerationService {
             structuredViolations: [],
             isGrounded: true,
           };
-        } else if (!hasCandidateContext && /\b(my|our|i led|i built|i designed|my experience|my role|my achievement|my project)\b/i.test(cleanAnswer)) {
+        } else if (
+          !hasCandidateContext &&
+          /\b(my|our|i led|i built|i designed|my experience|my role|my achievement|my project)\b/i.test(
+            cleanAnswer
+          )
+        ) {
           validation = {
             adjustedAnswer: cleanAnswer,
             validationStatus: 'FLAGGED',
             score: 0,
-            violations: ['Candidate-specific details require confirmation because no candidate source material is available.'],
+            violations: [
+              'Candidate-specific details require confirmation because no candidate source material is available.',
+            ],
             structuredViolations: [],
             isGrounded: false,
           };
@@ -408,13 +456,21 @@ export class AnswerGenerationService {
         }
       } catch (valErr: any) {
         // Fail closed: Never expose an unvalidated final answer when validator crashes
-        console.error('[AnswerGenerationService] Grounding validation error, failing closed:', valErr);
+        console.error(
+          '[AnswerGenerationService] Grounding validation error, failing closed:',
+          valErr
+        );
         completionResult = {
           status: 'FAILED',
           isValidated: false,
-          cleanAnswer: 'Answer verification failed due to validation error. Unvalidated claims have been withheld for factual safety (consulting internal project telemetry).',
+          cleanAnswer:
+            'Answer verification failed due to validation error. Unvalidated claims have been withheld for factual safety (consulting internal project telemetry).',
           error: valErr.message || String(valErr),
-          validationResult: { isGrounded: false, validationStatus: 'FAILED', violations: [valErr.message || String(valErr)] },
+          validationResult: {
+            isGrounded: false,
+            validationStatus: 'FAILED',
+            violations: [valErr.message || String(valErr)],
+          },
           followUps: [],
           detectedCategory,
           confidence: 'low',
@@ -422,13 +478,17 @@ export class AnswerGenerationService {
           requestId,
           validationStatus: 'FAILED',
           groundingScore: 0,
-          groundingViolations: ['Factual grounding validation failed closed: ' + (valErr.message || String(valErr))],
-          structuredViolations: [{
-            claimText: 'Validation error',
-            category: 'metric_fabrication',
-            severity: 'critical',
-            reason: 'Validation threw an unexpected error: fail-closed safety activated.'
-          }],
+          groundingViolations: [
+            'Factual grounding validation failed closed: ' + (valErr.message || String(valErr)),
+          ],
+          structuredViolations: [
+            {
+              claimText: 'Validation error',
+              category: 'metric_fabrication',
+              severity: 'critical',
+              reason: 'Validation threw an unexpected error: fail-closed safety activated.',
+            },
+          ],
         };
         (completionResult as any).answer = completionResult.cleanAnswer;
         cb.onComplete?.(completionResult);
@@ -451,7 +511,11 @@ export class AnswerGenerationService {
       }
 
       if (validatedFollowUps.length === 0) {
-        const predicted = FollowUpEngine.predictFollowUps(params.text, groundedAnswer, detectedCategory);
+        const predicted = FollowUpEngine.predictFollowUps(
+          params.text,
+          groundedAnswer,
+          detectedCategory
+        );
         for (const p of predicted) {
           try {
             const pVal = FactualGroundingValidator.validateAnswer(p.question, kb, params.text);
@@ -474,7 +538,8 @@ export class AnswerGenerationService {
       completionResult = {
         status: validation.validationStatus,
         isValidated: decision.outcome === 'VALIDATED',
-        cleanAnswer: decision.speakableAnswer || (decision.outcome === 'BLOCKED' ? '' : cleanAnswer),
+        cleanAnswer:
+          decision.speakableAnswer || (decision.outcome === 'BLOCKED' ? '' : cleanAnswer),
         detectedCategory,
         confidence,
         followUps: validatedFollowUps,
@@ -502,7 +567,11 @@ export class AnswerGenerationService {
 
       try {
         if (hasMockedAi) {
-          const mockedRes = await (aiModule as any).generateAIAnswer(promptText, providerConfig, preferredLang);
+          const mockedRes = await (aiModule as any).generateAIAnswer(
+            promptText,
+            providerConfig,
+            preferredLang
+          );
           handleStreamComplete(mockedRes);
           streamSucceeded = true;
         } else {
@@ -549,7 +618,9 @@ export class AnswerGenerationService {
             requestId,
             validationStatus: timedOut ? 'FAILED' : 'ABORTED',
             groundingScore: 0,
-            groundingViolations: [timedOut ? 'Generation deadline exceeded' : 'Request cancelled during generation'],
+            groundingViolations: [
+              timedOut ? 'Generation deadline exceeded' : 'Request cancelled during generation',
+            ],
             structuredViolations: [],
           };
           (completionResult as any).answer = completionResult.cleanAnswer;
@@ -569,8 +640,13 @@ export class AnswerGenerationService {
 
         if (analysis.isRateLimited && analysis.shouldAutoRetry && retryCount < maxRetries) {
           retryCount++;
-          const delayMs = RateLimitGovernor.calculateBackoffDelayMs(retryCount, analysis.cooldownSeconds);
-          console.warn(`[AnswerGenerationService] 429 rate limit hit. Auto-retrying attempt ${retryCount}/${maxRetries} after ${delayMs}ms...`);
+          const delayMs = RateLimitGovernor.calculateBackoffDelayMs(
+            retryCount,
+            analysis.cooldownSeconds
+          );
+          console.warn(
+            `[AnswerGenerationService] 429 rate limit hit. Auto-retrying attempt ${retryCount}/${maxRetries} after ${delayMs}ms...`
+          );
 
           const store = useAppStore.getState();
           store.setPipelineStage('retrying');
@@ -579,7 +655,9 @@ export class AnswerGenerationService {
             resetTime: Date.now() + delayMs,
             modelName: providerConfig.model,
           });
-          store.setToast(`⏳ Rate limit reached. Auto-retrying in ${Math.ceil(delayMs / 1000)}s (Attempt ${retryCount}/${maxRetries})...`);
+          store.setToast(
+            `⏳ Rate limit reached. Auto-retrying in ${Math.ceil(delayMs / 1000)}s (Attempt ${retryCount}/${maxRetries})...`
+          );
 
           if (analysis.suggestedFallbackModel) {
             providerConfig.model = analysis.suggestedFallbackModel;
@@ -639,7 +717,8 @@ export class AnswerGenerationService {
         completionResult = {
           status: 'FAILED',
           isValidated: false,
-          cleanAnswer: partialText || 'Answer generation failed due to a provider or network error.',
+          cleanAnswer:
+            partialText || 'Answer generation failed due to a provider or network error.',
           partialAnswer: partialText || undefined,
           error: err.message || String(err),
           detectedCategory,
@@ -647,7 +726,11 @@ export class AnswerGenerationService {
           followUps: [],
           predictedFollowUps: [],
           requestId,
-          validationResult: { isGrounded: false, validationStatus: 'FAILED', violations: [err.message || String(err)] },
+          validationResult: {
+            isGrounded: false,
+            validationStatus: 'FAILED',
+            violations: [err.message || String(err)],
+          },
           validationStatus: 'FAILED',
           groundingScore: 0,
           groundingViolations: [err.message || String(err)],

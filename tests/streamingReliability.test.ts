@@ -53,9 +53,13 @@ describe('Suite B: Streaming Reliability', () => {
     global.fetch = vi.fn((_url: any, init: any) => {
       fetchSignal = init.signal;
       return new Promise((_resolve, reject) => {
-        init.signal.addEventListener('abort', () => {
-          reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
-        }, { once: true });
+        init.signal.addEventListener(
+          'abort',
+          () => {
+            reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+          },
+          { once: true }
+        );
       });
     }) as any;
 
@@ -73,10 +77,15 @@ describe('Suite B: Streaming Reliability', () => {
     let cancelled = false;
     const stream = new ReadableStream<Uint8Array>({
       start() {},
-      cancel() { cancelled = true; },
+      cancel() {
+        cancelled = true;
+      },
     });
     global.fetch = vi.fn().mockResolvedValue({
-      ok: true, status: 200, headers: new Headers(), body: stream,
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      body: stream,
     } as any);
 
     await expect(
@@ -96,8 +105,9 @@ describe('Suite B: Streaming Reliability', () => {
       headers: new Headers(),
       text: async () => '{"error":{"message":"invalid_api_key"}}',
     } as any);
-    await expect(streamAnswer('Explain B-trees', baseConfig, 'java' as any, {}))
-      .rejects.toMatchObject({ status: 401 });
+    await expect(
+      streamAnswer('Explain B-trees', baseConfig, 'java' as any, {})
+    ).rejects.toMatchObject({ status: 401 });
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -131,7 +141,9 @@ describe('Suite B: Streaming Reliability', () => {
     const encoder = new TextEncoder();
     const chunks = [
       encoder.encode('data: {"choices":[{"delta":{"content":"Starting answer..."}}]}\n\n'),
-      encoder.encode('data: {"error":{"message":"Internal rate limit reached in stream","type":"rate_limit"}}\n\n'),
+      encoder.encode(
+        'data: {"error":{"message":"Internal rate limit reached in stream","type":"rate_limit"}}\n\n'
+      ),
     ];
 
     let chunkIdx = 0;
@@ -174,7 +186,11 @@ describe('Suite B: Streaming Reliability', () => {
       pull(controller) {
         if (!hasEmittedFirst) {
           hasEmittedFirst = true;
-          controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"A B-Tree is a self-balancing search tree."}}]}\n\n'));
+          controller.enqueue(
+            encoder.encode(
+              'data: {"choices":[{"delta":{"content":"A B-Tree is a self-balancing search tree."}}]}\n\n'
+            )
+          );
         } else {
           controller.error(new Error('Network connection drop'));
         }
@@ -243,4 +259,3 @@ describe('Suite B: Streaming Reliability', () => {
     expect(fullAnswer.trim()).toBe('Hello World');
   });
 });
-

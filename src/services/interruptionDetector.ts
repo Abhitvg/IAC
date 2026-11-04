@@ -84,7 +84,8 @@ const STOP_WORDS = new Set([
   'across',
 ]);
 
-export const INCOMPLETE_CONNECTORS = /\b(and|or|because|so|with|that|to|if|while|as well as|such as|for instance|like|when|where|which|in terms of|regarding|about)$/i;
+export const INCOMPLETE_CONNECTORS =
+  /\b(and|or|because|so|with|that|to|if|while|as well as|such as|for instance|like|when|where|which|in terms of|regarding|about)$/i;
 
 export function isIncompleteSentence(text: string): boolean {
   const trimmed = (text || '').trim();
@@ -203,7 +204,9 @@ export function detectQuestionIntent(text: string): {
   if (!trimmed) return { plausibleQuestion: false, incomplete: false };
   const hasInterrogativeSyntax =
     /[?]$/.test(trimmed) ||
-    /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|explain|describe|define|compare|implement|discuss|outline|elaborate|give me|tell me|walk me through)\b/i.test(trimmed) ||
+    /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|explain|describe|define|compare|implement|discuss|outline|elaborate|give me|tell me|walk me through)\b/i.test(
+      trimmed
+    ) ||
     /^(kya|kaise|kyun|batao|samjhao|bataiye|samjhaiye)\b/i.test(trimmed);
   return {
     // Do not infer a question from length alone: that was incorrectly turning
@@ -223,7 +226,11 @@ export function classifyUtterance(
 
   for (const pattern of FILLER_PATTERNS) {
     if (pattern.test(trimmed)) {
-      return { type: 'CONVERSATIONAL_FILLER', confidence: 0.95, reason: 'Conversational acknowledgment' };
+      return {
+        type: 'CONVERSATIONAL_FILLER',
+        confidence: 0.95,
+        reason: 'Conversational acknowledgment',
+      };
     }
   }
 
@@ -249,7 +256,12 @@ export function classifyUtterance(
 
   // Recital suppression is deliberately conservative: similarity alone is not speaker
   // evidence. Require close phrase alignment and avoid classifying likely questions.
-  if (hasActiveAnswer && !intent.plausibleQuestion && compositeScore >= 0.72 && tokenOverlap >= 0.75) {
+  if (
+    hasActiveAnswer &&
+    !intent.plausibleQuestion &&
+    compositeScore >= 0.72 &&
+    tokenOverlap >= 0.75
+  ) {
     return {
       type: 'CANDIDATE_RECITAL',
       confidence: Math.min(0.99, 0.7 + compositeScore * 0.29),
@@ -281,7 +293,11 @@ export function classifyUtterance(
   }
 
   if (trimmed.split(/\s+/).filter(Boolean).length < 3) {
-    return { type: 'CONVERSATIONAL_FILLER', confidence: 0.85, reason: 'Short non-question utterance' };
+    return {
+      type: 'CONVERSATIONAL_FILLER',
+      confidence: 0.85,
+      reason: 'Short non-question utterance',
+    };
   }
 
   return {

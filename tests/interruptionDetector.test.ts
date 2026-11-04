@@ -58,14 +58,19 @@ describe('interruptionDetector & Utterance Classification', () => {
       );
       expect(classifyUtterance('Thank you.', null).type).toBe('CONVERSATIONAL_FILLER');
       expect(classifyUtterance('Thanks', null).type).toBe('CONVERSATIONAL_FILLER');
-      expect(classifyUtterance('Thank you so much.', referenceAnswer).type).toBe('CONVERSATIONAL_FILLER');
+      expect(classifyUtterance('Thank you so much.', referenceAnswer).type).toBe(
+        'CONVERSATIONAL_FILLER'
+      );
       expect(classifyUtterance('Tvr.', null).type).toBe('CONVERSATIONAL_FILLER');
       expect(classifyUtterance('Okay.', null).type).toBe('CONVERSATIONAL_FILLER');
       expect(classifyUtterance('Can you hear me?', null).type).toBe('CONVERSATIONAL_FILLER');
     });
 
     it('detects a complete declarative interviewer question without punctuation', () => {
-      expect(detectQuestionIntent('Describe the tradeoffs between SQL and NoSQL databases').plausibleQuestion).toBe(true);
+      expect(
+        detectQuestionIntent('Describe the tradeoffs between SQL and NoSQL databases')
+          .plausibleQuestion
+      ).toBe(true);
     });
 
     it('does not call a technical follow-up recital merely because it overlaps the answer', () => {
@@ -74,7 +79,10 @@ describe('interruptionDetector & Utterance Classification', () => {
     });
 
     it('marks an ambiguous declarative utterance unclassified rather than candidate recital', () => {
-      const result = classifyUtterance('The control plane availability affects the scheduler', referenceAnswer);
+      const result = classifyUtterance(
+        'The control plane availability affects the scheduler',
+        referenceAnswer
+      );
       expect(result.type).toBe('UNCLASSIFIED');
     });
 

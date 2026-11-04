@@ -6,11 +6,7 @@
  * answer streaming, request-scoped cancellation, and stale-response protection.
  */
 
-import {
-  cleanExtractedOcrText,
-  extractProblemHeadline,
-  detectLanguageHint,
-} from './screenSolver';
+import { cleanExtractedOcrText, extractProblemHeadline, detectLanguageHint } from './screenSolver';
 import { classifyUtterance } from './interruptionDetector';
 import { globalLatencyTracker } from './LatencyTracker';
 import { useAppStore } from '../store/useAppStore';
@@ -34,7 +30,13 @@ export type EngineEvent =
   | { type: 'STOP_LISTENING' }
   | { type: 'UTTERANCE_FINALIZED'; blob: Blob; requestId?: string }
   | { type: 'QUESTION_DETECTED'; text: string; requestId?: string; originalTranscript?: string }
-  | { type: 'SCREEN_PROBLEM_DETECTED'; text?: string; rawText?: string; requestId?: string; mode?: string }
+  | {
+      type: 'SCREEN_PROBLEM_DETECTED';
+      text?: string;
+      rawText?: string;
+      requestId?: string;
+      mode?: string;
+    }
   | { type: 'REGENERATE_ACTIVE_ANSWER' }
   | { type: 'CANCEL_ACTIVE_REQUEST' };
 
@@ -57,7 +59,6 @@ function clearPendingQuestionTimer(): void {
   pendingQuestionTimer = null;
 }
 
-
 export class InterviewEngine {
   /**
    * Converts the current question into a bounded pending-finalization request.
@@ -71,14 +72,20 @@ export class InterviewEngine {
     InterviewEngine.abortActiveGeneration();
     pendingQuestionText = existing;
     pendingQuestionTranscript = existing;
-    pendingQuestionDeadline = Date.now() + Math.min(3500, Math.max(400, state.speechPauseTolerance)) + QUESTION_CONTINUATION_GRACE_MS;
+    pendingQuestionDeadline =
+      Date.now() +
+      Math.min(3500, Math.max(400, state.speechPauseTolerance)) +
+      QUESTION_CONTINUATION_GRACE_MS;
     state.setIsIncompleteQuestionMode(true);
     state.setPipelineStage('pending_finalization');
     state.setStatus('listening');
     clearPendingQuestionTimer();
-    pendingQuestionTimer = setTimeout(() => {
-      void InterviewEngine.finalizePendingQuestion();
-    }, Math.max(0, pendingQuestionDeadline - Date.now()));
+    pendingQuestionTimer = setTimeout(
+      () => {
+        void InterviewEngine.finalizePendingQuestion();
+      },
+      Math.max(0, pendingQuestionDeadline - Date.now())
+    );
   }
 
   static appendPendingQuestionUtterance(text: string): boolean {
@@ -90,10 +97,16 @@ export class InterviewEngine {
     state.setCurrentQuestion(pendingQuestionText);
     state.setIsIncompleteQuestionMode(true);
     clearPendingQuestionTimer();
-    pendingQuestionDeadline = Date.now() + Math.min(3500, Math.max(400, state.speechPauseTolerance)) + QUESTION_CONTINUATION_GRACE_MS;
-    pendingQuestionTimer = setTimeout(() => {
-      void InterviewEngine.finalizePendingQuestion();
-    }, Math.max(0, pendingQuestionDeadline - Date.now()));
+    pendingQuestionDeadline =
+      Date.now() +
+      Math.min(3500, Math.max(400, state.speechPauseTolerance)) +
+      QUESTION_CONTINUATION_GRACE_MS;
+    pendingQuestionTimer = setTimeout(
+      () => {
+        void InterviewEngine.finalizePendingQuestion();
+      },
+      Math.max(0, pendingQuestionDeadline - Date.now())
+    );
     return true;
   }
 
@@ -111,7 +124,11 @@ export class InterviewEngine {
       whisperStatus: 'Question finalized; generating answer',
       questionMatched: true,
     });
-    await InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: question, originalTranscript: fullTranscript });
+    await InterviewEngine.handleEvent({
+      type: 'QUESTION_DETECTED',
+      text: question,
+      originalTranscript: fullTranscript,
+    });
   }
 
   /**
@@ -174,7 +191,10 @@ export class InterviewEngine {
         try {
           await audioService.start(async (utteranceBlob: Blob) => {
             // Guard: If capture was stopped while an utterance was finalizing, ignore
-            if (useAppStore.getState().status === 'idle' || audioService.getCaptureState() === 'stopped') {
+            if (
+              useAppStore.getState().status === 'idle' ||
+              audioService.getCaptureState() === 'stopped'
+            ) {
               return;
             }
 
@@ -344,7 +364,11 @@ export class InterviewEngine {
               timestamp: Date.now(),
             });
             if (classification.needsConfirmation) {
-              await InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: candidateQuestion, requestId });
+              await InterviewEngine.handleEvent({
+                type: 'QUESTION_DETECTED',
+                text: candidateQuestion,
+                requestId,
+              });
               return;
             }
             useAppStore.getState().updateDiagnostics({
@@ -352,7 +376,9 @@ export class InterviewEngine {
               whisperStatus: `Speaker uncertain; transcript retained: ${classification.reason}`,
               questionMatched: false,
             });
-            useAppStore.getState().setToast('Speech retained. Confirm as a question or dismiss it.');
+            useAppStore
+              .getState()
+              .setToast('Speech retained. Confirm as a question or dismiss it.');
             useAppStore.getState().setStatus('confirmation_required');
             useAppStore.getState().setPipelineStage('confirmation_required');
             return;
@@ -371,7 +397,7 @@ export class InterviewEngine {
           // 3. AMBIGUOUS SPEECH: Require confirmation before generating answer
           if (
             classification.needsConfirmation ||
-            (classification.confidence < 0.70 && classification.type === 'INTERVIEWER_INTERRUPTION')
+            (classification.confidence < 0.7 && classification.type === 'INTERVIEWER_INTERRUPTION')
           ) {
             const questionCandidate = classification.questionText || text;
             useAppStore.getState().setLastUnconfirmedTranscript({
@@ -431,7 +457,9 @@ export class InterviewEngine {
             });
 
             if (isInterruption) {
-              useAppStore.getState().setToast(`⚡ Third-person interruption: "${questionText.slice(0, 50)}..."`);
+              useAppStore
+                .getState()
+                .setToast(`⚡ Third-person interruption: "${questionText.slice(0, 50)}..."`);
             }
 
             useAppStore.getState().addTranscript({
@@ -475,7 +503,10 @@ export class InterviewEngine {
           incomingText.toLowerCase() === store.currentQuestion.trim().toLowerCase() &&
           (store.status === 'generating' || store.status === 'analyzing')
         ) {
-          console.log('[InterviewEngine] Deduplicating identical in-flight question:', incomingText);
+          console.log(
+            '[InterviewEngine] Deduplicating identical in-flight question:',
+            incomingText
+          );
           return;
         }
 
@@ -483,7 +514,8 @@ export class InterviewEngine {
 
         const isExtending = store.isIncompleteQuestionMode && Boolean(store.currentQuestion);
         let finalQuestion = event.text.trim();
-        const originalQuestionTranscript = event.originalTranscript || pendingQuestionTranscript || event.text.trim();
+        const originalQuestionTranscript =
+          event.originalTranscript || pendingQuestionTranscript || event.text.trim();
 
         if (pendingQuestionText && Date.now() <= pendingQuestionDeadline) {
           finalQuestion = pendingQuestionText;
@@ -510,7 +542,8 @@ export class InterviewEngine {
         InterviewEngine.abortActiveGeneration();
 
         activeAbortController = new AbortController();
-        const requestId = event.requestId || 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        const requestId =
+          event.requestId || 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
         activeRequestId = requestId;
 
         store.incrementGenerationId();
@@ -560,7 +593,12 @@ export class InterviewEngine {
           },
           {
             onToken: (token, rId) => {
-              if (requestController.signal.aborted || rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              if (
+                requestController.signal.aborted ||
+                rId !== activeRequestId ||
+                useAppStore.getState().generationId !== currentGen
+              )
+                return;
               useAppStore.getState().appendDraftToken(token);
               if (useAppStore.getState().status !== 'generating') {
                 useAppStore.getState().setStatus('generating');
@@ -570,14 +608,24 @@ export class InterviewEngine {
               }
             },
             onSentence: (sentence, rId) => {
-              if (requestController.signal.aborted || rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              if (
+                requestController.signal.aborted ||
+                rId !== activeRequestId ||
+                useAppStore.getState().generationId !== currentGen
+              )
+                return;
               globalLatencyTracker.markFirstSentenceOnce();
               const currentDraftQueue = useAppStore.getState().draftQueue;
               useAppStore.getState().enqueueDraftSentences([...currentDraftQueue, sentence]);
             },
             onComplete: (res) => {
               const state = useAppStore.getState();
-              if (requestController.signal.aborted || res.requestId !== activeRequestId || res.requestId !== state.activeRequestId || state.generationId !== currentGen) {
+              if (
+                requestController.signal.aborted ||
+                res.requestId !== activeRequestId ||
+                res.requestId !== state.activeRequestId ||
+                state.generationId !== currentGen
+              ) {
                 console.warn('[InterviewEngine] Discarded stale generation result:', res.requestId);
                 return;
               }
@@ -594,7 +642,9 @@ export class InterviewEngine {
                   res.cleanAnswer || '',
                   res.cleanAnswer,
                   res.validationResult,
-                  currentStore.resumeText ? new CandidateKnowledgeBase(currentStore.resumeText) : CandidateKnowledgeBase.getActiveKnowledgeBase()
+                  currentStore.resumeText
+                    ? new CandidateKnowledgeBase(currentStore.resumeText)
+                    : CandidateKnowledgeBase.getActiveKnowledgeBase()
                 );
 
               if (res.status === 'FAILED' || res.status === 'ABORTED' || !res.cleanAnswer?.trim()) {
@@ -602,7 +652,9 @@ export class InterviewEngine {
                 state.setIsAnswerValidated(false);
                 state.setAnswerValidationStatus(res.status === 'ABORTED' ? 'ABORTED' : 'FAILED');
                 state.enqueueSentences([]);
-                state.setBlockedReason((res as any).error || 'The model returned no usable answer.');
+                state.setBlockedReason(
+                  (res as any).error || 'The model returned no usable answer.'
+                );
                 state.setPipelineStage('failed');
                 state.setStatus(res.status === 'ABORTED' ? 'paused' : 'error');
                 DiagnosticLoggerService.getInstance().recordEvent({
@@ -651,14 +703,17 @@ export class InterviewEngine {
                 state.enqueueSentences([]);
                 state.setTechnicalGuidance(decision.technicalGuidance || null);
                 const genError = (res as any).error;
-                state.setBlockedReason(genError || decision.blockedReason || 'Blocked by factual grounding gate');
+                state.setBlockedReason(
+                  genError || decision.blockedReason || 'Blocked by factual grounding gate'
+                );
                 state.setPipelineStage('failed');
 
                 DiagnosticLoggerService.getInstance().recordEvent({
                   requestId: res.requestId,
                   pipelineStage: 'failed',
                   finalOutcome: 'BLOCKED',
-                  message: decision.blockedReason || genError || 'Blocked by factual grounding gate',
+                  message:
+                    decision.blockedReason || genError || 'Blocked by factual grounding gate',
                 });
 
                 if (decision.outcome === 'FAILED' && genError) {
@@ -671,7 +726,12 @@ export class InterviewEngine {
               state.setStatus(decision.isSpeakable ? 'ready' : 'error');
             },
             onError: (err, rId) => {
-              if (requestController.signal.aborted || rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              if (
+                requestController.signal.aborted ||
+                rId !== activeRequestId ||
+                useAppStore.getState().generationId !== currentGen
+              )
+                return;
               console.error('[InterviewEngine] Generation stream error:', err);
               const state = useAppStore.getState();
               state.clearDraft();
@@ -734,7 +794,8 @@ export class InterviewEngine {
         InterviewEngine.abortActiveGeneration();
 
         activeAbortController = new AbortController();
-        const requestId = event.requestId || 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        const requestId =
+          event.requestId || 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
         activeRequestId = requestId;
 
         store.incrementGenerationId();
@@ -765,7 +826,11 @@ export class InterviewEngine {
 
           const answers: Record<string, any> = {};
           extractedQuestions.forEach((q) => {
-            answers[q.id] = ApplicationFormAssistanceService.generateTruthfulAnswer(q, kb, matchedJob);
+            answers[q.id] = ApplicationFormAssistanceService.generateTruthfulAnswer(
+              q,
+              kb,
+              matchedJob
+            );
           });
 
           const formSession: ApplicationFormSession = {
@@ -783,8 +848,12 @@ export class InterviewEngine {
 
           store.setApplicationSession(formSession);
           store.setResponseMode('application');
-          store.setCurrentQuestion(`📝 [${classification.category.replace(/_/g, ' ')}] ${extractedQuestions[0]?.questionText || 'Application Form'}`);
-          store.setCurrentAnswer(extractedQuestions[0] ? answers[extractedQuestions[0].id]?.conciseAnswer : '');
+          store.setCurrentQuestion(
+            `📝 [${classification.category.replace(/_/g, ' ')}] ${extractedQuestions[0]?.questionText || 'Application Form'}`
+          );
+          store.setCurrentAnswer(
+            extractedQuestions[0] ? answers[extractedQuestions[0].id]?.conciseAnswer : ''
+          );
           store.setAnswerValidationStatus('VALIDATED');
           store.setIsAnswerValidated(true);
           store.setStatus('ready');
@@ -840,20 +909,26 @@ export class InterviewEngine {
           },
           {
             onToken: (token, rId) => {
-              if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen) return;
+              if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen)
+                return;
               useAppStore.getState().appendDraftToken(token);
               if (useAppStore.getState().status !== 'generating') {
                 useAppStore.getState().setStatus('generating');
               }
             },
             onSentence: (sentence, rId) => {
-              if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen) return;
+              if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen)
+                return;
               const currentDraftQueue = useAppStore.getState().draftQueue;
               useAppStore.getState().enqueueDraftSentences([...currentDraftQueue, sentence]);
             },
             onComplete: (res) => {
               const state = useAppStore.getState();
-              if (res.requestId !== activeRequestId || res.requestId !== state.activeRequestId || state.generationId !== screenGen) {
+              if (
+                res.requestId !== activeRequestId ||
+                res.requestId !== state.activeRequestId ||
+                state.generationId !== screenGen
+              ) {
                 console.warn('[InterviewEngine] Discarded stale screen result:', res.requestId);
                 return;
               }
@@ -866,7 +941,9 @@ export class InterviewEngine {
                   res.cleanAnswer || '',
                   res.cleanAnswer,
                   res.validationResult,
-                  currentStore.resumeText ? new CandidateKnowledgeBase(currentStore.resumeText) : CandidateKnowledgeBase.getActiveKnowledgeBase()
+                  currentStore.resumeText
+                    ? new CandidateKnowledgeBase(currentStore.resumeText)
+                    : CandidateKnowledgeBase.getActiveKnowledgeBase()
                 );
 
               if (decision.isSpeakable) {
@@ -885,14 +962,17 @@ export class InterviewEngine {
                 state.setGroundingResult(0, res.groundingViolations ?? []);
                 state.enqueueSentences([]);
                 state.setTechnicalGuidance(decision.technicalGuidance || null);
-                state.setBlockedReason(decision.blockedReason || 'Blocked by factual grounding gate');
+                state.setBlockedReason(
+                  decision.blockedReason || 'Blocked by factual grounding gate'
+                );
               }
 
               state.setRecitalState('listening');
               state.setStatus('ready');
             },
             onError: (err, rId) => {
-              if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen) return;
+              if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen)
+                return;
               console.error('[InterviewEngine] Screen Solver Failed:', err.message);
               const state = useAppStore.getState();
               state.clearDraft();

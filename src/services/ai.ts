@@ -878,16 +878,17 @@ export async function streamAnswer(
   const abortFromCaller = () => requestController.abort(signal?.reason);
   if (signal?.aborted) requestController.abort(signal.reason);
   else signal?.addEventListener('abort', abortFromCaller, { once: true });
-  const overallTimer = setTimeout(() => requestController.abort(new Error('Overall generation deadline exceeded (60s).')), overallTimeoutMs);
+  const overallTimer = setTimeout(
+    () => requestController.abort(new Error('Overall generation deadline exceeded (60s).')),
+    overallTimeoutMs
+  );
   const requestSignal = requestController.signal;
   let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   const systemPrompt =
     config.systemPrompt || createSystemPrompt(config, 'interview', 'General', language, null);
 
   // Use tailored system prompt if explicitly provided; otherwise use assembled system prompt
-  const lowLatencyPrompt = config.systemPrompt
-    ? config.systemPrompt
-    : systemPrompt;
+  const lowLatencyPrompt = config.systemPrompt ? config.systemPrompt : systemPrompt;
 
   const url =
     config.type === 'openrouter'
@@ -1053,23 +1054,31 @@ export async function streamAnswer(
 
     try {
       while (true) {
-        if (requestSignal.aborted) throw Object.assign(new Error('Generation cancelled or timed out.'), { name: 'AbortError' });
+        if (requestSignal.aborted)
+          throw Object.assign(new Error('Generation cancelled or timed out.'), {
+            name: 'AbortError',
+          });
         let readTimer: ReturnType<typeof setTimeout> | undefined;
         let readResult: ReadableStreamReadResult<Uint8Array>;
         let onAbort: (() => void) | undefined;
         try {
           const abortPromise = new Promise<never>((_, reject) => {
-            onAbort = () => reject(Object.assign(
-              new Error('AI request was cancelled or its overall deadline expired.'),
-              { name: 'AbortError' }
-            ));
+            onAbort = () =>
+              reject(
+                Object.assign(
+                  new Error('AI request was cancelled or its overall deadline expired.'),
+                  { name: 'AbortError' }
+                )
+              );
             if (requestSignal.aborted) onAbort();
             else requestSignal.addEventListener('abort', onAbort, { once: true });
           });
           const inactivityPromise = new Promise<never>((_, reject) => {
             readTimer = setTimeout(() => {
               const error = Object.assign(
-                new Error('AI response stream stalled: no data received before the inactivity deadline.'),
+                new Error(
+                  'AI response stream stalled: no data received before the inactivity deadline.'
+                ),
                 { name: 'AbortError' }
               );
               requestController.abort(error);
@@ -1090,7 +1099,10 @@ export async function streamAnswer(
         sseBuffer = lines.pop() || '';
 
         for (const rawLine of lines) {
-          if (requestSignal.aborted) throw Object.assign(new Error('Generation cancelled or timed out.'), { name: 'AbortError' });
+          if (requestSignal.aborted)
+            throw Object.assign(new Error('Generation cancelled or timed out.'), {
+              name: 'AbortError',
+            });
           const line = rawLine.trim();
           if (!line || line === 'data: [DONE]') continue;
           if (line.startsWith('data:') || line.startsWith('data: ')) {
@@ -1136,7 +1148,10 @@ export async function streamAnswer(
         }
       }
 
-      if (requestSignal.aborted) throw Object.assign(new Error('Generation cancelled or timed out.'), { name: 'AbortError' });
+      if (requestSignal.aborted)
+        throw Object.assign(new Error('Generation cancelled or timed out.'), {
+          name: 'AbortError',
+        });
       {
         const finalChunk = parser.flush();
         if (finalChunk) {
@@ -1173,9 +1188,13 @@ export async function streamAnswer(
     const timedOut = requestSignal.aborted;
     const sanitizedMsg = sanitizeDiagnosticSecret(e.message || String(e));
     const partialText = parser ? parser.getCleanText().trim() : '';
-    const streamErr = (hasEmittedTokens
-      ? new Error(`[AI Stream Error] Stream interrupted after partial token emission: ${sanitizedMsg}`)
-      : e) as any;
+    const streamErr = (
+      hasEmittedTokens
+        ? new Error(
+            `[AI Stream Error] Stream interrupted after partial token emission: ${sanitizedMsg}`
+          )
+        : e
+    ) as any;
     if (hasEmittedTokens) {
       streamErr.hasEmittedTokens = true;
       streamErr.partialText = partialText;
@@ -1188,8 +1207,12 @@ export async function streamAnswer(
     clearTimeout(overallTimer);
     signal?.removeEventListener('abort', abortFromCaller);
     if (activeReader) {
-      try { await activeReader.cancel(); } catch (_) {}
-      try { activeReader.releaseLock(); } catch (_) {}
+      try {
+        await activeReader.cancel();
+      } catch (_) {}
+      try {
+        activeReader.releaseLock();
+      } catch (_) {}
     }
   }
 }
@@ -1211,18 +1234,13 @@ export async function generateAIAnswer(
   };
 
   let full = '';
-  await streamAnswer(
-    prompt,
-    config,
-    (language || 'java') as ProgrammingLanguage,
-    {
-      onToken: (token) => {
-        full += token;
-      },
-      onComplete: (completed) => {
-        full = completed;
-      },
-    }
-  );
+  await streamAnswer(prompt, config, (language || 'java') as ProgrammingLanguage, {
+    onToken: (token) => {
+      full += token;
+    },
+    onComplete: (completed) => {
+      full = completed;
+    },
+  });
   return full;
 }
