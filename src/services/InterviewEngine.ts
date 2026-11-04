@@ -68,6 +68,7 @@ export class InterviewEngine {
     const state = useAppStore.getState();
     const existing = state.currentQuestion?.trim() || '';
     if (!existing) return;
+    InterviewEngine.abortActiveGeneration();
     pendingQuestionText = existing;
     pendingQuestionTranscript = existing;
     pendingQuestionDeadline = Date.now() + Math.min(3500, Math.max(400, state.speechPauseTolerance)) + QUESTION_CONTINUATION_GRACE_MS;
