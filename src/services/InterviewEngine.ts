@@ -43,9 +43,76 @@ const answerService = AnswerGenerationService.getInstance();
 
 let activeAbortController: AbortController | null = null;
 let activeRequestId: string | null = null;
+
 let activeTranscriptionController: AbortController | null = null;
+let pendingQuestionTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingQuestionText = '';
+let pendingQuestionTranscript = '';
+let pendingQuestionDeadline = 0;
+
+export const QUESTION_CONTINUATION_GRACE_MS = 4000;
+
+function clearPendingQuestionTimer(): void {
+  if (pendingQuestionTimer) clearTimeout(pendingQuestionTimer);
+  pendingQuestionTimer = null;
+}
+
 
 export class InterviewEngine {
+  /**
+   * Converts the current question into a bounded pending-finalization request.
+   * The silence threshold remains user-configurable; the extra grace window is
+   * a fixed continuation cap so incomplete-question mode cannot wait forever.
+   */
+  static markQuestionPendingFinalization(): void {
+    const state = useAppStore.getState();
+    const existing = state.currentQuestion?.trim() || '';
+    if (!existing) return;
+    pendingQuestionText = existing;
+    pendingQuestionTranscript = existing;
+    pendingQuestionDeadline = Date.now() + Math.min(3500, Math.max(400, state.speechPauseTolerance)) + QUESTION_CONTINUATION_GRACE_MS;
+    state.setIsIncompleteQuestionMode(true);
+    state.setPipelineStage('pending_finalization');
+    state.setStatus('listening');
+    clearPendingQuestionTimer();
+    pendingQuestionTimer = setTimeout(() => {
+      void InterviewEngine.finalizePendingQuestion();
+    }, Math.max(0, pendingQuestionDeadline - Date.now()));
+  }
+
+  static appendPendingQuestionUtterance(text: string): boolean {
+    const incoming = (text || '').trim();
+    if (!incoming || !pendingQuestionText || Date.now() > pendingQuestionDeadline) return false;
+    pendingQuestionText = `${pendingQuestionText.replace(/[.?!…]+$/, '')} ${incoming}`.trim();
+    pendingQuestionTranscript = `${pendingQuestionTranscript} ${incoming}`.trim();
+    const state = useAppStore.getState();
+    state.setCurrentQuestion(pendingQuestionText);
+    state.setIsIncompleteQuestionMode(true);
+    clearPendingQuestionTimer();
+    pendingQuestionDeadline = Date.now() + Math.min(3500, Math.max(400, state.speechPauseTolerance)) + QUESTION_CONTINUATION_GRACE_MS;
+    pendingQuestionTimer = setTimeout(() => {
+      void InterviewEngine.finalizePendingQuestion();
+    }, Math.max(0, pendingQuestionDeadline - Date.now()));
+    return true;
+  }
+
+  static async finalizePendingQuestion(): Promise<void> {
+    const question = pendingQuestionText.trim();
+    clearPendingQuestionTimer();
+    pendingQuestionText = '';
+    pendingQuestionDeadline = 0;
+    useAppStore.getState().setIsIncompleteQuestionMode(false);
+    if (!question) return;
+    const fullTranscript = pendingQuestionTranscript;
+    pendingQuestionTranscript = '';
+    useAppStore.getState().updateDiagnostics({
+      latestTranscript: fullTranscript,
+      whisperStatus: 'Question finalized; generating answer',
+      questionMatched: true,
+    });
+    await InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: question });
+  }
+
   /**
    * Aborts any in-flight AI answer generation.
    */
