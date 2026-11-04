@@ -786,7 +786,9 @@ ipcMain.on('window:toggle-content-protection', (event) => {
 // Screen Capture & Neural OCR
 ipcMain.handle(
   'screen:capture-and-ocr',
-  async (_event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
+  async (event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
+    if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+    if (mode !== 'fullscreen' && mode !== 'snip') throw new Error('Invalid screen capture mode');
     const tmpImg = path.join(app.getPath('temp'), `iac_screen_${Date.now()}.jpg`);
     const isMac = process.platform === 'darwin';
     const ocrBin = resolveOcrBinaryPath();
@@ -867,7 +869,9 @@ ipcMain.handle('screen:set-last-ocr-text', (event, text: string) => {
 // Append Screen Capture (Scroll down & stitch multi-page problem descriptions)
 ipcMain.handle(
   'screen:append-capture-and-ocr',
-  async (_event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
+  async (event, mode: 'fullscreen' | 'snip' = 'fullscreen') => {
+    if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+    if (mode !== 'fullscreen' && mode !== 'snip') throw new Error('Invalid screen capture mode');
     const tmpImg = path.join(app.getPath('temp'), `iac_screen_append_${Date.now()}.jpg`);
     const isMac = process.platform === 'darwin';
     const ocrBin = resolveOcrBinaryPath();
