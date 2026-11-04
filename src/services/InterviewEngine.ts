@@ -148,6 +148,15 @@ export class InterviewEngine {
     });
   }
 
+  static clearPendingQuestion(): void {
+    clearPendingQuestionTimer();
+    pendingQuestionText = '';
+    pendingQuestionTranscript = '';
+    pendingQuestionDeadline = 0;
+    pendingQuestionHardDeadline = 0;
+    useAppStore.getState().setIsIncompleteQuestionMode(false);
+  }
+
   /**
    * Aborts any in-flight AI answer generation.
    */
@@ -182,6 +191,7 @@ export class InterviewEngine {
    */
   static cancelAllActiveWork(): void {
     activeRequestId = null;
+    InterviewEngine.clearPendingQuestion();
     InterviewEngine.abortActiveGeneration();
     InterviewEngine.abortActiveTranscription();
   }
@@ -1032,6 +1042,7 @@ export class InterviewEngine {
       }
 
       case 'STOP_LISTENING': {
+        InterviewEngine.clearPendingQuestion();
         InterviewEngine.abortActiveTranscription();
         await audioService.stop(false); // Discard in-progress chunks cleanly
 
