@@ -32,7 +32,7 @@ export interface PipelineDiagnosticEvent {
   totalGenerationTimeMs?: number;
   receivedTokenCount?: number;
   isEmptyResponse?: boolean;
-  finalOutcome?: 'SUCCESS' | 'RATE_LIMITED' | 'FAILED' | 'BLOCKED' | 'ABORTED' | 'CONFIRMATION_NEEDED';
+  finalOutcome?: 'SUCCESS' | 'RATE_LIMITED' | 'FAILED' | 'BLOCKED' | 'ABORTED' | 'CONFIRMATION_NEEDED' | 'UNCLASSIFIED';
   message?: string;
 }
 
