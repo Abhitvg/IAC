@@ -1,0 +1,32 @@
+name: Repair interruption detector formatting
+
+on:
+  push:
+    branches:
+      - fix/post-merge-prettier-formatting
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/post-merge-prettier-formatting
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Format interruption detector
+        run: npx prettier --write src/services/interruptionDetector.ts
+      - name: Commit formatting
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/services/interruptionDetector.ts
+          git commit -m "style: format interruption detector"
+          git push origin HEAD:fix/post-merge-prettier-formatting
