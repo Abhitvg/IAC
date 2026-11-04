@@ -231,8 +231,9 @@ export class AnswerGenerationService {
     let apiKey = directApiKey || '';
     if (!directApiKey) {
       apiKey = await new Promise<string>((resolve, reject) => {
+        let onAbort: () => void;
         const cleanup = () => signal.removeEventListener('abort', onAbort);
-        const onAbort = () => {
+        onAbort = () => {
           cleanup();
           reject(Object.assign(
             new Error(signal.reason?.message || 'Generation cancelled while resolving provider credentials.'),
@@ -249,6 +250,8 @@ export class AnswerGenerationService {
           (error) => { cleanup(); reject(error); }
         );
       }).catch((error: any) => {
+        clearTimeout(overallTimer);
+        callerSignal?.removeEventListener('abort', abortFromCaller);
         if (error?.name !== 'AbortError') throw error;
         return '';
       });
