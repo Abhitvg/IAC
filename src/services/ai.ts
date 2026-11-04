@@ -1055,10 +1055,31 @@ export async function streamAnswer(
         if (requestSignal.aborted) throw Object.assign(new Error('Generation cancelled or timed out.'), { name: 'AbortError' });
         let readTimer: ReturnType<typeof setTimeout> | undefined;
         let readResult: ReadableStreamReadResult<Uint8Array>;
+        let onAbort: (() => void) | undefined;
         try {
-
+          const abortPromise = new Promise<never>((_, reject) => {
+            onAbort = () => reject(Object.assign(
+              new Error('AI request was cancelled or its overall deadline expired.'),
+              { name: 'AbortError' }
+            ));
+            if (requestSignal.aborted) onAbort();
+            else requestSignal.addEventListener('abort', onAbort, { once: true });
+          });
+          const inactivityPromise = new Promise<never>((_, reject) => {
+            readTimer = setTimeout(() => {
+              const error = Object.assign(
+                new Error('AI response stream stalled: no data received before the inactivity deadline.'),
+                { name: 'AbortError' }
+              );
+              requestController.abort(error);
+              void reader.cancel(error);
+              reject(error);
+            }, inactivityTimeoutMs);
+          });
+          readResult = await Promise.race([reader.read(), abortPromise, inactivityPromise]);
         } finally {
           if (readTimer) clearTimeout(readTimer);
+          if (onAbort) requestSignal.removeEventListener('abort', onAbort);
         }
         const { done, value } = readResult;
         if (done) break;
