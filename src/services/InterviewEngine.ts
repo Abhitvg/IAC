@@ -488,21 +488,29 @@ export class InterviewEngine {
         globalLatencyTracker.mark('questionDetected');
 
         const isExtending = store.isIncompleteQuestionMode && Boolean(store.currentQuestion);
-        let finalQuestion = event.text;
+        let finalQuestion = event.text.trim();
 
-        if (isExtending && store.currentQuestion) {
-          finalQuestion = `${store.currentQuestion.trim()} ... ${event.text.trim()}`;
+        if (pendingQuestionText && Date.now() <= pendingQuestionDeadline) {
+          finalQuestion = pendingQuestionText;
+          clearPendingQuestionTimer();
+          pendingQuestionText = '';
+          pendingQuestionDeadline = 0;
+          pendingQuestionTranscript = '';
           store.setIsIncompleteQuestionMode(false);
-          store.setToast(`➕ Appended continuation: "${event.text.slice(0, 45)}..."`);
-        } else {
-          if (store.currentQuestion && store.currentQuestion.trim() !== '') {
-            store.pushToQuestionHistory({
-              question: store.currentQuestion,
-              answer: store.currentAnswer,
-              confidence: store.answerConfidence,
-            });
-          }
+        } else if (isExtending && store.currentQuestion) {
+          finalQuestion = `${store.currentQuestion.trim()} ${event.text.trim()}`.trim();
+          store.setIsIncompleteQuestionMode(false);
+          store.setToast(`Continuation appended: "${event.text.slice(0, 45)}..."`);
+        } else if (store.currentQuestion && store.currentQuestion.trim() !== '') {
+          store.pushToQuestionHistory({
+            question: store.currentQuestion,
+            answer: store.currentAnswer,
+            confidence: store.answerConfidence,
+          });
         }
+
+        // Every recognized question is immutable after this point. Reuse the exact
+        // finalized text for all provider retries and validation.
 
         InterviewEngine.abortActiveGeneration();
 
