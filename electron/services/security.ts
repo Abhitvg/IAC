@@ -463,36 +463,35 @@ export function isTrustedSender(
     return false;
   }
 
-  // Sender webContents identity check
-  if (event?.sender && event.sender !== mainWindow.webContents) {
+  // Electron IPC events must identify both the originating WebContents and frame.
+  // Missing identity metadata is not treated as a trusted renderer.
+  if (!event?.sender || event.sender !== mainWindow.webContents) {
     return false;
   }
 
-  // Sender frame validation
-  const frame = event?.senderFrame;
-  if (frame) {
-    // 1. Subframes / iframes are strictly rejected
-    if (frame.parent) {
-      return false;
-    }
-    // If mainWindow provides mainFrame, verify exact match
-    if (mainWindow.webContents.mainFrame && frame !== mainWindow.webContents.mainFrame) {
-      return false;
-    }
-
-    // 2. Origin & URL validation: frame URL must be trusted application origin
-    const frameUrl = frame.url || '';
-    if (frameUrl && !isTrustedAppOrigin(frameUrl, devServerUrl, allowedFilePaths)) {
-      return false;
-    }
+  const frame = event.senderFrame;
+  if (!frame || frame.parent !== null) {
+    return false;
   }
 
-  // 3. Current webContents URL must also be a trusted application origin
-  const currentUrl =
-    typeof mainWindow.webContents.getURL === 'function'
-      ? mainWindow.webContents.getURL()
-      : '';
-  if (currentUrl && !isTrustedAppOrigin(currentUrl, devServerUrl, allowedFilePaths)) {
+  if (!mainWindow.webContents.mainFrame || frame !== mainWindow.webContents.mainFrame) {
+    return false;
+  }
+
+  // Both the dispatching frame and current document must be the trusted app origin.
+  if (
+    typeof frame.url !== 'string' ||
+    !frame.url ||
+    !isTrustedAppOrigin(frame.url, devServerUrl, allowedFilePaths)
+  ) {
+    return false;
+  }
+
+  if (typeof mainWindow.webContents.getURL !== 'function') {
+    return false;
+  }
+  const currentUrl = mainWindow.webContents.getURL();
+  if (!currentUrl || !isTrustedAppOrigin(currentUrl, devServerUrl, allowedFilePaths)) {
     return false;
   }
 
