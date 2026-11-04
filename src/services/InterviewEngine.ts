@@ -333,7 +333,6 @@ export class InterviewEngine {
           // generation even when speaker identity cannot be established.
           if (classification.type === 'UNCLASSIFIED') {
             const candidateQuestion = classification.questionText || text;
-            const candidateTranscript = useAppStore.getState().transcript;
             // Store the uncertain speech as a recoverable question candidate. It is
             // retained independently of the eventual finalized question.
             useAppStore.getState().setLastUnconfirmedTranscript({
