@@ -399,7 +399,10 @@ app.on('window-all-closed', () => {
 });
 
 // Window controls IPC
-ipcMain.on('window:minimize', (event) => { if (!isTrustedSender(event, mainWindow)) return; mainWindow?.minimize(); });
+ipcMain.on('window:minimize', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
+  mainWindow?.minimize();
+});
 ipcMain.on('window:maximize', (event) => {
   if (!isTrustedSender(event, mainWindow)) return;
   if (mainWindow?.isMaximized()) {
@@ -471,7 +474,15 @@ ipcMain.handle('window:get-position', (event) => {
 
 ipcMain.handle('window:set-ignore-mouse-events', (event, ignore: boolean, options?: { forward?: boolean }) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
-  if (typeof ignore !== 'boolean' || (options !== undefined && (typeof options !== 'object' || options === null || (options.forward !== undefined && typeof options.forward !== 'boolean')))) throw new Error('Invalid mouse event options');
+  if (
+    typeof ignore !== 'boolean' ||
+    (options !== undefined &&
+      (typeof options !== 'object' ||
+        options === null ||
+        (options.forward !== undefined && typeof options.forward !== 'boolean')))
+  ) {
+    throw new Error('Invalid mouse event options');
+  }
   if (!mainWindow) return false;
   try {
     mainWindow.setIgnoreMouseEvents(Boolean(ignore), options || { forward: true });
@@ -507,9 +518,18 @@ ipcMain.handle('window:get-opacity', (event) => {
 });
 
 // File system paths
-ipcMain.handle('get-recordings-dir', (event) => { if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender'); return RECORDINGS_DIR; });
-ipcMain.handle('get-sessions-dir', (event) => { if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender'); return SESSIONS_DIR; });
-ipcMain.handle('get-user-data-path', (event) => { if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender'); return app.getPath('userData'); });
+ipcMain.handle('get-recordings-dir', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  return RECORDINGS_DIR;
+});
+ipcMain.handle('get-sessions-dir', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  return SESSIONS_DIR;
+});
+ipcMain.handle('get-user-data-path', (event) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  return app.getPath('userData');
+});
 
 // File dialog with path approval registration
 ipcMain.handle('dialog:open-file', async (event, options: Electron.OpenDialogOptions) => {
@@ -753,8 +773,14 @@ ipcMain.handle('fs:parse-docx', async (event, arrayBuffer: ArrayBuffer) => {
 });
 
 // Window visibility & protection IPC
-ipcMain.on('window:toggle-visibility', (event) => { if (!isTrustedSender(event, mainWindow)) return; toggleWindowVisibility(); });
-ipcMain.on('window:hide', (event) => { if (!isTrustedSender(event, mainWindow)) return; mainWindow?.hide(); });
+ipcMain.on('window:toggle-visibility', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
+  toggleWindowVisibility();
+});
+ipcMain.on('window:hide', (event) => {
+  if (!isTrustedSender(event, mainWindow)) return;
+  mainWindow?.hide();
+});
 ipcMain.on('window:show', (event) => {
   if (!isTrustedSender(event, mainWindow)) return;
   if (!mainWindow) return;
