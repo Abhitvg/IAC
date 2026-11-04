@@ -869,8 +869,18 @@ export async function streamAnswer(
   config: AIProviderConfig,
   language: ProgrammingLanguage,
   callbacks: AIStreamCallbacks,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  timeoutConfig: { overallTimeoutMs?: number; inactivityTimeoutMs?: number } = {}
 ): Promise<void> {
+  const overallTimeoutMs = timeoutConfig.overallTimeoutMs ?? 60000;
+  const inactivityTimeoutMs = timeoutConfig.inactivityTimeoutMs ?? 15000;
+  const requestController = new AbortController();
+  const abortFromCaller = () => requestController.abort(signal?.reason);
+  if (signal?.aborted) requestController.abort(signal.reason);
+  else signal?.addEventListener('abort', abortFromCaller, { once: true });
+  const overallTimer = setTimeout(() => requestController.abort(new Error('Overall generation deadline exceeded (60s).')), overallTimeoutMs);
+  const requestSignal = requestController.signal;
+  let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   const systemPrompt =
     config.systemPrompt || createSystemPrompt(config, 'interview', 'General', language, null);
 
@@ -1034,6 +1044,7 @@ export async function streamAnswer(
     if (!activeResponse.body) throw new Error(`No response body`);
 
     const reader = activeResponse.body.getReader();
+    activeReader = reader;
     const decoder = new TextDecoder('utf-8');
     parser = new AIStreamParser();
     const buffer = new SentenceBuffer();
@@ -1049,9 +1060,10 @@ export async function streamAnswer(
             reader.read(),
             new Promise<never>((_, reject) => {
               readTimer = setTimeout(() => {
-                void reader.cancel();
+                requestController.abort(new Error('AI response stream stalled: no data received for 15 seconds.'));
+                void reader.cancel('Stream inactivity deadline exceeded');
                 reject(new Error('AI response stream stalled: no data received for 15 seconds.'));
-              }, 15000);
+              }, inactivityTimeoutMs);
             }),
           ]);
         } finally {
@@ -1143,10 +1155,8 @@ export async function streamAnswer(
       } catch (_) {}
     }
   } catch (e: any) {
-    if (e.name === 'AbortError') {
-      throw e;
-    }
-
+    if (e.name === 'AbortError') throw e;
+    const timedOut = requestSignal.aborted;
     const sanitizedMsg = sanitizeDiagnosticSecret(e.message || String(e));
     const partialText = parser ? parser.getCleanText().trim() : '';
     const streamErr = (hasEmittedTokens
@@ -1157,8 +1167,16 @@ export async function streamAnswer(
       streamErr.partialText = partialText;
       streamErr.originalError = e;
     }
+    if (timedOut) streamErr.name = 'AbortError';
     callbacks.onError?.(streamErr);
     throw streamErr;
+  } finally {
+    clearTimeout(overallTimer);
+    signal?.removeEventListener('abort', abortFromCaller);
+    if (activeReader) {
+      try { await activeReader.cancel(); } catch (_) {}
+      try { activeReader.releaseLock(); } catch (_) {}
+    }
   }
 }
 
