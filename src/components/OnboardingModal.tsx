@@ -507,6 +507,7 @@ export default function OnboardingModal() {
                 </span>
                 <button
                   type="button"
+                  aria-pressed={micActive}
                   onClick={() => {
                     setMicError(null);
                     setMicActive((active) => !active);
@@ -530,6 +531,11 @@ export default function OnboardingModal() {
               {micActive && (
                 <div style={{ marginTop: '12px' }}>
                   <div
+                    role="meter"
+                    aria-label="Microphone input level"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={volumeLevel}
                     style={{
                       width: '100%',
                       height: '8px',
