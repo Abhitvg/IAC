@@ -226,17 +226,6 @@ export class AnswerGenerationService {
       structuredViolations: [],
     });
 
-    if (!directApiKey && provider === 'groq' && typeof window !== 'undefined' && window.electronAPI?.getApiKey) {
-      try {
-        secondaryGroqApiKey = (await window.electronAPI.getApiKey('groq-secondary') || '').trim();
-        const match = secondaryGroqApiKey.match(/gsk_[A-Za-z0-9_-]+/);
-        secondaryGroqApiKey = match?.[0] || '';
-        if (secondaryGroqApiKey === apiKey) secondaryGroqApiKey = '';
-      } catch {
-        // Secondary credentials are optional; primary-key operation remains available.
-      }
-    }
-
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
@@ -287,6 +276,17 @@ export class AnswerGenerationService {
         return '';
       });
     }
+    if (!directApiKey && provider === 'groq' && typeof window !== 'undefined' && window.electronAPI?.getApiKey) {
+      try {
+        secondaryGroqApiKey = (await window.electronAPI.getApiKey('groq-secondary') || '').trim();
+        const match = secondaryGroqApiKey.match(/gsk_[A-Za-z0-9_-]+/);
+        secondaryGroqApiKey = match?.[0] || '';
+        if (secondaryGroqApiKey === apiKey) secondaryGroqApiKey = '';
+      } catch {
+        // Secondary credentials are optional; primary-key operation remains available.
+      }
+    }
+
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
