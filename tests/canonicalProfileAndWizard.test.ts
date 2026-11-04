@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   CanonicalProfileService,
   createCanonicalFact,
@@ -452,4 +452,48 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
       expect(outcome.errors.some((e) => e.includes('Confirmed work authorization declaration cannot have a null value'))).toBe(true);
     }
   });
+  it('does not report candidate data deleted when browser storage rejects deletion', () => {
+    const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    const storage = {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(() => {
+        throw new Error('Storage access denied');
+      }),
+    };
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {},
+    });
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: storage,
+    });
+
+    try {
+      const current = service.getProfile();
+      current.identity.fullName = 'Candidate data must remain available';
+      service.saveProfile(current);
+
+      expect(service.clearAllCandidateData()).toBe(false);
+      expect(service.getProfile().identity.fullName).toBe(
+        'Candidate data must remain available'
+      );
+      expect(storage.removeItem).toHaveBeenCalledOnce();
+    } finally {
+      if (previousWindow) {
+        Object.defineProperty(globalThis, 'window', previousWindow);
+      } else {
+        Reflect.deleteProperty(globalThis, 'window');
+      }
+      if (previousStorage) {
+        Object.defineProperty(globalThis, 'localStorage', previousStorage);
+      } else {
+        Reflect.deleteProperty(globalThis, 'localStorage');
+      }
+    }
+  });
+
 });
