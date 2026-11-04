@@ -276,7 +276,8 @@ export default function OnboardingModal() {
                     lineHeight: '1.4',
                   }}
                 >
-                  Uses Ollama and local Whisper when installed and configured. This screen does not verify offline readiness.
+                  Uses Ollama and local Whisper when installed and configured. This screen does not
+                  verify offline readiness.
                 </p>
               </button>
             </div>
@@ -389,7 +390,8 @@ export default function OnboardingModal() {
                       marginTop: '4px',
                     }}
                   >
-                    Keys are encrypted with Electron safeStorage when available, with a machine-scoped AES-GCM fallback.
+                    Keys are encrypted with Electron safeStorage when available, with a
+                    machine-scoped AES-GCM fallback.
                   </span>
                 </div>
               </div>
@@ -406,7 +408,8 @@ export default function OnboardingModal() {
                   Local Model Requirements
                 </h3>
                 <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 16px 0' }}>
-                  Local mode requires Ollama and a local Whisper runtime. Installation and model availability are not verified here.
+                  Local mode requires Ollama and a local Whisper runtime. Installation and model
+                  availability are not verified here.
                 </p>
 
                 <div
@@ -473,7 +476,8 @@ export default function OnboardingModal() {
               Microphone Test
             </h3>
             <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 16px 0' }}>
-              Test real microphone input. Provider response latency is not measured during onboarding.
+              Test real microphone input. Provider response latency is not measured during
+              onboarding.
             </p>
 
             <div
@@ -556,7 +560,10 @@ export default function OnboardingModal() {
                 </div>
               )}
               {micError && (
-                <span role="alert" style={{ display: 'block', marginTop: '8px', color: '#fca5a5', fontSize: '11px' }}>
+                <span
+                  role="alert"
+                  style={{ display: 'block', marginTop: '8px', color: '#fca5a5', fontSize: '11px' }}
+                >
                   {micError}
                 </span>
               )}
@@ -586,7 +593,9 @@ export default function OnboardingModal() {
                   <Activity size={14} style={{ color: '#818cf8' }} />
                   Provider response latency
                 </span>
-                <span style={{ fontSize: '11px', color: '#94a3b8' }}>Not measured during setup</span>
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  Not measured during setup
+                </span>
               </div>
             </div>
 
@@ -658,10 +667,19 @@ export default function OnboardingModal() {
                 lineHeight: '1.5',
               }}
             >
-              Your setup choices are saved. Microphone input can be tested above, but provider latency and local model availability are not verified automatically. Start a behavioral warmup when your provider or local runtime is ready.
+              Your setup choices are saved. Microphone input can be tested above, but provider
+              latency and local model availability are not verified automatically. Start a
+              behavioral warmup when your provider or local runtime is ready.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                alignItems: 'center',
+              }}
+            >
               <button
                 type="button"
                 onClick={async () => {
