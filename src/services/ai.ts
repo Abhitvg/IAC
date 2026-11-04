@@ -1062,7 +1062,7 @@ export async function streamAnswer(
               readTimer = setTimeout(() => {
                 requestController.abort(new Error('AI response stream stalled: no data received for 15 seconds.'));
                 void reader.cancel('Stream inactivity deadline exceeded');
-                reject(new Error('AI response stream stalled: no data received for 15 seconds.'));
+                reject(Object.assign(new Error('AI response stream stalled: no data received for 15 seconds.'), { name: 'AbortError' }));
               }, inactivityTimeoutMs);
             }),
           ]);
@@ -1077,7 +1077,7 @@ export async function streamAnswer(
         sseBuffer = lines.pop() || '';
 
         for (const rawLine of lines) {
-          if (signal?.aborted) break;
+          if (requestSignal.aborted) throw Object.assign(new Error('Generation cancelled or timed out.'), { name: 'AbortError' });
           const line = rawLine.trim();
           if (!line || line === 'data: [DONE]') continue;
           if (line.startsWith('data:') || line.startsWith('data: ')) {
