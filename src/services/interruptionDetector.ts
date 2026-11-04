@@ -202,9 +202,7 @@ export function detectQuestionIntent(text: string): {
 } {
   const trimmed = (text || '').trim();
   if (!trimmed) return { plausibleQuestion: false, incomplete: false };
-  const hasExplicitInterruptionCue = INTERRUPTION_PATTERNS.some((pattern) =>
-    pattern.test(trimmed)
-  );
+  const hasExplicitInterruptionCue = INTERRUPTION_PATTERNS.some((pattern) => pattern.test(trimmed));
   const hasInterrogativeSyntax =
     hasExplicitInterruptionCue ||
     /[?]$/.test(trimmed) ||
