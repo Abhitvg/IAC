@@ -34,7 +34,10 @@ import {
   SandboxRepositoryProvider,
   sha256Hex,
 } from '../src/services/evidenceInspection';
-import { AnswerGenerationService, AnswerGenerationResult } from '../src/services/AnswerGenerationService';
+import {
+  AnswerGenerationService,
+  AnswerGenerationResult,
+} from '../src/services/AnswerGenerationService';
 import * as aiModule from '../src/services/ai';
 import { useAppStore } from '../src/store/useAppStore';
 
@@ -49,10 +52,14 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
     TrustedRepositoryInspectionService.getSandboxProvider().clearFixtures();
     useAppStore.getState().clearAnswerQueue();
     if (fs.existsSync(TEST_REPLAY_STORE_PATH)) {
-      try { fs.unlinkSync(TEST_REPLAY_STORE_PATH); } catch (_) {}
+      try {
+        fs.unlinkSync(TEST_REPLAY_STORE_PATH);
+      } catch (_) {}
     }
     if (fs.existsSync(TEST_KEY_STORE_PATH)) {
-      try { fs.unlinkSync(TEST_KEY_STORE_PATH); } catch (_) {}
+      try {
+        fs.unlinkSync(TEST_KEY_STORE_PATH);
+      } catch (_) {}
     }
     DurableReplayCache.getInstance().clear();
     DurableReplayCache.getInstance().init(TEST_REPLAY_STORE_PATH);
@@ -60,10 +67,14 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
 
   afterEach(() => {
     if (fs.existsSync(TEST_REPLAY_STORE_PATH)) {
-      try { fs.unlinkSync(TEST_REPLAY_STORE_PATH); } catch (_) {}
+      try {
+        fs.unlinkSync(TEST_REPLAY_STORE_PATH);
+      } catch (_) {}
     }
     if (fs.existsSync(TEST_KEY_STORE_PATH)) {
-      try { fs.unlinkSync(TEST_KEY_STORE_PATH); } catch (_) {}
+      try {
+        fs.unlinkSync(TEST_KEY_STORE_PATH);
+      } catch (_) {}
     }
   });
 
@@ -106,8 +117,12 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
     });
 
     it('1.2 Failed validation never leaks unvalidated raw answer and fails closed', async () => {
-      const kb = new CandidateKnowledgeBase('Candidate: Dana\nProjects: AuthCore\nTechnologies: TypeScript\n');
-      vi.spyOn(aiModule, 'generateAIAnswer').mockResolvedValue('Unverified raw model generation containing secret tokens');
+      const kb = new CandidateKnowledgeBase(
+        'Candidate: Dana\nProjects: AuthCore\nTechnologies: TypeScript\n'
+      );
+      vi.spyOn(aiModule, 'generateAIAnswer').mockResolvedValue(
+        'Unverified raw model generation containing secret tokens'
+      );
       vi.spyOn(FactualGroundingValidator, 'validateAnswer').mockImplementation(() => {
         throw new Error('Validator process crashed unexpectedly');
       });
@@ -126,12 +141,18 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
     });
 
     it('1.3 Aborted request produces explicit ABORTED outcome and halts cleanly', async () => {
-      const kb = new CandidateKnowledgeBase('Candidate: Dana\nProjects: AuthCore\nTechnologies: TypeScript\n');
+      const kb = new CandidateKnowledgeBase(
+        'Candidate: Dana\nProjects: AuthCore\nTechnologies: TypeScript\n'
+      );
       const abortController = new AbortController();
       abortController.abort(); // Pre-aborted
 
       const res = await AnswerGenerationService.generateAnswer(
-        { questionText: 'Explain AuthCore', candidateKnowledgeBase: kb, signal: abortController.signal },
+        {
+          questionText: 'Explain AuthCore',
+          candidateKnowledgeBase: kb,
+          signal: abortController.signal,
+        },
         'dummy-api-key'
       );
 
@@ -142,10 +163,14 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
     });
 
     it('1.4 Stale generation requests cannot overwrite newer answers', async () => {
-      const kb = new CandidateKnowledgeBase('Candidate: Dana\nProjects: AuthCore\nTechnologies: TypeScript\n');
-      
+      const kb = new CandidateKnowledgeBase(
+        'Candidate: Dana\nProjects: AuthCore\nTechnologies: TypeScript\n'
+      );
+
       let resolveFirst!: (val: string) => void;
-      const firstPromise = new Promise<string>((resolve) => { resolveFirst = resolve; });
+      const firstPromise = new Promise<string>((resolve) => {
+        resolveFirst = resolve;
+      });
 
       vi.spyOn(aiModule, 'generateAIAnswer')
         .mockImplementationOnce(() => firstPromise)
@@ -220,13 +245,15 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
       ProtectedEvidenceKeyManager.loadFromDisk(TEST_KEY_STORE_PATH);
       const restoredKb = new CandidateKnowledgeBase();
       restoredKb.importPersistedState(serialized);
-      expect(restoredKb.getProject('Lifecycle App')?.verificationStatus).toBe('REPOSITORY_SUPPORTED');
+      expect(restoredKb.getProject('Lifecycle App')?.verificationStatus).toBe(
+        'REPOSITORY_SUPPORTED'
+      );
 
       // Step 4: Simulate key store reset (unauthenticated / lost key)
       ProtectedEvidenceKeyManager.resetKeyStore();
       const invalidKb = new CandidateKnowledgeBase();
       invalidKb.importPersistedState(serialized);
-      
+
       // Old seals fail authentication under new key: explicit REQUIRES_REINSPECTION, never silent elevation
       const unauthProj = invalidKb.getProject('Lifecycle App');
       expect(unauthProj?.verificationStatus).toBe('REQUIRES_REINSPECTION');
@@ -234,7 +261,9 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
       // Step 5: Reinspection restores trust under active key
       const reinspectRes = invalidKb.reinspectRepository('Lifecycle App');
       expect(reinspectRes.success).toBe(true);
-      expect(invalidKb.getProject('Lifecycle App')?.verificationStatus).toBe('REPOSITORY_SUPPORTED');
+      expect(invalidKb.getProject('Lifecycle App')?.verificationStatus).toBe(
+        'REPOSITORY_SUPPORTED'
+      );
     });
 
     it('2.2 Imported untrusted metadata attempting to claim verified status fails closed', () => {
@@ -296,7 +325,9 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
       };
 
       const payloadJson = JSON.stringify(auditPayload);
-      const signatureHex = crypto.sign(null, Buffer.from(payloadJson, 'utf8'), privateKey).toString('hex');
+      const signatureHex = crypto
+        .sign(null, Buffer.from(payloadJson, 'utf8'), privateKey)
+        .toString('hex');
 
       // First verification succeeds
       const res1 = await TrustedIndependentAuditService.verifySignedAttestation({
@@ -324,7 +355,9 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
       // Replay attempt with same nonce but different auditId is also rejected
       const reusedNoncePayload = { ...auditPayload, auditId: 'audit-durable-002' };
       const reusedNonceJson = JSON.stringify(reusedNoncePayload);
-      const reusedNonceSig = crypto.sign(null, Buffer.from(reusedNonceJson, 'utf8'), privateKey).toString('hex');
+      const reusedNonceSig = crypto
+        .sign(null, Buffer.from(reusedNonceJson, 'utf8'), privateKey)
+        .toString('hex');
 
       const res3 = await TrustedIndependentAuditService.verifySignedAttestation({
         schemaVersion: 'iac.audit.v1',
@@ -360,7 +393,9 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
       };
 
       const payloadJson = JSON.stringify(auditPayload);
-      const signatureHex = crypto.sign(null, Buffer.from(payloadJson, 'utf8'), privateKey).toString('hex');
+      const signatureHex = crypto
+        .sign(null, Buffer.from(payloadJson, 'utf8'), privateKey)
+        .toString('hex');
 
       // Race 2 concurrent verification calls
       const [r1, r2] = await Promise.all([
@@ -440,7 +475,9 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
       expect(insp.filesOmittedCount).toBe(3);
       expect(insp.inspectionScope).toBe('PARTIAL_SOURCE_SAMPLE');
       expect(insp.verifiedTechnologies.map((t: string) => t.toLowerCase())).toContain('react');
-      expect(insp.verifiedTechnologies.map((t: string) => t.toLowerCase())).not.toContain('solidity');
+      expect(insp.verifiedTechnologies.map((t: string) => t.toLowerCase())).not.toContain(
+        'solidity'
+      );
       expect(insp.verifiedTechnologies.map((t: string) => t.toLowerCase())).not.toContain('ethers');
 
       // Validating an answer claiming Solidity in this project must be FLAGGED
@@ -516,7 +553,8 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
       // Revoke auditor
       TrustedIndependentAuditService.revokeAuditor('auditor-rotatable');
       const attBPostRevoke = createAttestation(keypairB, 'audit-rot-004', 'nonce-rot-004-random');
-      const resRevoked = await TrustedIndependentAuditService.verifySignedAttestation(attBPostRevoke);
+      const resRevoked =
+        await TrustedIndependentAuditService.verifySignedAttestation(attBPostRevoke);
       expect(resRevoked).toBeNull();
     });
 
@@ -580,7 +618,6 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
   });
 });
 
-
 // ============================================================================
 // Part 2: 500-Case Independent Holdout Evaluation Dataset Across 17 Categories
 // ============================================================================
@@ -606,7 +643,10 @@ Trading Platform - A web trading platform
 Technologies: TypeScript, React, Node.js
 `);
 
-    const ticket = CandidateConfirmationWorkflow.issueTicket('trading platform', 'project_confirmation');
+    const ticket = CandidateConfirmationWorkflow.issueTicket(
+      'trading platform',
+      'project_confirmation'
+    );
     kb.confirmProject('Trading Platform', {
       ticket,
       confirmedFields: ['personalContribution', 'technologyUsage'],
@@ -623,8 +663,14 @@ Technologies: TypeScript, React, Node.js
       commitAuthorName: 'Alex Chen',
       commitAuthorEmail: 'alex@example.com',
       files: [
-        { path: 'package.json', content: '{"dependencies":{"react":"18.2.0","typescript":"5.0.0"}}' },
-        { path: 'src/portfolio.tsx', content: 'import React from "react"; export const Portfolio = () => null;' },
+        {
+          path: 'package.json',
+          content: '{"dependencies":{"react":"18.2.0","typescript":"5.0.0"}}',
+        },
+        {
+          path: 'src/portfolio.tsx',
+          content: 'import React from "react"; export const Portfolio = () => null;',
+        },
       ],
     });
     const inspectResult = await TrustedRepositoryInspectionService.inspectRepository({
@@ -683,7 +729,10 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 25; i++) {
       const base = passiveAttributionTemplates[i % passiveAttributionTemplates.length];
       addCases('passive_attribution', 2, 'FLAGGED', [
-        { text: `${base} [batch ${i + 1}]`, reason: 'Unverified architecture/database design attribution' },
+        {
+          text: `${base} [batch ${i + 1}]`,
+          reason: 'Unverified architecture/database design attribution',
+        },
       ]);
     }
 
@@ -698,7 +747,10 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 25; i++) {
       const base = teamAchievementsTemplates[i % teamAchievementsTemplates.length];
       addCases('team_achievements', 3, 'FLAGGED', [
-        { text: `${base} (sample ${i + 1})`, reason: 'Unverified team delivery/metric achievement' },
+        {
+          text: `${base} (sample ${i + 1})`,
+          reason: 'Unverified team delivery/metric achievement',
+        },
       ]);
     }
 
@@ -763,7 +815,10 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 30; i++) {
       const base = negationTemplates[i % negationTemplates.length];
       addCases('negations', 7, 'VALIDATED', [
-        { text: `${base} (neg ${i + 1})`, reason: 'Grounded truth clarification via explicit negation' },
+        {
+          text: `${base} (neg ${i + 1})`,
+          reason: 'Grounded truth clarification via explicit negation',
+        },
       ]);
     }
 
@@ -779,7 +834,10 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 30; i++) {
       const base = conditionalTemplates[i % conditionalTemplates.length];
       addCases('conditionals_hypotheticals', 8, 'VALIDATED', [
-        { text: `${base} (hyp ${i + 1})`, reason: 'Valid hypothetical or conditional engineering analysis' },
+        {
+          text: `${base} (hyp ${i + 1})`,
+          reason: 'Valid hypothetical or conditional engineering analysis',
+        },
       ]);
     }
 
@@ -795,7 +853,10 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 30; i++) {
       const base = quoteTemplates[i % quoteTemplates.length];
       addCases('quoted_questions', 9, 'VALIDATED', [
-        { text: `${base} (quote ${i + 1})`, reason: 'Quoted interview question properly addressed without false claim' },
+        {
+          text: `${base} (quote ${i + 1})`,
+          reason: 'Quoted interview question properly addressed without false claim',
+        },
       ]);
     }
 
@@ -810,7 +871,10 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 30; i++) {
       const base = multiSentenceTemplates[i % multiSentenceTemplates.length];
       addCases('multi_sentence_claims', 10, 'FLAGGED', [
-        { text: `${base} (multi ${i + 1})`, reason: 'Grounded true fact combined with unverified assertion' },
+        {
+          text: `${base} (multi ${i + 1})`,
+          reason: 'Grounded true fact combined with unverified assertion',
+        },
       ]);
     }
 
@@ -825,7 +889,10 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 30; i++) {
       const base = resumeOnlyTechTemplates[i % resumeOnlyTechTemplates.length];
       addCases('resume_only_tech', 11, 'FLAGGED', [
-        { text: `${base} (tech ${i + 1})`, reason: 'Personal work claimed with unverified technology' },
+        {
+          text: `${base} (tech ${i + 1})`,
+          reason: 'Personal work claimed with unverified technology',
+        },
       ]);
     }
 
@@ -859,7 +926,11 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 45; i++) {
       const base = generalExplanations[i % generalExplanations.length];
       addCases('general_technical_explanations', 13, 'VALIDATED', [
-        { text: `${base} (concept ${i + 1})`, q: 'Explain this concept', reason: 'Factual engineering concept explanation' },
+        {
+          text: `${base} (concept ${i + 1})`,
+          q: 'Explain this concept',
+          reason: 'Factual engineering concept explanation',
+        },
       ]);
     }
 
@@ -876,7 +947,10 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 35; i++) {
       const base = proposedDesigns[i % proposedDesigns.length];
       addCases('proposed_future_designs', 14, 'VALIDATED', [
-        { text: `${base} (proposal ${i + 1})`, reason: 'Forward-looking design proposal explicitly marked as future work' },
+        {
+          text: `${base} (proposal ${i + 1})`,
+          reason: 'Forward-looking design proposal explicitly marked as future work',
+        },
       ]);
     }
 
@@ -891,7 +965,10 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 40; i++) {
       const base = confirmedFacts[i % confirmedFacts.length];
       addCases('candidate_confirmed_facts', 15, 'VALIDATED', [
-        { text: `${base} (confirmed ${i + 1})`, reason: 'Strictly grounded candidate-confirmed fact' },
+        {
+          text: `${base} (confirmed ${i + 1})`,
+          reason: 'Strictly grounded candidate-confirmed fact',
+        },
       ]);
     }
 
@@ -906,7 +983,10 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 45; i++) {
       const base = repoFacts[i % repoFacts.length];
       addCases('repository_supported_facts', 16, 'VALIDATED', [
-        { text: `${base} (repo ${i + 1})`, reason: 'Repository-inspected and verified code contribution' },
+        {
+          text: `${base} (repo ${i + 1})`,
+          reason: 'Repository-inspected and verified code contribution',
+        },
       ]);
     }
 
@@ -921,7 +1001,10 @@ Technologies: TypeScript, React, Node.js
     for (let i = 0; i < 40; i++) {
       const base = docFacts[i % docFacts.length];
       addCases('document_supported_facts', 17, 'VALIDATED', [
-        { text: `${base} (doc ${i + 1})`, reason: 'Document-supported contributor role and responsibilities' },
+        {
+          text: `${base} (doc ${i + 1})`,
+          reason: 'Document-supported contributor role and responsibilities',
+        },
       ]);
     }
 
@@ -943,7 +1026,10 @@ Technologies: TypeScript, React, Node.js
     let proposedDesignCases = 0;
     let proposedDesignCorrect = 0;
 
-    const categoryStats: Record<string, { total: number; correct: number; tp: number; fp: number; tn: number; fn: number }> = {};
+    const categoryStats: Record<
+      string,
+      { total: number; correct: number; tp: number; fp: number; tn: number; fn: number }
+    > = {};
 
     for (const c of cases) {
       if (!categoryStats[c.category]) {
@@ -998,8 +1084,10 @@ Technologies: TypeScript, React, Node.js
     const recall = TP / (TP + FN);
     const f1 = (2 * precision * recall) / (precision + recall);
     const accuracy = (TP + TN) / cases.length;
-    const metricLeakageRate = unverifiedMetricCases > 0 ? (unverifiedMetricLeaks / unverifiedMetricCases) * 100 : 0;
-    const proposedDesignAccuracy = proposedDesignCases > 0 ? (proposedDesignCorrect / proposedDesignCases) * 100 : 100;
+    const metricLeakageRate =
+      unverifiedMetricCases > 0 ? (unverifiedMetricLeaks / unverifiedMetricCases) * 100 : 0;
+    const proposedDesignAccuracy =
+      proposedDesignCases > 0 ? (proposedDesignCorrect / proposedDesignCases) * 100 : 100;
 
     console.log('\n================================================================');
     console.log('IAC SEVENTH-STAGE 500-CASE INDEPENDENT HOLDOUT EVALUATION REPORT');
@@ -1014,12 +1102,16 @@ Technologies: TypeScript, React, Node.js
     console.log(`F1 Score:                   ${(f1 * 100).toFixed(2)}%`);
     console.log(`Overall Accuracy:           ${(accuracy * 100).toFixed(2)}%`);
     console.log(`Metric Leakage Rate:        ${metricLeakageRate.toFixed(2)}% (Target: 0.00%)`);
-    console.log(`Proposed Design Accuracy:   ${proposedDesignAccuracy.toFixed(2)}% (Target: >=98.00%)`);
+    console.log(
+      `Proposed Design Accuracy:   ${proposedDesignAccuracy.toFixed(2)}% (Target: >=98.00%)`
+    );
     console.log('----------------------------------------------------------------');
     console.log('Breakdown by Category:');
     for (const [cat, stat] of Object.entries(categoryStats)) {
       const catAcc = (stat.correct / stat.total) * 100;
-      console.log(`  - ${cat.padEnd(32)}: ${stat.correct}/${stat.total} (${catAcc.toFixed(1)}%) [TP:${stat.tp} FP:${stat.fp} TN:${stat.tn} FN:${stat.fn}]`);
+      console.log(
+        `  - ${cat.padEnd(32)}: ${stat.correct}/${stat.total} (${catAcc.toFixed(1)}%) [TP:${stat.tp} FP:${stat.fp} TN:${stat.tn} FN:${stat.fn}]`
+      );
     }
     console.log('================================================================\n');
 

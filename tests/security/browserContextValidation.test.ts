@@ -22,9 +22,13 @@ describe('browser extension context validation', () => {
 
   it('rejects unsupported message types and malformed payloads', () => {
     expect(parseBrowserContextMessage({ ...validMessage(), type: 'arbitrary' })).toBeNull();
-    expect(parseBrowserContextMessage({ ...validMessage(), source: 'https://evil.test' })).toBeNull();
+    expect(
+      parseBrowserContextMessage({ ...validMessage(), source: 'https://evil.test' })
+    ).toBeNull();
     expect(parseBrowserContextMessage({ ...validMessage(), content: '' })).toBeNull();
-    expect(parseBrowserContextMessage({ ...validMessage(), content: 'x'.repeat(10_001) })).toBeNull();
+    expect(
+      parseBrowserContextMessage({ ...validMessage(), content: 'x'.repeat(10_001) })
+    ).toBeNull();
     expect(parseBrowserContextMessage({ ...validMessage(), timestamp: 'not-a-date' })).toBeNull();
   });
 
@@ -32,7 +36,9 @@ describe('browser extension context validation', () => {
     const staleTimestamp = new Date(Date.now() - 11 * 60_000).toISOString();
     const futureTimestamp = new Date(Date.now() + 3 * 60_000).toISOString();
     expect(parseBrowserContextMessage({ ...validMessage(), timestamp: staleTimestamp })).toBeNull();
-    expect(parseBrowserContextMessage({ ...validMessage(), timestamp: futureTimestamp })).toBeNull();
+    expect(
+      parseBrowserContextMessage({ ...validMessage(), timestamp: futureTimestamp })
+    ).toBeNull();
   });
 
   it('limits each connection to 30 messages per minute', () => {

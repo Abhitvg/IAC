@@ -683,7 +683,9 @@ export class AnswerGenerationService {
                 signal?.removeEventListener('abort', onAbort);
                 reject(
                   Object.assign(
-                    new Error(signal?.reason?.message || 'Generation cancelled during retry backoff'),
+                    new Error(
+                      signal?.reason?.message || 'Generation cancelled during retry backoff'
+                    ),
                     { name: 'AbortError' }
                   )
                 );
@@ -713,7 +715,9 @@ export class AnswerGenerationService {
                 validationStatus: timedOut ? 'FAILED' : 'ABORTED',
                 groundingScore: 0,
                 groundingViolations: [
-                  timedOut ? 'Generation deadline exceeded' : 'Request cancelled during retry backoff',
+                  timedOut
+                    ? 'Generation deadline exceeded'
+                    : 'Request cancelled during retry backoff',
                 ],
                 structuredViolations: [],
               };
