@@ -191,147 +191,104 @@ const FILLER_PATTERNS = [
 ];
 
 /**
- * Classifies an incoming speech utterance from Whisper
+ * Detects question intent independently from speaker identity. Audio capture currently
+ * has no diarization, so speaker attribution remains uncertain unless we see strong
+ * recital evidence or an explicit interviewer turn cue.
  */
+export function detectQuestionIntent(text: string): {
+  plausibleQuestion: boolean;
+  incomplete: boolean;
+} {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return { plausibleQuestion: false, incomplete: false };
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  const hasInterrogativeSyntax =
+    /[?]$/.test(trimmed) ||
+    /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|explain|describe|define|compare|implement|tell me|walk me through)\b/i.test(trimmed) ||
+    /^(kya|kaise|kyun|batao|samjhao|bataiye|samjhaiye)\b/i.test(trimmed);
+  // A full declarative question/prompt often has no punctuation in speech transcripts.
+  const substantialPrompt = tokens.length >= 5 && !/^(i|we|my|our)\b/i.test(trimmed);
+  return {
+    plausibleQuestion: hasInterrogativeSyntax || substantialPrompt,
+    incomplete: isIncompleteSentence(trimmed),
+  };
+}
+
 export function classifyUtterance(
   heardText: string,
   currentAnswer: string | null,
   referenceSentenceQueue: string[] = []
 ): UtteranceClassification {
   const trimmed = (heardText || '').trim();
-  if (!trimmed) {
-    return { type: 'EMPTY', confidence: 1, reason: 'Empty utterance' };
-  }
+  if (!trimmed) return { type: 'EMPTY', confidence: 1, reason: 'Empty utterance' };
 
-  // 1. Check for conversational fillers
   for (const pattern of FILLER_PATTERNS) {
     if (pattern.test(trimmed)) {
-      return {
-        type: 'CONVERSATIONAL_FILLER',
-        confidence: 0.95,
-        reason: `Conversational acknowledgment ("${trimmed}")`,
-      };
+      return { type: 'CONVERSATIONAL_FILLER', confidence: 0.95, reason: 'Conversational acknowledgment' };
     }
   }
 
-  // Combine full answer content and queue for reference
   const fullReferenceText = [currentAnswer || '', ...(referenceSentenceQueue || [])]
     .filter(Boolean)
     .join(' ');
-
   const hasActiveAnswer = fullReferenceText.trim().length > 15;
+  const intent = detectQuestionIntent(trimmed);
+  const { tokenOverlap, compositeScore } = calculateOverlap(trimmed, fullReferenceText);
 
-  // 2. When a reference answer is active:
+  // Explicit question/interruption cues outrank similarity to the answer. Questions
+  // naturally reuse technical nouns from the answer they are following up on.
+  if (hasActiveAnswer && intent.plausibleQuestion) {
+    return {
+      type: 'INTERVIEWER_INTERRUPTION',
+      confidence: 0.86,
+      reason: 'Question intent detected independently of speaker overlap',
+      questionText: trimmed,
+      overlapScore: compositeScore,
+      isIncomplete: intent.incomplete,
+    };
+  }
+
+  // Recital suppression is deliberately conservative: similarity alone is not speaker
+  // evidence. Require close phrase alignment and avoid classifying likely questions.
+  if (hasActiveAnswer && !intent.plausibleQuestion && compositeScore >= 0.72 && tokenOverlap >= 0.75) {
+    return {
+      type: 'CANDIDATE_RECITAL',
+      confidence: Math.min(0.99, 0.7 + compositeScore * 0.29),
+      overlapScore: compositeScore,
+      reason: 'Strong phrase-level match to the active teleprompter answer',
+    };
+  }
+
   if (hasActiveAnswer) {
-    // A. Interruption Check: Did the interviewer use an explicit interruption cue?
-    for (const pattern of INTERRUPTION_PATTERNS) {
-      if (pattern.test(trimmed)) {
-        return {
-          type: 'INTERVIEWER_INTERRUPTION',
-          confidence: 0.95,
-          reason: `Interruption marker matched: ${pattern}`,
-          questionText: trimmed,
-          isIncomplete: isIncompleteSentence(trimmed),
-        };
-      }
-    }
-    const { tokenOverlap, compositeScore } = calculateOverlap(trimmed, fullReferenceText);
-
-    // A. Direct candidate recital: high token overlap with reference answer
-    if (compositeScore >= 0.22 || tokenOverlap >= 0.25) {
-      return {
-        type: 'CANDIDATE_RECITAL',
-        confidence: Math.min(0.99, compositeScore + 0.3),
-        overlapScore: compositeScore,
-        reason: `Words match ${Math.round(compositeScore * 100)}% of reference answer`,
-      };
-    }
-
-    // B. First-person narrative phrasing without questions = Candidate speaking/answering
-    const isFirstPersonNarrative = CANDIDATE_NARRATIVE_PATTERNS.some((p) => p.test(trimmed));
-    // Broad interrogative or prompt indicators anywhere in utterance (handles "So how do you...", "Now explain...", "Let's discuss...", etc.)
-    const hasQuestionSign =
-      trimmed.includes('?') ||
-      /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|will|is|are|was|were|do|does|did)\b/i.test(
-        trimmed
-      ) ||
-      /\b(tell|explain|describe|define|compare|difference|implement|solve|write|give|walk|discuss|elaborate|clarify|consider|suppose|imagine|talk about|talk to me about)\b/i.test(
-        trimmed
-      ) ||
-      /^(kya|kaise|kyun|batao|samjhao|bataiye|samjhaiye)\b/i.test(trimmed);
-
-    if (isFirstPersonNarrative && !hasQuestionSign) {
-      return {
-        type: 'CANDIDATE_RECITAL',
-        confidence: 0.85,
-        overlapScore: compositeScore,
-        reason: `Candidate first-person narrative statement`,
-      };
-    }
-
-    // C. If the speech has interrogative/prompt structure = Interruption/New Question!
-    if (hasQuestionSign) {
-      return {
-        type: 'INTERVIEWER_INTERRUPTION',
-        confidence: 0.92,
-        reason: `Interviewer question detected (${Math.round(compositeScore * 100)}% overlap)`,
-        questionText: trimmed,
-        overlapScore: compositeScore,
-        isIncomplete: isIncompleteSentence(trimmed),
-      };
-    }
-
-    // D. Non-narrative multi-word speech (>= 3 words) that isn't first-person recital -> Interviewer prompt
-    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
-    if (wordCount >= 3 && !isFirstPersonNarrative) {
-      return {
-        type: 'INTERVIEWER_INTERRUPTION',
-        confidence: compositeScore < 0.12 ? 0.85 : 0.70,
-        reason: `Interviewer prompt / statement (${Math.round(compositeScore * 100)}% overlap to active answer)`,
-        questionText: trimmed,
-        overlapScore: compositeScore,
-        isIncomplete: isIncompleteSentence(trimmed),
-        needsConfirmation: compositeScore >= 0.12,
-      };
-    }
-
-    // Without diarization, do not attribute ambiguous speech to the candidate.
-    // Preserve the utterance for explicit confirmation instead of silently suppressing it.
     return {
       type: 'UNCLASSIFIED',
-      confidence: 0.35,
-      overlapScore: compositeScore,
-      reason: `Speaker is ambiguous while an answer is active (overlap ${Math.round(compositeScore * 100)}%)`,
+      confidence: Math.max(0.25, 0.55 - compositeScore * 0.2),
+      reason: 'Speaker cannot be reliably attributed without audio diarization',
       questionText: trimmed,
+      overlapScore: compositeScore,
+      isIncomplete: intent.incomplete,
+      needsConfirmation: intent.plausibleQuestion,
     };
   }
 
-  // 4. No active answer: Guard against short noise, conversational courtesies, or single words
-  const words = trimmed.split(/\s+/).filter(Boolean);
-  const hasQuestionSign =
-    trimmed.includes('?') ||
-    /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|will|is|are|was|were|do|does|did)\b/i.test(
-      trimmed
-    ) ||
-    /\b(tell|explain|describe|define|compare|difference|implement|solve|write|give|walk|discuss|elaborate|clarify|consider|suppose|imagine|talk about|talk to me about)\b/i.test(
-      trimmed
-    ) ||
-    /^(kya|kaise|kyun|batao|samjhao)\b/i.test(trimmed);
-
-  if (words.length < 3 && !hasQuestionSign) {
+  if (intent.plausibleQuestion) {
     return {
-      type: 'CONVERSATIONAL_FILLER',
-      confidence: 0.85,
-      reason: `Short non-question utterance ignored ("${trimmed}")`,
+      type: 'INTERVIEWER_QUESTION',
+      confidence: 0.86,
+      reason: 'Question intent detected; speaker attribution unavailable',
+      questionText: trimmed,
+      isIncomplete: intent.incomplete,
     };
   }
 
-  // Substantial prompt or question detected from interviewer
+  if (trimmed.split(/\s+/).filter(Boolean).length < 3) {
+    return { type: 'CONVERSATIONAL_FILLER', confidence: 0.85, reason: 'Short non-question utterance' };
+  }
+
   return {
-    type: 'INTERVIEWER_QUESTION',
-    confidence: 0.9,
-    reason: 'New question detected from interviewer',
+    type: 'UNCLASSIFIED',
+    confidence: 0.4,
+    reason: 'Utterance intent and speaker are uncertain',
     questionText: trimmed,
-    isIncomplete: isIncompleteSentence(trimmed),
   };
 }
