@@ -525,8 +525,21 @@ export const CandidateProfileWizard: React.FC = () => {
   );
 
   const handleResetProfile = useCallback(() => {
+    // Cancel pending autosaves before clearing storage. Otherwise an earlier
+    // debounced callback can write the deleted profile back a few milliseconds
+    // after the reset appears to have succeeded.
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    sectionFlushRef.current = null;
+
     const result = profileService.clearAllCandidateData();
-    setProfile(profileService.getProfile());
+    const latestProfile = profileService.getProfile();
+    // Update the ref synchronously; React state is applied on the next render.
+    // This prevents beforeunload/close handlers from flushing a stale profile.
+    profileRef.current = latestProfile;
+    setProfile(latestProfile);
     setShowClearConfirm(false);
 
     if (!result.success) {
@@ -538,6 +551,8 @@ export const CandidateProfileWizard: React.FC = () => {
       return;
     }
 
+    setSaveStatus('saved');
+    setSaveStatusText('All candidate profile copies were reset.');
     setToast?.('All candidate profile copies were reset.');
   }, [profileService, setToast]);
 
