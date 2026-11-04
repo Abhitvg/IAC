@@ -1,6 +1,7 @@
 /* eslint-disable no-control-regex */
 import path from 'path';
 import fs from 'fs';
+import { pathToFileURL } from 'url';
 import { executeOcr, getOcrEngineInfo } from './ocrService';
 
 /**
@@ -31,19 +32,19 @@ function resolveCMapUrl(): string {
   if (process.resourcesPath) {
     const packagedPath = path.join(process.resourcesPath, 'cmaps');
     if (fs.existsSync(packagedPath)) {
-      return packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep;
+      return pathToFileURL(packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep).href;
     }
   }
   try {
     const pkgPath = require.resolve('pdfjs-dist/package.json');
     const cMapDir = path.join(path.dirname(pkgPath), 'cmaps');
     if (fs.existsSync(cMapDir)) {
-      return cMapDir.endsWith(path.sep) ? cMapDir : cMapDir + path.sep;
+      return pathToFileURL(cMapDir.endsWith(path.sep) ? cMapDir : cMapDir + path.sep).href;
     }
   } catch {}
   const candidate = path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'cmaps');
   if (fs.existsSync(candidate)) {
-    return candidate.endsWith(path.sep) ? candidate : candidate + path.sep;
+    return pathToFileURL(candidate.endsWith(path.sep) ? candidate : candidate + path.sep).href;
   }
   return '';
 }
@@ -59,7 +60,7 @@ function resolveStandardFontUrl(): string {
     const pkgPath = require.resolve('pdfjs-dist/package.json');
     const fontDir = path.join(path.dirname(pkgPath), 'standard_fonts');
     if (fs.existsSync(fontDir)) {
-      return fontDir.endsWith(path.sep) ? fontDir : fontDir + path.sep;
+      return pathToFileURL(fontDir.endsWith(path.sep) ? fontDir : fontDir + path.sep).href;
     }
   } catch {}
   const candidate = path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'standard_fonts');
