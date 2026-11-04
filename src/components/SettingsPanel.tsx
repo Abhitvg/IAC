@@ -64,7 +64,7 @@ export default function SettingsPanel() {
             setSecondaryGroqKey('');
           }
         } catch {
-          setErrorMessage('Unable to retrieve stored API key from keychain.');
+          setErrorMessage('Unable to retrieve stored API key.');
         }
       }
     };
@@ -132,7 +132,7 @@ export default function SettingsPanel() {
       await window.electronAPI?.setApiKey(settings.aiProvider, apiKey.trim());
       updateSetting('hasApiKey', apiKey.trim().length > 0);
     } catch {
-      setErrorMessage('Failed to encrypt and store API key in system keychain.');
+      setErrorMessage('Failed to encrypt and store API key locally.');
     } finally {
       setLoading(false);
     }
@@ -284,7 +284,7 @@ export default function SettingsPanel() {
                   </button>
                 </div>
                 <span className="field__hint">
-                  🔒 Stored securely in your OS keychain via Electron safeStorage.
+                  Encrypted with OS-backed Electron safeStorage when available. Otherwise, the app uses a user-data AES-GCM fallback that is not equivalent to OS keychain protection.
                 </span>
               </div>
             )}
@@ -316,7 +316,7 @@ export default function SettingsPanel() {
                   </button>
                 </div>
                 <span className="field__hint">
-                  Optional. Stored separately in OS secure storage and used only when the primary key is rate-limited.
+                  Optional. Stored separately and used only when the primary key is rate-limited. OS-backed protection is used when available; the fallback is weaker than an OS keychain.
                 </span>
               </div>
             )}
