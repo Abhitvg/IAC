@@ -496,4 +496,57 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
     }
   });
 
+  it('clears canonical, Knowledge Vault, and CareerOps persisted candidate copies', () => {
+    const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    const data: Record<string, string> = {};
+    const removedKeys: string[] = [];
+    const storage = {
+      getItem: vi.fn((key: string) => data[key] ?? null),
+      setItem: vi.fn((key: string, value: string) => {
+        data[key] = String(value);
+      }),
+      removeItem: vi.fn((key: string) => {
+        removedKeys.push(key);
+        delete data[key];
+      }),
+    };
+
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: {} });
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
+
+    try {
+      const profile = service.getProfile();
+      profile.identity.fullName = 'Candidate data to clear';
+      profile.identity.email = 'candidate@example.test';
+      service.saveProfile(profile);
+
+      expect(useCandidateVaultStore.getState().profile.fullName).toBe('Candidate data to clear');
+      expect(service.clearAllCandidateData()).toEqual({ success: true, failedStores: [] });
+
+      expect(service.getProfile().identity.fullName).toBe('');
+      expect(useCandidateVaultStore.getState().profile.fullName).toBe('');
+      expect(KnowledgeVaultService.getInstance().getVault().profile.name).toBe('');
+      expect(removedKeys).toEqual(
+        expect.arrayContaining([
+          'iac_canonical_candidate_profile_v2',
+          'iac_candidate_knowledge_vault_v2',
+          'career_ops_candidate_vault_v1',
+          'career_ops_candidate_vault_v2',
+        ])
+      );
+    } finally {
+      if (previousWindow) {
+        Object.defineProperty(globalThis, 'window', previousWindow);
+      } else {
+        Reflect.deleteProperty(globalThis, 'window');
+      }
+      if (previousStorage) {
+        Object.defineProperty(globalThis, 'localStorage', previousStorage);
+      } else {
+        Reflect.deleteProperty(globalThis, 'localStorage');
+      }
+    }
+  });
+
 });
