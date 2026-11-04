@@ -194,7 +194,10 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
   }
 
   // Settings IPC with schema validation
-  ipcMain.handle('settings:get', () => store.store);
+  ipcMain.handle('settings:get', (event) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    return store.store;
+  });
   ipcMain.handle('settings:set', (event, key: string, value: any) => {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     validateSetting(key, value);
@@ -216,7 +219,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     return credentialStore.setKey(service, key);
   });
 
-  ipcMain.handle('credentials:has', async (_event, service: string) => {
+  ipcMain.handle('credentials:has', async (event, service: string) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     return credentialStore.hasKey(service);
   });
 
@@ -231,7 +235,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
   });
 
   // Secure WebSocket server for Chrome extension
-  ipcMain.handle('ws:get-info', () => {
+  ipcMain.handle('ws:get-info', (event) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     const token = store.get('extensionToken') || crypto.randomUUID();
     store.set('extensionToken', token);
     const address = httpServer?.address();
@@ -239,7 +244,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     return { port, token };
   });
 
-  ipcMain.handle('ws:start', () => {
+  ipcMain.handle('ws:start', (event) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     if (wsServer && httpServer) {
       const address = httpServer.address();
       const port = typeof address === 'object' ? address?.port : 31415;
@@ -277,7 +283,12 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
 
       // 2. Token Authentication via query param or header
       const reqUrl = new URL(req.url || '', 'http://127.0.0.1');
-      const providedToken = reqUrl.searchParams.get('token') || req.headers['x-extension-token'];
+      const providedToken = req.headers['x-extension-token'];
+      if (reqUrl.searchParams.has('token')) {
+        console.warn('[Security] Rejected WebSocket token supplied in URL query string.');
+        ws.close(1008, 'Token must not be supplied in URL');
+        return;
+      }
       const expectedToken = store.get('extensionToken');
 
       let isAuthenticated = Boolean(providedToken && providedToken === expectedToken);
@@ -378,7 +389,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     return EvidenceVerificationService.verifySeal(result);
   });
 
-  ipcMain.handle('ws:stop', () => {
+  ipcMain.handle('ws:stop', (event) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     if (wsServer) {
       wsServer.close();
       wsServer = null;
