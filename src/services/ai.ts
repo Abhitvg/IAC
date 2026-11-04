@@ -859,7 +859,7 @@ export { TECH_TERMS };
 export interface AIStreamCallbacks {
   onToken?: (token: string) => void;
   onSentence?: (sentence: string) => void;
-  onComplete?: (fullResponse: string) => void;
+  onComplete?: (fullResponse: string) => void | Promise<void>;
   onError?: (error: Error) => void;
   onDiagnostic?: (diagnostic: FallbackDiagnosticRecord) => void;
 }
@@ -1173,7 +1173,7 @@ export async function streamAnswer(
           throw new Error('AI stream closed without emitting any answer content (empty response).');
         }
 
-        callbacks.onComplete?.(cleanText);
+        await callbacks.onComplete?.(cleanText);
       }
     } finally {
       try {
