@@ -3,7 +3,7 @@ import { InterviewEngine } from '../src/services/InterviewEngine';
 import { useAppStore } from '../src/store/useAppStore';
 import { classifyUtterance } from '../src/services/interruptionDetector';
 
-const transcribeAudioMock = vi.fn();
+const { transcribeAudioMock } = vi.hoisted(() => ({ transcribeAudioMock: vi.fn() }));
 
 vi.mock('../src/services/whisper', () => ({
   transcribeAudio: (...args: unknown[]) => transcribeAudioMock(...args),
