@@ -294,12 +294,14 @@ export function classifyUtterance(
       };
     }
 
-    // Fallback while answer is active: default to candidate reciting only if very short fragment
+    // Without diarization, do not attribute ambiguous speech to the candidate.
+    // Preserve the utterance for explicit confirmation instead of silently suppressing it.
     return {
-      type: 'CANDIDATE_RECITAL',
-      confidence: 0.60,
+      type: 'UNCLASSIFIED',
+      confidence: 0.35,
       overlapScore: compositeScore,
-      reason: `Defaulting to candidate speech while answer is active (overlap ${Math.round(compositeScore * 100)}%)`,
+      reason: `Speaker is ambiguous while an answer is active (overlap ${Math.round(compositeScore * 100)}%)`,
+      questionText: trimmed,
     };
   }
 

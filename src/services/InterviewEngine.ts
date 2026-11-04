@@ -242,6 +242,34 @@ export class InterviewEngine {
             return;
           }
 
+          // Ambiguous speech must remain visible; never silently discard it or invent a speaker.
+          if (classification.type === 'UNCLASSIFIED') {
+            useAppStore.getState().addTranscript({
+              id: Date.now().toString(),
+              speaker: 'unknown',
+              text,
+              timestamp: Date.now(),
+              classification: 'UNCLASSIFIED',
+              confidence: classification.confidence,
+              reason: classification.reason,
+            });
+            useAppStore.getState().updateDiagnostics({
+              latestTranscript: text,
+              whisperStatus: `Speech preserved for review: ${classification.reason}`,
+              questionMatched: false,
+            });
+            useAppStore.getState().setToast('Speaker could not be identified. Transcript preserved; confirm it before generating.');
+            useAppStore.getState().setStatus('listening');
+            useAppStore.getState().setPipelineStage('listening');
+            DiagnosticLoggerService.getInstance().recordEvent({
+              requestId,
+              pipelineStage: 'listening',
+              finalOutcome: 'UNCLASSIFIED',
+              message: classification.reason,
+            });
+            return;
+          }
+
           // 2. CONVERSATIONAL FILLER ("Yeah", "Okay", "Right")
           if (classification.type === 'CONVERSATIONAL_FILLER') {
             useAppStore.getState().updateDiagnostics({
