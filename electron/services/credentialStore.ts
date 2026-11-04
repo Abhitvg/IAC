@@ -12,24 +12,48 @@ const FALLBACK_KEY_FILE = '.machine_secret';
  * Returns a persistent machine-scoped AES key for environments
  * where Electron's safeStorage is not supported (e.g. headless Linux / CI).
  */
-function getFallbackAesKey(userDataPath: string): Buffer {
+function getFallbackAesKey(userDataPath: string, createIfMissing = true): Buffer {
   const keyPath = path.join(userDataPath, FALLBACK_KEY_FILE);
+
   if (fs.existsSync(keyPath)) {
+    let existingKey: Buffer;
     try {
-      const raw = fs.readFileSync(keyPath);
-      if (raw.length === 32) return raw;
-    } catch {
-      // Fall through to regenerate
+      existingKey = fs.readFileSync(keyPath);
+    } catch (err) {
+      throw new Error('The credential encryption key exists but cannot be read.', { cause: err });
     }
+    if (existingKey.length !== 32) {
+      throw new Error('The persisted credential encryption key is invalid; refusing to replace it.');
+    }
+    return existingKey;
+  }
+
+  if (!createIfMissing) {
+    throw new Error('The persisted credential encryption key is missing.');
   }
 
   const newKey = crypto.randomBytes(32);
   try {
-    fs.writeFileSync(keyPath, newKey, { mode: 0o600 });
+    fs.mkdirSync(userDataPath, { recursive: true, mode: 0o700 });
+    // Exclusive creation prevents two concurrent writers from silently replacing
+    // a key that may already protect credentials.
+    fs.writeFileSync(keyPath, newKey, { mode: 0o600, flag: 'wx' });
+    return newKey;
   } catch (err) {
-    console.warn('[CredentialStore] Could not write machine secret file with 0600 mode:', err);
+    if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+      try {
+        const racedKey = fs.readFileSync(keyPath);
+        if (racedKey.length === 32) return racedKey;
+      } catch {
+        // Fall through to a clear persistence failure below.
+      }
+    }
+
+    throw new Error(
+      'Could not persist the credential encryption key. The API key was not saved; check user-data storage permissions.',
+      { cause: err }
+    );
   }
-  return newKey;
 }
 
 function aesEncrypt(plainText: string, key: Buffer): string {
