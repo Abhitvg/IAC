@@ -525,7 +525,7 @@ export class InterviewEngine {
           pendingQuestionTranscript = '';
           store.setIsIncompleteQuestionMode(false);
         } else if (isExtending && store.currentQuestion) {
-          finalQuestion = `${store.currentQuestion.trim()} ${event.text.trim()}`.trim();
+          finalQuestion = `${store.currentQuestion.trim()} ... ${event.text.trim()}`.trim();
           store.setIsIncompleteQuestionMode(false);
           store.setToast(`Continuation appended: "${event.text.slice(0, 45)}..."`);
         } else if (store.currentQuestion && store.currentQuestion.trim() !== '') {
