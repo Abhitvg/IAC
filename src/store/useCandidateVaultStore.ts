@@ -111,7 +111,7 @@ function loadVaultFromStorage(): CandidateVaultProfile {
 interface CandidateVaultState {
   profile: CandidateVaultProfile;
   updateProfile: (updates: Partial<CandidateVaultProfile>) => void;
-  resetToDefaults: () => void;
+  resetToDefaults: () => boolean;
   exportVaultJson: () => string;
   importVaultJson: (jsonStr: string) => boolean;
 }
@@ -135,11 +135,20 @@ export const useCandidateVaultStore = create<CandidateVaultState>((set, get) => 
   },
 
   resetToDefaults: () => {
-    set({ profile: INITIAL_CANDIDATE_VAULT });
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_CANDIDATE_VAULT));
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      try {
+        // Remove the legacy copy first, then the current copy. Do not change the
+        // in-memory profile unless both persisted copies have been removed.
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {
+        console.error('[CandidateVault] Reset failed:', e);
+        return false;
+      }
     }
+
+    set({ profile: INITIAL_CANDIDATE_VAULT });
+    return true;
   },
 
   exportVaultJson: () => {
