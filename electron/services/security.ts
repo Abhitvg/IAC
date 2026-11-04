@@ -358,7 +358,10 @@ export function isTrustedAppOrigin(
     }
 
     // 3. Reject paths that contain traversal or alternate separators even after decoding
-    if (filePath.includes('..') || filePath.includes('\\')) {
+    // A decoded Windows file URL naturally contains backslashes. Reject only
+    // parent-directory path segments; the raw URL above already rejects encoded
+    // or literal alternate separators supplied by the renderer.
+    if (filePath.split(/[\\/]+/).includes('..')) {
       return false;
     }
 
