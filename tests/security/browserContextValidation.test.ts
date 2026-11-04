@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { MessageRateLimiter, parseBrowserContextMessage } from '../../electron/services/browserContextValidation';
+import {
+  MessageRateLimiter,
+  parseBrowserContextMessage,
+} from '../../electron/services/browserContextValidation';
 
 describe('browser extension context validation', () => {
   const validMessage = () => ({
@@ -11,7 +14,8 @@ describe('browser extension context validation', () => {
 
   it('accepts a valid selected-text payload and strips unknown fields', () => {
     const parsed = parseBrowserContextMessage({ ...validMessage(), extra: 'ignored' });
-    expect(parsed).toEqual(validMessage());
+    expect(parsed).toMatchObject(validMessage());
+    expect(Object.keys(parsed ?? {}).sort()).toEqual(['content', 'source', 'timestamp', 'type']);
     expect(parsed).not.toHaveProperty('extra');
   });
 
@@ -24,8 +28,10 @@ describe('browser extension context validation', () => {
   });
 
   it('rejects stale and excessively future-dated payloads', () => {
-    expect(parseBrowserContextMessage({ ...validMessage(), timestamp: new Date(Date.now() - 11 * 60_000).toISOString() })).toBeNull();
-    expect(parseBrowserContextMessage({ ...validMessage(), timestamp: new Date(Date.now() + 3 * 60_000).toISOString() })).toBeNull();
+    const staleTimestamp = new Date(Date.now() - 11 * 60_000).toISOString();
+    const futureTimestamp = new Date(Date.now() + 3 * 60_000).toISOString();
+    expect(parseBrowserContextMessage({ ...validMessage(), timestamp: staleTimestamp })).toBeNull();
+    expect(parseBrowserContextMessage({ ...validMessage(), timestamp: futureTimestamp })).toBeNull();
   });
 
   it('limits each connection to 30 messages per minute', () => {
