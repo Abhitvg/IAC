@@ -113,7 +113,7 @@ describe('IAC Seventh-Stage Release Gate — Part 1: Unit & Integration Tests', 
       });
 
       const res = await AnswerGenerationService.generateAnswer(
-        { questionText: 'Explain AuthCore', candidateKnowledgeBase: kb },
+        { questionText: 'Tell me about your AuthCore project', candidateKnowledgeBase: kb },
         'dummy-api-key'
       );
 
