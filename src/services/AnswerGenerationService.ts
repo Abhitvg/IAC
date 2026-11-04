@@ -592,8 +592,8 @@ export class AnswerGenerationService {
                 if (signal?.aborted) return;
                 cb.onSentence?.(sentence, requestId);
               },
-              onComplete: (full) => {
-                handleStreamComplete(full);
+              onComplete: async (full) => {
+                await handleStreamComplete(full);
                 streamSucceeded = true;
               },
             },
