@@ -18,12 +18,10 @@ async function connectWebSocket() {
   if (ws && ws.readyState !== WebSocket.CLOSED) return;
 
   const token = await getToken();
-  const wsUrl = token
-    ? `ws://127.0.0.1:${DEFAULT_PORT}?token=${encodeURIComponent(token)}`
-    : `ws://127.0.0.1:${DEFAULT_PORT}`;
 
   try {
-    ws = new WebSocket(wsUrl);
+    // Never put authentication material in the URL: URLs can be captured by logs.
+    ws = new WebSocket(`ws://127.0.0.1:${DEFAULT_PORT}`);
 
     ws.onopen = () => {
       console.log('[Extension] Connected securely to AI Interview Practice Gym');
