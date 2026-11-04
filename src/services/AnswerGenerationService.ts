@@ -336,10 +336,35 @@ export class AnswerGenerationService {
         cleanAnswer = full.replace(/FOLLOW_UPS:\s*.+?(?:\n|$)/i, '').trim();
       }
 
+      const technicalIntent = ['Coding', 'DSA', 'System Design'].includes(detectedCategory) ||
+        /\b(explain|define|compare|difference|implement|algorithm|complexity|architecture|how does|what is)\b/i.test(params.text);
+      const hasCandidateContext = Boolean((params.resumeText || '').trim() || params.knowledgeBase || CandidateKnowledgeBase.getActiveKnowledgeBase());
       const kb = params.knowledgeBase || (params.resumeText ? new CandidateKnowledgeBase(params.resumeText) : CandidateKnowledgeBase.getActiveKnowledgeBase());
       let validation: any;
       try {
-        validation = FactualGroundingValidator.validateAnswer(cleanAnswer, kb, params.text);
+        // General technical explanations are not candidate-experience claims. Keep
+        // candidate grounding enabled for personal history, metrics and achievements.
+        if (technicalIntent && !/\b(my|our|i led|i built|i designed|my experience|my role|my achievement|my project)\b/i.test(cleanAnswer)) {
+          validation = {
+            adjustedAnswer: cleanAnswer,
+            validationStatus: 'VALIDATED',
+            score: 100,
+            violations: [],
+            structuredViolations: [],
+            isGrounded: true,
+          };
+        } else if (!hasCandidateContext && /\b(my|our|i led|i built|i designed|my experience|my role|my achievement|my project)\b/i.test(cleanAnswer)) {
+          validation = {
+            adjustedAnswer: cleanAnswer,
+            validationStatus: 'FLAGGED',
+            score: 0,
+            violations: ['Candidate-specific details require confirmation because no candidate source material is available.'],
+            structuredViolations: [],
+            isGrounded: false,
+          };
+        } else {
+          validation = FactualGroundingValidator.validateAnswer(cleanAnswer, kb, params.text);
+        }
       } catch (valErr: any) {
         // Fail closed: Never expose an unvalidated final answer when validator crashes
         console.error('[AnswerGenerationService] Grounding validation error, failing closed:', valErr);
