@@ -115,6 +115,29 @@ describe('Security Hardening & Path Validation', () => {
       expect(result.reason).toContain('outside userData and was not approved');
     });
 
+    it('revokes a file approval when the selected path is replaced by a symlink', () => {
+      const selectedPath = path.join(outsideDir, 'selected-after-approval.txt');
+      const replacementPath = path.join(outsideDir, 'replacement-target.txt');
+      fs.writeFileSync(selectedPath, 'user-approved content');
+      fs.writeFileSync(replacementPath, 'different file content');
+
+      // Mirror the main-process dialog handler: approve the real target that
+      // existed when the user selected the file.
+      const approved = new Set<string>([fs.realpathSync(selectedPath)]);
+
+      try {
+        fs.unlinkSync(selectedPath);
+        fs.symlinkSync(replacementPath, selectedPath, 'file');
+      } catch {
+        // Windows runners without symlink privileges cannot exercise retargeting.
+        return;
+      }
+
+      const result = validateReadPath(selectedPath, userDataDir, approved);
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain('outside userData and was not approved');
+    });
+
     it('rejects symlinks that point outside userData', () => {
       if (fs.existsSync(symlinkEscapeFile)) {
         const approved = new Set<string>();
