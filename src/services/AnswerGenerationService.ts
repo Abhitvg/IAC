@@ -408,11 +408,11 @@ export class AnswerGenerationService {
           params.text
         );
       const candidateSpecificQuestion =
-        /\b(your (experience|project|role|contribution|responsibilit\w*|background)|my (experience|project|role)|what (did you|have you|were you|scale did you)|how did you|describe your|tell me about your|walk me through your|in your (previous|current))\b/i.test(
+        /\b(your|my)\b|\bwhat (did you|have you|were you|scale did you)|\bhow did you\b|\bdescribe your\b|\btell me about your\b|\bwalk me through your\b|\bin your (previous|current)\b/i.test(
           params.text
         );
       const candidateSpecificAnswer =
-        /\b(my|our|i led|i built|i designed|my experience|my role|my achievement|my project)\b/i.test(
+        /\b(my|our|i (personally|single-handedly|led|built|designed|implemented|worked|managed|handled|achieved|owned|contributed)|we (built|implemented|deployed|migrated|handled|achieved)|my experience|my role|my achievement|my project)\b/i.test(
           cleanAnswer
         );
       const hasCandidateContext = Boolean(
