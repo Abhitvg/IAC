@@ -33,7 +33,7 @@ export type EngineEvent =
   | { type: 'START_LISTENING' }
   | { type: 'STOP_LISTENING' }
   | { type: 'UTTERANCE_FINALIZED'; blob: Blob; requestId?: string }
-  | { type: 'QUESTION_DETECTED'; text: string; requestId?: string }
+  | { type: 'QUESTION_DETECTED'; text: string; requestId?: string; originalTranscript?: string }
   | { type: 'SCREEN_PROBLEM_DETECTED'; text?: string; rawText?: string; requestId?: string; mode?: string }
   | { type: 'REGENERATE_ACTIVE_ANSWER' }
   | { type: 'CANCEL_ACTIVE_REQUEST' };
@@ -110,7 +110,7 @@ export class InterviewEngine {
       whisperStatus: 'Question finalized; generating answer',
       questionMatched: true,
     });
-    await InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: question });
+    await InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: question, originalTranscript: fullTranscript });
   }
 
   /**
@@ -491,6 +491,7 @@ export class InterviewEngine {
 
         const isExtending = store.isIncompleteQuestionMode && Boolean(store.currentQuestion);
         let finalQuestion = event.text.trim();
+        const originalQuestionTranscript = event.originalTranscript || pendingQuestionTranscript || event.text.trim();
 
         if (pendingQuestionText && Date.now() <= pendingQuestionDeadline) {
           finalQuestion = pendingQuestionText;
@@ -554,7 +555,7 @@ export class InterviewEngine {
             requestId,
             type: 'interview',
             text: finalQuestion,
-            originalTranscript: pendingQuestionTranscript || finalQuestion,
+            originalTranscript: originalQuestionTranscript,
             provider: currentStore.settings?.aiProvider || 'groq',
             model: currentStore.settings?.aiModel,
             preferredLanguage: currentStore.settings?.preferredLanguage || 'Java',
