@@ -218,41 +218,38 @@ export class InterviewEngine {
             },
           });
 
-          // 1. CANDIDATE RECITAL: Candidate is speaking/repeating the teleprompted answer
+          // Preserve all recognized speech before classification-specific handling. A
+          // classifier decision must never be the condition for transcript retention.
+          useAppStore.getState().addTranscript({
+            id: `transcript_${requestId}`,
+            speaker: classification.type === 'CANDIDATE_RECITAL' ? 'user' : 'unknown',
+            text,
+            timestamp: Date.now(),
+            classification: classification.type,
+            confidence: classification.confidence,
+            reason: classification.reason,
+          });
+
+          // Strong recital evidence remains the only automatic echo-suppression path.
           if (classification.type === 'CANDIDATE_RECITAL') {
             useAppStore.getState().setRecitalState('reciting');
             useAppStore.getState().updateDiagnostics({
-              whisperStatus: `🗣️ Mic paused for self-speech: ${classification.reason}`,
+              whisperStatus: `Candidate recital suppressed: ${classification.reason}`,
               recitalState: 'reciting',
               questionMatched: false,
             });
-
-            useAppStore.getState().addTranscript({
-              id: Date.now().toString(),
-              speaker: 'user',
-              text: text,
-              timestamp: Date.now(),
-              classification: 'CANDIDATE_RECITAL',
-              confidence: classification.confidence,
-              reason: classification.reason,
-            });
-
             useAppStore.getState().setStatus('listening');
             useAppStore.getState().setPipelineStage('listening');
             return;
           }
 
-          // Ambiguous speech must remain visible; never silently discard it or invent a speaker.
+          // Ambiguous words are preserved. Plausible question intent can proceed to
+          // generation even when speaker identity cannot be established.
           if (classification.type === 'UNCLASSIFIED') {
-            useAppStore.getState().addTranscript({
-              id: Date.now().toString(),
-              speaker: 'unknown',
-              text,
-              timestamp: Date.now(),
-              classification: 'UNCLASSIFIED',
-              confidence: classification.confidence,
-              reason: classification.reason,
-            });
+            if (classification.needsConfirmation) {
+              await InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text, requestId });
+              return;
+            }
             const pendingTranscript = {
               id: `unconfirmed_${requestId}`,
               text,
@@ -263,18 +260,12 @@ export class InterviewEngine {
             useAppStore.getState().setLastUnconfirmedTranscript(pendingTranscript);
             useAppStore.getState().updateDiagnostics({
               latestTranscript: text,
-              whisperStatus: `Awaiting confirmation: ${classification.reason}`,
+              whisperStatus: `Speaker uncertain; transcript retained: ${classification.reason}`,
               questionMatched: false,
             });
-            useAppStore.getState().setToast('Speaker unclear. Review the transcript and confirm whether it is an interviewer question.');
+            useAppStore.getState().setToast('Speech retained. Confirm as a question or dismiss it.');
             useAppStore.getState().setStatus('confirmation_required');
             useAppStore.getState().setPipelineStage('confirmation_required');
-            DiagnosticLoggerService.getInstance().recordEvent({
-              requestId,
-              pipelineStage: 'listening',
-              finalOutcome: 'UNCLASSIFIED',
-              message: classification.reason,
-            });
             return;
           }
 
@@ -342,21 +333,8 @@ export class InterviewEngine {
             classification.type === 'INTERVIEWER_QUESTION'
           ) {
             const currentStatus = useAppStore.getState().status;
-            // Guard: If an answer is actively generating or analyzing, ONLY abort for explicit interruptions,
-            // not for ambient speech or ambiguous non-interrogative utterances
-            if (
-              (currentStatus === 'generating' || currentStatus === 'analyzing') &&
-              classification.type !== 'INTERVIEWER_INTERRUPTION'
-            ) {
-              console.log(
-                '[InterviewEngine] Suppressed question trigger while generation is in flight:',
-                text
-              );
-              useAppStore.getState().updateDiagnostics({
-                whisperStatus: `Ignored while generating: "${text.slice(0, 30)}"`,
-              });
-              return;
-            }
+            // A detected interviewer question is a new request even while an older
+            // answer is streaming. QUESTION_DETECTED owns cancellation and stale-result guards.
 
             const questionText = classification.questionText || text;
             const isInterruption = classification.type === 'INTERVIEWER_INTERRUPTION';
