@@ -248,6 +248,25 @@ export class InterviewEngine {
             return;
           }
 
+          // If explicit Still Asking mode is active, retain each segment and give
+          // continuation a bounded window. The timer guarantees eventual finalization.
+          if (useAppStore.getState().isIncompleteQuestionMode && InterviewEngine.appendPendingQuestionUtterance(text)) {
+            useAppStore.getState().addTranscript({
+              id: `continuation_${requestId}`,
+              speaker: 'unknown',
+              text,
+              timestamp: Date.now(),
+              classification: 'PENDING_CONTINUATION',
+              confidence: classification.confidence,
+              reason: 'Appended inside bounded continuation window',
+            });
+            useAppStore.getState().updateDiagnostics({
+              latestTranscript: text,
+              whisperStatus: 'Pending question extended; finalization timer restarted',
+            });
+            return;
+          }
+
           useAppStore.getState().setPipelineStage('transcript_received');
           useAppStore.getState().updateDiagnostics({
             latestTranscript: text,
