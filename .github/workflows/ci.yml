@@ -2,9 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'fix/**', 'feat/**', 'security/**']
   pull_request:
-    branches: [main]
 
 jobs:
   validate:
@@ -29,6 +28,39 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Report dependency security advisories
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          npm audit --json > /tmp/npm-audit.json || true
+          node - <<'NODE'
+          const fs = require('fs');
+          let report;
+          try {
+            report = JSON.parse(fs.readFileSync('/tmp/npm-audit.json', 'utf8'));
+          } catch (error) {
+            console.log('Dependency audit report unavailable; npm audit output is non-JSON or empty.');
+            process.exit(0);
+          }
+          const summary = report.metadata?.vulnerabilities || {};
+          console.log('Dependency audit summary:', JSON.stringify(summary));
+          for (const [name, item] of Object.entries(report.vulnerabilities || {})) {
+            console.log(JSON.stringify({
+              package: name,
+              severity: item.severity,
+              direct: item.isDirect,
+              range: item.range,
+              fixAvailable: item.fixAvailable,
+              via: (item.via || []).map(v => typeof v === 'string' ? v : {
+                title: v.title,
+                url: v.url,
+                range: v.range
+              }),
+              paths: item.nodes
+            }));
+          }
+          NODE
 
       - name: Check formatting for changed files
         shell: bash
@@ -56,6 +88,10 @@ jobs:
 
       - name: Build application bundle
         run: npm run build
+
+      - name: Run Electron smoke and wizard accessibility tests
+        if: matrix.os == 'ubuntu-24.04'
+        run: xvfb-run -a npx playwright test e2e/app-launch.spec.ts e2e/wizard-accessibility.spec.ts
 
       - name: Verify zero secret leakage in build artifacts
         run: npm run security:check

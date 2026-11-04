@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import { pathToFileURL } from 'url';
 import {
   validateReadPath,
   validateWritePath,
@@ -11,9 +12,11 @@ import {
   getSandboxConfig,
   MAX_WRITE_FILE_SIZE_BYTES,
   isTrustedSender,
+  getApprovedAppHtmlPaths,
 } from '../../electron/services/security';
 
 describe('Security Hardening & Path Validation', () => {
+  const trustedAppFileUrl = pathToFileURL(getApprovedAppHtmlPaths()[0]).href;
   let tempBaseDir: string;
   let userDataDir: string;
   let outsideDir: string;
@@ -52,7 +55,7 @@ describe('Security Hardening & Path Validation', () => {
 
   describe('Permission Handler Allowlist', () => {
     it('allows media (microphone) for the app file:// origin', () => {
-      expect(isPermissionAllowed('media', 'file:///app/dist/index.html')).toBe(true);
+      expect(isPermissionAllowed('media', trustedAppFileUrl)).toBe(true);
     });
 
     it('allows media for local dev server origin', () => {
@@ -77,7 +80,7 @@ describe('Security Hardening & Path Validation', () => {
       ];
 
       for (const perm of nonMediaPermissions) {
-        expect(isPermissionAllowed(perm, 'file:///app/dist/index.html')).toBe(false);
+        expect(isPermissionAllowed(perm, trustedAppFileUrl)).toBe(false);
       }
     });
   });
@@ -200,7 +203,6 @@ describe('Security Hardening & Path Validation', () => {
   });
 });
 
-
 describe('IPC sender identity validation', () => {
   const trustedUrl = 'http://localhost:5173/index.html';
 
@@ -232,19 +234,11 @@ describe('IPC sender identity validation', () => {
   it('rejects missing sender or sender frame metadata', () => {
     const window = createWindow();
     expect(
-      isTrustedSender(
-        { senderFrame: window.mainFrame },
-        window,
-        'http://localhost:5173'
-      )
+      isTrustedSender({ senderFrame: window.mainFrame }, window, 'http://localhost:5173')
     ).toBe(false);
-    expect(
-      isTrustedSender(
-        { sender: window.webContents },
-        window,
-        'http://localhost:5173'
-      )
-    ).toBe(false);
+    expect(isTrustedSender({ sender: window.webContents }, window, 'http://localhost:5173')).toBe(
+      false
+    );
   });
 
   it('rejects foreign WebContents, subframes, and mismatched frame URLs', () => {

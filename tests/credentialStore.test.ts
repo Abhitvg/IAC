@@ -61,6 +61,7 @@ describe('CredentialStore', () => {
   it('validates allowed service names', () => {
     const creds = new CredentialStore(mockStore, tempDir);
     expect(creds.isValidService('groq')).toBe(true);
+    expect(creds.isValidService('groq-secondary')).toBe(true);
     expect(creds.isValidService('openai')).toBe(true);
     expect(creds.isValidService('openrouter')).toBe(true);
     expect(creds.isValidService('ollama')).toBe(true);
@@ -133,16 +134,18 @@ describe('CredentialStore', () => {
     expect(await creds.getKey('openrouter')).toBeNull();
   });
 
-  it('lists configured services accurately', async () => {
+  it('lists configured services accurately, including the secondary Groq slot', async () => {
     (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
     const creds = new CredentialStore(mockStore, tempDir);
 
     await creds.setKey('groq', 'gsk_123');
+    await creds.setKey('groq-secondary', 'gsk_789');
     await creds.setKey('openai', 'sk_456');
 
     const configured = await creds.listConfigured();
     expect(configured).toEqual({
       groq: true,
+      'groq-secondary': true,
       openai: true,
       openrouter: false,
       ollama: false,
