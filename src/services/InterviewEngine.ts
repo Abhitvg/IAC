@@ -1055,6 +1055,7 @@ export class InterviewEngine {
         const currentStatus = useAppStore.getState().status;
         if (currentStatus !== 'generating' && currentStatus !== 'analyzing') {
           useAppStore.getState().setStatus('idle');
+          useAppStore.getState().setPipelineStage('idle');
           useAppStore.getState().setRecitalState('idle');
         }
         useAppStore.getState().setToast('⏹️ Audio recording stopped.');
