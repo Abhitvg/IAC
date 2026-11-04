@@ -1167,10 +1167,39 @@ export async function streamAnswer(
           callbacks.onSentence?.(s);
         }
 
-        const cleanText = parser.getCleanText().trim();
-        // REQUIREMENT: Ensure onComplete cannot report successful generation with an empty answer!
+        let cleanText = parser.getCleanText().trim();
+        // Some provider/model combinations terminate an SSE stream without content deltas.
+        // Make exactly one non-streaming recovery request before surfacing an empty answer.
         if (!cleanText) {
-          throw new Error('AI stream closed without emitting any answer content (empty response).');
+          const recoveryResponse = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              model: effectiveModel,
+              messages: [
+                { role: 'system', content: lowLatencyPrompt },
+                { role: 'user', content: question },
+              ],
+              stream: false,
+              temperature: config.temperature,
+              max_tokens: config.maxTokens,
+            }),
+            signal: requestSignal,
+          });
+          if (recoveryResponse.ok) {
+            const recoveryData = await recoveryResponse.json();
+            const recovered = recoveryData.choices?.[0]?.message?.content;
+            if (typeof recovered === 'string' && recovered.trim()) {
+              cleanText = recovered.trim();
+              callbacks.onToken?.(cleanText);
+              const recoveredSentences = buffer.push(cleanText);
+              for (const sentence of recoveredSentences) callbacks.onSentence?.(sentence);
+              for (const sentence of buffer.flush()) callbacks.onSentence?.(sentence);
+            }
+          }
+        }
+        if (!cleanText) {
+          throw new Error('AI stream closed without answer content; non-streaming recovery also returned empty.');
         }
 
         await callbacks.onComplete?.(cleanText);
