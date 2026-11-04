@@ -1092,7 +1092,38 @@ export async function streamAnswer(
           if (onAbort) requestSignal.removeEventListener('abort', onAbort);
         }
         const { done, value } = readResult;
-        if (done) break;
+        if (done) {
+          // The final SSE event is not guaranteed to end with a newline.
+          sseBuffer += decoder.decode();
+          const tail = sseBuffer.trim();
+          if (tail.startsWith('data:')) {
+            const jsonStr = tail.slice(5).trim();
+            if (jsonStr && jsonStr !== '[DONE]') {
+              const data = JSON.parse(jsonStr);
+              if (data.error) {
+                throw classifyAIError(
+                  providerId,
+                  effectiveModel,
+                  activeResponse.status || 429,
+                  data,
+                  undefined,
+                  activeResponse.headers
+                );
+              }
+              const token = data.choices?.[0]?.delta?.content || '';
+              if (token) {
+                const cleanChunk = parser.parseChunk(token);
+                if (cleanChunk) {
+                  hasEmittedTokens = true;
+                  callbacks.onToken?.(cleanChunk);
+                  globalLatencyTracker.markFirstTokenOnce();
+                  for (const sentence of buffer.push(cleanChunk)) callbacks.onSentence?.(sentence);
+                }
+              }
+            }
+          }
+          break;
+        }
 
         sseBuffer += decoder.decode(value, { stream: true });
         const lines = sseBuffer.split('\n');
