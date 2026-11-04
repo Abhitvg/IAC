@@ -362,15 +362,6 @@ export class InterviewEngine {
             useAppStore.getState().updateDiagnostics({
               whisperStatus: `Conversational filler ignored ("${text}")`,
             });
-            useAppStore.getState().addTranscript({
-              id: Date.now().toString(),
-              speaker: 'unknown',
-              text: text,
-              timestamp: Date.now(),
-              classification: 'CONVERSATIONAL_FILLER',
-              confidence: classification.confidence,
-              reason: classification.reason,
-            });
             useAppStore.getState().setStatus('listening');
             useAppStore.getState().setPipelineStage('listening');
             return;
