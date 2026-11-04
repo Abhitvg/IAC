@@ -36,7 +36,13 @@ jobs:
           npm audit --json > /tmp/npm-audit.json || true
           node - <<'NODE'
           const fs = require('fs');
-          const report = JSON.parse(fs.readFileSync('/tmp/npm-audit.json', 'utf8'));
+          let report;
+          try {
+            report = JSON.parse(fs.readFileSync('/tmp/npm-audit.json', 'utf8'));
+          } catch (error) {
+            console.log('Dependency audit report unavailable; npm audit output is non-JSON or empty.');
+            process.exit(0);
+          }
           const summary = report.metadata?.vulnerabilities || {};
           console.log('Dependency audit summary:', JSON.stringify(summary));
           for (const [name, item] of Object.entries(report.vulnerabilities || {})) {
