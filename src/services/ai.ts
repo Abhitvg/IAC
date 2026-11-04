@@ -1056,22 +1056,7 @@ export async function streamAnswer(
         let readTimer: ReturnType<typeof setTimeout> | undefined;
         let readResult: ReadableStreamReadResult<Uint8Array>;
         try {
-          readResult = await Promise.race([
-            reader.read(),
-            new Promise<never>((_, reject) => {
-              const onAbort = () => reject(Object.assign(
-                new Error('AI request was cancelled or its 60-second deadline expired.'),
-                { name: 'AbortError' }
-              ));
-              if (requestSignal.aborted) onAbort();
-              else requestSignal.addEventListener('abort', onAbort, { once: true });
-              readTimer = setTimeout(() => {
-                requestController.abort(new Error('AI response stream stalled: no data received for 15 seconds.'));
-                void reader.cancel('Stream inactivity deadline exceeded');
-                reject(Object.assign(new Error('AI response stream stalled: no data received for 15 seconds.'), { name: 'AbortError' }));
-              }, inactivityTimeoutMs);
-            }),
-          ]);
+
         } finally {
           if (readTimer) clearTimeout(readTimer);
         }
