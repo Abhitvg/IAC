@@ -15,6 +15,7 @@ export type UtteranceClassificationType =
   | 'INTERVIEWER_INTERRUPTION'
   | 'INTERVIEWER_QUESTION'
   | 'CONVERSATIONAL_FILLER'
+  | 'UNCLASSIFIED'
   | 'EMPTY';
 
 export interface UtteranceClassification {
@@ -281,12 +282,14 @@ export function classifyUtterance(
       };
     }
 
-    // Fallback while answer is active: default to candidate reciting
+    // Without diarization, low-overlap speech cannot safely be attributed to the candidate.
+    // Preserve it for review instead of silently suppressing a possible interviewer question.
     return {
-      type: 'CANDIDATE_RECITAL',
-      confidence: 0.65,
+      type: 'UNCLASSIFIED',
+      confidence: 0.35,
       overlapScore: compositeScore,
-      reason: `Defaulting to candidate speech while answer is active (overlap ${Math.round(compositeScore * 100)}%)`,
+      reason: `Speaker is ambiguous while an answer is active (overlap ${Math.round(compositeScore * 100)}%)`,
+      questionText: trimmed,
     };
   }
 

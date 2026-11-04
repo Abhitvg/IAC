@@ -222,6 +222,23 @@ export class InterviewEngine {
             return;
           }
 
+          // Ambiguous speech must remain visible; transcription alone cannot identify speakers.
+          if (classification.type === 'UNCLASSIFIED') {
+            useAppStore.getState().addTranscript({
+              id: Date.now().toString(),
+              speaker: 'unknown',
+              text,
+              timestamp: Date.now(),
+            });
+            useAppStore.getState().updateDiagnostics({
+              whisperStatus: `⚠️ Speech preserved for review: ${classification.reason}`,
+              questionMatched: false,
+            });
+            useAppStore.getState().setToast('⚠️ Could not identify the speaker. Transcript preserved; review it before generating.');
+            useAppStore.getState().setStatus('listening');
+            return;
+          }
+
           // 3. INTERVIEWER INTERRUPTION OR NEW QUESTION
           if (
             classification.type === 'INTERVIEWER_INTERRUPTION' ||
