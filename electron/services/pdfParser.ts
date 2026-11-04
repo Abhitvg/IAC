@@ -32,9 +32,8 @@ function resolveCMapUrl(): string {
   if (process.resourcesPath) {
     const packagedPath = path.join(process.resourcesPath, 'cmaps');
     if (fs.existsSync(packagedPath)) {
-      return pathToFileURL(
-        packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep
-      ).href;
+      return pathToFileURL(packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep)
+        .href;
     }
   }
   try {
@@ -55,9 +54,8 @@ function resolveStandardFontUrl(): string {
   if (process.resourcesPath) {
     const packagedPath = path.join(process.resourcesPath, 'standard_fonts');
     if (fs.existsSync(packagedPath)) {
-      return pathToFileURL(
-        packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep
-      ).href;
+      return pathToFileURL(packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep)
+        .href;
     }
   }
   try {
@@ -151,7 +149,11 @@ export function sortAndFormatTextItems(rawItems: any[]): string {
     return lines
       .map((line) => {
         line.items.sort((a, b) => a.x - b.x);
-        return line.items.map((it) => it.str).join(' ').replace(/\s+/g, ' ').trim();
+        return line.items
+          .map((it) => it.str)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
       })
       .filter((l) => l.length > 0)
       .join('\n');
@@ -165,7 +167,7 @@ export function sortAndFormatTextItems(rawItems: any[]): string {
     const step = pageWidth / 40;
     for (
       let candidateX = minX + 0.25 * pageWidth;
-      candidateX <= minX + 0.70 * pageWidth;
+      candidateX <= minX + 0.7 * pageWidth;
       candidateX += step
     ) {
       const gutterLeft = candidateX - 8;
@@ -187,7 +189,7 @@ export function sortAndFormatTextItems(rawItems: any[]): string {
       }
 
       if (leftCount >= items.length * 0.15 && rightCount >= items.length * 0.15) {
-        const score = (leftCount + rightCount) - crossingCount * 2.5;
+        const score = leftCount + rightCount - crossingCount * 2.5;
         if (score > maxColumnScore) {
           maxColumnScore = score;
           bestSplitX = candidateX;
