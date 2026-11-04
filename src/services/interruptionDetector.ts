@@ -202,7 +202,11 @@ export function detectQuestionIntent(text: string): {
 } {
   const trimmed = (text || '').trim();
   if (!trimmed) return { plausibleQuestion: false, incomplete: false };
+  const hasExplicitInterruptionCue = INTERRUPTION_PATTERNS.some((pattern) =>
+    pattern.test(trimmed)
+  );
   const hasInterrogativeSyntax =
+    hasExplicitInterruptionCue ||
     /[?]$/.test(trimmed) ||
     /^(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|is|are|was|were)\b/i.test(
       trimmed
@@ -257,6 +261,21 @@ export function classifyUtterance(
       questionText: trimmed,
       overlapScore: compositeScore,
       isIncomplete: intent.incomplete,
+    };
+  }
+
+  // First-person candidate narration is a stronger speaker cue than topical overlap.
+  // Keep this rule narrow so ordinary declarative speech is not silently discarded.
+  if (
+    hasActiveAnswer &&
+    !intent.plausibleQuestion &&
+    CANDIDATE_NARRATIVE_PATTERNS.some((pattern) => pattern.test(trimmed))
+  ) {
+    return {
+      type: 'CANDIDATE_RECITAL',
+      confidence: 0.78,
+      reason: 'First-person candidate narrative pattern detected',
+      overlapScore: compositeScore,
     };
   }
 
