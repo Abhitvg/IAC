@@ -669,7 +669,8 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       const errorCallback = vi.fn();
       const tokens: string[] = [];
 
-      await streamAnswer(
+      await expect(
+        streamAnswer(
         'Explain AVL trees',
         {
           type: 'groq',
@@ -681,7 +682,8 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
           onToken: (t) => tokens.push(t),
           onError: errorCallback,
         }
-      );
+        )
+      ).rejects.toMatchObject({ hasEmittedTokens: true });
 
       expect(tokens.length).toBeGreaterThan(0);
       expect(tokens[0]).toContain('Partial start');

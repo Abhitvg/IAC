@@ -125,9 +125,12 @@ describe('Authoritative IANA IP Range Validation & Formats (P0)', () => {
   });
 
   describe('Privileged IPC Handler Options & Sender Validation (P0)', () => {
+    const trustedAppUrl = 'http://localhost:5173';
+    process.env.VITE_DEV_SERVER_URL = trustedAppUrl;
     const mockMainWindow = {
       webContents: {
-        mainFrame: { parent: null },
+        mainFrame: { parent: null, url: trustedAppUrl },
+        getURL: () => trustedAppUrl,
       },
     };
 

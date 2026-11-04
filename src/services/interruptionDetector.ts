@@ -84,7 +84,8 @@ const STOP_WORDS = new Set([
   'across',
 ]);
 
-export const INCOMPLETE_CONNECTORS = /\b(and|or|because|so|with|that|to|if|while|as well as|such as|for instance|like|when|where|which|in terms of|regarding|about)$/i;
+export const INCOMPLETE_CONNECTORS =
+  /\b(and|or|because|so|with|that|to|if|while|as well as|such as|for instance|like|when|where|which|in terms of|regarding|about)$/i;
 
 export function isIncompleteSentence(text: string): boolean {
   const trimmed = (text || '').trim();
@@ -201,10 +202,20 @@ export function detectQuestionIntent(text: string): {
 } {
   const trimmed = (text || '').trim();
   if (!trimmed) return { plausibleQuestion: false, incomplete: false };
+  const hasExplicitInterruptionCue = INTERRUPTION_PATTERNS.some((pattern) => pattern.test(trimmed));
   const hasInterrogativeSyntax =
+    hasExplicitInterruptionCue ||
     /[?]$/.test(trimmed) ||
-    /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|explain|describe|define|compare|implement|discuss|outline|elaborate|give me|tell me|walk me through)\b/i.test(trimmed) ||
-    /^(kya|kaise|kyun|batao|samjhao|bataiye|samjhaiye)\b/i.test(trimmed);
+    /^(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|is|are|was|were)\b/i.test(
+      trimmed
+    ) ||
+    /^(please\s+)?(explain|describe|define|compare|implement|discuss|outline|elaborate)\b/i.test(
+      trimmed
+    ) ||
+    /^(give me|tell me|walk me through)\b/i.test(trimmed) ||
+    /^(kya|kaise|kyun|batao|samjhao|bataiye|samjhaiye)\b/i.test(trimmed) ||
+    /(?:बताओ|समझाओ|बताइए|समझाइए)[.!?]?$/u.test(trimmed) ||
+    /^(क्या|कैसे|क्यों)\b/u.test(trimmed);
   return {
     // Do not infer a question from length alone: that was incorrectly turning
     // ordinary candidate recital sentences into interviewer interruptions.
@@ -223,7 +234,11 @@ export function classifyUtterance(
 
   for (const pattern of FILLER_PATTERNS) {
     if (pattern.test(trimmed)) {
-      return { type: 'CONVERSATIONAL_FILLER', confidence: 0.95, reason: 'Conversational acknowledgment' };
+      return {
+        type: 'CONVERSATIONAL_FILLER',
+        confidence: 0.95,
+        reason: 'Conversational acknowledgment',
+      };
     }
   }
 
@@ -247,9 +262,29 @@ export function classifyUtterance(
     };
   }
 
+  // First-person candidate narration is a stronger speaker cue than topical overlap.
+  // Keep this rule narrow so ordinary declarative speech is not silently discarded.
+  if (
+    hasActiveAnswer &&
+    !intent.plausibleQuestion &&
+    CANDIDATE_NARRATIVE_PATTERNS.some((pattern) => pattern.test(trimmed))
+  ) {
+    return {
+      type: 'CANDIDATE_RECITAL',
+      confidence: 0.78,
+      reason: 'First-person candidate narrative pattern detected',
+      overlapScore: compositeScore,
+    };
+  }
+
   // Recital suppression is deliberately conservative: similarity alone is not speaker
   // evidence. Require close phrase alignment and avoid classifying likely questions.
-  if (hasActiveAnswer && !intent.plausibleQuestion && compositeScore >= 0.72 && tokenOverlap >= 0.75) {
+  if (
+    hasActiveAnswer &&
+    !intent.plausibleQuestion &&
+    compositeScore >= 0.72 &&
+    tokenOverlap >= 0.75
+  ) {
     return {
       type: 'CANDIDATE_RECITAL',
       confidence: Math.min(0.99, 0.7 + compositeScore * 0.29),
@@ -261,7 +296,7 @@ export function classifyUtterance(
   if (hasActiveAnswer) {
     return {
       type: 'UNCLASSIFIED',
-      confidence: Math.max(0.25, 0.55 - compositeScore * 0.2),
+      confidence: Math.max(0.25, 0.35 - compositeScore * 0.1),
       reason: 'Speaker cannot be reliably attributed without audio diarization',
       questionText: trimmed,
       overlapScore: compositeScore,
@@ -281,7 +316,11 @@ export function classifyUtterance(
   }
 
   if (trimmed.split(/\s+/).filter(Boolean).length < 3) {
-    return { type: 'CONVERSATIONAL_FILLER', confidence: 0.85, reason: 'Short non-question utterance' };
+    return {
+      type: 'CONVERSATIONAL_FILLER',
+      confidence: 0.85,
+      reason: 'Short non-question utterance',
+    };
   }
 
   return {

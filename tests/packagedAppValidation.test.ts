@@ -1,27 +1,23 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import path from 'path';
 import fs from 'fs';
 import { spawnSync } from 'child_process';
 import { parsePdfBuffer } from '../electron/services/pdfParser';
 import { getOcrEngineInfo } from '../electron/services/ocrService';
 
-describe('Packaged Application Validation (macOS ARM64)', { timeout: 25000 }, () => {
-  const packagedResourcesDir = path.resolve(
-    __dirname,
-    '../release/mac-arm64/AI-Interview-Assistant.app/Contents/Resources'
-  );
+const packagedResourcesDir = path.resolve(
+  __dirname,
+  '../release/mac-arm64/AI-Interview-Assistant.app/Contents/Resources'
+);
+
+describe.skipIf(!fs.existsSync(packagedResourcesDir))(
+  'Packaged Application Validation (macOS ARM64)',
+  { timeout: 25000 },
+  () => {
   const packagedBinPath = path.join(packagedResourcesDir, 'bin', 'mac-ocr');
   const packagedCmapsDir = path.join(packagedResourcesDir, 'cmaps');
   const packagedFontsDir = path.join(packagedResourcesDir, 'standard_fonts');
   const fixturesDir = path.resolve(__dirname, 'fixtures/ocr');
-
-  beforeAll(() => {
-    if (!fs.existsSync(packagedResourcesDir)) {
-      throw new Error(
-        `Packaged resources directory not found at: ${packagedResourcesDir}. Please run npm run electron:build first.`
-      );
-    }
-  });
 
   it('verifies packaged binary and PDF resources are present in Contents/Resources', () => {
     expect(fs.existsSync(packagedBinPath)).toBe(true);

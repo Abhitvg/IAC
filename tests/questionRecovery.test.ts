@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAppStore } from '../src/store/useAppStore';
 import { isIncompleteSentence } from '../src/services/interruptionDetector';
 import { InterviewEngine } from '../src/services/InterviewEngine';
 
 describe('Question History & Incomplete Question Recovery', () => {
   beforeEach(() => {
+    InterviewEngine.clearPendingQuestion();
     const store = useAppStore.getState();
     store.clearAnswerQueue();
     useAppStore.setState({
@@ -143,6 +144,49 @@ describe('Question History & Incomplete Question Recovery', () => {
         'Can you explain indexing in PostgreSQL ... and specifically how GiST and GIN indexes differ?'
       );
       expect(state.isIncompleteQuestionMode).toBe(false);
+    });
+
+    it('caps repeated continuations at the hard finalization deadline', async () => {
+      vi.useFakeTimers();
+      const handleEventSpy = vi.spyOn(InterviewEngine, 'handleEvent').mockResolvedValue(undefined);
+
+      try {
+        useAppStore.setState({
+          currentQuestion: 'How does PostgreSQL indexing work',
+          speechPauseTolerance: 1000,
+        });
+        InterviewEngine.markQuestionPendingFinalization();
+
+        for (let i = 0; i < 4; i++) {
+          await vi.advanceTimersByTimeAsync(3000);
+          expect(InterviewEngine.appendPendingQuestionUtterance(`continuation ${i}`)).toBe(true);
+        }
+
+        await vi.advanceTimersByTimeAsync(3001);
+        expect(handleEventSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'QUESTION_DETECTED' })
+        );
+        expect(InterviewEngine.appendPendingQuestionUtterance('too late')).toBe(false);
+      } finally {
+        handleEventSpy.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it('clears pending finalization when listening is stopped', async () => {
+      vi.useFakeTimers();
+      const handleEventSpy = vi.spyOn(InterviewEngine, 'handleEvent').mockResolvedValue(undefined);
+
+      try {
+        useAppStore.setState({ currentQuestion: 'How does PostgreSQL indexing work' });
+        InterviewEngine.markQuestionPendingFinalization();
+        InterviewEngine.clearPendingQuestion();
+        await vi.advanceTimersByTimeAsync(20000);
+        expect(handleEventSpy).not.toHaveBeenCalled();
+      } finally {
+        handleEventSpy.mockRestore();
+        vi.useRealTimers();
+      }
     });
 
     it('detects incomplete sentences ending in conjunctions or punctuation', () => {

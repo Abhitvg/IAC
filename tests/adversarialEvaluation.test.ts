@@ -196,18 +196,23 @@ Skills: Java, TypeScript, Node.js, React, PostgreSQL, Redis, Docker, WebSockets,
 
   describe('Adversarial Test 6: Electron IPC & Security Hardening', () => {
     it('rejects IPC calls from non-main frame or untrusted sender', () => {
+      const trustedUrl = 'http://localhost:5173';
+      process.env.VITE_DEV_SERVER_URL = trustedUrl;
       const mockMainWindow = {
         webContents: {
-          mainFrame: { id: 1 },
+          mainFrame: { id: 1, parent: null, url: trustedUrl },
+          getURL: () => trustedUrl,
         },
       };
 
       const untrustedEvent = {
-        senderFrame: { id: 99, parent: { id: 1 } }, // Child iframe / rogue injection
+        senderFrame: { id: 99, parent: { id: 1 }, url: trustedUrl },
+        sender: mockMainWindow.webContents,
       };
 
       const trustedEvent = {
         senderFrame: mockMainWindow.webContents.mainFrame,
+        sender: mockMainWindow.webContents,
       };
 
       expect(isTrustedSender(untrustedEvent as any, mockMainWindow as any)).toBe(false);
