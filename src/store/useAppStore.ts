@@ -32,9 +32,12 @@ export type InterviewPipelineStage =
   | 'transcribing'
   | 'transcript_received'
   | 'identifying_question'
+  | 'pending_finalization'
   | 'generating'
+  | 'provider_fallback'
   | 'streaming'
   | 'validating'
+  | 'validation_failed'
   | 'answer_ready'
   | 'waiting_quota_reset'
   | 'retrying'
@@ -437,13 +440,10 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     set({ isIncompleteQuestionMode }),
 
   markQuestionIncomplete: () => {
-    InterviewEngine.abortActiveGeneration();
-    set({
-      isIncompleteQuestionMode: true,
-      status: 'listening',
-      recitalState: 'listening',
-    });
-    get().setToast('⏳ "Still speaking" mode on — speech will append to this question.');
+    // Compatibility flag is now explicitly bounded by the configurable speech-pause
+    // threshold plus a fixed 4s continuation grace period.
+    InterviewEngine.markQuestionPendingFinalization();
+    get().setToast('⏳ Question pending. It will finalize automatically after the pause window.');
   },
 
   setSpeechPauseTolerance: (ms: number) => {

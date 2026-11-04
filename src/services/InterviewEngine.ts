@@ -33,7 +33,7 @@ export type EngineEvent =
   | { type: 'START_LISTENING' }
   | { type: 'STOP_LISTENING' }
   | { type: 'UTTERANCE_FINALIZED'; blob: Blob; requestId?: string }
-  | { type: 'QUESTION_DETECTED'; text: string; requestId?: string }
+  | { type: 'QUESTION_DETECTED'; text: string; requestId?: string; originalTranscript?: string }
   | { type: 'SCREEN_PROBLEM_DETECTED'; text?: string; rawText?: string; requestId?: string; mode?: string }
   | { type: 'REGENERATE_ACTIVE_ANSWER' }
   | { type: 'CANCEL_ACTIVE_REQUEST' };
@@ -43,9 +43,77 @@ const answerService = AnswerGenerationService.getInstance();
 
 let activeAbortController: AbortController | null = null;
 let activeRequestId: string | null = null;
+
 let activeTranscriptionController: AbortController | null = null;
+let pendingQuestionTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingQuestionText = '';
+let pendingQuestionTranscript = '';
+let pendingQuestionDeadline = 0;
+
+export const QUESTION_CONTINUATION_GRACE_MS = 4000;
+
+function clearPendingQuestionTimer(): void {
+  if (pendingQuestionTimer) clearTimeout(pendingQuestionTimer);
+  pendingQuestionTimer = null;
+}
+
 
 export class InterviewEngine {
+  /**
+   * Converts the current question into a bounded pending-finalization request.
+   * The silence threshold remains user-configurable; the extra grace window is
+   * a fixed continuation cap so incomplete-question mode cannot wait forever.
+   */
+  static markQuestionPendingFinalization(): void {
+    const state = useAppStore.getState();
+    const existing = state.currentQuestion?.trim() || '';
+    if (!existing) return;
+    InterviewEngine.abortActiveGeneration();
+    pendingQuestionText = existing;
+    pendingQuestionTranscript = existing;
+    pendingQuestionDeadline = Date.now() + Math.min(3500, Math.max(400, state.speechPauseTolerance)) + QUESTION_CONTINUATION_GRACE_MS;
+    state.setIsIncompleteQuestionMode(true);
+    state.setPipelineStage('pending_finalization');
+    state.setStatus('listening');
+    clearPendingQuestionTimer();
+    pendingQuestionTimer = setTimeout(() => {
+      void InterviewEngine.finalizePendingQuestion();
+    }, Math.max(0, pendingQuestionDeadline - Date.now()));
+  }
+
+  static appendPendingQuestionUtterance(text: string): boolean {
+    const incoming = (text || '').trim();
+    if (!incoming || !pendingQuestionText || Date.now() > pendingQuestionDeadline) return false;
+    pendingQuestionText = `${pendingQuestionText.replace(/[.?!…]+$/, '')} ${incoming}`.trim();
+    pendingQuestionTranscript = `${pendingQuestionTranscript} ${incoming}`.trim();
+    const state = useAppStore.getState();
+    state.setCurrentQuestion(pendingQuestionText);
+    state.setIsIncompleteQuestionMode(true);
+    clearPendingQuestionTimer();
+    pendingQuestionDeadline = Date.now() + Math.min(3500, Math.max(400, state.speechPauseTolerance)) + QUESTION_CONTINUATION_GRACE_MS;
+    pendingQuestionTimer = setTimeout(() => {
+      void InterviewEngine.finalizePendingQuestion();
+    }, Math.max(0, pendingQuestionDeadline - Date.now()));
+    return true;
+  }
+
+  static async finalizePendingQuestion(): Promise<void> {
+    const question = pendingQuestionText.trim();
+    clearPendingQuestionTimer();
+    pendingQuestionText = '';
+    pendingQuestionDeadline = 0;
+    useAppStore.getState().setIsIncompleteQuestionMode(false);
+    if (!question) return;
+    const fullTranscript = pendingQuestionTranscript;
+    pendingQuestionTranscript = '';
+    useAppStore.getState().updateDiagnostics({
+      latestTranscript: fullTranscript,
+      whisperStatus: 'Question finalized; generating answer',
+      questionMatched: true,
+    });
+    await InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: question, originalTranscript: fullTranscript });
+  }
+
   /**
    * Aborts any in-flight AI answer generation.
    */
@@ -181,6 +249,25 @@ export class InterviewEngine {
             return;
           }
 
+          // If explicit Still Asking mode is active, retain each segment and give
+          // continuation a bounded window. The timer guarantees eventual finalization.
+          if (InterviewEngine.appendPendingQuestionUtterance(text)) {
+            useAppStore.getState().addTranscript({
+              id: `continuation_${requestId}`,
+              speaker: 'unknown',
+              text,
+              timestamp: Date.now(),
+              classification: 'PENDING_CONTINUATION',
+              confidence: 1,
+              reason: 'Appended inside bounded continuation window',
+            });
+            useAppStore.getState().updateDiagnostics({
+              latestTranscript: text,
+              whisperStatus: 'Pending question extended; finalization timer restarted',
+            });
+            return;
+          }
+
           useAppStore.getState().setPipelineStage('transcript_received');
           useAppStore.getState().updateDiagnostics({
             latestTranscript: text,
@@ -218,63 +305,56 @@ export class InterviewEngine {
             },
           });
 
-          // 1. CANDIDATE RECITAL: Candidate is speaking/repeating the teleprompted answer
+          // Preserve all recognized speech before classification-specific handling. A
+          // classifier decision must never be the condition for transcript retention.
+          useAppStore.getState().addTranscript({
+            id: `transcript_${requestId}`,
+            speaker: classification.type === 'CANDIDATE_RECITAL' ? 'user' : 'unknown',
+            text,
+            timestamp: Date.now(),
+            classification: classification.type,
+            confidence: classification.confidence,
+            reason: classification.reason,
+          });
+
+          // Strong recital evidence remains the only automatic echo-suppression path.
           if (classification.type === 'CANDIDATE_RECITAL') {
             useAppStore.getState().setRecitalState('reciting');
             useAppStore.getState().updateDiagnostics({
-              whisperStatus: `🗣️ Mic paused for self-speech: ${classification.reason}`,
+              whisperStatus: `Candidate recital suppressed: ${classification.reason}`,
               recitalState: 'reciting',
               questionMatched: false,
             });
-
-            useAppStore.getState().addTranscript({
-              id: Date.now().toString(),
-              speaker: 'user',
-              text: text,
-              timestamp: Date.now(),
-              classification: 'CANDIDATE_RECITAL',
-              confidence: classification.confidence,
-              reason: classification.reason,
-            });
-
             useAppStore.getState().setStatus('listening');
             useAppStore.getState().setPipelineStage('listening');
             return;
           }
 
-          // Ambiguous speech must remain visible; never silently discard it or invent a speaker.
+          // Ambiguous words are preserved. Plausible question intent can proceed to
+          // generation even when speaker identity cannot be established.
           if (classification.type === 'UNCLASSIFIED') {
-            useAppStore.getState().addTranscript({
-              id: Date.now().toString(),
-              speaker: 'unknown',
-              text,
-              timestamp: Date.now(),
-              classification: 'UNCLASSIFIED',
-              confidence: classification.confidence,
-              reason: classification.reason,
-            });
-            const pendingTranscript = {
+            const candidateQuestion = classification.questionText || text;
+            // Store the uncertain speech as a recoverable question candidate. It is
+            // retained independently of the eventual finalized question.
+            useAppStore.getState().setLastUnconfirmedTranscript({
               id: `unconfirmed_${requestId}`,
-              text,
+              text: candidateQuestion,
               confidence: classification.confidence,
               reason: classification.reason,
               timestamp: Date.now(),
-            };
-            useAppStore.getState().setLastUnconfirmedTranscript(pendingTranscript);
+            });
+            if (classification.needsConfirmation) {
+              await InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: candidateQuestion, requestId });
+              return;
+            }
             useAppStore.getState().updateDiagnostics({
               latestTranscript: text,
-              whisperStatus: `Awaiting confirmation: ${classification.reason}`,
+              whisperStatus: `Speaker uncertain; transcript retained: ${classification.reason}`,
               questionMatched: false,
             });
-            useAppStore.getState().setToast('Speaker unclear. Review the transcript and confirm whether it is an interviewer question.');
+            useAppStore.getState().setToast('Speech retained. Confirm as a question or dismiss it.');
             useAppStore.getState().setStatus('confirmation_required');
             useAppStore.getState().setPipelineStage('confirmation_required');
-            DiagnosticLoggerService.getInstance().recordEvent({
-              requestId,
-              pipelineStage: 'listening',
-              finalOutcome: 'UNCLASSIFIED',
-              message: classification.reason,
-            });
             return;
           }
 
@@ -282,15 +362,6 @@ export class InterviewEngine {
           if (classification.type === 'CONVERSATIONAL_FILLER') {
             useAppStore.getState().updateDiagnostics({
               whisperStatus: `Conversational filler ignored ("${text}")`,
-            });
-            useAppStore.getState().addTranscript({
-              id: Date.now().toString(),
-              speaker: 'unknown',
-              text: text,
-              timestamp: Date.now(),
-              classification: 'CONVERSATIONAL_FILLER',
-              confidence: classification.confidence,
-              reason: classification.reason,
             });
             useAppStore.getState().setStatus('listening');
             useAppStore.getState().setPipelineStage('listening');
@@ -342,21 +413,8 @@ export class InterviewEngine {
             classification.type === 'INTERVIEWER_QUESTION'
           ) {
             const currentStatus = useAppStore.getState().status;
-            // Guard: If an answer is actively generating or analyzing, ONLY abort for explicit interruptions,
-            // not for ambient speech or ambiguous non-interrogative utterances
-            if (
-              (currentStatus === 'generating' || currentStatus === 'analyzing') &&
-              classification.type !== 'INTERVIEWER_INTERRUPTION'
-            ) {
-              console.log(
-                '[InterviewEngine] Suppressed question trigger while generation is in flight:',
-                text
-              );
-              useAppStore.getState().updateDiagnostics({
-                whisperStatus: `Ignored while generating: "${text.slice(0, 30)}"`,
-              });
-              return;
-            }
+            // A detected interviewer question is a new request even while an older
+            // answer is streaming. QUESTION_DETECTED owns cancellation and stale-result guards.
 
             const questionText = classification.questionText || text;
             const isInterruption = classification.type === 'INTERVIEWER_INTERRUPTION';
@@ -424,21 +482,30 @@ export class InterviewEngine {
         globalLatencyTracker.mark('questionDetected');
 
         const isExtending = store.isIncompleteQuestionMode && Boolean(store.currentQuestion);
-        let finalQuestion = event.text;
+        let finalQuestion = event.text.trim();
+        const originalQuestionTranscript = event.originalTranscript || pendingQuestionTranscript || event.text.trim();
 
-        if (isExtending && store.currentQuestion) {
-          finalQuestion = `${store.currentQuestion.trim()} ... ${event.text.trim()}`;
+        if (pendingQuestionText && Date.now() <= pendingQuestionDeadline) {
+          finalQuestion = pendingQuestionText;
+          clearPendingQuestionTimer();
+          pendingQuestionText = '';
+          pendingQuestionDeadline = 0;
+          pendingQuestionTranscript = '';
           store.setIsIncompleteQuestionMode(false);
-          store.setToast(`➕ Appended continuation: "${event.text.slice(0, 45)}..."`);
-        } else {
-          if (store.currentQuestion && store.currentQuestion.trim() !== '') {
-            store.pushToQuestionHistory({
-              question: store.currentQuestion,
-              answer: store.currentAnswer,
-              confidence: store.answerConfidence,
-            });
-          }
+        } else if (isExtending && store.currentQuestion) {
+          finalQuestion = `${store.currentQuestion.trim()} ${event.text.trim()}`.trim();
+          store.setIsIncompleteQuestionMode(false);
+          store.setToast(`Continuation appended: "${event.text.slice(0, 45)}..."`);
+        } else if (store.currentQuestion && store.currentQuestion.trim() !== '') {
+          store.pushToQuestionHistory({
+            question: store.currentQuestion,
+            answer: store.currentAnswer,
+            confidence: store.answerConfidence,
+          });
         }
+
+        // Every recognized question is immutable after this point. Reuse the exact
+        // finalized text for all provider retries and validation.
 
         InterviewEngine.abortActiveGeneration();
 
@@ -474,11 +541,13 @@ export class InterviewEngine {
           message: `Generation started for: "${finalQuestion.slice(0, 80)}"`,
         });
 
+        const requestController = activeAbortController;
         await answerService.generateAnswer(
           {
             requestId,
             type: 'interview',
             text: finalQuestion,
+            originalTranscript: originalQuestionTranscript,
             provider: currentStore.settings?.aiProvider || 'groq',
             model: currentStore.settings?.aiModel,
             preferredLanguage: currentStore.settings?.preferredLanguage || 'Java',
@@ -487,11 +556,11 @@ export class InterviewEngine {
             jobDescriptionText: currentStore.jobDescriptionText,
             targetRole: currentStore.targetRole,
             conversationHistory: currentStore.conversationHistory || [],
-            signal: activeAbortController.signal,
+            signal: requestController.signal,
           },
           {
             onToken: (token, rId) => {
-              if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              if (requestController.signal.aborted || rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
               useAppStore.getState().appendDraftToken(token);
               if (useAppStore.getState().status !== 'generating') {
                 useAppStore.getState().setStatus('generating');
@@ -501,14 +570,14 @@ export class InterviewEngine {
               }
             },
             onSentence: (sentence, rId) => {
-              if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              if (requestController.signal.aborted || rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
               globalLatencyTracker.markFirstSentenceOnce();
               const currentDraftQueue = useAppStore.getState().draftQueue;
               useAppStore.getState().enqueueDraftSentences([...currentDraftQueue, sentence]);
             },
             onComplete: (res) => {
               const state = useAppStore.getState();
-              if (res.requestId !== activeRequestId || res.requestId !== state.activeRequestId || state.generationId !== currentGen) {
+              if (requestController.signal.aborted || res.requestId !== activeRequestId || res.requestId !== state.activeRequestId || state.generationId !== currentGen) {
                 console.warn('[InterviewEngine] Discarded stale generation result:', res.requestId);
                 return;
               }
@@ -527,6 +596,23 @@ export class InterviewEngine {
                   res.validationResult,
                   currentStore.resumeText ? new CandidateKnowledgeBase(currentStore.resumeText) : CandidateKnowledgeBase.getActiveKnowledgeBase()
                 );
+
+              if (res.status === 'FAILED' || res.status === 'ABORTED' || !res.cleanAnswer?.trim()) {
+                state.setCurrentAnswer(null);
+                state.setIsAnswerValidated(false);
+                state.setAnswerValidationStatus(res.status === 'ABORTED' ? 'ABORTED' : 'FAILED');
+                state.enqueueSentences([]);
+                state.setBlockedReason((res as any).error || 'The model returned no usable answer.');
+                state.setPipelineStage('failed');
+                state.setStatus(res.status === 'ABORTED' ? 'paused' : 'error');
+                DiagnosticLoggerService.getInstance().recordEvent({
+                  requestId: res.requestId,
+                  pipelineStage: 'failed',
+                  finalOutcome: res.status === 'ABORTED' ? 'ABORTED' : 'FAILED',
+                  message: (res as any).error || 'The model returned no usable answer.',
+                });
+                return;
+              }
 
               if (decision.isSpeakable) {
                 const finalAnswer = decision.speakableAnswer;
@@ -582,10 +668,10 @@ export class InterviewEngine {
 
               state.setPredictedFollowUps(res.predictedFollowUps || []);
               state.setRecitalState('listening');
-              state.setStatus('ready');
+              state.setStatus(decision.isSpeakable ? 'ready' : 'error');
             },
             onError: (err, rId) => {
-              if (rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
+              if (requestController.signal.aborted || rId !== activeRequestId || useAppStore.getState().generationId !== currentGen) return;
               console.error('[InterviewEngine] Generation stream error:', err);
               const state = useAppStore.getState();
               state.clearDraft();
@@ -627,11 +713,7 @@ export class InterviewEngine {
                 whisperStatus: 'gen error: ' + (err.message || String(err)),
               });
               state.setStatus('error');
-              setTimeout(() => {
-                if (useAppStore.getState().status === 'error') {
-                  useAppStore.getState().setStatus('listening');
-                }
-              }, 3000);
+              // Keep failure visible and recoverable; do not auto-clear it after a toast timeout.
             },
           }
         );
@@ -840,6 +922,10 @@ export class InterviewEngine {
       }
 
       case 'CANCEL_ACTIVE_REQUEST': {
+        clearPendingQuestionTimer();
+        pendingQuestionText = '';
+        pendingQuestionTranscript = '';
+        pendingQuestionDeadline = 0;
         InterviewEngine.cancelAllActiveWork();
         store.clearAnswerQueue();
         store.clearDraft();

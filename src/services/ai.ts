@@ -869,8 +869,18 @@ export async function streamAnswer(
   config: AIProviderConfig,
   language: ProgrammingLanguage,
   callbacks: AIStreamCallbacks,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  timeoutConfig: { overallTimeoutMs?: number; inactivityTimeoutMs?: number } = {}
 ): Promise<void> {
+  const overallTimeoutMs = timeoutConfig.overallTimeoutMs ?? 60000;
+  const inactivityTimeoutMs = timeoutConfig.inactivityTimeoutMs ?? 15000;
+  const requestController = new AbortController();
+  const abortFromCaller = () => requestController.abort(signal?.reason);
+  if (signal?.aborted) requestController.abort(signal.reason);
+  else signal?.addEventListener('abort', abortFromCaller, { once: true });
+  const overallTimer = setTimeout(() => requestController.abort(new Error('Overall generation deadline exceeded (60s).')), overallTimeoutMs);
+  const requestSignal = requestController.signal;
+  let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   const systemPrompt =
     config.systemPrompt || createSystemPrompt(config, 'interview', 'General', language, null);
 
@@ -922,7 +932,7 @@ export async function streamAnswer(
         temperature: config.temperature,
         max_tokens: config.maxTokens,
       }),
-      signal,
+      signal: requestSignal,
     });
 
     let activeResponse = response;
@@ -996,7 +1006,7 @@ export async function streamAnswer(
               temperature: config.temperature,
               max_tokens: Math.min(config.maxTokens || 1500, 1500),
             }),
-            signal,
+            signal: requestSignal,
           });
 
           if (fallbackRes.ok && fallbackRes.body) {
@@ -1019,6 +1029,7 @@ export async function streamAnswer(
             callbacks.onDiagnostic?.(diag);
           }
         } catch (fbErr: any) {
+          if (requestSignal.aborted || fbErr?.name === 'AbortError') throw fbErr;
           fallbackDiagnostics.push(diag);
           callbacks.onDiagnostic?.(diag);
           console.warn(`[AI] Fallback to '${fbModel}' encountered error:`, fbErr?.message);
@@ -1034,6 +1045,7 @@ export async function streamAnswer(
     if (!activeResponse.body) throw new Error(`No response body`);
 
     const reader = activeResponse.body.getReader();
+    activeReader = reader;
     const decoder = new TextDecoder('utf-8');
     parser = new AIStreamParser();
     const buffer = new SentenceBuffer();
@@ -1041,21 +1053,34 @@ export async function streamAnswer(
 
     try {
       while (true) {
-        if (signal?.aborted) break;
+        if (requestSignal.aborted) throw Object.assign(new Error('Generation cancelled or timed out.'), { name: 'AbortError' });
         let readTimer: ReturnType<typeof setTimeout> | undefined;
         let readResult: ReadableStreamReadResult<Uint8Array>;
+        let onAbort: (() => void) | undefined;
         try {
-          readResult = await Promise.race([
-            reader.read(),
-            new Promise<never>((_, reject) => {
-              readTimer = setTimeout(() => {
-                void reader.cancel();
-                reject(new Error('AI response stream stalled: no data received for 15 seconds.'));
-              }, 15000);
-            }),
-          ]);
+          const abortPromise = new Promise<never>((_, reject) => {
+            onAbort = () => reject(Object.assign(
+              new Error('AI request was cancelled or its overall deadline expired.'),
+              { name: 'AbortError' }
+            ));
+            if (requestSignal.aborted) onAbort();
+            else requestSignal.addEventListener('abort', onAbort, { once: true });
+          });
+          const inactivityPromise = new Promise<never>((_, reject) => {
+            readTimer = setTimeout(() => {
+              const error = Object.assign(
+                new Error('AI response stream stalled: no data received before the inactivity deadline.'),
+                { name: 'AbortError' }
+              );
+              requestController.abort(error);
+              void reader.cancel(error);
+              reject(error);
+            }, inactivityTimeoutMs);
+          });
+          readResult = await Promise.race([reader.read(), abortPromise, inactivityPromise]);
         } finally {
           if (readTimer) clearTimeout(readTimer);
+          if (onAbort) requestSignal.removeEventListener('abort', onAbort);
         }
         const { done, value } = readResult;
         if (done) break;
@@ -1065,7 +1090,7 @@ export async function streamAnswer(
         sseBuffer = lines.pop() || '';
 
         for (const rawLine of lines) {
-          if (signal?.aborted) break;
+          if (requestSignal.aborted) throw Object.assign(new Error('Generation cancelled or timed out.'), { name: 'AbortError' });
           const line = rawLine.trim();
           if (!line || line === 'data: [DONE]') continue;
           if (line.startsWith('data:') || line.startsWith('data: ')) {
@@ -1111,7 +1136,8 @@ export async function streamAnswer(
         }
       }
 
-      if (!signal?.aborted) {
+      if (requestSignal.aborted) throw Object.assign(new Error('Generation cancelled or timed out.'), { name: 'AbortError' });
+      {
         const finalChunk = parser.flush();
         if (finalChunk) {
           callbacks.onToken?.(finalChunk);
@@ -1143,10 +1169,8 @@ export async function streamAnswer(
       } catch (_) {}
     }
   } catch (e: any) {
-    if (e.name === 'AbortError') {
-      throw e;
-    }
-
+    if (e.name === 'AbortError') throw e;
+    const timedOut = requestSignal.aborted;
     const sanitizedMsg = sanitizeDiagnosticSecret(e.message || String(e));
     const partialText = parser ? parser.getCleanText().trim() : '';
     const streamErr = (hasEmittedTokens
@@ -1157,8 +1181,16 @@ export async function streamAnswer(
       streamErr.partialText = partialText;
       streamErr.originalError = e;
     }
+    if (timedOut) streamErr.name = 'AbortError';
     callbacks.onError?.(streamErr);
     throw streamErr;
+  } finally {
+    clearTimeout(overallTimer);
+    signal?.removeEventListener('abort', abortFromCaller);
+    if (activeReader) {
+      try { await activeReader.cancel(); } catch (_) {}
+      try { activeReader.releaseLock(); } catch (_) {}
+    }
   }
 }
 

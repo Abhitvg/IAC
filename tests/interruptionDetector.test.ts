@@ -3,6 +3,7 @@ import {
   classifyUtterance,
   extractTokens,
   calculateOverlap,
+  detectQuestionIntent,
 } from '../src/services/interruptionDetector';
 
 describe('interruptionDetector & Utterance Classification', () => {
@@ -61,6 +62,20 @@ describe('interruptionDetector & Utterance Classification', () => {
       expect(classifyUtterance('Tvr.', null).type).toBe('CONVERSATIONAL_FILLER');
       expect(classifyUtterance('Okay.', null).type).toBe('CONVERSATIONAL_FILLER');
       expect(classifyUtterance('Can you hear me?', null).type).toBe('CONVERSATIONAL_FILLER');
+    });
+
+    it('detects a complete declarative interviewer question without punctuation', () => {
+      expect(detectQuestionIntent('Describe the tradeoffs between SQL and NoSQL databases').plausibleQuestion).toBe(true);
+    });
+
+    it('does not call a technical follow-up recital merely because it overlaps the answer', () => {
+      const question = 'How does Kubernetes control plane availability affect scheduling?';
+      expect(classifyUtterance(question, referenceAnswer).type).toBe('INTERVIEWER_INTERRUPTION');
+    });
+
+    it('marks an ambiguous declarative utterance unclassified rather than candidate recital', () => {
+      const result = classifyUtterance('The control plane availability affects the scheduler', referenceAnswer);
+      expect(result.type).toBe('UNCLASSIFIED');
     });
 
     it('classifies direct reciting of teleprompter as CANDIDATE_RECITAL', () => {

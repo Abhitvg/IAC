@@ -185,7 +185,16 @@ export class AnswerGenerationService {
     // Normalize parameters
     const requestId = params.requestId || `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const type = params.type || 'interview';
-    const signal = params.signal;
+    const callerSignal = params.signal;
+    const generationController = new AbortController();
+    const abortFromCaller = () => generationController.abort(callerSignal?.reason);
+    if (callerSignal?.aborted) generationController.abort(callerSignal.reason);
+    else callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
+    const overallTimer = setTimeout(
+      () => generationController.abort(new Error('Overall answer-generation deadline exceeded (75s).')),
+      75000
+    );
+    const signal = generationController.signal;
     if (params.candidateKnowledgeBase && !params.knowledgeBase) {
       params.knowledgeBase = params.candidateKnowledgeBase;
     }
@@ -193,29 +202,68 @@ export class AnswerGenerationService {
       params.text = params.questionText;
     }
 
-    if (signal?.aborted) {
-      const abortedResult: AnswerGenerationResult = {
-        status: 'ABORTED',
-        isValidated: false,
-        cleanAnswer: '',
-        error: 'Generation aborted by user or timeout',
-        detectedCategory: 'General',
-        confidence: 'low',
-        followUps: [],
-        predictedFollowUps: [],
-        requestId,
-        validationStatus: 'ABORTED',
-        groundingScore: 0,
-        groundingViolations: ['Request aborted by caller'],
-        structuredViolations: [],
-      };
+    const createAbortedResult = (): AnswerGenerationResult => ({
+      status: 'ABORTED',
+      isValidated: false,
+      cleanAnswer: '',
+      error: 'Generation aborted by user or timeout',
+      detectedCategory: 'General',
+      confidence: 'low',
+      followUps: [],
+      predictedFollowUps: [],
+      requestId,
+      validationStatus: 'ABORTED',
+      groundingScore: 0,
+      groundingViolations: ['Request aborted by caller'],
+      structuredViolations: [],
+    });
+
+    if (signal.aborted) {
+      const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
       cb.onComplete?.(abortedResult);
+      clearTimeout(overallTimer);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
       return abortedResult;
     }
 
     const provider = params.provider || 'groq';
-    const apiKey = directApiKey || await this.resolveApiKey(provider);
+    let apiKey = directApiKey || '';
+    if (!directApiKey) {
+      apiKey = await new Promise<string>((resolve, reject) => {
+        let onAbort: () => void;
+        const cleanup = () => signal.removeEventListener('abort', onAbort);
+        onAbort = () => {
+          cleanup();
+          reject(Object.assign(
+            new Error(signal.reason?.message || 'Generation cancelled while resolving provider credentials.'),
+            { name: 'AbortError' }
+          ));
+        };
+        signal.addEventListener('abort', onAbort, { once: true });
+        if (signal.aborted) {
+          onAbort();
+          return;
+        }
+        this.resolveApiKey(provider).then(
+          (resolvedKey) => { cleanup(); resolve(resolvedKey); },
+          (error) => { cleanup(); reject(error); }
+        );
+      }).catch((error: any) => {
+        clearTimeout(overallTimer);
+        callerSignal?.removeEventListener('abort', abortFromCaller);
+        if (error?.name !== 'AbortError') throw error;
+        return '';
+      });
+    }
+    if (signal.aborted) {
+      const abortedResult = createAbortedResult();
+      (abortedResult as any).answer = abortedResult.cleanAnswer;
+      cb.onComplete?.(abortedResult);
+      clearTimeout(overallTimer);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
+      return abortedResult;
+    }
 
     if (!apiKey && provider !== 'ollama') {
       const err = new Error(
@@ -239,6 +287,8 @@ export class AnswerGenerationService {
         structuredViolations: [],
       };
       cb.onComplete?.(failedResult);
+      clearTimeout(overallTimer);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
       return failedResult;
     }
 
@@ -327,10 +377,35 @@ export class AnswerGenerationService {
         cleanAnswer = full.replace(/FOLLOW_UPS:\s*.+?(?:\n|$)/i, '').trim();
       }
 
+      const technicalIntent = ['Coding', 'DSA', 'System Design'].includes(detectedCategory) ||
+        /\b(explain|define|compare|difference|implement|algorithm|complexity|architecture|how does|what is)\b/i.test(params.text);
+      const hasCandidateContext = Boolean((params.resumeText || '').trim() || params.knowledgeBase || CandidateKnowledgeBase.getActiveKnowledgeBase());
       const kb = params.knowledgeBase || (params.resumeText ? new CandidateKnowledgeBase(params.resumeText) : CandidateKnowledgeBase.getActiveKnowledgeBase());
       let validation: any;
       try {
-        validation = FactualGroundingValidator.validateAnswer(cleanAnswer, kb, params.text);
+        // General technical explanations are not candidate-experience claims. Keep
+        // candidate grounding enabled for personal history, metrics and achievements.
+        if (technicalIntent && !/\b(my|our|i led|i built|i designed|my experience|my role|my achievement|my project)\b/i.test(cleanAnswer)) {
+          validation = {
+            adjustedAnswer: cleanAnswer,
+            validationStatus: 'VALIDATED',
+            score: 100,
+            violations: [],
+            structuredViolations: [],
+            isGrounded: true,
+          };
+        } else if (!hasCandidateContext && /\b(my|our|i led|i built|i designed|my experience|my role|my achievement|my project)\b/i.test(cleanAnswer)) {
+          validation = {
+            adjustedAnswer: cleanAnswer,
+            validationStatus: 'FLAGGED',
+            score: 0,
+            violations: ['Candidate-specific details require confirmation because no candidate source material is available.'],
+            structuredViolations: [],
+            isGrounded: false,
+          };
+        } else {
+          validation = FactualGroundingValidator.validateAnswer(cleanAnswer, kb, params.text);
+        }
       } catch (valErr: any) {
         // Fail closed: Never expose an unvalidated final answer when validator crashes
         console.error('[AnswerGenerationService] Grounding validation error, failing closed:', valErr);
@@ -453,29 +528,34 @@ export class AnswerGenerationService {
                 cb.onError?.(err, requestId);
               },
             },
-            signal
+            signal,
+            { overallTimeoutMs: 60000, inactivityTimeoutMs: 15000 }
           );
           streamSucceeded = true;
         }
       } catch (err: any) {
         if (err.name === 'AbortError' || signal?.aborted) {
+          const timeoutMessage = err?.message || signal?.reason?.message || '';
+          const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
           completionResult = {
-            status: 'ABORTED',
+            status: timedOut ? 'FAILED' : 'ABORTED',
             isValidated: false,
             cleanAnswer: '',
-            error: 'Generation aborted by user or timeout',
+            error: timedOut ? timeoutMessage : 'Generation cancelled by user',
             detectedCategory,
             confidence: 'low',
             followUps: [],
             predictedFollowUps: [],
             requestId,
-            validationStatus: 'ABORTED',
+            validationStatus: timedOut ? 'FAILED' : 'ABORTED',
             groundingScore: 0,
-            groundingViolations: ['Request aborted during generation'],
+            groundingViolations: [timedOut ? 'Generation deadline exceeded' : 'Request cancelled during generation'],
             structuredViolations: [],
           };
           (completionResult as any).answer = completionResult.cleanAnswer;
           cb.onComplete?.(completionResult);
+          clearTimeout(overallTimer);
+          callerSignal?.removeEventListener('abort', abortFromCaller);
           return completionResult;
         }
 
@@ -599,6 +679,8 @@ export class AnswerGenerationService {
       (completionResult as any).answer = completionResult.cleanAnswer;
     }
 
+    clearTimeout(overallTimer);
+    callerSignal?.removeEventListener('abort', abortFromCaller);
     return completionResult!;
   }
 }
