@@ -1143,20 +1143,22 @@ export async function streamAnswer(
       } catch (_) {}
     }
   } catch (e: any) {
-    if (e.name !== 'AbortError') {
-      const sanitizedMsg = sanitizeDiagnosticSecret(e.message || String(e));
-      const partialText = parser ? parser.getCleanText().trim() : '';
-      const streamErr = (hasEmittedTokens
-        ? new Error(`[AI Stream Error] Stream interrupted after partial token emission: ${sanitizedMsg}`)
-        : e) as any;
-      if (hasEmittedTokens) {
-        streamErr.hasEmittedTokens = true;
-        streamErr.partialText = partialText;
-        streamErr.originalError = e;
-      }
-      if (callbacks.onError) callbacks.onError(streamErr);
-      else throw streamErr;
+    if (e.name === 'AbortError') {
+      throw e;
     }
+
+    const sanitizedMsg = sanitizeDiagnosticSecret(e.message || String(e));
+    const partialText = parser ? parser.getCleanText().trim() : '';
+    const streamErr = (hasEmittedTokens
+      ? new Error(`[AI Stream Error] Stream interrupted after partial token emission: ${sanitizedMsg}`)
+      : e) as any;
+    if (hasEmittedTokens) {
+      streamErr.hasEmittedTokens = true;
+      streamErr.partialText = partialText;
+      streamErr.originalError = e;
+    }
+    callbacks.onError?.(streamErr);
+    throw streamErr;
   }
 }
 
