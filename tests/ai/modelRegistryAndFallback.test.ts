@@ -17,6 +17,10 @@ import { streamAnswer, generateAIAnswer } from '../../src/services/ai';
 import { transcribeAudio } from '../../src/services/whisper';
 import { useAppStore } from '../../src/store/useAppStore';
 
+const expectStreamFailure = async (...args: Parameters<typeof streamAnswer>) => {
+  await expect(streamAnswer(...args)).rejects.toBeDefined();
+};
+
 function createValidWavBlob(): Blob {
   const buffer = new ArrayBuffer(44 + 400);
   const view = new DataView(buffer);
@@ -169,7 +173,11 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(ollamaRes.wasMigrated).toBe(false);
       expect(ollamaRes.resolvedModel).toBe('llama3:8b');
 
-      const openRouterRes = resolveOrMigrateModel('openrouter', 'anthropic/claude-3.5-sonnet', 'llm');
+      const openRouterRes = resolveOrMigrateModel(
+        'openrouter',
+        'anthropic/claude-3.5-sonnet',
+        'llm'
+      );
       expect(openRouterRes.wasMigrated).toBe(false);
       expect(openRouterRes.resolvedModel).toBe('anthropic/claude-3.5-sonnet');
     });
@@ -205,7 +213,9 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       const currentSettings = useAppStore.getState().settings;
       expect(currentSettings.aiModel).toBe('openai/gpt-oss-120b');
       expect(currentSettings.lastModelMigrationNotice).toBeDefined();
-      expect(currentSettings.lastModelMigrationNotice?.previousModel).toBe('llama-3.3-70b-versatile');
+      expect(currentSettings.lastModelMigrationNotice?.previousModel).toBe(
+        'llama-3.3-70b-versatile'
+      );
       expect(currentSettings.lastModelMigrationNotice?.newModel).toBe('openai/gpt-oss-120b');
       expect(mockSetSettings).toHaveBeenCalledWith('aiModel', 'openai/gpt-oss-120b');
     });
@@ -226,7 +236,8 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
           ok: false,
           status: 404,
           statusText: 'Not Found',
-          text: async () => JSON.stringify({ error: { message: 'model_not_found: openai/gpt-oss-120b' } }),
+          text: async () =>
+            JSON.stringify({ error: { message: 'model_not_found: openai/gpt-oss-120b' } }),
         })
         .mockResolvedValueOnce({
           ok: true,
@@ -238,7 +249,8 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
                 read: async () => {
                   if (done) return { done: true, value: undefined };
                   done = true;
-                  const chunk = 'data: {"choices":[{"delta":{"content":"Fallback success answer"}}]}\n\ndata: [DONE]\n\n';
+                  const chunk =
+                    'data: {"choices":[{"delta":{"content":"Fallback success answer"}}]}\n\ndata: [DONE]\n\n';
                   return { done: false, value: new TextEncoder().encode(chunk) };
                 },
                 releaseLock: () => {},
@@ -300,7 +312,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain quicksort',
         {
           type: 'groq',
@@ -326,12 +338,13 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
         ok: false,
         status: 402,
         statusText: 'Payment Required',
-        text: async () => JSON.stringify({ error: { message: 'Billing account suspended or credit exhausted' } }),
+        text: async () =>
+          JSON.stringify({ error: { message: 'Billing account suspended or credit exhausted' } }),
       });
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain red-black trees',
         {
           type: 'groq',
@@ -356,12 +369,13 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
         ok: false,
         status: 403,
         statusText: 'Forbidden',
-        text: async () => JSON.stringify({ error: { message: 'User lacks permission to access this resource' } }),
+        text: async () =>
+          JSON.stringify({ error: { message: 'User lacks permission to access this resource' } }),
       });
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain trie structures',
         {
           type: 'groq',
@@ -386,12 +400,13 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
         ok: false,
         status: 404,
         statusText: 'Not Found',
-        text: async () => '<!DOCTYPE html><html><body>404 Not Found: Cannot POST /openai/v1/invalid_path</body></html>',
+        text: async () =>
+          '<!DOCTYPE html><html><body>404 Not Found: Cannot POST /openai/v1/invalid_path</body></html>',
       });
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain Dijkstra algorithm',
         {
           type: 'groq',
@@ -419,13 +434,16 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
         statusText: 'Bad Request',
         text: async () =>
           JSON.stringify({
-            error: { message: 'Database schema: User profile data model does not exist in local SQLite table' },
+            error: {
+              message:
+                'Database schema: User profile data model does not exist in local SQLite table',
+            },
           }),
       });
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain binary trees',
         {
           type: 'groq',
@@ -451,13 +469,15 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
         statusText: 'Bad Gateway',
         text: async () =>
           JSON.stringify({
-            error: { message: 'Proxy routing error: upstream cluster model does not exist on gateway' },
+            error: {
+              message: 'Proxy routing error: upstream cluster model does not exist on gateway',
+            },
           }),
       });
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain B-trees',
         {
           type: 'groq',
@@ -486,7 +506,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain binary search',
         {
           type: 'groq',
@@ -524,7 +544,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Describe a bug you fixed',
         {
           type: 'groq',
@@ -548,12 +568,13 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
         ok: false,
         status: 503,
         statusText: 'Service Unavailable',
-        text: async () => JSON.stringify({ error: { message: 'Groq upstream service temporarily unavailable' } }),
+        text: async () =>
+          JSON.stringify({ error: { message: 'Groq upstream service temporarily unavailable' } }),
       });
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain LRU cache',
         {
           type: 'groq',
@@ -578,7 +599,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain heap sort',
         {
           type: 'groq',
@@ -596,33 +617,37 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
     });
 
     it('preserves original error details and attaches fallback diagnostics when all fallbacks fail', async () => {
-      const mockFetch = vi.fn()
+      const mockFetch = vi
+        .fn()
         .mockResolvedValueOnce({
           ok: false,
           status: 404,
-          text: async () => JSON.stringify({
-            error: { code: 'model_decommissioned', message: 'Original model decommissioned' }
-          }),
+          text: async () =>
+            JSON.stringify({
+              error: { code: 'model_decommissioned', message: 'Original model decommissioned' },
+            }),
         })
         .mockResolvedValueOnce({
           ok: false,
           status: 404,
-          text: async () => JSON.stringify({
-            error: { code: 'model_not_found', message: 'Fallback model 1 not found' }
-          }),
+          text: async () =>
+            JSON.stringify({
+              error: { code: 'model_not_found', message: 'Fallback model 1 not found' },
+            }),
         })
         .mockResolvedValueOnce({
           ok: false,
           status: 404,
-          text: async () => JSON.stringify({
-            error: { code: 'model_not_found', message: 'Fallback model 2 not found' }
-          }),
+          text: async () =>
+            JSON.stringify({
+              error: { code: 'model_not_found', message: 'Fallback model 2 not found' },
+            }),
         });
 
       global.fetch = mockFetch;
       const errorCallback = vi.fn();
 
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain DAG shortest path',
         {
           type: 'groq',
@@ -655,7 +680,9 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
               if (readCount === 1) {
                 return {
                   done: false,
-                  value: encoder.encode('data: {"choices":[{"delta":{"content":"Partial start"}}]}\n\n'),
+                  value: encoder.encode(
+                    'data: {"choices":[{"delta":{"content":"Partial start"}}]}\n\n'
+                  ),
                 };
               }
               throw new Error('Socket abruptly disconnected mid-transfer');
@@ -671,17 +698,17 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
 
       await expect(
         streamAnswer(
-        'Explain AVL trees',
-        {
-          type: 'groq',
-          apiKey: 'gsk_valid_key',
-          model: 'openai/gpt-oss-120b',
-        },
-        'typescript',
-        {
-          onToken: (t) => tokens.push(t),
-          onError: errorCallback,
-        }
+          'Explain AVL trees',
+          {
+            type: 'groq',
+            apiKey: 'gsk_valid_key',
+            model: 'openai/gpt-oss-120b',
+          },
+          'typescript',
+          {
+            onToken: (t) => tokens.push(t),
+            onError: errorCallback,
+          }
         )
       ).rejects.toMatchObject({ hasEmittedTokens: true });
 
@@ -805,7 +832,13 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
           text: 'Can you explain the difference between optimistic and pessimistic locking?',
           language: 'en',
           duration: 3.2,
-          segments: [{ start: 0, end: 3.2, text: 'Can you explain the difference between optimistic and pessimistic locking?' }],
+          segments: [
+            {
+              start: 0,
+              end: 3.2,
+              text: 'Can you explain the difference between optimistic and pessimistic locking?',
+            },
+          ],
         }),
       });
       global.fetch = mockFetch;
@@ -833,7 +866,11 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(noKey.valid).toBe(false);
       expect(noKey.code).toBe('AUTH_INVALID_KEY');
 
-      const badFormat = await validateModelPreflight('groq', 'openai/gpt-oss-120b', 'bad_prefix_key');
+      const badFormat = await validateModelPreflight(
+        'groq',
+        'openai/gpt-oss-120b',
+        'bad_prefix_key'
+      );
       expect(badFormat.valid).toBe(false);
       expect(badFormat.code).toBe('AUTH_INVALID_KEY');
     });
@@ -869,7 +906,9 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
         ok: false,
         status: 401,
         statusText: 'Unauthorized',
-        json: async () => ({ error: { message: 'Invalid API Key provided: gsk_abcdef1234567890123456' } }),
+        json: async () => ({
+          error: { message: 'Invalid API Key provided: gsk_abcdef1234567890123456' },
+        }),
       });
 
       const check = await validateModelPreflight(
@@ -1110,7 +1149,14 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
 
       // Verify only allowlisted properties exist
       const keys = Object.keys(safeRecord);
-      expect(keys).toEqual(['timestamp', 'provider', 'originalModel', 'fallbackModel', 'triggerError', 'successful']);
+      expect(keys).toEqual([
+        'timestamp',
+        'provider',
+        'originalModel',
+        'fallbackModel',
+        'triggerError',
+        'successful',
+      ]);
       expect(safeRecord.triggerError.message).not.toContain('gsk_secret_12345678901234567890');
       expect(safeRecord.triggerError.message).not.toContain('tok_123');
       expect(safeRecord.triggerError.message).toContain('gsk_[REDACTED_GROQ_KEY]');

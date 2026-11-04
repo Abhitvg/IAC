@@ -54,13 +54,25 @@ describe('Authoritative IANA IP Range Validation & Formats (P0)', () => {
       { ip: '0.255.255.255', name: 'This host broadcast (RFC 1122)', shouldBlock: true },
       { ip: '10.0.0.1', name: 'Private-Use Class A (RFC 1918)', shouldBlock: true },
       { ip: '10.255.255.254', name: 'Private-Use Class A Upper (RFC 1918)', shouldBlock: true },
-      { ip: '100.64.0.1', name: 'Shared Address Space / CGNAT Lower (RFC 6598)', shouldBlock: true },
-      { ip: '100.127.255.255', name: 'Shared Address Space / CGNAT Upper (RFC 6598)', shouldBlock: true },
+      {
+        ip: '100.64.0.1',
+        name: 'Shared Address Space / CGNAT Lower (RFC 6598)',
+        shouldBlock: true,
+      },
+      {
+        ip: '100.127.255.255',
+        name: 'Shared Address Space / CGNAT Upper (RFC 6598)',
+        shouldBlock: true,
+      },
       { ip: '100.128.0.1', name: 'Public address adjacent to CGNAT', shouldBlock: false },
       { ip: '127.0.0.1', name: 'Loopback standard (RFC 1122)', shouldBlock: true },
       { ip: '127.255.255.255', name: 'Loopback upper boundary (RFC 1122)', shouldBlock: true },
       { ip: '169.254.0.1', name: 'Link-Local Lower (RFC 3927)', shouldBlock: true },
-      { ip: '169.254.169.254', name: 'Link-Local AWS/Cloud Metadata (RFC 3927)', shouldBlock: true },
+      {
+        ip: '169.254.169.254',
+        name: 'Link-Local AWS/Cloud Metadata (RFC 3927)',
+        shouldBlock: true,
+      },
       { ip: '169.254.255.255', name: 'Link-Local Upper (RFC 3927)', shouldBlock: true },
       { ip: '172.16.0.1', name: 'Private-Use Class B Lower (RFC 1918)', shouldBlock: true },
       { ip: '172.31.255.255', name: 'Private-Use Class B Upper (RFC 1918)', shouldBlock: true },
@@ -188,11 +200,7 @@ describe('Authoritative IANA IP Range Validation & Formats (P0)', () => {
 
     it('rejects missing or empty allowedOrigin', () => {
       expect(() =>
-        validateSafeFetchPinnedIpc(
-          validEvent,
-          { url: 'https://example.com' },
-          mockMainWindow
-        )
+        validateSafeFetchPinnedIpc(validEvent, { url: 'https://example.com' }, mockMainWindow)
       ).toThrow(/allowedOrigin is required/i);
 
       expect(() =>

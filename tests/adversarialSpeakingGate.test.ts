@@ -52,7 +52,12 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       expect(res.isGrounded).toBe(false);
       expect(res.structuredViolations.some((v) => v.category === 'metric_fabrication')).toBe(true);
 
-      const decision = FactualGroundingValidator.evaluateSpeakingDecision(claim, res.adjustedAnswer, res, kb);
+      const decision = FactualGroundingValidator.evaluateSpeakingDecision(
+        claim,
+        res.adjustedAnswer,
+        res,
+        kb
+      );
       expect(decision.outcome).toBe('FLAGGED_BUT_QUALIFIED');
       expect(decision.isSpeakable).toBe(true);
       expect(decision.speakableAnswer).not.toContain('50 million concurrent users');
@@ -65,7 +70,12 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       expect(res.isGrounded).toBe(false);
       expect(res.structuredViolations.some((v) => v.category === 'metric_fabrication')).toBe(true);
 
-      const decision = FactualGroundingValidator.evaluateSpeakingDecision(claim, res.adjustedAnswer, res, kb);
+      const decision = FactualGroundingValidator.evaluateSpeakingDecision(
+        claim,
+        res.adjustedAnswer,
+        res,
+        kb
+      );
       expect(decision.outcome).toBe('FLAGGED_BUT_QUALIFIED');
       expect(decision.isSpeakable).toBe(true);
       expect(decision.speakableAnswer).not.toContain('by 85%');
@@ -76,20 +86,36 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const claim = 'Our system guarantees exactly-once delivery across all services.';
       const res = FactualGroundingValidator.validateAnswer(claim, kb);
       expect(res.isGrounded).toBe(false);
-      expect(res.structuredViolations.some((v) => v.category === 'unsupported_distributed_guarantee')).toBe(true);
+      expect(
+        res.structuredViolations.some((v) => v.category === 'unsupported_distributed_guarantee')
+      ).toBe(true);
 
-      const decision = FactualGroundingValidator.evaluateSpeakingDecision(claim, res.adjustedAnswer, res, kb);
+      const decision = FactualGroundingValidator.evaluateSpeakingDecision(
+        claim,
+        res.adjustedAnswer,
+        res,
+        kb
+      );
       expect(decision.outcome).toBe('FLAGGED_BUT_QUALIFIED');
-      expect(decision.speakableAnswer).toContain('delivery guarantees depend on consumer deduplication');
+      expect(decision.speakableAnswer).toContain(
+        'delivery guarantees depend on consumer deduplication'
+      );
     });
 
     it('1.4 unverified_leadership: team leadership is neutralized to engineering team', () => {
       const claim = 'I led a team of 10 engineers to deliver the new feature.';
       const res = FactualGroundingValidator.validateAnswer(claim, kb);
       expect(res.isGrounded).toBe(false);
-      expect(res.structuredViolations.some((v) => v.category === 'unverified_leadership')).toBe(true);
+      expect(res.structuredViolations.some((v) => v.category === 'unverified_leadership')).toBe(
+        true
+      );
 
-      const decision = FactualGroundingValidator.evaluateSpeakingDecision(claim, res.adjustedAnswer, res, kb);
+      const decision = FactualGroundingValidator.evaluateSpeakingDecision(
+        claim,
+        res.adjustedAnswer,
+        res,
+        kb
+      );
       expect(decision.outcome).toBe('FLAGGED_BUT_QUALIFIED');
       expect(decision.speakableAnswer).not.toContain('I led a team');
       expect(decision.speakableAnswer).toContain('formal leadership unverified');
@@ -99,9 +125,16 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const claim = 'I was the sole author and single-handedly built the entire codebase.';
       const res = FactualGroundingValidator.validateAnswer(claim, kb);
       expect(res.isGrounded).toBe(false);
-      expect(res.structuredViolations.some((v) => v.category === 'unsupported_ownership')).toBe(true);
+      expect(res.structuredViolations.some((v) => v.category === 'unsupported_ownership')).toBe(
+        true
+      );
 
-      const decision = FactualGroundingValidator.evaluateSpeakingDecision(claim, res.adjustedAnswer, res, kb);
+      const decision = FactualGroundingValidator.evaluateSpeakingDecision(
+        claim,
+        res.adjustedAnswer,
+        res,
+        kb
+      );
       expect(decision.outcome).toBe('FLAGGED_BUT_QUALIFIED');
       expect(decision.speakableAnswer).not.toContain('I was the sole author');
       expect(decision.speakableAnswer).toContain('individual sole authorship unverified');
@@ -113,7 +146,12 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       expect(res.isGrounded).toBe(false);
       expect(res.structuredViolations.some((v) => v.category === 'unverified_employer')).toBe(true);
 
-      const decision = FactualGroundingValidator.evaluateSpeakingDecision(claim, res.adjustedAnswer, res, kb);
+      const decision = FactualGroundingValidator.evaluateSpeakingDecision(
+        claim,
+        res.adjustedAnswer,
+        res,
+        kb
+      );
       expect(decision.outcome).toBe('FLAGGED_BUT_QUALIFIED');
       expect(decision.speakableAnswer).not.toContain('at Google');
       expect(decision.speakableAnswer).toContain('employer unverified');
@@ -127,14 +165,19 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
     // 1. Unsupported Cassandra architecture
     it('Scenario 4.1: Unsupported Cassandra architecture is neutralized or blocked from speakable queue', async () => {
       const store = useAppStore.getState();
-      store.setResumeText(`Project: WebPortal – Frontend application\nTechnologies: React, CSS\nRole: Frontend Developer`);
+      store.setResumeText(
+        `Project: WebPortal – Frontend application\nTechnologies: React, CSS\nRole: Frontend Developer`
+      );
 
-      const rawAnswer = 'In my project, I architected the Cassandra distributed storage cluster with tunable consistency. Cassandra uses partition tokens to route queries.';
+      const rawAnswer =
+        'In my project, I architected the Cassandra distributed storage cluster with tunable consistency. Cassandra uses partition tokens to route queries.';
 
-      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
-        callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
-      });
+      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
+        async (_prompt, _config, _lang, callbacks) => {
+          callbacks.onToken?.(rawAnswer);
+          await callbacks.onComplete?.(rawAnswer);
+        }
+      );
 
       await InterviewEngine.handleEvent({
         type: 'QUESTION_DETECTED',
@@ -147,7 +190,11 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const speakableAnswer = selectSpeakableCandidateAnswer(finalState);
 
       // Invariant: The raw unverified architecture claim CANNOT enter the speakable queue
-      expect(speakableQueue.some((s) => s.includes('I architected the Cassandra') && !s.includes('unverified'))).toBe(false);
+      expect(
+        speakableQueue.some(
+          (s) => s.includes('I architected the Cassandra') && !s.includes('unverified')
+        )
+      ).toBe(false);
       if (speakableAnswer) {
         expect(speakableAnswer).toContain('unverified in candidate profile');
       } else {
@@ -159,14 +206,19 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
     // 2. Unsupported AWS deployment
     it('Scenario 4.2: Unsupported AWS deployment cannot be spoken as verified experience', async () => {
       const store = useAppStore.getState();
-      store.setResumeText(`Project: MobileApp – Client app\nTechnologies: Swift\nDeployment: Local iOS devices`);
+      store.setResumeText(
+        `Project: MobileApp – Client app\nTechnologies: Swift\nDeployment: Local iOS devices`
+      );
 
-      const rawAnswer = 'I personally deployed the backend service on AWS using ECS and Fargate in production.';
+      const rawAnswer =
+        'I personally deployed the backend service on AWS using ECS and Fargate in production.';
 
-      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
-        callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
-      });
+      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
+        async (_prompt, _config, _lang, callbacks) => {
+          callbacks.onToken?.(rawAnswer);
+          await callbacks.onComplete?.(rawAnswer);
+        }
+      );
 
       await InterviewEngine.handleEvent({
         type: 'QUESTION_DETECTED',
@@ -177,7 +229,9 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const finalState = useAppStore.getState();
       const speakableQueue = selectTeleprompterSpeakableQueue(finalState);
 
-      expect(speakableQueue.some((s) => s.includes('I personally deployed') && !s.includes('unverified'))).toBe(false);
+      expect(
+        speakableQueue.some((s) => s.includes('I personally deployed') && !s.includes('unverified'))
+      ).toBe(false);
       expect(finalState.isAnswerValidated).toBe(false);
     });
 
@@ -186,12 +240,15 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const store = useAppStore.getState();
       store.setResumeText(`Project: ScriptRunner – Local tools\nTechnologies: Python, Bash`);
 
-      const rawAnswer = 'I implemented the Kubernetes orchestration pipeline with automated pod autoscaling.';
+      const rawAnswer =
+        'I implemented the Kubernetes orchestration pipeline with automated pod autoscaling.';
 
-      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
-        callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
-      });
+      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
+        async (_prompt, _config, _lang, callbacks) => {
+          callbacks.onToken?.(rawAnswer);
+          await callbacks.onComplete?.(rawAnswer);
+        }
+      );
 
       await InterviewEngine.handleEvent({
         type: 'QUESTION_DETECTED',
@@ -202,7 +259,11 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const finalState = useAppStore.getState();
       const speakableQueue = selectTeleprompterSpeakableQueue(finalState);
 
-      expect(speakableQueue.some((s) => s.includes('I implemented the Kubernetes') && !s.includes('unverified'))).toBe(false);
+      expect(
+        speakableQueue.some(
+          (s) => s.includes('I implemented the Kubernetes') && !s.includes('unverified')
+        )
+      ).toBe(false);
       expect(finalState.isAnswerValidated).toBe(false);
     });
 
@@ -211,16 +272,21 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const kb = new CandidateKnowledgeBase(
         `Project: DocEditor – Document editor\nTechnologies: TypeScript\nProposed Designs: Event-Driven Sharding Strategy\n`
       );
-      useAppStore.getState().setResumeText(
-        `Project: DocEditor – Document editor\nTechnologies: TypeScript\nProposed Designs: Event-Driven Sharding Strategy\n`
+      useAppStore
+        .getState()
+        .setResumeText(
+          `Project: DocEditor – Document editor\nTechnologies: TypeScript\nProposed Designs: Event-Driven Sharding Strategy\n`
+        );
+
+      const rawAnswer =
+        'I implemented Event-Driven Sharding Strategy across our production servers.';
+
+      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
+        async (_prompt, _config, _lang, callbacks) => {
+          callbacks.onToken?.(rawAnswer);
+          await callbacks.onComplete?.(rawAnswer);
+        }
       );
-
-      const rawAnswer = 'I implemented Event-Driven Sharding Strategy across our production servers.';
-
-      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
-        callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
-      });
 
       await InterviewEngine.handleEvent({
         type: 'QUESTION_DETECTED',
@@ -239,14 +305,18 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
     // 5. Unsupported leadership and sole ownership
     it('Scenario 4.5: Unsupported leadership and sole ownership claims are qualified or blocked', async () => {
       const store = useAppStore.getState();
-      store.setResumeText(`Project: AnalyticsPortal – Reporting app\nTechnologies: React\nRole: Junior Contributor`);
+      store.setResumeText(
+        `Project: AnalyticsPortal – Reporting app\nTechnologies: React\nRole: Junior Contributor`
+      );
 
       const rawAnswer = 'I was the sole creator and led 15 senior developers across three teams.';
 
-      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
-        callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
-      });
+      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
+        async (_prompt, _config, _lang, callbacks) => {
+          callbacks.onToken?.(rawAnswer);
+          await callbacks.onComplete?.(rawAnswer);
+        }
+      );
 
       await InterviewEngine.handleEvent({
         type: 'QUESTION_DETECTED',
@@ -257,8 +327,16 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const finalState = useAppStore.getState();
       const speakableQueue = selectTeleprompterSpeakableQueue(finalState);
 
-      expect(speakableQueue.some((s) => s.includes('I was the sole creator') && !s.includes('unverified'))).toBe(false);
-      expect(speakableQueue.some((s) => s.includes('led 15 senior developers') && !s.includes('unverified'))).toBe(false);
+      expect(
+        speakableQueue.some(
+          (s) => s.includes('I was the sole creator') && !s.includes('unverified')
+        )
+      ).toBe(false);
+      expect(
+        speakableQueue.some(
+          (s) => s.includes('led 15 senior developers') && !s.includes('unverified')
+        )
+      ).toBe(false);
     });
 
     // 6. Unsupported performance metrics
@@ -266,12 +344,15 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const store = useAppStore.getState();
       store.setResumeText(`Project: CacheLayer\nTechnologies: Redis`);
 
-      const rawAnswer = 'In CacheLayer, I achieved 40 million QPS and reduced latency by 95% in production.';
+      const rawAnswer =
+        'In CacheLayer, I achieved 40 million QPS and reduced latency by 95% in production.';
 
-      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
-        callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
-      });
+      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
+        async (_prompt, _config, _lang, callbacks) => {
+          callbacks.onToken?.(rawAnswer);
+          await callbacks.onComplete?.(rawAnswer);
+        }
+      );
 
       await InterviewEngine.handleEvent({
         type: 'QUESTION_DETECTED',
@@ -282,8 +363,12 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const finalState = useAppStore.getState();
       const speakableQueue = selectTeleprompterSpeakableQueue(finalState);
 
-      expect(speakableQueue.some((s) => s.includes('40 million QPS') && !s.includes('telemetry'))).toBe(false);
-      expect(speakableQueue.some((s) => s.includes('by 95%') && !s.includes('telemetry'))).toBe(false);
+      expect(
+        speakableQueue.some((s) => s.includes('40 million QPS') && !s.includes('telemetry'))
+      ).toBe(false);
+      expect(speakableQueue.some((s) => s.includes('by 95%') && !s.includes('telemetry'))).toBe(
+        false
+      );
     });
 
     // 7. Unsupported database design
@@ -291,12 +376,15 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const store = useAppStore.getState();
       store.setResumeText(`Project: UserAdmin – Admin dashboard\nTechnologies: HTML, JavaScript`);
 
-      const rawAnswer = 'I personally designed the database schema and sharding strategy from scratch.';
+      const rawAnswer =
+        'I personally designed the database schema and sharding strategy from scratch.';
 
-      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
-        callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
-      });
+      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
+        async (_prompt, _config, _lang, callbacks) => {
+          callbacks.onToken?.(rawAnswer);
+          await callbacks.onComplete?.(rawAnswer);
+        }
+      );
 
       await InterviewEngine.handleEvent({
         type: 'QUESTION_DETECTED',
@@ -307,20 +395,29 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const finalState = useAppStore.getState();
       const speakableQueue = selectTeleprompterSpeakableQueue(finalState);
 
-      expect(speakableQueue.some((s) => s.includes('I personally designed the database schema') && !s.includes('unverified'))).toBe(false);
+      expect(
+        speakableQueue.some(
+          (s) =>
+            s.includes('I personally designed the database schema') && !s.includes('unverified')
+        )
+      ).toBe(false);
     });
 
     // 8. Unsupported project contribution
     it('Scenario 4.8: Unsupported project contribution claims are neutralized or blocked', async () => {
       const store = useAppStore.getState();
-      store.setResumeText(`Project: FinEngine – Settlement service\nTechnologies: Java\nPersonal Contribution: Unit test maintenance`);
+      store.setResumeText(
+        `Project: FinEngine – Settlement service\nTechnologies: Java\nPersonal Contribution: Unit test maintenance`
+      );
 
       const rawAnswer = 'I personally built the payment engine and settlement gateway.';
 
-      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
-        callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
-      });
+      vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
+        async (_prompt, _config, _lang, callbacks) => {
+          callbacks.onToken?.(rawAnswer);
+          await callbacks.onComplete?.(rawAnswer);
+        }
+      );
 
       await InterviewEngine.handleEvent({
         type: 'QUESTION_DETECTED',
@@ -331,7 +428,11 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const finalState = useAppStore.getState();
       const speakableQueue = selectTeleprompterSpeakableQueue(finalState);
 
-      expect(speakableQueue.some((s) => s.includes('I personally built the payment engine') && !s.includes('unverified'))).toBe(false);
+      expect(
+        speakableQueue.some(
+          (s) => s.includes('I personally built the payment engine') && !s.includes('unverified')
+        )
+      ).toBe(false);
     });
 
     // 9. Flagged answer whose adjustedAnswer remains unchanged MUST BE BLOCKED
@@ -340,7 +441,8 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       const store = useAppStore.getState();
       store.setResumeText(`Project: BasicApp\nTechnologies: Python`);
 
-      const unchangedHallucination = 'I supervised the proprietary machine learning cluster architecture personally.';
+      const unchangedHallucination =
+        'I supervised the proprietary machine learning cluster architecture personally.';
 
       // Simulate an unhandled violation where adjustedAnswer === rawAnswer
       const fakeValidation = {
@@ -372,15 +474,19 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       expect(decision.isSpeakable).toBe(false);
       expect(decision.speakableAnswer).toBeNull();
       expect(decision.speakableQueue).toHaveLength(0);
-      expect(decision.blockedReason).toContain('adjusted answer remained identical to raw ungrounded generation');
+      expect(decision.blockedReason).toContain(
+        'adjusted answer remained identical to raw ungrounded generation'
+      );
     });
 
     // 10. A partially neutralized answer containing one surviving unsupported claim MUST BE BLOCKED
     it('Scenario 4.10: A partially neutralized answer with one surviving unsupported claim is BLOCKED', () => {
       const kb = new CandidateKnowledgeBase(`Project: WebPortal\nTechnologies: HTML`);
 
-      const raw = 'The project was developed. In addition, I personally deployed the backend service on AWS.';
-      const partiallyNeutralized = 'The project was developed (individual sole authorship unverified in candidate profile). In addition, I personally deployed the backend service on AWS.';
+      const raw =
+        'The project was developed. In addition, I personally deployed the backend service on AWS.';
+      const partiallyNeutralized =
+        'The project was developed (individual sole authorship unverified in candidate profile). In addition, I personally deployed the backend service on AWS.';
 
       const fakeValidation = {
         isGrounded: false,
@@ -456,7 +562,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       });
 
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_p, _c, _l, callbacks) => {
-        callbacks.onComplete?.(rawAnswer);
+        await callbacks.onComplete?.(rawAnswer);
       });
 
       await InterviewEngine.handleEvent({
@@ -522,8 +628,10 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
         status: 'ready' as const,
         isAnswerValidated: false,
         answerValidationStatus: 'BLOCKED' as const,
-        blockedReason: 'Blocked: 1 unsupported personal claim(s) survived neutralization (unverified_architecture)',
-        technicalGuidance: 'Cassandra uses consistent hashing via virtual nodes for token distribution.',
+        blockedReason:
+          'Blocked: 1 unsupported personal claim(s) survived neutralization (unverified_architecture)',
+        technicalGuidance:
+          'Cassandra uses consistent hashing via virtual nodes for token distribution.',
         teleprompterQueue: [],
       };
 
@@ -601,7 +709,8 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
     });
 
     it('5.5 FLAGGED_BUT_QUALIFIED answers can be recited with qualified markers and badge', () => {
-      const qualifiedText = 'The project was developed (individual sole authorship unverified in candidate profile).';
+      const qualifiedText =
+        'The project was developed (individual sole authorship unverified in candidate profile).';
       const qualifiedState = {
         currentQuestion: 'Did you build it alone?',
         currentAnswer: qualifiedText,

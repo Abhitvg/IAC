@@ -165,14 +165,16 @@ describe('Suite B: Streaming Reliability', () => {
     } as any);
 
     let caughtError: any = null;
-    await streamAnswer('Explain B-trees', baseConfig, 'java' as any, {
-      onToken: () => {},
-      onSentence: () => {},
-      onComplete: () => {},
-      onError: (err) => {
-        caughtError = err;
-      },
-    });
+    await expect(
+      streamAnswer('Explain B-trees', baseConfig, 'java' as any, {
+        onToken: () => {},
+        onSentence: () => {},
+        onComplete: () => {},
+        onError: (err) => {
+          caughtError = err;
+        },
+      })
+    ).rejects.toMatchObject({ hasEmittedTokens: true });
 
     expect(caughtError).not.toBeNull();
     expect(caughtError.message).toContain('Internal rate limit reached in stream');

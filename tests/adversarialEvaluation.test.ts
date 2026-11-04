@@ -1,9 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CandidateKnowledgeBase, FactualGroundingValidator } from '../src/services/candidateIntelligence';
+import {
+  CandidateKnowledgeBase,
+  FactualGroundingValidator,
+} from '../src/services/candidateIntelligence';
 import { EvaluationScorer } from '../src/services/evaluationScorer';
 import { ProductionDebuggingEngine } from '../src/services/productionDebugging';
 import { TechnicalReasoningEngine } from '../src/services/technicalReasoning';
-import { isTrustedSender, isSafeExternalUrl, redactSensitiveData } from '../electron/services/security';
+import {
+  isTrustedSender,
+  isSafeExternalUrl,
+  redactSensitiveData,
+} from '../electron/services/security';
 
 describe('IAC 2.0 Adversarial Evaluation Suite & Anti-Hallucination Guardrails', () => {
   let kb: CandidateKnowledgeBase;
@@ -47,12 +54,14 @@ Skills: Java, TypeScript, Node.js, React, PostgreSQL, Redis, Docker, WebSockets,
 
       const validation = FactualGroundingValidator.validateAnswer(fabricatedAnswer, kb);
       expect(validation.isGrounded).toBe(false);
-      expect(validation.violations.some((v) => v.includes('Unverified performance claim'))).toBe(true);
+      expect(validation.violations.some((v) => v.includes('Unverified performance claim'))).toBe(
+        true
+      );
     });
 
     it('passes grounded answer that honestly acknowledges unverified telemetry metrics', () => {
       const groundedAnswer =
-        "I worked on the collaborative editing architecture for DocFlow. I would need to verify our exact telemetry logs before quoting a specific concurrency benchmark, but in local test harnesses it sustained concurrent typing across active browser tabs without desynchronization.";
+        'I worked on the collaborative editing architecture for DocFlow. I would need to verify our exact telemetry logs before quoting a specific concurrency benchmark, but in local test harnesses it sustained concurrent typing across active browser tabs without desynchronization.';
 
       const result = EvaluationScorer.evaluateAnswer(
         'What were the concurrency benchmarks for DocFlow?',
@@ -72,12 +81,16 @@ Skills: Java, TypeScript, Node.js, React, PostgreSQL, Redis, Docker, WebSockets,
 
       const validation = FactualGroundingValidator.validateAnswer(misleadingAnswer, kb);
       expect(validation.isGrounded).toBe(false);
-      expect(validation.violations.some((v) => v.includes('exactly-once delivery across independent systems'))).toBe(true);
+      expect(
+        validation.violations.some((v) =>
+          v.includes('exactly-once delivery across independent systems')
+        )
+      ).toBe(true);
     });
 
     it('passes answer explaining at-least-once delivery coupled with consumer idempotency', () => {
       const correctDistributedAnswer =
-        "Network channels can only guarantee at-least-once delivery because network partitions can cause unacknowledged retries. For example, in payment processing, each request includes a unique idempotency key. The consumer checks Redis atomically before execution so that duplicate deliveries return the existing response instead of re-executing. The trade-off is storage overhead for idempotency keys with a suitable TTL.";
+        'Network channels can only guarantee at-least-once delivery because network partitions can cause unacknowledged retries. For example, in payment processing, each request includes a unique idempotency key. The consumer checks Redis atomically before execution so that duplicate deliveries return the existing response instead of re-executing. The trade-off is storage overhead for idempotency keys with a suitable TTL.';
 
       const result = EvaluationScorer.evaluateAnswer(
         'How do you guarantee exactly-once processing in distributed systems?',
@@ -97,8 +110,14 @@ Skills: Java, TypeScript, Node.js, React, PostgreSQL, Redis, Docker, WebSockets,
   describe('Adversarial Test 3: Kafka Message Ordering Guarantees', () => {
     it('enforces that Kafka ordering is strictly per-partition, not global across topics', () => {
       const rule = TechnicalReasoningEngine.getDomainVerification('Distributed systems');
-      expect(rule.mandatoryChecks.some((c) => c.includes('Kafka ordering: Guaranteed strictly within a single partition'))).toBe(true);
-      expect(rule.strictProhibitions.some((p) => p.includes('global message ordering across partitions'))).toBe(true);
+      expect(
+        rule.mandatoryChecks.some((c) =>
+          c.includes('Kafka ordering: Guaranteed strictly within a single partition')
+        )
+      ).toBe(true);
+      expect(
+        rule.strictProhibitions.some((p) => p.includes('global message ordering across partitions'))
+      ).toBe(true);
 
       const invalidKafkaAnswer =
         'Apache Kafka automatically guarantees strict total ordering of all events across the entire topic regardless of partition count.';
@@ -131,12 +150,14 @@ Skills: Java, TypeScript, Node.js, React, PostgreSQL, Redis, Docker, WebSockets,
       );
 
       expect(result.dimensions.technicalCorrectness).toBeLessThan(70);
-      expect(result.violations.some((v) => v.includes('Technical misconception detected'))).toBe(true);
+      expect(result.violations.some((v) => v.includes('Technical misconception detected'))).toBe(
+        true
+      );
     });
 
     it('passes correct explanation of volatile visibility vs synchronized mutual exclusion', () => {
       const correctJavaAnswer =
-        "Volatile guarantees visibility and ordering via memory barriers, but it does not guarantee atomicity for compound operations like count++. Synchronized guarantees both visibility and mutual exclusion via a monitor lock. For example, if multiple threads increment a counter, volatile will suffer race conditions, so you need AtomicInteger or synchronized. The trade-off is monitor lock contention overhead.";
+        'Volatile guarantees visibility and ordering via memory barriers, but it does not guarantee atomicity for compound operations like count++. Synchronized guarantees both visibility and mutual exclusion via a monitor lock. For example, if multiple threads increment a counter, volatile will suffer race conditions, so you need AtomicInteger or synchronized. The trade-off is monitor lock contention overhead.';
 
       const result = EvaluationScorer.evaluateAnswer(
         'What is the difference between volatile and synchronized in Java?',
@@ -256,7 +277,7 @@ Skills: Java, TypeScript, Node.js, React, PostgreSQL, Redis, Docker, WebSockets,
 
     it('fails a well-written but completely fabricated answer despite high clarity', () => {
       const deceptiveAnswer =
-        "At Google, I single-handedly re-architected the YouTube ingestion pipeline to handle 500 million concurrent video uploads per second, reducing infrastructure latency by 99% using a proprietary quantum algorithm.";
+        'At Google, I single-handedly re-architected the YouTube ingestion pipeline to handle 500 million concurrent video uploads per second, reducing infrastructure latency by 99% using a proprietary quantum algorithm.';
 
       const result = EvaluationScorer.evaluateAnswer(
         'Tell me about your most challenging project',
