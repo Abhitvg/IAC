@@ -202,29 +202,41 @@ export class AnswerGenerationService {
       params.text = params.questionText;
     }
 
-    if (signal?.aborted) {
-      const abortedResult: AnswerGenerationResult = {
-        status: 'ABORTED',
-        isValidated: false,
-        cleanAnswer: '',
-        error: 'Generation aborted by user or timeout',
-        detectedCategory: 'General',
-        confidence: 'low',
-        followUps: [],
-        predictedFollowUps: [],
-        requestId,
-        validationStatus: 'ABORTED',
-        groundingScore: 0,
-        groundingViolations: ['Request aborted by caller'],
-        structuredViolations: [],
-      };
+    const createAbortedResult = (): AnswerGenerationResult => ({
+      status: 'ABORTED',
+      isValidated: false,
+      cleanAnswer: '',
+      error: 'Generation aborted by user or timeout',
+      detectedCategory: 'General',
+      confidence: 'low',
+      followUps: [],
+      predictedFollowUps: [],
+      requestId,
+      validationStatus: 'ABORTED',
+      groundingScore: 0,
+      groundingViolations: ['Request aborted by caller'],
+      structuredViolations: [],
+    });
+
+    if (signal.aborted) {
+      const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
       cb.onComplete?.(abortedResult);
+      clearTimeout(overallTimer);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
       return abortedResult;
     }
 
     const provider = params.provider || 'groq';
     const apiKey = directApiKey || await this.resolveApiKey(provider);
+    if (signal.aborted) {
+      const abortedResult = createAbortedResult();
+      (abortedResult as any).answer = abortedResult.cleanAnswer;
+      cb.onComplete?.(abortedResult);
+      clearTimeout(overallTimer);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
+      return abortedResult;
+    }
 
     if (!apiKey && provider !== 'ollama') {
       const err = new Error(
