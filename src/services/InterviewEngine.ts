@@ -332,18 +332,21 @@ export class InterviewEngine {
           // Ambiguous words are preserved. Plausible question intent can proceed to
           // generation even when speaker identity cannot be established.
           if (classification.type === 'UNCLASSIFIED') {
-            if (classification.needsConfirmation) {
-              await InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text, requestId });
-              return;
-            }
-            const pendingTranscript = {
+            const candidateQuestion = classification.questionText || text;
+            const candidateTranscript = useAppStore.getState().transcript;
+            // Store the uncertain speech as a recoverable question candidate. It is
+            // retained independently of the eventual finalized question.
+            useAppStore.getState().setLastUnconfirmedTranscript({
               id: `unconfirmed_${requestId}`,
-              text,
+              text: candidateQuestion,
               confidence: classification.confidence,
               reason: classification.reason,
               timestamp: Date.now(),
-            };
-            useAppStore.getState().setLastUnconfirmedTranscript(pendingTranscript);
+            });
+            if (classification.needsConfirmation) {
+              await InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: candidateQuestion, requestId });
+              return;
+            }
             useAppStore.getState().updateDiagnostics({
               latestTranscript: text,
               whisperStatus: `Speaker uncertain; transcript retained: ${classification.reason}`,
