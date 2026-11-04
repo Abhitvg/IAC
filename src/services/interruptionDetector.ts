@@ -201,7 +201,6 @@ export function detectQuestionIntent(text: string): {
 } {
   const trimmed = (text || '').trim();
   if (!trimmed) return { plausibleQuestion: false, incomplete: false };
-  const tokens = trimmed.split(/\s+/).filter(Boolean);
   const hasInterrogativeSyntax =
     /[?]$/.test(trimmed) ||
     /\b(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|explain|describe|define|compare|implement|discuss|outline|elaborate|give me|tell me|walk me through)\b/i.test(trimmed) ||
