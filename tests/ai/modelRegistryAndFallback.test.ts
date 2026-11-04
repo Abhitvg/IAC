@@ -17,6 +17,10 @@ import { streamAnswer, generateAIAnswer } from '../../src/services/ai';
 import { transcribeAudio } from '../../src/services/whisper';
 import { useAppStore } from '../../src/store/useAppStore';
 
+const expectStreamFailure = async (...args: Parameters<typeof streamAnswer>) => {
+  await expect(streamAnswer(...args)).rejects.toBeDefined();
+};
+
 function createValidWavBlob(): Blob {
   const buffer = new ArrayBuffer(44 + 400);
   const view = new DataView(buffer);
@@ -308,7 +312,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain quicksort',
         {
           type: 'groq',
@@ -340,7 +344,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain red-black trees',
         {
           type: 'groq',
@@ -371,7 +375,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain trie structures',
         {
           type: 'groq',
@@ -402,7 +406,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain Dijkstra algorithm',
         {
           type: 'groq',
@@ -439,7 +443,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain binary trees',
         {
           type: 'groq',
@@ -473,7 +477,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain B-trees',
         {
           type: 'groq',
@@ -502,7 +506,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain binary search',
         {
           type: 'groq',
@@ -540,7 +544,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Describe a bug you fixed',
         {
           type: 'groq',
@@ -570,7 +574,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain LRU cache',
         {
           type: 'groq',
@@ -595,7 +599,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
 
       const errorCallback = vi.fn();
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain heap sort',
         {
           type: 'groq',
@@ -643,7 +647,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       global.fetch = mockFetch;
       const errorCallback = vi.fn();
 
-      await streamAnswer(
+      await expectStreamFailure(
         'Explain DAG shortest path',
         {
           type: 'groq',
