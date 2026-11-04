@@ -15,37 +15,43 @@ describe('Suite B: Streaming Reliability', () => {
     vi.restoreAllMocks();
   });
 
-  it('rejects with explicit empty response error when stream emits no tokens', async () => {
-    // Empty stream mock
+  it('recovers once with a non-streaming request when the provider closes an empty stream', async () => {
+    const stream = new ReadableStream({ start(controller) { controller.close(); } });
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, headers: new Headers(), body: stream } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: 'A B-tree is a balanced search tree.' } }] }),
+      } as any);
+
+    let fullAnswer = '';
+    await streamAnswer('Explain B-trees', baseConfig, 'java' as any, {
+      onToken: (token) => { fullAnswer += token; },
+      onComplete: (answer) => { fullAnswer = answer; },
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(fullAnswer).toContain('balanced search tree');
+  });
+
+  it('consumes a final SSE event even when the stream omits its trailing newline', async () => {
+    const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
+        controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"Recovered final event."}}]}'));
         controller.close();
       },
     });
-
     global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      headers: new Headers(),
-      body: stream,
+      ok: true, status: 200, headers: new Headers(), body: stream,
     } as any);
 
-    let errorThrown: any = null;
-    try {
-      await streamAnswer('Explain B-trees', baseConfig, 'java' as any, {
-        onToken: () => {},
-        onSentence: () => {},
-        onComplete: () => {},
-        onError: (err) => {
-          errorThrown = err;
-        },
-      });
-    } catch (err: any) {
-      errorThrown = err;
-    }
-
-    expect(errorThrown).not.toBeNull();
-    expect(errorThrown.message).toContain('AI stream closed without emitting any answer content');
+    let fullAnswer = '';
+    await streamAnswer('Explain B-trees', baseConfig, 'java' as any, {
+      onToken: (token) => { fullAnswer += token; },
+      onComplete: (answer) => { fullAnswer = answer; },
+    });
+    expect(fullAnswer).toContain('Recovered final event.');
   });
 
   it('aborts the underlying fetch when the overall deadline expires', async () => {
