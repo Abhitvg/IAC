@@ -5,6 +5,7 @@ import { InterviewEngine } from '../src/services/InterviewEngine';
 
 describe('Question History & Incomplete Question Recovery', () => {
   beforeEach(() => {
+    InterviewEngine.clearPendingQuestion();
     const store = useAppStore.getState();
     store.clearAnswerQueue();
     useAppStore.setState({
