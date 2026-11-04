@@ -159,7 +159,11 @@ export function sortAndFormatTextItems(rawItems: any[]): string {
 
   if (pageWidth > 150 && items.length > 15) {
     const step = pageWidth / 40;
-    for (let candidateX = minX + 0.25 * pageWidth; candidateX <= minX + 0.70 * pageWidth; candidateX += step) {
+    for (
+      let candidateX = minX + 0.25 * pageWidth;
+      candidateX <= minX + 0.70 * pageWidth;
+      candidateX += step
+    ) {
       const gutterLeft = candidateX - 8;
       const gutterRight = candidateX + 8;
 
