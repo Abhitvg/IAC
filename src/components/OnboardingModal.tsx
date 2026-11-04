@@ -25,52 +25,79 @@ export default function OnboardingModal() {
   const [provider, setProvider] = useState<'groq' | 'openai' | 'openrouter' | 'ollama'>('groq');
   const [apiKey, setApiKey] = useState('');
 
-  // Local model download simulation state
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadComplete, setDownloadComplete] = useState(false);
-
-  // Mic & Latency check state
+  // Live microphone test state. Never fabricate meter readings or latency results.
   const [micActive, setMicActive] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0);
-  const [latencyTestDone, setLatencyTestDone] = useState(false);
-  const [measuredLatencyMs, setMeasuredLatencyMs] = useState<number | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
 
-  // Handle local model download progress
-  const startModelDownload = () => {
-    setIsDownloading(true);
-    setDownloadProgress(10);
-    const interval = setInterval(() => {
-      setDownloadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsDownloading(false);
-          setDownloadComplete(true);
-          return 100;
-        }
-        return prev + 15;
-      });
-    }, 250);
-  };
-
-  // Microphone level simulation / check
   useEffect(() => {
-    if (step === 'mic_check' && micActive) {
-      const interval = setInterval(() => {
-        setVolumeLevel(Math.floor(Math.random() * 65) + 20);
-      }, 100);
-      return () => clearInterval(interval);
+    if (step !== 'mic_check' || !micActive) {
+      setVolumeLevel(0);
+      return;
     }
-  }, [step, micActive]);
 
-  const runLatencyCheck = () => {
-    setTimeout(() => {
-      const simulatedLatency = isLocalMode ? 320 : 185;
-      setMeasuredLatencyMs(simulatedLatency);
-      setLatencyTestDone(true);
-      setToast(`Latency Check Passed: ${simulatedLatency}ms roundtrip.`);
-    }, 600);
-  };
+    let cancelled = false;
+    let stream: MediaStream | null = null;
+    let audioContext: AudioContext | null = null;
+    let animationFrame = 0;
+
+    const startMicrophoneTest = async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('Microphone access is unavailable in this environment.');
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        audioContext = new AudioContext();
+        if (audioContext.state === 'suspended') await audioContext.resume();
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 512;
+        audioContext.createMediaStreamSource(stream).connect(analyser);
+        const samples = new Float32Array(analyser.fftSize);
+
+        const updateInputLevel = () => {
+          if (cancelled) return;
+          analyser.getFloatTimeDomainData(samples);
+          let sumSquares = 0;
+          for (let index = 0; index < samples.length; index += 1) {
+            sumSquares += samples[index] * samples[index];
+          }
+          const rms = Math.sqrt(sumSquares / samples.length);
+          setVolumeLevel(Math.min(100, Math.round(rms * 400)));
+          animationFrame = requestAnimationFrame(updateInputLevel);
+        };
+
+        updateInputLevel();
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setMicError(error instanceof Error ? error.message : String(error));
+          setMicActive(false);
+        }
+      }
+    };
+
+    void startMicrophoneTest();
+
+    return () => {
+      cancelled = true;
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      stream?.getTracks().forEach((track) => track.stop());
+      if (audioContext && audioContext.state !== 'closed') {
+        void audioContext.close().catch(() => undefined);
+      }
+    };
+  }, [step, micActive]);
 
   const handleFinishAndStart = async () => {
     try {
