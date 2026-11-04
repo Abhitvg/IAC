@@ -257,7 +257,7 @@ export class InterviewEngine {
               text,
               timestamp: Date.now(),
               classification: 'PENDING_CONTINUATION',
-              confidence: classification.confidence,
+              confidence: 1,
               reason: 'Appended inside bounded continuation window',
             });
             useAppStore.getState().updateDiagnostics({
