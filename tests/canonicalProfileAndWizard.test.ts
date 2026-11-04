@@ -477,7 +477,7 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
       current.identity.fullName = 'Candidate data must remain available';
       service.saveProfile(current);
 
-      expect(service.clearAllCandidateData()).toBe(false);
+      expect(service.clearAllCandidateData()).toMatchObject({ success: false, failedStores: ['canonical-profile'] });
       expect(service.getProfile().identity.fullName).toBe(
         'Candidate data must remain available'
       );
