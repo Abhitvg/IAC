@@ -16,6 +16,7 @@ export default function LiveTranscript() {
     blockedReason,
     draftAnswer,
     clearAnswerQueue,
+    recoveredPartialAnswer,
     setCurrentQuestion,
     setLastUnconfirmedTranscript,
   } = useAppStore();
@@ -129,7 +130,7 @@ export default function LiveTranscript() {
       )}
 
 
-      {(currentQuestion || lastUnconfirmedTranscript) && (
+      {(currentQuestion || lastUnconfirmedTranscript || status === 'error' || status === 'paused') && (
         <section aria-label="Question recovery actions" style={{ marginBottom: 14, padding: 12, border: '1px solid #334155', borderRadius: 8 }}>
           <h3 style={{ margin: '0 0 10px', fontSize: 13 }}>Question recovery</h3>
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
@@ -141,7 +142,7 @@ export default function LiveTranscript() {
             <button type="button" onClick={handleCancel} style={actionStyle}><Square size={13} /> Cancel Current Request</button>
           </div>
           {(status === 'error' || blockedReason) && <p role="alert" style={{ color: '#fca5a5', fontSize: 12, margin: '10px 0 0' }}>{blockedReason || 'Generation failed. Transcript retained for recovery.'}</p>}
-          {draftAnswer && <p style={{ color: '#94a3b8', fontSize: 11, marginBottom: 0 }}>Partial output retained locally ({draftAnswer.length} characters).</p>}
+          {(draftAnswer || recoveredPartialAnswer) && <p style={{ color: '#94a3b8', fontSize: 11, marginBottom: 0 }}>Partial output retained locally ({(draftAnswer || recoveredPartialAnswer || '').length} characters).</p>}
         </section>
       )}
 
