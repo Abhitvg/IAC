@@ -1042,7 +1042,22 @@ export async function streamAnswer(
     try {
       while (true) {
         if (signal?.aborted) break;
-        const { done, value } = await reader.read();
+        let readTimer: ReturnType<typeof setTimeout> | undefined;
+        let readResult: ReadableStreamReadResult<Uint8Array>;
+        try {
+          readResult = await Promise.race([
+            reader.read(),
+            new Promise<never>((_, reject) => {
+              readTimer = setTimeout(() => {
+                void reader.cancel();
+                reject(new Error('AI response stream stalled: no data received for 15 seconds.'));
+              }, 15000);
+            }),
+          ]);
+        } finally {
+          if (readTimer) clearTimeout(readTimer);
+        }
+        const { done, value } = readResult;
         if (done) break;
 
         sseBuffer += decoder.decode(value, { stream: true });
