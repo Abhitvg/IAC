@@ -85,13 +85,6 @@ export async function executeOcr(
   const { timeoutMs = 30000, maxFileSizeMb = 15 } = options;
   const ocrBin = resolveOcrBinaryPath();
 
-  if (!ocrBin) {
-    return {
-      success: false,
-      error: `OCR engine unavailable on platform "${process.platform}". Apple Vision OCR is supported on macOS.`,
-    };
-  }
-
   let targetFilePath: string;
   let isTempFile = false;
 
@@ -117,6 +110,13 @@ export async function executeOcr(
         };
       }
 
+      if (!ocrBin) {
+        return {
+          success: false,
+          error: `OCR engine unavailable on platform "${process.platform}". Apple Vision OCR is supported on macOS.`,
+        };
+      }
+
       const tempDir = os.tmpdir();
       const isPdf =
         byteLength >= 4 &&
@@ -132,6 +132,13 @@ export async function executeOcr(
       isTempFile = true;
 
       await fs.promises.writeFile(targetFilePath, Buffer.from(fileInput));
+    }
+
+    if (!ocrBin) {
+      return {
+        success: false,
+        error: `OCR engine unavailable on platform "${process.platform}". Apple Vision OCR is supported on macOS.`,
+      };
     }
 
     const { stdout } = await execFileAsync(ocrBin, [targetFilePath], {
