@@ -282,6 +282,10 @@ export class AnswerGenerationService {
         const match = secondaryGroqApiKey.match(/gsk_[A-Za-z0-9_-]+/);
         secondaryGroqApiKey = match?.[0] || '';
         if (secondaryGroqApiKey === apiKey) secondaryGroqApiKey = '';
+        if (!apiKey && secondaryGroqApiKey) {
+          apiKey = secondaryGroqApiKey;
+          secondaryGroqApiKey = '';
+        }
       } catch {
         // Secondary credentials are optional; primary-key operation remains available.
       }
