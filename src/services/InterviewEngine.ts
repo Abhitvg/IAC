@@ -250,7 +250,7 @@ export class InterviewEngine {
 
           // If explicit Still Asking mode is active, retain each segment and give
           // continuation a bounded window. The timer guarantees eventual finalization.
-          if (useAppStore.getState().isIncompleteQuestionMode && InterviewEngine.appendPendingQuestionUtterance(text)) {
+          if (InterviewEngine.appendPendingQuestionUtterance(text)) {
             useAppStore.getState().addTranscript({
               id: `continuation_${requestId}`,
               speaker: 'unknown',
