@@ -827,7 +827,8 @@ export default function TeleprompterView() {
     status === 'listening' ||
     status === 'transcribing' ||
     status === 'analyzing' ||
-    status === 'generating';
+    status === 'generating' ||
+    status === 'confirmation_required';
   const isGenerating = status === 'analyzing' || status === 'generating';
 
   const [manualInput, setManualInput] = useState('');
@@ -1314,6 +1315,18 @@ export default function TeleprompterView() {
     }
   };
 
+  const handleConfirmUnclassifiedTranscript = async () => {
+    const pending = useAppStore.getState().lastUnconfirmedTranscript;
+    if (!pending?.text.trim()) return;
+    await useAppStore.getState().overrideTranscriptAsQuestion(pending.text);
+  };
+
+  const handleDismissUnclassifiedTranscript = () => {
+    clearUnconfirmedTranscript();
+    useAppStore.getState().setPipelineStage('listening');
+    useAppStore.getState().setStatus('listening');
+  };
+
   const handleTriggerQuestion = (q: string) => {
     if (!q || !q.trim()) return;
     InterviewEngine.handleEvent({
@@ -1435,6 +1448,64 @@ export default function TeleprompterView() {
             Supports PDF, Word DOCX, Text, and Screenshots (.png, .jpg, .webp, .pdf, .docx)
           </div>
         </div>
+      )}
+
+      {lastUnconfirmedTranscript && (
+        <section
+          role="alert"
+          aria-live="assertive"
+          aria-labelledby="unconfirmed-transcript-title"
+          style={{
+            margin: '10px 12px',
+            padding: '12px',
+            border: '1px solid rgba(245, 158, 11, 0.7)',
+            borderRadius: '8px',
+            background: 'rgba(120, 53, 15, 0.35)',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>
+            Confirm detected speech
+          </div>
+          <p id="unconfirmed-transcript-title" style={{ margin: '0 0 10px', lineHeight: 1.5 }}>
+            {lastUnconfirmedTranscript.text}
+          </p>
+          <p style={{ margin: '0 0 10px', color: '#fbbf24', fontSize: '11px' }}>
+            Speaker uncertain · {Math.round(lastUnconfirmedTranscript.confidence * 100)}% confidence
+            {lastUnconfirmedTranscript.reason ? ` · ${lastUnconfirmedTranscript.reason}` : ''}
+          </p>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={handleConfirmUnclassifiedTranscript}
+              style={{
+                border: 0,
+                borderRadius: '6px',
+                padding: '8px 10px',
+                background: '#047857',
+                color: '#fff',
+                cursor: 'pointer',
+                fontWeight: 700,
+              }}
+            >
+              Confirm as interviewer question
+            </button>
+            <button
+              type="button"
+              onClick={handleDismissUnclassifiedTranscript}
+              style={{
+                border: '1px solid #64748b',
+                borderRadius: '6px',
+                padding: '8px 10px',
+                background: 'transparent',
+                color: '#e2e8f0',
+                cursor: 'pointer',
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </section>
       )}
 
       {/* ════════════ TOP TELEPROMPTER CONTROL BAR ════════════ */}
