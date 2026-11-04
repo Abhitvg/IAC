@@ -253,14 +253,22 @@ export class InterviewEngine {
               confidence: classification.confidence,
               reason: classification.reason,
             });
+            const pendingTranscript = {
+              id: `unconfirmed_${requestId}`,
+              text,
+              confidence: classification.confidence,
+              reason: classification.reason,
+              timestamp: Date.now(),
+            };
+            useAppStore.getState().setLastUnconfirmedTranscript(pendingTranscript);
             useAppStore.getState().updateDiagnostics({
               latestTranscript: text,
-              whisperStatus: `Speech preserved for review: ${classification.reason}`,
+              whisperStatus: `Awaiting confirmation: ${classification.reason}`,
               questionMatched: false,
             });
-            useAppStore.getState().setToast('Speaker could not be identified. Transcript preserved; confirm it before generating.');
-            useAppStore.getState().setStatus('listening');
-            useAppStore.getState().setPipelineStage('listening');
+            useAppStore.getState().setToast('Speaker unclear. Review the transcript and confirm whether it is an interviewer question.');
+            useAppStore.getState().setStatus('confirmation_required');
+            useAppStore.getState().setPipelineStage('confirmation_required');
             DiagnosticLoggerService.getInstance().recordEvent({
               requestId,
               pipelineStage: 'listening',
