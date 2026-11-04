@@ -50,7 +50,8 @@ describe('PDF Extraction Reliability & Native OCR Bounds (P1)', () => {
     });
 
     it('does NOT reject short but completely valid candidate documents', () => {
-      const shortValid = 'Jane Doe — Staff Site Reliability Engineer. Certified Kubernetes Administrator (CKA).';
+      const shortValid =
+        'Jane Doe — Staff Site Reliability Engineer. Certified Kubernetes Administrator (CKA).';
       expect(isGarbledOrMojibakeText(shortValid)).toBe(false);
     });
   });

@@ -203,7 +203,6 @@ describe('Security Hardening & Path Validation', () => {
   });
 });
 
-
 describe('IPC sender identity validation', () => {
   const trustedUrl = 'http://localhost:5173/index.html';
 
@@ -235,19 +234,11 @@ describe('IPC sender identity validation', () => {
   it('rejects missing sender or sender frame metadata', () => {
     const window = createWindow();
     expect(
-      isTrustedSender(
-        { senderFrame: window.mainFrame },
-        window,
-        'http://localhost:5173'
-      )
+      isTrustedSender({ senderFrame: window.mainFrame }, window, 'http://localhost:5173')
     ).toBe(false);
-    expect(
-      isTrustedSender(
-        { sender: window.webContents },
-        window,
-        'http://localhost:5173'
-      )
-    ).toBe(false);
+    expect(isTrustedSender({ sender: window.webContents }, window, 'http://localhost:5173')).toBe(
+      false
+    );
   });
 
   it('rejects foreign WebContents, subframes, and mismatched frame URLs', () => {
