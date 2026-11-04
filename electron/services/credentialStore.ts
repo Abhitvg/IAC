@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
-export const ALLOWED_SERVICES = ['groq', 'openai', 'openrouter', 'ollama'] as const;
+export const ALLOWED_SERVICES = ['groq', 'groq-secondary', 'openai', 'openrouter', 'ollama'] as const;
 export type AllowedService = (typeof ALLOWED_SERVICES)[number];
 
 const FALLBACK_KEY_FILE = '.machine_secret';
@@ -81,7 +81,7 @@ export class CredentialStore {
     }
 
     let trimmed = key.trim();
-    if (service === 'groq') {
+    if (service === 'groq' || service === 'groq-secondary') {
       const m = trimmed.match(/gsk_[A-Za-z0-9_-]+/);
       if (!m) {
         throw new Error('Invalid Groq API key format. Groq API keys must begin with "gsk_".');
@@ -155,7 +155,7 @@ export class CredentialStore {
         }
 
         if (decrypted) {
-          if (service === 'groq') {
+          if (service === 'groq' || service === 'groq-secondary') {
             const m = decrypted.match(/gsk_[A-Za-z0-9_-]+/);
             if (m) return m[0];
             console.warn(
@@ -200,6 +200,7 @@ export class CredentialStore {
   public async listConfigured(): Promise<Record<AllowedService, boolean>> {
     const result: Record<AllowedService, boolean> = {
       groq: false,
+      'groq-secondary': false,
       openai: false,
       openrouter: false,
       ollama: false,
