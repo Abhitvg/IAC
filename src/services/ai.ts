@@ -1029,6 +1029,7 @@ export async function streamAnswer(
             callbacks.onDiagnostic?.(diag);
           }
         } catch (fbErr: any) {
+          if (requestSignal.aborted || fbErr?.name === 'AbortError') throw fbErr;
           fallbackDiagnostics.push(diag);
           callbacks.onDiagnostic?.(diag);
           console.warn(`[AI] Fallback to '${fbModel}' encountered error:`, fbErr?.message);
