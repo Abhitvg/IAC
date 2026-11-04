@@ -133,7 +133,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
 
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
         callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
+        await callbacks.onComplete?.(rawAnswer);
       });
 
       await InterviewEngine.handleEvent({
@@ -165,7 +165,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
 
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
         callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
+        await callbacks.onComplete?.(rawAnswer);
       });
 
       await InterviewEngine.handleEvent({
@@ -190,7 +190,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
 
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
         callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
+        await callbacks.onComplete?.(rawAnswer);
       });
 
       await InterviewEngine.handleEvent({
@@ -219,7 +219,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
 
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
         callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
+        await callbacks.onComplete?.(rawAnswer);
       });
 
       await InterviewEngine.handleEvent({
@@ -245,7 +245,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
 
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
         callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
+        await callbacks.onComplete?.(rawAnswer);
       });
 
       await InterviewEngine.handleEvent({
@@ -270,7 +270,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
 
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
         callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
+        await callbacks.onComplete?.(rawAnswer);
       });
 
       await InterviewEngine.handleEvent({
@@ -295,7 +295,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
 
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
         callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
+        await callbacks.onComplete?.(rawAnswer);
       });
 
       await InterviewEngine.handleEvent({
@@ -319,7 +319,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
 
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
         callbacks.onToken?.(rawAnswer);
-        callbacks.onComplete?.(rawAnswer);
+        await callbacks.onComplete?.(rawAnswer);
       });
 
       await InterviewEngine.handleEvent({
@@ -456,7 +456,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       });
 
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_p, _c, _l, callbacks) => {
-        callbacks.onComplete?.(rawAnswer);
+        await callbacks.onComplete?.(rawAnswer);
       });
 
       await InterviewEngine.handleEvent({
