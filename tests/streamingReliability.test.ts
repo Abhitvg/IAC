@@ -48,6 +48,55 @@ describe('Suite B: Streaming Reliability', () => {
     expect(errorThrown.message).toContain('AI stream closed without emitting any answer content');
   });
 
+  it('aborts the underlying fetch when the overall deadline expires', async () => {
+    let fetchSignal: AbortSignal | undefined;
+    global.fetch = vi.fn((_url: any, init: any) => {
+      fetchSignal = init.signal;
+      return new Promise(() => {});
+    }) as any;
+
+    await expect(
+      streamAnswer('Explain B-trees', baseConfig, 'java' as any, {}, undefined, {
+        overallTimeoutMs: 20,
+        inactivityTimeoutMs: 10,
+      })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(fetchSignal?.aborted).toBe(true);
+  });
+
+  it('aborts a stalled stream reader on inactivity deadline', async () => {
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull() { return new Promise(() => {}); },
+      cancel() { cancelled = true; },
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, headers: new Headers(), body: stream,
+    } as any);
+
+    await expect(
+      streamAnswer('Explain B-trees', baseConfig, 'java' as any, {}, undefined, {
+        overallTimeoutMs: 1000,
+        inactivityTimeoutMs: 20,
+      })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(cancelled).toBe(true);
+  });
+
+  it('does not treat Groq authentication failure as a model fallback opportunity', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      headers: new Headers(),
+      text: async () => '{"error":{"message":"invalid_api_key"}}',
+    } as any);
+    await expect(streamAnswer('Explain B-trees', baseConfig, 'java' as any, {}))
+      .rejects.toMatchObject({ status: 401 });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('throws error when response body is missing', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
