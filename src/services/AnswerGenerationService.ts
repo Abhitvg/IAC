@@ -407,6 +407,14 @@ export class AnswerGenerationService {
         /\b(explain|define|compare|difference|implement|algorithm|complexity|architecture|how does|what is)\b/i.test(
           params.text
         );
+      const candidateSpecificQuestion =
+        /\b(your (experience|project|role|contribution|responsibilit\w*|background)|my (experience|project|role)|what (did you|have you|were you|scale did you)|how did you|describe your|tell me about your|walk me through your|in your (previous|current))\b/i.test(
+          params.text
+        );
+      const candidateSpecificAnswer =
+        /\b(my|our|i led|i built|i designed|my experience|my role|my achievement|my project)\b/i.test(
+          cleanAnswer
+        );
       const hasCandidateContext = Boolean(
         (params.resumeText || '').trim() ||
         params.knowledgeBase ||
@@ -419,14 +427,10 @@ export class AnswerGenerationService {
           : CandidateKnowledgeBase.getActiveKnowledgeBase());
       let validation: any;
       try {
-        // General technical explanations are not candidate-experience claims. Keep
-        // candidate grounding enabled for personal history, metrics and achievements.
-        if (
-          technicalIntent &&
-          !/\b(my|our|i led|i built|i designed|my experience|my role|my achievement|my project)\b/i.test(
-            cleanAnswer
-          )
-        ) {
+        // Skip resume grounding only for genuinely general technical questions.
+        // A candidate-specific prompt must still validate project metrics and claims,
+        // even if the generated answer omits first-person pronouns.
+        if (technicalIntent && !candidateSpecificQuestion && !candidateSpecificAnswer) {
           validation = {
             adjustedAnswer: cleanAnswer,
             validationStatus: 'VALIDATED',
