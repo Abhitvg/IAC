@@ -3,7 +3,13 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
-export const ALLOWED_SERVICES = ['groq', 'groq-secondary', 'openai', 'openrouter', 'ollama'] as const;
+export const ALLOWED_SERVICES = [
+  'groq',
+  'groq-secondary',
+  'openai',
+  'openrouter',
+  'ollama',
+] as const;
 export type AllowedService = (typeof ALLOWED_SERVICES)[number];
 
 const FALLBACK_KEY_FILE = '.machine_secret';
@@ -23,7 +29,9 @@ function getFallbackAesKey(userDataPath: string, createIfMissing = true): Buffer
       throw new Error('The credential encryption key exists but cannot be read.', { cause: err });
     }
     if (existingKey.length !== 32) {
-      throw new Error('The persisted credential encryption key is invalid; refusing to replace it.');
+      throw new Error(
+        'The persisted credential encryption key is invalid; refusing to replace it.'
+      );
     }
     return existingKey;
   }
