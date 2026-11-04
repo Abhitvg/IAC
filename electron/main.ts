@@ -541,11 +541,11 @@ ipcMain.handle('dialog:open-file', async (event, options: Electron.OpenDialogOpt
   const chosenPath = result.filePaths[0];
 
   try {
-    const realChosen = fs.realpathSync(chosenPath);
-    approvedFilePaths.add(realChosen);
-    approvedFilePaths.add(path.resolve(chosenPath));
+    // Store only the resolved target at the moment of user approval. Keeping the
+    // lexical path would let a later symlink replacement inherit that approval.
+    approvedFilePaths.add(fs.realpathSync(chosenPath));
   } catch {
-    approvedFilePaths.add(path.resolve(chosenPath));
+    // Do not approve an unresolved path. A later read will fail closed.
   }
 
   return chosenPath;
