@@ -154,7 +154,11 @@ export class InterviewEngine {
     pendingQuestionTranscript = '';
     pendingQuestionDeadline = 0;
     pendingQuestionHardDeadline = 0;
-    useAppStore.getState().setIsIncompleteQuestionMode(false);
+    const state = useAppStore.getState();
+    state.setIsIncompleteQuestionMode(false);
+    if (state.pipelineStage === 'pending_finalization') {
+      state.setPipelineStage('listening');
+    }
   }
 
   /**
