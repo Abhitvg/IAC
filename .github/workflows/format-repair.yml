@@ -1,0 +1,35 @@
+name: One-off Prettier repair
+
+on:
+  push:
+    branches:
+      - security/bind-file-approvals-to-real-targets
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/bind-file-approvals-to-real-targets
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13
+          cache: npm
+      - run: npm ci
+      - name: Apply installed Prettier to the changed source file
+        run: npx prettier --write electron/main.ts
+      - name: Commit exact formatter output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add electron/main.ts
+          if git diff --cached --quiet; then
+            echo "No formatting changes were necessary."
+          else
+            git commit -m "style: format Electron main process"
+            git push
+          fi
