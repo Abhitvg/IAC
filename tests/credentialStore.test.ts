@@ -118,9 +118,34 @@ describe('CredentialStore', () => {
     const saved = mockStore.get('secure_credentials.openai');
     expect(saved.type).toBe('aes-gcm');
     expect(saved.data).not.toContain('sk-proj-testkey999');
+    expect(fs.existsSync(path.join(tempDir, '.machine_secret'))).toBe(true);
 
     const retrieved = await creds.getKey('openai');
     expect(retrieved).toBe('sk-proj-testkey999');
+  });
+
+  it('does not save credentials when the fallback encryption key cannot be persisted', async () => {
+    (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
+    const blockedPath = path.join(tempDir, 'not-a-directory');
+    fs.writeFileSync(blockedPath, 'this path is a file');
+
+    const creds = new CredentialStore(mockStore, blockedPath);
+    await expect(creds.setKey('openai', 'sk-proj-secret')).rejects.toThrow(
+      /Could not persist the credential encryption key/i
+    );
+    expect(mockStore.get('secure_credentials.openai')).toBeUndefined();
+  });
+
+  it('does not create a replacement key when decrypting a record with a missing key', async () => {
+    (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
+    mockStore.set('secure_credentials.openai', {
+      type: 'aes-gcm',
+      data: Buffer.alloc(32).toString('base64'),
+    });
+
+    const creds = new CredentialStore(mockStore, tempDir);
+    await expect(creds.getKey('openai')).resolves.toBeNull();
+    expect(fs.existsSync(path.join(tempDir, '.machine_secret'))).toBe(false);
   });
 
   it('deletes keys properly', async () => {
