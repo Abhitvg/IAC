@@ -46,7 +46,7 @@
     "@vitest/coverage-v8": "^5.0.5",
     "autoprefixer": "^10.6.1",
     "electron": "^33.2.0",
-    "electron-builder": "^25.1.8",
+    "electron-builder": "^26.18.1",
     "eslint": "^10.13.0",
     "postcss": "^8.5.31",
     "prettier": "^3.9.10",
