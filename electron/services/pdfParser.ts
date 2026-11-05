@@ -334,7 +334,10 @@ export async function parsePdfBuffer(
 
     const workerPath = resolveWorkerSrc();
     if (workerPath && pdfjs.GlobalWorkerOptions) {
-      pdfjs.GlobalWorkerOptions.workerSrc = workerPath;
+      // PDF.js loads its fake worker through Node's ESM loader. Windows drive
+      // paths such as D:\\repo\\node_modules\\... are parsed as URL schemes;
+      // convert the filesystem path to a file:// URL on every platform.
+      pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
     }
 
     const cMapUrl = resolveCMapUrl();
