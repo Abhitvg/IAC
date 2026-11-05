@@ -141,7 +141,7 @@ export class CredentialStore {
     }
 
     // Fallback AES-256-GCM
-    const aesKey = getFallbackAesKey(this.userDataPath, false);
+    const aesKey = getFallbackAesKey(this.userDataPath);
     const cipherText = aesEncrypt(trimmed, aesKey);
     this.store.set(`secure_credentials.${service}`, {
       type: 'aes-gcm',
@@ -182,7 +182,7 @@ export class CredentialStore {
             decrypted = safeStorage.decryptString(buffer);
           }
         } else if (record.type === 'aes-gcm') {
-          const aesKey = getFallbackAesKey(this.userDataPath);
+          const aesKey = getFallbackAesKey(this.userDataPath, false);
           decrypted = aesDecrypt(record.data, aesKey);
         }
 
