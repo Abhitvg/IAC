@@ -3,7 +3,10 @@ import fs from 'fs';
 
 test('launches the packaged Linux application and loads its production renderer', async () => {
   const executablePath = process.env.IAC_PACKAGED_EXECUTABLE;
-  test.skip(!executablePath, 'Packaged Linux smoke test runs only after electron-builder creates the artifact.');
+  test.skip(
+    !executablePath,
+    'Packaged Linux smoke test runs only after electron-builder creates the artifact.'
+  );
 
   if (!executablePath) return;
 
