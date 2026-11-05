@@ -79,6 +79,26 @@ describe('Electron Security & Path Traversal Audit', () => {
     expect(result.reason).toContain('exceeds maximum allowed');
   });
 
+  it('blocks dangling symlinks that could create files outside userData', () => {
+    const danglingLink = path.join(userDataDir, 'dangling-outside-link.txt');
+    const externalTarget = path.join(outsideDir, 'created-by-symlink.txt');
+
+    try {
+      fs.symlinkSync(externalTarget, danglingLink);
+    } catch {
+      // Some Windows environments require elevated symlink privileges.
+      return;
+    }
+
+    expect(fs.existsSync(danglingLink)).toBe(false);
+    expect(fs.lstatSync(danglingLink).isSymbolicLink()).toBe(true);
+
+    const result = validateWritePath(danglingLink, 32, userDataDir);
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('Destination is a symbolic link');
+    expect(fs.existsSync(externalTarget)).toBe(false);
+  });
+
   it('blocks delete path outside userData', () => {
     const deleteTarget = outsideFile;
     const result = validateDeletePath(deleteTarget, userDataDir);
