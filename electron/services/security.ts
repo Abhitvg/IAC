@@ -358,7 +358,10 @@ export function isTrustedAppOrigin(
     }
 
     // 3. Reject paths that contain traversal or alternate separators even after decoding
-    if (filePath.includes('..') || filePath.includes('\\')) {
+    // fileURLToPath returns native separators. Backslashes are valid separators
+    // on Windows, so reject traversal by path segment rather than rejecting the
+    // platform's normal path representation.
+    if (filePath.split(/[\\/]+/).some((segment) => segment === '..')) {
       return false;
     }
 
