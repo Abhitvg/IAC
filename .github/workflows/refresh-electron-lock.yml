@@ -1,0 +1,37 @@
+name: Refresh Electron 45 lockfile
+
+on:
+  push:
+    branches: [security/electron-45-upgrade]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: security/electron-45-upgrade
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+
+      - name: Regenerate package lock without running install scripts
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Commit updated package lock
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json is already current"
+            exit 0
+          fi
+          git add package-lock.json
+          git commit -m "chore: refresh lockfile for Electron 45"
+          git push origin HEAD:security/electron-45-upgrade
