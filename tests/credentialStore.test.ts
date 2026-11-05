@@ -118,6 +118,7 @@ describe('CredentialStore', () => {
     const saved = mockStore.get('secure_credentials.openai');
     expect(saved.type).toBe('aes-gcm');
     expect(saved.data).not.toContain('sk-proj-testkey999');
+    expect(fs.existsSync(path.join(tempDir, '.machine_secret'))).toBe(true);
 
     const retrieved = await creds.getKey('openai');
     expect(retrieved).toBe('sk-proj-testkey999');
