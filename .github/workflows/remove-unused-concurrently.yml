@@ -1,0 +1,39 @@
+name: Remove unused vulnerable dependency
+
+on:
+  push:
+    branches:
+      - security/remove-unused-concurrently
+
+permissions:
+  contents: write
+
+jobs:
+  remove:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/remove-unused-concurrently
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13
+          cache: npm
+      - name: Remove unused development dependency and update lockfile
+        run: npm uninstall --save-dev concurrently
+      - name: Verify dependency tree and report remaining audit totals
+        run: |
+          npm ci
+          npm audit --json > /tmp/audit.json || true
+          node -e "const r=require('/tmp/audit.json'); console.log('Remaining dependency advisories:', JSON.stringify(r.metadata?.vulnerabilities || {}));"
+      - name: Commit package manifest and lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No dependency changes were necessary."
+          else
+            git commit -m "chore: remove unused concurrently dependency"
+            git push
+          fi
