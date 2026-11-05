@@ -323,7 +323,7 @@ export const CanonicalCandidateProfileSchema = z
     achievements: z.array(CandidateAchievementSchema),
     preferences: CandidatePreferencesSchema,
     declarations: EmploymentDeclarationsSchema,
-    factsLedger: z.record(CanonicalFactSchema),
+    factsLedger: z.record(z.string(), CanonicalFactSchema),
   })
   .strict()
   .superRefine((profile, ctx) => {
