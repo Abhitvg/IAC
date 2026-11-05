@@ -64,7 +64,7 @@ export default function SettingsPanel() {
             setSecondaryGroqKey('');
           }
         } catch {
-          setErrorMessage('Unable to retrieve stored API key from keychain.');
+          setErrorMessage('Unable to retrieve stored API key.');
         }
       }
     };
@@ -132,7 +132,7 @@ export default function SettingsPanel() {
       await window.electronAPI?.setApiKey(settings.aiProvider, apiKey.trim());
       updateSetting('hasApiKey', apiKey.trim().length > 0);
     } catch {
-      setErrorMessage('Failed to encrypt and store API key in system keychain.');
+      setErrorMessage('Failed to encrypt and store API key locally.');
     } finally {
       setLoading(false);
     }
@@ -179,58 +179,63 @@ export default function SettingsPanel() {
           )}
 
           {/* AI Engine Settings */}
-          {settings.lastModelMigrationNotice && !noticeDismissed && !settings.lastModelMigrationNotice.dismissed && (
-            <div
-              style={{
-                padding: '12px',
-                marginBottom: '16px',
-                borderRadius: '6px',
-                border: '1px solid rgba(245, 158, 11, 0.4)',
-                backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                color: '#fef3c7',
-                fontSize: '13px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertTriangle style={{ width: '18px', height: '18px', color: '#f59e0b', flexShrink: 0 }} />
-                <span>
-                  <strong>Model Update Notice:</strong> Your configured model was automatically updated from{' '}
-                  <code style={{ color: '#fbbf24', fontFamily: 'monospace' }}>
-                    {settings.lastModelMigrationNotice.previousModel}
-                  </code>{' '}
-                  to{' '}
-                  <code style={{ color: '#34d399', fontFamily: 'monospace' }}>
-                    {settings.lastModelMigrationNotice.newModel}
-                  </code>
-                  . {settings.lastModelMigrationNotice.reason}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setNoticeDismissed(true);
-                  updateSetting('lastModelMigrationNotice', {
-                    ...settings.lastModelMigrationNotice,
-                    dismissed: true,
-                  });
-                }}
+          {settings.lastModelMigrationNotice &&
+            !noticeDismissed &&
+            !settings.lastModelMigrationNotice.dismissed && (
+              <div
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#fbbf24',
-                  textDecoration: 'underline',
-                  cursor: 'pointer',
-                  fontSize: '12px',
+                  padding: '12px',
+                  marginBottom: '16px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                  color: '#fef3c7',
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
                 }}
               >
-                Dismiss
-              </button>
-            </div>
-          )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertTriangle
+                    style={{ width: '18px', height: '18px', color: '#f59e0b', flexShrink: 0 }}
+                  />
+                  <span>
+                    <strong>Model Update Notice:</strong> Your configured model was automatically
+                    updated from{' '}
+                    <code style={{ color: '#fbbf24', fontFamily: 'monospace' }}>
+                      {settings.lastModelMigrationNotice.previousModel}
+                    </code>{' '}
+                    to{' '}
+                    <code style={{ color: '#34d399', fontFamily: 'monospace' }}>
+                      {settings.lastModelMigrationNotice.newModel}
+                    </code>
+                    . {settings.lastModelMigrationNotice.reason}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNoticeDismissed(true);
+                    updateSetting('lastModelMigrationNotice', {
+                      ...settings.lastModelMigrationNotice,
+                      dismissed: true,
+                    });
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#fbbf24',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                  }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
 
           <div className="settings-section">
             <h3 className="settings-section__title">AI Scoring &amp; Interview Provider</h3>
@@ -284,7 +289,9 @@ export default function SettingsPanel() {
                   </button>
                 </div>
                 <span className="field__hint">
-                  🔒 Stored securely in your OS keychain via Electron safeStorage.
+                  Encrypted with OS-backed Electron safeStorage when available. Otherwise, the app
+                  uses a user-data AES-GCM fallback that is not equivalent to OS keychain
+                  protection.
                 </span>
               </div>
             )}
@@ -312,11 +319,17 @@ export default function SettingsPanel() {
                     disabled={loading}
                     aria-label="Save secondary Groq API key securely"
                   >
-                    {loading ? <div className="spinner" style={{ width: 14, height: 14 }} /> : <Save size={14} />}
+                    {loading ? (
+                      <div className="spinner" style={{ width: 14, height: 14 }} />
+                    ) : (
+                      <Save size={14} />
+                    )}
                   </button>
                 </div>
                 <span className="field__hint">
-                  Optional. Stored separately in OS secure storage and used only when the primary key is rate-limited.
+                  Optional. Stored separately and used only when the primary key is rate-limited.
+                  OS-backed protection is used when available; the fallback is weaker than an OS
+                  keychain.
                 </span>
               </div>
             )}
@@ -434,17 +447,37 @@ export default function SettingsPanel() {
                 onClick={runPreflight}
                 disabled={preflightStatus.running}
               >
-                {preflightStatus.running ? 'Validating Model & Credentials...' : '⚡ Validate Model Preflight'}
+                {preflightStatus.running
+                  ? 'Validating Model & Credentials...'
+                  : '⚡ Validate Model Preflight'}
               </button>
 
               {preflightStatus.valid === true && (
-                <div style={{ marginTop: '8px', color: '#10b981', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div
+                  style={{
+                    marginTop: '8px',
+                    color: '#10b981',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
                   <CheckCircle style={{ width: '14px', height: '14px' }} />
                   <span>Model and API access verified successfully.</span>
                 </div>
               )}
               {preflightStatus.valid === false && (
-                <div style={{ marginTop: '8px', color: '#ef4444', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div
+                  style={{
+                    marginTop: '8px',
+                    color: '#ef4444',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
                   <ShieldAlert style={{ width: '14px', height: '14px', flexShrink: 0 }} />
                   <span>
                     <strong>[{preflightStatus.code}]:</strong> {preflightStatus.message}
@@ -483,7 +516,8 @@ export default function SettingsPanel() {
                     Synthesized Practice Audio Chimes
                   </span>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
-                    Gentle Web Audio chimes for round starts and celebration arpeggios upon drill completion.
+                    Gentle Web Audio chimes for round starts and celebration arpeggios upon drill
+                    completion.
                   </span>
                 </div>
                 <button
@@ -495,12 +529,12 @@ export default function SettingsPanel() {
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
                     soundMuted
-                      ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                      : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                   }`}
                 >
                   {soundMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
-                  <span>{soundMuted ? "🔇 Muted" : "🔊 Active"}</span>
+                  <span>{soundMuted ? '🔇 Muted' : '🔊 Active'}</span>
                 </button>
               </div>
             </div>
