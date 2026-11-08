@@ -5,6 +5,7 @@ on:
     branches: [fix/practice-wipe-failure-reporting]
     paths:
       - '.github/workflows/format-practice-wipe.yml'
+      - '.github/workflows/format-practice-wipe.yml'
       - 'src/components/SettingsPanel.tsx'
       - 'src/store/useAppStore.ts'
       - 'src/store/usePracticeStore.ts'
