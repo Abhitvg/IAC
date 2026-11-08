@@ -93,5 +93,17 @@ jobs:
         if: matrix.os == 'ubuntu-24.04'
         run: xvfb-run -a npx playwright test e2e/app-launch.spec.ts e2e/wizard-accessibility.spec.ts
 
+      - name: Build and launch packaged Linux application
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          npx electron-builder --dir --linux
+          APP_EXECUTABLE="$PWD/release/linux-unpacked/ai-interview-assistant"
+          test -x "$APP_EXECUTABLE"
+          test -f release/linux-unpacked/resources/app.asar
+          test -d release/linux-unpacked/resources/cmaps
+          test -d release/linux-unpacked/resources/standard_fonts
+          IAC_PACKAGED_EXECUTABLE="$APP_EXECUTABLE" xvfb-run -a npx playwright test e2e/packaged-linux-smoke.spec.ts
+
       - name: Verify zero secret leakage in build artifacts
         run: npm run security:check
