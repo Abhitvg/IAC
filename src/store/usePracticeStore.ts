@@ -310,10 +310,9 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       try {
         const llm = new LLMManager();
         llmCaller = async (prompt: string, _model: string) => {
-          const res = await llm.executeWithFallback(
-            [{ role: 'user', content: prompt }],
-            { temperature: 0.2 }
-          );
+          const res = await llm.executeWithFallback([{ role: 'user', content: prompt }], {
+            temperature: 0.2,
+          });
           return res.text;
         };
       } catch (_e) {
@@ -340,8 +339,7 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     // Update topic mastery in spaced repetition table (backward compatibility)
     const lastQuestion = activeSession.currentQuestion;
     const topicId = SpacedScheduler.identifyTopicForQuestion(lastQuestion);
-    const lastItemIndex =
-      updatedSession.questionHistory.length - (updatedSession.isActive ? 2 : 1);
+    const lastItemIndex = updatedSession.questionHistory.length - (updatedSession.isActive ? 2 : 1);
     const lastItem = updatedSession.questionHistory[lastItemIndex];
     const lastEval = lastItem?.evaluation;
 

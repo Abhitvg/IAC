@@ -235,7 +235,7 @@ interface InterviewState {
   settings: any;
   updateSetting: (k: string, v: any) => void;
   setSettingsOpen: (open: boolean) => void;
-  clearAllData: () => Promise<{ success: boolean; failedStores: string[] }>; 
+  clearAllData: () => Promise<{ success: boolean; failedStores: string[] }>;
   toast: any;
   currentResponse: any;
   diagnosticState: DiagnosticState;
