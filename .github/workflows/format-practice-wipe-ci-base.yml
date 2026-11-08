@@ -5,6 +5,7 @@ on:
     branches: [fix/practice-wipe-reporting-on-ci-base]
     paths:
       - '.github/workflows/format-practice-wipe-ci-base.yml'
+      - '.github/workflows/format-practice-wipe-ci-base.yml'
       - 'src/components/SettingsPanel.tsx'
       - 'src/store/useAppStore.ts'
       - 'src/store/usePracticeStore.ts'
