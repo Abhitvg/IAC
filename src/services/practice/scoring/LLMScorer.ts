@@ -17,7 +17,7 @@ export const ScorerDimensionOutputSchema = z.object({
 export const ScorerQuestionOutputSchema = z.object({
   id: z.string().optional().default(''),
   type: z.string().optional().default(''),
-  dimensions: z.record(ScorerDimensionOutputSchema),
+  dimensions: z.record(z.string(), ScorerDimensionOutputSchema),
   missed_points: z.array(z.string()).optional().default([]),
   model_answer_outline: z.array(z.string()).optional().default([]),
 });
