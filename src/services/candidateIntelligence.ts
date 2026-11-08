@@ -21,7 +21,7 @@ export {
   TrustedDocumentInspectionService,
   TrustedIndependentAuditService,
   SafePersistenceSchema,
-  };
+};
 
 /**
  * candidateIntelligence.ts
@@ -191,7 +191,10 @@ export class CandidateConfirmationWorkflow {
 
   public static issueTicket(
     targetId: string,
-    purpose: 'project_confirmation' | 'fact_confirmation' | 'technology_confirmation' = 'project_confirmation'
+    purpose:
+      | 'project_confirmation'
+      | 'fact_confirmation'
+      | 'technology_confirmation' = 'project_confirmation'
   ): CandidateConfirmationTicket {
     const ticketId = `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 12)}`;
     const issuedAt = Date.now();
@@ -218,7 +221,10 @@ export class CandidateConfirmationWorkflow {
   public static validateAndConsume(
     ticket: CandidateConfirmationTicket | undefined | null,
     expectedTargetId: string,
-    expectedPurpose: 'project_confirmation' | 'fact_confirmation' | 'technology_confirmation' = 'project_confirmation'
+    expectedPurpose:
+      | 'project_confirmation'
+      | 'fact_confirmation'
+      | 'technology_confirmation' = 'project_confirmation'
   ): boolean {
     if (!ticket || typeof ticket !== 'object' || !ticket.ticketId) {
       return false;
@@ -358,20 +364,10 @@ export interface GroundingViolation {
 }
 
 export type AnswerValidationStatus =
-  | 'PENDING'
-  | 'VALIDATED'
-  | 'FLAGGED'
-  | 'FLAGGED_BUT_QUALIFIED'
-  | 'BLOCKED'
-  | 'FAILED'
-  | 'ABORTED';
+  'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FLAGGED_BUT_QUALIFIED' | 'BLOCKED' | 'FAILED' | 'ABORTED';
 
 export type SpeakingDecisionOutcome =
-  | 'VALIDATED'
-  | 'FLAGGED_BUT_QUALIFIED'
-  | 'BLOCKED'
-  | 'FAILED'
-  | 'ABORTED';
+  'VALIDATED' | 'FLAGGED_BUT_QUALIFIED' | 'BLOCKED' | 'FAILED' | 'ABORTED';
 
 export interface SpeakingDecision {
   outcome: SpeakingDecisionOutcome;
@@ -442,7 +438,9 @@ export class CandidateKnowledgeBase {
     const rawMetrics = project.verifiedResults || [];
     const proposed = project.proposedDesigns || [];
 
-    const hasContrib = Boolean(project.personalContribution && project.personalContribution !== 'UNKNOWN');
+    const hasContrib = Boolean(
+      project.personalContribution && project.personalContribution !== 'UNKNOWN'
+    );
     const hasTeam = Boolean(project.teamContribution && project.teamContribution !== 'UNKNOWN');
     const hasOwner = Boolean(project.ownership && project.ownership !== 'unknown');
     const hasArch = Boolean(project.architecture && project.architecture !== 'UNKNOWN');
@@ -545,11 +543,36 @@ export class CandidateKnowledgeBase {
 
     // 1. Extract keyword technology mentions
     const techPatterns = [
-      'Java', 'TypeScript', 'JavaScript', 'Python', 'Go', 'C++', 'Rust',
-      'React', 'Next.js', 'Node.js', 'Express', 'Spring Boot',
-      'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Cassandra',
-      'Apache Kafka', 'RabbitMQ', 'Docker', 'Kubernetes', 'AWS', 'GCP',
-      'GraphQL', 'REST', 'gRPC', 'WebSockets', 'Linux', 'Git', 'CI/CD'
+      'Java',
+      'TypeScript',
+      'JavaScript',
+      'Python',
+      'Go',
+      'C++',
+      'Rust',
+      'React',
+      'Next.js',
+      'Node.js',
+      'Express',
+      'Spring Boot',
+      'PostgreSQL',
+      'MySQL',
+      'MongoDB',
+      'Redis',
+      'Cassandra',
+      'Apache Kafka',
+      'RabbitMQ',
+      'Docker',
+      'Kubernetes',
+      'AWS',
+      'GCP',
+      'GraphQL',
+      'REST',
+      'gRPC',
+      'WebSockets',
+      'Linux',
+      'Git',
+      'CI/CD',
     ];
 
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
@@ -594,12 +617,20 @@ export class CandidateKnowledgeBase {
       if (!line) continue;
       const lineNum = i + 1;
 
-      const projectHeaderMatch = line.match(/^(?:Projects?\s*:\s*)?([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)*)\s*(?:[|–—-]|\s-\s)\s*(.+)?$/i);
+      const projectHeaderMatch = line.match(
+        /^(?:Projects?\s*:\s*)?([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)*)\s*(?:[|–—-]|\s-\s)\s*(.+)?$/i
+      );
       const isHeaderLikely =
         projectHeaderMatch &&
         projectHeaderMatch[1].length > 2 &&
-        !/^(summary|education|experience|skills|certifications|awards|tools|languages|projects|technical\s+skills)$/i.test(projectHeaderMatch[1]) &&
-        (line.includes('–') || line.includes('—') || line.includes(' - ') || line.includes('|') || line.toLowerCase().startsWith('project:'));
+        !/^(summary|education|experience|skills|certifications|awards|tools|languages|projects|technical\s+skills)$/i.test(
+          projectHeaderMatch[1]
+        ) &&
+        (line.includes('–') ||
+          line.includes('—') ||
+          line.includes(' - ') ||
+          line.includes('|') ||
+          line.toLowerCase().startsWith('project:'));
 
       if (isHeaderLikely) {
         if (currentProject && currentProject.name) {
@@ -640,7 +671,13 @@ export class CandidateKnowledgeBase {
         ];
       } else if (currentProject) {
         if (/^(?:tech(?:nologies)?|stack|tools)\s*[:|-]/i.test(line)) {
-          const techs = line.split(/[:,|-]/).slice(1).join(',').split(',').map((t) => t.trim()).filter(Boolean);
+          const techs = line
+            .split(/[:,|-]/)
+            .slice(1)
+            .join(',')
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean);
           currentProject.technologyStack = [...(currentProject.technologyStack || []), ...techs];
           techs.forEach((t) => this.mentionedTechnologies.add(t.toLowerCase()));
           projectClaims.push({
@@ -675,23 +712,50 @@ export class CandidateKnowledgeBase {
         } else if (line.startsWith('•') || line.startsWith('-')) {
           const bullet = line.replace(/^[•-]\s*/, '').trim();
 
-          const isMetric = /\b\d+(?:%|x|\s*(?:users|qps|rps|ms|seconds|million|thousand)\b)/i.test(bullet);
-          const isPersonal = /\b(I\s+built|I\s+designed|I\s+personally|My\s+role|Solely|Personally)\b/i.test(bullet);
+          const isMetric = /\b\d+(?:%|x|\s*(?:users|qps|rps|ms|seconds|million|thousand)\b)/i.test(
+            bullet
+          );
+          const isPersonal =
+            /\b(I\s+built|I\s+designed|I\s+personally|My\s+role|Solely|Personally)\b/i.test(bullet);
           const isTeam = /\b(We\s+built|The\s+team|Collaborated|Co-authored)\b/i.test(bullet);
 
           let cType: ExtractedProjectClaim['claimType'];
           if (isMetric) {
             cType = 'metric';
-            projectClaims.push({ id: `claim-${currentProject.id}-${lineNum}`, claimType: cType, rawText: bullet, sourceLine: lineNum, confidence: 0.5 });
+            projectClaims.push({
+              id: `claim-${currentProject.id}-${lineNum}`,
+              claimType: cType,
+              rawText: bullet,
+              sourceLine: lineNum,
+              confidence: 0.5,
+            });
           } else if (isPersonal) {
             cType = 'personal_responsibility';
-            projectClaims.push({ id: `claim-${currentProject.id}-${lineNum}`, claimType: cType, rawText: bullet, sourceLine: lineNum, confidence: 0.6 });
+            projectClaims.push({
+              id: `claim-${currentProject.id}-${lineNum}`,
+              claimType: cType,
+              rawText: bullet,
+              sourceLine: lineNum,
+              confidence: 0.6,
+            });
           } else if (isTeam) {
             cType = 'team_responsibility';
-            projectClaims.push({ id: `claim-${currentProject.id}-${lineNum}`, claimType: cType, rawText: bullet, sourceLine: lineNum, confidence: 0.6 });
+            projectClaims.push({
+              id: `claim-${currentProject.id}-${lineNum}`,
+              claimType: cType,
+              rawText: bullet,
+              sourceLine: lineNum,
+              confidence: 0.6,
+            });
           } else {
             cType = 'description';
-            projectClaims.push({ id: `claim-${currentProject.id}-${lineNum}`, claimType: cType, rawText: bullet, sourceLine: lineNum, confidence: 0.5 });
+            projectClaims.push({
+              id: `claim-${currentProject.id}-${lineNum}`,
+              claimType: cType,
+              rawText: bullet,
+              sourceLine: lineNum,
+              confidence: 0.5,
+            });
           }
 
           currentProject.challenges = [...(currentProject.challenges || []), bullet];
@@ -701,7 +765,13 @@ export class CandidateKnowledgeBase {
             currentProject.architecture = archText;
           }
         } else if (/^Proposed(?:\s+Future)?\s*Designs?\s*[:|-]/i.test(line)) {
-          const designs = line.split(/[:,|-]/).slice(1).join(',').split(',').map((d) => d.trim()).filter(Boolean);
+          const designs = line
+            .split(/[:,|-]/)
+            .slice(1)
+            .join(',')
+            .split(',')
+            .map((d) => d.trim())
+            .filter(Boolean);
           currentProject.proposedDesigns = [...(currentProject.proposedDesigns || []), ...designs];
           projectClaims.push({
             id: `claim-${currentProject.id}-proposed-${lineNum}`,
@@ -840,12 +910,18 @@ export class CandidateKnowledgeBase {
     const unverifiedFields: string[] = [];
     const prov = project.fieldProvenance;
     if (prov) {
-      if (prov.personalContribution.verificationStatus !== 'CANDIDATE_CONFIRMED') unverifiedFields.push('personalContribution');
-      if (prov.ownership.verificationStatus !== 'CANDIDATE_CONFIRMED') unverifiedFields.push('ownership');
-      if (prov.actualTechnologyUsage.verificationStatus !== 'CANDIDATE_CONFIRMED') unverifiedFields.push('actualTechnologyUsage');
-      if (prov.architecture.verificationStatus !== 'CANDIDATE_CONFIRMED') unverifiedFields.push('architecture');
-      if (prov.deployment.verificationStatus !== 'CANDIDATE_CONFIRMED') unverifiedFields.push('deployment');
-      if (prov.security.verificationStatus !== 'CANDIDATE_CONFIRMED') unverifiedFields.push('security');
+      if (prov.personalContribution.verificationStatus !== 'CANDIDATE_CONFIRMED')
+        unverifiedFields.push('personalContribution');
+      if (prov.ownership.verificationStatus !== 'CANDIDATE_CONFIRMED')
+        unverifiedFields.push('ownership');
+      if (prov.actualTechnologyUsage.verificationStatus !== 'CANDIDATE_CONFIRMED')
+        unverifiedFields.push('actualTechnologyUsage');
+      if (prov.architecture.verificationStatus !== 'CANDIDATE_CONFIRMED')
+        unverifiedFields.push('architecture');
+      if (prov.deployment.verificationStatus !== 'CANDIDATE_CONFIRMED')
+        unverifiedFields.push('deployment');
+      if (prov.security.verificationStatus !== 'CANDIDATE_CONFIRMED')
+        unverifiedFields.push('security');
     }
 
     const session: CandidateReviewSession = {
@@ -890,7 +966,9 @@ export class CandidateKnowledgeBase {
       confirmation.personalContribution !== undefined &&
       (typeof confirmation.personalContribution !== 'string' ||
         confirmation.personalContribution.trim().length < 8 ||
-        /^(none|null|undefined|n\/a|unknown|placeholder|everything)$/i.test(confirmation.personalContribution.trim()))
+        /^(none|null|undefined|n\/a|unknown|placeholder|everything)$/i.test(
+          confirmation.personalContribution.trim()
+        ))
     ) {
       return false;
     }
@@ -1005,7 +1083,9 @@ export class CandidateKnowledgeBase {
 
     // 8. Performance metrics
     if (confirmation.performanceMetrics && Array.isArray(confirmation.performanceMetrics)) {
-      const validMetrics = confirmation.performanceMetrics.filter((m) => typeof m === 'string' && m.trim().length > 0);
+      const validMetrics = confirmation.performanceMetrics.filter(
+        (m) => typeof m === 'string' && m.trim().length > 0
+      );
       if (validMetrics.length > 0) {
         project.verifiedResults = validMetrics;
         project.fieldProvenance.performanceMetrics = {
@@ -1020,7 +1100,9 @@ export class CandidateKnowledgeBase {
 
     // 9. Proposed future designs
     if (confirmation.proposedFutureDesigns && Array.isArray(confirmation.proposedFutureDesigns)) {
-      const validProps = confirmation.proposedFutureDesigns.filter((p) => typeof p === 'string' && p.trim().length > 0);
+      const validProps = confirmation.proposedFutureDesigns.filter(
+        (p) => typeof p === 'string' && p.trim().length > 0
+      );
       if (validProps.length > 0) {
         project.proposedDesigns = validProps;
         project.fieldProvenance.proposedFutureDesigns = {
@@ -1059,13 +1141,13 @@ export class CandidateKnowledgeBase {
     projectId: string,
     inspection: ImmutableRepositoryInspectionResult | any
   ): boolean {
-    if (!projectId || !inspection || typeof inspection !== "object") return false;
+    if (!projectId || !inspection || typeof inspection !== 'object') return false;
     const project = this.projects.get(projectId.toLowerCase().trim());
     if (!project) return false;
 
     // Strict Trust Boundary:
     // Reject any unsealed, malformed, or tampered inspection result.
-    if (!inspection.__inspectionSeal || typeof inspection.__inspectionSeal !== "string") {
+    if (!inspection.__inspectionSeal || typeof inspection.__inspectionSeal !== 'string') {
       return false;
     }
 
@@ -1086,7 +1168,11 @@ export class CandidateKnowledgeBase {
 
     // Reject placeholder hashes such as mock-sha256
     const allFilesValid = inspection.inspectedFiles.every(
-      (f: any) => f && typeof f.path === "string" && typeof f.sha256 === "string" && /^[a-f0-9]{64}$/i.test(f.sha256)
+      (f: any) =>
+        f &&
+        typeof f.path === 'string' &&
+        typeof f.sha256 === 'string' &&
+        /^[a-f0-9]{64}$/i.test(f.sha256)
     );
     if (!allFilesValid) {
       return false;
@@ -1095,21 +1181,26 @@ export class CandidateKnowledgeBase {
     const sealedInspection: ImmutableRepositoryInspectionResult = inspection;
     const now = Date.now();
     project.repositoryUrl = sealedInspection.repositoryUrl;
-    project.verificationStatus = "REPOSITORY_SUPPORTED";
+    project.verificationStatus = 'REPOSITORY_SUPPORTED';
     project.storedInspection = sealedInspection;
     project.evidenceSeal = sealedInspection.__inspectionSeal;
-    project.dependencyDeclarations = Array.isArray(sealedInspection.dependencyDeclarations) ? [...sealedInspection.dependencyDeclarations] : [];
+    project.dependencyDeclarations = Array.isArray(sealedInspection.dependencyDeclarations)
+      ? [...sealedInspection.dependencyDeclarations]
+      : [];
 
     if (!project.fieldProvenance) {
       project.fieldProvenance = CandidateKnowledgeBase.createInitialFieldProvenance(project);
     }
 
     // 1. Promote actual technology usage from inspected files
-    if (Array.isArray(sealedInspection.verifiedTechnologies) && sealedInspection.verifiedTechnologies.length > 0) {
+    if (
+      Array.isArray(sealedInspection.verifiedTechnologies) &&
+      sealedInspection.verifiedTechnologies.length > 0
+    ) {
       project.fieldProvenance.actualTechnologyUsage = {
         value: [...sealedInspection.verifiedTechnologies],
-        provenance: "REPOSITORY_INSPECTED",
-        verificationStatus: "REPOSITORY_SUPPORTED",
+        provenance: 'REPOSITORY_INSPECTED',
+        verificationStatus: 'REPOSITORY_SUPPORTED',
         confirmedAt: now,
         evidenceSource: `Git tree at commit ${sealedInspection.resolvedCommitSha} (${sealedInspection.inspectedFiles.length} files inspected)`,
       };
@@ -1119,12 +1210,15 @@ export class CandidateKnowledgeBase {
     }
 
     // 2. Promote detected architecture if discovered during code analysis
-    if (sealedInspection.detectedArchitecture && sealedInspection.detectedArchitecture.trim().length > 3) {
+    if (
+      sealedInspection.detectedArchitecture &&
+      sealedInspection.detectedArchitecture.trim().length > 3
+    ) {
       project.architecture = sealedInspection.detectedArchitecture.trim();
       project.fieldProvenance.architecture = {
         value: sealedInspection.detectedArchitecture.trim(),
-        provenance: "REPOSITORY_INSPECTED",
-        verificationStatus: "REPOSITORY_SUPPORTED",
+        provenance: 'REPOSITORY_INSPECTED',
+        verificationStatus: 'REPOSITORY_SUPPORTED',
         confirmedAt: now,
         evidenceSource: `Source tree structure analysis at commit ${sealedInspection.resolvedCommitSha}`,
       };
@@ -1134,17 +1228,23 @@ export class CandidateKnowledgeBase {
     project.ownership = sealedInspection.authorRole;
     project.fieldProvenance.ownership = {
       value: sealedInspection.authorRole,
-      provenance: "REPOSITORY_INSPECTED",
-      verificationStatus: sealedInspection.candidateAuthorshipStatus === "COMMIT_AUTHOR" ? "REPOSITORY_SUPPORTED" : "UNKNOWN",
+      provenance: 'REPOSITORY_INSPECTED',
+      verificationStatus:
+        sealedInspection.candidateAuthorshipStatus === 'COMMIT_AUTHOR'
+          ? 'REPOSITORY_SUPPORTED'
+          : 'UNKNOWN',
       confirmedAt: now,
       evidenceSource: `Commit author assessment: ${sealedInspection.candidateAuthorshipStatus}`,
     };
 
     project.confirmationRecord = {
       confirmedAt: now,
-      source: "primary_repository_commit",
+      source: 'primary_repository_commit',
       confirmedBy: sealedInspection.authorEmailFound || 'git_inspector',
-      confirmedFields: ['actualTechnologyUsage', ...(sealedInspection.detectedArchitecture ? ['architecture'] : [])],
+      confirmedFields: [
+        'actualTechnologyUsage',
+        ...(sealedInspection.detectedArchitecture ? ['architecture'] : []),
+      ],
       evidenceDetails: `Inspected ${sealedInspection.repositoryUrl} @ ${sealedInspection.resolvedCommitSha} (${sealedInspection.inspectedFiles.length} files, ${sealedInspection.verifiedTechnologies.length} tech)`,
       verificationLevel: 'REPOSITORY_SUPPORTED',
     };
@@ -1169,8 +1269,8 @@ export class CandidateKnowledgeBase {
     const project = this.projects.get(projectId.toLowerCase().trim());
     if (!project) return false;
 
-        // Verify application HMAC seal on document inspection result
-    if (!inspection.__documentSeal || typeof inspection.__documentSeal !== "string") {
+    // Verify application HMAC seal on document inspection result
+    if (!inspection.__documentSeal || typeof inspection.__documentSeal !== 'string') {
       return false;
     }
     if (!TrustedDocumentInspectionService.verifySeal(inspection)) {
@@ -1178,7 +1278,10 @@ export class CandidateKnowledgeBase {
     }
 
     // Require genuine cryptographic issuer validation and personal work attestation
-    if (!inspection.issuerValidated || inspection.authenticityStatus !== "CRYPTOGRAPHICALLY_VERIFIED") {
+    if (
+      !inspection.issuerValidated ||
+      inspection.authenticityStatus !== 'CRYPTOGRAPHICALLY_VERIFIED'
+    ) {
       return false;
     }
 
@@ -1278,15 +1381,18 @@ export class CandidateKnowledgeBase {
     const project = this.projects.get(projectId.toLowerCase().trim());
     if (!project) return false;
 
-        // Verify HMAC seal generated after cryptographic auditor signature check
-    if (!audit.__auditSeal || typeof audit.__auditSeal !== "string") {
+    // Verify HMAC seal generated after cryptographic auditor signature check
+    if (!audit.__auditSeal || typeof audit.__auditSeal !== 'string') {
       return false;
     }
     if (!TrustedIndependentAuditService.verifySeal(audit)) {
       return false;
     }
 
-    if (audit.projectId && audit.projectId.toLowerCase().trim() !== project.name.toLowerCase().trim()) {
+    if (
+      audit.projectId &&
+      audit.projectId.toLowerCase().trim() !== project.name.toLowerCase().trim()
+    ) {
       return false;
     }
 
@@ -1372,7 +1478,13 @@ export class CandidateKnowledgeBase {
     );
     if (!isTicketValid) return false;
 
-    const untrustedSources = ['llm_generation', 'ai_assistant', 'model_output', 'untrusted_input', 'chat_generation'];
+    const untrustedSources = [
+      'llm_generation',
+      'ai_assistant',
+      'model_output',
+      'untrusted_input',
+      'chat_generation',
+    ];
     if (untrustedSources.includes(String(evidence.source).toLowerCase())) {
       return false;
     }
@@ -1453,7 +1565,13 @@ export class CandidateKnowledgeBase {
 
     // Reject untrusted or AI sources
     const source = confirmedDetails.source;
-    const untrustedSources = ['llm_generation', 'ai_assistant', 'model_output', 'untrusted_input', 'chat_generation'];
+    const untrustedSources = [
+      'llm_generation',
+      'ai_assistant',
+      'model_output',
+      'untrusted_input',
+      'chat_generation',
+    ];
     if (source && untrustedSources.includes(String(source).toLowerCase())) {
       return false;
     }
@@ -1475,7 +1593,9 @@ export class CandidateKnowledgeBase {
       !confirmedDetails.personalContribution ||
       typeof confirmedDetails.personalContribution !== 'string' ||
       confirmedDetails.personalContribution.trim().length < 8 ||
-      /^(none|null|undefined|n\/a|unknown|placeholder|everything)$/i.test(confirmedDetails.personalContribution.trim())
+      /^(none|null|undefined|n\/a|unknown|placeholder|everything)$/i.test(
+        confirmedDetails.personalContribution.trim()
+      )
     ) {
       return false;
     }
@@ -1498,7 +1618,8 @@ export class CandidateKnowledgeBase {
     });
 
     if (confirmed && project.confirmationRecord) {
-      project.confirmationRecord.source = (confirmedDetails.source as TrustedConfirmationSource) || 'explicit_candidate_action';
+      project.confirmationRecord.source =
+        (confirmedDetails.source as TrustedConfirmationSource) || 'explicit_candidate_action';
     }
     return confirmed;
   }
@@ -1508,7 +1629,11 @@ export class CandidateKnowledgeBase {
    * If an application restart or key rotation has occurred and old keys are not retained,
    * unauthenticated seals are explicitly marked REQUIRES_REINSPECTION.
    */
-  public validateStoredEvidenceSeals(): { totalChecked: number; invalidatedCount: number; requiresReinspection: string[] } {
+  public validateStoredEvidenceSeals(): {
+    totalChecked: number;
+    invalidatedCount: number;
+    requiresReinspection: string[];
+  } {
     let invalidatedCount = 0;
     const requiresReinspection: string[] = [];
 
@@ -1532,16 +1657,22 @@ export class CandidateKnowledgeBase {
         if (!isValid) {
           project.verificationStatus = 'REQUIRES_REINSPECTION';
           if (project.fieldProvenance) {
-            for (const key of Object.keys(project.fieldProvenance) as Array<keyof ProjectFieldProvenance>) {
+            for (const key of Object.keys(project.fieldProvenance) as Array<
+              keyof ProjectFieldProvenance
+            >) {
               const field = project.fieldProvenance[key];
               if (field && isIndependentlyVerified(field.verificationStatus)) {
                 field.verificationStatus = 'REQUIRES_REINSPECTION';
-                field.evidenceSource = 'Session restart or key rotation invalidated inspection seal; mandatory reinspection required';
+                field.evidenceSource =
+                  'Session restart or key rotation invalidated inspection seal; mandatory reinspection required';
               }
             }
           }
           // Remove technologies associated with this project from verifiedTechnologies
-          if (project.fieldProvenance?.actualTechnologyUsage?.value && Array.isArray(project.fieldProvenance.actualTechnologyUsage.value)) {
+          if (
+            project.fieldProvenance?.actualTechnologyUsage?.value &&
+            Array.isArray(project.fieldProvenance.actualTechnologyUsage.value)
+          ) {
             for (const t of project.fieldProvenance.actualTechnologyUsage.value) {
               this.verifiedTechnologies.delete(String(t).toLowerCase());
             }
@@ -1557,23 +1688,33 @@ export class CandidateKnowledgeBase {
   /**
    * Reinspects a repository under the active key to refresh expired/invalidated seals.
    */
-  public reinspectRepository(projectId: string, candidateIdentity?: { fullName: string; email?: string }): any {
+  public reinspectRepository(
+    projectId: string,
+    candidateIdentity?: { fullName: string; email?: string }
+  ): any {
     const project = this.getProject(projectId);
     if (!project || !project.repositoryUrl) return { success: false };
     try {
       const sandbox = TrustedRepositoryInspectionService.getSandboxProvider();
       const fixture = (sandbox as any).fixtures?.get(project.repositoryUrl.toLowerCase());
       if (fixture) {
-        const inspectedFiles = Object.entries(fixture.files as Record<string, string>).map(([path, content]) => ({
-          path,
-          sha256: sha256Hex(content),
-          sizeBytes: (content as string).length,
-        }));
+        const inspectedFiles = Object.entries(fixture.files as Record<string, string>).map(
+          ([path, content]) => ({
+            path,
+            sha256: sha256Hex(content),
+            sizeBytes: (content as string).length,
+          })
+        );
         const now = Date.now();
         const inspectionId = `insp-repo-${now}-${Math.random().toString(16).substring(2, 10)}`;
         const verifiedTech: string[] = [];
         const keyId = ProtectedEvidenceKeyManager.getActiveKeyId();
-        const filesHash = sha256Hex(inspectedFiles.map((f) => `${f.path}:${f.sha256}`).sort().join(";"));
+        const filesHash = sha256Hex(
+          inspectedFiles
+            .map((f) => `${f.path}:${f.sha256}`)
+            .sort()
+            .join(';')
+        );
         const canonicalData = JSON.stringify({
           inspectionId,
           keyId,
@@ -1584,7 +1725,7 @@ export class CandidateKnowledgeBase {
           filesCount: inspectedFiles.length,
           filesHash,
           techCount: verifiedTech.length,
-          authorshipStatus: "COMMIT_AUTHOR",
+          authorshipStatus: 'COMMIT_AUTHOR',
         });
         const seal = hmacSha256Hex(ProtectedEvidenceKeyManager.getActiveSecret(), canonicalData);
         const inspectionResult: any = {
@@ -1598,22 +1739,22 @@ export class CandidateKnowledgeBase {
           filesActuallyInspected: inspectedFiles.length,
           filesOmittedCount: 0,
           omittedFilePathsSample: [],
-          inspectionScope: "FULL_REPOSITORY",
+          inspectionScope: 'FULL_REPOSITORY',
           inspectedFiles,
           verifiedTechnologies: verifiedTech,
           dependencyDeclarations: [],
           sourceCodeUsage: [],
-          candidateAuthorshipStatus: "COMMIT_AUTHOR",
-          authorRole: "contributor",
+          candidateAuthorshipStatus: 'COMMIT_AUTHOR',
+          authorRole: 'contributor',
           productionDeploymentVerified: false,
           businessOutcomesVerified: false,
           inspectionLimitations: {
-            provider: "sandbox",
+            provider: 'sandbox',
             totalFilesDiscovered: inspectedFiles.length,
             filesInspected: inspectedFiles.length,
             filesOmittedCount: 0,
             omittedFilePathsSample: [],
-            inspectionScope: "FULL_REPOSITORY",
+            inspectionScope: 'FULL_REPOSITORY',
             truncated: false,
             maxInspectedFilesLimit: 25,
             byteLimitPerFile: 1048576,
@@ -1622,10 +1763,10 @@ export class CandidateKnowledgeBase {
           supportedFields: {
             technologies: verifiedTech,
             architecture: undefined,
-            productionDeployment: "UNKNOWN",
-            businessOutcomes: "UNKNOWN",
-            performanceMetrics: "UNKNOWN",
-            ownership: "contributor",
+            productionDeployment: 'UNKNOWN',
+            businessOutcomes: 'UNKNOWN',
+            performanceMetrics: 'UNKNOWN',
+            ownership: 'contributor',
           },
           __keyId: keyId,
           __inspectionSeal: seal,
@@ -1820,9 +1961,14 @@ export class CandidateKnowledgeBase {
 
     let projectSection = '';
     if (relevantProject) {
-      const prov = relevantProject.fieldProvenance || CandidateKnowledgeBase.createInitialFieldProvenance(relevantProject);
+      const prov =
+        relevantProject.fieldProvenance ||
+        CandidateKnowledgeBase.createInitialFieldProvenance(relevantProject);
 
-      const formatField = (field: FieldProvenanceRecord<any>, emptyFallback: string = 'UNKNOWN'): string => {
+      const formatField = (
+        field: FieldProvenanceRecord<any>,
+        emptyFallback: string = 'UNKNOWN'
+      ): string => {
         const val = field.value;
         const status = field.verificationStatus;
         if (!val || val === 'UNKNOWN' || (Array.isArray(val) && val.length === 0)) {
@@ -1833,14 +1979,14 @@ export class CandidateKnowledgeBase {
           status === 'CANDIDATE_CONFIRMED'
             ? '[CANDIDATE_CONFIRMED: Self-reported by candidate — NOT independently verified]'
             : status === 'REPOSITORY_SUPPORTED'
-            ? '[REPOSITORY_SUPPORTED: Corroborated by code repository inspection]'
-            : status === 'DOCUMENT_SUPPORTED'
-            ? '[DOCUMENT_SUPPORTED: Supported by primary documents]'
-            : status === 'INDEPENDENTLY_VERIFIED'
-            ? '[INDEPENDENTLY_VERIFIED: Certified by independent credential/audit]'
-            : status === 'PROPOSED_DESIGN'
-            ? '[PROPOSED_DESIGN: Future proposal — NOT a completed past implementation]'
-            : '[RESUME_REPORTED: Unverified self-claim from resume text]';
+              ? '[REPOSITORY_SUPPORTED: Corroborated by code repository inspection]'
+              : status === 'DOCUMENT_SUPPORTED'
+                ? '[DOCUMENT_SUPPORTED: Supported by primary documents]'
+                : status === 'INDEPENDENTLY_VERIFIED'
+                  ? '[INDEPENDENTLY_VERIFIED: Certified by independent credential/audit]'
+                  : status === 'PROPOSED_DESIGN'
+                    ? '[PROPOSED_DESIGN: Future proposal — NOT a completed past implementation]'
+                    : '[RESUME_REPORTED: Unverified self-claim from resume text]';
 
         return `${tag}: "${textVal}"`;
       };
@@ -1851,7 +1997,8 @@ export class CandidateKnowledgeBase {
           : 'UNKNOWN (not established in verified source documents — DO NOT FABRICATE)';
 
       const resultsDisplay =
-        prov.performanceMetrics.value.length > 0 && prov.performanceMetrics.verificationStatus === 'CANDIDATE_CONFIRMED'
+        prov.performanceMetrics.value.length > 0 &&
+        prov.performanceMetrics.verificationStatus === 'CANDIDATE_CONFIRMED'
           ? `${formatField(prov.performanceMetrics)}`
           : 'NONE RECORDED (Candidate must not invent metrics, user numbers, or performance benchmarks)';
 
@@ -1876,12 +2023,12 @@ PROJECT PROFILE — "${relevantProject.name}" (Status: ${relevantProject.verific
         relevantProject.verificationStatus === 'CANDIDATE_CONFIRMED'
           ? 'CANDIDATE_CONFIRMED (Self-reported by candidate — NOT independently verified)'
           : relevantProject.verificationStatus === 'INDEPENDENTLY_VERIFIED'
-          ? 'INDEPENDENTLY_VERIFIED (Certified by independent credential/audit)'
-          : relevantProject.verificationStatus === 'REPOSITORY_SUPPORTED'
-          ? 'REPOSITORY_SUPPORTED (Corroborated by code repository inspection)'
-          : relevantProject.verificationStatus === 'DOCUMENT_SUPPORTED'
-          ? 'DOCUMENT_SUPPORTED (Supported by primary documents)'
-          : 'RESUME_REPORTED (Unverified self-claim from resume text)'
+            ? 'INDEPENDENTLY_VERIFIED (Certified by independent credential/audit)'
+            : relevantProject.verificationStatus === 'REPOSITORY_SUPPORTED'
+              ? 'REPOSITORY_SUPPORTED (Corroborated by code repository inspection)'
+              : relevantProject.verificationStatus === 'DOCUMENT_SUPPORTED'
+                ? 'DOCUMENT_SUPPORTED (Supported by primary documents)'
+                : 'RESUME_REPORTED (Unverified self-claim from resume text)'
       }
 • Problem Statement: ${formatField(prov.projectExistence)}
 • Verified Architecture: ${archDisplay}
@@ -1953,7 +2100,9 @@ export class FactualGroundingValidator {
 
     // Helper for negation check
     const isDirectlyNegated = (str: string): boolean => {
-      return /\b(?:never|did\s+not|didn't|not|was\s+not|wasn't|were\s+not|weren't|no)\s+(?:personally\s+|single-handedly\s+|directly\s+)?(?:built|build|implemented|implement|architected|architect|designed|design|scaled|scale|achieved|achieve|handled|handle|processed|process|served|serve|reached|reach|deployed|deploy|maintained|maintain|responsible|hit|claimed|claim|led|lead|managed|manage)\b/i.test(str);
+      return /\b(?:never|did\s+not|didn't|not|was\s+not|wasn't|were\s+not|weren't|no)\s+(?:personally\s+|single-handedly\s+|directly\s+)?(?:built|build|implemented|implement|architected|architect|designed|design|scaled|scale|achieved|achieve|handled|handle|processed|process|served|serve|reached|reach|deployed|deploy|maintained|maintain|responsible|hit|claimed|claim|led|lead|managed|manage)\b/i.test(
+        str
+      );
     };
 
     // 1. Detect fabricated user counts, QPS, or scale numbers claimed as personal/past achievements
@@ -1963,14 +2112,24 @@ export class FactualGroundingValidator {
     if (scaleMatches) {
       for (const match of scaleMatches) {
         const matchIndex = answer.indexOf(match);
-        const sentenceStart = Math.max(0, answer.lastIndexOf('.', matchIndex) + 1, answer.lastIndexOf('\n', matchIndex) + 1);
+        const sentenceStart = Math.max(
+          0,
+          answer.lastIndexOf('.', matchIndex) + 1,
+          answer.lastIndexOf('\n', matchIndex) + 1
+        );
         let sentenceEnd = answer.indexOf('.', matchIndex);
         if (sentenceEnd === -1) sentenceEnd = answer.length;
         const sentence = answer.slice(sentenceStart, sentenceEnd).trim();
 
         // Check if sentence is an impersonal/general engineering explanation or forward-looking proposed design
-        const isGeneralOrHypothetical = /\b(typically|generally|in general|conceptually|for example|such as|standard practice|a common pattern|in a typical|one could|one would|one might|engineers typically|to handle|systems that handle|if a service|when scaling|can handle|could handle|might experience|would need|would require|a system processing)\b/i.test(sentence);
-        const isProposedDesign = /\b(proposed design|proposal|future design|prospective architecture|in our proposed|to scale this in the future|if I were to)\b/i.test(sentence);
+        const isGeneralOrHypothetical =
+          /\b(typically|generally|in general|conceptually|for example|such as|standard practice|a common pattern|in a typical|one could|one would|one might|engineers typically|to handle|systems that handle|if a service|when scaling|can handle|could handle|might experience|would need|would require|a system processing)\b/i.test(
+            sentence
+          );
+        const isProposedDesign =
+          /\b(proposed design|proposal|future design|prospective architecture|in our proposed|to scale this in the future|if I were to)\b/i.test(
+            sentence
+          );
         const hasPersonalPastClaim =
           /\b(I|we|my|our|my team)\s+(?:scaled|achieved|handled|processed|served|supported|reached|managed|built|deployed|maintained)\b/i.test(
             sentence
@@ -1989,8 +2148,15 @@ export class FactualGroundingValidator {
           continue;
         }
 
-        const isVerified = kb.getAllFacts().some((f) => f.fact.toLowerCase().includes(match.toLowerCase())) ||
-          kb.getAllProjects().some((p) => p.verifiedResults && p.verifiedResults.some((vr) => vr.toLowerCase().includes(match.toLowerCase())));
+        const isVerified =
+          kb.getAllFacts().some((f) => f.fact.toLowerCase().includes(match.toLowerCase())) ||
+          kb
+            .getAllProjects()
+            .some(
+              (p) =>
+                p.verifiedResults &&
+                p.verifiedResults.some((vr) => vr.toLowerCase().includes(match.toLowerCase()))
+            );
 
         if (!isVerified) {
           addViolation({
@@ -2015,13 +2181,21 @@ export class FactualGroundingValidator {
     if (benchmarkMatches) {
       for (const match of benchmarkMatches) {
         const matchIndex = answer.indexOf(match);
-        const sentenceStart = Math.max(0, answer.lastIndexOf('.', matchIndex) + 1, answer.lastIndexOf('\n', matchIndex) + 1);
+        const sentenceStart = Math.max(
+          0,
+          answer.lastIndexOf('.', matchIndex) + 1,
+          answer.lastIndexOf('\n', matchIndex) + 1
+        );
         let sentenceEnd = answer.indexOf('.', matchIndex);
         if (sentenceEnd === -1) sentenceEnd = answer.length;
         const sentence = answer.slice(sentenceStart, sentenceEnd).trim();
 
-        const isGeneralOrHypothetical = /\b(typically|generally|in general|conceptually|for example|such as|standard practice|a common pattern|can reduce|could improve|might cut|often reduces|one can|adding an index)\b/i.test(sentence);
-        const hasPersonalPastClaim = /\b(I|we|my|our|my team)\s+(?:reduced|improved|boosted|cut|slashed)\b/i.test(sentence);
+        const isGeneralOrHypothetical =
+          /\b(typically|generally|in general|conceptually|for example|such as|standard practice|a common pattern|can reduce|could improve|might cut|often reduces|one can|adding an index)\b/i.test(
+            sentence
+          );
+        const hasPersonalPastClaim =
+          /\b(I|we|my|our|my team)\s+(?:reduced|improved|boosted|cut|slashed)\b/i.test(sentence);
 
         if (isGeneralOrHypothetical && !hasPersonalPastClaim) {
           // Permitted: General engineering explanation
@@ -2032,8 +2206,15 @@ export class FactualGroundingValidator {
           continue;
         }
 
-        const isVerified = kb.getAllFacts().some((f) => f.fact.toLowerCase().includes(match.toLowerCase())) ||
-          kb.getAllProjects().some((p) => p.verifiedResults && p.verifiedResults.some((vr) => vr.toLowerCase().includes(match.toLowerCase())));
+        const isVerified =
+          kb.getAllFacts().some((f) => f.fact.toLowerCase().includes(match.toLowerCase())) ||
+          kb
+            .getAllProjects()
+            .some(
+              (p) =>
+                p.verifiedResults &&
+                p.verifiedResults.some((vr) => vr.toLowerCase().includes(match.toLowerCase()))
+            );
 
         if (!isVerified) {
           addViolation({
@@ -2048,63 +2229,92 @@ export class FactualGroundingValidator {
 
     // 3. Detect claims of exactly-once delivery in distributed systems
     if (
-      /\b(?:guarantees?|provides?|ensures?)\s+exactly-once\s+(?:delivery|processing)(?:\s+across)?\b/i.test(answer) &&
+      /\b(?:guarantees?|provides?|ensures?)\s+exactly-once\s+(?:delivery|processing)(?:\s+across)?\b/i.test(
+        answer
+      ) &&
       !/\bidempotenc(?:y|e)|deduplicat/i.test(answer)
     ) {
       addViolation({
         claimText: 'guarantees exactly-once delivery across',
         category: 'unsupported_distributed_guarantee',
         severity: 'high',
-        reason: 'Unsupported distributed systems claim: exactly-once delivery across independent systems without idempotency mechanics',
+        reason:
+          'Unsupported distributed systems claim: exactly-once delivery across independent systems without idempotency mechanics',
       });
     }
 
     // 4. Detect unverified team leadership claims ("I led five engineers")
-    const leadershipMatch = answer.match(/\bI\s+(?:led|lead|managed|headed|supervised|directed)\s+(?:(?:the|a|our)\s+)?(?:[a-z0-9_-]+\s+){0,3}(?:team|engineers?|developers?|people|reports?|members?|squad|group|org|organization)\b/i);
-    const isLeadershipNegated = /\b(?:did\s+not|didn't|never|not|was\s+not|wasn't)\s+(?:lead|led|manage|managed|head|headed|supervise|supervised|direct|directed)\b/i.test(answer);
-    if (leadershipMatch && !isLeadershipNegated) {
-      const hasVerifiedLeadership = kb.getAllFacts().some(
-        (f) => /\b(led|lead|manager|managed|supervisor|director)\b/i.test(f.fact) && isCandidateOrIndependentlyVerified(f.verificationStatus)
+    const leadershipMatch = answer.match(
+      /\bI\s+(?:led|lead|managed|headed|supervised|directed)\s+(?:(?:the|a|our)\s+)?(?:[a-z0-9_-]+\s+){0,3}(?:team|engineers?|developers?|people|reports?|members?|squad|group|org|organization)\b/i
+    );
+    const isLeadershipNegated =
+      /\b(?:did\s+not|didn't|never|not|was\s+not|wasn't)\s+(?:lead|led|manage|managed|head|headed|supervise|supervised|direct|directed)\b/i.test(
+        answer
       );
+    if (leadershipMatch && !isLeadershipNegated) {
+      const hasVerifiedLeadership = kb
+        .getAllFacts()
+        .some(
+          (f) =>
+            /\b(led|lead|manager|managed|supervisor|director)\b/i.test(f.fact) &&
+            isCandidateOrIndependentlyVerified(f.verificationStatus)
+        );
       if (!hasVerifiedLeadership) {
         addViolation({
           claimText: leadershipMatch[0],
           category: 'unverified_leadership',
           severity: 'critical',
-          reason: 'Candidate claims team leadership/management when leadership role is unknown or unverified',
+          reason:
+            'Candidate claims team leadership/management when leadership role is unknown or unverified',
         });
       }
     }
 
     // 5. Detect unverified architecture ownership claims ("I architected the complete backend")
-    const archClaimMatch = answer.match(/\bI\s+(?:single-handedly\s+|personally\s+)?(?:architected|designed|spearheaded)\s+(?:the\s+)?(?:entire|complete|whole|core)?\s*(?:system|backend|platform|infrastructure|architecture)\b/i);
+    const archClaimMatch = answer.match(
+      /\bI\s+(?:single-handedly\s+|personally\s+)?(?:architected|designed|spearheaded)\s+(?:the\s+)?(?:entire|complete|whole|core)?\s*(?:system|backend|platform|infrastructure|architecture)\b/i
+    );
     if (archClaimMatch) {
-      const hasVerifiedArchitectRole = kb.getAllProjects().some(
-        (p) => (p.ownership === 'architect' || p.ownership === 'sole_owner') && isCandidateOrIndependentlyVerified(p.verificationStatus)
-      );
+      const hasVerifiedArchitectRole = kb
+        .getAllProjects()
+        .some(
+          (p) =>
+            (p.ownership === 'architect' || p.ownership === 'sole_owner') &&
+            isCandidateOrIndependentlyVerified(p.verificationStatus)
+        );
       if (!hasVerifiedArchitectRole) {
         addViolation({
           claimText: archClaimMatch[0],
           category: 'unverified_architecture',
           severity: 'critical',
-          reason: 'Candidate claims complete architecture ownership when role is unverified or team-based',
+          reason:
+            'Candidate claims complete architecture ownership when role is unverified or team-based',
         });
       }
     }
 
     // 6. Detect unverified specific backend component implementation ("I personally implemented the payment engine")
-    const backendComponentRegex = /\bI\s+(?:personally\s+|single-handedly\s+)?(?:built|implemented|wrote|developed|engineered|designed|architected|created)\s+(?:the\s+)?(?:complete\s+|entire\s+)?([a-z0-9_-]+(?:\s+[a-z0-9_-]+){0,3}\s+(?:engine|subsystem|gateway|pipeline|service|layer|queue|topology|clustering|consumer|broker|producer|framework|logger|limiter|module|cluster|protocol))\b/i;
-    const backendComponentEndRegex = /\bI\s+(?:built|implemented|wrote|developed|engineered|designed|architected|created)\s+(?:the\s+)?(?:complete\s+|entire\s+)?([a-z0-9_-]+(?:\s+[a-z0-9_-]+){0,3}\s+(?:engine|subsystem|gateway|pipeline|service|layer|queue|topology|clustering|consumer|broker|producer|framework|logger|limiter|module|cluster|protocol))\s+personally\b/i;
-    const backendClaimMatch = answer.match(backendComponentRegex) || answer.match(backendComponentEndRegex);
-    const isBackendNegated = /\b(?:did\s+not|didn't|never|not|was\s+not|wasn't)\s+(?:personally\s+|single-handedly\s+)?(?:build|built|implement|implemented|write|wrote|develop|developed|engineer|engineered|design|designed|architect|architected|create|created)\b/i.test(answer);
+    const backendComponentRegex =
+      /\bI\s+(?:personally\s+|single-handedly\s+)?(?:built|implemented|wrote|developed|engineered|designed|architected|created)\s+(?:the\s+)?(?:complete\s+|entire\s+)?([a-z0-9_-]+(?:\s+[a-z0-9_-]+){0,3}\s+(?:engine|subsystem|gateway|pipeline|service|layer|queue|topology|clustering|consumer|broker|producer|framework|logger|limiter|module|cluster|protocol))\b/i;
+    const backendComponentEndRegex =
+      /\bI\s+(?:built|implemented|wrote|developed|engineered|designed|architected|created)\s+(?:the\s+)?(?:complete\s+|entire\s+)?([a-z0-9_-]+(?:\s+[a-z0-9_-]+){0,3}\s+(?:engine|subsystem|gateway|pipeline|service|layer|queue|topology|clustering|consumer|broker|producer|framework|logger|limiter|module|cluster|protocol))\s+personally\b/i;
+    const backendClaimMatch =
+      answer.match(backendComponentRegex) || answer.match(backendComponentEndRegex);
+    const isBackendNegated =
+      /\b(?:did\s+not|didn't|never|not|was\s+not|wasn't)\s+(?:personally\s+|single-handedly\s+)?(?:build|built|implement|implemented|write|wrote|develop|developed|engineer|engineered|design|designed|architect|architected|create|created)\b/i.test(
+        answer
+      );
     if (backendClaimMatch && !isBackendNegated) {
       const fullClaim = backendClaimMatch[0];
       const componentName = backendClaimMatch[1].toLowerCase();
-      const isCompleteOrSole = /\b(complete|entire|single-handedly|personally|sole)\b/i.test(fullClaim);
+      const isCompleteOrSole = /\b(complete|entire|single-handedly|personally|sole)\b/i.test(
+        fullClaim
+      );
 
       const hasVerifiedComponent = kb.getAllProjects().some((p) => {
         if (!isCandidateOrIndependentlyVerified(p.verificationStatus)) return false;
-        if (isCompleteOrSole && p.ownership !== 'architect' && p.ownership !== 'sole_owner') return false;
+        if (isCompleteOrSole && p.ownership !== 'architect' && p.ownership !== 'sole_owner')
+          return false;
         return (
           p.personalContribution &&
           p.personalContribution !== 'UNKNOWN' &&
@@ -2123,39 +2333,54 @@ export class FactualGroundingValidator {
     }
 
     // 7. Detect unverified database design claims
-    const dbClaimMatch = answer.match(/\bI\s+(?:personally\s+)?(?:designed|architected|created)\s+(?:the\s+)?(?:database\s+schema|data\s+model|sharding\s+strategy|partitioning\s+scheme|replication\s+topology)\b/i);
+    const dbClaimMatch = answer.match(
+      /\bI\s+(?:personally\s+)?(?:designed|architected|created)\s+(?:the\s+)?(?:database\s+schema|data\s+model|sharding\s+strategy|partitioning\s+scheme|replication\s+topology)\b/i
+    );
     if (dbClaimMatch) {
-      const hasVerifiedDbDesign = kb.getAllProjects().some(
-        (p) => p.databaseDesign && p.databaseDesign !== 'UNKNOWN' && isCandidateOrIndependentlyVerified(p.verificationStatus)
-      );
+      const hasVerifiedDbDesign = kb
+        .getAllProjects()
+        .some(
+          (p) =>
+            p.databaseDesign &&
+            p.databaseDesign !== 'UNKNOWN' &&
+            isCandidateOrIndependentlyVerified(p.verificationStatus)
+        );
       if (!hasVerifiedDbDesign) {
         addViolation({
           claimText: dbClaimMatch[0],
           category: 'unverified_database',
           severity: 'high',
-          reason: 'Candidate claims database architecture/sharding design without verified database design record',
+          reason:
+            'Candidate claims database architecture/sharding design without verified database design record',
         });
       }
     }
 
     // 8. Detect unverified security implementation claims ("I secured the API", "I implemented the security framework")
-    const secClaimMatch = answer.match(/\bI\s+(?:personally\s+)?(?:secured|hardened)\s+(?:the\s+)?[A-Za-z0-9_-]+/i) || answer.match(/\bI\s+(?:personally\s+)?(?:implemented|architected|engineered|built)\s+(?:the\s+)?(?:security|auth|authentication|authorization|oauth\d?|jwt|encryption|rbac|zero-trust)\s*(?:framework|system|pipeline|service|layer|protocol)?\b/i);
-    if (secClaimMatch) {
-      const hasVerifiedSec = kb.getAllProjects().some(
-        (p) => {
-          const prov = p.fieldProvenance;
-          return (
-            (prov && prov.security && isCandidateOrIndependentlyVerified(prov.security.verificationStatus)) ||
-            (p.security && p.security !== 'UNKNOWN' && isCandidateOrIndependentlyVerified(p.verificationStatus))
-          );
-        }
+    const secClaimMatch =
+      answer.match(/\bI\s+(?:personally\s+)?(?:secured|hardened)\s+(?:the\s+)?[A-Za-z0-9_-]+/i) ||
+      answer.match(
+        /\bI\s+(?:personally\s+)?(?:implemented|architected|engineered|built)\s+(?:the\s+)?(?:security|auth|authentication|authorization|oauth\d?|jwt|encryption|rbac|zero-trust)\s*(?:framework|system|pipeline|service|layer|protocol)?\b/i
       );
+    if (secClaimMatch) {
+      const hasVerifiedSec = kb.getAllProjects().some((p) => {
+        const prov = p.fieldProvenance;
+        return (
+          (prov &&
+            prov.security &&
+            isCandidateOrIndependentlyVerified(prov.security.verificationStatus)) ||
+          (p.security &&
+            p.security !== 'UNKNOWN' &&
+            isCandidateOrIndependentlyVerified(p.verificationStatus))
+        );
+      });
       if (!hasVerifiedSec) {
         addViolation({
           claimText: secClaimMatch[0],
           category: 'unverified_security',
           severity: 'high',
-          reason: 'Candidate claims security/auth architecture implementation when security details are unknown or unverified',
+          reason:
+            'Candidate claims security/auth architecture implementation when security details are unknown or unverified',
         });
       }
     }
@@ -2164,20 +2389,31 @@ export class FactualGroundingValidator {
     const deployClaimMatch = cleanAnswerForValidation.match(
       /\b(?:I\s+(?:personally\s+|single-handedly\s+)?(?:deployed|provisioned|maintained|orchestrated|managed\s+production\s+deployments|configured\s+and\s+deployed)|I\s+was\s+responsible\s+for\s+production\s+deployment)\s*([^.?!;\n]*)/i
     );
-    const isDeployNegated = /\b(?:did\s+not|didn't|never|not|was\s+not|wasn't)\s+(?:personally\s+|single-handedly\s+)?(?:deploy|deployed|provision|provisioned|maintain|maintained|orchestrate|orchestrated|responsible)\b/i.test(answer);
+    const isDeployNegated =
+      /\b(?:did\s+not|didn't|never|not|was\s+not|wasn't)\s+(?:personally\s+|single-handedly\s+)?(?:deploy|deployed|provision|provisioned|maintain|maintained|orchestrate|orchestrated|responsible)\b/i.test(
+        answer
+      );
     if (deployClaimMatch && !isDeployNegated) {
       const deployClause = deployClaimMatch[1].trim();
-      const isDeployVerified = kb.getAllProjects().some(
-        (p) =>
-          isCandidateOrIndependentlyVerified(p.verificationStatus) &&
-          p.deployment &&
-          p.deployment !== 'UNKNOWN' &&
-          deployClause.toLowerCase().includes(p.deployment.toLowerCase())
-      ) || kb.getAllFacts().some(
-        (f) =>
-          ((f.category as string) === 'deployment' || (f.category as string) === 'cloud' || /\b(deploy|cloud|kubernetes|aws|docker)\b/i.test(f.fact)) &&
-          isCandidateOrIndependentlyVerified(f.verificationStatus)
-      );
+      const isDeployVerified =
+        kb
+          .getAllProjects()
+          .some(
+            (p) =>
+              isCandidateOrIndependentlyVerified(p.verificationStatus) &&
+              p.deployment &&
+              p.deployment !== 'UNKNOWN' &&
+              deployClause.toLowerCase().includes(p.deployment.toLowerCase())
+          ) ||
+        kb
+          .getAllFacts()
+          .some(
+            (f) =>
+              ((f.category as string) === 'deployment' ||
+                (f.category as string) === 'cloud' ||
+                /\b(deploy|cloud|kubernetes|aws|docker)\b/i.test(f.fact)) &&
+              isCandidateOrIndependentlyVerified(f.verificationStatus)
+          );
 
       if (!isDeployVerified) {
         addViolation({
@@ -2192,16 +2428,30 @@ export class FactualGroundingValidator {
     // 10. Comprehensive unsupported personal action claims:
     // Detects: I built, I implemented, I architected, I designed, I deployed, I led, I managed,
     // I optimized, I secured, I scaled, I delivered, I achieved
-    const personalActionRegex = /\b(?:I|we)\s+(?:personally\s+|single-handedly\s+|directly\s+|successfully\s+)?(built|implemented|architected|designed|deployed|led|managed|optimized|secured|scaled|delivered|achieved)\s+([^.?!;\n]+)/gi;
+    const personalActionRegex =
+      /\b(?:I|we)\s+(?:personally\s+|single-handedly\s+|directly\s+|successfully\s+)?(built|implemented|architected|designed|deployed|led|managed|optimized|secured|scaled|delivered|achieved)\s+([^.?!;\n]+)/gi;
     let actionMatch: RegExpExecArray | null;
     while ((actionMatch = personalActionRegex.exec(answer)) !== null) {
       const verb = actionMatch[1].toLowerCase();
       const fullClaim = actionMatch[0];
 
       if (verb === 'optimized' || verb === 'scaled') {
-        const hasVerifiedOptimization = kb.getAllFacts().some(
-          (f) => /\b(optimiz|scal|performance|latency|throughput)\b/i.test(f.fact) && isCandidateOrIndependentlyVerified(f.verificationStatus)
-        ) || kb.getAllProjects().some((p) => p.verifiedResults && p.verifiedResults.length > 0 && isCandidateOrIndependentlyVerified(p.verificationStatus));
+        const hasVerifiedOptimization =
+          kb
+            .getAllFacts()
+            .some(
+              (f) =>
+                /\b(optimiz|scal|performance|latency|throughput)\b/i.test(f.fact) &&
+                isCandidateOrIndependentlyVerified(f.verificationStatus)
+            ) ||
+          kb
+            .getAllProjects()
+            .some(
+              (p) =>
+                p.verifiedResults &&
+                p.verifiedResults.length > 0 &&
+                isCandidateOrIndependentlyVerified(p.verificationStatus)
+            );
 
         if (!hasVerifiedOptimization) {
           addViolation({
@@ -2212,9 +2462,14 @@ export class FactualGroundingValidator {
           });
         }
       } else if (verb === 'delivered' || verb === 'achieved') {
-        const hasVerifiedOutcome = kb.getAllFacts().some(
-          (f) => isCandidateOrIndependentlyVerified(f.verificationStatus) && (f.category === 'outcome' || f.category === 'metric')
-        ) || kb.getAllProjects().some((p) => p.verifiedResults && p.verifiedResults.length > 0);
+        const hasVerifiedOutcome =
+          kb
+            .getAllFacts()
+            .some(
+              (f) =>
+                isCandidateOrIndependentlyVerified(f.verificationStatus) &&
+                (f.category === 'outcome' || f.category === 'metric')
+            ) || kb.getAllProjects().some((p) => p.verifiedResults && p.verifiedResults.length > 0);
 
         if (!hasVerifiedOutcome) {
           addViolation({
@@ -2228,7 +2483,8 @@ export class FactualGroundingValidator {
     }
 
     // 11. Passive voice detection ("... was built/optimized/designed/secured/scaled by me")
-    const passiveActionRegex = /\b([A-Za-z0-9_-]+(?:\s+[A-Za-z0-9_-]+){0,3})\s+(?:was|were)\s+(built|implemented|architected|designed|deployed|led|managed|optimized|secured|scaled|delivered|achieved)\s+by\s+me\b/gi;
+    const passiveActionRegex =
+      /\b([A-Za-z0-9_-]+(?:\s+[A-Za-z0-9_-]+){0,3})\s+(?:was|were)\s+(built|implemented|architected|designed|deployed|led|managed|optimized|secured|scaled|delivered|achieved)\s+by\s+me\b/gi;
     let passiveMatch: RegExpExecArray | null;
     while ((passiveMatch = passiveActionRegex.exec(cleanAnswerForValidation)) !== null) {
       const fullClaim = passiveMatch[0];
@@ -2237,7 +2493,11 @@ export class FactualGroundingValidator {
       const hasProof = kb.getAllProjects().some((p) => {
         if (!isCandidateOrIndependentlyVerified(p.verificationStatus)) return false;
         const contrib = (p.personalContribution || '').toLowerCase();
-        return contrib.includes(componentClaimed) || (componentClaimed.includes('portfolio') && contrib.includes('portfolio')) || (componentClaimed.includes('order') && contrib.includes('order'));
+        return (
+          contrib.includes(componentClaimed) ||
+          (componentClaimed.includes('portfolio') && contrib.includes('portfolio')) ||
+          (componentClaimed.includes('order') && contrib.includes('order'))
+        );
       });
       if (!hasProof) {
         addViolation({
@@ -2254,7 +2514,9 @@ export class FactualGroundingValidator {
       /\b(?:the\s+database\s+schema|the\s+persistence\s+engine|the\s+distributed\s+messaging\s+bus|the\s+authentication\s+cluster)\s+(?:was|were)\s+(?:architected|designed|implemented|engineered|built)\s+(?:to\s+handle|to\s+guarantee|to\s+withstand|from\s+scratch)\b/i
     );
     if (passiveArchMatch) {
-      const anyLeadOrArch = kb.getAllProjects().some((p) => p.ownership === 'sole_owner' || p.ownership === 'architect');
+      const anyLeadOrArch = kb
+        .getAllProjects()
+        .some((p) => p.ownership === 'sole_owner' || p.ownership === 'architect');
       if (!anyLeadOrArch) {
         addViolation({
           claimText: passiveArchMatch[0],
@@ -2268,16 +2530,17 @@ export class FactualGroundingValidator {
     // 12. Dynamic technology claim detection
     const answerSentences = answer.split(/[.?!;\n]+/);
     for (const s of answerSentences) {
-      const personalWorkRegex = /\bI\s+(?:personally\s+|single-handedly\s+)?(?:built|implemented|architected|deployed|managed|designed|developed|engineered|created|wrote)\b/i;
+      const personalWorkRegex =
+        /\bI\s+(?:personally\s+|single-handedly\s+)?(?:built|implemented|architected|deployed|managed|designed|developed|engineered|created|wrote)\b/i;
       if (personalWorkRegex.test(s)) {
         for (const tech of kb.getMentionedTechnologies()) {
-          const esc = tech.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const techRegex = new RegExp(`(^|\\W)${esc}($|\\W)`, "i");
+          const esc = tech.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const techRegex = new RegExp(`(^|\\W)${esc}($|\\W)`, 'i');
           if (techRegex.test(s) && !kb.isTechnologyVerified(tech)) {
             addViolation({
               claimText: s.trim(),
-              category: "unverified_technology",
-              severity: "high",
+              category: 'unverified_technology',
+              severity: 'high',
               reason: `Candidate claims personal production work with ${tech}, which is only listed as a keyword or is unverified`,
             });
           }
@@ -2287,14 +2550,23 @@ export class FactualGroundingValidator {
           /\bI\s+(?:personally\s+|single-handedly\s+)?(?:built|implemented|architected|deployed|managed|designed|developed|engineered|created|wrote)\s+[^.?!;\n]+?\s+(?:using|in|with|via|on)\s+([A-Za-z0-9#+.-]+(?:\s+[A-Za-z0-9#+.-]+){0,2})/i
         );
         if (techUsageMatch) {
-          const rawClaimedTech = techUsageMatch[1].trim().replace(/\s+(?:for|smart|filters?|production|safety)\b.*$/i, '');
+          const rawClaimedTech = techUsageMatch[1]
+            .trim()
+            .replace(/\s+(?:for|smart|filters?|production|safety)\b.*$/i, '');
           const words = rawClaimedTech.split(/\s+(?:and|or|\/)\s+|\s+/);
           for (const word of words) {
             const cleanWord = word.trim().replace(/^[^a-zA-Z0-9#+]+|[^a-zA-Z0-9#+]+$/g, '');
-            const isStopWord = /^(?:the|a|an|our|my|its|for|safety|production|from|all|on|as|part|of|frontend|backend|team|components?|views?|tables?|dashboard|layer|tier|system|platform|service|services|project|projects|feature|features|code|work|app|application|pipeline|internal|external|existing|scratch|repository|repo|codebase|store|module|modules|utility|utilities|trading|matching|order|portfolio)$/i.test(cleanWord);
-            const isProjectWord = kb.getAllProjects().some((p) =>
-              p.name.toLowerCase().includes(cleanWord.toLowerCase()) || cleanWord.toLowerCase().includes(p.name.toLowerCase())
-            );
+            const isStopWord =
+              /^(?:the|a|an|our|my|its|for|safety|production|from|all|on|as|part|of|frontend|backend|team|components?|views?|tables?|dashboard|layer|tier|system|platform|service|services|project|projects|feature|features|code|work|app|application|pipeline|internal|external|existing|scratch|repository|repo|codebase|store|module|modules|utility|utilities|trading|matching|order|portfolio)$/i.test(
+                cleanWord
+              );
+            const isProjectWord = kb
+              .getAllProjects()
+              .some(
+                (p) =>
+                  p.name.toLowerCase().includes(cleanWord.toLowerCase()) ||
+                  cleanWord.toLowerCase().includes(p.name.toLowerCase())
+              );
             if (
               cleanWord.length > 1 &&
               !isStopWord &&
@@ -2315,11 +2587,15 @@ export class FactualGroundingValidator {
     }
 
     // 13. Detect claiming unverified tier-1 employers
-    const companyMatches = answer.match(/\b(?:at|for)\s+(Google|Amazon|Meta|Apple|Netflix|Microsoft|Uber|Airbnb)\b/gi);
+    const companyMatches = answer.match(
+      /\b(?:at|for)\s+(Google|Amazon|Meta|Apple|Netflix|Microsoft|Uber|Airbnb)\b/gi
+    );
     if (companyMatches) {
       for (const comp of companyMatches) {
         const cleanName = comp.replace(/^(?:at|for)\s+/i, '').trim();
-        const isVerified = kb.getAllFacts().some((f) => f.fact.toLowerCase().includes(cleanName.toLowerCase()));
+        const isVerified = kb
+          .getAllFacts()
+          .some((f) => f.fact.toLowerCase().includes(cleanName.toLowerCase()));
         if (!isVerified) {
           addViolation({
             claimText: cleanName,
@@ -2336,7 +2612,10 @@ export class FactualGroundingValidator {
       if (proj.proposedDesigns && proj.proposedDesigns.length > 0) {
         for (const proposed of proj.proposedDesigns) {
           const escProposed = proposed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const completedRegex = new RegExp(`\\bI\\s+(?:implemented|deployed|built)\\s+${escProposed}`, 'i');
+          const completedRegex = new RegExp(
+            `\\bI\\s+(?:implemented|deployed|built)\\s+${escProposed}`,
+            'i'
+          );
           if (completedRegex.test(answer)) {
             addViolation({
               claimText: proposed,
@@ -2351,8 +2630,12 @@ export class FactualGroundingValidator {
 
     // 15. Detect claiming sole creator/author when ownership is team_member, contributor, or unknown
     if (
-      /\b(?:I was the sole (?:creator|author|engineer|developer|architect|owner)|I single-handedly (?:built|created|wrote|founded|designed|engineered|implemented)|my own solo project)\b/i.test(answer) ||
-      /\bI\s+architected\s+the\s+entire\s+platform\s+without\s+any\s+team\s+assistance\b/i.test(answer)
+      /\b(?:I was the sole (?:creator|author|engineer|developer|architect|owner)|I single-handedly (?:built|created|wrote|founded|designed|engineered|implemented)|my own solo project)\b/i.test(
+        answer
+      ) ||
+      /\bI\s+architected\s+the\s+entire\s+platform\s+without\s+any\s+team\s+assistance\b/i.test(
+        answer
+      )
     ) {
       const anySole = kb.getAllProjects().some((p) => p.ownership === 'sole_owner');
       if (!anySole) {
@@ -2360,24 +2643,37 @@ export class FactualGroundingValidator {
           claimText: 'sole author claim',
           category: 'unsupported_ownership',
           severity: 'critical',
-          reason: 'Candidate claims sole authorship/creator status without verified sole ownership evidence',
+          reason:
+            'Candidate claims sole authorship/creator status without verified sole ownership evidence',
         });
       }
     }
 
-        // 17. Detect unverified team delivery claims ("Our team delivered X", "The team delivered X")
-    const teamDeliveryMatch = answer.match(/\b(?:our\s+team|the\s+team|my\s+team)\s+(?:delivered|achieved|built|migrated|scaled|launched|replaced|rebuilt|overhauled|transitioned|implemented)\s+([^.?!;\n]+)/i);
+    // 17. Detect unverified team delivery claims ("Our team delivered X", "The team delivered X")
+    const teamDeliveryMatch = answer.match(
+      /\b(?:our\s+team|the\s+team|my\s+team)\s+(?:delivered|achieved|built|migrated|scaled|launched|replaced|rebuilt|overhauled|transitioned|implemented)\s+([^.?!;\n]+)/i
+    );
     if (teamDeliveryMatch) {
-      const hasVerifiedTeam = kb.getAllProjects().some(
-        (p) => p.teamContribution && p.teamContribution !== "UNKNOWN" && isCandidateOrIndependentlyVerified(p.verificationStatus)
-      ) || kb.getAllFacts().some(
-        (f) => f.category === "outcome" && isCandidateOrIndependentlyVerified(f.verificationStatus)
-      );
+      const hasVerifiedTeam =
+        kb
+          .getAllProjects()
+          .some(
+            (p) =>
+              p.teamContribution &&
+              p.teamContribution !== 'UNKNOWN' &&
+              isCandidateOrIndependentlyVerified(p.verificationStatus)
+          ) ||
+        kb
+          .getAllFacts()
+          .some(
+            (f) =>
+              f.category === 'outcome' && isCandidateOrIndependentlyVerified(f.verificationStatus)
+          );
       if (!hasVerifiedTeam) {
         addViolation({
           claimText: teamDeliveryMatch[0],
-          category: "unverified_team_achievement" as GroundingViolation["category"],
-          severity: "high",
+          category: 'unverified_team_achievement' as GroundingViolation['category'],
+          severity: 'high',
           reason: `Team achievement claim ("${teamDeliveryMatch[0]}") unsupported: candidate team membership or verified team delivery is unknown`,
         });
       }
@@ -2386,19 +2682,23 @@ export class FactualGroundingValidator {
     // 16. Indirect personal attribution claims
     const indirectAttributionPatterns = [
       {
-        regex: /\b(?:we\s+(?:had\s+(?:full|complete)\s+ownership|owned|claimed\s+ownership)|(?:our\s+team|my\s+group|my\s+team|the\s+team)\s+(?:owned|had\s+(?:complete|full)\s+ownership|maintained\s+full\s+authority))\b/i,
+        regex:
+          /\b(?:we\s+(?:had\s+(?:full|complete)\s+ownership|owned|claimed\s+ownership)|(?:our\s+team|my\s+group|my\s+team|the\s+team)\s+(?:owned|had\s+(?:complete|full)\s+ownership|maintained\s+full\s+authority))\b/i,
         category: 'unsupported_ownership',
       },
       {
-        regex: /\b(?:I\s+(?:led|spearheaded|directed|managed\s+the\s+technical\s+roadmap|orchestrated)|as\s+(?:the\s+)?(?:technical\s+lead|tech\s+lead|lead\s+architect|engineering\s+lead|team\s+lead))\b/i,
+        regex:
+          /\b(?:I\s+(?:led|spearheaded|directed|managed\s+the\s+technical\s+roadmap|orchestrated)|as\s+(?:the\s+)?(?:technical\s+lead|tech\s+lead|lead\s+architect|engineering\s+lead|team\s+lead))\b/i,
         category: 'unverified_leadership_impact',
       },
       {
-        regex: /\bI\s+was\s+(?:directly\s+|personally\s+|solely\s+)?responsible\s+for\s+([^.?!;\n]+)/i,
+        regex:
+          /\bI\s+was\s+(?:directly\s+|personally\s+|solely\s+)?responsible\s+for\s+([^.?!;\n]+)/i,
         category: 'unverified_responsibility',
       },
       {
-        regex: /\b(?:my\s+responsibility\s+was|my\s+role\s+was\s+to\s+(?:lead|architect|drive|own))\s+([^.?!;\n]+)/i,
+        regex:
+          /\b(?:my\s+responsibility\s+was|my\s+role\s+was\s+to\s+(?:lead|architect|drive|own))\s+([^.?!;\n]+)/i,
         category: 'unverified_responsibility',
       },
       {
@@ -2406,7 +2706,8 @@ export class FactualGroundingValidator {
         category: 'unverified_initiative_drive',
       },
       {
-        regex: /\b([A-Za-z0-9_-]+(?:\s+[A-Za-z0-9_-]+){0,3})\s+(?:came|fell)\s+under\s+my\s+(?:ownership|responsibility|direction)\b/i,
+        regex:
+          /\b([A-Za-z0-9_-]+(?:\s+[A-Za-z0-9_-]+){0,3})\s+(?:came|fell)\s+under\s+my\s+(?:ownership|responsibility|direction)\b/i,
         category: 'unverified_ownership_scope',
       },
       {
@@ -2418,7 +2719,8 @@ export class FactualGroundingValidator {
         category: 'unverified_leadership_impact',
       },
       {
-        regex: /\bI\s+owned\s+(?:the\s+)?(?:technical\s+direction|architecture|roadmap|backend|platform|infrastructure)\b/i,
+        regex:
+          /\bI\s+owned\s+(?:the\s+)?(?:technical\s+direction|architecture|roadmap|backend|platform|infrastructure)\b/i,
         category: 'unverified_technical_ownership',
       },
     ];
@@ -2429,20 +2731,33 @@ export class FactualGroundingValidator {
         const fullClaim = match[0];
         const targetComponent = (match[1] || match[0]).toLowerCase().trim();
 
-        const hasVerifiedProof = kb.getAllFacts().some(
-          (f) => isCandidateOrIndependentlyVerified(f.verificationStatus) && f.fact.toLowerCase().includes(targetComponent)
-        ) || kb.getAllProjects().some(
-          (p) => isCandidateOrIndependentlyVerified(p.verificationStatus) && (
-            (p.ownership === 'architect' || p.ownership === 'sole_owner') ||
-            (p.personalContribution && p.personalContribution !== 'UNKNOWN' && p.personalContribution.toLowerCase().includes(targetComponent))
-          )
-        );
+        const hasVerifiedProof =
+          kb
+            .getAllFacts()
+            .some(
+              (f) =>
+                isCandidateOrIndependentlyVerified(f.verificationStatus) &&
+                f.fact.toLowerCase().includes(targetComponent)
+            ) ||
+          kb
+            .getAllProjects()
+            .some(
+              (p) =>
+                isCandidateOrIndependentlyVerified(p.verificationStatus) &&
+                (p.ownership === 'architect' ||
+                  p.ownership === 'sole_owner' ||
+                  (p.personalContribution &&
+                    p.personalContribution !== 'UNKNOWN' &&
+                    p.personalContribution.toLowerCase().includes(targetComponent)))
+            );
 
-        const isIndirectNegated = /\b(?:did\s+not|didn't|never|not|was\s+not|wasn't)\b/i.test(match[0]);
+        const isIndirectNegated = /\b(?:did\s+not|didn't|never|not|was\s+not|wasn't)\b/i.test(
+          match[0]
+        );
         if (!hasVerifiedProof && !isIndirectNegated) {
           addViolation({
             claimText: fullClaim,
-            category: pat.category as GroundingViolation["category"],
+            category: pat.category as GroundingViolation['category'],
             severity: 'critical',
             reason: `Indirect personal attribution claim ("${fullClaim}") unsupported by candidate verification records`,
           });
@@ -2483,7 +2798,7 @@ export class FactualGroundingValidator {
       // Neutralize indirect personal claims cleanly without inventing alternative claims
       adjustedAnswer = adjustedAnswer.replace(
         /\b(?:our\s+team|the\s+team|my\s+team)\s+(?:delivered|achieved|built|migrated|scaled|launched)\s+/gi,
-        "The engineering deliverables included "
+        'The engineering deliverables included '
       );
       adjustedAnswer = adjustedAnswer.replace(
         /\bI\s+was\s+(?:directly\s+|personally\s+|solely\s+)?responsible\s+for\s+/gi,
@@ -2680,7 +2995,10 @@ export class FactualGroundingValidator {
     }
 
     // Fully validated: 0 violations, score 100
-    if (validationResult.isGrounded && (!validationResult.structuredViolations || validationResult.structuredViolations.length === 0)) {
+    if (
+      validationResult.isGrounded &&
+      (!validationResult.structuredViolations || validationResult.structuredViolations.length === 0)
+    ) {
       const finalClean = (adjustedAnswer || rawAnswer).trim();
       const speakableQueue = finalClean
         .split(/(?<=[.?!])\s+/)
@@ -2709,7 +3027,8 @@ export class FactualGroundingValidator {
         isSpeakable: false,
         speakableAnswer: null,
         speakableQueue: [],
-        blockedReason: 'Blocked: adjusted answer remained identical to raw ungrounded generation; no violations were neutralized.',
+        blockedReason:
+          'Blocked: adjusted answer remained identical to raw ungrounded generation; no violations were neutralized.',
         technicalGuidance: extractGeneralTechnicalGuidance(rawAnswer),
         neutralizedViolations: [],
         unneutralizedViolations: [...validationResult.structuredViolations],
@@ -2756,7 +3075,11 @@ export class FactualGroundingValidator {
       } else {
         // If it's still present, check if there is an adjacent qualification marker in the surrounding context
         const claimIdx = candidateAdj.toLowerCase().indexOf(claim);
-        const sentStart = Math.max(0, candidateAdj.lastIndexOf('.', claimIdx) + 1, candidateAdj.lastIndexOf('\n', claimIdx) + 1);
+        const sentStart = Math.max(
+          0,
+          candidateAdj.lastIndexOf('.', claimIdx) + 1,
+          candidateAdj.lastIndexOf('\n', claimIdx) + 1
+        );
         let sentEnd = candidateAdj.indexOf('.', claimIdx);
         if (sentEnd === -1) sentEnd = candidateAdj.length;
         const surroundingSentence = candidateAdj.slice(sentStart, sentEnd).toLowerCase();
@@ -2772,16 +3095,26 @@ export class FactualGroundingValidator {
 
     // Condition 3: Check for surviving unverified first-person claims in candidateAdj
     // Strip parenthetical qualification notices so we check the actual asserted text
-    const strippedCandidate = candidateAdj.replace(/\([^)]*(?:unverified|telemetry|deduplication|proposal)[^)]*\)/gi, '');
-    const survivingPersonalClaimRegex = /\bI\s+(?:personally\s+|single-handedly\s+)?(?:built|implemented|architected|designed|deployed|managed|optimized|scaled)\s+([^.?!;\n]+)/i;
+    const strippedCandidate = candidateAdj.replace(
+      /\([^)]*(?:unverified|telemetry|deduplication|proposal)[^)]*\)/gi,
+      ''
+    );
+    const survivingPersonalClaimRegex =
+      /\bI\s+(?:personally\s+|single-handedly\s+)?(?:built|implemented|architected|designed|deployed|managed|optimized|scaled)\s+([^.?!;\n]+)/i;
     const survivingMatch = strippedCandidate.match(survivingPersonalClaimRegex);
     if (survivingMatch) {
       const claimedAction = survivingMatch[1].toLowerCase().trim();
-      const isActionGrounded = kb.getAllProjects().some((p) =>
-        isCandidateOrIndependentlyVerified(p.verificationStatus) &&
-        ((p.personalContribution && p.personalContribution !== 'UNKNOWN' && p.personalContribution.toLowerCase().includes(claimedAction)) ||
-         (p.technologyStack && p.technologyStack.some((t) => claimedAction.includes(t.toLowerCase()))))
-      );
+      const isActionGrounded = kb
+        .getAllProjects()
+        .some(
+          (p) =>
+            isCandidateOrIndependentlyVerified(p.verificationStatus) &&
+            ((p.personalContribution &&
+              p.personalContribution !== 'UNKNOWN' &&
+              p.personalContribution.toLowerCase().includes(claimedAction)) ||
+              (p.technologyStack &&
+                p.technologyStack.some((t) => claimedAction.includes(t.toLowerCase()))))
+        );
 
       if (!isActionGrounded) {
         unneutralized.push({
@@ -2839,18 +3172,28 @@ export function extractGeneralTechnicalGuidance(answer: string): string {
   const objectiveSentences = sentences.filter((s) => {
     // Drop first-person claims
     if (
-      /\b(?:I|my|we|our|my team)\s+(?:built|implemented|architected|designed|deployed|scaled|achieved|handled|reduced|cut|led|worked|managed|owned)\b/i.test(s)
+      /\b(?:I|my|we|our|my team)\s+(?:built|implemented|architected|designed|deployed|scaled|achieved|handled|reduced|cut|led|worked|managed|owned)\b/i.test(
+        s
+      )
     ) {
       return false;
     }
-    if (/\b(?:was|were)\s+(?:built|implemented|architected|designed|deployed|scaled)\s+by\s+me\b/i.test(s)) {
+    if (
+      /\b(?:was|were)\s+(?:built|implemented|architected|designed|deployed|scaled)\s+by\s+me\b/i.test(
+        s
+      )
+    ) {
       return false;
     }
     if (/\bI\s+was\s+(?:responsible|the\s+sole)\b/i.test(s)) {
       return false;
     }
     // Drop fabricated scale numbers
-    if (/\b\d+\s*(?:million|thousand|billion)\s+(?:concurrent\s+)?(?:users|requests|qps|rps)\b/i.test(s)) {
+    if (
+      /\b\d+\s*(?:million|thousand|billion)\s+(?:concurrent\s+)?(?:users|requests|qps|rps)\b/i.test(
+        s
+      )
+    ) {
       return false;
     }
     return true;
