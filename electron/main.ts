@@ -647,7 +647,10 @@ ipcMain.handle(
       }
 
       const realDestination = fs.realpathSync(destination);
-      if (realDestination !== realUserData && !realDestination.startsWith(realUserData + path.sep)) {
+      if (
+        realDestination !== realUserData &&
+        !realDestination.startsWith(realUserData + path.sep)
+      ) {
         throw new Error('Access denied: Destination resolves outside userData');
       }
 

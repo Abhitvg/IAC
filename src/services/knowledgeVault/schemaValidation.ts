@@ -95,7 +95,9 @@ export const CandidateSkillSchema = z
     id: z.string().min(1),
     name: z.string().min(1),
     category: z.string().optional(),
-    proficiency: z.enum(['beginner', 'intermediate', 'advanced', 'expert', 'UNSPECIFIED']).optional(),
+    proficiency: z
+      .enum(['beginner', 'intermediate', 'advanced', 'expert', 'UNSPECIFIED'])
+      .optional(),
     experienceType: z.enum(['theoretical', 'practical']),
     yearsUsed: z.number().min(0).max(100).optional(),
     lastUsed: z.union([DateStringSchema, z.number()]).optional(),
@@ -301,16 +303,7 @@ export const CanonicalCandidateProfileSchema = z
         targetRoles: z.array(z.string()),
         preferredIndustries: z.array(z.string()),
         targetSeniority: z
-          .enum([
-            'junior',
-            'mid',
-            'senior',
-            'staff',
-            'lead',
-            'principal',
-            'executive',
-            'UNKNOWN',
-          ])
+          .enum(['junior', 'mid', 'senior', 'staff', 'lead', 'principal', 'executive', 'UNKNOWN'])
           .optional(),
         noticePeriod: z.string(),
         salaryExpectations: z.string().optional(),
@@ -346,7 +339,8 @@ export const CanonicalCandidateProfileSchema = z
       const proj = profile.projects[i];
       if (proj.status === 'INDEPENDENTLY_VERIFIED') {
         const audit = proj.storedInspection;
-        const sealValid = audit && typeof audit === 'object' && TrustedIndependentAuditService.verifySeal(audit);
+        const sealValid =
+          audit && typeof audit === 'object' && TrustedIndependentAuditService.verifySeal(audit);
         if (!sealValid) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -359,8 +353,7 @@ export const CanonicalCandidateProfileSchema = z
   });
 
 export type ValidationOutcome =
-  | { success: true; profile: CanonicalCandidateProfile }
-  | { success: false; errors: string[] };
+  { success: true; profile: CanonicalCandidateProfile } | { success: false; errors: string[] };
 
 /**
  * Validates a candidate profile against the rigorous canonical schema.
@@ -374,8 +367,15 @@ export function validateCanonicalProfile(data: unknown): ValidationOutcome {
   // 1. Prototype pollution protection
   try {
     const jsonStr = JSON.stringify(data);
-    if (jsonStr.includes('__proto__') || jsonStr.includes('constructor') || jsonStr.includes('"prototype"')) {
-      return { success: false, errors: ['Prototype pollution or constructor override keys are strictly forbidden'] };
+    if (
+      jsonStr.includes('__proto__') ||
+      jsonStr.includes('constructor') ||
+      jsonStr.includes('"prototype"')
+    ) {
+      return {
+        success: false,
+        errors: ['Prototype pollution or constructor override keys are strictly forbidden'],
+      };
     }
     // 2. Oversized payload defense (> 5MB)
     if (jsonStr.length > 5 * 1024 * 1024) {
@@ -389,7 +389,12 @@ export function validateCanonicalProfile(data: unknown): ValidationOutcome {
 
   // 3. Strict version validation: only versions 1 and 2 are supported
   if (rawObj.version !== undefined) {
-    if (typeof rawObj.version !== 'number' || !Number.isInteger(rawObj.version) || rawObj.version < 1 || rawObj.version > 2) {
+    if (
+      typeof rawObj.version !== 'number' ||
+      !Number.isInteger(rawObj.version) ||
+      rawObj.version < 1 ||
+      rawObj.version > 2
+    ) {
       return {
         success: false,
         errors: [`Unsupported schema version: ${rawObj.version}. Supported versions are 1, 2`],
