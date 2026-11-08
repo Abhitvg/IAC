@@ -13,6 +13,21 @@ describe('Candidate Factual Grounding & Anti-Hallucination Regression Tests', ()
     vi.restoreAllMocks();
   });
 
+
+  it('does not inject a hard-coded person into an unconfigured candidate profile', () => {
+    const emptyProfile = new CandidateKnowledgeBase();
+    const emptyPrompt = emptyProfile.buildGroundingPromptSection('Tell me about your experience');
+
+    expect(emptyPrompt).toContain('CANDIDATE:');
+    expect(emptyPrompt).not.toContain('Abhishek Singh');
+
+    const explicitlyNamedProfile = new CandidateKnowledgeBase('', 'Jane Doe');
+    expect(
+      explicitlyNamedProfile
+        .buildGroundingPromptSection('Tell me about your experience')
+    ).toContain('CANDIDATE: Jane Doe');
+  });
+
   // REGRESSION TEST 1: A resume containing the word 'DocFlow' does not create an invented project
   it('Regression 1: Resume containing the word "DocFlow" does NOT create an invented project profile', () => {
     const resumeWithCasualDocflow = `
