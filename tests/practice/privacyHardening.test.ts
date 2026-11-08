@@ -167,10 +167,11 @@ describe('Privacy & Adversarial Hardening (Phase 7)', () => {
   });
 
   describe('One-Button Wipe: Delete All Feedback and Practice Data', () => {
-    it('permanently wipes all 8 localStorage keys and resets all store states', () => {
+    it('permanently wipes all 9 localStorage keys and resets all store states', () => {
       const store = usePracticeStore.getState();
 
       // Seed dummy data into store & localStorage
+      localStorage.setItem('ai_practice_active_session_v1', JSON.stringify({ id: 'active-session' }));
       localStorage.setItem('ai_practice_sessions_v1', JSON.stringify([{ id: 'sess-1' }]));
       localStorage.setItem('ai_practice_stories_v1', JSON.stringify([{ id: 'story-1' }]));
       localStorage.setItem('ai_practice_topics_v1', JSON.stringify([{ topicId: 'topic-1' }]));
@@ -203,6 +204,7 @@ describe('Privacy & Adversarial Hardening (Phase 7)', () => {
       expect(wipeResult).toEqual({ success: true, failedKeys: [] });
 
       // Assert all localStorage keys are removed
+      expect(localStorage.getItem('ai_practice_active_session_v1')).toBeNull();
       expect(localStorage.getItem('ai_practice_sessions_v1')).toBeNull();
       expect(localStorage.getItem('ai_practice_stories_v1')).toBeNull();
       expect(localStorage.getItem('ai_practice_topics_v1')).toBeNull();
