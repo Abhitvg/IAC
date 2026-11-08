@@ -171,7 +171,10 @@ describe('Privacy & Adversarial Hardening (Phase 7)', () => {
       const store = usePracticeStore.getState();
 
       // Seed dummy data into store & localStorage
-      localStorage.setItem('ai_practice_active_session_v1', JSON.stringify({ id: 'active-session' }));
+      localStorage.setItem(
+        'ai_practice_active_session_v1',
+        JSON.stringify({ id: 'active-session' })
+      );
       localStorage.setItem('ai_practice_sessions_v1', JSON.stringify([{ id: 'sess-1' }]));
       localStorage.setItem('ai_practice_stories_v1', JSON.stringify([{ id: 'story-1' }]));
       localStorage.setItem('ai_practice_topics_v1', JSON.stringify([{ topicId: 'topic-1' }]));
