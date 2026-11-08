@@ -5,6 +5,7 @@ on:
     branches: [fix/no-fabricated-default-candidate-name]
     paths:
       - '.github/workflows/format-candidate-identity.yml'
+      - '.github/workflows/format-candidate-identity.yml'
       - 'src/services/candidateIntelligence.ts'
       - 'tests/candidateFactualGroundingRegression.test.ts'
 
