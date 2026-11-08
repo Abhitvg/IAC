@@ -18,6 +18,7 @@ export default function SettingsPanel() {
     updateSetting,
     setSettingsOpen,
     clearAllData,
+    setToast,
     selectedAudioDeviceId,
     setSelectedAudioDeviceId,
   } = useAppStore();
