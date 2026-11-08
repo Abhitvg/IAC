@@ -13,6 +13,7 @@ import {
   isEncryptedPayload,
 } from '../../src/services/practice/security/FeedbackStorageEncryption';
 import { usePracticeStore } from '../../src/store/usePracticeStore';
+import { useAppStore } from '../../src/store/useAppStore';
 import promptInjectionFixtures from './fixtures/adversarial/promptInjection.json';
 import nonEnglishFixtures from './fixtures/adversarial/nonEnglishFeedback.json';
 
@@ -198,7 +199,8 @@ describe('Privacy & Adversarial Hardening (Phase 7)', () => {
       expect(usePracticeStore.getState().sessionHistory).toHaveLength(1);
 
       // Perform one-button wipe
-      store.deleteAllFeedbackAndPracticeData();
+      const wipeResult = store.deleteAllFeedbackAndPracticeData();
+      expect(wipeResult).toEqual({ success: true, failedKeys: [] });
 
       // Assert all localStorage keys are removed
       expect(localStorage.getItem('ai_practice_sessions_v1')).toBeNull();
@@ -262,4 +264,52 @@ describe('Privacy & Adversarial Hardening (Phase 7)', () => {
       await expect(decryptPayload('enc:v1:AAAA:BBBB')).rejects.toThrow('DecryptionFailedError');
     });
   });
+  describe('Wipe failure reporting', () => {
+    it('reports practice storage keys that could not be removed', () => {
+      const store = usePracticeStore.getState();
+      const key = 'ai_practice_feedback_v1';
+      localStorage.setItem(key, JSON.stringify([{ id: 'must-remain-on-disk' }]));
+
+      const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+      localStorage.removeItem = (candidateKey: string) => {
+        if (candidateKey === key) {
+          throw new Error('Storage access denied');
+        }
+        originalRemoveItem(candidateKey);
+      };
+
+      try {
+        const result = store.deleteAllFeedbackAndPracticeData();
+        expect(result).toEqual({ success: false, failedKeys: [key] });
+        expect(localStorage.getItem(key)).toContain('must-remain-on-disk');
+        expect(usePracticeStore.getState().feedbackRecords).toHaveLength(0);
+      } finally {
+        localStorage.removeItem = originalRemoveItem;
+        localStorage.removeItem(key);
+      }
+    });
+
+    it('reports interview localStorage keys that could not be removed', async () => {
+      const key = 'interview_transcript';
+      localStorage.setItem(key, 'sensitive transcript');
+      const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+      localStorage.removeItem = (candidateKey: string) => {
+        if (candidateKey === key) {
+          throw new Error('Storage access denied');
+        }
+        originalRemoveItem(candidateKey);
+      };
+
+      try {
+        const result = await useAppStore.getState().clearAllData();
+        expect(result.success).toBe(false);
+        expect(result.failedStores).toContain(`localStorage:${key}`);
+        expect(localStorage.getItem(key)).toBe('sensitive transcript');
+      } finally {
+        localStorage.removeItem = originalRemoveItem;
+        localStorage.removeItem(key);
+      }
+    });
+  });
+
 });
