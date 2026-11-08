@@ -9,7 +9,6 @@ import {
   Mic,
   Activity,
   CheckCircle2,
-  HardDriveDownload,
   Flame,
 } from 'lucide-react';
 import { getDefaultModelForProvider, AIProviderId } from '../services/models/modelRegistry';
@@ -25,52 +24,79 @@ export default function OnboardingModal() {
   const [provider, setProvider] = useState<'groq' | 'openai' | 'openrouter' | 'ollama'>('groq');
   const [apiKey, setApiKey] = useState('');
 
-  // Local model download simulation state
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadComplete, setDownloadComplete] = useState(false);
-
-  // Mic & Latency check state
+  // Live microphone test state. Never fabricate meter readings or latency results.
   const [micActive, setMicActive] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0);
-  const [latencyTestDone, setLatencyTestDone] = useState(false);
-  const [measuredLatencyMs, setMeasuredLatencyMs] = useState<number | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
 
-  // Handle local model download progress
-  const startModelDownload = () => {
-    setIsDownloading(true);
-    setDownloadProgress(10);
-    const interval = setInterval(() => {
-      setDownloadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsDownloading(false);
-          setDownloadComplete(true);
-          return 100;
-        }
-        return prev + 15;
-      });
-    }, 250);
-  };
-
-  // Microphone level simulation / check
   useEffect(() => {
-    if (step === 'mic_check' && micActive) {
-      const interval = setInterval(() => {
-        setVolumeLevel(Math.floor(Math.random() * 65) + 20);
-      }, 100);
-      return () => clearInterval(interval);
+    if (step !== 'mic_check' || !micActive) {
+      setVolumeLevel(0);
+      return;
     }
-  }, [step, micActive]);
 
-  const runLatencyCheck = () => {
-    setTimeout(() => {
-      const simulatedLatency = isLocalMode ? 320 : 185;
-      setMeasuredLatencyMs(simulatedLatency);
-      setLatencyTestDone(true);
-      setToast(`Latency Check Passed: ${simulatedLatency}ms roundtrip.`);
-    }, 600);
-  };
+    let cancelled = false;
+    let stream: MediaStream | null = null;
+    let audioContext: AudioContext | null = null;
+    let animationFrame = 0;
+
+    const startMicrophoneTest = async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('Microphone access is unavailable in this environment.');
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        audioContext = new AudioContext();
+        if (audioContext.state === 'suspended') await audioContext.resume();
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 512;
+        audioContext.createMediaStreamSource(stream).connect(analyser);
+        const samples = new Float32Array(analyser.fftSize);
+
+        const updateInputLevel = () => {
+          if (cancelled) return;
+          analyser.getFloatTimeDomainData(samples);
+          let sumSquares = 0;
+          for (let index = 0; index < samples.length; index += 1) {
+            sumSquares += samples[index] * samples[index];
+          }
+          const rms = Math.sqrt(sumSquares / samples.length);
+          setVolumeLevel(Math.min(100, Math.round(rms * 400)));
+          animationFrame = requestAnimationFrame(updateInputLevel);
+        };
+
+        updateInputLevel();
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setMicError(error instanceof Error ? error.message : String(error));
+          setMicActive(false);
+        }
+      }
+    };
+
+    void startMicrophoneTest();
+
+    return () => {
+      cancelled = true;
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      stream?.getTracks().forEach((track) => track.stop());
+      if (audioContext && audioContext.state !== 'closed') {
+        void audioContext.close().catch(() => undefined);
+      }
+    };
+  }, [step, micActive]);
 
   const handleFinishAndStart = async () => {
     try {
@@ -240,7 +266,7 @@ export default function OnboardingModal() {
                     color: '#34d399',
                   }}
                 >
-                  <ShieldCheck size={16} /> 100% Local & Offline
+                  <ShieldCheck size={16} /> Local mode (requires local setup)
                 </div>
                 <p
                   style={{
@@ -250,7 +276,8 @@ export default function OnboardingModal() {
                     lineHeight: '1.4',
                   }}
                 >
-                  Runs via Ollama, local whisper.cpp, and local speech. Zero cloud calls, zero keys.
+                  Uses Ollama and local Whisper when installed and configured. This screen does not
+                  verify offline readiness.
                 </p>
               </button>
             </div>
@@ -363,7 +390,8 @@ export default function OnboardingModal() {
                       marginTop: '4px',
                     }}
                   >
-                    Keys are safely stored locally in your OS Keychain via Electron safeStorage.
+                    Keys are encrypted with Electron safeStorage when available, with a
+                    machine-scoped AES-GCM fallback.
                   </span>
                 </div>
               </div>
@@ -377,10 +405,11 @@ export default function OnboardingModal() {
                     margin: '0 0 6px 0',
                   }}
                 >
-                  Local Model Package Check
+                  Local Model Requirements
                 </h3>
                 <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 16px 0' }}>
-                  Runs Ollama (llama3.2:1b) and local Whisper for 100% offline private rehearsal.
+                  Local mode requires Ollama and a local Whisper runtime. Installation and model
+                  availability are not verified here.
                 </p>
 
                 <div
@@ -392,67 +421,10 @@ export default function OnboardingModal() {
                     marginBottom: '16px',
                   }}
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '8px',
-                    }}
-                  >
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#e2e8f0' }}>
-                      Ollama Model: llama3.2:1b (1.3 GB)
-                    </span>
-                    <span
-                      style={{ fontSize: '11px', color: downloadComplete ? '#34d399' : '#94a3b8' }}
-                    >
-                      {downloadComplete ? 'Installed' : `${downloadProgress}%`}
-                    </span>
-                  </div>
-
-                  <div
-                    style={{
-                      width: '100%',
-                      height: '6px',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      borderRadius: '3px',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${downloadProgress}%`,
-                        height: '100%',
-                        background: '#10b981',
-                        transition: 'width 0.2s ease',
-                      }}
-                    />
-                  </div>
-
-                  {!downloadComplete && (
-                    <button
-                      type="button"
-                      onClick={startModelDownload}
-                      disabled={isDownloading}
-                      style={{
-                        marginTop: '12px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        border: '1px solid rgba(16, 185, 129, 0.4)',
-                        color: '#6ee7b7',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <HardDriveDownload size={12} />
-                      {isDownloading ? 'Downloading Model...' : 'Pre-download Local Model'}
-                    </button>
-                  )}
+                  <p style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.5', margin: 0 }}>
+                    This screen does not download or verify local models. Install Ollama, pull
+                    <code> llama3.2:1b </code>, and configure the local Whisper runtime separately.
+                  </p>
                 </div>
               </div>
             )}
@@ -501,10 +473,11 @@ export default function OnboardingModal() {
             <h3
               style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc', margin: '0 0 6px 0' }}
             >
-              Microphone & Latency Calibration
+              Microphone Test
             </h3>
             <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 16px 0' }}>
-              Verify audio input levels and measure roundtrip response latency.
+              Test real microphone input. Provider response latency is not measured during
+              onboarding.
             </p>
 
             <div
@@ -534,7 +507,11 @@ export default function OnboardingModal() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => setMicActive(!micActive)}
+                  aria-pressed={micActive}
+                  onClick={() => {
+                    setMicError(null);
+                    setMicActive((active) => !active);
+                  }}
                   style={{
                     padding: '4px 10px',
                     borderRadius: '4px',
@@ -554,6 +531,11 @@ export default function OnboardingModal() {
               {micActive && (
                 <div style={{ marginTop: '12px' }}>
                   <div
+                    role="meter"
+                    aria-label="Microphone input level"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={volumeLevel}
                     style={{
                       width: '100%',
                       height: '8px',
@@ -579,9 +561,17 @@ export default function OnboardingModal() {
                       marginTop: '4px',
                     }}
                   >
-                    Speaking detected • Audio levels calibrated
+                    Live microphone input level. Speak to see the meter.
                   </span>
                 </div>
+              )}
+              {micError && (
+                <span
+                  role="alert"
+                  style={{ display: 'block', marginTop: '8px', color: '#fca5a5', fontSize: '11px' }}
+                >
+                  {micError}
+                </span>
               )}
             </div>
 
@@ -607,40 +597,12 @@ export default function OnboardingModal() {
                   }}
                 >
                   <Activity size={14} style={{ color: '#818cf8' }} />
-                  Roundtrip Voice-to-Inference Latency
+                  Provider response latency
                 </span>
-                <button
-                  type="button"
-                  onClick={runLatencyCheck}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '4px',
-                    background: 'rgba(99, 102, 241, 0.2)',
-                    border: '1px solid rgba(99, 102, 241, 0.4)',
-                    color: '#c7d2fe',
-                    fontSize: '11px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Run Ping Test
-                </button>
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  Not measured during setup
+                </span>
               </div>
-
-              {latencyTestDone && (
-                <div
-                  style={{
-                    marginTop: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    color: '#34d399',
-                    fontSize: '12px',
-                  }}
-                >
-                  <CheckCircle2 size={14} />
-                  <span>Latency: {measuredLatencyMs}ms (optimal conversational pace)</span>
-                </div>
-              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
@@ -700,7 +662,7 @@ export default function OnboardingModal() {
             <h3
               style={{ fontSize: '18px', fontWeight: 800, color: '#f8fafc', margin: '0 0 6px 0' }}
             >
-              Calibration Complete!
+              Setup Review Complete
             </h3>
             <p
               style={{
@@ -711,11 +673,19 @@ export default function OnboardingModal() {
                 lineHeight: '1.5',
               }}
             >
-              Your environment is configured. Start your first 10-minute behavioral warmup mock
-              round to establish your speech pace baseline.
+              Your setup choices are saved. Microphone input can be tested above, but provider
+              latency and local model availability are not verified automatically. Start a
+              behavioral warmup when your provider or local runtime is ready.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                alignItems: 'center',
+              }}
+            >
               <button
                 type="button"
                 onClick={async () => {
