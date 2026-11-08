@@ -56,7 +56,7 @@ process.on('unhandledRejection', (reason) => {
 let mainWindow: BrowserWindow | null = null;
 let isContentProtected = true;
 let tray: Tray | null = null;
-let lastCapturedOcrText = "";
+let lastCapturedOcrText = '';
 
 let RECORDINGS_DIR = '';
 let SESSIONS_DIR = '';
@@ -135,7 +135,12 @@ function createWindow() {
 
   // Diagnostic handlers for renderer termination / crash
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
-    console.error('[Electron Renderer Process Terminated]:', details.reason, 'exitCode:', details.exitCode);
+    console.error(
+      '[Electron Renderer Process Terminated]:',
+      details.reason,
+      'exitCode:',
+      details.exitCode
+    );
   });
 
   mainWindow.webContents.on('unresponsive', () => {
@@ -335,7 +340,9 @@ const isDev = !app.isPackaged && Boolean(process.env.VITE_DEV_SERVER_URL);
 const gotTheLock = isDev ? true : app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
-  console.log('[Electron] Another application instance is already running. Quitting duplicate instance.');
+  console.log(
+    '[Electron] Another application instance is already running. Quitting duplicate instance.'
+  );
   app.quit();
 } else {
   if (!isDev) {
@@ -350,47 +357,49 @@ if (!gotTheLock) {
   }
 
   app.whenReady().then(() => {
-  RECORDINGS_DIR = path.join(app.getPath('userData'), 'recordings');
-  SESSIONS_DIR = path.join(app.getPath('userData'), 'sessions');
-  // Strict permission handler: only allow "media" (microphone) for the app's own origin
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    const url = webContents.getURL();
-    const allowed = isPermissionAllowed(permission, url, process.env.VITE_DEV_SERVER_URL);
-    callback(allowed);
-  });
+    RECORDINGS_DIR = path.join(app.getPath('userData'), 'recordings');
+    SESSIONS_DIR = path.join(app.getPath('userData'), 'sessions');
+    // Strict permission handler: only allow "media" (microphone) for the app's own origin
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+      const url = webContents.getURL();
+      const allowed = isPermissionAllowed(permission, url, process.env.VITE_DEV_SERVER_URL);
+      callback(allowed);
+    });
 
-  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
-    const origin = requestingOrigin || (webContents ? webContents.getURL() : '');
-    return isPermissionAllowed(permission, origin, process.env.VITE_DEV_SERVER_URL);
-  });
+    session.defaultSession.setPermissionCheckHandler(
+      (webContents, permission, requestingOrigin) => {
+        const origin = requestingOrigin || (webContents ? webContents.getURL() : '');
+        return isPermissionAllowed(permission, origin, process.env.VITE_DEV_SERVER_URL);
+      }
+    );
 
-  // Strict Content Security Policy (CSP) session header
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
-    const csp = buildCspHeader(isDev);
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [csp],
-        'X-Content-Type-Options': ['nosniff'],
-        'X-Frame-Options': ['DENY'],
-      },
+    // Strict Content Security Policy (CSP) session header
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
+      const csp = buildCspHeader(isDev);
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [csp],
+          'X-Content-Type-Options': ['nosniff'],
+          'X-Frame-Options': ['DENY'],
+        },
+      });
+    });
+
+    ensureDirectories();
+    createWindow();
+    setupIpcHandlers(mainWindow);
+    setupNativeApplicationMenu();
+    setupTray();
+    registerGlobalShortcuts();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
     });
   });
-
-  ensureDirectories();
-  createWindow();
-  setupIpcHandlers(mainWindow);
-  setupNativeApplicationMenu();
-  setupTray();
-  registerGlobalShortcuts();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
-});
 }
 
 app.on('window-all-closed', () => {
@@ -435,7 +444,8 @@ ipcMain.handle('window:is-always-on-top', (event) => {
 
 ipcMain.handle('window:set-size', (event, width: number, height: number) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
-  if (!Number.isFinite(width) || !Number.isFinite(height)) throw new Error('Invalid window dimensions');
+  if (!Number.isFinite(width) || !Number.isFinite(height))
+    throw new Error('Invalid window dimensions');
   if (!mainWindow) return false;
   try {
     mainWindow.setSize(Math.round(width), Math.round(height));
@@ -473,26 +483,29 @@ ipcMain.handle('window:get-position', (event) => {
   return { x, y };
 });
 
-ipcMain.handle('window:set-ignore-mouse-events', (event, ignore: boolean, options?: { forward?: boolean }) => {
-  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
-  if (
-    typeof ignore !== 'boolean' ||
-    (options !== undefined &&
-      (typeof options !== 'object' ||
-        options === null ||
-        (options.forward !== undefined && typeof options.forward !== 'boolean')))
-  ) {
-    throw new Error('Invalid mouse event options');
+ipcMain.handle(
+  'window:set-ignore-mouse-events',
+  (event, ignore: boolean, options?: { forward?: boolean }) => {
+    if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+    if (
+      typeof ignore !== 'boolean' ||
+      (options !== undefined &&
+        (typeof options !== 'object' ||
+          options === null ||
+          (options.forward !== undefined && typeof options.forward !== 'boolean')))
+    ) {
+      throw new Error('Invalid mouse event options');
+    }
+    if (!mainWindow) return false;
+    try {
+      mainWindow.setIgnoreMouseEvents(Boolean(ignore), options || { forward: true });
+      return true;
+    } catch (err) {
+      console.error('[Electron] Failed to set ignore mouse events:', err);
+      return false;
+    }
   }
-  if (!mainWindow) return false;
-  try {
-    mainWindow.setIgnoreMouseEvents(Boolean(ignore), options || { forward: true });
-    return true;
-  } catch (err) {
-    console.error('[Electron] Failed to set ignore mouse events:', err);
-    return false;
-  }
-});
+);
 
 ipcMain.handle('window:set-opacity', (event, opacity: number) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
@@ -634,7 +647,10 @@ ipcMain.handle(
       }
 
       const realDestination = fs.realpathSync(destination);
-      if (realDestination !== realUserData && !realDestination.startsWith(realUserData + path.sep)) {
+      if (
+        realDestination !== realUserData &&
+        !realDestination.startsWith(realUserData + path.sep)
+      ) {
         throw new Error('Access denied: Destination resolves outside userData');
       }
 
@@ -711,7 +727,8 @@ ipcMain.handle('shell:open-external', async (event, url: string) => {
 // Native OS Clipboard handlers (guarantees clipboard writes work even when window is unfocused or transparent)
 ipcMain.handle('clipboard:write-text', (event, text: string) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
-  if (typeof text !== 'string' || text.length > 1024 * 1024) throw new Error('Invalid clipboard text');
+  if (typeof text !== 'string' || text.length > 1024 * 1024)
+    throw new Error('Invalid clipboard text');
   try {
     const cleanText = typeof text === 'string' ? text : String(text ?? '');
     clipboard.writeText(cleanText);
@@ -934,7 +951,6 @@ ipcMain.handle(
   }
 );
 
-
 ipcMain.handle('screen:get-last-ocr-text', (event) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   return lastCapturedOcrText;
@@ -1020,8 +1036,10 @@ ipcMain.handle(
 // Stealth Keystroke Auto-Typer: Dispatches native OS keyboard HID events directly into active editor window
 ipcMain.handle('system:auto-type', async (event, code: string, delayMs: number = 1500) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
-  if (typeof code !== 'string' || code.length > 100000) throw new Error('Invalid auto-type payload');
-  if (!Number.isFinite(delayMs) || delayMs < 0 || delayMs > 30000) throw new Error('Invalid auto-type delay');
+  if (typeof code !== 'string' || code.length > 100000)
+    throw new Error('Invalid auto-type payload');
+  if (!Number.isFinite(delayMs) || delayMs < 0 || delayMs > 30000)
+    throw new Error('Invalid auto-type delay');
   if (!code || typeof code !== 'string') {
     return { success: false, error: 'No code provided.' };
   }
@@ -1077,7 +1095,8 @@ end tell
       return {
         success: true,
         method: 'clipboard-fallback',
-        warning: 'Keystroke simulation required Accessibility permission; copied to clipboard instead.',
+        warning:
+          'Keystroke simulation required Accessibility permission; copied to clipboard instead.',
       };
     } catch (clipErr: any) {
       return { success: false, error: err.message || String(err) };
@@ -1100,7 +1119,10 @@ ipcMain.handle('screen:ocr-image', async (event, filePath: string) => {
   try {
     const validation = validateReadPath(filePath, app.getPath('userData'), approvedFilePaths);
     if (!validation.allowed || !validation.resolvedPath) {
-      return { success: false, error: validation.reason || 'Access denied: File outside authorized path' };
+      return {
+        success: false,
+        error: validation.reason || 'Access denied: File outside authorized path',
+      };
     }
     const resolvedPath = validation.resolvedPath;
 
@@ -1114,7 +1136,14 @@ ipcMain.handle('screen:ocr-image', async (event, filePath: string) => {
       text = stdout.trim();
     } else {
       try {
-        const { stdout } = await execFileAsync('tesseract', [resolvedPath, 'stdout', '--oem', '1', '-l', 'eng']);
+        const { stdout } = await execFileAsync('tesseract', [
+          resolvedPath,
+          'stdout',
+          '--oem',
+          '1',
+          '-l',
+          'eng',
+        ]);
         text = stdout.trim();
       } catch {
         const { stdout } = await execFileAsync('tesseract', [resolvedPath, 'stdout']);
