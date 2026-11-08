@@ -4,6 +4,7 @@ on:
   push:
     branches: [fix/candidate-profile-clear-failure]
     paths:
+      - '.github/workflows/format-candidate-reset.yml'
       - 'src/components/CandidateProfileWizard.tsx'
       - 'src/services/knowledgeVault/canonicalProfileService.ts'
       - 'src/services/knowledgeVault/knowledgeVaultService.ts'
