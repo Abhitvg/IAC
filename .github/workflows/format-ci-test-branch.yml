@@ -5,6 +5,7 @@ on:
     branches: [fix/ci-stream-and-credential-tests]
     paths:
       - '.github/workflows/format-ci-test-branch.yml'
+      - '.github/workflows/format-ci-test-branch.yml'
       - 'electron/main.ts'
       - 'src/services/knowledgeVault/schemaValidation.ts'
 
