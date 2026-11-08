@@ -5,6 +5,7 @@ on:
     branches: [security/dependency-audit-priority-fixes]
     paths:
       - '.github/workflows/format-dependency-branch.yml'
+      - '.github/workflows/format-dependency-branch.yml'
       - 'electron/main.ts'
       - 'src/services/knowledgeVault/schemaValidation.ts'
 
