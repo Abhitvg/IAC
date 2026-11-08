@@ -64,10 +64,10 @@ export function validateReadPath(
     }
 
     // Check if user explicitly chose and approved this file via open-file dialog
-    const isApproved =
-      approvedFilePaths.has(realTarget) ||
-      approvedFilePaths.has(normalizedTarget) ||
-      Array.from(approvedFilePaths).some((appPath) => getCanonicalPath(appPath) === realTarget);
+    // Dialog approvals are recorded as canonical real paths, not user-facing
+    // path strings. Never re-resolve a previously approved lexical path here:
+    // it may have been replaced with a symlink since the user selected it.
+    const isApproved = approvedFilePaths.has(realTarget);
 
     if (isApproved) {
       return { allowed: true, resolvedPath: realTarget };
