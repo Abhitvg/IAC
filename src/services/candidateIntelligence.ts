@@ -420,7 +420,7 @@ export class CandidateKnowledgeBase {
   private confirmedProjects: Set<string> = new Set();
   private activeReviewSessions: Map<string, CandidateReviewSession> = new Map();
 
-  constructor(resumeText: string = '', confirmedName: string = 'Abhishek Singh') {
+  constructor(resumeText: string = '', confirmedName: string = '') {
     this.candidateName = confirmedName;
     if (resumeText) {
       this.loadFromResume(resumeText);
