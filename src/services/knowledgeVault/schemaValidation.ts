@@ -221,6 +221,7 @@ export const EmploymentDeclarationsSchema = z
       })
       .strict(),
     otherDeclarations: z.record(
+      z.string(),
       z
         .object({
           value: z.string(),
@@ -322,7 +323,7 @@ export const CanonicalCandidateProfileSchema = z
     achievements: z.array(CandidateAchievementSchema),
     preferences: CandidatePreferencesSchema,
     declarations: EmploymentDeclarationsSchema,
-    factsLedger: z.record(CanonicalFactSchema),
+    factsLedger: z.record(z.string(), CanonicalFactSchema),
   })
   .strict()
   .superRefine((profile, ctx) => {
@@ -406,7 +407,7 @@ export function validateCanonicalProfile(data: unknown): ValidationOutcome {
 
   const result = CanonicalCandidateProfileSchema.safeParse(profileToValidate);
   if (!result.success) {
-    const errors = result.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`);
+    const errors = result.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`);
     return { success: false, errors };
   }
 
