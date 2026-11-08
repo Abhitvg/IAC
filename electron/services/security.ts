@@ -120,13 +120,29 @@ export function validateWritePath(
       return { allowed: false, reason: 'Access denied: Cannot write files outside userData' };
     }
 
-    // If destination file already exists, check that it is not a symlink pointing outside userData
-    if (fs.existsSync(path.resolve(filePath))) {
+    // lstat detects symbolic links even when their targets do not exist.
+    // existsSync/realpathSync alone miss dangling links: writeFileSync would
+    // follow such a link and could create a file outside userData.
+    let destinationStat: fs.Stats | undefined;
+    try {
+      destinationStat = fs.lstatSync(path.resolve(filePath));
+    } catch (err: any) {
+      if (err?.code !== 'ENOENT') throw err;
+    }
+
+    if (destinationStat?.isSymbolicLink()) {
+      return {
+        allowed: false,
+        reason: 'Access denied: Destination is a symbolic link',
+      };
+    }
+
+    if (destinationStat) {
       const realTarget = fs.realpathSync(path.resolve(filePath));
-      if (!realTarget.startsWith(realUserData + path.sep)) {
+      if (realTarget === realUserData || !realTarget.startsWith(realUserData + path.sep)) {
         return {
           allowed: false,
-          reason: 'Access denied: Destination symlink points outside userData',
+          reason: 'Access denied: Destination resolves outside userData',
         };
       }
       return { allowed: true, resolvedPath: realTarget };
