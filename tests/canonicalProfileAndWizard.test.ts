@@ -530,6 +530,28 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
     }
   });
 
+  it('reports candidate document reset failures instead of claiming success', () => {
+    const clearDocuments = vi.fn(() => false);
+
+    expect(service.clearAllCandidateData(clearDocuments)).toEqual({
+      success: false,
+      failedStores: ['candidate-documents'],
+    });
+    expect(clearDocuments).toHaveBeenCalledOnce();
+  });
+
+  it('reports candidate document reset exceptions instead of claiming success', () => {
+    const clearDocuments = vi.fn(() => {
+      throw new Error('Document store unavailable');
+    });
+
+    expect(service.clearAllCandidateData(clearDocuments)).toEqual({
+      success: false,
+      failedStores: ['candidate-documents'],
+    });
+    expect(clearDocuments).toHaveBeenCalledOnce();
+  });
+
   it('clears canonical, Knowledge Vault, and CareerOps persisted candidate copies', () => {
     const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
     const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
