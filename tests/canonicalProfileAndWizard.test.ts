@@ -250,11 +250,7 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
     const outcome = validateCanonicalProfile(maliciousPayload);
     expect(outcome.success).toBe(false);
     if (!outcome.success) {
-      expect(
-        outcome.errors.some(
-          (e) => e.toLowerCase().includes('unrecognized') || e.includes('injectedUnauthorizedField')
-        )
-      ).toBe(true);
+      expect(outcome.errors.some((e) => e.toLowerCase().includes('unrecognized') || e.includes('injectedUnauthorizedField'))).toBe(true);
     }
 
     // Prototype pollution attempt
@@ -269,22 +265,8 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
   // Acceptance Test 6: Conflicting subsystem updates cannot silently overwrite candidate-confirmed facts
   it('6. Conflicting subsystem updates cannot silently overwrite candidate-confirmed facts', () => {
     // 1. Candidate confirms their name and title
-    service.recordFact(
-      'identity.fullName',
-      'identity',
-      'Alice Confirmed',
-      'Manual Entry',
-      'CANDIDATE_CONFIRMED',
-      true
-    );
-    service.recordFact(
-      'career.currentRole',
-      'career',
-      'Staff Engineer',
-      'Manual Entry',
-      'CANDIDATE_CONFIRMED',
-      true
-    );
+    service.recordFact('identity.fullName', 'identity', 'Alice Confirmed', 'Manual Entry', 'CANDIDATE_CONFIRMED', true);
+    service.recordFact('career.currentRole', 'career', 'Staff Engineer', 'Manual Entry', 'CANDIDATE_CONFIRMED', true);
 
     const current = service.getProfile();
     current.identity.fullName = 'Alice Confirmed';
@@ -313,16 +295,8 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
       employment: [],
       projects: [],
       skills: {
-        languages: [],
-        frameworks: [],
-        databases: [],
-        messaging: [],
-        cloud: [],
-        devops: [],
-        testing: [],
-        architecture: [],
-        aiMl: [],
-        tools: [],
+        languages: [], frameworks: [], databases: [], messaging: [], cloud: [],
+        devops: [], testing: [], architecture: [], aiMl: [], tools: []
       },
       achievements: [],
       claims: [],
@@ -475,11 +449,7 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
     const outcome = validateCanonicalProfile(profile);
     expect(outcome.success).toBe(false);
     if (!outcome.success) {
-      expect(
-        outcome.errors.some((e) =>
-          e.includes('Confirmed work authorization declaration cannot have a null value')
-        )
-      ).toBe(true);
+      expect(outcome.errors.some((e) => e.includes('Confirmed work authorization declaration cannot have a null value'))).toBe(true);
     }
   });
 });
