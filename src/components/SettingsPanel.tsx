@@ -1,4 +1,5 @@
 import { copyToClipboard } from '../utils/clipboard';
+import { persistOnboardingCredential } from '../services/onboarding/credentialSetup';
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { usePracticeStore } from '../store/usePracticeStore';
@@ -116,9 +117,30 @@ export default function SettingsPanel() {
     setErrorMessage(null);
     try {
       if (secondaryGroqKey.trim()) {
-        await window.electronAPI?.setApiKey('groq-secondary', secondaryGroqKey.trim());
+        await persistOnboardingCredential(
+          'groq-secondary',
+          secondaryGroqKey,
+          async (service, key) => {
+            const writeCredential = window.electronAPI?.setApiKey;
+            if (typeof writeCredential !== 'function') {
+              throw new Error(
+                'Secure credential storage is unavailable. Your API key was not saved.'
+              );
+            }
+            return writeCredential(service, key);
+          }
+        );
       } else {
-        await window.electronAPI?.deleteApiKey('groq-secondary');
+        const deleteCredential = window.electronAPI?.deleteApiKey;
+        if (typeof deleteCredential !== 'function') {
+          throw new Error(
+            'Secure credential storage is unavailable. The secondary API key was not deleted.'
+          );
+        }
+        const deleted = await deleteCredential('groq-secondary');
+        if (deleted !== true) {
+          throw new Error('The secondary Groq API key could not be deleted.');
+        }
       }
     } catch (error: unknown) {
       setErrorMessage(
@@ -136,8 +158,25 @@ export default function SettingsPanel() {
     setLoading(true);
     setErrorMessage(null);
     try {
-      await window.electronAPI?.setApiKey(settings.aiProvider, apiKey.trim());
-      updateSetting('hasApiKey', apiKey.trim().length > 0);
+      const trimmedKey = apiKey.trim();
+      if (!trimmedKey) {
+        throw new Error('API key must not be empty.');
+      }
+
+      await persistOnboardingCredential(
+        settings.aiProvider,
+        trimmedKey,
+        async (service, key) => {
+          const writeCredential = window.electronAPI?.setApiKey;
+          if (typeof writeCredential !== 'function') {
+            throw new Error(
+              'Secure credential storage is unavailable. Your API key was not saved.'
+            );
+          }
+          return writeCredential(service, key);
+        }
+      );
+      updateSetting('hasApiKey', true);
     } catch (error: unknown) {
       setErrorMessage(
         error instanceof Error ? error.message : 'Failed to securely store the API key.'
