@@ -89,9 +89,7 @@ function loadVaultFromStorage(): CandidateVaultProfile {
       if (rawV1) {
         const legacyParsed = JSON.parse(rawV1);
         if (isKnownFabricatedDemoProfile(legacyParsed)) {
-          console.info(
-            '[CandidateVault] Sanitized legacy fabricated demonstration data from storage.'
-          );
+          console.info('[CandidateVault] Sanitized legacy fabricated demonstration data from storage.');
           // Remove legacy fake record and return initial clean state
           localStorage.removeItem(LEGACY_STORAGE_KEY);
           return INITIAL_CANDIDATE_VAULT;
