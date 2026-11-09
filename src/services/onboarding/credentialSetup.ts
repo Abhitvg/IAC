@@ -23,9 +23,7 @@ export async function persistCredential(
 
   const stored = await writeCredential(service, trimmedKey);
   if (stored !== true) {
-    throw new Error(
-      'The API key could not be saved. Check secure storage and try again.'
-    );
+    throw new Error('The API key could not be saved. Check secure storage and try again.');
   }
 }
 
@@ -38,9 +36,7 @@ export async function deleteStoredCredential(
   deleteCredential?: CredentialDeleteWriter
 ): Promise<void> {
   if (typeof deleteCredential !== 'function') {
-    throw new Error(
-      'Secure credential storage is unavailable. The API key was not deleted.'
-    );
+    throw new Error('Secure credential storage is unavailable. The API key was not deleted.');
   }
 
   const deleted = await deleteCredential(service);

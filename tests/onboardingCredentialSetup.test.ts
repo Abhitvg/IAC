@@ -65,9 +65,7 @@ describe('onboarding credential persistence', () => {
     await expect(deleteStoredCredential('groq-secondary', deleter)).resolves.toBeUndefined();
     expect(deleter).toHaveBeenCalledWith('groq-secondary');
 
-    await expect(deleteStoredCredential('groq-secondary')).rejects.toThrow(
-      'was not deleted'
-    );
+    await expect(deleteStoredCredential('groq-secondary')).rejects.toThrow('was not deleted');
     await expect(
       deleteStoredCredential('groq-secondary', vi.fn().mockResolvedValue(false))
     ).rejects.toThrow('could not be deleted');
@@ -79,5 +77,4 @@ describe('onboarding credential persistence', () => {
       'IPC unavailable'
     );
   });
-
 });
