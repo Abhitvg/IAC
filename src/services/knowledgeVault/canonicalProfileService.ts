@@ -25,7 +25,6 @@ import { CandidateKnowledgeBase } from '../candidateIntelligence';
 import { IngestionResult } from '../ingestion/types';
 import { validateCanonicalProfile } from './schemaValidation';
 import { useCandidateVaultStore } from '../../store/useCandidateVaultStore';
-import { useAppStore } from '../../store/useAppStore';
 
 const STORAGE_KEY = 'iac_canonical_candidate_profile_v2';
 
@@ -96,7 +95,10 @@ export class CanonicalProfileService {
   /**
    * Resets all candidate data to initial clean state with zero fabrications.
    */
-  public clearAllCandidateData(): { success: boolean; failedStores: string[] } {
+  public clearAllCandidateData(clearCandidateDocuments?: () => boolean): {
+    success: boolean;
+    failedStores: string[];
+  } {
     // First remove the canonical source of truth. If this fails, leave every copy
     // untouched so the UI cannot claim that candidate data was deleted.
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
@@ -138,13 +140,18 @@ export class CanonicalProfileService {
       failedStores.push('candidate-knowledge-base');
     }
 
-    try {
-      if (!useAppStore.getState().clearCandidateDocuments()) {
+    // Keep this service independent from the application store module. The app
+    // store imports InterviewEngine, which imports AnswerGenerationService; pulling
+    // useAppStore into this service creates a module-initialization cycle.
+    if (clearCandidateDocuments) {
+      try {
+        if (!clearCandidateDocuments()) {
+          failedStores.push('candidate-documents');
+        }
+      } catch (e) {
+        console.error('[CanonicalProfileService] Candidate document reset failed:', e);
         failedStores.push('candidate-documents');
       }
-    } catch (e) {
-      console.error('[CanonicalProfileService] Candidate document reset failed:', e);
-      failedStores.push('candidate-documents');
     }
 
     // Do not call syncToSubsystems here: it merges non-empty values from the old

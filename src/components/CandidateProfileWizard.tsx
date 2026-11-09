@@ -34,7 +34,8 @@ import { DeclarationsSection } from './wizard/DeclarationsSection';
 import { ReviewSection } from './wizard/ReviewSection';
 
 export const CandidateProfileWizard: React.FC = () => {
-  const { profileWizardOpen, setProfileWizardOpen, setToast } = useAppStore();
+  const { profileWizardOpen, setProfileWizardOpen, setToast, clearCandidateDocuments } =
+    useAppStore();
   const profileService = useMemo(() => CanonicalProfileService.getInstance(), []);
 
   const [activeStep, setActiveStep] = useState<WizardSection>('identity');
@@ -553,7 +554,7 @@ export const CandidateProfileWizard: React.FC = () => {
     }
     sectionFlushRef.current = null;
 
-    const result = profileService.clearAllCandidateData();
+    const result = profileService.clearAllCandidateData(clearCandidateDocuments);
     const latestProfile = profileService.getProfile();
     // Update the ref synchronously; React state is applied on the next render.
     // This prevents beforeunload/close handlers from flushing a stale profile.
@@ -571,9 +572,11 @@ export const CandidateProfileWizard: React.FC = () => {
     }
 
     setSaveStatus('saved');
-    setSaveStatusText('Candidate profile, saved resume, and job-targeting context cleared. Interview history and workspaces were kept.');
+    setSaveStatusText(
+      'Candidate profile, saved resume, and job-targeting context cleared. Interview history and workspaces were kept.'
+    );
     setToast?.('All candidate profile copies were reset.');
-  }, [profileService, setToast]);
+  }, [clearCandidateDocuments, profileService, setToast]);
 
   const handleClose = useCallback(() => {
     if (!flushPendingSave()) {
@@ -683,7 +686,8 @@ export const CandidateProfileWizard: React.FC = () => {
             }}
           >
             <span style={{ fontSize: '13px', color: '#FCA5A5' }}>
-              This clears your candidate profile, saved resume, and current job-targeting context. Saved interview history and workspaces are kept.
+              This clears your candidate profile, saved resume, and current job-targeting context.
+              Saved interview history and workspaces are kept.
             </span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
