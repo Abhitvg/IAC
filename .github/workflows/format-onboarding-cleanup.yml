@@ -1,0 +1,36 @@
+name: Format onboarding cleanup
+
+on:
+  push:
+    branches:
+      - chore/remove-temporary-format-workflows
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/remove-temporary-format-workflows
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Apply repository Prettier formatting
+        run: npx prettier --write src/components/OnboardingModal.tsx tests/onboardingSettingsSetup.test.ts
+      - name: Commit formatting changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/OnboardingModal.tsx tests/onboardingSettingsSetup.test.ts
+          if ! git diff --cached --quiet; then
+            git commit -m "style: format current onboarding implementation"
+            git push
+          else
+            echo "Onboarding files already formatted."
+          fi
