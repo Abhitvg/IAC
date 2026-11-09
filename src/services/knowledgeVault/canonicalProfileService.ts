@@ -95,7 +95,7 @@ export class CanonicalProfileService {
   /**
    * Resets all candidate data to initial clean state with zero fabrications.
    */
-  public clearAllCandidateData(clearCandidateDocuments?: () => boolean): {
+  public clearAllCandidateData(clearCandidateDocuments: () => boolean): {
     success: boolean;
     failedStores: string[];
   } {
@@ -143,15 +143,13 @@ export class CanonicalProfileService {
     // Keep this service independent from the application store module. The app
     // store imports InterviewEngine, which imports AnswerGenerationService; pulling
     // useAppStore into this service creates a module-initialization cycle.
-    if (clearCandidateDocuments) {
-      try {
-        if (!clearCandidateDocuments()) {
-          failedStores.push('candidate-documents');
-        }
-      } catch (e) {
-        console.error('[CanonicalProfileService] Candidate document reset failed:', e);
+    try {
+      if (!clearCandidateDocuments()) {
         failedStores.push('candidate-documents');
       }
+    } catch (e) {
+      console.error('[CanonicalProfileService] Candidate document reset failed:', e);
+      failedStores.push('candidate-documents');
     }
 
     // Do not call syncToSubsystems here: it merges non-empty values from the old
