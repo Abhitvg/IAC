@@ -12,11 +12,46 @@ import { convertBlobToWav, isValidWav } from '../utils/audioConversion';
 import { resolveOrMigrateModel, classifyAIError } from './models/modelRegistry';
 
 export interface WhisperConfig {
+  /** Explicit transcription provider override. */
   provider?: 'groq' | 'openai' | 'local';
+  /** Main application setting; Ollama maps to the configured local Whisper service. */
+  aiProvider?: 'groq' | 'openai' | 'openrouter' | 'ollama';
   apiKey?: string;
   model?: string;
+  /** Main application STT setting. */
+  whisperModel?: string;
   endpoint?: string;
   language?: string;
+}
+
+export type TranscriptionProvider = 'groq' | 'openai' | 'local';
+
+/**
+ * Resolve STT without silently moving audio to a cloud provider.
+ * OpenRouter has no STT model in this app, so callers must select a supported
+ * speech provider instead of being silently routed to Groq.
+ */
+export function resolveTranscriptionProvider(config: WhisperConfig): TranscriptionProvider {
+  if (config.provider) return config.provider;
+  if (config.aiProvider === 'ollama') return 'local';
+  if (config.aiProvider === 'groq' || config.aiProvider === 'openai') return config.aiProvider;
+  if (config.aiProvider === 'openrouter') {
+    throw new Error(
+      'OpenRouter is not configured for speech transcription. Select Groq, OpenAI, or local Whisper for speech-to-text.'
+    );
+  }
+
+  // Backward compatibility for callers which still supply only STT model IDs.
+  const configuredModel = (config.model || config.whisperModel || '').toLowerCase();
+  if (
+    config.endpoint &&
+    !config.endpoint.includes('groq.com') &&
+    !config.endpoint.includes('openai.com')
+  ) {
+    return 'local';
+  }
+  if (configuredModel.includes('whisper-1')) return 'openai';
+  return 'groq';
 }
 
 export interface TranscriptionResult {
@@ -71,51 +106,46 @@ export async function transcribeAudio(
     }
   }
 
-  // 2. Determine target provider
-  const targetProvider =
-    config.provider ||
-    (config.endpoint && !config.endpoint.includes('groq.com') && !config.endpoint.includes('openai.com')
-      ? 'local'
-      : config.model?.toLowerCase().includes('whisper-1')
-        ? 'openai'
-        : 'groq');
+  // 2. Respect the application-selected provider. Ollama means local Whisper;
+  // never fall through to cloud STT when local mode is selected.
+  const targetProvider = resolveTranscriptionProvider(config);
+  const sttConfig = { ...config, model: config.model || config.whisperModel };
 
   if (targetProvider === 'local') {
-    return transcribeLocal(audioBlob, config, signal);
+    return transcribeLocal(audioBlob, sttConfig, signal);
   }
 
-  // 3. Resolve API key
+  // 3. Resolve only the credential for the selected cloud transcription provider.
   let apiKey = config.apiKey;
   if (!apiKey && typeof window !== 'undefined' && window.electronAPI?.getApiKey) {
     apiKey = (await window.electronAPI.getApiKey(targetProvider)) || undefined;
-    if (!apiKey && targetProvider === 'groq') {
-      // Fallback to openai key if configured
-      apiKey = (await window.electronAPI.getApiKey('openai')) || undefined;
-    }
   }
 
   if (!apiKey && typeof import.meta !== 'undefined' && (import.meta as any).env) {
     const env = (import.meta as any).env;
-    if (targetProvider === 'groq') {
-      apiKey = env.VITE_GROQ_API_KEY || env.GROQ_API_KEY;
-    } else {
-      apiKey = env.VITE_OPENAI_API_KEY || env.OPENAI_API_KEY;
-    }
+    apiKey =
+      targetProvider === 'groq'
+        ? env.VITE_GROQ_API_KEY || env.GROQ_API_KEY
+        : env.VITE_OPENAI_API_KEY || env.OPENAI_API_KEY;
   }
 
-  if (apiKey) {
-    const match = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
-    const cleanKey = match ? match[0] : apiKey.trim();
-
-    if (targetProvider === 'groq' || cleanKey.startsWith('gsk_')) {
-      return transcribeGroq(audioBlob, cleanKey, config, signal);
-    }
-    return transcribeOpenAI(audioBlob, { ...config, apiKey: cleanKey }, signal);
+  if (!apiKey) {
+    throw new Error(
+      `No speech-to-text API key found for ${targetProvider.toUpperCase()}. Please configure that provider in Settings.`
+    );
   }
 
-  throw new Error(
-    `No speech-to-text API key found for ${targetProvider.toUpperCase()}. Please configure your API key in Settings.`
-  );
+  const match = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
+  const cleanKey = match ? match[0] : apiKey.trim();
+
+  if (targetProvider === 'groq') {
+    if (!cleanKey.startsWith('gsk_')) {
+      throw new Error('A valid Groq API key is required for Groq speech transcription.');
+    }
+    return transcribeGroq(audioBlob, cleanKey, sttConfig, signal);
+  }
+
+  return transcribeOpenAI(audioBlob, { ...sttConfig, apiKey: cleanKey }, signal);
 }
 
 async function transcribeGroq(
