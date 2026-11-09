@@ -20,7 +20,9 @@ describe('Evidence inspection Node runtime adapter', () => {
     expect(nodeProcess.getBuiltinModule('node:crypto')).toBeDefined();
 
     const sample = 'evidence-integrity-check';
-    expect(sha256Hex(sample)).toBe(crypto.createHash('sha256').update(sample).digest('hex'));
+    expect(sha256Hex(sample)).toBe(
+      crypto.createHash('sha256').update(sample).digest('hex')
+    );
 
     const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'iac-evidence-runtime-'));
     const storagePath = path.join(tempDirectory, 'evidence-keys.json');
