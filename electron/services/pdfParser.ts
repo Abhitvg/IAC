@@ -9,6 +9,15 @@ import { executeOcr, getOcrEngineInfo } from './ocrService';
  * Handles complex multi-column resumes, CMap encodings, Unicode character sets,
  * non-English text, and multi-page scanned documents.
  */
+/**
+ * PDF.js uses filesystem paths for its Node-side CMap/font readers. Unlike the
+ * workerSrc option, these directory values must not be file:// URLs. Forward
+ * slashes and a trailing slash are accepted by Node on Windows and POSIX.
+ */
+export function toPdfJsNodeDirectoryPath(directoryPath: string): string {
+  return `${directoryPath.replace(/\\/g, '/').replace(/\/+$/, '')}/`;
+}
+
 function resolveWorkerSrc(): string {
   try {
     return pathToFileURL(require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')).href;
@@ -32,20 +41,19 @@ function resolveCMapUrl(): string {
   if (process.resourcesPath) {
     const packagedPath = path.join(process.resourcesPath, 'cmaps');
     if (fs.existsSync(packagedPath)) {
-      return pathToFileURL(packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep)
-        .href;
+      return toPdfJsNodeDirectoryPath(packagedPath);
     }
   }
   try {
     const pkgPath = require.resolve('pdfjs-dist/package.json');
     const cMapDir = path.join(path.dirname(pkgPath), 'cmaps');
     if (fs.existsSync(cMapDir)) {
-      return pathToFileURL(cMapDir.endsWith(path.sep) ? cMapDir : cMapDir + path.sep).href;
+      return toPdfJsNodeDirectoryPath(cMapDir);
     }
   } catch {}
   const candidate = path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'cmaps');
   if (fs.existsSync(candidate)) {
-    return pathToFileURL(candidate.endsWith(path.sep) ? candidate : candidate + path.sep).href;
+    return toPdfJsNodeDirectoryPath(candidate);
   }
   return '';
 }
@@ -54,20 +62,19 @@ function resolveStandardFontUrl(): string {
   if (process.resourcesPath) {
     const packagedPath = path.join(process.resourcesPath, 'standard_fonts');
     if (fs.existsSync(packagedPath)) {
-      return pathToFileURL(packagedPath.endsWith(path.sep) ? packagedPath : packagedPath + path.sep)
-        .href;
+      return toPdfJsNodeDirectoryPath(packagedPath);
     }
   }
   try {
     const pkgPath = require.resolve('pdfjs-dist/package.json');
     const fontDir = path.join(path.dirname(pkgPath), 'standard_fonts');
     if (fs.existsSync(fontDir)) {
-      return pathToFileURL(fontDir.endsWith(path.sep) ? fontDir : fontDir + path.sep).href;
+      return toPdfJsNodeDirectoryPath(fontDir);
     }
   } catch {}
   const candidate = path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'standard_fonts');
   if (fs.existsSync(candidate)) {
-    return pathToFileURL(candidate.endsWith(path.sep) ? candidate : candidate + path.sep).href;
+    return toPdfJsNodeDirectoryPath(candidate);
   }
   return '';
 }
@@ -318,6 +325,7 @@ export async function parsePdfBuffer(
   }
 
   let rawExtractedText = '';
+  let loadingTask: any;
 
   try {
     let pdfjs: any;
@@ -352,7 +360,7 @@ export async function parsePdfBuffer(
      * With cMapUrl and standardFontDataUrl configured, PDF.js still fully parses
      * TrueType, CIDFont, and Type0 font tables internally for glyph-to-Unicode mapping.
      */
-    const loadingTask = pdfjs.getDocument({
+    loadingTask = pdfjs.getDocument({
       data: copy,
       cMapUrl: cMapUrl || undefined,
       cMapPacked: true,
@@ -376,6 +384,16 @@ export async function parsePdfBuffer(
     rawExtractedText = fullText.trim();
   } catch (err) {
     console.warn('[PDFParser] pdfjs-dist extraction error:', err);
+  } finally {
+    // A loading task owns the PDF worker/transport. Release it after each file
+    // so repeated imports do not leave worker resources alive.
+    if (loadingTask) {
+      try {
+        await loadingTask.destroy();
+      } catch {
+        // The task may already have torn itself down after a parsing failure.
+      }
+    }
   }
 
   // If text layer is clean, readable, and non-empty, return it
