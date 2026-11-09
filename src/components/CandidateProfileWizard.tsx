@@ -164,7 +164,9 @@ export const CandidateProfileWizard: React.FC = () => {
       if (e.key === 'Escape') {
         e.preventDefault();
         if (!flushPendingSave()) {
-          setToast?.('Your profile could not be saved. Fix the storage issue before closing this wizard.');
+          setToast?.(
+            'Your profile could not be saved. Fix the storage issue before closing this wizard.'
+          );
           return;
         }
         setProfileWizardOpen(false);
@@ -341,7 +343,9 @@ export const CandidateProfileWizard: React.FC = () => {
 
   const handleCompleteAndLock = useCallback(() => {
     if (!flushPendingSave()) {
-      setToast?.('Profile was not locked because the latest changes could not be saved. Resolve the storage error and try again.');
+      setToast?.(
+        'Profile was not locked because the latest changes could not be saved. Resolve the storage error and try again.'
+      );
       return;
     }
 
@@ -573,7 +577,9 @@ export const CandidateProfileWizard: React.FC = () => {
 
   const handleClose = useCallback(() => {
     if (!flushPendingSave()) {
-      setToast?.('Your profile could not be saved. Resolve the storage error before closing this wizard.');
+      setToast?.(
+        'Your profile could not be saved. Resolve the storage error before closing this wizard.'
+      );
       return;
     }
     setProfileWizardOpen(false);
