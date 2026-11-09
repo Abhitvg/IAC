@@ -80,11 +80,7 @@ export class CredentialStore {
         console.warn('[CredentialStore] Could not identify the Linux keyring backend:', error);
       }
 
-      if (
-        !backend ||
-        backend === 'unknown' ||
-        backend === 'basic_text'
-      ) {
+      if (!backend || backend === 'unknown' || backend === 'basic_text') {
         throw new Error(
           'Secure Linux credential storage is unavailable. Configure GNOME Keyring or KDE Wallet and restart the app. API keys are not saved to an unprotected fallback.'
         );
