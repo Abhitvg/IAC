@@ -64,8 +64,10 @@ export default function SettingsPanel() {
           } else {
             setSecondaryGroqKey('');
           }
-        } catch {
-          setErrorMessage('Unable to retrieve stored API key.');
+        } catch (error: unknown) {
+          setErrorMessage(
+            error instanceof Error ? error.message : 'Unable to retrieve stored API key.'
+          );
         }
       }
     };
@@ -118,8 +120,12 @@ export default function SettingsPanel() {
       } else {
         await window.electronAPI?.deleteApiKey('groq-secondary');
       }
-    } catch {
-      setErrorMessage('Failed to encrypt and store the secondary Groq API key.');
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Failed to securely store the secondary Groq API key.'
+      );
     } finally {
       setLoading(false);
     }
@@ -132,8 +138,10 @@ export default function SettingsPanel() {
     try {
       await window.electronAPI?.setApiKey(settings.aiProvider, apiKey.trim());
       updateSetting('hasApiKey', apiKey.trim().length > 0);
-    } catch {
-      setErrorMessage('Failed to encrypt and store API key locally.');
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to securely store the API key.'
+      );
     } finally {
       setLoading(false);
     }
@@ -308,9 +316,9 @@ export default function SettingsPanel() {
                   </button>
                 </div>
                 <span className="field__hint">
-                  Encrypted with OS-backed Electron safeStorage when available. Otherwise, the app
-                  uses a user-data AES-GCM fallback that is not equivalent to OS keychain
-                  protection.
+                  Encrypted with OS-backed Electron safeStorage. On Linux, GNOME Keyring or KDE
+                  Wallet must be available. The app refuses to save API keys when an OS-backed
+                  credential provider is unavailable.
                 </span>
               </div>
             )}
@@ -347,8 +355,7 @@ export default function SettingsPanel() {
                 </div>
                 <span className="field__hint">
                   Optional. Stored separately and used only when the primary key is rate-limited.
-                  OS-backed protection is used when available; the fallback is weaker than an OS
-                  keychain.
+                  Uses the same OS-backed credential provider; no weaker local-key fallback is used.
                 </span>
               </div>
             )}
