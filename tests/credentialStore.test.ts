@@ -1,21 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-// Mock electron before importing CredentialStore
-vi.mock('electron', () => {
-  return {
-    app: {
-      getPath: () => os.tmpdir(),
-    },
-    safeStorage: {
-      isEncryptionAvailable: vi.fn(),
-      encryptString: vi.fn(),
-      decryptString: vi.fn(),
-    },
-  };
-});
+// Mock Electron before importing CredentialStore.
+vi.mock('electron', () => ({
+  app: {
+    getPath: () => os.tmpdir(),
+  },
+  safeStorage: {
+    isAsyncEncryptionAvailable: vi.fn(),
+    encryptStringAsync: vi.fn(),
+    decryptStringAsync: vi.fn(),
+    getSelectedStorageBackend: vi.fn(),
+  },
+}));
 
 import { safeStorage } from 'electron';
 import { CredentialStore } from '../electron/services/credentialStore';
@@ -40,6 +40,13 @@ class MockStore {
   }
 }
 
+function encryptLegacyCredential(plainText: string, key: Buffer): string {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString('base64');
+}
+
 describe('CredentialStore', () => {
   let mockStore: MockStore;
   let tempDir: string;
@@ -48,13 +55,23 @@ describe('CredentialStore', () => {
     mockStore = new MockStore();
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cred-test-'));
     vi.clearAllMocks();
+
+    (safeStorage.isAsyncEncryptionAvailable as any).mockResolvedValue(true);
+    (safeStorage.getSelectedStorageBackend as any).mockReturnValue('gnome_libsecret');
+    (safeStorage.encryptStringAsync as any).mockImplementation(async (str: string) =>
+      Buffer.from('safestore:' + str)
+    );
+    (safeStorage.decryptStringAsync as any).mockImplementation(async (buf: Buffer) => ({
+      result: buf.toString().replace('safestore:', ''),
+      shouldReEncrypt: false,
+    }));
   });
 
   afterEach(() => {
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {
-      // Ignore cleanup error
+      // Ignore cleanup error.
     }
   });
 
@@ -86,58 +103,77 @@ describe('CredentialStore', () => {
     );
   });
 
-  it('uses safeStorage when available', async () => {
-    (safeStorage.isEncryptionAvailable as any).mockReturnValue(true);
-    (safeStorage.encryptString as any).mockImplementation((str: string) =>
-      Buffer.from('safestore:' + str)
-    );
-    (safeStorage.decryptString as any).mockImplementation((buf: Buffer) =>
-      buf.toString().replace('safestore:', '')
-    );
-
+  it('uses Electron asynchronous safeStorage when the OS key provider is available', async () => {
     const creds = new CredentialStore(mockStore, tempDir);
     const success = await creds.setKey('groq', 'gsk_test_key_12345');
     expect(success).toBe(true);
 
     const saved = mockStore.get('secure_credentials.groq');
-    expect(saved.type).toBe('safeStorage');
-    // Secret must NOT be in plaintext in store
+    expect(saved.type).toBe('safeStorage-async');
     expect(saved.data).not.toContain('gsk_test_key_12345');
+    expect(safeStorage.encryptStringAsync).toHaveBeenCalledWith('gsk_test_key_12345');
 
     const retrieved = await creds.getKey('groq');
     expect(retrieved).toBe('gsk_test_key_12345');
   });
 
-  it('falls back to machine-scoped AES-256-GCM when safeStorage is unavailable', async () => {
-    (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
-
+  it('fails closed when Electron secure storage is unavailable', async () => {
+    (safeStorage.isAsyncEncryptionAvailable as any).mockResolvedValue(false);
     const creds = new CredentialStore(mockStore, tempDir);
-    const success = await creds.setKey('openai', 'sk-proj-testkey999');
-    expect(success).toBe(true);
 
-    const saved = mockStore.get('secure_credentials.openai');
-    expect(saved.type).toBe('aes-gcm');
-    expect(saved.data).not.toContain('sk-proj-testkey999');
-    expect(fs.existsSync(path.join(tempDir, '.machine_secret'))).toBe(true);
-
-    const retrieved = await creds.getKey('openai');
-    expect(retrieved).toBe('sk-proj-testkey999');
-  });
-
-  it('does not save credentials when the fallback encryption key cannot be persisted', async () => {
-    (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
-    const blockedPath = path.join(tempDir, 'not-a-directory');
-    fs.writeFileSync(blockedPath, 'this path is a file');
-
-    const creds = new CredentialStore(mockStore, blockedPath);
-    await expect(creds.setKey('openai', 'sk-proj-secret')).rejects.toThrow(
-      /Could not persist the credential encryption key/i
+    await expect(creds.setKey('openai', 'sk-proj-testkey999')).rejects.toThrow(
+      /OS-backed credential storage is unavailable/i
     );
     expect(mockStore.get('secure_credentials.openai')).toBeUndefined();
+    expect(fs.existsSync(path.join(tempDir, '.machine_secret'))).toBe(false);
   });
 
-  it('does not create a replacement key when decrypting a record with a missing key', async () => {
-    (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
+  it('rejects Linux basic_text storage instead of writing credentials with an unprotected key', async () => {
+    if (process.platform !== 'linux') return;
+    (safeStorage.getSelectedStorageBackend as any).mockReturnValue('basic_text');
+
+    const creds = new CredentialStore(mockStore, tempDir);
+    await expect(creds.setKey('openai', 'sk-proj-testkey999')).rejects.toThrow(
+      /Secure Linux credential storage is unavailable/i
+    );
+    expect(mockStore.get('secure_credentials.openai')).toBeUndefined();
+    expect(fs.existsSync(path.join(tempDir, '.machine_secret'))).toBe(false);
+  });
+
+  it('migrates a legacy AES-GCM record into OS-backed safeStorage when available', async () => {
+    const legacyKey = Buffer.alloc(32, 17);
+    fs.writeFileSync(path.join(tempDir, '.machine_secret'), legacyKey, { mode: 0o600 });
+    mockStore.set('secure_credentials.openai', {
+      type: 'aes-gcm',
+      data: encryptLegacyCredential('sk-proj-legacy-key', legacyKey),
+    });
+
+    const creds = new CredentialStore(mockStore, tempDir);
+    await expect(creds.getKey('openai')).resolves.toBe('sk-proj-legacy-key');
+
+    const migrated = mockStore.get('secure_credentials.openai');
+    expect(migrated.type).toBe('safeStorage-async');
+    expect(migrated.data).not.toContain('sk-proj-legacy-key');
+    expect(fs.existsSync(path.join(tempDir, '.machine_secret'))).toBe(false);
+  });
+
+  it('does not read legacy AES-GCM credentials when Linux has no secure keyring', async () => {
+    if (process.platform !== 'linux') return;
+    (safeStorage.getSelectedStorageBackend as any).mockReturnValue('basic_text');
+
+    const legacyKey = Buffer.alloc(32, 23);
+    fs.writeFileSync(path.join(tempDir, '.machine_secret'), legacyKey, { mode: 0o600 });
+    mockStore.set('secure_credentials.openai', {
+      type: 'aes-gcm',
+      data: encryptLegacyCredential('sk-proj-legacy-key', legacyKey),
+    });
+
+    const creds = new CredentialStore(mockStore, tempDir);
+    await expect(creds.getKey('openai')).resolves.toBeNull();
+    expect(safeStorage.decryptStringAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not create a replacement legacy key when decrypting a record with a missing key', async () => {
     mockStore.set('secure_credentials.openai', {
       type: 'aes-gcm',
       data: Buffer.alloc(32).toString('base64'),
@@ -148,8 +184,23 @@ describe('CredentialStore', () => {
     expect(fs.existsSync(path.join(tempDir, '.machine_secret'))).toBe(false);
   });
 
+  it('re-encrypts records when Electron reports that the OS key has rotated', async () => {
+    mockStore.set('secure_credentials.openai', {
+      type: 'safeStorage',
+      data: Buffer.from('safestore:sk-proj-rotated-key').toString('base64'),
+    });
+    (safeStorage.decryptStringAsync as any).mockResolvedValueOnce({
+      result: 'sk-proj-rotated-key',
+      shouldReEncrypt: true,
+    });
+
+    const creds = new CredentialStore(mockStore, tempDir);
+    await expect(creds.getKey('openai')).resolves.toBe('sk-proj-rotated-key');
+    expect(safeStorage.encryptStringAsync).toHaveBeenCalledWith('sk-proj-rotated-key');
+    expect(mockStore.get('secure_credentials.openai').type).toBe('safeStorage-async');
+  });
+
   it('deletes keys properly', async () => {
-    (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
     const creds = new CredentialStore(mockStore, tempDir);
     await creds.setKey('openrouter', 'sk-or-test1234');
 
@@ -160,7 +211,6 @@ describe('CredentialStore', () => {
   });
 
   it('lists configured services accurately, including the secondary Groq slot', async () => {
-    (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
     const creds = new CredentialStore(mockStore, tempDir);
 
     await creds.setKey('groq', 'gsk_123');
