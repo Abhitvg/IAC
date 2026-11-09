@@ -23,7 +23,7 @@ export default function OnboardingModal() {
 
   const [step, setStep] = useState<OnboardingStep>('mode');
   const [isLocalMode, setIsLocalMode] = useState(false);
-  const [provider, setProvider] = useState<'groq' | 'openai' | 'openrouter' | 'ollama'>('groq');
+  const [provider, setProvider] = useState<'groq' | 'openai' | 'ollama'>('groq');
   const [apiKey, setApiKey] = useState('');
 
   // Live microphone test state. Never fabricate meter readings or latency results.
@@ -267,7 +267,7 @@ export default function OnboardingModal() {
                     lineHeight: '1.4',
                   }}
                 >
-                  Sub-second conversational voice latency via Groq or OpenAI. Requires API key.
+                  Cloud live interviews upload microphone audio to Groq or OpenAI for transcription, then send the recognized question and your resume, job description, target role, and recent Q&A context to the selected LLM. These live requests do not show a per-question redaction preview.
                 </p>
               </button>
 
@@ -360,11 +360,11 @@ export default function OnboardingModal() {
                 </p>
 
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-                  {['groq', 'openai', 'openrouter'].map((p) => (
+                  {(['groq', 'openai'] as const).map((p) => (
                     <button
                       key={p}
                       type="button"
-                      onClick={() => setProvider(p as any)}
+                      onClick={() => setProvider(p)}
                       style={{
                         flex: 1,
                         padding: '8px',
