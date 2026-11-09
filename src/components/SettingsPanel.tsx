@@ -1,5 +1,8 @@
 import { copyToClipboard } from '../utils/clipboard';
-import { persistOnboardingCredential } from '../services/onboarding/credentialSetup';
+import {
+  deleteStoredCredential,
+  persistCredential,
+} from '../services/onboarding/credentialSetup';
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { usePracticeStore } from '../store/usePracticeStore';
@@ -117,7 +120,7 @@ export default function SettingsPanel() {
     setErrorMessage(null);
     try {
       if (secondaryGroqKey.trim()) {
-        await persistOnboardingCredential(
+        await persistCredential(
           'groq-secondary',
           secondaryGroqKey,
           async (service, key) => {
@@ -131,16 +134,15 @@ export default function SettingsPanel() {
           }
         );
       } else {
-        const deleteCredential = window.electronAPI?.deleteApiKey;
-        if (typeof deleteCredential !== 'function') {
-          throw new Error(
-            'Secure credential storage is unavailable. The secondary API key was not deleted.'
-          );
-        }
-        const deleted = await deleteCredential('groq-secondary');
-        if (deleted !== true) {
-          throw new Error('The secondary Groq API key could not be deleted.');
-        }
+        await deleteStoredCredential('groq-secondary', async (service) => {
+          const deleteCredential = window.electronAPI?.deleteApiKey;
+          if (typeof deleteCredential !== 'function') {
+            throw new Error(
+              'Secure credential storage is unavailable. The secondary API key was not deleted.'
+            );
+          }
+          return deleteCredential(service);
+        });
       }
     } catch (error: unknown) {
       setErrorMessage(
@@ -159,11 +161,7 @@ export default function SettingsPanel() {
     setErrorMessage(null);
     try {
       const trimmedKey = apiKey.trim();
-      if (!trimmedKey) {
-        throw new Error('API key must not be empty.');
-      }
-
-      await persistOnboardingCredential(
+      await persistCredential(
         settings.aiProvider,
         trimmedKey,
         async (service, key) => {
