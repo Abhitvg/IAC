@@ -1,0 +1,33 @@
+name: Temporary formatter for STT disclosure patch
+
+on:
+  push:
+    branches:
+      - fix/stt-model-validation-and-settings-disclosure
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/stt-model-validation-and-settings-disclosure
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Format the reviewed patch
+        run: |
+          npx prettier --write README.md src/services/whisper.ts tests/whisperProviderRouting.test.ts src/components/SettingsPanel.tsx
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet; then
+            git add README.md src/services/whisper.ts tests/whisperProviderRouting.test.ts src/components/SettingsPanel.tsx
+            git commit -m "style: format STT privacy and settings changes"
+            git push origin HEAD:fix/stt-model-validation-and-settings-disclosure
+          fi
