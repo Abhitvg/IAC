@@ -13,6 +13,19 @@ describe('Candidate Factual Grounding & Anti-Hallucination Regression Tests', ()
     vi.restoreAllMocks();
   });
 
+  it('does not inject a hard-coded person into an unconfigured candidate profile', () => {
+    const emptyProfile = new CandidateKnowledgeBase();
+    const emptyPrompt = emptyProfile.buildGroundingPromptSection('Tell me about your experience');
+
+    expect(emptyPrompt).toContain('CANDIDATE:');
+    expect(emptyPrompt).not.toContain('Abhishek Singh');
+
+    const explicitlyNamedProfile = new CandidateKnowledgeBase('', 'Jane Doe');
+    expect(
+      explicitlyNamedProfile.buildGroundingPromptSection('Tell me about your experience')
+    ).toContain('CANDIDATE: Jane Doe');
+  });
+
   // REGRESSION TEST 1: A resume containing the word 'DocFlow' does not create an invented project
   it('Regression 1: Resume containing the word "DocFlow" does NOT create an invented project profile', () => {
     const resumeWithCasualDocflow = `
@@ -81,10 +94,13 @@ Technologies: Go, Docker, PostgreSQL
     expect(project?.teamContribution).toContain('authorship of specific code files is unverified');
 
     // Claiming sole author status without explicit confirmation must fail validation
-    const answerClaimingSole = 'I was the sole creator and single-handedly built TaskMaster from scratch.';
+    const answerClaimingSole =
+      'I was the sole creator and single-handedly built TaskMaster from scratch.';
     const validation = FactualGroundingValidator.validateAnswer(answerClaimingSole, kb);
     expect(validation.isGrounded).toBe(false);
-    expect(validation.structuredViolations.some((v) => v.category === 'unsupported_ownership')).toBe(true);
+    expect(
+      validation.structuredViolations.some((v) => v.category === 'unsupported_ownership')
+    ).toBe(true);
   });
 
   // REGRESSION TEST 4: An unknown performance metric cannot appear as a verified achievement
@@ -97,16 +113,22 @@ Technologies: Java, Kafka
     const kb = new CandidateKnowledgeBase(resume);
 
     // Adversarial answers claiming unverified numbers
-    const answerWithScale = 'In StreamEngine, we scaled the pipeline to handle 100,000 concurrent users seamlessly.';
+    const answerWithScale =
+      'In StreamEngine, we scaled the pipeline to handle 100,000 concurrent users seamlessly.';
     const validationScale = FactualGroundingValidator.validateAnswer(answerWithScale, kb);
     expect(validationScale.isGrounded).toBe(false);
-    expect(validationScale.structuredViolations.some((v) => v.category === 'metric_fabrication')).toBe(true);
+    expect(
+      validationScale.structuredViolations.some((v) => v.category === 'metric_fabrication')
+    ).toBe(true);
     expect(validationScale.score).toBeLessThanOrEqual(45);
 
-    const answerWithLatency = 'I optimized the queries and reduced API latency by 45% in production.';
+    const answerWithLatency =
+      'I optimized the queries and reduced API latency by 45% in production.';
     const validationLatency = FactualGroundingValidator.validateAnswer(answerWithLatency, kb);
     expect(validationLatency.isGrounded).toBe(false);
-    expect(validationLatency.structuredViolations.some((v) => v.category === 'metric_fabrication')).toBe(true);
+    expect(
+      validationLatency.structuredViolations.some((v) => v.category === 'metric_fabrication')
+    ).toBe(true);
   });
 
   // REGRESSION TEST 5: A missing architecture remains unknown
@@ -144,11 +166,15 @@ Technologies: Java, Spring Boot
     // Irrelevant general CS / DSA / behavioral questions
     expect(kb.findRelevantProject('How does quicksort partition work in average case?')).toBeNull();
     expect(kb.findRelevantProject('Explain the difference between process and thread.')).toBeNull();
-    expect(kb.findRelevantProject('Tell me about a time you handled a workplace disagreement.')).toBeNull();
+    expect(
+      kb.findRelevantProject('Tell me about a time you handled a workplace disagreement.')
+    ).toBeNull();
     expect(kb.findRelevantProject('What are HTTP 301 vs 302 status codes?')).toBeNull();
 
     // Relevant question targeting the project
-    expect(kb.findRelevantProject('Tell me about your CorePlatform architecture')?.name).toBe('CorePlatform');
+    expect(kb.findRelevantProject('Tell me about your CorePlatform architecture')?.name).toBe(
+      'CorePlatform'
+    );
   });
 
   // REGRESSION TEST 7: An unverified claim of personal implementation is flagged
@@ -162,11 +188,14 @@ Technologies: React, TypeScript
     const kb = new CandidateKnowledgeBase(resume);
 
     // Redis is only in skills keywords, not verified implementation in WebPortal
-    const unverifiedClaim = 'In my project, I personally implemented the distributed cache cluster with Redis.';
+    const unverifiedClaim =
+      'In my project, I personally implemented the distributed cache cluster with Redis.';
     const validation = FactualGroundingValidator.validateAnswer(unverifiedClaim, kb);
 
     expect(validation.isGrounded).toBe(false);
-    expect(validation.structuredViolations.some((v) => v.category === 'unverified_technology')).toBe(true);
+    expect(
+      validation.structuredViolations.some((v) => v.category === 'unverified_technology')
+    ).toBe(true);
     expect(validation.unsupportedClaims.some((c) => c.includes('Redis'))).toBe(true);
   });
 
@@ -197,11 +226,14 @@ Technologies: React, TypeScript
     });
 
     // Adversarial answer claiming the proposed design was already implemented in production
-    const fabricatedClaim = 'In PaymentsService, I implemented Active-active multi-region failover cluster in production.';
+    const fabricatedClaim =
+      'In PaymentsService, I implemented Active-active multi-region failover cluster in production.';
     const validation = FactualGroundingValidator.validateAnswer(fabricatedClaim, kb);
 
     expect(validation.isGrounded).toBe(false);
-    expect(validation.structuredViolations.some((v) => v.category === 'proposed_design_as_completed')).toBe(true);
+    expect(
+      validation.structuredViolations.some((v) => v.category === 'proposed_design_as_completed')
+    ).toBe(true);
   });
 
   // REGRESSION TEST 9: Final generated answer is checked, not merely an intermediate draft
@@ -210,13 +242,15 @@ Technologies: React, TypeScript
     vi.spyOn(service, 'resolveApiKey').mockResolvedValue('test-mock-key');
 
     // Mock streamAnswer to simulate an LLM producing an answer with unverified metrics
-    vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
-      callbacks.onToken?.('I built the service.');
-      callbacks.onComplete?.(
-        `In my project DocFlow, I implemented a custom editor supporting 10,000 concurrent users.
+    vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
+      async (_prompt, _config, _lang, callbacks) => {
+        callbacks.onToken?.('I built the service.');
+        callbacks.onComplete?.(
+          `In my project DocFlow, I implemented a custom editor supporting 10,000 concurrent users.
 FOLLOW_UPS: How do you handle conflict resolution? | What is the GC strategy?`
-      );
-    });
+        );
+      }
+    );
 
     let completedResult: any = null;
     await service.generateAnswer(
@@ -260,7 +294,9 @@ Skills: Java, TypeScript
     const validation = FactualGroundingValidator.validateAnswer(answer, kb);
 
     expect(validation.isGrounded).toBe(false);
-    expect(validation.structuredViolations.some((v) => v.category === 'unverified_leadership')).toBe(true);
+    expect(
+      validation.structuredViolations.some((v) => v.category === 'unverified_leadership')
+    ).toBe(true);
   });
 
   // SECOND-STAGE AUDIT TEST 11: "I architected the complete backend" when architecture ownership is unknown
@@ -275,7 +311,9 @@ Technologies: Java, Spring Boot
     const validation = FactualGroundingValidator.validateAnswer(answer, kb);
 
     expect(validation.isGrounded).toBe(false);
-    expect(validation.structuredViolations.some((v) => v.category === 'unverified_architecture')).toBe(true);
+    expect(
+      validation.structuredViolations.some((v) => v.category === 'unverified_architecture')
+    ).toBe(true);
   });
 
   // SECOND-STAGE AUDIT TEST 12: "I personally implemented the payment engine" when contribution is unknown
@@ -290,7 +328,9 @@ Technologies: Java, PostgreSQL
     const validation = FactualGroundingValidator.validateAnswer(answer, kb);
 
     expect(validation.isGrounded).toBe(false);
-    expect(validation.structuredViolations.some((v) => v.category === 'unverified_backend')).toBe(true);
+    expect(validation.structuredViolations.some((v) => v.category === 'unverified_backend')).toBe(
+      true
+    );
   });
 
   // SECOND-STAGE AUDIT TEST 13: "I reduced database latency by 70%" without supporting evidence
@@ -301,11 +341,14 @@ CatalogApp – Product catalog
 Technologies: PostgreSQL
 `;
     const kb = new CandidateKnowledgeBase(resume);
-    const answer = 'By adding compound indexes, I reduced database latency by 70% across production.';
+    const answer =
+      'By adding compound indexes, I reduced database latency by 70% across production.';
     const validation = FactualGroundingValidator.validateAnswer(answer, kb);
 
     expect(validation.isGrounded).toBe(false);
-    expect(validation.structuredViolations.some((v) => v.category === 'metric_fabrication')).toBe(true);
+    expect(validation.structuredViolations.some((v) => v.category === 'metric_fabrication')).toBe(
+      true
+    );
   });
 
   // SECOND-STAGE AUDIT TEST 14: "I deployed the system on Kubernetes" when Kubernetes appears only in skills
@@ -321,7 +364,11 @@ Technologies: Java, Spring Boot
     const validation = FactualGroundingValidator.validateAnswer(answer, kb);
 
     expect(validation.isGrounded).toBe(false);
-    expect(validation.structuredViolations.some((v) => v.category === 'unverified_deployment' || v.category === 'unverified_technology')).toBe(true);
+    expect(
+      validation.structuredViolations.some(
+        (v) => v.category === 'unverified_deployment' || v.category === 'unverified_technology'
+      )
+    ).toBe(true);
   });
 
   // SECOND-STAGE AUDIT TEST 15: LLM attempts to self-promote claims through confirmProject or promoteToVerifiedFact
@@ -365,22 +412,28 @@ Technologies: Python
     const kb = new CandidateKnowledgeBase(resume);
 
     // Reject empty personal contribution
-    expect(kb.confirmProject('DataPipeline', {
-      ownership: 'core_contributor',
-      personalContribution: '',
-    })).toBe(false);
+    expect(
+      kb.confirmProject('DataPipeline', {
+        ownership: 'core_contributor',
+        personalContribution: '',
+      })
+    ).toBe(false);
 
     // Reject unknown/ambiguous ownership during confirmation
-    expect(kb.confirmProject('DataPipeline', {
-      ownership: 'unknown',
-      personalContribution: 'Worked on pipeline filters',
-    })).toBe(false);
+    expect(
+      kb.confirmProject('DataPipeline', {
+        ownership: 'unknown',
+        personalContribution: 'Worked on pipeline filters',
+      })
+    ).toBe(false);
 
     // Reject placeholder contribution
-    expect(kb.confirmProject('DataPipeline', {
-      ownership: 'core_contributor',
-      personalContribution: 'N/A',
-    })).toBe(false);
+    expect(
+      kb.confirmProject('DataPipeline', {
+        ownership: 'core_contributor',
+        personalContribution: 'N/A',
+      })
+    ).toBe(false);
   });
 
   // SECOND-STAGE AUDIT TEST 17: Follow-up prediction containing fabricated claim is filtered out
@@ -389,12 +442,14 @@ Technologies: Python
     vi.spyOn(service, 'resolveApiKey').mockResolvedValue('test-mock-key');
 
     // Mock streamAnswer producing follow-ups: one valid, one containing fabricated scale
-    vi.spyOn(aiModule, 'streamAnswer').mockImplementation(async (_prompt, _config, _lang, callbacks) => {
-      callbacks.onComplete?.(
-        `In our system, we partitioned the tables.
+    vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
+      async (_prompt, _config, _lang, callbacks) => {
+        callbacks.onComplete?.(
+          `In our system, we partitioned the tables.
 FOLLOW_UPS: How did you scale the payment engine to 50,000 concurrent users? | What partition key strategy did you select?`
-      );
-    });
+        );
+      }
+    );
 
     let result: any = null;
     await service.generateAnswer(
@@ -415,9 +470,13 @@ Technologies: PostgreSQL`,
 
     expect(result).not.toBeNull();
     // The follow-up with "50,000 concurrent users" must be filtered out
-    expect(result.predictedFollowUps.some((f: string) => f.includes('50,000 concurrent users'))).toBe(false);
+    expect(
+      result.predictedFollowUps.some((f: string) => f.includes('50,000 concurrent users'))
+    ).toBe(false);
     // The valid follow-up without unverified personal claims must be retained
-    expect(result.predictedFollowUps.some((f: string) => f.includes('partition key strategy'))).toBe(true);
+    expect(
+      result.predictedFollowUps.some((f: string) => f.includes('partition key strategy'))
+    ).toBe(true);
   });
 
   // SECOND-STAGE AUDIT TEST 18: Line provenance tracking in project parsing
@@ -446,7 +505,9 @@ Repository: https://github.com/Abhitvg/cloud-mesh`;
     expect(metricClaim).toBeDefined();
     expect(metricClaim?.rawText).toContain('20%');
 
-    const personalClaim = project?.rawClaims?.find((c) => c.claimType === 'personal_responsibility');
+    const personalClaim = project?.rawClaims?.find(
+      (c) => c.claimType === 'personal_responsibility'
+    );
     expect(personalClaim).toBeDefined();
     expect(personalClaim?.rawText).toContain('I personally implemented');
 
@@ -469,7 +530,8 @@ Technologies: TypeScript, Node.js, PostgreSQL
     const confirmed = kb.confirmProject('DocFlow', {
       ticket,
       ownership: 'core_contributor',
-      personalContribution: 'Implemented document synchronization with WebSockets and PostgreSQL persistence.',
+      personalContribution:
+        'Implemented document synchronization with WebSockets and PostgreSQL persistence.',
       verifiedArchitecture: 'WebSocket gateway with relational PostgreSQL persistence',
       verifiedTechnologies: ['TypeScript', 'Node.js', 'PostgreSQL'],
       verifiedResults: ['Supported multi-tab document editing without desynchronization'],
@@ -487,7 +549,8 @@ Technologies: TypeScript, Node.js, PostgreSQL
     expect(kb.isTechnologyVerified('TypeScript')).toBe(true);
 
     // Grounding validation on an answer describing confirmed work
-    const answer = 'In DocFlow, I contributed to the document synchronization engine using WebSockets with PostgreSQL persistence.';
+    const answer =
+      'In DocFlow, I contributed to the document synchronization engine using WebSockets with PostgreSQL persistence.';
     const validation = FactualGroundingValidator.validateAnswer(answer, kb);
 
     expect(validation.isGrounded).toBe(true);
