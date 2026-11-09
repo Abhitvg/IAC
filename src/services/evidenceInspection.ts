@@ -4,10 +4,7 @@ function getNodeBuiltin(moduleId: 'node:fs' | 'node:crypto'): any {
   }
 
   const nodeProcess = (globalThis as any).process;
-  if (
-    !nodeProcess?.versions?.node ||
-    typeof nodeProcess.getBuiltinModule !== 'function'
-  ) {
+  if (!nodeProcess?.versions?.node || typeof nodeProcess.getBuiltinModule !== 'function') {
     return null;
   }
 
@@ -67,7 +64,9 @@ function getRandomHex(bytesCount: number): string {
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     const arr = new Uint8Array(bytesCount);
     crypto.getRandomValues(arr);
-    return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+    return Array.from(arr)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
   }
   // This value seeds evidence keys, replay identifiers, and HMAC metadata.
   // Never downgrade to Math.random(): unavailable secure randomness is a hard failure.
@@ -142,11 +141,17 @@ function sha256PureJs(data: Uint8Array): string {
     0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
     0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
     0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
   ];
 
-  let H0 = 0x6a09e667, H1 = 0xbb67ae85, H2 = 0x3c6ef372, H3 = 0xa54ff53a;
-  let H4 = 0x510e527f, H5 = 0x9b05688c, H6 = 0x1f83d9ab, H7 = 0x5be0cd19;
+  let H0 = 0x6a09e667,
+    H1 = 0xbb67ae85,
+    H2 = 0x3c6ef372,
+    H3 = 0xa54ff53a;
+  let H4 = 0x510e527f,
+    H5 = 0x9b05688c,
+    H6 = 0x1f83d9ab,
+    H7 = 0x5be0cd19;
 
   const byteLen = data.length;
   const bitLen = byteLen * 8;
@@ -164,12 +169,25 @@ function sha256PureJs(data: Uint8Array): string {
       W[t] = view.getUint32(i + t * 4);
     }
     for (let t = 16; t < 64; t++) {
-      const s0 = ((W[t - 15] >>> 7) | (W[t - 15] << 25)) ^ ((W[t - 15] >>> 18) | (W[t - 15] << 14)) ^ (W[t - 15] >>> 3);
-      const s1 = ((W[t - 2] >>> 17) | (W[t - 2] << 15)) ^ ((W[t - 2] >>> 19) | (W[t - 2] << 13)) ^ (W[t - 2] >>> 10);
+      const s0 =
+        ((W[t - 15] >>> 7) | (W[t - 15] << 25)) ^
+        ((W[t - 15] >>> 18) | (W[t - 15] << 14)) ^
+        (W[t - 15] >>> 3);
+      const s1 =
+        ((W[t - 2] >>> 17) | (W[t - 2] << 15)) ^
+        ((W[t - 2] >>> 19) | (W[t - 2] << 13)) ^
+        (W[t - 2] >>> 10);
       W[t] = (W[t - 16] + s0 + W[t - 7] + s1) >>> 0;
     }
 
-    let a = H0, b = H1, c = H2, d = H3, e = H4, f = H5, g = H6, h = H7;
+    let a = H0,
+      b = H1,
+      c = H2,
+      d = H3,
+      e = H4,
+      f = H5,
+      g = H6,
+      h = H7;
     for (let t = 0; t < 64; t++) {
       const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
       const ch = (e & f) ^ (~e & g);
@@ -178,15 +196,29 @@ function sha256PureJs(data: Uint8Array): string {
       const maj = (a & b) ^ (a & c) ^ (b & c);
       const temp2 = (S0 + maj) >>> 0;
 
-      h = g; g = f; f = e; e = (d + temp1) >>> 0;
-      d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+      h = g;
+      g = f;
+      f = e;
+      e = (d + temp1) >>> 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (temp1 + temp2) >>> 0;
     }
 
-    H0 = (H0 + a) >>> 0; H1 = (H1 + b) >>> 0; H2 = (H2 + c) >>> 0; H3 = (H3 + d) >>> 0;
-    H4 = (H4 + e) >>> 0; H5 = (H5 + f) >>> 0; H6 = (H6 + g) >>> 0; H7 = (H7 + h) >>> 0;
+    H0 = (H0 + a) >>> 0;
+    H1 = (H1 + b) >>> 0;
+    H2 = (H2 + c) >>> 0;
+    H3 = (H3 + d) >>> 0;
+    H4 = (H4 + e) >>> 0;
+    H5 = (H5 + f) >>> 0;
+    H6 = (H6 + g) >>> 0;
+    H7 = (H7 + h) >>> 0;
   }
 
-  const hexParts = [H0, H1, H2, H3, H4, H5, H6, H7].map(h => ('00000000' + h.toString(16)).slice(-8));
+  const hexParts = [H0, H1, H2, H3, H4, H5, H6, H7].map((h) =>
+    ('00000000' + h.toString(16)).slice(-8)
+  );
   return hexParts.join('');
 }
 
@@ -643,7 +675,9 @@ export class GitHubRepositoryProvider implements IRepositoryProvider {
   }
 
   private parseOwnerRepo(url: string): { owner: string; repo: string } {
-    const match = url.trim().match(/^https:\/\/github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)(?:\.git)?$/i);
+    const match = url
+      .trim()
+      .match(/^https:\/\/github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)(?:\.git)?$/i);
     if (!match) {
       throw new Error(`SSRF Prevention: Invalid GitHub repository URL: ${url}`);
     }
@@ -754,7 +788,9 @@ export class GitHubRepositoryProvider implements IRepositoryProvider {
     try {
       const res = await fetch(urlStr, { headers, signal: controller.signal });
       if (res.status === 403 || res.status === 429) {
-        throw new Error('GitHub API rate limit exceeded. Provide an authentication token or retry later.');
+        throw new Error(
+          'GitHub API rate limit exceeded. Provide an authentication token or retry later.'
+        );
       }
       if (res.status === 404) {
         throw new Error(`GitHub resource not found: ${urlStr}`);
@@ -788,13 +824,18 @@ export class SandboxRepositoryProvider implements IRepositoryProvider {
 
   public registerRepository(
     url: string,
-    data: { commitSha: string; treeSha: string; authorEmail?: string; files: Record<string, string> }
+    data: {
+      commitSha: string;
+      treeSha: string;
+      authorEmail?: string;
+      files: Record<string, string>;
+    }
   ): void {
     this.fixtures.set(url.toLowerCase(), {
       url,
       commitSha: data.commitSha,
       treeSha: data.treeSha,
-      authorEmail: (data as any).author?.email || data.authorEmail || "author@example.com",
+      authorEmail: (data as any).author?.email || data.authorEmail || 'author@example.com',
       files: data.files || {},
     });
   }
@@ -809,9 +850,14 @@ export class SandboxRepositoryProvider implements IRepositoryProvider {
       } else if (fixtureData.files) {
         filesRecord = fixtureData.files;
       }
-      const rawCommit = fixtureData.headCommitSha || fixtureData.commitSha || 'e4d909c290d0fb1ca068ffaddf22cbd0add92e85';
+      const rawCommit =
+        fixtureData.headCommitSha ||
+        fixtureData.commitSha ||
+        'e4d909c290d0fb1ca068ffaddf22cbd0add92e85';
       const rawTree = fixtureData.treeSha || 'b7a309c290d0fb1ca068ffaddf22cbd0add92e12';
-      const commitSha = /^[a-f0-9]{40}$/i.test(rawCommit) ? rawCommit : sha256Hex(rawCommit).slice(0, 40);
+      const commitSha = /^[a-f0-9]{40}$/i.test(rawCommit)
+        ? rawCommit
+        : sha256Hex(rawCommit).slice(0, 40);
       const treeSha = /^[a-f0-9]{40}$/i.test(rawTree) ? rawTree : sha256Hex(rawTree).slice(0, 40);
       this.registerRepository(fixtureOrUrl, {
         commitSha,
@@ -831,14 +877,20 @@ export class SandboxRepositoryProvider implements IRepositoryProvider {
       } else if (fixtureOrUrl.files) {
         filesRecord = fixtureOrUrl.files;
       }
-      const rawCommit = fixtureOrUrl.headCommitSha || fixtureOrUrl.commitSha || 'e4d909c290d0fb1ca068ffaddf22cbd0add92e85';
+      const rawCommit =
+        fixtureOrUrl.headCommitSha ||
+        fixtureOrUrl.commitSha ||
+        'e4d909c290d0fb1ca068ffaddf22cbd0add92e85';
       const rawTree = fixtureOrUrl.treeSha || 'b7a309c290d0fb1ca068ffaddf22cbd0add92e12';
-      const commitSha = /^[a-f0-9]{40}$/i.test(rawCommit) ? rawCommit : sha256Hex(rawCommit).slice(0, 40);
+      const commitSha = /^[a-f0-9]{40}$/i.test(rawCommit)
+        ? rawCommit
+        : sha256Hex(rawCommit).slice(0, 40);
       const treeSha = /^[a-f0-9]{40}$/i.test(rawTree) ? rawTree : sha256Hex(rawTree).slice(0, 40);
       this.registerRepository(fixtureOrUrl.url, {
         commitSha,
         treeSha,
-        authorEmail: fixtureOrUrl.commitAuthorEmail || fixtureOrUrl.authorEmail || 'alex@example.com',
+        authorEmail:
+          fixtureOrUrl.commitAuthorEmail || fixtureOrUrl.authorEmail || 'alex@example.com',
         files: filesRecord,
       });
       return;
@@ -895,7 +947,10 @@ export class SandboxRepositoryProvider implements IRepositoryProvider {
     const fixture = this.fixtures.get(url.toLowerCase());
     if (fixture && fixture.files[filePath] !== undefined) {
       const content = fixture.files[filePath];
-      const sizeBytes = typeof Buffer !== 'undefined' ? Buffer.byteLength(content, 'utf8') : utf8ToBytes(content).length;
+      const sizeBytes =
+        typeof Buffer !== 'undefined'
+          ? Buffer.byteLength(content, 'utf8')
+          : utf8ToBytes(content).length;
       return {
         path: filePath,
         content,
@@ -960,12 +1015,16 @@ export class TrustedRepositoryInspectionService {
   ): Promise<ImmutableRepositoryInspectionResult> {
     const cleanUrl = (request.repositoryUrl || '').trim();
     if (!cleanUrl || !/^https?:\/\/(github\.com|gitlab\.com|bitbucket\.org)\//i.test(cleanUrl)) {
-      throw new Error(`Repository URL must be from an approved host (github.com, gitlab.com, bitbucket.org): ${cleanUrl}`);
+      throw new Error(
+        `Repository URL must be from an approved host (github.com, gitlab.com, bitbucket.org): ${cleanUrl}`
+      );
     }
 
     const provider = this.providers.find((p) => p.canHandle(cleanUrl));
     if (!provider) {
-      throw new Error(`No approved repository provider configured to fetch repository: ${cleanUrl}`);
+      throw new Error(
+        `No approved repository provider configured to fetch repository: ${cleanUrl}`
+      );
     }
 
     const resolved = await provider.resolveCommitAndTree(cleanUrl, request.ref, request.authHeader);
@@ -988,7 +1047,9 @@ export class TrustedRepositoryInspectionService {
     );
 
     if (targetFiles.length === 0) {
-      throw new Error('Repository contains no recognizable source code or build manifests to inspect.');
+      throw new Error(
+        'Repository contains no recognizable source code or build manifests to inspect.'
+      );
     }
 
     const inspectedFiles: InspectedFileArtifact[] = [];
@@ -998,7 +1059,12 @@ export class TrustedRepositoryInspectionService {
 
     // Fetch and hash up to 25 target files using platform crypto SHA-256
     for (const f of targetFiles.slice(0, 25)) {
-      const fileData = await provider.fetchFileContent(cleanUrl, resolved.commitSha, f, request.authHeader);
+      const fileData = await provider.fetchFileContent(
+        cleanUrl,
+        resolved.commitSha,
+        f,
+        request.authHeader
+      );
       const hash = sha256Hex(fileData.content);
       inspectedFiles.push({
         path: fileData.path,
@@ -1018,12 +1084,15 @@ export class TrustedRepositoryInspectionService {
             if (cleanDep.includes('angular')) dependencyDeclarations.add('Angular');
             if (cleanDep.includes('next')) dependencyDeclarations.add('Next.js');
             if (cleanDep.includes('express')) dependencyDeclarations.add('Express');
-            if (cleanDep.includes('nestjs') || cleanDep.includes('@nestjs/core')) dependencyDeclarations.add('NestJS');
+            if (cleanDep.includes('nestjs') || cleanDep.includes('@nestjs/core'))
+              dependencyDeclarations.add('NestJS');
             if (cleanDep.includes('typescript')) dependencyDeclarations.add('TypeScript');
             if (cleanDep.includes('prisma')) dependencyDeclarations.add('Prisma');
             if (cleanDep.includes('typeorm')) dependencyDeclarations.add('TypeORM');
-            if (cleanDep.includes('pg') || cleanDep.includes('postgres')) dependencyDeclarations.add('PostgreSQL');
-            if (cleanDep.includes('redis') || cleanDep.includes('ioredis')) dependencyDeclarations.add('Redis');
+            if (cleanDep.includes('pg') || cleanDep.includes('postgres'))
+              dependencyDeclarations.add('PostgreSQL');
+            if (cleanDep.includes('redis') || cleanDep.includes('ioredis'))
+              dependencyDeclarations.add('Redis');
             if (cleanDep.includes('kafka')) dependencyDeclarations.add('Kafka');
             if (cleanDep.includes('tailwind')) dependencyDeclarations.add('Tailwind CSS');
             if (cleanDep.includes('jest')) dependencyDeclarations.add('Jest');
@@ -1062,7 +1131,8 @@ export class TrustedRepositoryInspectionService {
         if (/from ['"]react['"]/i.test(fileData.content)) sourceCodeUsage.add('React');
         if (/from ['"]express['"]/i.test(fileData.content)) sourceCodeUsage.add('Express');
         if (/from ['"]@nestjs/i.test(fileData.content)) sourceCodeUsage.add('NestJS');
-        if (/from ['"]ioredis['"]/i.test(fileData.content) || /new Redis\(/i.test(fileData.content)) sourceCodeUsage.add('Redis');
+        if (/from ['"]ioredis['"]/i.test(fileData.content) || /new Redis\(/i.test(fileData.content))
+          sourceCodeUsage.add('Redis');
         if (/KafkaClient|Producer|Consumer/i.test(fileData.content)) sourceCodeUsage.add('Kafka');
       } else if (/\.go$/i.test(f)) {
         sourceCodeUsage.add('Go');
@@ -1072,7 +1142,8 @@ export class TrustedRepositoryInspectionService {
         if (/from fastapi import/i.test(fileData.content)) sourceCodeUsage.add('FastAPI');
       } else if (/\.java$/i.test(f)) {
         sourceCodeUsage.add('Java');
-        if (/@SpringBootApplication|@RestController/i.test(fileData.content)) sourceCodeUsage.add('Spring');
+        if (/@SpringBootApplication|@RestController/i.test(fileData.content))
+          sourceCodeUsage.add('Spring');
       }
 
       // Architecture cues
@@ -1099,13 +1170,19 @@ export class TrustedRepositoryInspectionService {
     }
 
     // Invariant: Never infer sole ownership or architecture ownership from repository presence
-    const authorRole: OwnershipType = authorshipStatus === 'COMMIT_AUTHOR' ? 'contributor' : 'unknown';
+    const authorRole: OwnershipType =
+      authorshipStatus === 'COMMIT_AUTHOR' ? 'contributor' : 'unknown';
 
     const now = Date.now();
     const inspectionId = `insp-repo-${now}-${getRandomHex(8)}`;
     const verifiedTech = Array.from(new Set([...dependencyDeclarations, ...sourceCodeUsage]));
 
-    const filesHash = sha256Hex((inspectedFiles || []).map((f) => `${f.path}:${f.sha256}`).sort().join(";"));
+    const filesHash = sha256Hex(
+      (inspectedFiles || [])
+        .map((f) => `${f.path}:${f.sha256}`)
+        .sort()
+        .join(';')
+    );
     const keyId = ProtectedEvidenceKeyManager.getActiveKeyId();
     const canonicalData = JSON.stringify({
       inspectionId,
@@ -1126,7 +1203,8 @@ export class TrustedRepositoryInspectionService {
     const filesActuallyInspected = inspectedFiles.length;
     const filesOmittedCount = Math.max(0, allFiles.length - inspectedFiles.length);
     const omittedFilePathsSample = allFiles.slice(25, 35);
-    const inspectionScope = totalFilesDiscovered <= 25 ? 'FULL_REPOSITORY' : 'PARTIAL_SOURCE_SAMPLE';
+    const inspectionScope =
+      totalFilesDiscovered <= 25 ? 'FULL_REPOSITORY' : 'PARTIAL_SOURCE_SAMPLE';
 
     return {
       inspectionId,
@@ -1181,7 +1259,12 @@ export class TrustedRepositoryInspectionService {
     const secret = ProtectedEvidenceKeyManager.getSecretForKey(keyId);
     if (!secret) return false;
 
-    const filesHash = sha256Hex((result.inspectedFiles || []).map((f) => `${f.path}:${f.sha256}`).sort().join(";"));
+    const filesHash = sha256Hex(
+      (result.inspectedFiles || [])
+        .map((f) => `${f.path}:${f.sha256}`)
+        .sort()
+        .join(';')
+    );
     const canonicalData = JSON.stringify({
       inspectionId: result.inspectionId,
       keyId,
@@ -1209,7 +1292,8 @@ export class TrustedRepositoryInspectionService {
 export interface TrustedIssuerConfig {
   issuerId: string;
   issuerName: string;
-  authorityLevel: 'accredited_institution' | 'employer_hr' | 'patent_office' | 'peer_reviewed_publisher';
+  authorityLevel:
+    'accredited_institution' | 'employer_hr' | 'patent_office' | 'peer_reviewed_publisher';
   publicKeyPem: string; // Ed25519 or RSA public key
   enabled: boolean;
   validFrom?: number;
@@ -1219,11 +1303,17 @@ export interface TrustedIssuerConfig {
 
 export interface DocumentInspectionRequest {
   documentBytes: Uint8Array | ArrayBuffer | string;
-  documentType: 'employment_verification' | 'performance_review' | 'patent_grant' | 'publication' | 'formal_credential';
+  documentType:
+    | 'employment_verification'
+    | 'performance_review'
+    | 'patent_grant'
+    | 'publication'
+    | 'formal_credential';
   issuer: {
     issuerId?: string;
     name: string;
-    authorityLevel: 'accredited_institution' | 'employer_hr' | 'patent_office' | 'peer_reviewed_publisher';
+    authorityLevel:
+      'accredited_institution' | 'employer_hr' | 'patent_office' | 'peer_reviewed_publisher';
     signatureHex?: string;
   };
   candidateIdentity: {
@@ -1242,7 +1332,11 @@ export interface ImmutableDocumentInspectionResult {
   documentByteLength: number;
   issuerName: string;
   issuerValidated: boolean;
-  authenticityStatus: 'CRYPTOGRAPHICALLY_VERIFIED' | 'UNAUTHENTICATED_CONTENT' | 'SIGNATURE_INVALID' | 'ISSUER_UNREGISTERED';
+  authenticityStatus:
+    | 'CRYPTOGRAPHICALLY_VERIFIED'
+    | 'UNAUTHENTICATED_CONTENT'
+    | 'SIGNATURE_INVALID'
+    | 'ISSUER_UNREGISTERED';
   candidateMentioned: boolean;
   projectMentioned: boolean;
   personalWorkAttested: boolean;
@@ -1268,7 +1362,7 @@ export class TrustedDocumentInspectionService {
       issuerId: config.issuerId.toLowerCase().trim(),
       enabled: config.enabled ?? true,
       validFrom: config.validFrom ?? 0,
-      validUntil: config.validUntil ?? (Date.now() + 365 * 24 * 3600 * 1000),
+      validUntil: config.validUntil ?? Date.now() + 365 * 24 * 3600 * 1000,
     });
   }
 
@@ -1320,23 +1414,36 @@ export class TrustedDocumentInspectionService {
    * 5. Patent mentions do not confer sole ownership or architecture ownership.
    * 6. Sealed with HMAC.
    */
-  public static inspectDocument(request: DocumentInspectionRequest): ImmutableDocumentInspectionResult {
+  public static inspectDocument(
+    request: DocumentInspectionRequest
+  ): ImmutableDocumentInspectionResult {
     let rawBytes: Uint8Array;
     let textContent: string;
 
     if (typeof request.documentBytes === 'string') {
       textContent = request.documentBytes;
-      rawBytes = typeof Buffer !== 'undefined' ? Buffer.from(request.documentBytes, 'utf8') : utf8ToBytes(request.documentBytes);
+      rawBytes =
+        typeof Buffer !== 'undefined'
+          ? Buffer.from(request.documentBytes, 'utf8')
+          : utf8ToBytes(request.documentBytes);
     } else if (request.documentBytes instanceof Uint8Array) {
       rawBytes = request.documentBytes;
-      textContent = typeof Buffer !== 'undefined' ? Buffer.from(rawBytes).toString('utf8') : bytesToUtf8(rawBytes);
+      textContent =
+        typeof Buffer !== 'undefined'
+          ? Buffer.from(rawBytes).toString('utf8')
+          : bytesToUtf8(rawBytes);
     } else {
       rawBytes = new Uint8Array(request.documentBytes);
-      textContent = typeof Buffer !== 'undefined' ? Buffer.from(rawBytes).toString('utf8') : bytesToUtf8(rawBytes);
+      textContent =
+        typeof Buffer !== 'undefined'
+          ? Buffer.from(rawBytes).toString('utf8')
+          : bytesToUtf8(rawBytes);
     }
 
     if (rawBytes.length < 16) {
-      throw new Error('Document content is too small or empty to constitute a valid evidentiary document.');
+      throw new Error(
+        'Document content is too small or empty to constitute a valid evidentiary document.'
+      );
     }
 
     // Direct platform SHA-256 computation over raw bytes
@@ -1346,14 +1453,18 @@ export class TrustedDocumentInspectionService {
     const registeredIssuer = this.registeredIssuers.get(issuerId);
 
     let issuerValidated = false;
-    let authenticityStatus: ImmutableDocumentInspectionResult['authenticityStatus'] = 'UNAUTHENTICATED_CONTENT';
+    let authenticityStatus: ImmutableDocumentInspectionResult['authenticityStatus'] =
+      'UNAUTHENTICATED_CONTENT';
 
     if (!request.issuer.signatureHex) {
       issuerValidated = false;
       authenticityStatus = 'UNAUTHENTICATED_CONTENT';
     } else if (registeredIssuer && request.issuer.signatureHex) {
       const now = Date.now();
-      if ((registeredIssuer.revokedAt && now >= registeredIssuer.revokedAt) || !registeredIssuer.enabled) {
+      if (
+        (registeredIssuer.revokedAt && now >= registeredIssuer.revokedAt) ||
+        !registeredIssuer.enabled
+      ) {
         authenticityStatus = 'UNAUTHENTICATED_CONTENT';
       } else if (registeredIssuer.validUntil && now > registeredIssuer.validUntil) {
         authenticityStatus = 'SIGNATURE_INVALID';
@@ -1404,7 +1515,9 @@ export class TrustedDocumentInspectionService {
       /\b(?:responsibilities\s+included|duties\s+included|contributed\s+to|built\s+by)\b/i,
     ];
     const personalWorkAttested =
-      candidateMentioned && projectMentioned && workAttestationPatterns.some((p) => p.test(textContent));
+      candidateMentioned &&
+      projectMentioned &&
+      workAttestationPatterns.some((p) => p.test(textContent));
 
     const supportedFields: ImmutableDocumentInspectionResult['supportedFields'] = {};
 
@@ -1421,7 +1534,8 @@ export class TrustedDocumentInspectionService {
 
       // Metrics: only if document explicitly contains quantified performance measurements
       const metricsFound: string[] = [];
-      const metricRegex = /\b(?:reduced|improved|increased|boosted|cut)\s+[A-Za-z\s]+\s+by\s+\d+%/gi;
+      const metricRegex =
+        /\b(?:reduced|improved|increased|boosted|cut)\s+[A-Za-z\s]+\s+by\s+\d+%/gi;
       let m: RegExpExecArray | null;
       while ((m = metricRegex.exec(textContent)) !== null) {
         metricsFound.push(m[0].trim());
@@ -1446,7 +1560,9 @@ export class TrustedDocumentInspectionService {
       candidateMentioned,
       projectMentioned,
       personalWorkAttested,
-      hasMetrics: !!(supportedFields.performanceMetrics && supportedFields.performanceMetrics.length > 0),
+      hasMetrics: !!(
+        supportedFields.performanceMetrics && supportedFields.performanceMetrics.length > 0
+      ),
     });
 
     const keyId = ProtectedEvidenceKeyManager.getActiveKeyId();
@@ -1465,7 +1581,9 @@ export class TrustedDocumentInspectionService {
       candidateMentioned,
       projectMentioned,
       personalWorkAttested,
-      evidenceModality: issuerValidated ? 'CRYPTOGRAPHIC_BYTE_AUTHENTICATED' : 'UNAUTHENTICATED_BYTE_INSPECTED',
+      evidenceModality: issuerValidated
+        ? 'CRYPTOGRAPHIC_BYTE_AUTHENTICATED'
+        : 'UNAUTHENTICATED_BYTE_INSPECTED',
       supportedFields,
       __documentSeal: seal,
     };
@@ -1482,7 +1600,10 @@ export class TrustedDocumentInspectionService {
       candidateMentioned: result.candidateMentioned,
       projectMentioned: result.projectMentioned,
       personalWorkAttested: result.personalWorkAttested,
-      hasMetrics: !!(result.supportedFields?.performanceMetrics && result.supportedFields.performanceMetrics.length > 0),
+      hasMetrics: !!(
+        result.supportedFields?.performanceMetrics &&
+        result.supportedFields.performanceMetrics.length > 0
+      ),
     });
     const expected = hmacSha256Hex(ProtectedEvidenceKeyManager.getActiveSecret(), canonicalData);
     return (
@@ -1600,7 +1721,11 @@ export class TrustedIndependentAuditService {
   public static signPayload(payloadJson: string, privateKeyPem: string): string {
     const nodeC = getNodeCrypto();
     if (nodeC && nodeC.sign && nodeC.createPrivateKey) {
-      const signature = nodeC.sign(null, Buffer.from(payloadJson, 'utf8'), nodeC.createPrivateKey(privateKeyPem));
+      const signature = nodeC.sign(
+        null,
+        Buffer.from(payloadJson, 'utf8'),
+        nodeC.createPrivateKey(privateKeyPem)
+      );
       return signature.toString('hex');
     }
     throw new Error('Signing requires Node.js crypto module');
@@ -1615,12 +1740,7 @@ export class TrustedIndependentAuditService {
     attestation: AuditorSignedAttestation
   ): ImmutableIndependentAuditResult | null {
     const sigHex = attestation?.signatureHex || (attestation as any)?.signature;
-    if (
-      !attestation ||
-      !attestation.auditorKeyId ||
-      !attestation.payloadJson ||
-      !sigHex
-    ) {
+    if (!attestation || !attestation.auditorKeyId || !attestation.payloadJson || !sigHex) {
       return null;
     }
 
@@ -1636,7 +1756,10 @@ export class TrustedIndependentAuditService {
     if (auditor.validFrom && now < auditor.validFrom) return null;
 
     // Verify asymmetric Ed25519 signature or symmetric HMAC fallback
-    if (auditor.publicKeyPem.includes("-----BEGIN PUBLIC KEY-----") || auditor.publicKeyPem.includes("-----BEGIN CERTIFICATE-----")) {
+    if (
+      auditor.publicKeyPem.includes('-----BEGIN PUBLIC KEY-----') ||
+      auditor.publicKeyPem.includes('-----BEGIN CERTIFICATE-----')
+    ) {
       try {
         const nodeC = getNodeCrypto();
         if (!nodeC || !nodeC.createPublicKey || !nodeC.verify) return null;
@@ -1666,10 +1789,12 @@ export class TrustedIndependentAuditService {
     if (!payload || typeof payload !== 'object') return null;
 
     // Schema validation
-    if (!payload.auditId || typeof payload.auditId !== 'string' || payload.auditId.length < 8) return null;
+    if (!payload.auditId || typeof payload.auditId !== 'string' || payload.auditId.length < 8)
+      return null;
     if (!payload.projectId || typeof payload.projectId !== 'string') return null;
     if (!payload.candidateId || typeof payload.candidateId !== 'string') return null;
-    if (!payload.nonce || typeof payload.nonce !== 'string' || payload.nonce.length < 4) return null;
+    if (!payload.nonce || typeof payload.nonce !== 'string' || payload.nonce.length < 4)
+      return null;
     if (!payload.issuedAt || typeof payload.issuedAt !== 'number') return null;
     if (!payload.expiresAt || typeof payload.expiresAt !== 'number') return null;
 
@@ -1706,7 +1831,9 @@ export class TrustedIndependentAuditService {
     }
     if (
       rawAudited.ownership &&
-      ['sole_owner', 'lead', 'contributor', 'architect', 'team_member'].includes(rawAudited.ownership)
+      ['sole_owner', 'lead', 'contributor', 'architect', 'team_member'].includes(
+        rawAudited.ownership
+      )
     ) {
       sanitizedAudited.ownership = rawAudited.ownership;
     }
@@ -1795,7 +1922,8 @@ export class SafePersistenceSchema {
       projects: any[];
       unverifiedSkills: string[];
     } = {
-      candidateName: typeof parsed.candidateName === 'string' ? parsed.candidateName.slice(0, 100) : 'Candidate',
+      candidateName:
+        typeof parsed.candidateName === 'string' ? parsed.candidateName.slice(0, 100) : 'Candidate',
       facts: [],
       projects: [],
       unverifiedSkills: [],
@@ -1809,21 +1937,39 @@ export class SafePersistenceSchema {
 
     if (Array.isArray(parsed.facts)) {
       for (const rawFact of parsed.facts) {
-        if (!rawFact || typeof rawFact !== 'object' || !rawFact.fact || typeof rawFact.fact !== 'string') {
+        if (
+          !rawFact ||
+          typeof rawFact !== 'object' ||
+          !rawFact.fact ||
+          typeof rawFact.fact !== 'string'
+        ) {
           continue;
         }
 
         const sanitizedFact = {
-          id: typeof rawFact.id === 'string' ? rawFact.id.slice(0, 50) : `fact-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          id:
+            typeof rawFact.id === 'string'
+              ? rawFact.id.slice(0, 50)
+              : `fact-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           fact: rawFact.fact.slice(0, 500),
-          category: ['tech', 'experience', 'education', 'metric', 'outcome'].includes(rawFact.category)
+          category: ['tech', 'experience', 'education', 'metric', 'outcome'].includes(
+            rawFact.category
+          )
             ? rawFact.category
             : 'experience',
-          ownership: ['sole_owner', 'lead', 'contributor', 'architect', 'team_member', 'unknown'].includes(rawFact.ownership)
+          ownership: [
+            'sole_owner',
+            'lead',
+            'contributor',
+            'architect',
+            'team_member',
+            'unknown',
+          ].includes(rawFact.ownership)
             ? rawFact.ownership
             : 'unknown',
           verificationStatus: 'RESUME_REPORTED', // Quarantine all imported claims
-          confidence: typeof rawFact.confidence === 'number' ? Math.min(0.6, rawFact.confidence) : 0.5,
+          confidence:
+            typeof rawFact.confidence === 'number' ? Math.min(0.6, rawFact.confidence) : 0.5,
           evidenceSources: ['persisted_import_quarantined'],
         };
         output.facts.push(sanitizedFact);
@@ -1832,20 +1978,35 @@ export class SafePersistenceSchema {
 
     if (Array.isArray(parsed.projects)) {
       for (const rawProj of parsed.projects) {
-        if (!rawProj || typeof rawProj !== 'object' || !rawProj.name || typeof rawProj.name !== 'string') {
+        if (
+          !rawProj ||
+          typeof rawProj !== 'object' ||
+          !rawProj.name ||
+          typeof rawProj.name !== 'string'
+        ) {
           continue;
         }
 
         const name = rawProj.name.slice(0, 100);
-        const description = typeof rawProj.description === 'string' ? rawProj.description.slice(0, 1000) : '';
+        const description =
+          typeof rawProj.description === 'string' ? rawProj.description.slice(0, 1000) : '';
 
         let flatTechs: string[] = [];
-        const rawTechs = Array.isArray(rawProj.technologyStack) ? rawProj.technologyStack : rawProj.technologies;
+        const rawTechs = Array.isArray(rawProj.technologyStack)
+          ? rawProj.technologyStack
+          : rawProj.technologies;
         if (Array.isArray(rawTechs)) {
-          flatTechs = rawTechs.filter((t: any) => typeof t === 'string').map((t: string) => t.slice(0, 50));
+          flatTechs = rawTechs
+            .filter((t: any) => typeof t === 'string')
+            .map((t: string) => t.slice(0, 50));
         }
 
-        let verifiedStatus: 'RESUME_REPORTED' | 'REPOSITORY_SUPPORTED' | 'DOCUMENT_SUPPORTED' | 'INDEPENDENTLY_VERIFIED' | 'REQUIRES_REINSPECTION' = 'RESUME_REPORTED';
+        let verifiedStatus:
+          | 'RESUME_REPORTED'
+          | 'REPOSITORY_SUPPORTED'
+          | 'DOCUMENT_SUPPORTED'
+          | 'INDEPENDENTLY_VERIFIED'
+          | 'REQUIRES_REINSPECTION' = 'RESUME_REPORTED';
         let verifiedUsage: string[] = [];
         let storedInspectionToKeep: any = undefined;
 
@@ -1853,7 +2014,9 @@ export class SafePersistenceSchema {
           if (rawProj.verificationStatus === 'REPOSITORY_SUPPORTED') {
             if (TrustedRepositoryInspectionService.verifySeal(rawProj.storedInspection)) {
               verifiedStatus = 'REPOSITORY_SUPPORTED';
-              verifiedUsage = Array.isArray(rawProj.storedInspection.verifiedTechnologies) ? rawProj.storedInspection.verifiedTechnologies : [];
+              verifiedUsage = Array.isArray(rawProj.storedInspection.verifiedTechnologies)
+                ? rawProj.storedInspection.verifiedTechnologies
+                : [];
               storedInspectionToKeep = rawProj.storedInspection;
             } else {
               verifiedStatus = 'REQUIRES_REINSPECTION';
@@ -1878,9 +2041,10 @@ export class SafePersistenceSchema {
           }
         }
 
-        const repositoryUrl = typeof rawProj.repositoryUrl === 'string'
-          ? rawProj.repositoryUrl
-          : (rawProj.storedInspection?.repositoryUrl || undefined);
+        const repositoryUrl =
+          typeof rawProj.repositoryUrl === 'string'
+            ? rawProj.repositoryUrl
+            : rawProj.storedInspection?.repositoryUrl || undefined;
 
         const reconstructedProj: any = {
           id: name.toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
@@ -1928,9 +2092,20 @@ export class SafePersistenceSchema {
             },
             actualTechnologyUsage: {
               value: verifiedUsage,
-              provenance: verifiedStatus === 'REPOSITORY_SUPPORTED' ? 'REPOSITORY_INSPECTED' : 'UNKNOWN_DEFAULT',
-              verificationStatus: verifiedStatus === 'REPOSITORY_SUPPORTED' ? 'REPOSITORY_SUPPORTED' : (verifiedStatus === 'REQUIRES_REINSPECTION' ? 'REQUIRES_REINSPECTION' : 'UNKNOWN'),
-              evidenceSource: verifiedStatus === 'REPOSITORY_SUPPORTED' ? 'persisted_authenticated_seal' : 'persisted_import',
+              provenance:
+                verifiedStatus === 'REPOSITORY_SUPPORTED'
+                  ? 'REPOSITORY_INSPECTED'
+                  : 'UNKNOWN_DEFAULT',
+              verificationStatus:
+                verifiedStatus === 'REPOSITORY_SUPPORTED'
+                  ? 'REPOSITORY_SUPPORTED'
+                  : verifiedStatus === 'REQUIRES_REINSPECTION'
+                    ? 'REQUIRES_REINSPECTION'
+                    : 'UNKNOWN',
+              evidenceSource:
+                verifiedStatus === 'REPOSITORY_SUPPORTED'
+                  ? 'persisted_authenticated_seal'
+                  : 'persisted_import',
             },
             architecture: {
               value: 'UNKNOWN',

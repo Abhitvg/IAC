@@ -3,10 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {
-  ProtectedEvidenceKeyManager,
-  sha256Hex,
-} from '../src/services/evidenceInspection';
+import { ProtectedEvidenceKeyManager, sha256Hex } from '../src/services/evidenceInspection';
 
 describe('Evidence inspection Node runtime adapter', () => {
   afterEach(() => {
@@ -20,9 +17,7 @@ describe('Evidence inspection Node runtime adapter', () => {
     expect(nodeProcess.getBuiltinModule('node:crypto')).toBeDefined();
 
     const sample = 'evidence-integrity-check';
-    expect(sha256Hex(sample)).toBe(
-      crypto.createHash('sha256').update(sample).digest('hex')
-    );
+    expect(sha256Hex(sample)).toBe(crypto.createHash('sha256').update(sample).digest('hex'));
 
     const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'iac-evidence-runtime-'));
     const storagePath = path.join(tempDirectory, 'evidence-keys.json');
