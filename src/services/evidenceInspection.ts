@@ -1,23 +1,29 @@
-function getNodeFs(): any {
-  if (typeof window === 'undefined') {
-    try {
-      return (globalThis as any).process?.versions?.node ? eval('require')('fs') : null;
-    } catch {
-      return null;
-    }
+function getNodeBuiltin(moduleId: 'node:fs' | 'node:crypto'): any {
+  if (typeof window !== 'undefined') {
+    return null;
   }
-  return null;
+
+  const nodeProcess = (globalThis as any).process;
+  if (
+    !nodeProcess?.versions?.node ||
+    typeof nodeProcess.getBuiltinModule !== 'function'
+  ) {
+    return null;
+  }
+
+  try {
+    return nodeProcess.getBuiltinModule(moduleId) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function getNodeFs(): any {
+  return getNodeBuiltin('node:fs');
 }
 
 function getNodeCrypto(): any {
-  if (typeof window === 'undefined') {
-    try {
-      return (globalThis as any).process?.versions?.node ? eval('require')('crypto') : null;
-    } catch {
-      return null;
-    }
-  }
-  return null;
+  return getNodeBuiltin('node:crypto');
 }
 /**
  * evidenceInspection.ts
@@ -63,11 +69,9 @@ function getRandomHex(bytesCount: number): string {
     crypto.getRandomValues(arr);
     return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
   }
-  let s = '';
-  for (let i = 0; i < bytesCount * 2; i++) {
-    s += Math.floor(Math.random() * 16).toString(16);
-  }
-  return s;
+  // This value seeds evidence keys, replay identifiers, and HMAC metadata.
+  // Never downgrade to Math.random(): unavailable secure randomness is a hard failure.
+  throw new Error('Cryptographically secure random number generation is unavailable.');
 }
 
 function timingSafeEqualStrings(a: string, b: string): boolean {
