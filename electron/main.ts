@@ -919,7 +919,7 @@ ipcMain.handle(
       let text = '';
       if (isMac && fs.existsSync(ocrBin)) {
         const { stdout } = await execFileAsync(ocrBin, [tmpImg]);
-        text = stdout.trim();
+        text = String(stdout).trim();
       } else {
         try {
           const { stdout } = await runNativeCommandFallback(
@@ -1005,7 +1005,7 @@ ipcMain.handle(
       let newText = '';
       if (isMac && fs.existsSync(ocrBin)) {
         const { stdout } = await execFileAsync(ocrBin, [tmpImg]);
-        newText = stdout.trim();
+        newText = String(stdout).trim();
       } else {
         const { stdout } = await runNativeCommandFallback(
           getTesseractCommands(tmpImg),
