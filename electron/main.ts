@@ -15,9 +15,14 @@ import {
   Tray,
   nativeImage,
 } from 'electron';
-import { exec, execFile } from 'child_process';
+import { execFile } from 'child_process';
 import util from 'util';
-const execAsync = util.promisify(exec);
+import {
+  buildAutoTypeAppleScript,
+  getScreenCaptureCommands,
+  getTesseractCommands,
+  runNativeCommandFallback,
+} from './services/nativeCommandRunner';
 const execFileAsync = util.promisify(execFile);
 import path from 'path';
 import fs from 'fs';
@@ -891,12 +896,15 @@ ipcMain.handle(
 
     try {
       if (isMac) {
-        const captureFlag = mode === 'snip' ? '-i -x' : '-x';
-        await execAsync(`screencapture ${captureFlag} "${tmpImg}"`);
+        await runNativeCommandFallback(
+          getScreenCaptureCommands(process.platform, mode, tmpImg),
+          execFileAsync
+        );
       } else {
-        const snipCmd = `maim -s "${tmpImg}" || scrot -s "${tmpImg}" || import "${tmpImg}"`;
-        const fullCmd = `maim "${tmpImg}" || scrot "${tmpImg}" || import -window root "${tmpImg}"`;
-        await execAsync(mode === 'snip' ? snipCmd : fullCmd);
+        await runNativeCommandFallback(
+          getScreenCaptureCommands(process.platform, mode, tmpImg),
+          execFileAsync
+        );
       }
 
       if (!fs.existsSync(tmpImg)) {
@@ -914,8 +922,9 @@ ipcMain.handle(
         text = stdout.trim();
       } else {
         try {
-          const { stdout } = await execAsync(
-            `tesseract "${tmpImg}" stdout --oem 1 -l eng 2>/dev/null || tesseract "${tmpImg}" stdout 2>/dev/null`
+          const { stdout } = await runNativeCommandFallback(
+            getTesseractCommands(tmpImg),
+            execFileAsync
           );
           text = stdout.trim();
         } catch (ocrErr: any) {
@@ -974,12 +983,15 @@ ipcMain.handle(
 
     try {
       if (isMac) {
-        const captureFlag = mode === 'snip' ? '-i -x' : '-x';
-        await execAsync(`screencapture ${captureFlag} "${tmpImg}"`);
+        await runNativeCommandFallback(
+          getScreenCaptureCommands(process.platform, mode, tmpImg),
+          execFileAsync
+        );
       } else {
-        const snipCmd = `maim -s "${tmpImg}" || scrot -s "${tmpImg}" || import "${tmpImg}"`;
-        const fullCmd = `maim "${tmpImg}" || scrot "${tmpImg}" || import -window root "${tmpImg}"`;
-        await execAsync(mode === 'snip' ? snipCmd : fullCmd);
+        await runNativeCommandFallback(
+          getScreenCaptureCommands(process.platform, mode, tmpImg),
+          execFileAsync
+        );
       }
 
       if (!fs.existsSync(tmpImg)) {
@@ -995,8 +1007,9 @@ ipcMain.handle(
         const { stdout } = await execFileAsync(ocrBin, [tmpImg]);
         newText = stdout.trim();
       } else {
-        const { stdout } = await execAsync(
-          `tesseract "${tmpImg}" stdout --oem 1 -l eng 2>/dev/null || tesseract "${tmpImg}" stdout 2>/dev/null`
+        const { stdout } = await runNativeCommandFallback(
+          getTesseractCommands(tmpImg),
+          execFileAsync
         );
         newText = stdout.trim();
       }
@@ -1055,27 +1068,17 @@ ipcMain.handle('system:auto-type', async (event, code: string, delayMs: number =
   }
 
   const tmpCode = path.join(app.getPath('temp'), `iac_code_${Date.now()}.txt`);
-  const tmpScript = path.join(app.getPath('temp'), `iac_type_${Date.now()}.applescript`);
 
   try {
     fs.writeFileSync(tmpCode, code, 'utf8');
 
-    const delaySec = Math.max(0.5, (delayMs || 1500) / 1000);
-    const appleScriptContent = `
-delay ${delaySec}
-set f to "${tmpCode}"
-set theCode to read POSIX file f as «class utf8»
-tell application "System Events"
-  keystroke theCode
-end tell
-`;
-    fs.writeFileSync(tmpScript, appleScriptContent, 'utf8');
-
-    await execAsync(`osascript "${tmpScript}"`);
+    // Keep the source static and pass the path as a distinct process argument.
+    // Neither the shell nor AppleScript source interpolates a filesystem path.
+    const appleScriptContent = buildAutoTypeAppleScript(delayMs);
+    await execFileAsync('osascript', ['-e', appleScriptContent, tmpCode]);
 
     try {
       if (fs.existsSync(tmpCode)) fs.unlinkSync(tmpCode);
-      if (fs.existsSync(tmpScript)) fs.unlinkSync(tmpScript);
     } catch {
       // ignore
     }
@@ -1085,7 +1088,6 @@ end tell
     console.error('[Electron] Auto-type error:', err);
     try {
       if (fs.existsSync(tmpCode)) fs.unlinkSync(tmpCode);
-      if (fs.existsSync(tmpScript)) fs.unlinkSync(tmpScript);
     } catch {
       // ignore
     }
