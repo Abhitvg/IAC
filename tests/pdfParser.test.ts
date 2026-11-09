@@ -1,8 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { parsePdfBuffer } from '../electron/services/pdfParser';
+import { parsePdfBuffer, toPdfJsNodeDirectoryPath } from '../electron/services/pdfParser';
 import { createTextPdf } from './helpers/pdfFixtures';
 
 describe('pdfParser', { timeout: 35000 }, () => {
+  it('normalizes Node resource directories for Windows and POSIX PDF.js readers', () => {
+    expect(
+      toPdfJsNodeDirectoryPath('C:\\Users\\runner\\app\\node_modules\\pdfjs-dist\\standard_fonts')
+    ).toBe('C:/Users/runner/app/node_modules/pdfjs-dist/standard_fonts/');
+    expect(toPdfJsNodeDirectoryPath('/opt/app/node_modules/pdfjs-dist/cmaps/')).toBe(
+      '/opt/app/node_modules/pdfjs-dist/cmaps/'
+    );
+  });
+
   it('returns empty string gracefully for invalid or empty buffer', async () => {
     const emptyBuffer = new ArrayBuffer(0);
     const result = await parsePdfBuffer(emptyBuffer);
