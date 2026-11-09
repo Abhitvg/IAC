@@ -79,10 +79,7 @@ export class CanonicalProfileService {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
       } catch (e) {
         savedSuccessfully = false;
-        console.error(
-          '[CanonicalProfileService] Failed to save profile to localStorage (quota or storage error):',
-          e
-        );
+        console.error('[CanonicalProfileService] Failed to save profile to localStorage (quota or storage error):', e);
       }
     }
 
@@ -145,11 +142,7 @@ export class CanonicalProfileService {
 
     // Status Upgrade Protection: Candidate manual edits can never elevate status to INDEPENDENTLY_VERIFIED
     let safeStatus = requestedStatus;
-    if (
-      candidateConfirmed &&
-      requestedStatus === 'INDEPENDENTLY_VERIFIED' &&
-      (!existing || existing.status !== 'INDEPENDENTLY_VERIFIED')
-    ) {
+    if (candidateConfirmed && requestedStatus === 'INDEPENDENTLY_VERIFIED' && (!existing || existing.status !== 'INDEPENDENTLY_VERIFIED')) {
       safeStatus = 'CANDIDATE_CONFIRMED';
     }
 
@@ -164,12 +157,9 @@ export class CanonicalProfileService {
       status: safeStatus,
       confidence: safeStatus === 'INDEPENDENTLY_VERIFIED' ? 1.0 : candidateConfirmed ? 0.95 : 0.6,
       candidateConfirmed,
-      confirmedAt: candidateConfirmed ? existing?.confirmedAt || now : undefined,
+      confirmedAt: candidateConfirmed ? (existing?.confirmedAt || now) : undefined,
       createdAt: existing?.createdAt || now,
-      lastVerifiedAt:
-        safeStatus === 'INDEPENDENTLY_VERIFIED' || candidateConfirmed
-          ? now
-          : existing?.lastVerifiedAt,
+      lastVerifiedAt: safeStatus === 'INDEPENDENTLY_VERIFIED' || candidateConfirmed ? now : existing?.lastVerifiedAt,
       isExpired: false,
       isDeleted: false,
       editHistory: existing?.editHistory ? [...existing.editHistory] : [],
@@ -260,10 +250,7 @@ export class CanonicalProfileService {
     this.currentProfile.projects.splice(projIndex, 1);
     this.deleteFact(`project:${proj.name.toLowerCase().trim()}`, reason);
     if (proj.repositoryUrl) {
-      const normRepo = proj.repositoryUrl
-        .toLowerCase()
-        .replace(/\.git$/, '')
-        .replace(/\/$/, '');
+      const normRepo = proj.repositoryUrl.toLowerCase().replace(/\.git$/, '').replace(/\/$/, '');
       this.deleteFact(`project:repo:${normRepo}`, reason);
     }
     this.saveProfile(this.currentProfile);
@@ -285,10 +272,7 @@ export class CanonicalProfileService {
       const parsed = JSON.parse(jsonStr);
       const validation = validateCanonicalProfile(parsed);
       if (!validation.success) {
-        console.warn(
-          '[CanonicalProfileService] Schema validation failed for imported JSON:',
-          validation.errors
-        );
+        console.warn('[CanonicalProfileService] Schema validation failed for imported JSON:', validation.errors);
         return { success: false, errors: validation.errors };
       }
 
@@ -310,73 +294,27 @@ export class CanonicalProfileService {
     if (result.personalProfile) {
       if (result.personalProfile.fullName && !updated.identity.candidateConfirmed) {
         updated.identity.fullName = result.personalProfile.fullName;
-        this.recordFact(
-          'identity.fullName',
-          'identity',
-          result.personalProfile.fullName,
-          sourceLabel,
-          'RESUME_REPORTED',
-          false,
-          undefined,
-          true
-        );
+        this.recordFact('identity.fullName', 'identity', result.personalProfile.fullName, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
       }
       if (result.personalProfile.email && !updated.identity.candidateConfirmed) {
         updated.identity.email = result.personalProfile.email;
-        this.recordFact(
-          'identity.email',
-          'identity',
-          result.personalProfile.email,
-          sourceLabel,
-          'RESUME_REPORTED',
-          false,
-          undefined,
-          true
-        );
+        this.recordFact('identity.email', 'identity', result.personalProfile.email, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
       }
       if (result.personalProfile.phone && !updated.identity.candidateConfirmed) {
         updated.identity.phone = result.personalProfile.phone;
-        this.recordFact(
-          'identity.phone',
-          'identity',
-          result.personalProfile.phone,
-          sourceLabel,
-          'RESUME_REPORTED',
-          false,
-          undefined,
-          true
-        );
+        this.recordFact('identity.phone', 'identity', result.personalProfile.phone, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
       }
       if (result.personalProfile.location && !updated.identity.candidateConfirmed) {
         updated.identity.location = result.personalProfile.location;
-        this.recordFact(
-          'identity.location',
-          'identity',
-          result.personalProfile.location,
-          sourceLabel,
-          'RESUME_REPORTED',
-          false,
-          undefined,
-          true
-        );
+        this.recordFact('identity.location', 'identity', result.personalProfile.location, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
       }
-      if (
-        result.personalProfile.githubUrl ||
-        result.personalProfile.linkedinUrl ||
-        result.personalProfile.portfolioUrl ||
-        (result.personalProfile.otherLinks && result.personalProfile.otherLinks.length > 0)
-      ) {
+      if (result.personalProfile.githubUrl || result.personalProfile.linkedinUrl || result.personalProfile.portfolioUrl || (result.personalProfile.otherLinks && result.personalProfile.otherLinks.length > 0)) {
         updated.identity.links = {
           ...updated.identity.links,
           github: result.personalProfile.githubUrl || updated.identity.links.github,
           linkedin: result.personalProfile.linkedinUrl || updated.identity.links.linkedin,
           portfolio: result.personalProfile.portfolioUrl || updated.identity.links.portfolio,
-          other: Array.from(
-            new Set([
-              ...(updated.identity.links.other || []),
-              ...(result.personalProfile.otherLinks || []),
-            ])
-          ),
+          other: Array.from(new Set([...(updated.identity.links.other || []), ...(result.personalProfile.otherLinks || [])])),
         };
       }
     }
@@ -419,16 +357,7 @@ export class CanonicalProfileService {
             };
             updated.skills.push(newSkill);
             existingSkillMap.set(norm, newSkill);
-            this.recordFact(
-              `skill:${skillName}`,
-              'skill',
-              skillName,
-              sourceLabel,
-              'RESUME_REPORTED',
-              false,
-              undefined,
-              true
-            );
+            this.recordFact(`skill:${skillName}`, 'skill', skillName, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
           } else {
             const existing = existingSkillMap.get(norm)!;
             if (!existing.category) {
@@ -441,9 +370,7 @@ export class CanonicalProfileService {
 
     // Education
     if (result.education && result.education.length > 0) {
-      const existingEdu = new Set(
-        updated.education.map((e) => `${e.institution}_${e.degree}`.toLowerCase())
-      );
+      const existingEdu = new Set(updated.education.map((e) => `${e.institution}_${e.degree}`.toLowerCase()));
       for (const edu of result.education) {
         const key = `${edu.institution}_${edu.degree}`.toLowerCase();
         if (!existingEdu.has(key)) {
@@ -459,25 +386,14 @@ export class CanonicalProfileService {
             candidateConfirmed: false,
           };
           updated.education.push(newEdu);
-          this.recordFact(
-            `education:${key}`,
-            'education',
-            `${edu.degree} from ${edu.institution}`,
-            sourceLabel,
-            'RESUME_REPORTED',
-            false,
-            undefined,
-            true
-          );
+          this.recordFact(`education:${key}`, 'education', `${edu.degree} from ${edu.institution}`, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
 
     // Work Experience
     if (result.employment && result.employment.length > 0) {
-      const existingRoles = new Set(
-        updated.experience.map((e) => `${e.employer}_${e.title}`.toLowerCase())
-      );
+      const existingRoles = new Set(updated.experience.map((e) => `${e.employer}_${e.title}`.toLowerCase()));
       for (const exp of result.employment) {
         const key = `${exp.employer}_${exp.role}`.toLowerCase();
         if (!existingRoles.has(key)) {
@@ -499,16 +415,7 @@ export class CanonicalProfileService {
             candidateConfirmed: false,
           };
           updated.experience.push(newExp);
-          this.recordFact(
-            `experience:${key}`,
-            'experience',
-            `${exp.role} at ${exp.employer}`,
-            sourceLabel,
-            'RESUME_REPORTED',
-            false,
-            undefined,
-            true
-          );
+          this.recordFact(`experience:${key}`, 'experience', `${exp.role} at ${exp.employer}`, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
@@ -534,16 +441,7 @@ export class CanonicalProfileService {
             candidateConfirmed: false,
           };
           updated.projects.push(newProj);
-          this.recordFact(
-            `project:${proj.name}`,
-            'project',
-            proj.name,
-            sourceLabel,
-            'RESUME_REPORTED',
-            false,
-            undefined,
-            true
-          );
+          this.recordFact(`project:${proj.name}`, 'project', proj.name, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
@@ -565,16 +463,7 @@ export class CanonicalProfileService {
           };
           updated.achievements.push(newCert);
           existingAchievements.add(cert.name.toLowerCase());
-          this.recordFact(
-            `certification:${cert.name}`,
-            'achievement',
-            cert.name,
-            sourceLabel,
-            'RESUME_REPORTED',
-            false,
-            undefined,
-            true
-          );
+          this.recordFact(`certification:${cert.name}`, 'achievement', cert.name, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
@@ -592,16 +481,7 @@ export class CanonicalProfileService {
           };
           updated.achievements.push(newPub);
           existingAchievements.add(pub.title.toLowerCase());
-          this.recordFact(
-            `publication:${pub.title}`,
-            'achievement',
-            pub.title,
-            sourceLabel,
-            'RESUME_REPORTED',
-            false,
-            undefined,
-            true
-          );
+          this.recordFact(`publication:${pub.title}`, 'achievement', pub.title, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
@@ -619,16 +499,7 @@ export class CanonicalProfileService {
           };
           updated.achievements.push(newAch);
           existingAchievements.add(ach.headline.toLowerCase());
-          this.recordFact(
-            `achievement:${ach.headline}`,
-            'achievement',
-            ach.headline,
-            sourceLabel,
-            'RESUME_REPORTED',
-            false,
-            undefined,
-            true
-          );
+          this.recordFact(`achievement:${ach.headline}`, 'achievement', ach.headline, sourceLabel, 'RESUME_REPORTED', false, undefined, true);
         }
       }
     }
@@ -679,10 +550,7 @@ export class CanonicalProfileService {
       // Sync projects from vault
       if (Array.isArray(vault.projects)) {
         for (const vp of vault.projects) {
-          const normRepo = vp.repoUrl
-            ?.toLowerCase()
-            .replace(/\.git$/, '')
-            .replace(/\/$/, '');
+          const normRepo = vp.repoUrl?.toLowerCase().replace(/\.git$/, '').replace(/\/$/, '');
           const normTitle = (vp.title || '').toLowerCase().trim();
 
           // Deduplication: find match by ID, normalized repositoryUrl, or title
@@ -690,10 +558,7 @@ export class CanonicalProfileService {
             if (p.id && vp.id && p.id.toLowerCase() === vp.id.toLowerCase()) return true;
             if (normTitle && p.name && p.name.toLowerCase().trim() === normTitle) return true;
             if (normRepo && p.repositoryUrl) {
-              const curRepo = p.repositoryUrl
-                .toLowerCase()
-                .replace(/\.git$/, '')
-                .replace(/\/$/, '');
+              const curRepo = p.repositoryUrl.toLowerCase().replace(/\.git$/, '').replace(/\/$/, '');
               if (curRepo === normRepo) return true;
             }
             return false;
@@ -706,16 +571,10 @@ export class CanonicalProfileService {
               existingProject.exactContribution = vp.contributions[0].description;
             }
             // Merge technology stack (union)
-            const techSet = new Set([
-              ...existingProject.technologyStack,
-              ...(vp.technologies || []),
-            ]);
+            const techSet = new Set([...existingProject.technologyStack, ...(vp.technologies || [])]);
             existingProject.technologyStack = Array.from(techSet);
             // Merge evidence references
-            const evSet = new Set([
-              ...existingProject.evidenceReferences,
-              ...(vp.evidenceIds || []),
-            ]);
+            const evSet = new Set([...existingProject.evidenceReferences, ...(vp.evidenceIds || [])]);
             existingProject.evidenceReferences = Array.from(evSet);
 
             // Never downgrade verification status
@@ -792,86 +651,29 @@ export class CanonicalProfileService {
       let changed = false;
 
       // Deterministic conflict policy: if local identity is confirmed, do not overwrite with unconfirmed sync
-      if (
-        careerVault.fullName &&
-        !updated.identity.candidateConfirmed &&
-        careerVault.fullName !== updated.identity.fullName
-      ) {
+      if (careerVault.fullName && !updated.identity.candidateConfirmed && careerVault.fullName !== updated.identity.fullName) {
         updated.identity.fullName = careerVault.fullName;
-        this.recordFact(
-          'identity.fullName',
-          'identity',
-          careerVault.fullName,
-          'sync:career_ops',
-          'CANDIDATE_CONFIRMED',
-          true
-        );
+        this.recordFact('identity.fullName', 'identity', careerVault.fullName, 'sync:career_ops', 'CANDIDATE_CONFIRMED', true);
         changed = true;
       }
-      if (
-        careerVault.email &&
-        !updated.identity.candidateConfirmed &&
-        careerVault.email !== updated.identity.email
-      ) {
+      if (careerVault.email && !updated.identity.candidateConfirmed && careerVault.email !== updated.identity.email) {
         updated.identity.email = careerVault.email;
-        this.recordFact(
-          'identity.email',
-          'identity',
-          careerVault.email,
-          'sync:career_ops',
-          'CANDIDATE_CONFIRMED',
-          true
-        );
+        this.recordFact('identity.email', 'identity', careerVault.email, 'sync:career_ops', 'CANDIDATE_CONFIRMED', true);
         changed = true;
       }
-      if (
-        careerVault.phone &&
-        !updated.identity.candidateConfirmed &&
-        careerVault.phone !== updated.identity.phone
-      ) {
+      if (careerVault.phone && !updated.identity.candidateConfirmed && careerVault.phone !== updated.identity.phone) {
         updated.identity.phone = careerVault.phone;
-        this.recordFact(
-          'identity.phone',
-          'identity',
-          careerVault.phone,
-          'sync:career_ops',
-          'CANDIDATE_CONFIRMED',
-          true
-        );
+        this.recordFact('identity.phone', 'identity', careerVault.phone, 'sync:career_ops', 'CANDIDATE_CONFIRMED', true);
         changed = true;
       }
-      if (
-        careerVault.location &&
-        careerVault.location !== 'unknown' &&
-        !updated.identity.candidateConfirmed &&
-        careerVault.location !== updated.identity.location
-      ) {
+      if (careerVault.location && careerVault.location !== 'unknown' && !updated.identity.candidateConfirmed && careerVault.location !== updated.identity.location) {
         updated.identity.location = careerVault.location;
-        this.recordFact(
-          'identity.location',
-          'identity',
-          careerVault.location,
-          'sync:career_ops',
-          'CANDIDATE_CONFIRMED',
-          true
-        );
+        this.recordFact('identity.location', 'identity', careerVault.location, 'sync:career_ops', 'CANDIDATE_CONFIRMED', true);
         changed = true;
       }
-      if (
-        careerVault.currentTitle &&
-        careerVault.currentTitle !== 'unknown' &&
-        !updated.career.candidateConfirmed &&
-        careerVault.currentTitle !== updated.career.currentRole
-      ) {
+      if (careerVault.currentTitle && careerVault.currentTitle !== 'unknown' && !updated.career.candidateConfirmed && careerVault.currentTitle !== updated.career.currentRole) {
         updated.career.currentRole = careerVault.currentTitle;
-        this.recordFact(
-          'career.currentRole',
-          'career',
-          careerVault.currentTitle,
-          'sync:career_ops',
-          'CANDIDATE_CONFIRMED',
-          true
-        );
+        this.recordFact('career.currentRole', 'career', careerVault.currentTitle, 'sync:career_ops', 'CANDIDATE_CONFIRMED', true);
         changed = true;
       }
 
@@ -881,10 +683,7 @@ export class CanonicalProfileService {
           try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
           } catch (e) {
-            console.error(
-              '[CanonicalProfileService] LocalStorage save error during CareerOps sync:',
-              e
-            );
+            console.error('[CanonicalProfileService] LocalStorage save error during CareerOps sync:', e);
           }
         }
         this.notify();
@@ -925,13 +724,7 @@ export class CanonicalProfileService {
               description: cp.description,
               technologies: cp.technologyStack,
               contributions: cp.exactContribution
-                ? [
-                    {
-                      id: `contrib_${cp.id}`,
-                      description: cp.exactContribution,
-                      ownership: cp.ownership,
-                    },
-                  ]
+                ? [{ id: `contrib_${cp.id}`, description: cp.exactContribution, ownership: cp.ownership }]
                 : [],
               outcomes: cp.outcomes,
               metrics: [],
@@ -958,10 +751,10 @@ export class CanonicalProfileService {
             p.ownership === 'SOLE_OWNER'
               ? 'sole_owner'
               : p.ownership === 'PRIMARY_CONTRIBUTOR'
-                ? 'core_contributor'
-                : p.ownership === 'COLLABORATOR'
-                  ? 'contributor'
-                  : 'unknown';
+              ? 'core_contributor'
+              : p.ownership === 'COLLABORATOR'
+              ? 'contributor'
+              : 'unknown';
 
           kb.registerProject({
             name: p.name,
@@ -990,10 +783,8 @@ export class CanonicalProfileService {
           portfolio: profile.identity.links.portfolio || store.profile.portfolio,
           currentTitle: profile.career.currentRole || store.profile.currentTitle,
           noticePeriod: profile.career.noticePeriod || store.profile.noticePeriod,
-          authorizedToWork:
-            profile.declarations.workAuthorization.authorized ?? store.profile.authorizedToWork,
-          requiresSponsorship:
-            profile.declarations.sponsorshipRequired.required ?? store.profile.requiresSponsorship,
+          authorizedToWork: profile.declarations.workAuthorization.authorized ?? store.profile.authorizedToWork,
+          requiresSponsorship: profile.declarations.sponsorshipRequired.required ?? store.profile.requiresSponsorship,
         });
       } catch (e) {
         // Ignored if useCandidateVaultStore not active
@@ -1014,10 +805,7 @@ export class CanonicalProfileService {
           if (validation.success) {
             return validation.profile;
           } else {
-            console.warn(
-              '[CanonicalProfileService] Stored profile failed schema validation, resetting to safe defaults:',
-              validation.errors
-            );
+            console.warn('[CanonicalProfileService] Stored profile failed schema validation, resetting to safe defaults:', validation.errors);
           }
         }
       } catch (e) {
