@@ -256,10 +256,7 @@ describe('Candidate Profile Wizard Component Architecture & Memoization', () => 
     expect(projHtml).toContain('KVStore');
 
     const revHtml = renderToString(
-      <ReviewSection
-        profile={mockProfile}
-        onCompleteAndLock={() => {}}
-      />
+      <ReviewSection profile={mockProfile} onCompleteAndLock={() => {}} />
     );
     expect(revHtml).toContain('data-testid="wizard-section-review"');
     expect(revHtml).toContain('Complete &amp; Lock Profile');
