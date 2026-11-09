@@ -61,6 +61,7 @@ describe('CredentialStore', () => {
   it('validates allowed service names', () => {
     const creds = new CredentialStore(mockStore, tempDir);
     expect(creds.isValidService('groq')).toBe(true);
+    expect(creds.isValidService('groq-secondary')).toBe(true);
     expect(creds.isValidService('openai')).toBe(true);
     expect(creds.isValidService('openrouter')).toBe(true);
     expect(creds.isValidService('ollama')).toBe(true);
@@ -117,9 +118,34 @@ describe('CredentialStore', () => {
     const saved = mockStore.get('secure_credentials.openai');
     expect(saved.type).toBe('aes-gcm');
     expect(saved.data).not.toContain('sk-proj-testkey999');
+    expect(fs.existsSync(path.join(tempDir, '.machine_secret'))).toBe(true);
 
     const retrieved = await creds.getKey('openai');
     expect(retrieved).toBe('sk-proj-testkey999');
+  });
+
+  it('does not save credentials when the fallback encryption key cannot be persisted', async () => {
+    (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
+    const blockedPath = path.join(tempDir, 'not-a-directory');
+    fs.writeFileSync(blockedPath, 'this path is a file');
+
+    const creds = new CredentialStore(mockStore, blockedPath);
+    await expect(creds.setKey('openai', 'sk-proj-secret')).rejects.toThrow(
+      /Could not persist the credential encryption key/i
+    );
+    expect(mockStore.get('secure_credentials.openai')).toBeUndefined();
+  });
+
+  it('does not create a replacement key when decrypting a record with a missing key', async () => {
+    (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
+    mockStore.set('secure_credentials.openai', {
+      type: 'aes-gcm',
+      data: Buffer.alloc(32).toString('base64'),
+    });
+
+    const creds = new CredentialStore(mockStore, tempDir);
+    await expect(creds.getKey('openai')).resolves.toBeNull();
+    expect(fs.existsSync(path.join(tempDir, '.machine_secret'))).toBe(false);
   });
 
   it('deletes keys properly', async () => {
@@ -133,16 +159,18 @@ describe('CredentialStore', () => {
     expect(await creds.getKey('openrouter')).toBeNull();
   });
 
-  it('lists configured services accurately', async () => {
+  it('lists configured services accurately, including the secondary Groq slot', async () => {
     (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
     const creds = new CredentialStore(mockStore, tempDir);
 
     await creds.setKey('groq', 'gsk_123');
+    await creds.setKey('groq-secondary', 'gsk_789');
     await creds.setKey('openai', 'sk_456');
 
     const configured = await creds.listConfigured();
     expect(configured).toEqual({
       groq: true,
+      'groq-secondary': true,
       openai: true,
       openrouter: false,
       ollama: false,
