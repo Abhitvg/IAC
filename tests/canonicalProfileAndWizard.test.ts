@@ -15,6 +15,7 @@ import {
 import { IngestionResult } from '../src/services/ingestion/types';
 import { KnowledgeVaultService } from '../src/services/knowledgeVault/knowledgeVaultService';
 import { useCandidateVaultStore } from '../src/store/useCandidateVaultStore';
+import { useAppStore } from '../src/store/useAppStore';
 import {
   TrustedRepositoryInspectionService,
   TrustedIndependentAuditService,
@@ -551,19 +552,31 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
       profile.identity.fullName = 'Candidate data to clear';
       profile.identity.email = 'candidate@example.test';
       service.saveProfile(profile);
+      useAppStore.getState().setResumeText('Sensitive resume content');
+      useAppStore.getState().setJobDescriptionText('Confidential job description');
+      useAppStore.getState().setTargetRole('Staff Engineer');
 
       expect(useCandidateVaultStore.getState().profile.fullName).toBe('Candidate data to clear');
+      expect(useAppStore.getState().resumeText).toBe('Sensitive resume content');
+      expect(useAppStore.getState().jobDescriptionText).toBe('Confidential job description');
+      expect(useAppStore.getState().targetRole).toBe('Staff Engineer');
       expect(service.clearAllCandidateData()).toEqual({ success: true, failedStores: [] });
 
       expect(service.getProfile().identity.fullName).toBe('');
       expect(useCandidateVaultStore.getState().profile.fullName).toBe('');
       expect(KnowledgeVaultService.getInstance().getVault().profile.name).toBe('');
+      expect(useAppStore.getState().resumeText).toBe('');
+      expect(useAppStore.getState().jobDescriptionText).toBe('');
+      expect(useAppStore.getState().targetRole).toBe('');
       expect(removedKeys).toEqual(
         expect.arrayContaining([
           'iac_canonical_candidate_profile_v2',
           'iac_candidate_knowledge_vault_v2',
           'career_ops_candidate_vault_v1',
           'career_ops_candidate_vault_v2',
+          'candidate_resume',
+          'target_job_description',
+          'target_role',
         ])
       );
     } finally {
