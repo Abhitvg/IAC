@@ -12,6 +12,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { getDefaultModelForProvider, AIProviderId } from '../services/models/modelRegistry';
+import { persistOnboardingCredential } from '../services/onboarding/credentialSetup';
 
 type OnboardingStep = 'mode' | 'credentials_or_models' | 'mic_check' | 'ready';
 
@@ -98,27 +99,40 @@ export default function OnboardingModal() {
     };
   }, [step, micActive]);
 
-  const handleFinishAndStart = async () => {
+  const handleFinishAndStart = async (): Promise<boolean> => {
     try {
       const activeProv = isLocalMode ? 'ollama' : (provider as AIProviderId);
+
+      // A supplied key is not optional once entered: confirm the protected main-
+      // process credential store accepted it before marking setup complete.
+      if (!isLocalMode) {
+        await persistOnboardingCredential(provider, apiKey, (service, key) => {
+          const writeCredential = window.electronAPI?.setApiKey;
+          if (typeof writeCredential !== 'function') {
+            throw new Error(
+              'Secure credential storage is unavailable. Your key was not saved; configure it later in Settings.'
+            );
+          }
+          return writeCredential(service, key);
+        });
+      }
+
       updateSetting('aiProvider', activeProv);
       updateSetting('aiModel', getDefaultModelForProvider(activeProv, 'llm'));
       updateSetting(
         'whisperModel',
         isLocalMode ? 'local-whisper-cpp' : getDefaultModelForProvider(activeProv, 'stt')
       );
-
-      if (!isLocalMode && apiKey.trim()) {
-        await window.electronAPI?.setApiKey?.(provider, apiKey.trim());
-      }
-
       updateSetting('hasCompletedOnboarding', true);
 
-      // Launch first 10-minute mock session
+      // Launch first 10-minute mock session only after setup is safely persisted.
       startMockSession('behavioral', 'friendly_recruiter', false);
       setToast('Welcome! Your 10-minute initial mock interview has started.');
-    } catch (err: any) {
-      setToast(`Setup error: ${err?.message || err}`);
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setToast(`Setup error: ${message}`);
+      return false;
     }
   };
 
@@ -689,8 +703,9 @@ export default function OnboardingModal() {
               <button
                 type="button"
                 onClick={async () => {
-                  await handleFinishAndStart();
-                  setProfileWizardOpen(true);
+                  if (await handleFinishAndStart()) {
+                    setProfileWizardOpen(true);
+                  }
                 }}
                 style={{
                   display: 'inline-flex',
