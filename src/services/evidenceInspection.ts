@@ -314,24 +314,31 @@ export class ProtectedEvidenceKeyManager {
 
   public static rotateKey(): { newKeyId: string; previousKeyId: string } {
     const prevKeyId = this.activeKeyId;
+
+    // Generate all secure material before mutating the active key or key registry.
+    // If secure randomness is unavailable, rotation must leave the current key usable.
+    const nextKeyId = `key_v1_${Date.now()}_${getRandomHex(4)}`;
+    const nextSecretHex = getRandomHex(32);
+    const nextCreatedAt = Date.now();
+
     const oldMeta = this.knownKeys.get(prevKeyId);
     if (oldMeta) {
       oldMeta.status = 'ROTATED';
     }
 
-    this.activeKeyId = `key_v1_${Date.now()}_${getRandomHex(4)}`;
-    this.activeSecretHex = getRandomHex(32);
-    this.knownKeys.set(this.activeKeyId, {
-      keyId: this.activeKeyId,
-      secretHex: this.activeSecretHex,
-      createdAt: Date.now(),
+    this.activeKeyId = nextKeyId;
+    this.activeSecretHex = nextSecretHex;
+    this.knownKeys.set(nextKeyId, {
+      keyId: nextKeyId,
+      secretHex: nextSecretHex,
+      createdAt: nextCreatedAt,
       status: 'ACTIVE',
     });
 
     if (this.storageFilePath) {
       this.saveToDisk(this.storageFilePath);
     }
-    return { newKeyId: this.activeKeyId, previousKeyId: prevKeyId };
+    return { newKeyId: nextKeyId, previousKeyId: prevKeyId };
   }
 
   public static revokeKey(keyId: string): boolean {
