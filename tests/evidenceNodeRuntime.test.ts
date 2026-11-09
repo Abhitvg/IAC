@@ -53,10 +53,14 @@ describe('Evidence inspection Node runtime adapter', () => {
       value: undefined,
     });
 
+    const activeKeyId = ProtectedEvidenceKeyManager.getActiveKeyId();
+
     try {
       expect(() => ProtectedEvidenceKeyManager.rotateKey()).toThrow(
         'Cryptographically secure random number generation is unavailable.'
       );
+      expect(ProtectedEvidenceKeyManager.getActiveKeyId()).toBe(activeKeyId);
+      expect(ProtectedEvidenceKeyManager.isKeyValid(activeKeyId)).toBe(true);
     } finally {
       if (previousWindow) {
         Object.defineProperty(globalThis, 'window', previousWindow);
