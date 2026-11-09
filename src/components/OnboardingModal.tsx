@@ -715,7 +715,14 @@ export default function OnboardingModal() {
               round to establish your speech pace baseline.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                alignItems: 'center',
+              }}
+            >
               <button
                 type="button"
                 onClick={async () => {
