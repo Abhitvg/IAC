@@ -1,0 +1,33 @@
+name: Temporary Prettier repair for PDF.js Windows fix
+
+on:
+  push:
+    branches:
+      - fix/windows-pdfjs-font-paths-cleanup
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write electron/services/pdfParser.ts tests/pdfParser.test.ts tests/candidateWizardPerformance.test.tsx
+      - name: Commit formatter output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add electron/services/pdfParser.ts tests/pdfParser.test.ts tests/candidateWizardPerformance.test.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m "style: format PDF.js Windows reliability changes"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
