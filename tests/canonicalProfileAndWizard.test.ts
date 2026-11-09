@@ -27,7 +27,7 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
 
   beforeEach(() => {
     service = CanonicalProfileService.getInstance();
-    service.clearAllCandidateData();
+    service.clearAllCandidateData(() => useAppStore.getState().clearCandidateDocuments());
     TrustedIndependentAuditService.clearAuditors();
   });
 
@@ -508,10 +508,12 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
       current.identity.fullName = 'Candidate data must remain available';
       service.saveProfile(current);
 
-      expect(service.clearAllCandidateData()).toMatchObject({
+      const clearDocuments = vi.fn(() => true);
+      expect(service.clearAllCandidateData(clearDocuments)).toMatchObject({
         success: false,
         failedStores: ['canonical-profile'],
       });
+      expect(clearDocuments).not.toHaveBeenCalled();
       expect(service.getProfile().identity.fullName).toBe('Candidate data must remain available');
       expect(storage.removeItem).toHaveBeenCalledOnce();
     } finally {
@@ -560,7 +562,9 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
       expect(useAppStore.getState().resumeText).toBe('Sensitive resume content');
       expect(useAppStore.getState().jobDescriptionText).toBe('Confidential job description');
       expect(useAppStore.getState().targetRole).toBe('Staff Engineer');
-      expect(service.clearAllCandidateData()).toEqual({ success: true, failedStores: [] });
+      expect(
+        service.clearAllCandidateData(() => useAppStore.getState().clearCandidateDocuments())
+      ).toEqual({ success: true, failedStores: [] });
 
       expect(service.getProfile().identity.fullName).toBe('');
       expect(useCandidateVaultStore.getState().profile.fullName).toBe('');
