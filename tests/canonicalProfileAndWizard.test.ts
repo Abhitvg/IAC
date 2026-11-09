@@ -614,5 +614,4 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
       }
     }
   });
-
 });
