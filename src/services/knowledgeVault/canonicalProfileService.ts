@@ -95,9 +95,10 @@ export class CanonicalProfileService {
   /**
    * Resets all candidate data to initial clean state with zero fabrications.
    */
-  public clearAllCandidateData(
-    clearCandidateDocuments?: () => boolean
-  ): { success: boolean; failedStores: string[] } {
+  public clearAllCandidateData(clearCandidateDocuments?: () => boolean): {
+    success: boolean;
+    failedStores: string[];
+  } {
     // First remove the canonical source of truth. If this fails, leave every copy
     // untouched so the UI cannot claim that candidate data was deleted.
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {

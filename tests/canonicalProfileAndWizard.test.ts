@@ -659,7 +659,9 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
 
       expect(useAppStore.getState().clearCandidateDocuments()).toBe(false);
       expect(useAppStore.getState().resumeText).toBe('Resume must remain available');
-      expect(useAppStore.getState().jobDescriptionText).toBe('Job description must remain available');
+      expect(useAppStore.getState().jobDescriptionText).toBe(
+        'Job description must remain available'
+      );
       expect(useAppStore.getState().targetRole).toBe('Target role must remain available');
       expect(data.candidate_resume).toBe('Resume must remain available');
       expect(data.target_job_description).toBe('Job description must remain available');
