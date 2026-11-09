@@ -431,8 +431,9 @@ export default function OnboardingModal() {
                       marginTop: '4px',
                     }}
                   >
-                    Keys are encrypted with Electron safeStorage when available, with a
-                    machine-scoped AES-GCM fallback.
+                    Keys are encrypted with OS-backed Electron safeStorage. On Linux, GNOME
+                    Keyring or KDE Wallet must be available; the app will not persist keys using
+                    an unprotected local fallback.
                   </span>
                 </div>
               </div>
