@@ -15,6 +15,7 @@ import {
 import { IngestionResult } from '../src/services/ingestion/types';
 import { KnowledgeVaultService } from '../src/services/knowledgeVault/knowledgeVaultService';
 import { useCandidateVaultStore } from '../src/store/useCandidateVaultStore';
+import { useAppStore } from '../src/store/useAppStore';
 import {
   TrustedRepositoryInspectionService,
   TrustedIndependentAuditService,
@@ -551,19 +552,31 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
       profile.identity.fullName = 'Candidate data to clear';
       profile.identity.email = 'candidate@example.test';
       service.saveProfile(profile);
+      useAppStore.getState().setResumeText('Sensitive resume content');
+      useAppStore.getState().setJobDescriptionText('Confidential job description');
+      useAppStore.getState().setTargetRole('Staff Engineer');
 
       expect(useCandidateVaultStore.getState().profile.fullName).toBe('Candidate data to clear');
+      expect(useAppStore.getState().resumeText).toBe('Sensitive resume content');
+      expect(useAppStore.getState().jobDescriptionText).toBe('Confidential job description');
+      expect(useAppStore.getState().targetRole).toBe('Staff Engineer');
       expect(service.clearAllCandidateData()).toEqual({ success: true, failedStores: [] });
 
       expect(service.getProfile().identity.fullName).toBe('');
       expect(useCandidateVaultStore.getState().profile.fullName).toBe('');
       expect(KnowledgeVaultService.getInstance().getVault().profile.name).toBe('');
+      expect(useAppStore.getState().resumeText).toBe('');
+      expect(useAppStore.getState().jobDescriptionText).toBe('');
+      expect(useAppStore.getState().targetRole).toBe('');
       expect(removedKeys).toEqual(
         expect.arrayContaining([
           'iac_canonical_candidate_profile_v2',
           'iac_candidate_knowledge_vault_v2',
           'career_ops_candidate_vault_v1',
           'career_ops_candidate_vault_v2',
+          'candidate_resume',
+          'target_job_description',
+          'target_role',
         ])
       );
     } finally {
@@ -601,6 +614,52 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
       profile.identity.fullName = 'Unsaved candidate';
       expect(service.saveProfile(profile)).toBe(false);
       expect(storage.setItem).toHaveBeenCalled();
+    } finally {
+      if (previousWindow) {
+        Object.defineProperty(globalThis, 'window', previousWindow);
+      } else {
+        Reflect.deleteProperty(globalThis, 'window');
+      }
+      if (previousStorage) {
+        Object.defineProperty(globalThis, 'localStorage', previousStorage);
+      } else {
+        Reflect.deleteProperty(globalThis, 'localStorage');
+      }
+    }
+  });
+
+  it('rolls back a partial resume-context deletion when browser storage rejects a later key', () => {
+    const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    const data: Record<string, string> = {};
+    const storage = {
+      getItem: vi.fn((key: string) => data[key] ?? null),
+      setItem: vi.fn((key: string, value: string) => {
+        data[key] = String(value);
+      }),
+      removeItem: vi.fn((key: string) => {
+        if (key === 'target_job_description') {
+          throw new Error('Storage deletion denied');
+        }
+        delete data[key];
+      }),
+    };
+
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: {} });
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
+
+    try {
+      useAppStore.getState().setResumeText('Resume must remain available');
+      useAppStore.getState().setJobDescriptionText('Job description must remain available');
+      useAppStore.getState().setTargetRole('Target role must remain available');
+
+      expect(useAppStore.getState().clearCandidateDocuments()).toBe(false);
+      expect(useAppStore.getState().resumeText).toBe('Resume must remain available');
+      expect(useAppStore.getState().jobDescriptionText).toBe('Job description must remain available');
+      expect(useAppStore.getState().targetRole).toBe('Target role must remain available');
+      expect(data.candidate_resume).toBe('Resume must remain available');
+      expect(data.target_job_description).toBe('Job description must remain available');
+      expect(data.target_role).toBe('Target role must remain available');
     } finally {
       if (previousWindow) {
         Object.defineProperty(globalThis, 'window', previousWindow);

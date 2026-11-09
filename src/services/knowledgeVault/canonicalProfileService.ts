@@ -25,6 +25,7 @@ import { CandidateKnowledgeBase } from '../candidateIntelligence';
 import { IngestionResult } from '../ingestion/types';
 import { validateCanonicalProfile } from './schemaValidation';
 import { useCandidateVaultStore } from '../../store/useCandidateVaultStore';
+import { useAppStore } from '../../store/useAppStore';
 
 const STORAGE_KEY = 'iac_canonical_candidate_profile_v2';
 
@@ -135,6 +136,15 @@ export class CanonicalProfileService {
     } catch (e) {
       console.error('[CanonicalProfileService] In-memory candidate knowledge reset failed:', e);
       failedStores.push('candidate-knowledge-base');
+    }
+
+    try {
+      if (!useAppStore.getState().clearCandidateDocuments()) {
+        failedStores.push('candidate-documents');
+      }
+    } catch (e) {
+      console.error('[CanonicalProfileService] Candidate document reset failed:', e);
+      failedStores.push('candidate-documents');
     }
 
     // Do not call syncToSubsystems here: it merges non-empty values from the old
