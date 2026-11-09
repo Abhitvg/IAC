@@ -571,7 +571,7 @@ export const CandidateProfileWizard: React.FC = () => {
     }
 
     setSaveStatus('saved');
-    setSaveStatusText('All candidate profile copies were reset.');
+    setSaveStatusText('Candidate profile, saved resume, and job-targeting context cleared. Interview history and workspaces were kept.');
     setToast?.('All candidate profile copies were reset.');
   }, [profileService, setToast]);
 
@@ -683,7 +683,7 @@ export const CandidateProfileWizard: React.FC = () => {
             }}
           >
             <span style={{ fontSize: '13px', color: '#FCA5A5' }}>
-              Are you sure? This will delete all candidate claims and restore factory blank state.
+              This clears your candidate profile, saved resume, and current job-targeting context. Saved interview history and workspaces are kept.
             </span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
