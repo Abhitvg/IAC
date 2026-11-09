@@ -926,7 +926,7 @@ ipcMain.handle(
             getTesseractCommands(tmpImg),
             execFileAsync
           );
-          text = stdout.trim();
+          text = String(stdout).trim();
         } catch (ocrErr: any) {
           throw new Error(
             'OCR engine not found. On Linux, please install tesseract: sudo apt install tesseract-ocr',
@@ -1011,7 +1011,7 @@ ipcMain.handle(
           getTesseractCommands(tmpImg),
           execFileAsync
         );
-        newText = stdout.trim();
+        newText = String(stdout).trim();
       }
 
       try {
@@ -1139,7 +1139,7 @@ ipcMain.handle('screen:ocr-image', async (event, filePath: string) => {
     let text = '';
     if (isMac && fs.existsSync(ocrBin)) {
       const { stdout } = await execFileAsync(ocrBin, [resolvedPath]);
-      text = stdout.trim();
+      text = String(stdout).trim();
     } else {
       try {
         const { stdout } = await execFileAsync('tesseract', [
@@ -1150,10 +1150,10 @@ ipcMain.handle('screen:ocr-image', async (event, filePath: string) => {
           '-l',
           'eng',
         ]);
-        text = stdout.trim();
+        text = String(stdout).trim();
       } catch {
         const { stdout } = await execFileAsync('tesseract', [resolvedPath, 'stdout']);
-        text = stdout.trim();
+        text = String(stdout).trim();
       }
     }
 
