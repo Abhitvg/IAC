@@ -80,13 +80,16 @@ export const CandidateProfileWizard: React.FC = () => {
     return () => unsub();
   }, [profileService]);
 
-  // Flush pending debounced autosave immediately to guarantee data persistence
-  const flushPendingSave = useCallback(() => {
+  // Flush pending debounced autosave immediately and report whether persistence succeeded.
+  const flushPendingSave = useCallback((): boolean => {
     if (sectionFlushRef.current) {
       try {
         sectionFlushRef.current();
       } catch (err) {
         console.error('[CandidateProfileWizard] Section flush error:', err);
+        setSaveStatus('error');
+        setSaveStatusText('Could not collect all changes from the current section');
+        return false;
       }
     }
 
@@ -106,14 +109,17 @@ export const CandidateProfileWizard: React.FC = () => {
           second: '2-digit',
         });
         setSaveStatusText(`All changes saved (${time})`);
-      } else {
-        setSaveStatus('error');
-        setSaveStatusText('Storage quota exceeded or save error');
+        return true;
       }
+
+      setSaveStatus('error');
+      setSaveStatusText('Storage quota exceeded or save error');
+      return false;
     } catch (err) {
       console.error('[CandidateProfileWizard] Immediate flush failed:', err);
       setSaveStatus('error');
       setSaveStatusText('Failed to save profile');
+      return false;
     }
   }, [profileService]);
 
@@ -157,7 +163,10 @@ export const CandidateProfileWizard: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        flushPendingSave();
+        if (!flushPendingSave()) {
+          setToast?.('Your profile could not be saved. Fix the storage issue before closing this wizard.');
+          return;
+        }
         setProfileWizardOpen(false);
         return;
       }
@@ -195,7 +204,7 @@ export const CandidateProfileWizard: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [profileWizardOpen, setProfileWizardOpen, flushPendingSave]);
+  }, [profileWizardOpen, setProfileWizardOpen, flushPendingSave, setToast]);
 
   // Commit updated profile with debounce or immediate save
   const commitProfileChange = useCallback(
@@ -331,11 +340,14 @@ export const CandidateProfileWizard: React.FC = () => {
   );
 
   const handleCompleteAndLock = useCallback(() => {
-    flushPendingSave();
-    profileService.saveProfile(profileRef.current);
+    if (!flushPendingSave()) {
+      setToast?.('Profile was not locked because the latest changes could not be saved. Resolve the storage error and try again.');
+      return;
+    }
+
     setToast?.('Candidate profile locked and saved for live grounding.');
     setProfileWizardOpen(false);
-  }, [flushPendingSave, profileService, setProfileWizardOpen, setToast]);
+  }, [flushPendingSave, setProfileWizardOpen, setToast]);
 
   // Clean up debounce timer on unmount
   useEffect(() => {
@@ -464,7 +476,10 @@ export const CandidateProfileWizard: React.FC = () => {
 
   // Export profile with latest unsaved changes flushed
   const handleExportJson = useCallback(() => {
-    flushPendingSave();
+    if (!flushPendingSave()) {
+      setToast?.('Export cancelled because the latest profile changes could not be saved.');
+      return;
+    }
     const dataStr =
       'data:text/json;charset=utf-8,' + encodeURIComponent(profileService.exportJson());
     const downloadAnchor = document.createElement('a');
@@ -557,9 +572,12 @@ export const CandidateProfileWizard: React.FC = () => {
   }, [profileService, setToast]);
 
   const handleClose = useCallback(() => {
-    flushPendingSave();
+    if (!flushPendingSave()) {
+      setToast?.('Your profile could not be saved. Resolve the storage error before closing this wizard.');
+      return;
+    }
     setProfileWizardOpen(false);
-  }, [flushPendingSave, setProfileWizardOpen]);
+  }, [flushPendingSave, setProfileWizardOpen, setToast]);
 
   if (!profileWizardOpen) return null;
 
