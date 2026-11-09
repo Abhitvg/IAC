@@ -1068,17 +1068,20 @@ ipcMain.handle('system:auto-type', async (event, code: string, delayMs: number =
   }
 
   const tmpCode = path.join(app.getPath('temp'), `iac_code_${Date.now()}.txt`);
+  const tmpScript = path.join(app.getPath('temp'), `iac_type_${Date.now()}.applescript`);
 
   try {
     fs.writeFileSync(tmpCode, code, 'utf8');
 
-    // Keep the source static and pass the path as a distinct process argument.
-    // Neither the shell nor AppleScript source interpolates a filesystem path.
+    // Keep the script source static and pass the data-file path as argv[0].
+    // Neither the shell nor the AppleScript source interpolates a filesystem path.
     const appleScriptContent = buildAutoTypeAppleScript(delayMs);
-    await execFileAsync('osascript', ['-e', appleScriptContent, tmpCode]);
+    fs.writeFileSync(tmpScript, appleScriptContent, 'utf8');
+    await execFileAsync('osascript', [tmpScript, tmpCode]);
 
     try {
       if (fs.existsSync(tmpCode)) fs.unlinkSync(tmpCode);
+      if (fs.existsSync(tmpScript)) fs.unlinkSync(tmpScript);
     } catch {
       // ignore
     }
@@ -1088,6 +1091,7 @@ ipcMain.handle('system:auto-type', async (event, code: string, delayMs: number =
     console.error('[Electron] Auto-type error:', err);
     try {
       if (fs.existsSync(tmpCode)) fs.unlinkSync(tmpCode);
+      if (fs.existsSync(tmpScript)) fs.unlinkSync(tmpScript);
     } catch {
       // ignore
     }
