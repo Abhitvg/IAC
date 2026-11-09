@@ -31,10 +31,7 @@ export interface WhisperConfig {
 
 export type TranscriptionProvider = 'groq' | 'openai' | 'local';
 
-function resolveTranscriptionModel(
-  provider: 'groq' | 'openai',
-  requestedModel?: string
-): string {
+function resolveTranscriptionModel(provider: 'groq' | 'openai', requestedModel?: string): string {
   const resolved = resolveOrMigrateModel(provider, requestedModel, 'stt').resolvedModel;
   const definition = getModelDefinition(provider, resolved);
   if (definition?.type === 'stt' && definition.status === 'active') {
@@ -119,7 +116,9 @@ export async function transcribeAudio(
     // If it's supposed to be WAV, check validation
     const headerStr = String.fromCharCode(...new Uint8Array(arrayBuf.slice(0, 4)));
     if (headerStr === 'RIFF' && !isValidWav(arrayBuf)) {
-      console.warn('[Whisper] Audio payload failed strict WAV validation. Attempting conversion...');
+      console.warn(
+        '[Whisper] Audio payload failed strict WAV validation. Attempting conversion...'
+      );
     }
   }
 

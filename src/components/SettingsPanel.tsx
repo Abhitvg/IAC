@@ -272,7 +272,8 @@ export default function SettingsPanel() {
               >
                 OpenRouter currently supports LLM requests only in this app. Live microphone
                 transcription is unavailable in this mode; switch to Groq, OpenAI, or local
-                Ollama/Whisper. The app will not silently send your audio to another cloud STT provider.
+                Ollama/Whisper. The app will not silently send your audio to another cloud STT
+                provider.
               </div>
             )}
 

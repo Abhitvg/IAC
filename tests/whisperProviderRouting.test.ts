@@ -1,8 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  resolveTranscriptionProvider,
-  transcribeAudio,
-} from '../src/services/whisper';
+import { resolveTranscriptionProvider, transcribeAudio } from '../src/services/whisper';
 import { encodeWav } from '../src/utils/audioConversion';
 
 function createAudioBlob(): Blob {
@@ -147,5 +144,4 @@ describe('live transcription provider routing', () => {
     const body = fetchMock.mock.calls[0][1].body as FormData;
     expect(body.get('model')).toBe('whisper-1');
   });
-
 });
