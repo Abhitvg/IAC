@@ -265,12 +265,9 @@ describe('Candidate Profile Wizard Component Architecture & Memoization', () => 
     expect(revHtml).toContain('Complete &amp; Lock Profile');
   });
 
-  it('measures component render time with high precision (<0.5ms per section)', () => {
+  it('measures warmed component render performance without cold-start noise', () => {
     const dummyRegister = () => () => {};
-    const iterations = 50;
-    const start = performance.now();
-
-    for (let i = 0; i < iterations; i++) {
+    const renderIdentity = () =>
       renderToString(
         <IdentitySection
           identity={mockIdentity}
@@ -278,12 +275,24 @@ describe('Candidate Profile Wizard Component Architecture & Memoization', () => 
           registerFlushHandler={dummyRegister}
         />
       );
+
+    // JIT and first-use setup can dominate the first few renders on hosted
+    // Windows runners. Warm up before measuring the steady-state component.
+    for (let i = 0; i < 10; i += 1) {
+      renderIdentity();
     }
 
-    const elapsed = performance.now() - start;
-    const avgPerRender = elapsed / iterations;
+    const samples: number[] = [];
+    for (let i = 0; i < 50; i += 1) {
+      const start = performance.now();
+      renderIdentity();
+      samples.push(performance.now() - start);
+    }
 
-    // In a fast Node environment, rendering the isolated IdentitySection takes < 0.8ms
-    expect(avgPerRender).toBeLessThan(2.0);
+    samples.sort((a, b) => a - b);
+    const medianPerRender = samples[Math.floor(samples.length / 2)];
+
+    // Assert steady-state latency; the median is robust against scheduler spikes.
+    expect(medianPerRender).toBeLessThan(2.0);
   });
 });
