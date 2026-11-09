@@ -66,7 +66,8 @@ describe('live transcription provider routing', () => {
     expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
       Authorization: 'Bearer sk-openai-test-key',
     });
-    expect(getApiKey).toHaveBeenCalledExactlyOnceWith('openai');
+    expect(getApiKey).toHaveBeenCalledOnce();
+    expect(getApiKey).toHaveBeenCalledWith('openai');
   });
 
   it('uses Groq transcription when Groq is the configured application provider', async () => {
@@ -86,7 +87,8 @@ describe('live transcription provider routing', () => {
     expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
       Authorization: 'Bearer gsk_groq-test-key',
     });
-    expect(getApiKey).toHaveBeenCalledExactlyOnceWith('groq');
+    expect(getApiKey).toHaveBeenCalledOnce();
+    expect(getApiKey).toHaveBeenCalledWith('groq');
   });
 
   it('fails closed for OpenRouter because this app has no OpenRouter STT model', async () => {
