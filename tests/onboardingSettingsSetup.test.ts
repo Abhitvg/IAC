@@ -25,16 +25,13 @@ describe('onboarding settings persistence', () => {
   });
 
   it('rejects when settings storage is unavailable', async () => {
-    await expect(
-      persistOnboardingSettings([['aiProvider', 'groq']])
-    ).rejects.toThrow('Settings storage is unavailable');
+    await expect(persistOnboardingSettings([['aiProvider', 'groq']])).rejects.toThrow(
+      'Settings storage is unavailable'
+    );
   });
 
   it('stops before marking onboarding complete when an earlier setting fails', async () => {
-    const writer = vi
-      .fn()
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false);
+    const writer = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 
     await expect(
       persistOnboardingSettings(
@@ -53,8 +50,8 @@ describe('onboarding settings persistence', () => {
 
   it('propagates IPC write errors instead of hiding persistence failures', async () => {
     const writer = vi.fn().mockRejectedValue(new Error('Storage permission denied'));
-    await expect(
-      persistOnboardingSettings([['aiProvider', 'groq']], writer)
-    ).rejects.toThrow('Storage permission denied');
+    await expect(persistOnboardingSettings([['aiProvider', 'groq']], writer)).rejects.toThrow(
+      'Storage permission denied'
+    );
   });
 });
