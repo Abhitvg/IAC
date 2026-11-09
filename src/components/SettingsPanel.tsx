@@ -18,6 +18,7 @@ export default function SettingsPanel() {
     updateSetting,
     setSettingsOpen,
     clearAllData,
+    setToast,
     selectedAudioDeviceId,
     setSelectedAudioDeviceId,
   } = useAppStore();
@@ -719,16 +720,26 @@ export default function SettingsPanel() {
             </h3>
             <button
               className="danger-btn"
-              onClick={() => {
+              onClick={async () => {
                 const confirmed =
                   typeof window !== 'undefined' && window.confirm
                     ? window.confirm(
                         'Are you sure you want to permanently delete all feedback records, practice sessions, transcripts, and study plans?'
                       )
                     : true;
-                if (confirmed) {
-                  deleteAllFeedbackAndPracticeData();
-                  clearAllData();
+                if (!confirmed) return;
+
+                const practiceResult = deleteAllFeedbackAndPracticeData();
+                const interviewResult = await clearAllData();
+                const failures = [
+                  ...practiceResult.failedKeys.map((key) => `practice:${key}`),
+                  ...interviewResult.failedStores,
+                ];
+
+                if (failures.length > 0) {
+                  setToast(`Wipe incomplete. Some data may remain: ${failures.join(', ')}`);
+                } else {
+                  setToast('All feedback and practice data were removed.');
                 }
               }}
               aria-label="Delete all feedback and practice data"

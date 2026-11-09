@@ -117,7 +117,7 @@ You can delete every trace of stored feedback, mock sessions, audio transcripts,
 2. Scroll to the **Danger Zone** section at the bottom.
 3. Click **"Delete all feedback and practice data"**.
 
-This permanently removes all 8 local storage keys, wipes in-memory Zustand store states, and resets the practice gym to a fresh installation state.
+This permanently removes all 9 practice local storage keys, wipes in-memory Zustand store states, and resets the practice gym to a fresh installation state.
 
 ---
 

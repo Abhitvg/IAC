@@ -110,7 +110,7 @@ interface PracticeState {
   updateFeedbackRecord: (record: FeedbackRecord) => void;
   deleteFeedbackRecord: (id: string) => void;
   clearAllFeedback: () => void;
-  deleteAllFeedbackAndPracticeData: () => void;
+  deleteAllFeedbackAndPracticeData: () => { success: boolean; failedKeys: string[] };
   weaknessPlan: WeaknessPracticePlan | null;
   setWeaknessPlan: (plan: WeaknessPracticePlan) => void;
   seedSchedulerFromWeaknesses: () => void;
@@ -310,10 +310,9 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       try {
         const llm = new LLMManager();
         llmCaller = async (prompt: string, _model: string) => {
-          const res = await llm.executeWithFallback(
-            [{ role: 'user', content: prompt }],
-            { temperature: 0.2 }
-          );
+          const res = await llm.executeWithFallback([{ role: 'user', content: prompt }], {
+            temperature: 0.2,
+          });
           return res.text;
         };
       } catch (_e) {
@@ -340,8 +339,7 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     // Update topic mastery in spaced repetition table (backward compatibility)
     const lastQuestion = activeSession.currentQuestion;
     const topicId = SpacedScheduler.identifyTopicForQuestion(lastQuestion);
-    const lastItemIndex =
-      updatedSession.questionHistory.length - (updatedSession.isActive ? 2 : 1);
+    const lastItemIndex = updatedSession.questionHistory.length - (updatedSession.isActive ? 2 : 1);
     const lastItem = updatedSession.questionHistory[lastItemIndex];
     const lastEval = lastItem?.evaluation;
 
@@ -615,14 +613,22 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   },
 
   deleteAllFeedbackAndPracticeData: () => {
-    Object.values(STORAGE_KEYS).forEach((key) => {
-      try {
-        localStorage.removeItem(key);
-      } catch (_e) {
-        // Ignore
-      }
-    });
+    const failedKeys: string[] = [];
 
+    if (typeof localStorage !== 'undefined') {
+      for (const key of Object.values(STORAGE_KEYS)) {
+        try {
+          localStorage.removeItem(key);
+          if (localStorage.getItem(key) !== null) failedKeys.push(key);
+        } catch (error) {
+          console.error('[PracticeStore] Failed to remove persisted data key:', key, error);
+          failedKeys.push(key);
+        }
+      }
+    }
+
+    // Always clear sensitive in-memory state; the caller must not report full success
+    // while a persisted key remains.
     set({
       activeSession: null,
       sessionHistory: [],
@@ -641,6 +647,8 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       conceptCards: {},
       activeExplainerTopic: '',
     });
+
+    return { success: failedKeys.length === 0, failedKeys };
   },
   addCompanyNote: (companyName, roundName, note) => {
     const plans = [...get().companyPlans];
