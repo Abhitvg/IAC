@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   CanonicalProfileService,
   createCanonicalFact,
@@ -250,7 +250,11 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
     const outcome = validateCanonicalProfile(maliciousPayload);
     expect(outcome.success).toBe(false);
     if (!outcome.success) {
-      expect(outcome.errors.some((e) => e.toLowerCase().includes('unrecognized') || e.includes('injectedUnauthorizedField'))).toBe(true);
+      expect(
+        outcome.errors.some(
+          (e) => e.toLowerCase().includes('unrecognized') || e.includes('injectedUnauthorizedField')
+        )
+      ).toBe(true);
     }
 
     // Prototype pollution attempt
@@ -265,8 +269,22 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
   // Acceptance Test 6: Conflicting subsystem updates cannot silently overwrite candidate-confirmed facts
   it('6. Conflicting subsystem updates cannot silently overwrite candidate-confirmed facts', () => {
     // 1. Candidate confirms their name and title
-    service.recordFact('identity.fullName', 'identity', 'Alice Confirmed', 'Manual Entry', 'CANDIDATE_CONFIRMED', true);
-    service.recordFact('career.currentRole', 'career', 'Staff Engineer', 'Manual Entry', 'CANDIDATE_CONFIRMED', true);
+    service.recordFact(
+      'identity.fullName',
+      'identity',
+      'Alice Confirmed',
+      'Manual Entry',
+      'CANDIDATE_CONFIRMED',
+      true
+    );
+    service.recordFact(
+      'career.currentRole',
+      'career',
+      'Staff Engineer',
+      'Manual Entry',
+      'CANDIDATE_CONFIRMED',
+      true
+    );
 
     const current = service.getProfile();
     current.identity.fullName = 'Alice Confirmed';
@@ -295,8 +313,16 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
       employment: [],
       projects: [],
       skills: {
-        languages: [], frameworks: [], databases: [], messaging: [], cloud: [],
-        devops: [], testing: [], architecture: [], aiMl: [], tools: []
+        languages: [],
+        frameworks: [],
+        databases: [],
+        messaging: [],
+        cloud: [],
+        devops: [],
+        testing: [],
+        architecture: [],
+        aiMl: [],
+        tools: [],
       },
       achievements: [],
       claims: [],
@@ -449,7 +475,108 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
     const outcome = validateCanonicalProfile(profile);
     expect(outcome.success).toBe(false);
     if (!outcome.success) {
-      expect(outcome.errors.some((e) => e.includes('Confirmed work authorization declaration cannot have a null value'))).toBe(true);
+      expect(
+        outcome.errors.some((e) =>
+          e.includes('Confirmed work authorization declaration cannot have a null value')
+        )
+      ).toBe(true);
+    }
+  });
+  it('does not report candidate data deleted when browser storage rejects deletion', () => {
+    const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    const storage = {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(() => {
+        throw new Error('Storage access denied');
+      }),
+    };
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {},
+    });
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: storage,
+    });
+
+    try {
+      const current = service.getProfile();
+      current.identity.fullName = 'Candidate data must remain available';
+      service.saveProfile(current);
+
+      expect(service.clearAllCandidateData()).toMatchObject({
+        success: false,
+        failedStores: ['canonical-profile'],
+      });
+      expect(service.getProfile().identity.fullName).toBe('Candidate data must remain available');
+      expect(storage.removeItem).toHaveBeenCalledOnce();
+    } finally {
+      if (previousWindow) {
+        Object.defineProperty(globalThis, 'window', previousWindow);
+      } else {
+        Reflect.deleteProperty(globalThis, 'window');
+      }
+      if (previousStorage) {
+        Object.defineProperty(globalThis, 'localStorage', previousStorage);
+      } else {
+        Reflect.deleteProperty(globalThis, 'localStorage');
+      }
+    }
+  });
+
+  it('clears canonical, Knowledge Vault, and CareerOps persisted candidate copies', () => {
+    const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    const data: Record<string, string> = {};
+    const removedKeys: string[] = [];
+    const storage = {
+      getItem: vi.fn((key: string) => data[key] ?? null),
+      setItem: vi.fn((key: string, value: string) => {
+        data[key] = String(value);
+      }),
+      removeItem: vi.fn((key: string) => {
+        removedKeys.push(key);
+        delete data[key];
+      }),
+    };
+
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: {} });
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
+
+    try {
+      const profile = service.getProfile();
+      profile.identity.fullName = 'Candidate data to clear';
+      profile.identity.email = 'candidate@example.test';
+      service.saveProfile(profile);
+
+      expect(useCandidateVaultStore.getState().profile.fullName).toBe('Candidate data to clear');
+      expect(service.clearAllCandidateData()).toEqual({ success: true, failedStores: [] });
+
+      expect(service.getProfile().identity.fullName).toBe('');
+      expect(useCandidateVaultStore.getState().profile.fullName).toBe('');
+      expect(KnowledgeVaultService.getInstance().getVault().profile.name).toBe('');
+      expect(removedKeys).toEqual(
+        expect.arrayContaining([
+          'iac_canonical_candidate_profile_v2',
+          'iac_candidate_knowledge_vault_v2',
+          'career_ops_candidate_vault_v1',
+          'career_ops_candidate_vault_v2',
+        ])
+      );
+    } finally {
+      if (previousWindow) {
+        Object.defineProperty(globalThis, 'window', previousWindow);
+      } else {
+        Reflect.deleteProperty(globalThis, 'window');
+      }
+      if (previousStorage) {
+        Object.defineProperty(globalThis, 'localStorage', previousStorage);
+      } else {
+        Reflect.deleteProperty(globalThis, 'localStorage');
+      }
     }
   });
 });
