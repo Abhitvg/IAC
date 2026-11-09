@@ -1,4 +1,4 @@
-name: Format candidate reset changes
+name: Temporary candidate reset formatting repair
 
 on:
   push:
@@ -10,38 +10,26 @@ permissions:
 
 jobs:
   format:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: fix/candidate-profile-clear-failure
-          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22.13.0
           cache: npm
       - run: npm ci
-      - name: Apply repository Prettier formatting
-        run: |
-          npx prettier --write \
-            src/components/CandidateProfileWizard.tsx \
-            src/services/knowledgeVault/canonicalProfileService.ts \
-            src/services/knowledgeVault/knowledgeVaultService.ts \
-            src/store/useCandidateVaultStore.ts \
-            tests/canonicalProfileAndWizard.test.ts
-      - name: Commit formatting changes
+      - name: Apply repository Prettier to changed candidate reset files
+        run: npx prettier --write src/components/CandidateProfileWizard.tsx src/services/knowledgeVault/canonicalProfileService.ts src/services/knowledgeVault/knowledgeVaultService.ts src/store/useCandidateVaultStore.ts tests/canonicalProfileAndWizard.test.ts
+      - name: Commit formatted files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            src/components/CandidateProfileWizard.tsx \
-            src/services/knowledgeVault/canonicalProfileService.ts \
-            src/services/knowledgeVault/knowledgeVaultService.ts \
-            src/store/useCandidateVaultStore.ts \
-            tests/canonicalProfileAndWizard.test.ts
-          if ! git diff --cached --quiet; then
-            git commit -m "style: format candidate profile reset changes"
-            git push
+          git add src/components/CandidateProfileWizard.tsx src/services/knowledgeVault/canonicalProfileService.ts src/services/knowledgeVault/knowledgeVaultService.ts src/store/useCandidateVaultStore.ts tests/canonicalProfileAndWizard.test.ts
+          if git diff --cached --quiet; then
+            echo "All targeted files already match Prettier."
           else
-            echo "All targeted files already formatted."
+            git commit -m "style: format candidate profile reset changes"
+            git push origin HEAD:fix/candidate-profile-clear-failure
           fi
