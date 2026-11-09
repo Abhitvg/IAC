@@ -43,7 +43,7 @@
     "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^5.0.5",
-    "autoprefixer": "^10.6.1",
+    "autoprefixer": "^10.6.2",
     "electron": "^45.2.3",
     "electron-builder": "^26.18.1",
     "eslint": "^10.13.0",
