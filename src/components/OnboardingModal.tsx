@@ -128,10 +128,7 @@ export default function OnboardingModal() {
       const writeSetting = window.electronAPI?.setSettings;
 
       // Persist the provider/model configuration before changing local state.
-      await persistOnboardingSettings(
-        Object.entries(onboardingSettings),
-        writeSetting
-      );
+      await persistOnboardingSettings(Object.entries(onboardingSettings), writeSetting);
       useAppStore.setState((state) => ({
         settings: { ...state.settings, ...onboardingSettings },
       }));
@@ -272,7 +269,10 @@ export default function OnboardingModal() {
                     lineHeight: '1.4',
                   }}
                 >
-                  Cloud live interviews upload microphone audio to Groq or OpenAI for transcription, then send the recognized question and your resume, job description, target role, and recent Q&A context to the selected LLM. These live requests do not show a per-question redaction preview.
+                  Cloud live interviews upload microphone audio to Groq or OpenAI for transcription,
+                  then send the recognized question and your resume, job description, target role,
+                  and recent Q&A context to the selected LLM. These live requests do not show a
+                  per-question redaction preview.
                 </p>
               </button>
 
