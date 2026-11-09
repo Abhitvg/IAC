@@ -79,9 +79,7 @@ describe('AnswerGenerationService secondary Groq credential failover', () => {
 
     const firstInit = fetchMock.mock.calls[0][1] as RequestInit;
     const secondInit = fetchMock.mock.calls[1][1] as RequestInit;
-    expect(new Headers(firstInit.headers).get('authorization')).toBe(
-      'Bearer gsk_primary_test_key'
-    );
+    expect(new Headers(firstInit.headers).get('authorization')).toBe('Bearer gsk_primary_test_key');
     expect(new Headers(secondInit.headers).get('authorization')).toBe(
       'Bearer gsk_secondary_test_key'
     );
