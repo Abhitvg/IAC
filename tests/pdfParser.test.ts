@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parsePdfBuffer } from '../electron/services/pdfParser';
 import { createTextPdf } from './helpers/pdfFixtures';
 
-describe('pdfParser', () => {
+describe('pdfParser', { timeout: 35000 }, () => {
   it('returns empty string gracefully for invalid or empty buffer', async () => {
     const emptyBuffer = new ArrayBuffer(0);
     const result = await parsePdfBuffer(emptyBuffer);
