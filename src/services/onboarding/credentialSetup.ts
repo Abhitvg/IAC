@@ -1,7 +1,4 @@
-export type OnboardingCredentialWriter = (
-  service: string,
-  key: string
-) => Promise<boolean>;
+export type OnboardingCredentialWriter = (service: string, key: string) => Promise<boolean>;
 
 /**
  * Store a key before onboarding is marked complete. An empty value is an

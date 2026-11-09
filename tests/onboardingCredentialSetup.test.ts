@@ -24,7 +24,9 @@ describe('onboarding credential persistence', () => {
 
   it('resolves only after the credential store confirms persistence', async () => {
     const writer = vi.fn().mockResolvedValue(true);
-    await expect(persistOnboardingCredential('openrouter', 'sk_test', writer)).resolves.toBeUndefined();
+    await expect(
+      persistOnboardingCredential('openrouter', 'sk_test', writer)
+    ).resolves.toBeUndefined();
     expect(writer).toHaveBeenCalledWith('openrouter', 'sk_test');
   });
 
