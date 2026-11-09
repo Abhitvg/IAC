@@ -20,17 +20,10 @@ jobs:
         with:
           node-version: 22.13.0
           cache: npm
-      - name: Regenerate lockfile for scoped minimatch overrides
+      - name: Regenerate lockfile
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Report resolved minimatch versions
-        run: node - <<'NODE'
-        const lock = require('./package-lock.json');
-        for (const [path, pkg] of Object.entries(lock.packages || {})) {
-          if (path.endsWith('node_modules/minimatch')) {
-            console.log(path, pkg.version);
-          }
-        }
-        NODE
+        run: node -e "const lock=require('./package-lock.json'); for(const [p,v] of Object.entries(lock.packages||{})) if(p.endsWith('node_modules/minimatch')) console.log(p,v.version)"
       - name: Commit lockfile
         run: |
           git config user.name "github-actions[bot]"
