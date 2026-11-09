@@ -235,7 +235,7 @@ interface InterviewState {
   settings: any;
   updateSetting: (k: string, v: any) => void;
   setSettingsOpen: (open: boolean) => void;
-  clearAllData: () => Promise<void>;
+  clearAllData: () => Promise<{ success: boolean; failedStores: string[] }>;
   toast: any;
   currentResponse: any;
   diagnosticState: DiagnosticState;
@@ -1081,18 +1081,33 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   },
   setSettingsOpen: (o) => set({ settingsOpen: o }),
   clearAllData: async () => {
-    InterviewEngine.cancelAllActiveWork();
+    const failedStores: string[] = [];
+
+    try {
+      InterviewEngine.cancelAllActiveWork();
+    } catch (error) {
+      console.error('[AppStore] Failed to cancel active interview work:', error);
+      failedStores.push('active-interview-work');
+    }
+
     try {
       const audio = (await import('../services/audio')).AudioRecorder.getInstance();
       await audio.stop(false);
-    } catch {}
+    } catch (error) {
+      console.error('[AppStore] Failed to stop audio capture during wipe:', error);
+      failedStores.push('audio-capture');
+    }
 
     if (typeof localStorage !== 'undefined') {
-      try {
-        localStorage.removeItem('iac_session_history');
-        localStorage.removeItem('interview_transcript');
-        localStorage.removeItem('conversation_history');
-      } catch {}
+      for (const key of ['iac_session_history', 'interview_transcript', 'conversation_history']) {
+        try {
+          localStorage.removeItem(key);
+          if (localStorage.getItem(key) !== null) failedStores.push(`localStorage:${key}`);
+        } catch (error) {
+          console.error('[AppStore] Failed to remove persisted interview key:', key, error);
+          failedStores.push(`localStorage:${key}`);
+        }
+      }
     }
 
     if (
@@ -1104,16 +1119,28 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       try {
         const dir = await window.electronAPI.getSessionsDir();
         const files = await window.electronAPI.listDir(dir);
-        if (Array.isArray(files)) {
-          for (const f of files) {
-            if (f.name.endsWith('.json')) {
-              await window.electronAPI.deleteFile(f.path).catch(() => {});
+        if (!Array.isArray(files)) {
+          failedStores.push('session-files:directory-list');
+        } else {
+          for (const file of files) {
+            if (!file.isDirectory && file.name.endsWith('.json')) {
+              try {
+                const removed = await window.electronAPI.deleteFile(file.path);
+                if (removed === false) failedStores.push(`session-file:${file.name}`);
+              } catch (error) {
+                console.error('[AppStore] Failed to delete session file:', file.name, error);
+                failedStores.push(`session-file:${file.name}`);
+              }
             }
           }
         }
-      } catch {}
+      } catch (error) {
+        console.error('[AppStore] Failed to enumerate session files during wipe:', error);
+        failedStores.push('session-files:directory-access');
+      }
     }
 
+    // Clear sensitive interview content in memory even if a persistent deletion failed.
     set({
       transcript: [],
       questionHistory: [],
@@ -1131,7 +1158,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       predictedFollowUps: [],
     });
 
-    get().setToast('🧹 All interview data, transcripts & session history cleared.');
+    return { success: failedStores.length === 0, failedStores };
   },
   toast: null,
   diagnosticState: {

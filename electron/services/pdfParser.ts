@@ -11,10 +11,10 @@ import { executeOcr, getOcrEngineInfo } from './ocrService';
  */
 function resolveWorkerSrc(): string {
   try {
-    return require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
+    return pathToFileURL(require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')).href;
   } catch {}
   try {
-    return require.resolve('pdfjs-dist/build/pdf.worker.mjs');
+    return pathToFileURL(require.resolve('pdfjs-dist/build/pdf.worker.mjs')).href;
   } catch {}
   const candidate = path.join(
     process.cwd(),
@@ -24,7 +24,7 @@ function resolveWorkerSrc(): string {
     'build',
     'pdf.worker.mjs'
   );
-  if (fs.existsSync(candidate)) return candidate;
+  if (fs.existsSync(candidate)) return pathToFileURL(candidate).href;
   return '';
 }
 

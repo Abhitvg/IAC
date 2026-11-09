@@ -38,7 +38,9 @@ export const CandidateProfileWizard: React.FC = () => {
   const profileService = useMemo(() => CanonicalProfileService.getInstance(), []);
 
   const [activeStep, setActiveStep] = useState<WizardSection>('identity');
-  const [profile, setProfile] = useState<CanonicalCandidateProfile>(() => profileService.getProfile());
+  const [profile, setProfile] = useState<CanonicalCandidateProfile>(() =>
+    profileService.getProfile()
+  );
   const profileRef = useRef<CanonicalCandidateProfile>(profile);
   profileRef.current = profile;
 
@@ -78,13 +80,16 @@ export const CandidateProfileWizard: React.FC = () => {
     return () => unsub();
   }, [profileService]);
 
-  // Flush pending debounced autosave immediately to guarantee data persistence
-  const flushPendingSave = useCallback(() => {
+  // Flush pending debounced autosave immediately and report whether persistence succeeded.
+  const flushPendingSave = useCallback((): boolean => {
     if (sectionFlushRef.current) {
       try {
         sectionFlushRef.current();
       } catch (err) {
         console.error('[CandidateProfileWizard] Section flush error:', err);
+        setSaveStatus('error');
+        setSaveStatusText('Could not collect all changes from the current section');
+        return false;
       }
     }
 
@@ -98,16 +103,23 @@ export const CandidateProfileWizard: React.FC = () => {
       const saved = profileService.saveProfile(profileRef.current);
       if (saved) {
         setSaveStatus('saved');
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const time = new Date().toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
         setSaveStatusText(`All changes saved (${time})`);
-      } else {
-        setSaveStatus('error');
-        setSaveStatusText('Storage quota exceeded or save error');
+        return true;
       }
+
+      setSaveStatus('error');
+      setSaveStatusText('Storage quota exceeded or save error');
+      return false;
     } catch (err) {
       console.error('[CandidateProfileWizard] Immediate flush failed:', err);
       setSaveStatus('error');
       setSaveStatusText('Failed to save profile');
+      return false;
     }
   }, [profileService]);
 
@@ -151,7 +163,10 @@ export const CandidateProfileWizard: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        flushPendingSave();
+        if (!flushPendingSave()) {
+          setToast?.('Your profile could not be saved. Fix the storage issue before closing this wizard.');
+          return;
+        }
         setProfileWizardOpen(false);
         return;
       }
@@ -169,12 +184,18 @@ export const CandidateProfileWizard: React.FC = () => {
         const last = focusable[focusable.length - 1];
 
         if (e.shiftKey) {
-          if (document.activeElement === first || !containerRef.current.contains(document.activeElement)) {
+          if (
+            document.activeElement === first ||
+            !containerRef.current.contains(document.activeElement)
+          ) {
             e.preventDefault();
             last.focus();
           }
         } else {
-          if (document.activeElement === last || !containerRef.current.contains(document.activeElement)) {
+          if (
+            document.activeElement === last ||
+            !containerRef.current.contains(document.activeElement)
+          ) {
             e.preventDefault();
             first.focus();
           }
@@ -183,7 +204,7 @@ export const CandidateProfileWizard: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [profileWizardOpen, setProfileWizardOpen, flushPendingSave]);
+  }, [profileWizardOpen, setProfileWizardOpen, flushPendingSave, setToast]);
 
   // Commit updated profile with debounce or immediate save
   const commitProfileChange = useCallback(
@@ -204,7 +225,11 @@ export const CandidateProfileWizard: React.FC = () => {
           const success = profileService.saveProfile(nextProfile);
           if (success) {
             setSaveStatus('saved');
-            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const time = new Date().toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            });
             setSaveStatusText(`Autosaved at ${time}`);
           } else {
             setSaveStatus('error');
@@ -222,7 +247,11 @@ export const CandidateProfileWizard: React.FC = () => {
             const success = profileService.saveProfile(nextProfile);
             if (success) {
               setSaveStatus('saved');
-              const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+              const time = new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              });
               setSaveStatusText(`Autosaved at ${time}`);
             } else {
               setSaveStatus('error');
@@ -311,11 +340,14 @@ export const CandidateProfileWizard: React.FC = () => {
   );
 
   const handleCompleteAndLock = useCallback(() => {
-    flushPendingSave();
-    profileService.saveProfile(profileRef.current);
+    if (!flushPendingSave()) {
+      setToast?.('Profile was not locked because the latest changes could not be saved. Resolve the storage error and try again.');
+      return;
+    }
+
     setToast?.('Candidate profile locked and saved for live grounding.');
     setProfileWizardOpen(false);
-  }, [flushPendingSave, profileService, setProfileWizardOpen, setToast]);
+  }, [flushPendingSave, setProfileWizardOpen, setToast]);
 
   // Clean up debounce timer on unmount
   useEffect(() => {
@@ -332,48 +364,73 @@ export const CandidateProfileWizard: React.FC = () => {
     const maxScore = 9;
 
     // 1. Identity: Valid full name (>= 2 chars) and valid email
-    if (profile.identity.fullName.trim().length >= 2 && EMAIL_REGEX.test(profile.identity.email.trim())) {
+    if (
+      profile.identity.fullName.trim().length >= 2 &&
+      EMAIL_REGEX.test(profile.identity.email.trim())
+    ) {
       score += 1;
     }
 
     // 2. Education: Institution & Degree specified
-    if (profile.education.length > 0 && profile.education.some((e) => e.institution.trim() && e.degree.trim())) {
+    if (
+      profile.education.length > 0 &&
+      profile.education.some((e) => e.institution.trim() && e.degree.trim())
+    ) {
       score += 1;
     }
 
     // 3. Career: Current role non-empty and target seniority specified (not UNKNOWN)
-    if (profile.career.currentRole.trim().length > 0 && profile.career.targetSeniority && profile.career.targetSeniority !== 'UNKNOWN') {
+    if (
+      profile.career.currentRole.trim().length > 0 &&
+      profile.career.targetSeniority &&
+      profile.career.targetSeniority !== 'UNKNOWN'
+    ) {
       score += 1;
     }
 
     // 4. Skills: Has skills; practical skills must have at least one project reference
     if (
       profile.skills.length > 0 &&
-      profile.skills.some((s) => s.name.trim().length > 0 && (s.experienceType === 'theoretical' || s.projectReferences.length > 0))
+      profile.skills.some(
+        (s) =>
+          s.name.trim().length > 0 &&
+          (s.experienceType === 'theoretical' || s.projectReferences.length > 0)
+      )
     ) {
       score += 1;
     }
 
     // 5. Experience: Employer and title non-empty
-    if (profile.experience.length > 0 && profile.experience.some((exp) => exp.employer.trim() && exp.title.trim())) {
+    if (
+      profile.experience.length > 0 &&
+      profile.experience.some((exp) => exp.employer.trim() && exp.title.trim())
+    ) {
       score += 1;
     }
 
     // 6. Projects: Name and non-trivial exact contribution (>= 10 chars)
     if (
       profile.projects.length > 0 &&
-      profile.projects.some((p) => p.name.trim().length > 0 && p.exactContribution.trim().length >= 10)
+      profile.projects.some(
+        (p) => p.name.trim().length > 0 && p.exactContribution.trim().length >= 10
+      )
     ) {
       score += 1;
     }
 
     // 7. Achievements: Title non-empty
-    if (profile.achievements.length > 0 && profile.achievements.some((a) => a.title.trim().length > 0)) {
+    if (
+      profile.achievements.length > 0 &&
+      profile.achievements.some((a) => a.title.trim().length > 0)
+    ) {
       score += 1;
     }
 
     // 8. Preferences: Preferred language & coding language specified
-    if (profile.preferences.language.trim().length > 0 && profile.preferences.preferredCodingLanguage.trim().length > 0) {
+    if (
+      profile.preferences.language.trim().length > 0 &&
+      profile.preferences.preferredCodingLanguage.trim().length > 0
+    ) {
       score += 1;
     }
 
@@ -419,8 +476,12 @@ export const CandidateProfileWizard: React.FC = () => {
 
   // Export profile with latest unsaved changes flushed
   const handleExportJson = useCallback(() => {
-    flushPendingSave();
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(profileService.exportJson());
+    if (!flushPendingSave()) {
+      setToast?.('Export cancelled because the latest profile changes could not be saved.');
+      return;
+    }
+    const dataStr =
+      'data:text/json;charset=utf-8,' + encodeURIComponent(profileService.exportJson());
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
     downloadAnchor.setAttribute('download', `iac_candidate_profile_${Date.now()}.json`);
@@ -431,58 +492,92 @@ export const CandidateProfileWizard: React.FC = () => {
   }, [flushPendingSave, profileService, setToast]);
 
   // Import JSON profile with rigorous schema validation
-  const handleImportJsonFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImportErrors(null);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (content) {
-        const result = profileService.importJson(content);
-        if (result.success) {
-          setProfile(profileService.getProfile());
-          setToast?.('Imported and verified profile successfully.');
-          setImportErrors(null);
-        } else {
-          setImportErrors(result.errors || ['Schema validation error']);
-          setToast?.(`Import rejected: ${result.errors?.length || 1} schema errors detected.`);
+  const handleImportJsonFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setImportErrors(null);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        if (content) {
+          const result = profileService.importJson(content);
+          if (result.success) {
+            setProfile(profileService.getProfile());
+            setToast?.('Imported and verified profile successfully.');
+            setImportErrors(null);
+          } else {
+            setImportErrors(result.errors || ['Schema validation error']);
+            setToast?.(`Import rejected: ${result.errors?.length || 1} schema errors detected.`);
+          }
         }
-      }
-    };
-    reader.readAsText(file);
-  }, [profileService, setToast]);
+      };
+      reader.readAsText(file);
+    },
+    [profileService, setToast]
+  );
 
   // Resume Ingestion Import
-  const handleResumeFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsImporting(true);
-    try {
-      setToast?.('Parsing and analyzing resume...');
-      const ingestion = await DocumentIngestionService.ingestFile(file);
-      profileService.populateFromIngestion(ingestion);
-      setProfile(profileService.getProfile());
-      setToast?.(`Imported resume facts (${ingestion.claims?.length || 0} claims extracted).`);
-    } catch (err: any) {
-      console.error('Resume import error:', err);
-      setToast?.(`Failed to import resume: ${err?.message || err}`);
-    } finally {
-      setIsImporting(false);
-    }
-  }, [profileService, setToast]);
+  const handleResumeFileUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setIsImporting(true);
+      try {
+        setToast?.('Parsing and analyzing resume...');
+        const ingestion = await DocumentIngestionService.ingestFile(file);
+        profileService.populateFromIngestion(ingestion);
+        setProfile(profileService.getProfile());
+        setToast?.(`Imported resume facts (${ingestion.claims?.length || 0} claims extracted).`);
+      } catch (err: any) {
+        console.error('Resume import error:', err);
+        setToast?.(`Failed to import resume: ${err?.message || err}`);
+      } finally {
+        setIsImporting(false);
+      }
+    },
+    [profileService, setToast]
+  );
 
   const handleResetProfile = useCallback(() => {
-    profileService.clearAllCandidateData();
-    setProfile(profileService.getProfile());
+    // Cancel pending autosaves before clearing storage. Otherwise an earlier
+    // debounced callback can write the deleted profile back a few milliseconds
+    // after the reset appears to have succeeded.
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    sectionFlushRef.current = null;
+
+    const result = profileService.clearAllCandidateData();
+    const latestProfile = profileService.getProfile();
+    // Update the ref synchronously; React state is applied on the next render.
+    // This prevents beforeunload/close handlers from flushing a stale profile.
+    profileRef.current = latestProfile;
+    setProfile(latestProfile);
     setShowClearConfirm(false);
-    setToast?.('Profile reset to clean state.');
+
+    if (!result.success) {
+      setToast?.(
+        result.failedStores.includes('canonical-profile')
+          ? 'Profile was not deleted because browser storage rejected the request. Your existing profile remains available.'
+          : `Reset incomplete. Candidate data may remain in: ${result.failedStores.join(', ')}.`
+      );
+      return;
+    }
+
+    setSaveStatus('saved');
+    setSaveStatusText('All candidate profile copies were reset.');
+    setToast?.('All candidate profile copies were reset.');
   }, [profileService, setToast]);
 
   const handleClose = useCallback(() => {
-    flushPendingSave();
+    if (!flushPendingSave()) {
+      setToast?.('Your profile could not be saved. Resolve the storage error before closing this wizard.');
+      return;
+    }
     setProfileWizardOpen(false);
-  }, [flushPendingSave, setProfileWizardOpen]);
+  }, [flushPendingSave, setProfileWizardOpen, setToast]);
 
   if (!profileWizardOpen) return null;
 
@@ -712,10 +807,7 @@ export const CandidateProfileWizard: React.FC = () => {
             )}
 
             {activeStep === 'review' && (
-              <ReviewSection
-                profile={profile}
-                onCompleteAndLock={handleCompleteAndLock}
-              />
+              <ReviewSection profile={profile} onCompleteAndLock={handleCompleteAndLock} />
             )}
           </div>
         </div>

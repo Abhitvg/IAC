@@ -104,9 +104,9 @@ Data is **only** transmitted when you explicitly initiate an analysis or mock in
 
 ### 3. Encryption at Rest Architecture
 
-- **Provider API Keys**: Stored in the Electron main process encrypted with your operating system's native keychain via Electron `safeStorage` (macOS Keychain, Windows DPAPI / Credential Manager, Linux Secret Service / libsecret). Provider keys are never accessible to renderer scripts or exported in builds.
-- **Feedback Records & Practice Data at Rest**: Practice session history, transcripts, and feedback records are stored in the user's OS-restricted `userData` directory. An at-rest encryption service (`FeedbackStorageEncryption`) using Web Crypto AES-256-GCM is provided to encrypt feedback payloads.
-- **Architectural Rationale**: While credentials must be encrypted via OS keychain to prevent unauthorized key extraction by third-party processes, practice state requires instant, synchronous hydration during React/Zustand application startup. By executing on-device PII redaction prior to persistence, restricting filesystem permissions to user-only mode (`0600`), and allowing full AES-256-GCM payload encryption, candidate data remains strictly confidential without degrading UI responsiveness.
+- **Provider API Keys**: Stored by the Electron main process. Electron `safeStorage` is used when OS-backed encryption is available (macOS Keychain, Windows DPAPI, or Linux Secret Service). If it is unavailable, the current implementation falls back to AES-256-GCM with a machine-local `.machine_secret` file in the application user-data directory. That fallback is not equivalent to an OS keychain and does not protect against an attacker who can read both files as the same OS user. The current renderer obtains configured keys through a preload IPC method for provider requests, so a compromised renderer could access them; moving provider calls fully into the main process remains a security hardening task.
+- **Candidate and Practice Data at Rest**: Candidate profiles, resumes, target job descriptions, workspaces, practice state, feedback, and session history are persisted through renderer `localStorage` and JSON files under Electron `userData`, depending on the feature. The standard persistence paths serialize these records as JSON and are **not uniformly encrypted at rest**. `FeedbackStorageEncryption` exists as an optional AES-GCM helper, but it is not applied across the normal store persistence paths. Its default key source is deterministic and must not be treated as a secret.
+- **Architectural Trade-off**: Renderer-side stores provide synchronous hydration, but localStorage and user-data JSON remain readable to processes running as the same OS user. PII redaction and explicit confirmation protect selected outbound analysis flows; they do not encrypt local files or protect data from a compromised renderer. Do not treat candidate profiles, transcripts, resumes, or practice records as cryptographically protected at rest.
 - **Zero Telemetry**: No third-party analytics, no error tracking pixels, and no telemetry data are collected.
 
 ### 4. One-Button Complete Data Wipe ("Delete all feedback and practice data")
@@ -117,7 +117,7 @@ You can delete every trace of stored feedback, mock sessions, audio transcripts,
 2. Scroll to the **Danger Zone** section at the bottom.
 3. Click **"Delete all feedback and practice data"**.
 
-This permanently removes all 8 local storage keys, wipes in-memory Zustand store states, and resets the practice gym to a fresh installation state.
+This permanently removes all 9 practice local storage keys, wipes in-memory Zustand store states, and resets the practice gym to a fresh installation state.
 
 ---
 

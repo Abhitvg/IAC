@@ -64,10 +64,10 @@ export function validateReadPath(
     }
 
     // Check if user explicitly chose and approved this file via open-file dialog
-    const isApproved =
-      approvedFilePaths.has(realTarget) ||
-      approvedFilePaths.has(normalizedTarget) ||
-      Array.from(approvedFilePaths).some((appPath) => getCanonicalPath(appPath) === realTarget);
+    // Dialog approvals are recorded as canonical real paths, not user-facing
+    // path strings. Never re-resolve a previously approved lexical path here:
+    // it may have been replaced with a symlink since the user selected it.
+    const isApproved = approvedFilePaths.has(realTarget);
 
     if (isApproved) {
       return { allowed: true, resolvedPath: realTarget };
@@ -120,13 +120,29 @@ export function validateWritePath(
       return { allowed: false, reason: 'Access denied: Cannot write files outside userData' };
     }
 
-    // If destination file already exists, check that it is not a symlink pointing outside userData
-    if (fs.existsSync(path.resolve(filePath))) {
+    // lstat detects symbolic links even when their targets do not exist.
+    // existsSync/realpathSync alone miss dangling links: writeFileSync would
+    // follow such a link and could create a file outside userData.
+    let destinationStat: fs.Stats | undefined;
+    try {
+      destinationStat = fs.lstatSync(path.resolve(filePath));
+    } catch (err: any) {
+      if (err?.code !== 'ENOENT') throw err;
+    }
+
+    if (destinationStat?.isSymbolicLink()) {
+      return {
+        allowed: false,
+        reason: 'Access denied: Destination is a symbolic link',
+      };
+    }
+
+    if (destinationStat) {
       const realTarget = fs.realpathSync(path.resolve(filePath));
-      if (!realTarget.startsWith(realUserData + path.sep)) {
+      if (realTarget === realUserData || !realTarget.startsWith(realUserData + path.sep)) {
         return {
           allowed: false,
-          reason: 'Access denied: Destination symlink points outside userData',
+          reason: 'Access denied: Destination resolves outside userData',
         };
       }
       return { allowed: true, resolvedPath: realTarget };
@@ -237,22 +253,27 @@ export function getSandboxConfig(isProduction: boolean): boolean {
 export function redactSensitiveData(text: string): string {
   if (!text || typeof text !== 'string') return '';
 
-  return text
-    // Groq API keys
-    .replace(/gsk_[A-Za-z0-9_-]{20,}/g, '[REDACTED_GROQ_KEY]')
-    // OpenAI API keys
-    .replace(/sk-(?:proj-)?[A-Za-z0-9_-]{20,}/g, '[REDACTED_OPENAI_KEY]')
-    // Google AI keys
-    .replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_GOOGLE_KEY]')
-    // AWS Access Key ID
-    .replace(/\b(AKIA|ASIA)[0-9A-Z]{16}\b/g, '[REDACTED_AWS_KEY]')
-    // JWT tokens
-    .replace(/eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+/g, '[REDACTED_JWT_TOKEN]')
-    // Bearer auth tokens
-    .replace(/Bearer\s+[A-Za-z0-9_.-]{20,}/gi, 'Bearer [REDACTED_AUTH_TOKEN]')
-    // DB connection passwords
-    .replace(/(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@)/gi, '$1[REDACTED_PASSWORD]$3')
-    .replace(/(password\s*[:=]\s*['"]?)[^'"\s;]+(['"]?)/gi, '$1[REDACTED_PASSWORD]$2');
+  return (
+    text
+      // Groq API keys
+      .replace(/gsk_[A-Za-z0-9_-]{20,}/g, '[REDACTED_GROQ_KEY]')
+      // OpenAI API keys
+      .replace(/sk-(?:proj-)?[A-Za-z0-9_-]{20,}/g, '[REDACTED_OPENAI_KEY]')
+      // Google AI keys
+      .replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_GOOGLE_KEY]')
+      // AWS Access Key ID
+      .replace(/\b(AKIA|ASIA)[0-9A-Z]{16}\b/g, '[REDACTED_AWS_KEY]')
+      // JWT tokens
+      .replace(
+        /eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+/g,
+        '[REDACTED_JWT_TOKEN]'
+      )
+      // Bearer auth tokens
+      .replace(/Bearer\s+[A-Za-z0-9_.-]{20,}/gi, 'Bearer [REDACTED_AUTH_TOKEN]')
+      // DB connection passwords
+      .replace(/(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@)/gi, '$1[REDACTED_PASSWORD]$3')
+      .replace(/(password\s*[:=]\s*['"]?)[^'"\s;]+(['"]?)/gi, '$1[REDACTED_PASSWORD]$2')
+  );
 }
 
 /**
@@ -358,7 +379,10 @@ export function isTrustedAppOrigin(
     }
 
     // 3. Reject paths that contain traversal or alternate separators even after decoding
-    if (filePath.includes('..') || filePath.includes('\\')) {
+    // A decoded Windows file URL naturally contains backslashes. Reject only
+    // parent-directory path segments; the raw URL above already rejects encoded
+    // or literal alternate separators supplied by the renderer.
+    if (filePath.split(/[\\/]+/).includes('..')) {
       return false;
     }
 
@@ -401,7 +425,9 @@ export function isTrustedAppOrigin(
           });
         if (
           approvedReals.length > 0 &&
-          !approvedReals.some((approvedPath) => comparisonPath(approvedPath) === comparisonPath(real))
+          !approvedReals.some(
+            (approvedPath) => comparisonPath(approvedPath) === comparisonPath(real)
+          )
         ) {
           return false;
         }
@@ -583,7 +609,9 @@ export function validateSafeFetchPinnedIpc(
     !options.allowedOrigin.trim() ||
     options.allowedOrigin.length > 2048
   ) {
-    throw new Error('Unauthorized: allowedOrigin is required for renderer-initiated network requests');
+    throw new Error(
+      'Unauthorized: allowedOrigin is required for renderer-initiated network requests'
+    );
   }
 
   let parsedUrl: URL;
@@ -596,7 +624,9 @@ export function validateSafeFetchPinnedIpc(
   }
 
   if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-    throw new Error(`Unsupported protocol "${parsedUrl.protocol}". Only http: and https: are allowed.`);
+    throw new Error(
+      `Unsupported protocol "${parsedUrl.protocol}". Only http: and https: are allowed.`
+    );
   }
 
   if (parsedOrigin.protocol !== 'http:' && parsedOrigin.protocol !== 'https:') {

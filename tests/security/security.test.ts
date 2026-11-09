@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import { pathToFileURL } from 'url';
 import {
   validateReadPath,
   validateWritePath,
@@ -11,9 +12,11 @@ import {
   getSandboxConfig,
   MAX_WRITE_FILE_SIZE_BYTES,
   isTrustedSender,
+  getApprovedAppHtmlPaths,
 } from '../../electron/services/security';
 
 describe('Security Hardening & Path Validation', () => {
+  const trustedAppFileUrl = pathToFileURL(getApprovedAppHtmlPaths()[0]).href;
   let tempBaseDir: string;
   let userDataDir: string;
   let outsideDir: string;
@@ -52,7 +55,7 @@ describe('Security Hardening & Path Validation', () => {
 
   describe('Permission Handler Allowlist', () => {
     it('allows media (microphone) for the app file:// origin', () => {
-      expect(isPermissionAllowed('media', 'file:///app/dist/index.html')).toBe(true);
+      expect(isPermissionAllowed('media', trustedAppFileUrl)).toBe(true);
     });
 
     it('allows media for local dev server origin', () => {
@@ -77,7 +80,7 @@ describe('Security Hardening & Path Validation', () => {
       ];
 
       for (const perm of nonMediaPermissions) {
-        expect(isPermissionAllowed(perm, 'file:///app/dist/index.html')).toBe(false);
+        expect(isPermissionAllowed(perm, trustedAppFileUrl)).toBe(false);
       }
     });
   });
@@ -108,6 +111,29 @@ describe('Security Hardening & Path Validation', () => {
       const approved = new Set<string>();
       const traversalPath = path.join(userDataDir, '..', 'outside', 'secret_resume.pdf');
       const result = validateReadPath(traversalPath, userDataDir, approved);
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain('outside userData and was not approved');
+    });
+
+    it('revokes a file approval when the selected path is replaced by a symlink', () => {
+      const selectedPath = path.join(outsideDir, 'selected-after-approval.txt');
+      const replacementPath = path.join(outsideDir, 'replacement-target.txt');
+      fs.writeFileSync(selectedPath, 'user-approved content');
+      fs.writeFileSync(replacementPath, 'different file content');
+
+      // Mirror the main-process dialog handler: approve the real target that
+      // existed when the user selected the file.
+      const approved = new Set<string>([fs.realpathSync(selectedPath)]);
+
+      try {
+        fs.unlinkSync(selectedPath);
+        fs.symlinkSync(replacementPath, selectedPath, 'file');
+      } catch {
+        // Windows runners without symlink privileges cannot exercise retargeting.
+        return;
+      }
+
+      const result = validateReadPath(selectedPath, userDataDir, approved);
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain('outside userData and was not approved');
     });
@@ -200,7 +226,6 @@ describe('Security Hardening & Path Validation', () => {
   });
 });
 
-
 describe('IPC sender identity validation', () => {
   const trustedUrl = 'http://localhost:5173/index.html';
 
@@ -232,19 +257,11 @@ describe('IPC sender identity validation', () => {
   it('rejects missing sender or sender frame metadata', () => {
     const window = createWindow();
     expect(
-      isTrustedSender(
-        { senderFrame: window.mainFrame },
-        window,
-        'http://localhost:5173'
-      )
+      isTrustedSender({ senderFrame: window.mainFrame }, window, 'http://localhost:5173')
     ).toBe(false);
-    expect(
-      isTrustedSender(
-        { sender: window.webContents },
-        window,
-        'http://localhost:5173'
-      )
-    ).toBe(false);
+    expect(isTrustedSender({ sender: window.webContents }, window, 'http://localhost:5173')).toBe(
+      false
+    );
   });
 
   it('rejects foreign WebContents, subframes, and mismatched frame URLs', () => {
