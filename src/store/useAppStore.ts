@@ -195,6 +195,7 @@ interface InterviewState {
   setResumeText: (text: string) => void;
   setJobDescriptionText: (text: string) => void;
   setTargetRole: (role: string) => void;
+  clearCandidateDocuments: () => boolean;
   setResumeModalOpen: (open: boolean) => void;
   profileWizardOpen: boolean;
   setProfileWizardOpen: (open: boolean) => void;
@@ -617,6 +618,51 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       localStorage.setItem('target_role', targetRole);
     } catch {}
     set({ targetRole });
+  },
+  clearCandidateDocuments: () => {
+    const keys = ['candidate_resume', 'target_job_description', 'target_role'] as const;
+    const previousValues: Partial<Record<(typeof keys)[number], string | null>> = {};
+
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      try {
+        // Snapshot all values before removal so a blocked deletion does not silently
+        // leave a half-cleared candidate context.
+        for (const key of keys) {
+          previousValues[key] = localStorage.getItem(key);
+        }
+
+        const removed: Array<(typeof keys)[number]> = [];
+        try {
+          for (const key of keys) {
+            localStorage.removeItem(key);
+            removed.push(key);
+          }
+        } catch (error) {
+          // Best-effort rollback preserves recoverability if storage blocks a later
+          // removal after earlier keys have already been deleted.
+          for (const key of removed) {
+            const previous = previousValues[key];
+            try {
+              if (previous === null || previous === undefined) {
+                localStorage.removeItem(key);
+              } else {
+                localStorage.setItem(key, previous);
+              }
+            } catch (rollbackError) {
+              console.error('[AppStore] Failed to restore candidate context after reset error:', rollbackError);
+            }
+          }
+          console.error('[AppStore] Candidate document reset failed:', error);
+          return false;
+        }
+      } catch (error) {
+        console.error('[AppStore] Unable to read candidate context before reset:', error);
+        return false;
+      }
+    }
+
+    set({ resumeText: '', jobDescriptionText: '', targetRole: '' });
+    return true;
   },
   setResumeModalOpen: (resumeModalOpen: boolean) => set({ resumeModalOpen }),
   profileWizardOpen: false,
