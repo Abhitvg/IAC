@@ -627,4 +627,50 @@ describe('Canonical Candidate Profile & Evidence Integrity Acceptance Gate', () 
       }
     }
   });
+
+  it('rolls back a partial resume-context deletion when browser storage rejects a later key', () => {
+    const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    const data: Record<string, string> = {};
+    const storage = {
+      getItem: vi.fn((key: string) => data[key] ?? null),
+      setItem: vi.fn((key: string, value: string) => {
+        data[key] = String(value);
+      }),
+      removeItem: vi.fn((key: string) => {
+        if (key === 'target_job_description') {
+          throw new Error('Storage deletion denied');
+        }
+        delete data[key];
+      }),
+    };
+
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: {} });
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
+
+    try {
+      useAppStore.getState().setResumeText('Resume must remain available');
+      useAppStore.getState().setJobDescriptionText('Job description must remain available');
+      useAppStore.getState().setTargetRole('Target role must remain available');
+
+      expect(useAppStore.getState().clearCandidateDocuments()).toBe(false);
+      expect(useAppStore.getState().resumeText).toBe('Resume must remain available');
+      expect(useAppStore.getState().jobDescriptionText).toBe('Job description must remain available');
+      expect(useAppStore.getState().targetRole).toBe('Target role must remain available');
+      expect(data.candidate_resume).toBe('Resume must remain available');
+      expect(data.target_job_description).toBe('Job description must remain available');
+      expect(data.target_role).toBe('Target role must remain available');
+    } finally {
+      if (previousWindow) {
+        Object.defineProperty(globalThis, 'window', previousWindow);
+      } else {
+        Reflect.deleteProperty(globalThis, 'window');
+      }
+      if (previousStorage) {
+        Object.defineProperty(globalThis, 'localStorage', previousStorage);
+      } else {
+        Reflect.deleteProperty(globalThis, 'localStorage');
+      }
+    }
+  });
 });
