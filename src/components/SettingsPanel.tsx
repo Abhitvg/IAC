@@ -259,6 +259,24 @@ export default function SettingsPanel() {
               </select>
             </div>
 
+            {settings.aiProvider === 'openrouter' && (
+              <div
+                role="status"
+                className="field__hint"
+                style={{
+                  padding: '10px 12px',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  borderRadius: '6px',
+                  color: '#fbbf24',
+                }}
+              >
+                OpenRouter currently supports LLM requests only in this app. Live microphone
+                transcription is unavailable in this mode; switch to Groq, OpenAI, or local
+                Ollama/Whisper. The app will not silently send your audio to another cloud STT
+                provider.
+              </div>
+            )}
+
             {settings.aiProvider !== 'ollama' && (
               <div className="field">
                 <label className="field__label" htmlFor="api-key-input">

@@ -1,8 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  resolveTranscriptionProvider,
-  transcribeAudio,
-} from '../src/services/whisper';
+import { resolveTranscriptionProvider, transcribeAudio } from '../src/services/whisper';
 import { encodeWav } from '../src/utils/audioConversion';
 
 function createAudioBlob(): Blob {
@@ -117,5 +114,34 @@ describe('live transcription provider routing', () => {
         whisperModel: 'whisper-large-v3-turbo',
       })
     ).toBe('local');
+  });
+  it('uses the default Groq STT model when a model from another provider is stored', async () => {
+    const getApiKey = vi.fn().mockResolvedValue('gsk_groq-test-key');
+    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('groq transcript'));
+    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await transcribeAudio(createAudioBlob(), {
+      aiProvider: 'groq',
+      whisperModel: 'whisper-1',
+    });
+
+    const body = fetchMock.mock.calls[0][1].body as FormData;
+    expect(body.get('model')).toBe('whisper-large-v3-turbo');
+  });
+
+  it('uses the default OpenAI STT model when a Groq model is stored', async () => {
+    const getApiKey = vi.fn().mockResolvedValue('sk-openai-test-key');
+    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('openai transcript'));
+    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await transcribeAudio(createAudioBlob(), {
+      aiProvider: 'openai',
+      whisperModel: 'whisper-large-v3-turbo',
+    });
+
+    const body = fetchMock.mock.calls[0][1].body as FormData;
+    expect(body.get('model')).toBe('whisper-1');
   });
 });

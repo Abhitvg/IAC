@@ -9,7 +9,12 @@ import { TECH_TERMS } from './ai';
 import { getDynamicWhisperVocab } from './candidatePersona';
 import { useAppStore } from '../store/useAppStore';
 import { convertBlobToWav, isValidWav } from '../utils/audioConversion';
-import { resolveOrMigrateModel, classifyAIError } from './models/modelRegistry';
+import {
+  getDefaultModelForProvider,
+  getModelDefinition,
+  resolveOrMigrateModel,
+  classifyAIError,
+} from './models/modelRegistry';
 
 export interface WhisperConfig {
   /** Explicit transcription provider override. */
@@ -25,6 +30,15 @@ export interface WhisperConfig {
 }
 
 export type TranscriptionProvider = 'groq' | 'openai' | 'local';
+
+function resolveTranscriptionModel(provider: 'groq' | 'openai', requestedModel?: string): string {
+  const resolved = resolveOrMigrateModel(provider, requestedModel, 'stt').resolvedModel;
+  const definition = getModelDefinition(provider, resolved);
+  if (definition?.type === 'stt' && definition.status === 'active') {
+    return definition.id;
+  }
+  return getDefaultModelForProvider(provider, 'stt');
+}
 
 /**
  * Resolve STT without silently moving audio to a cloud provider.
@@ -102,7 +116,9 @@ export async function transcribeAudio(
     // If it's supposed to be WAV, check validation
     const headerStr = String.fromCharCode(...new Uint8Array(arrayBuf.slice(0, 4)));
     if (headerStr === 'RIFF' && !isValidWav(arrayBuf)) {
-      console.warn('[Whisper] Audio payload failed strict WAV validation. Attempting conversion...');
+      console.warn(
+        '[Whisper] Audio payload failed strict WAV validation. Attempting conversion...'
+      );
     }
   }
 
@@ -154,7 +170,7 @@ async function transcribeGroq(
   config?: WhisperConfig,
   signal?: AbortSignal
 ): Promise<TranscriptionResult> {
-  const targetModel = resolveOrMigrateModel('groq', config?.model, 'stt').resolvedModel;
+  const targetModel = resolveTranscriptionModel('groq', config?.model);
   const wavBlob = await convertBlobToWav(audioBlob);
   const formData = new FormData();
   formData.append('file', wavBlob, 'recording.wav');
@@ -213,7 +229,7 @@ async function transcribeOpenAI(
   const wavBlob = await convertBlobToWav(audioBlob);
   const formData = new FormData();
   formData.append('file', wavBlob, 'recording.wav');
-  const targetModel = resolveOrMigrateModel('openai', config.model, 'stt').resolvedModel;
+  const targetModel = resolveTranscriptionModel('openai', config.model);
   formData.append('model', targetModel);
   formData.append('response_format', 'verbose_json');
 
