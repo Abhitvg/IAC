@@ -13,11 +13,12 @@ import {
 } from 'lucide-react';
 import { getDefaultModelForProvider, AIProviderId } from '../services/models/modelRegistry';
 import { persistOnboardingCredential } from '../services/onboarding/credentialSetup';
+import { persistOnboardingSettings } from '../services/onboarding/settingsSetup';
 
 type OnboardingStep = 'mode' | 'credentials_or_models' | 'mic_check' | 'ready';
 
 export default function OnboardingModal() {
-  const { updateSetting, setToast, setProfileWizardOpen } = useAppStore();
+  const { setToast, setProfileWizardOpen } = useAppStore();
   const { startMockSession } = usePracticeStore();
 
   const [step, setStep] = useState<OnboardingStep>('mode');
@@ -117,16 +118,34 @@ export default function OnboardingModal() {
         });
       }
 
-      updateSetting('aiProvider', activeProv);
-      updateSetting('aiModel', getDefaultModelForProvider(activeProv, 'llm'));
-      updateSetting(
-        'whisperModel',
-        isLocalMode ? 'local-whisper-cpp' : getDefaultModelForProvider(activeProv, 'stt')
-      );
-      updateSetting('hasCompletedOnboarding', true);
+      const onboardingSettings = {
+        aiProvider: activeProv,
+        aiModel: getDefaultModelForProvider(activeProv, 'llm'),
+        whisperModel: isLocalMode
+          ? 'local-whisper-cpp'
+          : getDefaultModelForProvider(activeProv, 'stt'),
+      };
+      const writeSetting = window.electronAPI?.setSettings;
 
-      // Launch first 10-minute mock session only after setup is safely persisted.
+      // Persist the provider/model configuration before changing local state.
+      await persistOnboardingSettings(
+        Object.entries(onboardingSettings),
+        writeSetting
+      );
+      useAppStore.setState((state) => ({
+        settings: { ...state.settings, ...onboardingSettings },
+      }));
+
+      // Starting a session is allowed only after its provider/model settings exist.
       startMockSession('behavioral', 'friendly_recruiter', false);
+
+      // The completion flag is the final durable write. A failed settings write
+      // must leave onboarding incomplete so the candidate can retry in Settings.
+      await persistOnboardingSettings([['hasCompletedOnboarding', true]], writeSetting);
+      useAppStore.setState((state) => ({
+        settings: { ...state.settings, hasCompletedOnboarding: true },
+      }));
+
       setToast('Welcome! Your 10-minute initial mock interview has started.');
       return true;
     } catch (err: unknown) {
