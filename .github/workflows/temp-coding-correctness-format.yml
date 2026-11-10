@@ -1,0 +1,35 @@
+name: Temporary Coding Correctness Formatter
+
+on:
+  push:
+    branches:
+      - fix/practice-unverified-correctness-neutral-20261111
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Format changed files
+        run: npx prettier --write src/services/practice/CodingEvaluationService.ts tests/codingEvaluation.test.ts
+      - name: Commit formatting
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/services/practice/CodingEvaluationService.ts tests/codingEvaluation.test.ts
+          git commit -m "style(practice): format correctness assessment changes"
+          git push
