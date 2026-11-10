@@ -17,6 +17,11 @@ import {
 } from '../services/cloudTranscription';
 import { validateCloudModelPreflight } from '../services/modelPreflight';
 import {
+  startCloudLLMStream,
+  validateCloudLLMStreamRequest,
+  type CloudLLMStreamRequest,
+} from '../services/cloudLLMStreaming';
+import {
   MessageRateLimiter,
   parseBrowserContextMessage,
 } from '../services/browserContextValidation';
@@ -25,6 +30,7 @@ let wsServer: WebSocketServer | null = null;
 let httpServer: http.Server | null = null;
 let mainWindowRef: BrowserWindow | null = null;
 const cloudTranscriptionControllers = new Map<string, AbortController>();
+const cloudLLMControllers = new Map<string, AbortController>();
 
 const ALLOWED_SETTING_KEYS = new Set([
   'aiProvider',
@@ -273,6 +279,47 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     return validateCloudModelPreflight(request.provider, request.model, apiKey || '');
   });
 
+  ipcMain.handle('ai:stream-start', async (event, request: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (!validateCloudLLMStreamRequest(request) || !request.stream) {
+      throw new Error('Invalid cloud generation request');
+    }
+    if (cloudLLMControllers.has(request.requestId)) {
+      throw new Error('A generation request with this ID is already active.');
+    }
+
+    const controller = new AbortController();
+    cloudLLMControllers.set(request.requestId, controller);
+    try {
+      const result = await startCloudLLMStream(
+        request as CloudLLMStreamRequest,
+        credentialStore,
+        controller.signal,
+        (channel, payload) => {
+          mainWindowRef?.webContents.send(channel, payload);
+          if (channel === 'ai:stream-done' || channel === 'ai:stream-error') {
+            cloudLLMControllers.delete(request.requestId);
+          }
+        }
+      );
+      if (!result.ok) cloudLLMControllers.delete(request.requestId);
+      return result;
+    } catch (error) {
+      cloudLLMControllers.delete(request.requestId);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('ai:stream-cancel', (event, requestId: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (typeof requestId !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(requestId)) return false;
+    const controller = cloudLLMControllers.get(requestId);
+    if (!controller) return false;
+    controller.abort();
+    cloudLLMControllers.delete(requestId);
+    return true;
+  });
+
   ipcMain.handle('stt:transcribe', async (event, request: unknown) => {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     if (!validateCloudTranscriptionRequest(request)) {
@@ -304,15 +351,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     return true;
   });
 
-  // Secure safeStorage credential handlers
-  ipcMain.handle('credentials:get', async (event, service: string) => {
-    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
-    const k = await credentialStore.getKey(service);
-    // Key retrieved securely
-    console.log('[IPC credentials:get]', service, 'configured:', !!k);
-    return k;
-  });
-
+  // Secure safeStorage credential handlers. Decrypted keys never cross IPC.
   ipcMain.handle('credentials:set', async (event, service: string, key: string) => {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     return credentialStore.setKey(service, key);

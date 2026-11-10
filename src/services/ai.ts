@@ -864,6 +864,100 @@ export interface AIStreamCallbacks {
   onDiagnostic?: (diagnostic: FallbackDiagnosticRecord) => void;
 }
 
+async function fetchCloudProviderResponse(
+  electronAPI: Window['electronAPI'],
+  request: {
+    requestId: string;
+    provider: 'groq' | 'openai' | 'openrouter';
+    model: string;
+    systemPrompt: string;
+    question: string;
+    temperature: number;
+    maxTokens: number;
+    stream: boolean;
+  },
+  signal: AbortSignal
+): Promise<Response> {
+  const requestId = request.requestId;
+  const encoder = new TextEncoder();
+  let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+  let settled = false;
+  let unsubscribeChunk = () => {};
+  let unsubscribeDone = () => {};
+  let unsubscribeError = () => {};
+
+  const cleanup = () => {
+    if (settled) return;
+    settled = true;
+    unsubscribeChunk();
+    unsubscribeDone();
+    unsubscribeError();
+    signal.removeEventListener('abort', abortRequest);
+  };
+
+  const abortRequest = () => {
+    void electronAPI.cancelCloudLLMStream(requestId).catch(() => undefined);
+    try {
+      streamController?.error(
+        Object.assign(new Error('AI generation cancelled.'), { name: 'AbortError' })
+      );
+    } catch {}
+    cleanup();
+  };
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      streamController = controller;
+    },
+    cancel() {
+      void electronAPI.cancelCloudLLMStream(requestId).catch(() => undefined);
+      cleanup();
+    },
+  });
+
+  unsubscribeChunk = electronAPI.onAIStreamChunk(({ requestId: id, chunk }) => {
+    if (id !== requestId || settled || !streamController) return;
+    streamController.enqueue(encoder.encode(chunk));
+  });
+  unsubscribeDone = electronAPI.onAIStreamDone(({ requestId: id }) => {
+    if (id !== requestId || settled) return;
+    try {
+      streamController?.close();
+    } catch {}
+    cleanup();
+  });
+  unsubscribeError = electronAPI.onAIStreamError(({ requestId: id, name, message }) => {
+    if (id !== requestId || settled) return;
+    try {
+      streamController?.error(Object.assign(new Error(message), { name }));
+    } catch {}
+    cleanup();
+  });
+
+  if (signal.aborted) abortRequest();
+  else signal.addEventListener('abort', abortRequest, { once: true });
+
+  try {
+    const result = await electronAPI.startCloudLLMStream(request);
+    if (!result.ok || !request.stream) {
+      cleanup();
+      return new Response(result.body || '', {
+        status: result.status,
+        statusText: result.statusText,
+        headers: result.headers,
+      });
+    }
+    return new Response(stream, {
+      status: result.status,
+      statusText: result.statusText,
+      headers: result.headers,
+    });
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
+}
+
 export async function streamAnswer(
   question: string,
   config: AIProviderConfig,
@@ -920,21 +1014,40 @@ export async function streamAnswer(
   let parser: AIStreamParser | null = null;
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: effectiveModel,
-        messages: [
-          { role: 'system', content: lowLatencyPrompt },
-          { role: 'user', content: question },
-        ],
-        stream: true,
-        temperature: config.temperature,
-        max_tokens: config.maxTokens,
-      }),
-      signal: requestSignal,
-    });
+    const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
+    const initialRequestBody = {
+      model: effectiveModel,
+      messages: [
+        { role: 'system', content: lowLatencyPrompt },
+        { role: 'user', content: question },
+      ],
+      stream: true,
+      temperature: config.temperature,
+      max_tokens: config.maxTokens,
+    };
+    const response =
+      electronAPI?.startCloudLLMStream &&
+      (config.type === 'groq' || config.type === 'openai' || config.type === 'openrouter')
+        ? await fetchCloudProviderResponse(
+            electronAPI,
+            {
+              requestId: crypto.randomUUID().replace(/[^a-zA-Z0-9_-]/g, ''),
+              provider: config.type,
+              model: effectiveModel,
+              systemPrompt: lowLatencyPrompt,
+              question,
+              temperature: config.temperature,
+              maxTokens: config.maxTokens,
+              stream: true,
+            },
+            requestSignal
+          )
+        : await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(initialRequestBody),
+            signal: requestSignal,
+          });
 
     let activeResponse = response;
 
@@ -994,21 +1107,39 @@ export async function streamAnswer(
         );
 
         try {
-          const fallbackRes = await fetch(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              model: fbModel,
-              messages: [
-                { role: 'system', content: lowLatencyPrompt },
-                { role: 'user', content: question },
-              ],
-              stream: true,
-              temperature: config.temperature,
-              max_tokens: Math.min(config.maxTokens || 1500, 1500),
-            }),
-            signal: requestSignal,
-          });
+          const fallbackBody = {
+            model: fbModel,
+            messages: [
+              { role: 'system', content: lowLatencyPrompt },
+              { role: 'user', content: question },
+            ],
+            stream: true,
+            temperature: config.temperature,
+            max_tokens: Math.min(config.maxTokens || 1500, 1500),
+          };
+          const fallbackRes =
+            electronAPI?.startCloudLLMStream &&
+            (config.type === 'groq' || config.type === 'openai' || config.type === 'openrouter')
+              ? await fetchCloudProviderResponse(
+                  electronAPI,
+                  {
+                    requestId: crypto.randomUUID().replace(/[^a-zA-Z0-9_-]/g, ''),
+                    provider: config.type,
+                    model: fbModel,
+                    systemPrompt: lowLatencyPrompt,
+                    question,
+                    temperature: config.temperature,
+                    maxTokens: Math.min(config.maxTokens || 1500, 1500),
+                    stream: true,
+                  },
+                  requestSignal
+                )
+              : await fetch(url, {
+                  method: 'POST',
+                  headers,
+                  body: JSON.stringify(fallbackBody),
+                  signal: requestSignal,
+                });
 
           if (fallbackRes.ok && fallbackRes.body) {
             activeResponse = fallbackRes;
@@ -1202,21 +1333,39 @@ export async function streamAnswer(
         // Some provider/model combinations terminate an SSE stream without content deltas.
         // Make exactly one non-streaming recovery request before surfacing an empty answer.
         if (!cleanText) {
-          const recoveryResponse = await fetch(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              model: effectiveModel,
-              messages: [
-                { role: 'system', content: lowLatencyPrompt },
-                { role: 'user', content: question },
-              ],
-              stream: false,
-              temperature: config.temperature,
-              max_tokens: config.maxTokens,
-            }),
-            signal: requestSignal,
-          });
+          const recoveryBody = {
+            model: effectiveModel,
+            messages: [
+              { role: 'system', content: lowLatencyPrompt },
+              { role: 'user', content: question },
+            ],
+            stream: false,
+            temperature: config.temperature,
+            max_tokens: config.maxTokens,
+          };
+          const recoveryResponse =
+            electronAPI?.startCloudLLMStream &&
+            (config.type === 'groq' || config.type === 'openai' || config.type === 'openrouter')
+              ? await fetchCloudProviderResponse(
+                  electronAPI,
+                  {
+                    requestId: crypto.randomUUID().replace(/[^a-zA-Z0-9_-]/g, ''),
+                    provider: config.type,
+                    model: effectiveModel,
+                    systemPrompt: lowLatencyPrompt,
+                    question,
+                    temperature: config.temperature,
+                    maxTokens: config.maxTokens,
+                    stream: false,
+                  },
+                  requestSignal
+                )
+              : await fetch(url, {
+                  method: 'POST',
+                  headers,
+                  body: JSON.stringify(recoveryBody),
+                  signal: requestSignal,
+                });
           if (recoveryResponse.ok) {
             const recoveryData = await recoveryResponse.json();
             const recovered = recoveryData.choices?.[0]?.message?.content;
