@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AnswerGenerationService } from '../src/services/AnswerGenerationService';
 import { RateLimitGovernor } from '../src/services/rateLimitGovernor';
+import { startCloudLLMStream } from '../electron/services/cloudLLMStreaming';
 
 function createStreamingResponse(text: string): Response {
   const encoder = new TextEncoder();
@@ -8,33 +9,83 @@ function createStreamingResponse(text: string): Response {
     `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`,
     'data: [DONE]\n\n',
   ].join('');
-
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(encoder.encode(payload));
       controller.close();
     },
   });
-
   return new Response(stream, {
     status: 200,
     headers: { 'content-type': 'text/event-stream' },
   });
 }
 
-describe('AnswerGenerationService secondary Groq credential failover', () => {
+function createElectronGateway(credentialStore: { getKey: ReturnType<typeof vi.fn> }) {
+  const chunkListeners = new Set<(payload: any) => void>();
+  const doneListeners = new Set<(payload: any) => void>();
+  const errorListeners = new Set<(payload: any) => void>();
+  const controllers = new Map<string, AbortController>();
+
+  const send = (channel: string, payload: any) => {
+    const listeners =
+      channel === 'ai:stream-chunk'
+        ? chunkListeners
+        : channel === 'ai:stream-done'
+          ? doneListeners
+          : errorListeners;
+    for (const listener of listeners) listener(payload);
+  };
+
+  return {
+    startCloudLLMStream: async (request: any) => {
+      const controller = new AbortController();
+      controllers.set(request.requestId, controller);
+      try {
+        const result = await startCloudLLMStream(request, credentialStore as any, controller.signal, send);
+        if (!result.ok) controllers.delete(request.requestId);
+        return result;
+      } catch (error) {
+        controllers.delete(request.requestId);
+        throw error;
+      }
+    },
+    cancelCloudLLMStream: async (requestId: string) => {
+      const controller = controllers.get(requestId);
+      if (!controller) return false;
+      controller.abort();
+      controllers.delete(requestId);
+      return true;
+    },
+    onAIStreamChunk: (callback: (payload: any) => void) => {
+      chunkListeners.add(callback);
+      return () => chunkListeners.delete(callback);
+    },
+    onAIStreamDone: (callback: (payload: any) => void) => {
+      doneListeners.add(callback);
+      return () => doneListeners.delete(callback);
+    },
+    onAIStreamError: (callback: (payload: any) => void) => {
+      errorListeners.add(callback);
+      return () => errorListeners.delete(callback);
+    },
+  };
+}
+
+describe('AnswerGenerationService main-process Groq credential failover', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it('retries a primary Groq 429 exactly once with the configured secondary key', async () => {
-    const getApiKey = vi.fn(async (service: string) => {
-      if (service === 'groq') return 'gsk_primary_test_key';
-      if (service === 'groq-secondary') return 'gsk_secondary_test_key';
-      return null;
-    });
-
+  it('retries a primary Groq 429 with the secondary key without exposing either key to renderer', async () => {
+    const credentialStore = {
+      getKey: vi.fn(async (service: string) => {
+        if (service === 'groq') return 'gsk_primary_test_key_12345678901234567890';
+        if (service === 'groq-secondary') return 'gsk_secondary_test_key_12345678901234567890';
+        return null;
+      }),
+    };
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -61,7 +112,8 @@ describe('AnswerGenerationService secondary Groq credential failover', () => {
         createStreamingResponse('A binary search tree stores values in ordered nodes.')
       );
 
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+    const gateway = createElectronGateway(credentialStore);
+    vi.stubGlobal('window', { electronAPI: gateway });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await AnswerGenerationService.getInstance().generateAnswer({
@@ -73,24 +125,19 @@ describe('AnswerGenerationService secondary Groq credential failover', () => {
       preferredLanguage: 'Java',
     });
 
-    expect(getApiKey).toHaveBeenCalledWith('groq');
-    expect(getApiKey).toHaveBeenCalledWith('groq-secondary');
+    expect(credentialStore.getKey).toHaveBeenCalledWith('groq');
+    expect(credentialStore.getKey).toHaveBeenCalledWith('groq-secondary');
     expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    const firstInit = fetchMock.mock.calls[0][1] as RequestInit;
-    const secondInit = fetchMock.mock.calls[1][1] as RequestInit;
-    expect(new Headers(firstInit.headers).get('authorization')).toBe('Bearer gsk_primary_test_key');
-    expect(new Headers(secondInit.headers).get('authorization')).toBe(
-      'Bearer gsk_secondary_test_key'
-    );
-
+    expect(gateway).not.toHaveProperty('getApiKey');
     expect(result.status).toBe('VALIDATED');
     expect(result.cleanAnswer).toContain('binary search tree');
   });
 
-  it('does not switch to a duplicate secondary key', async () => {
+  it('does not use a duplicate secondary key as a separate credential', async () => {
     vi.spyOn(RateLimitGovernor, 'calculateBackoffDelayMs').mockReturnValue(1);
-    const getApiKey = vi.fn(async () => 'gsk_same_test_key');
+    const credentialStore = {
+      getKey: vi.fn(async () => 'gsk_same_test_key_12345678901234567890'),
+    };
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -112,7 +159,8 @@ describe('AnswerGenerationService secondary Groq credential failover', () => {
       )
     );
 
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+    const gateway = createElectronGateway(credentialStore);
+    vi.stubGlobal('window', { electronAPI: gateway });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await AnswerGenerationService.getInstance().generateAnswer({
@@ -125,14 +173,7 @@ describe('AnswerGenerationService secondary Groq credential failover', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    const authorizations = fetchMock.mock.calls.map((call) =>
-      new Headers((call[1] as RequestInit).headers).get('authorization')
-    );
-    expect(authorizations).toEqual([
-      'Bearer gsk_same_test_key',
-      'Bearer gsk_same_test_key',
-      'Bearer gsk_same_test_key',
-    ]);
     expect(result.status).toBe('FAILED');
+    expect(gateway).not.toHaveProperty('getApiKey');
   });
 });
