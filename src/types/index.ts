@@ -297,7 +297,6 @@ export interface ElectronAPI {
   onAIStreamError: (
     callback: (payload: { requestId: string; name: string; message: string }) => void
   ) => () => void;
-  getApiKey: (service: string) => Promise<string | null>;
   setApiKey: (service: string, key: string) => Promise<boolean>;
   hasApiKey: (service: string) => Promise<boolean>;
   deleteApiKey: (service: string) => Promise<boolean>;
