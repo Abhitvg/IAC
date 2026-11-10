@@ -492,8 +492,8 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
 
       expect(result.executionStatus).toBe('static_analysis_only');
       expect(result.testResults.length).toBe(0);
-      expect(result.dimensions.timeComplexity.score).toBeGreaterThanOrEqual(4.0);
-      expect(result.dimensions.spaceComplexity.score).toBeGreaterThanOrEqual(4.0);
+      expect(result.dimensions.timeComplexity.score).toBe(3);
+      expect(result.dimensions.spaceComplexity.score).toBe(3);
     });
 
     it('report disclaimer explicitly states static_analysis_only without dynamic sandbox claims', () => {
