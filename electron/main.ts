@@ -2,7 +2,11 @@ import { parsePdfBuffer } from './services/pdfParser';
 import { validateDocumentImportSize } from './services/documentImportLimits';
 import { validateDocxArchive } from './services/docxArchiveLimits';
 import { validateDocxArchiveExpansion } from './services/docxArchiveExpansion';
-import { stitchOcrTexts, stitchSanitizedOcrTexts } from './services/ocrStitcher';
+import {
+  sanitizeOcrText,
+  stitchOcrTexts,
+  stitchSanitizedOcrTexts,
+} from './services/ocrStitcher';
 import { SafeConnectionFetcher, PinnedFetchOptions } from './services/safeConnectionFetcher';
 import { resolveOcrBinaryPath, getOcrEngineInfo } from './services/ocrService';
 import {
@@ -965,7 +969,7 @@ ipcMain.handle(
         return { success: false, error: 'No text or code could be detected on the screen.' };
       }
 
-      const cleanText = redactSensitiveData(text);
+      const cleanText = sanitizeOcrText(text);
       lastCapturedOcrText = cleanText;
       return { success: true, text: cleanText };
     } catch (err: any) {
@@ -987,7 +991,7 @@ ipcMain.handle('screen:get-last-ocr-text', (event) => {
 ipcMain.handle('screen:set-last-ocr-text', (event, text: string) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (typeof text !== 'string' || text.length > 100000) throw new Error('Invalid OCR text');
-  lastCapturedOcrText = text || '';
+  lastCapturedOcrText = sanitizeOcrText(text || '');
   return true;
 });
 
