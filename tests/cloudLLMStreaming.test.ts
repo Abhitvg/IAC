@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { startCloudLLMStream, type CloudLLMStreamRequest } from '../electron/services/cloudLLMStreaming';
+import {
+  startCloudLLMStream,
+  type CloudLLMStreamRequest,
+} from '../electron/services/cloudLLMStreaming';
 
 describe('cloud LLM streaming response handling', () => {
   afterEach(() => {
