@@ -902,6 +902,7 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
     });
 
     it('rejects missing OpenRouter credentials instead of reporting a false success', async () => {
+      global.fetch = vi.fn();
       const check = await validateModelPreflight('openrouter', 'openai/gpt-4o-mini', '');
 
       expect(check.valid).toBe(false);
