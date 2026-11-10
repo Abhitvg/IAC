@@ -14,7 +14,7 @@ const MAX_ISSUER_ID_LENGTH = 128;
 const MAX_CANDIDATE_NAME_LENGTH = 256;
 const MAX_CANDIDATE_EMAIL_LENGTH = 320;
 const MAX_PROJECT_NAME_LENGTH = 256;
-const MAX_SIGNATURE_HEX_LENGTH = 8192;
+const MAX_ISSUER_SIGNATURE_HEX_LENGTH = 128;
 
 const DOCUMENT_TYPES = new Set([
   'employment_verification',
@@ -78,9 +78,8 @@ function validateEvidenceInspectionMetadata(request: DocumentInspectionRequest):
     if (
       typeof issuer.signatureHex !== 'string' ||
       issuer.signatureHex.length === 0 ||
-      issuer.signatureHex.length > MAX_SIGNATURE_HEX_LENGTH ||
-      issuer.signatureHex.length % 2 !== 0 ||
-      !/^[0-9a-f]+$/i.test(issuer.signatureHex)
+      issuer.signatureHex.length !== MAX_ISSUER_SIGNATURE_HEX_LENGTH ||
+      !/^[0-9a-f]{128}$/i.test(issuer.signatureHex)
     ) {
       throw new Error('Invalid issuer.signatureHex; expected bounded hexadecimal signature data.');
     }
