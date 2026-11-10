@@ -11,6 +11,10 @@ import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
 import { CredentialStore } from '../services/credentialStore';
+import {
+  transcribeCloudAudio,
+  type CloudTranscriptionRequest,
+} from '../services/cloudTranscription';
 import { validateCloudModelPreflight } from '../services/modelPreflight';
 import {
   MessageRateLimiter,
@@ -20,6 +24,7 @@ import {
 let wsServer: WebSocketServer | null = null;
 let httpServer: http.Server | null = null;
 let mainWindowRef: BrowserWindow | null = null;
+const cloudTranscriptionControllers = new Map<string, AbortController>();
 
 const ALLOWED_SETTING_KEYS = new Set([
   'aiProvider',
@@ -42,6 +47,30 @@ const ALLOWED_SETTING_KEYS = new Set([
   'windowOpacity',
   'lastModelMigrationNotice',
 ]);
+
+export function validateCloudTranscriptionRequest(
+  request: unknown
+): request is CloudTranscriptionRequest {
+  if (!request || typeof request !== 'object' || Array.isArray(request)) return false;
+  const candidate = request as Record<string, unknown>;
+  const audio = candidate.audio;
+  return (
+    typeof candidate.requestId === 'string' &&
+    candidate.requestId.length > 0 &&
+    candidate.requestId.length <= 128 &&
+    (candidate.provider === 'groq' || candidate.provider === 'openai') &&
+    typeof candidate.model === 'string' &&
+    candidate.model.trim().length > 0 &&
+    candidate.model.length <= 160 &&
+    audio instanceof Uint8Array &&
+    audio.byteLength >= 400 &&
+    audio.byteLength <= 25 * 1024 * 1024 &&
+    (candidate.language === undefined ||
+      (typeof candidate.language === 'string' && candidate.language.length <= 12)) &&
+    (candidate.prompt === undefined ||
+      (typeof candidate.prompt === 'string' && candidate.prompt.length <= 4000))
+  );
+}
 
 export function validateCloudPreflightRequest(
   request: unknown
@@ -245,6 +274,34 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     }
     const apiKey = await credentialStore.getKey(request.provider);
     return validateCloudModelPreflight(request.provider, request.model, apiKey || '');
+  });
+
+  ipcMain.handle('stt:transcribe', async (event, request: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (!validateCloudTranscriptionRequest(request)) {
+      throw new Error('Invalid cloud transcription request');
+    }
+    if (cloudTranscriptionControllers.has(request.requestId)) {
+      throw new Error('A transcription request with this ID is already active.');
+    }
+
+    const controller = new AbortController();
+    cloudTranscriptionControllers.set(request.requestId, controller);
+    try {
+      const apiKey = await credentialStore.getKey(request.provider);
+      return await transcribeCloudAudio(request, apiKey || '', controller.signal);
+    } finally {
+      cloudTranscriptionControllers.delete(request.requestId);
+    }
+  });
+
+  ipcMain.handle('stt:cancel', (event, requestId: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (typeof requestId !== 'string' || requestId.length > 128) return false;
+    const controller = cloudTranscriptionControllers.get(requestId);
+    if (!controller) return false;
+    controller.abort();
+    return true;
   });
 
   // Secure safeStorage credential handlers
