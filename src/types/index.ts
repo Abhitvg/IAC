@@ -259,6 +259,21 @@ export interface ElectronAPI {
   openExternal: (url: string) => Promise<void>;
   getSettings: () => Promise<AppSettings>;
   setSettings: (key: string, value: any) => Promise<boolean>;
+  transcribeCloudAudio: (request: {
+    requestId: string;
+    provider: 'groq' | 'openai';
+    model: string;
+    audio: Uint8Array;
+    language?: string;
+    prompt?: string;
+  }) => Promise<{
+    cancelled?: boolean;
+    text: string;
+    language?: string;
+    duration?: number;
+    segments?: Array<{ start: number; end: number; text: string }>;
+  }>;
+  cancelCloudTranscription: (requestId: string) => Promise<boolean>;
   getApiKey: (service: string) => Promise<string | null>;
   setApiKey: (service: string, key: string) => Promise<boolean>;
   hasApiKey: (service: string) => Promise<boolean>;
