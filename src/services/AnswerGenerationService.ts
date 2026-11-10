@@ -221,7 +221,10 @@ export class AnswerGenerationService {
     const provider = params.provider || 'groq';
     const electronGatewayAvailable =
       typeof window !== 'undefined' && Boolean(window.electronAPI?.startCloudLLMStream);
-    const apiKey = '';
+    let apiKey = '';
+    if (!electronGatewayAvailable && provider !== 'ollama') {
+      apiKey = await this.resolveApiKey(provider);
+    }
 
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
