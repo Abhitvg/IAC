@@ -58,6 +58,7 @@ const ALLOWED_SETTING_KEYS = new Set([
   'lastModelMigrationNotice',
 ]);
 
+// Non-streaming requests do not emit terminal events, so release their controller after the response.
 export function shouldReleaseCloudLLMController(
   request: Pick<CloudLLMStreamRequest, 'stream'>,
   result: Pick<CloudLLMStreamStartResult, 'ok'>
