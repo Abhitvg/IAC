@@ -10,10 +10,7 @@ import { ipcMain, BrowserWindow, clipboard } from 'electron';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
-import {
-  CredentialStore,
-  parseGroqApiKeyFromEnvContent,
-} from '../services/credentialStore';
+import { CredentialStore, parseGroqApiKeyFromEnvContent } from '../services/credentialStore';
 import {
   transcribeCloudAudio,
   type CloudTranscriptionRequest,
@@ -58,6 +55,7 @@ const ALLOWED_SETTING_KEYS = new Set([
   'lastModelMigrationNotice',
 ]);
 
+// Non-streaming requests do not emit terminal events, so release their controller after the response.
 export function shouldReleaseCloudLLMController(
   request: Pick<CloudLLMStreamRequest, 'stream'>,
   result: Pick<CloudLLMStreamStartResult, 'ok'>
