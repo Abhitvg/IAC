@@ -160,8 +160,7 @@ export function readFileSafely(
         ? descriptorStat.size !== destinationStat.size ||
           descriptorStat.mtimeMs !== destinationStat.mtimeMs ||
           descriptorStat.birthtimeMs !== destinationStat.birthtimeMs
-        : descriptorStat.dev !== destinationStat.dev ||
-          descriptorStat.ino !== destinationStat.ino;
+        : descriptorStat.dev !== destinationStat.dev || descriptorStat.ino !== destinationStat.ino;
 
     if (
       !descriptorStat.isFile() ||
