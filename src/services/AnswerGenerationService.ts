@@ -147,7 +147,8 @@ export class AnswerGenerationService {
   async resolveApiKey(provider: string): Promise<string> {
     // Compatibility seam for test doubles and legacy non-Electron harnesses only.
     // The production preload intentionally does not expose a getApiKey method.
-    const legacyCredentialBridge = (window.electronAPI as any)?.['getApiKey'];
+    const legacyCredentialBridge =
+      typeof window !== 'undefined' ? (window.electronAPI as any)?.['getApiKey'] : undefined;
     if (typeof legacyCredentialBridge !== 'function') return '';
     const key = await legacyCredentialBridge(provider);
     return typeof key === 'string' ? key.trim() : '';
