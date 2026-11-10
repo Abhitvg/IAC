@@ -143,10 +143,16 @@ describe('Real Runtime Application Smoke Test Suite', () => {
     const report = InterviewReportGenerator.generateReport(updatedSession);
     expect(report.behavioralCompetencies).toBeDefined();
     expect(report.behavioralCompetencies?.isBehavioralAssessed).toBe(true);
-    expect(report.behavioralCompetencies?.dimensions.communication.score).toBeGreaterThanOrEqual(2.0);
-    expect(report.behavioralCompetencies?.dimensions.problemSolvingExplanation.score).toBeGreaterThanOrEqual(2.0);
+    expect(report.behavioralCompetencies?.dimensions.communication.score).toBeGreaterThanOrEqual(
+      2.0
+    );
+    expect(
+      report.behavioralCompetencies?.dimensions.problemSolvingExplanation.score
+    ).toBeGreaterThanOrEqual(2.0);
     expect(report.behavioralCompetencies?.dimensions.leadership.score).toBeGreaterThanOrEqual(2.0);
-    expect(report.behavioralCompetencies?.dimensions.ownershipAccountability.score).toBeGreaterThanOrEqual(2.0);
+    expect(
+      report.behavioralCompetencies?.dimensions.ownershipAccountability.score
+    ).toBeGreaterThanOrEqual(2.0);
   });
 
   it('5. End-to-end Interview Report Generation', () => {
