@@ -70,7 +70,9 @@ describe('validateDocxArchive', () => {
 
   it('rejects malformed and non-DOCX ZIP payloads', () => {
     expect(validateDocxArchive(Buffer.from('not a zip')).allowed).toBe(false);
-    expect(validateDocxArchive(createZip([{ name: 'readme.txt', data: Buffer.from('hello') }])).reason)
+    expect(
+      validateDocxArchive(createZip([{ name: 'readme.txt', data: Buffer.from('hello') }])).reason
+    )
       .toContain('not a valid DOCX');
   });
 
