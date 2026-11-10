@@ -226,11 +226,9 @@ export class CodingEvaluationService {
 
     const actualSpace = /\b(new Array|new Map|new Set|\[\]|\{\})\b/.test(code) ? 'O(N)' : 'O(1)';
 
-    const normalizeComplexity = (value: string) => value.toLowerCase().replace(/\s/g, '');
-    const isOptimal = expectedOptimal
-      ? normalizeComplexity(actualTime) === normalizeComplexity(expectedOptimal.time) &&
-        normalizeComplexity(actualSpace) === normalizeComplexity(expectedOptimal.space)
-      : null;
+    // Regex-based source inspection cannot establish asymptotic complexity.
+    // Keep estimates visible as hints, but never turn them into an optimality verdict.
+    const isOptimal: boolean | null = null;
 
     return {
       statedTimeComplexity: statedTime,
@@ -239,12 +237,11 @@ export class CodingEvaluationService {
       actualSpaceComplexity: actualSpace,
       isOptimal,
       notes:
-        'Complexity values are static heuristic estimates, not measured runtime results. ' +
-        (isOptimal === null
-          ? 'Optimality was not assessed because no problem-specific baseline was supplied.'
-          : isOptimal
-            ? 'Static estimates match the supplied time and space baseline; runtime behavior remains unverified.'
-            : `Static estimates (${actualTime} time, ${actualSpace} space) differ from the supplied baseline (${expectedOptimal?.time} time, ${expectedOptimal?.space} space).`),
+        'Complexity values are regex-based static hints, not measured or validated complexity results. ' +
+        'Optimality was not assessed because source-text heuristics cannot reliably prove time or space complexity.' +
+        (expectedOptimal
+          ? ` Supplied baseline: ${expectedOptimal.time} time and ${expectedOptimal.space} space.`
+          : ' No problem-specific baseline was supplied.'),
     };
   }
 
@@ -269,33 +266,24 @@ export class CodingEvaluationService {
     const correctnessScore = staticCheck.isEmptySubmission ? 1 : 3;
 
     // 2. Algorithm Selection
-    const algoScore = complexity.isOptimal === true ? 4 : complexity.isOptimal === false ? 2.5 : 3;
-
-    // 3. Time Complexity
-    let timeScore = 3;
-    if (complexity.actualTimeComplexity === 'O(N)' || complexity.actualTimeComplexity === 'O(1)') {
-      timeScore = 4.5;
-    } else if (complexity.actualTimeComplexity === 'O(N^2)') {
-      timeScore = 2.5;
-    }
-
-    // 4. Space Complexity
-    let spaceScore = complexity.actualSpaceComplexity === 'O(1)' ? 5 : 4;
+    // These dimensions remain neutral until the code is executed or assessed by
+    // a trusted semantic evaluator. Regex patterns are hints, not evidence.
+    const algoScore = 3;
+    const timeScore = 3;
+    const spaceScore = 3;
 
     // 5. Edge-Case Handling
     const hasEdgeChecks = /if\s*\([^)]*(null|undefined|length\s*===?\s*0|<=?\s*0|!\w+)/.test(code);
-    const edgeScore = hasEdgeChecks ? 4 : 2;
+    const edgeScore = 3;
 
     // 6. Readability
-    const hasDescriptiveNames = staticCheck.detectedIdentifiers.some((id) => id.length > 5);
-    const readabilityScore = hasDescriptiveNames && staticCheck.lineCount > 3 ? 4 : 3;
+    const readabilityScore = 3;
 
     // 7. Maintainability
-    const maintainabilityScore = staticCheck.hasComments || staticCheck.lineCount < 60 ? 4 : 3;
+    const maintainabilityScore = 3;
 
     // 8. Explanation and Reasoning
-    const explanationScore =
-      transcript.length > 100 ? (complexity.statedTimeComplexity ? 5 : 4) : 2.5;
+    const explanationScore = 3;
 
     return {
       functionalCorrectness: {
@@ -309,46 +297,39 @@ export class CodingEvaluationService {
         score: algoScore,
         quoteOrSnippet: `Complexity: ${complexity.actualTimeComplexity}`,
         rationale:
-          complexity.isOptimal === true
-            ? 'Static complexity estimates match the supplied baseline; runtime behavior is unverified.'
-            : complexity.isOptimal === false
-              ? 'Static complexity estimates differ from the supplied baseline; runtime behavior is unverified.'
-              : 'Optimality cannot be determined without a problem-specific baseline; the submission was not executed.',
+          'Not assessed: source-text heuristics cannot establish algorithm selection or prove optimality.',
       },
       timeComplexity: {
         score: timeScore,
         quoteOrSnippet: complexity.actualTimeComplexity,
-        rationale: `Static heuristic estimate: ${complexity.actualTimeComplexity}; runtime complexity was not measured.`,
+        rationale: `Unverified static hint: ${complexity.actualTimeComplexity}; time complexity was not assessed.`,
       },
       spaceComplexity: {
         score: spaceScore,
         quoteOrSnippet: complexity.actualSpaceComplexity,
-        rationale: `Static heuristic estimate: ${complexity.actualSpaceComplexity}; memory usage was not measured.`,
+        rationale: `Unverified static hint: ${complexity.actualSpaceComplexity}; space complexity was not assessed.`,
       },
       edgeCaseHandling: {
         score: edgeScore,
-        quoteOrSnippet: hasEdgeChecks ? 'Input boundary guards present' : 'Missing guard clauses',
-        rationale: hasEdgeChecks
-          ? 'Includes guards for empty collections and boundary cases.'
-          : 'Lacks defensive validation for empty or boundary inputs.',
+        quoteOrSnippet: hasEdgeChecks ? 'Potential guard token detected' : 'No guard token detected',
+        rationale:
+          'Not assessed: detecting an if-statement or boundary keyword does not prove that relevant edge cases are handled.',
       },
       codeReadability: {
         score: readabilityScore,
         quoteOrSnippet: staticCheck.detectedIdentifiers.slice(0, 3).join(', '),
-        rationale: 'Clean naming conventions and idiomatic formatting.',
+        rationale: 'Not assessed: identifier length and line count are insufficient to judge readability.',
       },
       maintainability: {
         score: maintainabilityScore,
         quoteOrSnippet: `${staticCheck.lineCount} lines`,
-        rationale: 'Modular layout without monolithic nesting.',
+        rationale: 'Not assessed: comments and file length do not establish maintainability or modularity.',
       },
       explanationReasoning: {
         score: explanationScore,
         quoteOrSnippet: transcript.slice(0, 80) || 'Brief explanation',
         rationale:
-          transcript.length > 50
-            ? 'Clearly communicated approach and complexity trade-offs.'
-            : 'Candidate provided minimal verbal explanation.',
+          'Not assessed: transcript length and Big-O keywords do not establish the correctness or clarity of the reasoning.',
       },
     };
   }
@@ -360,11 +341,7 @@ export class CodingEvaluationService {
     hintsUsed: TieredHint[]
   ): string {
     const parts: string[] = [];
-    if (overallScore >= 4.0 && complexity.isOptimal === true) {
-      parts.push(
-        'Promising static-analysis signals; the estimated complexity matches the supplied baseline, but correctness and runtime behavior remain unverified.'
-      );
-    } else if (overallScore >= 2.5) {
+    if (overallScore >= 2.5) {
       parts.push(
         'Static review only: correctness and runtime behavior were not verified. Review the estimated complexity and edge-case signals before treating this as a completed coding assessment.'
       );
