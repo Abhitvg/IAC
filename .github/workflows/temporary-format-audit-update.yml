@@ -4,21 +4,20 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   push:
-    branches:
-      - docs/finalize-audit-formatting-20261110
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   format:
-    if: github.event.pull_request.number == 160
+    if: github.event_name == 'push' || github.event.pull_request.number == 160
     runs-on: ubuntu-24.04
     steps:
-      - name: Check out PR branch
+      - name: Check out target branch
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           persist-credentials: false
 
       - name: Set up Node.js
@@ -37,7 +36,7 @@ jobs:
       - name: Commit formatted audit
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRANCH: ${{ github.event.pull_request.head.ref }}
+          BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
         run: |
           if git diff --quiet; then
             echo "Audit is already formatted."
