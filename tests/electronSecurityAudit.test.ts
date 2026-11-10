@@ -50,13 +50,7 @@ describe('Electron Security & Path Traversal Audit', () => {
 
     const snapshot = createPublicSettingsSnapshot(
       settings,
-      new Set([
-        'aiProvider',
-        'theme',
-        'extensionToken',
-        'secure_credentials',
-        'apiKey',
-      ])
+      new Set(['aiProvider', 'theme', 'extensionToken', 'secure_credentials', 'apiKey'])
     );
 
     expect(snapshot).toEqual({ aiProvider: 'groq', theme: 'dark' });
