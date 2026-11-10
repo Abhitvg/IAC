@@ -6,13 +6,6 @@ function createAudioBlob(): Blob {
   return encodeWav(new Float32Array(16_000).fill(0.05), 16_000);
 }
 
-function mockTranscriptionResponse(text = 'transcribed words'): Response {
-  return new Response(JSON.stringify({ text }), {
-    status: 200,
-    headers: { 'content-type': 'application/json' },
-  });
-}
-
 describe('live transcription provider routing', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -28,11 +21,16 @@ describe('live transcription provider routing', () => {
     ).toBe('local');
   });
 
-  it('does not call cloud credentials or cloud endpoints in Ollama mode', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('gsk_must_not_be_used');
-    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('local transcript'));
+  it('does not call cloud IPC or cloud endpoints in Ollama mode', async () => {
+    const transcribeCloudAudio = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ text: 'local transcript' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
 
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+    vi.stubGlobal('window', { electronAPI: { transcribeCloudAudio } });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await transcribeAudio(createAudioBlob(), {
@@ -43,14 +41,13 @@ describe('live transcription provider routing', () => {
     expect(result.text).toBe('local transcript');
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8080/inference');
-    expect(getApiKey).not.toHaveBeenCalled();
+    expect(transcribeCloudAudio).not.toHaveBeenCalled();
   });
 
-  it('uses OpenAI transcription when OpenAI is the configured application provider', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('sk-openai-test-key');
-    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('openai transcript'));
-
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+  it('routes OpenAI transcription through Electron main without exposing the saved key', async () => {
+    const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'openai transcript' });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('window', { electronAPI: { transcribeCloudAudio } });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await transcribeAudio(createAudioBlob(), {
@@ -59,19 +56,20 @@ describe('live transcription provider routing', () => {
     });
 
     expect(result.text).toBe('openai transcript');
-    expect(fetchMock.mock.calls[0][0]).toBe('https://api.openai.com/v1/audio/transcriptions');
-    expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
-      Authorization: 'Bearer sk-openai-test-key',
-    });
-    expect(getApiKey).toHaveBeenCalledOnce();
-    expect(getApiKey).toHaveBeenCalledWith('openai');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(transcribeCloudAudio).toHaveBeenCalledOnce();
+    const request = transcribeCloudAudio.mock.calls[0][0];
+    expect(request).toMatchObject({ provider: 'openai', model: 'whisper-1' });
+    expect(request.audio).toBeInstanceOf(Uint8Array);
+    expect(request.audio.byteLength).toBeGreaterThan(400);
+    expect(request.prompt).toContain('AWS CodePipeline');
+    expect(request).not.toHaveProperty('apiKey');
   });
 
-  it('uses Groq transcription when Groq is the configured application provider', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('gsk_groq-test-key');
-    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('groq transcript'));
-
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+  it('routes Groq transcription through Electron main without exposing the saved key', async () => {
+    const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'groq transcript' });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('window', { electronAPI: { transcribeCloudAudio } });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await transcribeAudio(createAudioBlob(), {
@@ -80,19 +78,19 @@ describe('live transcription provider routing', () => {
     });
 
     expect(result.text).toBe('groq transcript');
-    expect(fetchMock.mock.calls[0][0]).toBe('https://api.groq.com/openai/v1/audio/transcriptions');
-    expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
-      Authorization: 'Bearer gsk_groq-test-key',
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(transcribeCloudAudio).toHaveBeenCalledOnce();
+    expect(transcribeCloudAudio.mock.calls[0][0]).toMatchObject({
+      provider: 'groq',
+      model: 'whisper-large-v3-turbo',
     });
-    expect(getApiKey).toHaveBeenCalledOnce();
-    expect(getApiKey).toHaveBeenCalledWith('groq');
   });
 
   it('fails closed for OpenRouter because this app has no OpenRouter STT model', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('gsk_groq-test-key');
+    const transcribeCloudAudio = vi.fn();
     const fetchMock = vi.fn();
 
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+    vi.stubGlobal('window', { electronAPI: { transcribeCloudAudio } });
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(
@@ -102,7 +100,7 @@ describe('live transcription provider routing', () => {
       })
     ).rejects.toThrow('OpenRouter is not configured for speech transcription');
 
-    expect(getApiKey).not.toHaveBeenCalled();
+    expect(transcribeCloudAudio).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -115,33 +113,28 @@ describe('live transcription provider routing', () => {
       })
     ).toBe('local');
   });
+
   it('uses the default Groq STT model when a model from another provider is stored', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('gsk_groq-test-key');
-    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('groq transcript'));
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
-    vi.stubGlobal('fetch', fetchMock);
+    const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'groq transcript' });
+    vi.stubGlobal('window', { electronAPI: { transcribeCloudAudio } });
 
     await transcribeAudio(createAudioBlob(), {
       aiProvider: 'groq',
       whisperModel: 'whisper-1',
     });
 
-    const body = fetchMock.mock.calls[0][1].body as FormData;
-    expect(body.get('model')).toBe('whisper-large-v3-turbo');
+    expect(transcribeCloudAudio.mock.calls[0][0].model).toBe('whisper-large-v3-turbo');
   });
 
   it('uses the default OpenAI STT model when a Groq model is stored', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('sk-openai-test-key');
-    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('openai transcript'));
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
-    vi.stubGlobal('fetch', fetchMock);
+    const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'openai transcript' });
+    vi.stubGlobal('window', { electronAPI: { transcribeCloudAudio } });
 
     await transcribeAudio(createAudioBlob(), {
       aiProvider: 'openai',
       whisperModel: 'whisper-large-v3-turbo',
     });
 
-    const body = fetchMock.mock.calls[0][1].body as FormData;
-    expect(body.get('model')).toBe('whisper-1');
+    expect(transcribeCloudAudio.mock.calls[0][0].model).toBe('whisper-1');
   });
 });
