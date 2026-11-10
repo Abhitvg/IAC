@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { pathToFileURL } from 'url';
 import { executeOcr, getOcrEngineInfo } from './ocrService';
-import { validateDocumentImportSize } from './documentImportLimits';
+import { validateDocumentImportSize, validatePdfPageCount } from './documentImportLimits';
 import { sortAndFormatTextItems } from './pdfLayout';
 export { sortAndFormatTextItems } from './pdfLayout';
 export type { ExtractedPdfItem } from './pdfLayout';
@@ -161,6 +161,7 @@ export async function parsePdfBuffer(
 
   let rawExtractedText = '';
   let loadingTask: any;
+  let pageLimitExceeded = false;
 
   try {
     let pdfjs: any;
@@ -205,6 +206,11 @@ export async function parsePdfBuffer(
     });
 
     const doc = await loadingTask.promise;
+    const pageCountValidation = validatePdfPageCount(doc.numPages);
+    if (!pageCountValidation.allowed) {
+      pageLimitExceeded = true;
+      throw new Error(pageCountValidation.reason || 'PDF page count is invalid.');
+    }
     let fullText = '';
 
     for (let i = 1; i <= doc.numPages; i++) {
@@ -229,6 +235,10 @@ export async function parsePdfBuffer(
         // The task may already have torn itself down after a parsing failure.
       }
     }
+  }
+
+  if (pageLimitExceeded) {
+    return 'PDF exceeds the maximum supported page count of 100 pages.';
   }
 
   // If text layer is clean, readable, and non-empty, return it
