@@ -2,6 +2,7 @@ import { EvidenceVerificationService } from '../services/evidenceVerificationSer
 import {
   inspectEvidenceDocument,
   inspectEvidenceRepository,
+  verifyEvidenceAttestation,
 } from '../services/boundedEvidenceInspection';
 import { validateDocumentImportSize } from '../services/documentImportLimits';
 import {
@@ -676,7 +677,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     if (!attestation || typeof attestation !== 'object') {
       throw new Error('Invalid independent audit attestation payload');
     }
-    return EvidenceVerificationService.verifySignedAttestation(attestation);
+    return verifyEvidenceAttestation(attestation);
   });
 
   ipcMain.handle('evidence:verify-seal', async (event, result: any) => {
