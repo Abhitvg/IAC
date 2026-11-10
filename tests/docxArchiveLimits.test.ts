@@ -66,8 +66,23 @@ function requiredDocxEntries(): ZipFixtureEntry[] {
 }
 
 describe('validateDocxArchive', () => {
-  it('accepts a structurally valid DOCX ZIP archive', () => {
-    expect(validateDocxArchive(createZip(requiredDocxEntries())).allowed).toBe(true);
+  it('accepts a structurally valid DOCX ZIP archive and verifies its DEFLATE output', () => {
+    const documentXml = Buffer.from('<document/>');
+    const archive = createZip([
+      { name: '[Content_Types].xml', data: Buffer.from('<Types/>') },
+      {
+        name: 'word/document.xml',
+        data: deflateRawSync(documentXml),
+        method: 8,
+        uncompressedSize: documentXml.byteLength,
+      },
+    ]);
+    const validation = validateDocxArchive(archive);
+
+    expect(validation.allowed).toBe(true);
+    expect(validateDocxArchiveExpansion(archive, validation.entries || [])).toEqual({
+      allowed: true,
+    });
   });
 
   it('checks actual DEFLATE output against declared uncompressed sizes', () => {
