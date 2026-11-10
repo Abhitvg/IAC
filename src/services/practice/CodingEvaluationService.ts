@@ -134,8 +134,7 @@ export class CodingEvaluationService {
 
     // Compute hint penalty on overall score
     const totalPenalty = hintsUsed.reduce((sum, h) => sum + (h.penaltyPoints || 0), 0);
-    const rawAverage =
-      Object.values(dimensions).reduce((sum, d) => sum + d.score, 0) / 8;
+    const rawAverage = Object.values(dimensions).reduce((sum, d) => sum + d.score, 0) / 8;
     const penalizedScore = Math.max(1.0, Math.round((rawAverage - totalPenalty * 0.3) * 10) / 10);
 
     return {
@@ -151,7 +150,12 @@ export class CodingEvaluationService {
       timeTakenSeconds: timeTaken,
       dimensions,
       overallScore: penalizedScore,
-      summaryFeedback: this.generateSummaryFeedback(penalizedScore, dimensions, complexity, hintsUsed),
+      summaryFeedback: this.generateSummaryFeedback(
+        penalizedScore,
+        dimensions,
+        complexity,
+        hintsUsed
+      ),
       evaluatedAt: Date.now(),
     };
   }
@@ -159,7 +163,10 @@ export class CodingEvaluationService {
   /**
    * Static syntactic and structural code analysis.
    */
-  private static performStaticAnalysis(code: string, _language: string): {
+  private static performStaticAnalysis(
+    code: string,
+    _language: string
+  ): {
     hasSyntaxError: boolean;
     hasLoops: boolean;
     hasRecursion: boolean;
@@ -171,7 +178,9 @@ export class CodingEvaluationService {
     const hasLoops = /\b(for|while|forEach)\b/.test(code);
     const hasRecursion = /\bfunction\s+([a-zA-Z0-9_]+)[\s\S]*?\1\s*\(/.test(code);
     const hasComments = /\/\/|\/\*|\*/.test(code) || /#/.test(code);
-    const detectedIdentifiers = Array.from(new Set(code.match(/\b[a-zA-Z_][a-zA-Z0-9_]{2,}\b/g) || []));
+    const detectedIdentifiers = Array.from(
+      new Set(code.match(/\b[a-zA-Z_][a-zA-Z0-9_]{2,}\b/g) || [])
+    );
 
     return {
       hasSyntaxError: code.trim().length === 0,
@@ -197,7 +206,9 @@ export class CodingEvaluationService {
 
     // Detect algorithmic patterns: sliding window with two pointers is O(N)
     const isSlidingWindow =
-      (code.includes('left') && code.includes('right') && (code.includes('left++') || code.includes('++left'))) ||
+      (code.includes('left') &&
+        code.includes('right') &&
+        (code.includes('left++') || code.includes('++left'))) ||
       transcript.toLowerCase().includes('sliding window') ||
       transcript.toLowerCase().includes('two pointer');
 
@@ -213,9 +224,7 @@ export class CodingEvaluationService {
       }
     }
 
-    const actualSpace = /\b(new Array|new Map|new Set|\[\]|\{\})\b/.test(code)
-      ? 'O(N)'
-      : 'O(1)';
+    const actualSpace = /\b(new Array|new Map|new Set|\[\]|\{\})\b/.test(code) ? 'O(N)' : 'O(1)';
 
     const normalizeComplexity = (value: string) => value.toLowerCase().replace(/\s/g, '');
     const isOptimal = expectedOptimal
@@ -259,8 +268,7 @@ export class CodingEvaluationService {
     else if (code.includes('return') && code.length > 50) correctnessScore = 4;
 
     // 2. Algorithm Selection
-    const algoScore =
-      complexity.isOptimal === true ? 4 : complexity.isOptimal === false ? 2.5 : 3;
+    const algoScore = complexity.isOptimal === true ? 4 : complexity.isOptimal === false ? 2.5 : 3;
 
     // 3. Time Complexity
     let timeScore = 3;
@@ -286,11 +294,7 @@ export class CodingEvaluationService {
 
     // 8. Explanation and Reasoning
     const explanationScore =
-      transcript.length > 100
-        ? complexity.statedTimeComplexity
-          ? 5
-          : 4
-        : 2.5;
+      transcript.length > 100 ? (complexity.statedTimeComplexity ? 5 : 4) : 2.5;
 
     return {
       functionalCorrectness: {
@@ -340,9 +344,10 @@ export class CodingEvaluationService {
       explanationReasoning: {
         score: explanationScore,
         quoteOrSnippet: transcript.slice(0, 80) || 'Brief explanation',
-        rationale: transcript.length > 50
-          ? 'Clearly communicated approach and complexity trade-offs.'
-          : 'Candidate provided minimal verbal explanation.',
+        rationale:
+          transcript.length > 50
+            ? 'Clearly communicated approach and complexity trade-offs.'
+            : 'Candidate provided minimal verbal explanation.',
       },
     };
   }
@@ -355,15 +360,23 @@ export class CodingEvaluationService {
   ): string {
     const parts: string[] = [];
     if (overallScore >= 4.0 && complexity.isOptimal === true) {
-      parts.push('Promising static-analysis signals; the estimated complexity matches the supplied baseline, but correctness and runtime behavior remain unverified.');
+      parts.push(
+        'Promising static-analysis signals; the estimated complexity matches the supplied baseline, but correctness and runtime behavior remain unverified.'
+      );
     } else if (overallScore >= 2.5) {
-      parts.push('Static review only: correctness and runtime behavior were not verified. Review the estimated complexity and edge-case signals before treating this as a completed coding assessment.');
+      parts.push(
+        'Static review only: correctness and runtime behavior were not verified. Review the estimated complexity and edge-case signals before treating this as a completed coding assessment.'
+      );
     } else {
-      parts.push('Static review found limited positive signals. The submission was not executed, so functional correctness remains unverified.');
+      parts.push(
+        'Static review found limited positive signals. The submission was not executed, so functional correctness remains unverified.'
+      );
     }
 
     if (hintsUsed.length > 0) {
-      parts.push(`Note: Candidate utilized ${hintsUsed.length} tiered hint(s), reflected in final scoring.`);
+      parts.push(
+        `Note: Candidate utilized ${hintsUsed.length} tiered hint(s), reflected in final scoring.`
+      );
     }
 
     return parts.join(' ');
