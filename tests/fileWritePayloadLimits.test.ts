@@ -17,7 +17,7 @@ describe('IPC file-write payload normalization', () => {
 
     expect(prepared.byteLength).toBe(17);
     expect(Buffer.isBuffer(prepared.payload)).toBe(true);
-    expect(prepared.payload.byteLength).toBe(17);
+    expect((prepared.payload as Buffer).byteLength).toBe(17);
   });
 
   it('measures Uint8Array payloads instead of treating them as zero bytes', () => {
