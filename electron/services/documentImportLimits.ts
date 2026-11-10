@@ -18,8 +18,7 @@ export function validateDocumentImportSize(byteLength: unknown): DocumentImportS
   if (byteLength > MAX_DOCUMENT_IMPORT_SIZE_BYTES) {
     return {
       allowed: false,
-      reason:
-        `Document exceeds the maximum import size of ${MAX_DOCUMENT_IMPORT_SIZE_BYTES} bytes.`,
+      reason: `Document exceeds ${MAX_DOCUMENT_IMPORT_SIZE_BYTES} bytes.`,
     };
   }
 
@@ -38,7 +37,7 @@ export function validatePdfPageCount(pageCount: unknown): DocumentImportSizeVali
   if (pageCount > MAX_PDF_PAGE_COUNT) {
     return {
       allowed: false,
-      reason: `PDF exceeds the maximum supported page count of ${MAX_PDF_PAGE_COUNT} pages.`,
+      reason: `PDF exceeds ${MAX_PDF_PAGE_COUNT} pages.`,
     };
   }
 
