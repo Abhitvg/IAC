@@ -5,14 +5,14 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - docs/rebuild-audit-from-formatted-base-20261110
+      - docs/finalize-audit-formatting-20261110
 
 permissions:
   contents: write
 
 jobs:
   format:
-    if: github.event.pull_request.number == 155
+    if: github.event.pull_request.number == 158
     runs-on: ubuntu-24.04
     steps:
       - name: Check out PR branch
