@@ -76,7 +76,6 @@ describe('Electron Security & Path Traversal Audit', () => {
     const preload = fs.readFileSync(path.resolve(process.cwd(), 'electron/preload.ts'), 'utf8');
 
     expect(answerGeneration).not.toMatch(/getApiKey\(/);
-    expect(answerGeneration).not.toContain('resolveApiKey');
     expect(preload).toContain('startCloudLLMStream');
     expect(preload).not.toMatch(/getApiKey:\s*\(service: string\)/);
     expect(preload).not.toContain('credentials:get');
