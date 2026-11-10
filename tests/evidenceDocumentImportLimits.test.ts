@@ -19,24 +19,25 @@ describe('Evidence document import size limits', () => {
   it('rejects oversized Uint8Array payloads before document parsing or hashing', () => {
     const payload = new Uint8Array(MAX_DOCUMENT_IMPORT_SIZE_BYTES + 1);
 
-    expect(() => inspectEvidenceDocument(request(payload))).toThrow(
-      'maximum import size'
-    );
+    expect(() => inspectEvidenceDocument(request(payload))).toThrow('maximum import size');
   });
 
   it('rejects oversized ArrayBuffer payloads before creating a byte view', () => {
     const payload = new ArrayBuffer(MAX_DOCUMENT_IMPORT_SIZE_BYTES + 1);
 
-    expect(() => EvidenceVerificationService.inspectDocument(request(payload))).toThrow(
-      'maximum import size'
-    );
+    expect(() => inspectEvidenceDocument(request(payload))).toThrow('maximum import size');
   });
 
   it('checks UTF-8 byte length before allocating a Buffer for string payloads', () => {
     const payload = 'x'.repeat(MAX_DOCUMENT_IMPORT_SIZE_BYTES + 1);
 
-    expect(() => EvidenceVerificationService.inspectDocument(request(payload))).toThrow(
-      'maximum import size'
+    expect(() => inspectEvidenceDocument(request(payload))).toThrow('maximum import size');
+  });
+
+  it('rejects empty and unsupported document payloads', () => {
+    expect(() => inspectEvidenceDocument(request(''))).toThrow('non-empty valid byte buffer');
+    expect(() => inspectEvidenceDocument({ documentBytes: {} } as never)).toThrow(
+      'non-empty valid byte buffer'
     );
   });
 });
