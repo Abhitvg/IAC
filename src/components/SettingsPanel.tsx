@@ -94,12 +94,7 @@ export default function SettingsPanel() {
     try {
       const res =
         settings.aiProvider === 'ollama'
-          ? await validateModelPreflight(
-              'ollama',
-              settings.aiModel,
-              '',
-              settings.ollamaEndpoint
-            )
+          ? await validateModelPreflight('ollama', settings.aiModel, '', settings.ollamaEndpoint)
           : await window.electronAPI?.preflightAI?.(
               settings.aiProvider as Exclude<AIProviderId, 'ollama'>,
               settings.aiModel
@@ -127,14 +122,14 @@ export default function SettingsPanel() {
     try {
       const trimmedKey = secondaryGroqKey.trim();
       if (!trimmedKey) {
-        throw new Error('Enter a new secondary key to save, or use Remove to delete the saved key.');
+        throw new Error(
+          'Enter a new secondary key to save, or use Remove to delete the saved key.'
+        );
       }
       await persistCredential('groq-secondary', trimmedKey, async (service, key) => {
         const writeCredential = window.electronAPI?.setApiKey;
         if (typeof writeCredential !== 'function') {
-          throw new Error(
-            'Secure credential storage is unavailable. Your API key was not saved.'
-          );
+          throw new Error('Secure credential storage is unavailable. Your API key was not saved.');
         }
         return writeCredential(service, key);
       });
@@ -378,7 +373,11 @@ export default function SettingsPanel() {
                     style={{ flex: 1 }}
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder={apiKeyConfigured ? 'Enter a new key to replace the saved key' : `Enter ${settings.aiProvider} API key`}
+                    placeholder={
+                      apiKeyConfigured
+                        ? 'Enter a new key to replace the saved key'
+                        : `Enter ${settings.aiProvider} API key`
+                    }
                     aria-label={`Enter ${settings.aiProvider} API key`}
                   />
                   <button
@@ -407,7 +406,11 @@ export default function SettingsPanel() {
                   )}
                 </div>
                 <span className="field__hint">
-                  {apiKeyConfigured ? 'A key is saved. It is never read back into this field.' : 'No key is currently saved.'} Encrypted with OS-backed Electron safeStorage. On Linux, GNOME Keyring or KDE Wallet must be available.
+                  {apiKeyConfigured
+                    ? 'A key is saved. It is never read back into this field.'
+                    : 'No key is currently saved.'}{' '}
+                  Encrypted with OS-backed Electron safeStorage. On Linux, GNOME Keyring or KDE
+                  Wallet must be available.
                 </span>
               </div>
             )}
@@ -425,7 +428,11 @@ export default function SettingsPanel() {
                     style={{ flex: 1 }}
                     value={secondaryGroqKey}
                     onChange={(e) => setSecondaryGroqKey(e.target.value)}
-                    placeholder={secondaryGroqConfigured ? 'Enter a new key to replace the saved key' : 'Optional second Groq key'}
+                    placeholder={
+                      secondaryGroqConfigured
+                        ? 'Enter a new key to replace the saved key'
+                        : 'Optional second Groq key'
+                    }
                     aria-label="Secondary Groq API key"
                   />
                   <button
@@ -454,7 +461,10 @@ export default function SettingsPanel() {
                   )}
                 </div>
                 <span className="field__hint">
-                  {secondaryGroqConfigured ? 'A secondary key is saved and is never read back into this field.' : 'Optional. No secondary key is currently saved.'} Stored separately and used only when the primary key is rate-limited.
+                  {secondaryGroqConfigured
+                    ? 'A secondary key is saved and is never read back into this field.'
+                    : 'Optional. No secondary key is currently saved.'}{' '}
+                  Stored separately and used only when the primary key is rate-limited.
                 </span>
               </div>
             )}

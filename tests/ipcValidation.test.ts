@@ -35,9 +35,9 @@ import { validateCloudPreflightRequest, validateSetting } from '../electron/ipc/
 
 describe('IPC Settings Validation', () => {
   it('accepts only bounded cloud-provider preflight requests', () => {
-    expect(validateCloudPreflightRequest({ provider: 'groq', model: 'llama-3.3-70b-versatile' })).toBe(
-      true
-    );
+    expect(
+      validateCloudPreflightRequest({ provider: 'groq', model: 'llama-3.3-70b-versatile' })
+    ).toBe(true);
     expect(validateCloudPreflightRequest({ provider: 'openai', model: 'gpt-4o-mini' })).toBe(true);
     expect(validateCloudPreflightRequest({ provider: 'ollama', model: 'llama3:8b' })).toBe(false);
     expect(validateCloudPreflightRequest({ provider: 'openai', model: '' })).toBe(false);
