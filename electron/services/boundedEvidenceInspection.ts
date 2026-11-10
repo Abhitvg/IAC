@@ -248,8 +248,22 @@ export function verifyEvidenceSeal(result: unknown): boolean {
 
       requireBoundedString(result.inspectionId, 'inspectionId', 128);
       requireBoundedString(result.repositoryUrl, 'repositoryUrl', 2048);
-      if (!/^[0-9a-f]{40}$/i.test(String(result.resolvedCommitSha || ''))) return false;
-      if (!/^[0-9a-f]{40}$/i.test(String(result.treeSha || ''))) return false;
+      if (typeof result.inspectedAt !== 'number' || !Number.isFinite(result.inspectedAt)) {
+        return false;
+      }
+      if (
+        result.candidateAuthorshipStatus !== 'COMMIT_AUTHOR' &&
+        result.candidateAuthorshipStatus !== 'CONTRIBUTOR_NOT_VERIFIED' &&
+        result.candidateAuthorshipStatus !== 'AUTHOR_MISMATCH'
+      ) {
+        return false;
+      }
+      if (typeof result.resolvedCommitSha !== 'string' || !/^[0-9a-f]{40}$/i.test(result.resolvedCommitSha)) {
+        return false;
+      }
+      if (typeof result.treeSha !== 'string' || !/^[0-9a-f]{40}$/i.test(result.treeSha)) {
+        return false;
+      }
 
       for (const file of result.inspectedFiles) {
         if (!isRecord(file)) return false;
@@ -277,6 +291,14 @@ export function verifyEvidenceSeal(result: unknown): boolean {
 
       requireBoundedString(result.inspectionId, 'inspectionId', 128);
       requireBoundedString(result.issuerName, 'issuerName', MAX_ISSUER_NAME_LENGTH);
+      if (
+        typeof result.issuerValidated !== 'boolean' ||
+        typeof result.candidateMentioned !== 'boolean' ||
+        typeof result.projectMentioned !== 'boolean' ||
+        typeof result.personalWorkAttested !== 'boolean'
+      ) {
+        return false;
+      }
 
       if (result.supportedFields !== undefined) {
         if (!isRecord(result.supportedFields)) return false;
