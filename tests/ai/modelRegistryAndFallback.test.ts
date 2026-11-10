@@ -825,34 +825,40 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
   // =========================================================================
   describe('Requirement 7: Audio Transcription Decoupled from LLM Generation', () => {
     it('transcribes audio using whisper-large-v3-turbo independently from LLM model configuration', async () => {
-      const mockFetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          text: 'Can you explain the difference between optimistic and pessimistic locking?',
-          language: 'en',
-          duration: 3.2,
-          segments: [
-            {
-              start: 0,
-              end: 3.2,
-              text: 'Can you explain the difference between optimistic and pessimistic locking?',
-            },
-          ],
-        }),
+      const mockTranscribe = vi.fn().mockResolvedValue({
+        text: 'Can you explain the difference between optimistic and pessimistic locking?',
+        language: 'en',
+        duration: 3.2,
+        segments: [
+          {
+            start: 0,
+            end: 3.2,
+            text: 'Can you explain the difference between optimistic and pessimistic locking?',
+          },
+        ],
+      });
+      const mockFetch = vi.fn();
+      vi.stubGlobal('window', {
+        electronAPI: {
+          transcribeCloudAudio: mockTranscribe,
+          cancelCloudTranscription: vi.fn().mockResolvedValue(true),
+        },
       });
       global.fetch = mockFetch;
 
       const dummyAudio = createValidWavBlob();
       const result = await transcribeAudio(dummyAudio, {
         provider: 'groq',
-        apiKey: 'gsk_valid_whisper_key',
         model: 'whisper-large-v3-turbo',
       });
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      const callArgs = mockFetch.mock.calls[0];
-      expect(callArgs[0]).toBe('https://api.groq.com/openai/v1/audio/transcriptions');
+      expect(mockTranscribe).toHaveBeenCalledOnce();
+      expect(mockTranscribe.mock.calls[0][0]).toMatchObject({
+        provider: 'groq',
+        model: 'whisper-large-v3-turbo',
+      });
+      expect(mockTranscribe.mock.calls[0][0].audio).toBeInstanceOf(Uint8Array);
+      expect(mockFetch).not.toHaveBeenCalled();
       expect(result.text).toContain('optimistic and pessimistic locking');
     });
   });
