@@ -23,7 +23,9 @@ describe('main-process cloud transcription boundary', () => {
   it('accepts only bounded, supported transcription requests', () => {
     expect(isValidCloudTranscriptionRequest(request)).toBe(true);
     expect(isValidCloudTranscriptionRequest({ ...request, model: 'arbitrary-model' })).toBe(false);
-    expect(isValidCloudTranscriptionRequest({ ...request, audio: new ArrayBuffer(100) })).toBe(false);
+    expect(isValidCloudTranscriptionRequest({ ...request, audio: new ArrayBuffer(100) })).toBe(
+      false
+    );
     expect(isValidCloudTranscriptionRequest({ ...request, prompt: 'x'.repeat(1001) })).toBe(false);
     expect(isValidCloudTranscriptionRequest({ ...request, language: '../secret' })).toBe(false);
   });
@@ -87,10 +89,11 @@ describe('main-process cloud transcription boundary', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    await transcribeCloudAudio(
-      { getKey } as any,
-      { ...request, provider: 'openai', model: 'whisper-1' }
-    );
+    await transcribeCloudAudio({ getKey } as any, {
+      ...request,
+      provider: 'openai',
+      model: 'whisper-1',
+    });
 
     expect(getKey).toHaveBeenCalledWith('openai');
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.openai.com/v1/audio/transcriptions');

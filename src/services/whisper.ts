@@ -109,7 +109,9 @@ export async function transcribeAudio(
   if (arrayBuf.byteLength >= 44) {
     const headerStr = String.fromCharCode(...new Uint8Array(arrayBuf.slice(0, 4)));
     if (headerStr === 'RIFF' && !isValidWav(arrayBuf)) {
-      console.warn('[Whisper] Audio payload failed strict WAV validation. Attempting conversion...');
+      console.warn(
+        '[Whisper] Audio payload failed strict WAV validation. Attempting conversion...'
+      );
     }
   }
 
