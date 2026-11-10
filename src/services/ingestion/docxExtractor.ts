@@ -83,7 +83,15 @@ export async function extractDocxDocument(arrayBuffer: ArrayBuffer): Promise<Doc
         };
       }
     } catch (err: any) {
-      warnings.push(`Electron DOCX bridge warning: ${err?.message || err}`);
+      const message = String(err?.message || err);
+      warnings.push(`Electron DOCX bridge warning: ${message}`);
+      if (message.startsWith('DOCX import rejected:')) {
+        return {
+          text: '',
+          headings: [],
+          warnings,
+        };
+      }
     }
   }
 
