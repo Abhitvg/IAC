@@ -97,7 +97,8 @@ export interface InterviewWorkspace {
   company: string;
   role: string;
   jobDescription: string;
-  interviewRound?: 'technical_screen' | 'coding' | 'system_design' | 'behavioral' | 'hiring_manager' | 'final';
+  interviewRound?:
+    'technical_screen' | 'coding' | 'system_design' | 'behavioral' | 'hiring_manager' | 'final';
   interviewDate?: string;
   responseLanguage: string;
   candidateProfileVersion?: string;
@@ -275,13 +276,23 @@ export interface ElectronAPI {
   captureScreenAndOCR?: (
     mode?: 'fullscreen' | 'snip'
   ) => Promise<{ success: boolean; text?: string; cancelled?: boolean; error?: string }>;
-  appendScreenCaptureAndOCR?: (
-    mode?: 'fullscreen' | 'snip'
-  ) => Promise<{ success: boolean; text?: string; cancelled?: boolean; error?: string; appended?: boolean }>;
+  appendScreenCaptureAndOCR?: (mode?: 'fullscreen' | 'snip') => Promise<{
+    success: boolean;
+    text?: string;
+    cancelled?: boolean;
+    error?: string;
+    appended?: boolean;
+  }>;
   getLastOcrText?: () => Promise<string>;
   setLastOcrText?: (text: string) => Promise<boolean>;
   ocrImageFile?: (filePath: string) => Promise<{ success: boolean; text?: string; error?: string }>;
-  getOcrEngineInfo?: () => Promise<{ available: boolean; platform: string; engine: string; maxPages: number; maxFileSizeMb: number }>;
+  getOcrEngineInfo?: () => Promise<{
+    available: boolean;
+    platform: string;
+    engine: string;
+    maxPages: number;
+    maxFileSizeMb: number;
+  }>;
   autoTypeCode?: (
     code: string,
     delayMs?: number
