@@ -1,4 +1,3 @@
-import { EvidenceVerificationService } from '../services/evidenceVerificationService';
 import {
   inspectEvidenceDocument,
   inspectEvidenceRepository,
