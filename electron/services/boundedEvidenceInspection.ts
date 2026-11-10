@@ -4,6 +4,8 @@ import {
   type ImmutableDocumentInspectionResult,
   type ImmutableRepositoryInspectionResult,
   type RepositoryInspectionRequest,
+  type AuditorSignedAttestation,
+  type ImmutableIndependentAuditResult,
 } from './evidenceVerificationService';
 import { validateDocumentImportSize } from './documentImportLimits';
 
@@ -173,4 +175,41 @@ export function inspectEvidenceRepository(
   requireBoundedString(payload.targetProjectName, 'targetProjectName', MAX_PROJECT_NAME_LENGTH);
 
   return EvidenceVerificationService.inspectRepository(request);
+}
+
+/**
+ * Bound signed-attestation inputs before cryptographic verification and JSON parsing.
+ */
+export function verifyEvidenceAttestation(
+  attestation: AuditorSignedAttestation
+): Promise<ImmutableIndependentAuditResult | null> {
+  if (!attestation || typeof attestation !== 'object') {
+    throw new Error('Invalid signed audit attestation.');
+  }
+
+  const payload = attestation as unknown as Record<string, unknown>;
+  if (payload.schemaVersion !== 'iac.audit.v1') {
+    throw new Error('Unsupported signed audit attestation schema.');
+  }
+
+  requireBoundedString(payload.auditorKeyId, 'auditorKeyId', 128);
+
+  if (
+    typeof payload.payloadJson !== 'string' ||
+    payload.payloadJson.length === 0 ||
+    payload.payloadJson.length > 256 * 1024 ||
+    Buffer.byteLength(payload.payloadJson, 'utf8') > 512 * 1024
+  ) {
+    throw new Error('Signed audit payload exceeds the maximum supported size.');
+  }
+
+  if (
+    typeof payload.signatureHex !== 'string' ||
+    payload.signatureHex.length !== 128 ||
+    !/^[0-9a-f]{128}$/i.test(payload.signatureHex)
+  ) {
+    throw new Error('Invalid Ed25519 audit signature; expected exactly 128 hexadecimal characters.');
+  }
+
+  return EvidenceVerificationService.verifySignedAttestation(attestation);
 }
