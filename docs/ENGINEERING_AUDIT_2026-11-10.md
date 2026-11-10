@@ -6,6 +6,8 @@
 
 ## Audit limitations
 
+**Verification snapshot:** full CI run #991 passed on Ubuntu, macOS, and Windows.
+
 This is a source-and-CI audit, not a claim of complete runtime certification. The repository was inspected through GitHub source and Actions evidence. The latest full CI matrix (run #991) passed on Ubuntu, macOS, and Windows, including packaged Electron smoke tests. No interactive local-device session or visual screenshot review was performed. Findings below are limited to evidence confirmed in the inspected source and workflow runs.
 
 ## Executive summary
