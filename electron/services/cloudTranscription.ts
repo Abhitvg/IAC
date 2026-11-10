@@ -19,6 +19,9 @@ export interface CloudTranscriptionResult {
   segments?: Array<{ start: number; end: number; text: string }>;
 }
 
+export const MAX_CLOUD_TRANSCRIPTION_RESPONSE_BYTES = 4 * 1024 * 1024;
+const MAX_CLOUD_TRANSCRIPTION_ERROR_BYTES = 64 * 1024;
+
 const TRANSCRIPTION_ENDPOINTS: Record<CloudTranscriptionProvider, string> = {
   groq: 'https://api.groq.com/openai/v1/audio/transcriptions',
   openai: 'https://api.openai.com/v1/audio/transcriptions',
@@ -30,6 +33,33 @@ function classifyTranscriptionStatus(status: number): string {
   if (status === 429) return 'RATE_LIMITED';
   if (status >= 500) return 'PROVIDER_UNAVAILABLE';
   return 'TRANSCRIPTION_FAILED';
+}
+
+async function readResponseTextLimited(response: Response, maxBytes: number): Promise<string> {
+  if (!response.body) return '';
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let result = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytesRead += value.byteLength;
+      if (bytesRead > maxBytes) {
+        try {
+          await reader.cancel();
+        } catch {
+          // Preserve the size-limit error even if the provider stream cannot be cancelled.
+        }
+        throw new Error(`Transcription provider response exceeded the ${maxBytes}-byte limit.`);
+      }
+      result += decoder.decode(value, { stream: true });
+    }
+    return result + decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 export async function transcribeCloudAudio(
@@ -68,7 +98,7 @@ export async function transcribeCloudAudio(
   });
 
   if (!response.ok) {
-    const detail = await response.text().catch(() => '');
+    const detail = await readResponseTextLimited(response, MAX_CLOUD_TRANSCRIPTION_ERROR_BYTES).catch(() => '');
     const safeDetail = redactSensitiveData(detail).slice(0, 500);
     const code = classifyTranscriptionStatus(response.status);
     throw new Error(
@@ -78,7 +108,7 @@ export async function transcribeCloudAudio(
     );
   }
 
-  const data = (await response.json()) as Record<string, unknown>;
+  const responseText = await readResponseTextLimited(response, MAX_CLOUD_TRANSCRIPTION_RESPONSE_BYTES);\n  let data: Record<string, unknown>;\n  try {\n    data = JSON.parse(responseText) as Record<string, unknown>;\n  } catch {\n    throw new Error('Transcription provider returned an invalid JSON response.');\n  }
   const segments = Array.isArray(data.segments)
     ? data.segments
         .filter(
