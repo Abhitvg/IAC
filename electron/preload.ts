@@ -60,6 +60,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listConfiguredKeys: () => ipcRenderer.invoke('credentials:list'),
   preflightAI: (provider: 'groq' | 'openai' | 'openrouter', model: string) =>
     ipcRenderer.invoke('ai:preflight', { provider, model }),
+  transcribeCloudAudio: (request: {
+    requestId: string;
+    provider: 'groq' | 'openai';
+    model: string;
+    audio: ArrayBuffer;
+    language?: string;
+    prompt?: string;
+  }) => ipcRenderer.invoke('stt:transcribe', request),
+  cancelCloudTranscription: (requestId: string) => ipcRenderer.invoke('stt:cancel', requestId),
 
   // WebSocket server for browser extension
   getWsInfo: () => ipcRenderer.invoke('ws:get-info'),
