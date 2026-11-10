@@ -16,7 +16,9 @@ const LEGACY_FALLBACK_KEY_FILE = '.machine_secret';
 const GROQ_API_KEY_PATTERN = /^gsk_[A-Za-z0-9_-]+$/;
  
 export function parseGroqApiKeyFromEnvContent(content: string): string | null {
-  const line = content.split(/\r?\n/).find((entry) => /^\s*GROQ_API_KEY\s*=/.test(entry));
+  const line = content
+    .split(/\r?\n/)
+    .find((entry) => /^\s*GROQ_API_KEY\s*=/.test(entry));
   if (!line) return null;
 
   const value = line.slice(line.indexOf('=') + 1).trim();
@@ -26,7 +28,6 @@ export function parseGroqApiKeyFromEnvContent(content: string): string | null {
   const candidate = match?.[1] || match?.[2] || match?.[3] || null;
   return candidate && GROQ_API_KEY_PATTERN.test(candidate) ? candidate : null;
 }
-
 
 function getExistingLegacyAesKey(userDataPath: string): Buffer {
   const keyPath = path.join(userDataPath, LEGACY_FALLBACK_KEY_FILE);
