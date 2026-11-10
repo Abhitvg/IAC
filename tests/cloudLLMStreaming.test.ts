@@ -32,20 +32,18 @@ describe('cloud LLM streaming response handling', () => {
       getKey: vi.fn().mockResolvedValue('sk-test-provider-key'),
     };
 
-    const event = new Promise<{ channel: string; payload: Record<string, unknown> }>(
-      (resolve) => {
-        void startCloudLLMStream(
-          request,
-          credentials as never,
-          new AbortController().signal,
-          (channel, payload) => {
-            if (channel === 'ai:stream-error' || channel === 'ai:stream-done') {
-              resolve({ channel, payload });
-            }
+    const event = new Promise<{ channel: string; payload: Record<string, unknown> }>((resolve) => {
+      void startCloudLLMStream(
+        request,
+        credentials as never,
+        new AbortController().signal,
+        (channel, payload) => {
+          if (channel === 'ai:stream-error' || channel === 'ai:stream-done') {
+            resolve({ channel, payload });
           }
-        );
-      }
-    );
+        }
+      );
+    });
 
     await expect(event).resolves.toMatchObject({
       channel: 'ai:stream-error',
@@ -157,5 +155,4 @@ describe('cloud LLM streaming response handling', () => {
     expect(events).toContain('ai:stream-chunk');
     expect(events).not.toContain('ai:stream-error');
   });
-
 });
