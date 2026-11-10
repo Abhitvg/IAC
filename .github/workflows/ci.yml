@@ -111,7 +111,7 @@ jobs:
           test -f release/linux-unpacked/resources/app.asar
           test -d release/linux-unpacked/resources/cmaps
           test -d release/linux-unpacked/resources/standard_fonts
-          IAC_PACKAGED_EXECUTABLE="$APP_EXECUTABLE" xvfb-run -a npx playwright test e2e/packaged-linux-smoke.spec.ts
+          IAC_PACKAGED_EXECUTABLE="$APP_EXECUTABLE" xvfb-run -a npx playwright test e2e/packaged-app-smoke.spec.ts
 
       - name: Build and launch packaged macOS application
         if: matrix.os == 'macos-latest'
@@ -123,8 +123,9 @@ jobs:
             APP_EXECUTABLE="$(find release -path '*/AI-Interview-Assistant.app/Contents/MacOS/AI-Interview-Assistant' -type f -print -quit)"
           fi
           test -x "$APP_EXECUTABLE"
-          test -f "$(dirname "$(dirname "$(dirname "$APP_EXECUTABLE")")")/resources/app.asar"
-          IAC_PACKAGED_EXECUTABLE="$APP_EXECUTABLE" npx playwright test e2e/packaged-linux-smoke.spec.ts
+          APP_RESOURCES="$(dirname "$(dirname "$APP_EXECUTABLE")")/Resources"
+          test -f "$APP_RESOURCES/app.asar"
+          IAC_PACKAGED_EXECUTABLE="$APP_EXECUTABLE" npx playwright test e2e/packaged-app-smoke.spec.ts
 
       - name: Build and launch packaged Windows application
         if: matrix.os == 'windows-latest'
@@ -139,7 +140,7 @@ jobs:
             throw 'Packaged Electron executable was not produced.'
           }
           $env:IAC_PACKAGED_EXECUTABLE = $appExecutable
-          npx playwright test e2e/packaged-linux-smoke.spec.ts
+          npx playwright test e2e/packaged-app-smoke.spec.ts
 
       - name: Verify zero secret leakage in build artifacts
         run: npm run security:check
