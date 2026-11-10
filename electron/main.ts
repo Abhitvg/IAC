@@ -30,7 +30,7 @@ import dns from 'dns';
 import mammoth from 'mammoth';
 import { setupIpcHandlers } from './ipc/handlers';
 import {
-  validateReadPath,
+  readFileSafely,
   validateWritePath,
   validateDeletePath,
   isPermissionAllowed,
@@ -576,12 +576,7 @@ ipcMain.handle('fs:read-file', async (event, filePath: string) => {
     throw new Error('Invalid argument: filePath must be a string');
   }
 
-  const validation = validateReadPath(filePath, app.getPath('userData'), approvedFilePaths);
-  if (!validation.allowed || !validation.resolvedPath) {
-    throw new Error(validation.reason || 'Access denied');
-  }
-
-  return fs.readFileSync(validation.resolvedPath);
+  return readFileSafely(filePath, app.getPath('userData'), approvedFilePaths);
 });
 
 // Write file restricted strictly to userData with size limits
