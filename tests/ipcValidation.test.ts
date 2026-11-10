@@ -119,6 +119,7 @@ describe('IPC Settings Validation', () => {
     expect(() => validateSetting('aiModel', 'openai/gpt-oss-120b')).not.toThrow();
     expect(() => validateSetting('aiModel', '../secret')).toThrow();
     expect(() => validateSetting('systemPrompt', 'interviewer')).not.toThrow();
+    expect(() => validateSetting('systemPrompt', 'bad\u0000prompt')).toThrow();
     expect(() => validateSetting('systemPrompt', 'x'.repeat(20_001))).toThrow();
     expect(() => validateSetting('maxTokens', 50.5)).toThrow('Invalid maxTokens');
 
