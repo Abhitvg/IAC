@@ -5,6 +5,9 @@ vi.mock('electron', () => ({
   ipcMain: {
     handle: vi.fn(),
   },
+  clipboard: {
+    writeText: vi.fn(),
+  },
   BrowserWindow: vi.fn(),
   safeStorage: {
     isEncryptionAvailable: () => false,
