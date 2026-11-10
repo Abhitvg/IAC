@@ -443,9 +443,7 @@ export function getModelDefinition(
   modelId: string
 ): ModelDefinition | undefined {
   const normId = (modelId || '').trim().toLowerCase();
-  return MODEL_REGISTRY.find(
-    (m) => m.provider === provider && m.id.toLowerCase() === normId
-  );
+  return MODEL_REGISTRY.find((m) => m.provider === provider && m.id.toLowerCase() === normId);
 }
 
 export function getActiveModelsForProvider(
@@ -543,9 +541,10 @@ export function resolveOrMigrateModel(
   if (provider === 'groq' && type === 'llm') {
     const rawId = trimmed.toLowerCase().replace(/^groq\//, '');
     if (KNOWN_RETIRED_GROQ_MODELS.has(rawId)) {
-      const replacement = rawId.includes('8b') || rawId.includes('9b') || rawId.includes('1b') || rawId.includes('3b')
-        ? 'openai/gpt-oss-20b'
-        : defaultModel;
+      const replacement =
+        rawId.includes('8b') || rawId.includes('9b') || rawId.includes('1b') || rawId.includes('3b')
+          ? 'openai/gpt-oss-20b'
+          : defaultModel;
       return {
         requestedModel: trimmed,
         resolvedModel: replacement,
@@ -591,7 +590,10 @@ export function sanitizeDiagnosticSecret(input: any): string {
     .replace(/gsk_[A-Za-z0-9_-]{10,}/g, 'gsk_[REDACTED_GROQ_KEY]')
     .replace(/sk-(?:proj-)?[A-Za-z0-9_-]{10,}/g, 'sk-[REDACTED_OPENAI_KEY]')
     .replace(/Bearer\s+[A-Za-z0-9_.-]+/gi, 'Bearer [REDACTED_TOKEN]')
-    .replace(/(["']?(?:authorization|api[-_]?key|token|secret|password|access_token)["']?\s*[:=]\s*["'])(?:Bearer\s+)?[^"'\s,;]+(["'])/gi, '$1[REDACTED_SECRET]$2')
+    .replace(
+      /(["']?(?:authorization|api[-_]?key|token|secret|password|access_token)["']?\s*[:=]\s*["'])(?:Bearer\s+)?[^"'\s,;]+(["'])/gi,
+      '$1[REDACTED_SECRET]$2'
+    )
     .replace(/("authorization"\s*:\s*")Bearer\s+[^"]+(")/gi, '$1Bearer [REDACTED_TOKEN]$2');
 }
 
@@ -726,11 +728,19 @@ export function classifyAIError(
   if (status === 401 || lowerMsg.includes('invalid api key') || lowerMsg.includes('unauthorized')) {
     code = 'AUTH_INVALID_KEY';
     isRecoverableByModelFallback = false;
-  } else if (status === 403 || lowerMsg.includes('forbidden') || lowerMsg.includes('permission_denied')) {
+  } else if (
+    status === 403 ||
+    lowerMsg.includes('forbidden') ||
+    lowerMsg.includes('permission_denied')
+  ) {
     code = 'AUTH_FORBIDDEN';
     isRecoverableByModelFallback = false;
   } else if (status === 429) {
-    if (lowerMsg.includes('quota') || lowerMsg.includes('insufficient_quota') || lowerMsg.includes('credit')) {
+    if (
+      lowerMsg.includes('quota') ||
+      lowerMsg.includes('insufficient_quota') ||
+      lowerMsg.includes('credit')
+    ) {
       code = 'QUOTA_EXHAUSTED';
     } else {
       code = 'RATE_LIMIT_EXCEEDED';
@@ -739,7 +749,10 @@ export function classifyAIError(
   } else if (
     status === 402 ||
     lowerMsg.includes('payment required') ||
-    (lowerMsg.includes('billing') && !lowerMsg.includes('rate limit') && !lowerMsg.includes('tpm') && !lowerMsg.includes('tokens per minute'))
+    (lowerMsg.includes('billing') &&
+      !lowerMsg.includes('rate limit') &&
+      !lowerMsg.includes('tpm') &&
+      !lowerMsg.includes('tokens per minute'))
   ) {
     code = 'BILLING_PAYMENT_REQUIRED';
     isRecoverableByModelFallback = false;
@@ -815,16 +828,27 @@ export function classifyAIError(
       isRateLimited: true,
       isDailyQuota: isDaily,
       isPerMinute: !isDaily,
-      limitType: isDaily ? 'daily' : lowerMsg.includes('token') || lowerMsg.includes('tpm') ? 'tokens' : 'requests',
+      limitType: isDaily
+        ? 'daily'
+        : lowerMsg.includes('token') || lowerMsg.includes('tpm')
+          ? 'tokens'
+          : 'requests',
       cooldownSeconds,
-      remainingTokens: getHeader('x-ratelimit-remaining-tokens') ? parseInt(getHeader('x-ratelimit-remaining-tokens')!, 10) : undefined,
-      remainingRequests: getHeader('x-ratelimit-remaining-requests') ? parseInt(getHeader('x-ratelimit-remaining-requests')!, 10) : undefined,
+      remainingTokens: getHeader('x-ratelimit-remaining-tokens')
+        ? parseInt(getHeader('x-ratelimit-remaining-tokens')!, 10)
+        : undefined,
+      remainingRequests: getHeader('x-ratelimit-remaining-requests')
+        ? parseInt(getHeader('x-ratelimit-remaining-requests')!, 10)
+        : undefined,
       resetTokens: getHeader('x-ratelimit-reset-tokens') || undefined,
       resetRequests: getHeader('x-ratelimit-reset-requests') || undefined,
       shouldAutoRetry: !isDaily && cooldownSeconds <= 20,
     };
     retryable = rateLimit.shouldAutoRetry;
-  } else if (code === 'SERVER_ERROR' || (code === 'NETWORK_ERROR' && !lowerMsg.includes('aborted'))) {
+  } else if (
+    code === 'SERVER_ERROR' ||
+    (code === 'NETWORK_ERROR' && !lowerMsg.includes('aborted'))
+  ) {
     retryable = true;
   }
 
@@ -968,7 +992,9 @@ export async function validateModelPreflight(
             return {
               valid: false,
               code: classifiedTx.code,
-              message: sanitizeDiagnosticSecret(classifiedTx.originalErrorDetail || txRes.statusText),
+              message: sanitizeDiagnosticSecret(
+                classifiedTx.originalErrorDetail || txRes.statusText
+              ),
               latencyMs: txLatencyMs,
               availableModels: availableIds,
               modelListAvailable: true,
@@ -1201,7 +1227,9 @@ export async function validateModelPreflight(
       const normModel = model.trim().toLowerCase();
       const hasModel =
         availableModels.length === 0 ||
-        availableModels.some((name) => name.toLowerCase().includes(normModel) || normModel.includes(name.toLowerCase()));
+        availableModels.some(
+          (name) => name.toLowerCase().includes(normModel) || normModel.includes(name.toLowerCase())
+        );
 
       if (!hasModel && availableModels.length > 0) {
         return {
@@ -1218,11 +1246,12 @@ export async function validateModelPreflight(
       return {
         valid: false,
         code: 'NETWORK_ERROR',
-        message: sanitizeDiagnosticSecret(`Could not connect to Ollama at ${targetEndpoint}: ${err.message || String(err)}`),
+        message: sanitizeDiagnosticSecret(
+          `Could not connect to Ollama at ${targetEndpoint}: ${err.message || String(err)}`
+        ),
       };
     }
   }
 
   return { valid: true };
 }
-
