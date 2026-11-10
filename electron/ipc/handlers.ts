@@ -10,10 +10,7 @@ import { ipcMain, BrowserWindow, clipboard } from 'electron';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
-import {
-  CredentialStore,
-  parseGroqApiKeyFromEnvContent,
-} from '../services/credentialStore';
+import { CredentialStore, parseGroqApiKeyFromEnvContent } from '../services/credentialStore';
 import {
   transcribeCloudAudio,
   type CloudTranscriptionRequest,
