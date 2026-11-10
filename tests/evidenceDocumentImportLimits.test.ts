@@ -75,7 +75,7 @@ describe('Evidence document import size limits', () => {
       personalWorkAttested: false,
       evidenceModality: 'UNAUTHENTICATED_BYTE_INSPECTED',
       supportedFields: {
-        performanceMetrics: Array.from({ length: 101 }, (_, index) => `metric ${index}`),
+        performanceMetrics: Array.from({ length: 101 }, () => 'm'.repeat(300)),
       },
       __documentSeal: 'b'.repeat(64),
     } as ImmutableDocumentInspectionResult;
@@ -84,6 +84,7 @@ describe('Evidence document import size limits', () => {
     const inspected = inspectEvidenceDocument(request(new Uint8Array(16)));
 
     expect(inspected.supportedFields.performanceMetrics).toHaveLength(100);
+    expect(inspected.supportedFields.performanceMetrics?.[0]).toHaveLength(256);
     expect(inspected.__documentSeal).toBe(result.__documentSeal);
   });
 
