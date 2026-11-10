@@ -257,5 +257,5 @@ export function validateDocxArchive(
     return { allowed: false, reason: 'ZIP archive is not a valid DOCX document.' };
   }
 
-  return { allowed: true };
+  return { allowed: true, entries };
 }
