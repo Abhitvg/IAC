@@ -68,8 +68,18 @@ describe('IAC Multi-Source Ingestion & Candidate Intelligence Engine', () => {
       const rawItems = [
         { str: 'Alex Mercer', transform: [1, 0, 0, 1, 200, 750], width: 100, height: 16 },
         // Right column items interleaved in stream:
-        { str: 'Staff Engineer at Acme', transform: [1, 0, 0, 1, 350, 600], width: 150, height: 12 },
-        { str: 'Led team of 8 engineers', transform: [1, 0, 0, 1, 350, 580], width: 140, height: 12 },
+        {
+          str: 'Staff Engineer at Acme',
+          transform: [1, 0, 0, 1, 350, 600],
+          width: 150,
+          height: 12,
+        },
+        {
+          str: 'Led team of 8 engineers',
+          transform: [1, 0, 0, 1, 350, 580],
+          width: 140,
+          height: 12,
+        },
         // Left column items:
         { str: 'UC Berkeley CS', transform: [1, 0, 0, 1, 50, 600], width: 100, height: 12 },
         { str: 'GPA: 3.85', transform: [1, 0, 0, 1, 50, 580], width: 60, height: 12 },
@@ -339,7 +349,9 @@ describe('IAC Multi-Source Ingestion & Candidate Intelligence Engine', () => {
       const li = LinkedInIngestionService.getInstance();
       const report = li.getCapabilitiesReport();
       expect(report.apiStatus).toBe('RESTRICTED_OFFICIAL_OIDC_ONLY');
-      expect(report.supportedViaOAuth).toContain('Candidate Verified Full Name (given_name, family_name)');
+      expect(report.supportedViaOAuth).toContain(
+        'Candidate Verified Full Name (given_name, family_name)'
+      );
       expect(report.restrictedEnterpriseOnly).toContain(
         'Full Position / Employment History (Restricted to LinkedIn Talent Solutions partners)'
       );
@@ -554,4 +566,3 @@ AWS Certified Solutions Architect
     });
   });
 });
-
