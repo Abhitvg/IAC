@@ -134,6 +134,22 @@ describe('CredentialStore', () => {
     );
   });
 
+  it('parses only complete Groq keys from environment-file assignments', async () => {
+    const { parseGroqApiKeyFromEnvContent } = await import('../electron/services/credentialStore');
+
+    expect(parseGroqApiKeyFromEnvContent('GROQ_API_KEY=gsk_valid_key_123')).toBe(
+      'gsk_valid_key_123'
+    );
+    expect(parseGroqApiKeyFromEnvContent('GROQ_API_KEY="gsk_valid_key_123" # local key')).toBe(
+      'gsk_valid_key_123'
+    );
+    expect(parseGroqApiKeyFromEnvContent("GROQ_API_KEY='gsk_valid_key_123'")).toBe(
+      'gsk_valid_key_123'
+    );
+    expect(parseGroqApiKeyFromEnvContent('GROQ_API_KEY=prefix gsk_valid_key_123')).toBeNull();
+    expect(parseGroqApiKeyFromEnvContent('GROQ_API_KEY=gsk_valid_key_123 trailing')).toBeNull();
+  });
+
   it('rejects Groq keys with valid-looking substrings surrounded by other text', async () => {
     const creds = new CredentialStore(mockStore, tempDir);
 
