@@ -1,0 +1,34 @@
+name: Temporary engineering audit formatter
+
+on:
+  push:
+    branches:
+      - security/remove-renderer-vite-secrets
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/remove-renderer-vite-secrets
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Format current engineering audit
+        run: npx prettier --write .github/workflows/format-engineering-audit.yml docs/ENGINEERING_AUDIT_2026-11-10.md
+      - name: Commit formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/format-engineering-audit.yml docs/ENGINEERING_AUDIT_2026-11-10.md
+          if ! git diff --cached --quiet; then
+            git commit -m "style: format current engineering audit"
+            git push origin HEAD:security/remove-renderer-vite-secrets
+          fi
