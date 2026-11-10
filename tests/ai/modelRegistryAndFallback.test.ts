@@ -901,6 +901,35 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(body.max_tokens).toBe(1);
     });
 
+    it('fails Ollama preflight when the local model catalog is empty', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ models: [] }),
+      });
+
+      const check = await validateModelPreflight('ollama', 'llama3:8b');
+
+      expect(check.valid).toBe(false);
+      expect(check.code).toBe('MODEL_NOT_FOUND');
+      expect(check.message).toContain('No models are installed');
+      expect(check.availableModels).toEqual([]);
+    });
+
+    it('fails Ollama preflight when the requested model is not installed', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ models: [{ name: 'mistral:7b' }] }),
+      });
+
+      const check = await validateModelPreflight('ollama', 'llama3:8b');
+
+      expect(check.valid).toBe(false);
+      expect(check.code).toBe('MODEL_NOT_FOUND');
+      expect(check.availableModels).toEqual(['mistral:7b']);
+    });
+
     it('rejects missing OpenRouter credentials instead of reporting a false success', async () => {
       global.fetch = vi.fn();
       const check = await validateModelPreflight('openrouter', 'openai/gpt-4o-mini', '');
