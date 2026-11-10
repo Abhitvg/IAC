@@ -13,7 +13,6 @@ import {
   getDefaultModelForProvider,
   getModelDefinition,
   resolveOrMigrateModel,
-  classifyAIError,
 } from './models/modelRegistry';
 
 export interface WhisperConfig {
@@ -131,47 +130,11 @@ export async function transcribeAudio(
     return transcribeLocal(audioBlob, sttConfig, signal);
   }
 
-  // 3. Resolve only the credential for the selected cloud transcription provider.
-  let apiKey = config.apiKey;
-  if (!apiKey && typeof window !== 'undefined' && window.electronAPI?.getApiKey) {
-    apiKey = (await window.electronAPI.getApiKey(targetProvider)) || undefined;
-  }
-
-  if (!apiKey) {
-    throw new Error(
-      `No speech-to-text API key found for ${targetProvider.toUpperCase()}. Please configure that provider in Settings.`
-    );
-  }
-
-  const match = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
-  const cleanKey = match ? match[0] : apiKey.trim();
-
-  if (targetProvider === 'groq') {
-    if (!cleanKey.startsWith('gsk_')) {
-      throw new Error('A valid Groq API key is required for Groq speech transcription.');
-    }
-    return transcribeGroq(audioBlob, cleanKey, sttConfig, signal);
-  }
-
-  return transcribeOpenAI(audioBlob, { ...sttConfig, apiKey: cleanKey }, signal);
-}
-
-async function transcribeGroq(
-  audioBlob: Blob,
-  apiKey: string,
-  config?: WhisperConfig,
-  signal?: AbortSignal
-): Promise<TranscriptionResult> {
-  const targetModel = resolveTranscriptionModel('groq', config?.model);
+  // Cloud transcription credentials and provider requests stay in Electron main.
+  const cloudProvider = targetProvider as 'groq' | 'openai';
+  const targetModel = resolveTranscriptionModel(cloudProvider, sttConfig.model);
   const wavBlob = await convertBlobToWav(audioBlob);
-  const formData = new FormData();
-  formData.append('file', wavBlob, 'recording.wav');
-  formData.append('model', targetModel);
-  formData.append('response_format', 'verbose_json');
-
-  if (config?.language) formData.append('language', config.language);
-
-  // Dynamic Whisper Priming: context-aware vocabulary injection
+  const audio = new Uint8Array(await wavBlob.arrayBuffer());
   const store = useAppStore.getState();
   const lastCategory =
     store.conversationHistory?.length > 0
@@ -182,79 +145,56 @@ async function transcribeGroq(
     store.resumeText || '',
     store.targetRole || ''
   );
-  const techPrompt = [...new Set([...dynamicVocab, ...TECH_TERMS.slice(0, 30)])]
-    .slice(0, 60)
-    .join(', ');
-  formData.append('prompt', `Technical interview discussion: ${techPrompt}`);
+  const prompt =
+    cloudProvider === 'groq'
+      ? `Technical interview discussion: ${[...new Set([...dynamicVocab, ...TECH_TERMS.slice(0, 30)])]
+          .slice(0, 60)
+          .join(', ')}`
+      : `Technical interview discussion about: AWS CodePipeline, AWS, Kubernetes, Docker, CI/CD, DevOps, ${TECH_TERMS.slice(0, 50).join(', ')}`;
 
-  const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: formData,
-    signal,
-  });
-
-  if (!response.ok) {
-    const detail = await readErrorBody(response);
-    const classified = classifyAIError('groq', targetModel, response.status, detail);
-    throw classified;
+  const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
+  if (!electronAPI?.transcribeCloudAudio) {
+    throw new Error('Secure cloud transcription is unavailable in this application session.');
   }
 
-  const data = await response.json();
-  return {
-    text: postProcessTranscript(data.text || ''),
-    language: data.language,
-    duration: data.duration,
-    segments: data.segments?.map((seg: any) => ({
-      start: seg.start,
-      end: seg.end,
-      text: seg.text,
-    })),
+  const requestId = crypto.randomUUID();
+  const cancelRequest = () => {
+    void electronAPI.cancelCloudTranscription?.(requestId);
   };
-}
+  signal?.addEventListener('abort', cancelRequest, { once: true });
 
-async function transcribeOpenAI(
-  audioBlob: Blob,
-  config: WhisperConfig,
-  signal?: AbortSignal
-): Promise<TranscriptionResult> {
-  const wavBlob = await convertBlobToWav(audioBlob);
-  const formData = new FormData();
-  formData.append('file', wavBlob, 'recording.wav');
-  const targetModel = resolveTranscriptionModel('openai', config.model);
-  formData.append('model', targetModel);
-  formData.append('response_format', 'verbose_json');
+  try {
+    if (signal?.aborted) {
+      const abortError = new Error('Transcription aborted');
+      abortError.name = 'AbortError';
+      throw abortError;
+    }
 
-  if (config.language) formData.append('language', config.language);
-  const techPrompt = TECH_TERMS.slice(0, 50).join(', ');
-  formData.append(
-    'prompt',
-    `Technical interview discussion about: AWS CodePipeline, AWS, Kubernetes, Docker, CI/CD, DevOps, ${techPrompt}`
-  );
+    const data = await electronAPI.transcribeCloudAudio({
+      requestId,
+      provider: cloudProvider,
+      model: targetModel,
+      audio,
+      language: config.language,
+      prompt,
+    });
 
-  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${config.apiKey}` },
-    body: formData,
-    signal,
-  });
-
-  if (!response.ok) {
-    const detail = await readErrorBody(response);
-    throw new Error(`Whisper API error: HTTP ${response.status} — ${detail}`);
+    return {
+      text: postProcessTranscript(data.text || ''),
+      language: data.language,
+      duration: data.duration,
+      segments: data.segments,
+    };
+  } catch (error) {
+    if (signal?.aborted) {
+      const abortError = new Error('Transcription aborted');
+      abortError.name = 'AbortError';
+      throw abortError;
+    }
+    throw error;
+  } finally {
+    signal?.removeEventListener('abort', cancelRequest);
   }
-
-  const data = await response.json();
-  return {
-    text: postProcessTranscript(data.text || ''),
-    language: data.language,
-    duration: data.duration,
-    segments: data.segments?.map((seg: any) => ({
-      start: seg.start,
-      end: seg.end,
-      text: seg.text,
-    })),
-  };
 }
 
 /** Supports local endpoints with a multipart "file" field, such as whisper.cpp server. */
