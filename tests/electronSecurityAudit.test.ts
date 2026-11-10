@@ -60,8 +60,10 @@ describe('Electron Security & Path Traversal Audit', () => {
   it('does not expose raw provider credentials through preload or IPC', () => {
     const preload = fs.readFileSync(path.resolve(process.cwd(), 'electron/preload.ts'), 'utf8');
     const handlers = fs.readFileSync(path.resolve(process.cwd(), 'electron/ipc/handlers.ts'), 'utf8');
+    const types = fs.readFileSync(path.resolve(process.cwd(), 'src/types/index.ts'), 'utf8');
 
     expect(preload).not.toMatch(/getApiKey\s*:/);
+    expect(types).not.toMatch(/getApiKey\s*:/);
     expect(preload).not.toContain("ipcRenderer.invoke('credentials:get'");
     expect(handlers).not.toContain("ipcMain.handle('credentials:get'");
   });
