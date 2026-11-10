@@ -23,9 +23,7 @@ describe('bounded audit attestation IPC validation', () => {
       .mockResolvedValue(null);
 
     await expect(
-      verifyBoundedAuditAttestation(
-        validAttestation({ payloadJson: 'x'.repeat(64 * 1024 + 1) })
-      )
+      verifyBoundedAuditAttestation(validAttestation({ payloadJson: 'x'.repeat(64 * 1024 + 1) }))
     ).resolves.toBeNull();
 
     expect(verify).not.toHaveBeenCalled();
