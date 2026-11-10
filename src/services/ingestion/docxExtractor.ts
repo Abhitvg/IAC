@@ -1,4 +1,5 @@
 import { validateDocxArchive } from '../../../electron/services/docxArchiveLimits';
+import { validateDocxArchiveExpansionInBrowser } from './docxArchiveExpansion';
 
 /**
  * DOCX Document Extractor
@@ -95,7 +96,22 @@ export async function extractDocxDocument(arrayBuffer: ArrayBuffer): Promise<Doc
     }
   }
 
-  // 2. Client-side Mammoth fallback with HTML conversion to preserve tables and links
+  // 2. Revalidate actual DEFLATE output before the renderer invokes Mammoth.
+  // The Electron main-process parser performs its own Node/zlib validation, but this
+  // fallback must not trust ZIP central-directory size metadata alone.
+  const expansionValidation = await validateDocxArchiveExpansionInBrowser(
+    arrayBuffer,
+    archiveValidation.entries || []
+  );
+  if (!expansionValidation.allowed) {
+    return {
+      text: '',
+      headings: [],
+      warnings: [expansionValidation.reason || 'DOCX decompression failed resource validation.'],
+    };
+  }
+
+  // 3. Client-side Mammoth fallback with HTML conversion to preserve tables and links
   try {
     const mammoth = await import('mammoth');
     let cleanText = '';
