@@ -35,9 +35,9 @@ describe('Evidence repository inspection metadata limits', () => {
       treeSha: 'b'.repeat(40),
       inspectedFiles: [],
       verifiedTechnologies: [],
-      dependencyDeclarations: Array.from({ length: 201 }, (_, index) => `dependency-${index}`),
-      sourceCodeUsage: Array.from({ length: 201 }, (_, index) => `source-${index}`),
-      omittedFilePathsSample: Array.from({ length: 30 }, (_, index) => `file-${index}`),
+      dependencyDeclarations: Array.from({ length: 201 }, () => 'd'.repeat(300)),
+      sourceCodeUsage: Array.from({ length: 201 }, () => 's'.repeat(600)),
+      omittedFilePathsSample: Array.from({ length: 30 }, () => 'f'.repeat(2100)),
       demonstratedImplementation: 'x'.repeat(10_000),
       detectedArchitecture: 'x'.repeat(1_000),
       candidateAuthorshipStatus: 'COMMIT_AUTHOR',
@@ -54,7 +54,7 @@ describe('Evidence repository inspection metadata limits', () => {
         inspectionTimeoutMs: 10_000,
       },
       supportedFields: {
-        technologies: Array.from({ length: 101 }, (_, index) => `technology-${index}`),
+        technologies: Array.from({ length: 101 }, () => 't'.repeat(140)),
       },
       __inspectionSeal: 'c'.repeat(64),
     } as ImmutableRepositoryInspectionResult;
@@ -63,12 +63,16 @@ describe('Evidence repository inspection metadata limits', () => {
     const inspected = await inspectEvidenceRepository(request());
 
     expect(inspected.dependencyDeclarations).toHaveLength(200);
+    expect(inspected.dependencyDeclarations[0]).toHaveLength(256);
     expect(inspected.sourceCodeUsage).toHaveLength(200);
+    expect(inspected.sourceCodeUsage[0]).toHaveLength(512);
     expect(inspected.omittedFilePathsSample).toHaveLength(25);
+    expect(inspected.omittedFilePathsSample?.[0]).toHaveLength(2048);
     expect(inspected.demonstratedImplementation).toHaveLength(8192);
     expect(inspected.detectedArchitecture).toHaveLength(512);
     expect(inspected.authorEmailFound).toHaveLength(320);
     expect(inspected.supportedFields?.technologies).toHaveLength(100);
+    expect(inspected.supportedFields?.technologies?.[0]).toHaveLength(128);
     expect(inspected.__inspectionSeal).toBe(result.__inspectionSeal);
   });
 
