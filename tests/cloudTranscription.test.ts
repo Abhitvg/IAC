@@ -86,12 +86,13 @@ describe('Electron main-process cloud transcription', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(
-      transcribeCloudAudio(
-        request,
-        'gsk_private_main_process_key',
-        new AbortController().signal
-      )
-    ).rejects.not.toThrow('gsk_private_main_process_key');
+    const error = await transcribeCloudAudio(
+      request,
+      'gsk_private_main_process_key',
+      new AbortController().signal
+    ).catch((caught: Error) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).not.toContain('gsk_private_main_process_key');
   });
 });
