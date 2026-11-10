@@ -1,3 +1,4 @@
+import { EvidenceVerificationService } from '../services/evidenceVerificationService';
 import { inspectEvidenceDocument } from '../services/boundedEvidenceInspection';
 import { validateDocumentImportSize } from '../services/documentImportLimits';
 import {
