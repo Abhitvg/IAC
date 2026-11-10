@@ -6,7 +6,7 @@
 
 ## Audit limitations
 
-This is a source-and-CI audit, not a claim of complete runtime certification. The repository was inspected through GitHub source and Actions evidence. The latest full CI matrix (run #1023) passed on Ubuntu, macOS, and Windows, including packaged Electron smoke tests. Hosted CI evidence is not a substitute for hands-on end-user acceptance testing. No live user acceptance testing or interactive local-device visual review was performed. Findings below are limited to evidence confirmed in the inspected source and workflow runs.
+This is a source-and-CI audit, not a claim of complete runtime certification. The repository was inspected through GitHub source and Actions evidence. The latest full CI matrix (run #1023) passed on Ubuntu, macOS, and Windows, including packaged Electron smoke tests. Hosted CI evidence is not a substitute for hands-on end-user acceptance testing. No live user acceptance testing or interactive local-device visual review was performed. The report remains an engineering snapshot. Findings below are limited to evidence confirmed in the inspected source and workflow runs.
 
 ## Executive summary
 
