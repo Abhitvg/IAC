@@ -5,9 +5,17 @@ export const MAX_DOCX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024;
 export const MAX_DOCX_ENTRY_UNCOMPRESSED_BYTES = 32 * 1024 * 1024;
 export const MAX_DOCX_COMPRESSION_RATIO = 100;
 
+export interface DocxArchiveEntryMetadata {
+  compressionMethod: number;
+  compressedSize: number;
+  uncompressedSize: number;
+  dataOffset: number;
+}
+
 export interface DocxArchiveValidation {
   allowed: boolean;
   reason?: string;
+  entries?: DocxArchiveEntryMetadata[];
 }
 
 const EOCD_SIGNATURE = 0x06054b50;
@@ -117,6 +125,7 @@ export function validateDocxArchive(
   const decoder = new TextDecoder('utf-8', { fatal: true });
   const entryNames = new Set<string>();
   let totalUncompressedBytes = 0;
+  const entries: DocxArchiveEntryMetadata[] = [];
   let cursor = centralDirectoryOffset;
 
   for (let index = 0; index < totalEntries; index++) {
@@ -229,6 +238,12 @@ export function validateDocxArchive(
       }
     }
 
+    entries.push({
+      compressionMethod,
+      compressedSize,
+      uncompressedSize,
+      dataOffset: dataStart,
+    });
     totalUncompressedBytes += uncompressedSize;
     cursor = entryEnd;
   }
