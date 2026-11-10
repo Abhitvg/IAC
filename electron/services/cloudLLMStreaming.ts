@@ -209,15 +209,18 @@ export async function startCloudLLMStream(
   const decoder = new TextDecoder('utf-8');
   void (async () => {
     try {
+      let receivedBytes = false;
       while (true) {
         if (signal.aborted) throw signal.reason || new Error('AI stream cancelled.');
         const { done, value } = await reader.read();
         if (done) break;
+        if (value.byteLength > 0) receivedBytes = true;
         const chunk = decoder.decode(value, { stream: true });
         if (chunk) send('ai:stream-chunk', { requestId: request.requestId, chunk });
       }
       const tail = decoder.decode();
       if (tail) send('ai:stream-chunk', { requestId: request.requestId, chunk: tail });
+      if (!receivedBytes) throw new Error('Provider returned an empty streaming response.');
       send('ai:stream-done', { requestId: request.requestId });
     } catch (error) {
       const aborted = signal.aborted || (error as Error)?.name === 'AbortError';
