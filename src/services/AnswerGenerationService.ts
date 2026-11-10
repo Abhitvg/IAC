@@ -162,6 +162,7 @@ export class AnswerGenerationService {
     callbacks?: GenerationCallbacks | ((token: string) => void) | string
   ): Promise<AnswerGenerationResult> {
     const requestSeq = ++this.currentSequence;
+    const directApiKey = typeof callbacks === 'string' ? callbacks : undefined;
     const cb: GenerationCallbacks =
       typeof callbacks === 'function'
         ? { onToken: callbacks }
@@ -221,8 +222,8 @@ export class AnswerGenerationService {
     const provider = params.provider || 'groq';
     const electronGatewayAvailable =
       typeof window !== 'undefined' && Boolean(window.electronAPI?.startCloudLLMStream);
-    let apiKey = '';
-    if (!electronGatewayAvailable && provider !== 'ollama') {
+    let apiKey = electronGatewayAvailable ? '' : directApiKey || '';
+    if (!electronGatewayAvailable && !directApiKey && provider !== 'ollama') {
       apiKey = await this.resolveApiKey(provider);
     }
 
