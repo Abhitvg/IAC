@@ -267,6 +267,7 @@ export interface ElectronAPI {
     language?: string;
     prompt?: string;
   }) => Promise<{
+    cancelled?: boolean;
     text: string;
     language?: string;
     duration?: number;
