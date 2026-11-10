@@ -24,7 +24,7 @@ import { LinkedInIngestionService } from '../src/services/ingestion/linkedinInge
 import { SourceReconciliationService } from '../src/services/ingestion/sourceReconciliationService';
 import { SkillsManagementService } from '../src/services/ingestion/skillsManagementService';
 import { CanonicalProfileService } from '../src/services/knowledgeVault/canonicalProfileService';
-import { sortAndFormatTextItems } from '../electron/services/pdfParser';
+import { sortAndFormatTextItems } from '../electron/services/pdfLayout';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures', 'resumes');
 
