@@ -2,6 +2,7 @@
 
 **Repository:** `Abhitvg/IAC`  
 **Audit baseline:** `1584ffb385cfaacdc434850ce6ddfba6277c085f`  
+**Latest verified product fixes:** PRs #157, #164, and #165.  
 **Scope:** Electron main/preload/IPC, credential storage, renderer answer generation, application shell and keyboard interactions, package metadata, tests, CI workflows, and engineering documentation.
 
 ## Audit limitations
