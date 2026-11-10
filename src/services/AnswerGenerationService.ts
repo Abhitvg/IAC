@@ -265,9 +265,14 @@ export class AnswerGenerationService {
         return '';
       });
     }
-    if (!directApiKey && provider === 'groq' && typeof window !== 'undefined' && window.electronAPI?.getApiKey) {
+    if (
+      !directApiKey &&
+      provider === 'groq' &&
+      typeof window !== 'undefined' &&
+      window.electronAPI?.getApiKey
+    ) {
       try {
-        secondaryGroqApiKey = (await window.electronAPI.getApiKey('groq-secondary') || '').trim();
+        secondaryGroqApiKey = ((await window.electronAPI.getApiKey('groq-secondary')) || '').trim();
         const match = secondaryGroqApiKey.match(/gsk_[A-Za-z0-9_-]+/);
         secondaryGroqApiKey = match?.[0] || '';
         if (secondaryGroqApiKey === apiKey) secondaryGroqApiKey = '';
@@ -653,7 +658,9 @@ export class AnswerGenerationService {
         ) {
           retryCount++;
           providerConfig.apiKey = secondaryGroqApiKey;
-          console.warn('[AnswerGenerationService] Primary Groq key rate-limited; switching to configured secondary key.');
+          console.warn(
+            '[AnswerGenerationService] Primary Groq key rate-limited; switching to configured secondary key.'
+          );
           DiagnosticLoggerService.getInstance().recordEvent({
             requestId,
             pipelineStage: 'retrying',
@@ -664,7 +671,9 @@ export class AnswerGenerationService {
             message: 'Primary Groq credential rate-limited; switched to secondary credential slot.',
           });
           useAppStore.getState().setPipelineStage('retrying');
-          useAppStore.getState().setToast('⏳ Primary Groq key rate-limited. Retrying with secondary key...');
+          useAppStore
+            .getState()
+            .setToast('⏳ Primary Groq key rate-limited. Retrying with secondary key...');
           continue;
         }
 

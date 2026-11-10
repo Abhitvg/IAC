@@ -175,7 +175,12 @@ export class CredentialStore {
       if (!line) return null;
 
       const value = line.slice(line.indexOf('=') + 1).trim();
-      return value.replace(/^["']|["']$/g, '').split('#')[0].trim() || null;
+      return (
+        value
+          .replace(/^["']|["']$/g, '')
+          .split('#')[0]
+          .trim() || null
+      );
     } catch {
       // Environment file lookup is best-effort; do not block normal startup.
       return null;

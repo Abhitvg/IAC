@@ -1,4 +1,4 @@
-import { EvidenceVerificationService } from "../services/evidenceVerificationService";
+import { EvidenceVerificationService } from '../services/evidenceVerificationService';
 import { isTrustedSender } from '../services/security';
 import fs from 'fs';
 import path from 'path';
@@ -180,7 +180,12 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
         'openrouter/free',
       ]);
       const rawModel =
-        typeof curModel === 'string' ? curModel.trim().toLowerCase().replace(/^groq\//, '') : '';
+        typeof curModel === 'string'
+          ? curModel
+              .trim()
+              .toLowerCase()
+              .replace(/^groq\//, '')
+          : '';
       if (!curModel || RETIRED_GROQ_IDS.has(rawModel)) {
         const newModel =
           rawModel.includes('8b') ||
@@ -380,43 +385,42 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     return { port: 31415, token };
   });
 
-  
   // Privileged Evidence Inspection Handlers (Sender-validated, payload-sanitized)
-  ipcMain.handle("evidence:inspect-repository", async (event, request: any) => {
+  ipcMain.handle('evidence:inspect-repository', async (event, request: any) => {
     if (!isTrustedSender(event, mainWindowRef)) {
-      throw new Error("Unauthorized IPC sender");
+      throw new Error('Unauthorized IPC sender');
     }
-    if (!request || typeof request !== "object" || !request.repositoryUrl) {
-      throw new Error("Invalid repository inspection request payload");
+    if (!request || typeof request !== 'object' || !request.repositoryUrl) {
+      throw new Error('Invalid repository inspection request payload');
     }
     return EvidenceVerificationService.inspectRepository(request);
   });
 
-  ipcMain.handle("evidence:inspect-document", async (event, request: any) => {
+  ipcMain.handle('evidence:inspect-document', async (event, request: any) => {
     if (!isTrustedSender(event, mainWindowRef)) {
-      throw new Error("Unauthorized IPC sender");
+      throw new Error('Unauthorized IPC sender');
     }
-    if (!request || typeof request !== "object" || !request.documentBytes) {
-      throw new Error("Invalid document inspection request payload");
+    if (!request || typeof request !== 'object' || !request.documentBytes) {
+      throw new Error('Invalid document inspection request payload');
     }
     return EvidenceVerificationService.inspectDocument(request);
   });
 
-  ipcMain.handle("evidence:verify-audit", async (event, attestation: any) => {
+  ipcMain.handle('evidence:verify-audit', async (event, attestation: any) => {
     if (!isTrustedSender(event, mainWindowRef)) {
-      throw new Error("Unauthorized IPC sender");
+      throw new Error('Unauthorized IPC sender');
     }
-    if (!attestation || typeof attestation !== "object") {
-      throw new Error("Invalid independent audit attestation payload");
+    if (!attestation || typeof attestation !== 'object') {
+      throw new Error('Invalid independent audit attestation payload');
     }
     return EvidenceVerificationService.verifySignedAttestation(attestation);
   });
 
-  ipcMain.handle("evidence:verify-seal", async (event, result: any) => {
+  ipcMain.handle('evidence:verify-seal', async (event, result: any) => {
     if (!isTrustedSender(event, mainWindowRef)) {
-      throw new Error("Unauthorized IPC sender");
+      throw new Error('Unauthorized IPC sender');
     }
-    if (!result || typeof result !== "object") return false;
+    if (!result || typeof result !== 'object') return false;
     return EvidenceVerificationService.verifySeal(result);
   });
 
