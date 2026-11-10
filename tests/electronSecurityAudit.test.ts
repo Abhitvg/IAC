@@ -86,6 +86,19 @@ describe('Electron Security & Path Traversal Audit', () => {
     expect(handlers).not.toContain("ipcMain.handle('credentials:get'");
   });
 
+  it('does not retain a legacy renderer-side provider key bridge', () => {
+    const answerGenerationService = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/services/AnswerGenerationService.ts'),
+      'utf8'
+    );
+    const preload = fs.readFileSync(path.resolve(process.cwd(), 'electron/preload.ts'), 'utf8');
+
+    expect(answerGenerationService).not.toMatch(/getApiKey/);
+    expect(preload).not.toMatch(/getApiKey/);
+    expect(preload).toContain('startCloudLLMStream');
+    expect(preload).toContain('transcribeCloudAudio');
+  });
+
   it('returns only a masked extension token preview across IPC', () => {
     const token = '12345678-1234-1234-1234-1234567890ab';
     const info = createExtensionTokenInfo(31415, token);
