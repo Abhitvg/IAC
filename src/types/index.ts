@@ -283,6 +283,31 @@ export interface ElectronAPI {
     provider: 'groq' | 'openai' | 'openrouter',
     model: string
   ) => Promise<{ valid: boolean; code?: string; message?: string; latencyMs?: number }>;
+  startAIStream: (
+    request: {
+      requestId: string;
+      provider: 'groq' | 'openai' | 'openrouter';
+      model: string;
+      systemPrompt: string;
+      question: string;
+      temperature: number;
+      maxTokens: number;
+      stream: boolean;
+    },
+    callbacks: {
+      onChunk: (chunk: string) => void;
+      onComplete: () => void;
+      onError: (error: { name: string; message: string }) => void;
+    }
+  ) => Promise<{
+    ok: boolean;
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    body?: string;
+    usedSecondaryKey?: boolean;
+  }>;
+  cancelAIStream: (requestId: string) => Promise<boolean>;
   getWsInfo: () => Promise<{ port: number; tokenPreview: string }>;
   copyWsToken: () => Promise<boolean>;
   startWsServer: () => Promise<{ port: number; tokenPreview?: string }>;
