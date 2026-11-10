@@ -86,6 +86,48 @@ function minSubArrayLen(target: number, nums: number[]): number {
     expect(result.complexityAnalysis.notes).toContain('differ from the supplied baseline');
   });
 
+  it('does not award functional-correctness points based on a return keyword', async () => {
+    const returnOnlyCode = `
+function plausibleButIncorrect(input: number[]): number {
+  return 999999;
+}
+`;
+    const noReturnCode = `
+function alsoIncorrect(input: number[]): number {
+  const result = input.length;
+  console.log(result);
+  return;
+}
+`;
+
+    const withReturn = await CodingEvaluationService.evaluateSubmission({
+      problemId: 'cq_arrays_02',
+      candidateSubmission: returnOnlyCode,
+      language: 'typescript',
+    });
+    const withoutReturn = await CodingEvaluationService.evaluateSubmission({
+      problemId: 'cq_arrays_02',
+      candidateSubmission: noReturnCode,
+      language: 'typescript',
+    });
+
+    expect(withReturn.executionStatus).toBe('static_analysis_only');
+    expect(withReturn.dimensions.functionalCorrectness.score).toBe(3);
+    expect(withReturn.dimensions.functionalCorrectness.rationale).toContain('Not assessed');
+    expect(withoutReturn.dimensions.functionalCorrectness.score).toBe(3);
+  });
+
+  it('marks an empty submission incomplete without claiming syntax validation', async () => {
+    const result = await CodingEvaluationService.evaluateSubmission({
+      problemId: 'cq_arrays_02',
+      candidateSubmission: '   ',
+      language: 'typescript',
+    });
+
+    expect(result.dimensions.functionalCorrectness.score).toBe(1);
+    expect(result.dimensions.functionalCorrectness.rationale).toBe('No code was submitted.');
+  });
+
   it('safely handles untrusted code execution status without direct eval in process', async () => {
     const dangerousCode = `require('child_process').execSync('whoami');`;
     const result = await CodingEvaluationService.evaluateSubmission({
