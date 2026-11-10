@@ -1,5 +1,5 @@
 import { EvidenceVerificationService } from '../services/evidenceVerificationService';
-import { isTrustedSender } from '../services/security';
+import { createPublicSettingsSnapshot, isTrustedSender } from '../services/security';
 import fs from 'fs';
 import path from 'path';
 import { ipcMain, BrowserWindow } from 'electron';
@@ -34,7 +34,6 @@ const ALLOWED_SETTING_KEYS = new Set([
   'ollamaEndpoint',
   'teleprompterFontSize',
   'hasCompletedOnboarding',
-  'extensionToken',
   'windowOpacity',
   'lastModelMigrationNotice',
 ]);
@@ -211,7 +210,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
   // Settings IPC with schema validation
   ipcMain.handle('settings:get', (event) => {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
-    return store.store;
+    return createPublicSettingsSnapshot(store.store, ALLOWED_SETTING_KEYS);
   });
   ipcMain.handle('settings:set', (event, key: string, value: any) => {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
