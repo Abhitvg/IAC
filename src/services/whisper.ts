@@ -20,7 +20,8 @@ export interface WhisperConfig {
   provider?: 'groq' | 'openai' | 'local';
   /** Main application setting; Ollama maps to the configured local Whisper service. */
   aiProvider?: 'groq' | 'openai' | 'openrouter' | 'ollama';
-  apiKey?: string;
+  /** @deprecated Cloud credentials are resolved in Electron main; this field is ignored. */
+  apiKey?: never;
   model?: string;
   /** Main application STT setting. */
   whisperModel?: string;
@@ -159,7 +160,7 @@ export async function transcribeAudio(
 
   const requestId = crypto.randomUUID();
   const cancelRequest = () => {
-    void electronAPI.cancelCloudTranscription?.(requestId);
+    void electronAPI.cancelCloudTranscription?.(requestId).catch(() => undefined);
   };
   signal?.addEventListener('abort', cancelRequest, { once: true });
 
@@ -178,6 +179,11 @@ export async function transcribeAudio(
       language: config.language,
       prompt,
     });
+    if (signal?.aborted) {
+      const abortError = new Error('Transcription aborted');
+      abortError.name = 'AbortError';
+      throw abortError;
+    }
 
     return {
       text: postProcessTranscript(data.text || ''),
