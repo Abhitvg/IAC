@@ -79,6 +79,9 @@ describe('Electron Security & Path Traversal Audit', () => {
     expect(answerGeneration).not.toContain('resolveApiKey');
     expect(preload).toContain('startCloudLLMStream');
     expect(preload).not.toMatch(/getApiKey:\s*\(service: string\)/);
+    expect(preload).not.toContain("credentials:get");
+    const handlers = fs.readFileSync(path.resolve(process.cwd(), 'electron/ipc/handlers.ts'), 'utf8');
+    expect(handlers).not.toContain("ipcMain.handle('credentials:get'");
   });
 
   it('returns only a masked extension token preview across IPC', () => {
