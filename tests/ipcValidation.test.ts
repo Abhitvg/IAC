@@ -107,6 +107,40 @@ describe('IPC Settings Validation', () => {
     expect(() => validateSetting('windowOpacity', 0.88)).not.toThrow();
   });
 
+  it('validates every persisted setting shape and rejects malformed values', () => {
+    expect(() => validateSetting('preferredLanguage', 'typescript')).not.toThrow();
+    expect(() => validateSetting('preferredLanguage', 'ruby')).toThrow('Invalid preferredLanguage');
+    expect(() => validateSetting('theme', 'light')).not.toThrow();
+    expect(() => validateSetting('theme', 'system')).toThrow('Invalid theme');
+    expect(() => validateSetting('audioFormat', 'wav')).not.toThrow();
+    expect(() => validateSetting('audioFormat', 'mp3')).toThrow('Invalid audioFormat');
+    expect(() => validateSetting('teleprompterFontSize', 'xlarge')).not.toThrow();
+    expect(() => validateSetting('teleprompterFontSize', 'giant')).toThrow();
+    expect(() => validateSetting('aiModel', 'openai/gpt-oss-120b')).not.toThrow();
+    expect(() => validateSetting('aiModel', '../secret')).toThrow();
+    expect(() => validateSetting('systemPrompt', 'interviewer')).not.toThrow();
+    expect(() => validateSetting('systemPrompt', 'x'.repeat(20_001))).toThrow();
+    expect(() => validateSetting('maxTokens', 50.5)).toThrow('Invalid maxTokens');
+
+    const shortcuts = {
+      record: 'R', analyze: 'A', copyAnswer: 'C', quickAnswer: 'Q',
+      detailedAnswer: 'D', minimize: 'Escape', regenerate: 'CommandOrControl+Enter',
+    };
+    expect(() => validateSetting('shortcuts', shortcuts)).not.toThrow();
+    expect(() => validateSetting('shortcuts', { ...shortcuts, extra: 'X' })).toThrow('shortcuts');
+    expect(() => validateSetting('shortcuts', { ...shortcuts, record: 42 })).toThrow('shortcuts');
+
+    const notice = {
+      timestamp: Date.now(), previousModel: 'legacy-model',
+      newModel: 'replacement-model', reason: 'Model retired', dismissed: false,
+    };
+    expect(() => validateSetting('lastModelMigrationNotice', notice)).not.toThrow();
+    expect(() => validateSetting('lastModelMigrationNotice', { ...notice, timestamp: 'yesterday' }))
+      .toThrow('invalid shape');
+    expect(() => validateSetting('customApiEndpoint', 'http://localhost:11434')).not.toThrow();
+    expect(() => validateSetting('customApiEndpoint', { url: 'http://localhost' })).toThrow();
+  });
+
   it('does not allow the renderer to set the main-process extension token', () => {
     expect(() => validateSetting('extensionToken', 'renderer-controlled-token')).toThrow(
       'Unauthorized setting key'
