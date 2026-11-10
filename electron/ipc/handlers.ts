@@ -259,6 +259,9 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       throw new Error('Invalid cloud transcription request.');
     }
 
+    if (activeCloudTranscriptions.has(request.requestId)) {
+      throw new Error('A transcription request with this ID is already active.');
+    }
     const controller = new AbortController();
     activeCloudTranscriptions.set(request.requestId, controller);
     try {
