@@ -197,9 +197,7 @@ export async function inspectEvidenceRepository(
     dependencyDeclarations: result.dependencyDeclarations
       .slice(0, 200)
       .map((dependency) => dependency.slice(0, 256)),
-    sourceCodeUsage: result.sourceCodeUsage
-      .slice(0, 200)
-      .map((source) => source.slice(0, 512)),
+    sourceCodeUsage: result.sourceCodeUsage.slice(0, 200).map((source) => source.slice(0, 512)),
     omittedFilePathsSample: result.omittedFilePathsSample
       ?.slice(0, 25)
       .map((filePath) => filePath.slice(0, 2048)),
