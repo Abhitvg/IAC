@@ -12,6 +12,7 @@ export interface CloudTranscriptionRequest {
 }
 
 export interface CloudTranscriptionResult {
+  cancelled?: boolean;
   text: string;
   language?: string;
   duration?: number;
@@ -38,7 +39,9 @@ export async function transcribeCloudAudio(
 ): Promise<CloudTranscriptionResult> {
   const cleanKey = apiKey.trim();
   if (!cleanKey) {
-    throw new Error(`[${'AUTH_INVALID_KEY'}] No ${request.provider.toUpperCase()} API key is saved.`);
+    throw new Error(
+      `[${'AUTH_INVALID_KEY'}] No ${request.provider.toUpperCase()} API key is saved.`
+    );
   }
   if (request.provider === 'groq' && !cleanKey.startsWith('gsk_')) {
     throw new Error('[AUTH_INVALID_KEY] A valid Groq API key is required for transcription.');

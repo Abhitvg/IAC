@@ -31,7 +31,11 @@ vi.mock('electron-store', () => {
   };
 });
 
-import { validateCloudPreflightRequest, validateSetting } from '../electron/ipc/handlers';
+import {
+  validateCloudPreflightRequest,
+  validateCloudTranscriptionRequest,
+  validateSetting,
+} from '../electron/ipc/handlers';
 
 describe('IPC Settings Validation', () => {
   it('accepts only bounded cloud-provider preflight requests', () => {
@@ -45,6 +49,35 @@ describe('IPC Settings Validation', () => {
       false
     );
     expect(validateCloudPreflightRequest(null)).toBe(false);
+  });
+
+  it('validates bounded cloud transcription IPC requests against supported provider models', () => {
+    const request = {
+      requestId: 'stt-request-123',
+      provider: 'groq',
+      model: 'whisper-large-v3-turbo',
+      audio: new Uint8Array(1024),
+      language: 'en',
+      prompt: 'technical interview',
+    };
+
+    expect(validateCloudTranscriptionRequest(request)).toBe(true);
+    expect(validateCloudTranscriptionRequest({ ...request, model: 'arbitrary-model' })).toBe(false);
+    expect(validateCloudTranscriptionRequest({ ...request, requestId: '../invalid' })).toBe(false);
+    expect(validateCloudTranscriptionRequest({ ...request, audio: new Uint8Array(100) })).toBe(
+      false
+    );
+    expect(
+      validateCloudTranscriptionRequest({ ...request, audio: new Uint8Array(26 * 1024 * 1024) })
+    ).toBe(false);
+    expect(
+      validateCloudTranscriptionRequest({
+        ...request,
+        provider: 'openai',
+        model: 'whisper-1',
+      })
+    ).toBe(true);
+    expect(validateCloudTranscriptionRequest(null)).toBe(false);
   });
 
   it('allows valid setting keys and values', () => {
