@@ -17,9 +17,7 @@ export function createPracticeLLMCaller(
     const provider = settings.aiProvider;
 
     if (
-      !SUPPORTED_CLOUD_PROVIDERS.includes(
-        provider as (typeof SUPPORTED_CLOUD_PROVIDERS)[number]
-      )
+      !SUPPORTED_CLOUD_PROVIDERS.includes(provider as (typeof SUPPORTED_CLOUD_PROVIDERS)[number])
     ) {
       throw new Error('Mock interviewer AI currently requires Groq, OpenAI, or OpenRouter.');
     }
