@@ -878,6 +878,9 @@ async function fetchCloudProviderResponse(
   },
   signal: AbortSignal
 ): Promise<Response> {
+  if (signal.aborted) {
+    throw Object.assign(new Error('AI generation cancelled.'), { name: 'AbortError' });
+  }
   const requestId = request.requestId;
   const encoder = new TextEncoder();
   let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
@@ -1379,7 +1382,9 @@ export async function streamAnswer(
           }
         }
         if (!cleanText) {
-          throw new Error('AI stream closed without answer content; non-streaming recovery also returned empty.');
+          throw new Error(
+            'AI stream closed without answer content; non-streaming recovery also returned empty.'
+          );
         }
 
         await callbacks.onComplete?.(cleanText);

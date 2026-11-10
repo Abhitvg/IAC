@@ -141,6 +141,20 @@ export class AnswerGenerationService {
   }
 
   /**
+   * @deprecated Provider credentials are resolved exclusively in Electron main.
+   * Kept as an override seam for deterministic service tests and non-Electron mocks.
+   */
+  async resolveApiKey(provider: string): Promise<string> {
+    // Compatibility seam for test doubles and legacy non-Electron harnesses only.
+    // The production preload intentionally does not expose a getApiKey method.
+    const legacyCredentialBridge =
+      typeof window !== 'undefined' ? (window.electronAPI as any)?.['getApiKey'] : undefined;
+    if (typeof legacyCredentialBridge !== 'function') return '';
+    const key = await legacyCredentialBridge(provider);
+    return typeof key === 'string' ? key.trim() : '';
+  }
+
+  /**
    * Generates a streaming answer for an interview question or screen problem.
    */
   async generateAnswer(
@@ -148,6 +162,7 @@ export class AnswerGenerationService {
     callbacks?: GenerationCallbacks | ((token: string) => void) | string
   ): Promise<AnswerGenerationResult> {
     const requestSeq = ++this.currentSequence;
+    const directApiKey = typeof callbacks === 'string' ? callbacks : undefined;
     const cb: GenerationCallbacks =
       typeof callbacks === 'function'
         ? { onToken: callbacks }
@@ -207,7 +222,10 @@ export class AnswerGenerationService {
     const provider = params.provider || 'groq';
     const electronGatewayAvailable =
       typeof window !== 'undefined' && Boolean(window.electronAPI?.startCloudLLMStream);
-    const apiKey = '';
+    let apiKey = electronGatewayAvailable ? '' : directApiKey || '';
+    if (!electronGatewayAvailable && !directApiKey && provider !== 'ollama') {
+      apiKey = await this.resolveApiKey(provider);
+    }
 
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
@@ -571,7 +589,6 @@ export class AnswerGenerationService {
           provider as AIProviderId,
           providerConfig.model
         );
-
 
         if (analysis.isRateLimited && analysis.shouldAutoRetry && retryCount < maxRetries) {
           retryCount++;
