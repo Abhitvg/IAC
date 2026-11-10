@@ -290,6 +290,9 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     try {
       const apiKey = await credentialStore.getKey(request.provider);
       return await transcribeCloudAudio(request, apiKey || '', controller.signal);
+    } catch (error) {
+      if (controller.signal.aborted) return { cancelled: true, text: '' };
+      throw error;
     } finally {
       cloudTranscriptionControllers.delete(request.requestId);
     }
