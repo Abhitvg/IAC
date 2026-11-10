@@ -19,6 +19,7 @@ import {
   nativeImage,
 } from 'electron';
 import { execFile } from 'child_process';
+import { randomUUID } from 'crypto';
 import util from 'util';
 import {
   buildAutoTypeAppleScript,
@@ -1139,30 +1140,26 @@ ipcMain.handle('screen:ocr-image', async (event, filePath: string) => {
   if (typeof filePath !== 'string') {
     return { success: false, error: 'Invalid argument: filePath must be a string' };
   }
+
   const isMac = process.platform === 'darwin';
   const ocrBin = resolveOcrBinaryPath();
-  try {
-    const validation = validateReadPath(filePath, app.getPath('userData'), approvedFilePaths);
-    if (!validation.allowed || !validation.resolvedPath) {
-      return {
-        success: false,
-        error: validation.reason || 'Access denied: File outside authorized path',
-      };
-    }
-    const resolvedPath = validation.resolvedPath;
+  let tempImagePath: string | undefined;
 
-    if (!fs.existsSync(resolvedPath)) {
-      return { success: false, error: 'File not found.' };
-    }
+  try {
+    // Read through the descriptor-based path validator and its 25 MB cap.
+    // OCR operates on a private temp copy, avoiding a path-swap race after validation.
+    const imageBytes = readFileSafely(filePath, app.getPath('userData'), approvedFilePaths);
+    tempImagePath = path.join(app.getPath('temp'), `iac_ocr_${randomUUID()}.img`);
+    fs.writeFileSync(tempImagePath, imageBytes, { flag: 'wx', mode: 0o600 });
 
     let text = '';
     if (isMac && fs.existsSync(ocrBin)) {
-      const { stdout } = await execFileAsync(ocrBin, [resolvedPath]);
+      const { stdout } = await execFileAsync(ocrBin, [tempImagePath]);
       text = String(stdout).trim();
     } else {
       try {
         const { stdout } = await execFileAsync('tesseract', [
-          resolvedPath,
+          tempImagePath,
           'stdout',
           '--oem',
           '1',
@@ -1171,7 +1168,7 @@ ipcMain.handle('screen:ocr-image', async (event, filePath: string) => {
         ]);
         text = String(stdout).trim();
       } catch {
-        const { stdout } = await execFileAsync('tesseract', [resolvedPath, 'stdout']);
+        const { stdout } = await execFileAsync('tesseract', [tempImagePath, 'stdout']);
         text = String(stdout).trim();
       }
     }
@@ -1179,9 +1176,17 @@ ipcMain.handle('screen:ocr-image', async (event, filePath: string) => {
     if (!text) {
       return { success: false, error: 'No text could be extracted from image.' };
     }
-    return { success: true, text };
+    return { success: true, text: sanitizeOcrText(text) };
   } catch (err: any) {
     console.error('[Electron] Image OCR error:', err);
     return { success: false, error: err.message || String(err) };
+  } finally {
+    if (tempImagePath) {
+      try {
+        if (fs.existsSync(tempImagePath)) fs.unlinkSync(tempImagePath);
+      } catch {
+        // ignore cleanup failures
+      }
+    }
   }
 });
