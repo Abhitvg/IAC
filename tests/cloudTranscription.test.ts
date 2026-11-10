@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { transcribeCloudAudio } from '../electron/services/cloudTranscription';
+import {\n  MAX_CLOUD_TRANSCRIPTION_RESPONSE_BYTES,\n  transcribeCloudAudio,\n} from '../electron/services/cloudTranscription';
 
 const request = {
   requestId: 'stt-test-request',
