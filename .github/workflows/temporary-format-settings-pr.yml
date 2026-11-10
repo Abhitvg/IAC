@@ -1,21 +1,25 @@
 name: Temporary format repair for settings persistence
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+    paths:
+      - 'src/store/useAppStore.ts'
+      - 'src/utils/settingWriteQueue.ts'
+      - 'tests/settingWriteQueue.test.ts'
+      - '.github/workflows/temporary-format-settings-pr.yml'
 
 permissions:
   contents: write
 
 jobs:
   format:
-    if: github.event.pull_request.number == 137
     runs-on: ubuntu-24.04
     steps:
-      - name: Check out PR branch
+      - name: Check out main
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: main
           persist-credentials: false
 
       - name: Set up Node.js
@@ -31,10 +35,9 @@ jobs:
       - name: Format settings source and tests
         run: npx prettier --write src/store/useAppStore.ts src/utils/settingWriteQueue.ts tests/settingWriteQueue.test.ts
 
-      - name: Commit formatted files to the PR branch
+      - name: Commit formatted files
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           if git diff --quiet; then
             echo "No formatting changes required."
@@ -45,4 +48,4 @@ jobs:
           git add src/store/useAppStore.ts src/utils/settingWriteQueue.ts tests/settingWriteQueue.test.ts
           git commit -m "style: format settings persistence changes"
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push origin "HEAD:${BRANCH}"
+          git push origin HEAD:main
