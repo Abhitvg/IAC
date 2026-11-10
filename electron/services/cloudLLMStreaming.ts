@@ -41,9 +41,7 @@ const ALLOWED_RESPONSE_HEADERS = [
   'x-request-id',
 ];
 
-export function validateCloudLLMStreamRequest(
-  value: unknown
-): value is CloudLLMStreamRequest {
+export function validateCloudLLMStreamRequest(value: unknown): value is CloudLLMStreamRequest {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const request = value as Record<string, unknown>;
   return (
@@ -150,11 +148,7 @@ export async function startCloudLLMStream(
     const primaryErrorBody = await response.text().catch(() => '');
     if (!isDailyQuotaError(primaryErrorBody)) {
       const secondaryKey = (await credentialStore.getKey('groq-secondary'))?.trim() || '';
-      if (
-        secondaryKey &&
-        secondaryKey !== apiKey &&
-        isValidProviderKey('groq', secondaryKey)
-      ) {
+      if (secondaryKey && secondaryKey !== apiKey && isValidProviderKey('groq', secondaryKey)) {
         response = await createProviderRequest(request, secondaryKey, signal);
         usedSecondaryKey = true;
       } else {
@@ -210,17 +204,39 @@ export async function startCloudLLMStream(
   void (async () => {
     try {
       let receivedBytes = false;
+      const isEventStream = (response.headers.get('content-type') || '')
+        .toLowerCase()
+        .includes('text/event-stream');
+      let pendingSseText = '';
+      let receivedSseData = false;
+
+      // Ignore SSE comments and heartbeats; only non-terminal data events count as a response.
+      const inspectSseChunk = (chunk: string, flush = false) => {
+        pendingSseText += chunk;
+        const lines = pendingSseText.split(/\r?\n/);
+        pendingSseText = flush ? '' : lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
+          const data = line.slice(5).trim();
+          if (data && data !== '[DONE]') receivedSseData = true;
+        }
+      };
+
       while (true) {
         if (signal.aborted) throw signal.reason || new Error('AI stream cancelled.');
         const { done, value } = await reader.read();
         if (done) break;
         if (value.byteLength > 0) receivedBytes = true;
         const chunk = decoder.decode(value, { stream: true });
+        if (isEventStream && chunk) inspectSseChunk(chunk);
         if (chunk) send('ai:stream-chunk', { requestId: request.requestId, chunk });
       }
       const tail = decoder.decode();
+      if (isEventStream) inspectSseChunk(tail, true);
       if (tail) send('ai:stream-chunk', { requestId: request.requestId, chunk: tail });
-      if (!receivedBytes) throw new Error('Provider returned an empty streaming response.');
+      if (!receivedBytes || (isEventStream && !receivedSseData)) {
+        throw new Error('Provider returned an empty streaming response.');
+      }
       send('ai:stream-done', { requestId: request.requestId });
     } catch (error) {
       const aborted = signal.aborted || (error as Error)?.name === 'AbortError';
