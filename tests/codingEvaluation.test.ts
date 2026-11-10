@@ -39,20 +39,20 @@ function minSubArrayLen(target: number, nums: number[]): number {
 
     expect(result.problemId).toBe('cq_arrays_02');
     expect(result.curriculumTopicId).toBe('ds_arrays_strings');
-    expect(result.overallScore).toBeGreaterThanOrEqual(3.5);
+    expect(result.overallScore).toBe(3);
 
-    // Verify all 8 dimensions are present and scored
+    // Unexecuted code receives no positive scoring from source-text heuristics.
     const dims = result.dimensions;
-    expect(dims.functionalCorrectness.score).toBeGreaterThanOrEqual(3);
-    expect(dims.algorithmSelection.score).toBeGreaterThanOrEqual(3);
-    expect(dims.timeComplexity.score).toBeGreaterThanOrEqual(3);
-    expect(dims.spaceComplexity.score).toBeGreaterThanOrEqual(3);
-    expect(dims.edgeCaseHandling.score).toBeGreaterThanOrEqual(3);
-    expect(dims.codeReadability.score).toBeGreaterThanOrEqual(3);
-    expect(dims.maintainability.score).toBeGreaterThanOrEqual(3);
-    expect(dims.explanationReasoning.score).toBeGreaterThanOrEqual(3);
+    expect(dims.functionalCorrectness.score).toBe(3);
+    expect(dims.algorithmSelection.score).toBe(3);
+    expect(dims.timeComplexity.score).toBe(3);
+    expect(dims.spaceComplexity.score).toBe(3);
+    expect(dims.edgeCaseHandling.score).toBe(3);
+    expect(dims.codeReadability.score).toBe(3);
+    expect(dims.maintainability.score).toBe(3);
+    expect(dims.explanationReasoning.score).toBe(3);
 
-    expect(result.complexityAnalysis.isOptimal).toBe(true);
+    expect(result.complexityAnalysis.isOptimal).toBeNull();
     expect(result.complexityAnalysis.actualTimeComplexity).toBe('O(N)');
     expect(result.complexityAnalysis.statedTimeComplexity).toBe('O(N)');
   });
@@ -82,8 +82,11 @@ function minSubArrayLen(target: number, nums: number[]): number {
       expectedOptimalComplexity: { time: 'O(N)', space: 'O(N)' },
     });
 
-    expect(result.complexityAnalysis.isOptimal).toBe(false);
-    expect(result.complexityAnalysis.notes).toContain('differ from the supplied baseline');
+    expect(result.complexityAnalysis.isOptimal).toBeNull();
+    expect(result.complexityAnalysis.notes).toContain('Optimality was not assessed');
+    expect(result.dimensions.algorithmSelection.score).toBe(3);
+    expect(result.dimensions.timeComplexity.score).toBe(3);
+    expect(result.dimensions.spaceComplexity.score).toBe(3);
   });
 
   it('does not award functional-correctness points based on a return keyword', async () => {
@@ -197,7 +200,7 @@ function minSubArrayLen(target: number, nums: number[]): number {
       language: 'typescript',
     });
 
-    expect(result.dimensions.edgeCaseHandling.score).toBeLessThanOrEqual(2.5);
-    expect(result.dimensions.edgeCaseHandling.rationale).toContain('Lacks defensive validation');
+    expect(result.dimensions.edgeCaseHandling.score).toBe(3);
+    expect(result.dimensions.edgeCaseHandling.rationale).toContain('does not prove that relevant edge cases are handled');
   });
 });
