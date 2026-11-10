@@ -276,9 +276,7 @@ export interface ElectronAPI {
   captureScreenAndOCR?: (
     mode?: 'fullscreen' | 'snip'
   ) => Promise<{ success: boolean; text?: string; cancelled?: boolean; error?: string }>;
-  appendScreenCaptureAndOCR?: (
-    mode?: 'fullscreen' | 'snip'
-  ) => Promise<{
+  appendScreenCaptureAndOCR?: (mode?: 'fullscreen' | 'snip') => Promise<{
     success: boolean;
     text?: string;
     cancelled?: boolean;
