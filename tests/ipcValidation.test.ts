@@ -109,7 +109,9 @@ describe('IPC Settings Validation', () => {
 
   it('validates every persisted setting shape and rejects malformed values', () => {
     expect(() => validateSetting('preferredLanguage', 'typescript')).not.toThrow();
-    expect(() => validateSetting('preferredLanguage', 'ruby')).toThrow('Invalid preferredLanguage');
+    expect(() => validateSetting('preferredLanguage', 'ruby')).toThrow(
+      'Invalid preferredLanguage'
+    );
     expect(() => validateSetting('theme', 'light')).not.toThrow();
     expect(() => validateSetting('theme', 'system')).toThrow('Invalid theme');
     expect(() => validateSetting('audioFormat', 'wav')).not.toThrow();
@@ -127,16 +129,24 @@ describe('IPC Settings Validation', () => {
       detailedAnswer: 'D', minimize: 'Escape', regenerate: 'CommandOrControl+Enter',
     };
     expect(() => validateSetting('shortcuts', shortcuts)).not.toThrow();
-    expect(() => validateSetting('shortcuts', { ...shortcuts, extra: 'X' })).toThrow('shortcuts');
-    expect(() => validateSetting('shortcuts', { ...shortcuts, record: 42 })).toThrow('shortcuts');
+    expect(() =>
+      validateSetting('shortcuts', { ...shortcuts, extra: 'X' })
+    ).toThrow('shortcuts');
+    expect(() =>
+      validateSetting('shortcuts', { ...shortcuts, record: 42 })
+    ).toThrow('shortcuts');
 
     const notice = {
-      timestamp: Date.now(), previousModel: 'legacy-model',
-      newModel: 'replacement-model', reason: 'Model retired', dismissed: false,
+      timestamp: Date.now(),
+      previousModel: 'legacy-model',
+      newModel: 'replacement-model',
+      reason: 'Model retired',
+      dismissed: false,
     };
     expect(() => validateSetting('lastModelMigrationNotice', notice)).not.toThrow();
-    expect(() => validateSetting('lastModelMigrationNotice', { ...notice, timestamp: 'yesterday' }))
-      .toThrow('invalid shape');
+    expect(() =>
+      validateSetting('lastModelMigrationNotice', { ...notice, timestamp: 'yesterday' })
+    ).toThrow('invalid shape');
     expect(() => validateSetting('customApiEndpoint', 'http://localhost:11434')).not.toThrow();
     expect(() => validateSetting('customApiEndpoint', { url: 'http://localhost' })).toThrow();
   });
