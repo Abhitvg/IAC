@@ -20,6 +20,12 @@ describe('Sensitive-data redaction in appended OCR captures', () => {
     expect(stitched).not.toContain(bearerToken);
   });
 
+  it('caps accumulated OCR text to the application buffer limit', () => {
+    const stitched = stitchSanitizedOcrTexts('A'.repeat(80_000), 'B'.repeat(80_000));
+
+    expect(stitched).toHaveLength(100_000);
+  });
+
   it('redacts previously buffered OCR even when the appended capture is empty', () => {
     const groqKey = 'gsk_' + 'S'.repeat(32);
     const stitched = stitchSanitizedOcrTexts('Captured: ' + groqKey, '');
