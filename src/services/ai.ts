@@ -1382,7 +1382,9 @@ export async function streamAnswer(
           }
         }
         if (!cleanText) {
-          throw new Error('AI stream closed without answer content; non-streaming recovery also returned empty.');
+          throw new Error(
+            'AI stream closed without answer content; non-streaming recovery also returned empty.'
+          );
         }
 
         await callbacks.onComplete?.(cleanText);

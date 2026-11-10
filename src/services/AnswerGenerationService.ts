@@ -572,7 +572,6 @@ export class AnswerGenerationService {
           providerConfig.model
         );
 
-
         if (analysis.isRateLimited && analysis.shouldAutoRetry && retryCount < maxRetries) {
           retryCount++;
           const delayMs = RateLimitGovernor.calculateBackoffDelayMs(

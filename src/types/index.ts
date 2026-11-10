@@ -292,7 +292,9 @@ export interface ElectronAPI {
     usedSecondaryKey?: boolean;
   }>;
   cancelCloudLLMStream: (requestId: string) => Promise<boolean>;
-  onAIStreamChunk: (callback: (payload: { requestId: string; chunk: string }) => void) => () => void;
+  onAIStreamChunk: (
+    callback: (payload: { requestId: string; chunk: string }) => void
+  ) => () => void;
   onAIStreamDone: (callback: (payload: { requestId: string }) => void) => () => void;
   onAIStreamError: (
     callback: (payload: { requestId: string; name: string; message: string }) => void
