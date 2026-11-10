@@ -6,7 +6,9 @@ function createAudioBlob(): Blob {
   return encodeWav(new Float32Array(16_000).fill(0.05), 16_000);
 }
 
-function createElectronApi(transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'cloud transcript' })) {
+function createElectronApi(
+  transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'cloud transcript' })
+) {
   return { transcribeCloudAudio, cancelCloudTranscription: vi.fn().mockResolvedValue(true) };
 }
 
@@ -84,7 +86,9 @@ describe('live transcription provider routing', () => {
       provider: 'groq',
       model: 'whisper-large-v3-turbo',
     });
-    expect(transcribeCloudAudio.mock.calls[0][0].prompt).toContain('Technical interview discussion');
+    expect(transcribeCloudAudio.mock.calls[0][0].prompt).toContain(
+      'Technical interview discussion'
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -141,11 +145,17 @@ describe('live transcription provider routing', () => {
 
   it('requests main-process cancellation when the caller aborts', async () => {
     const controller = new AbortController();
-    let resolveRequest: ((value: { text: string }) => void) | undefined;
+    let rejectRequest: ((error: Error) => void) | undefined;
     const transcribeCloudAudio = vi.fn(
-      () => new Promise<{ text: string }>((resolve) => { resolveRequest = resolve; })
+      () =>
+        new Promise<{ text: string }>((_resolve, reject) => {
+          rejectRequest = reject;
+        })
     );
-    const cancelCloudTranscription = vi.fn().mockResolvedValue(true);
+    const cancelCloudTranscription = vi.fn().mockImplementation(async () => {
+      rejectRequest?.(Object.assign(new Error('Transcription aborted'), { name: 'AbortError' }));
+      return true;
+    });
     vi.stubGlobal('window', {
       electronAPI: { transcribeCloudAudio, cancelCloudTranscription },
     });
@@ -158,7 +168,6 @@ describe('live transcription provider routing', () => {
     await Promise.resolve();
     controller.abort();
     expect(cancelCloudTranscription).toHaveBeenCalledOnce();
-    resolveRequest?.({ text: 'cancelled transcript' });
-    await pending;
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
   });
 });
