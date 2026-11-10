@@ -20,18 +20,29 @@ describe('Suite B: Streaming Reliability', () => {
   });
 
   it('recovers once with a non-streaming request when the provider closes an empty stream', async () => {
-    const stream = new ReadableStream({ start(controller) { controller.close(); } });
-    global.fetch = vi.fn()
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.close();
+      },
+    });
+    global.fetch = vi
+      .fn()
       .mockResolvedValueOnce({ ok: true, status: 200, headers: new Headers(), body: stream } as any)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ choices: [{ message: { content: 'A B-tree is a balanced search tree.' } }] }),
+        json: async () => ({
+          choices: [{ message: { content: 'A B-tree is a balanced search tree.' } }],
+        }),
       } as any);
 
     let fullAnswer = '';
     await streamAnswer('Explain B-trees', baseConfig, 'java' as any, {
-      onToken: (token) => { fullAnswer += token; },
-      onComplete: (answer) => { fullAnswer = answer; },
+      onToken: (token) => {
+        fullAnswer += token;
+      },
+      onComplete: (answer) => {
+        fullAnswer = answer;
+      },
     });
 
     expect(global.fetch).toHaveBeenCalledTimes(2);
@@ -42,18 +53,27 @@ describe('Suite B: Streaming Reliability', () => {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
-        controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"Recovered final event."}}]}'));
+        controller.enqueue(
+          encoder.encode('data: {"choices":[{"delta":{"content":"Recovered final event."}}]}')
+        );
         controller.close();
       },
     });
     global.fetch = vi.fn().mockResolvedValue({
-      ok: true, status: 200, headers: new Headers(), body: stream,
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      body: stream,
     } as any);
 
     let fullAnswer = '';
     await streamAnswer('Explain B-trees', baseConfig, 'java' as any, {
-      onToken: (token) => { fullAnswer += token; },
-      onComplete: (answer) => { fullAnswer = answer; },
+      onToken: (token) => {
+        fullAnswer += token;
+      },
+      onComplete: (answer) => {
+        fullAnswer = answer;
+      },
     });
     expect(fullAnswer).toContain('Recovered final event.');
   });
@@ -290,9 +310,7 @@ describe('Suite B: Streaming Reliability', () => {
       body: stream,
     } as any);
 
-    await expect(
-      streamAnswer('Explain B-trees', baseConfig, 'java' as any, {})
-    ).rejects.toThrow(
+    await expect(streamAnswer('Explain B-trees', baseConfig, 'java' as any, {})).rejects.toThrow(
       `AI provider response exceeded the ${MAX_RENDERER_LLM_RESPONSE_BYTES}-byte limit.`
     );
     expect(cancelled).toBe(true);
@@ -335,12 +353,9 @@ describe('Suite B: Streaming Reliability', () => {
         })
       );
 
-    await expect(
-      streamAnswer('Explain B-trees', baseConfig, 'java' as any, {})
-    ).rejects.toThrow(
+    await expect(streamAnswer('Explain B-trees', baseConfig, 'java' as any, {})).rejects.toThrow(
       `AI provider response exceeded the ${MAX_RENDERER_LLM_RESPONSE_BYTES}-byte limit.`
     );
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
-
 });
