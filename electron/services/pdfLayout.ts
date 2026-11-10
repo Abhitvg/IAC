@@ -1,3 +1,4 @@
+/* eslint-disable no-control-regex */
 export interface ExtractedPdfItem {
   str: string;
   x: number;
