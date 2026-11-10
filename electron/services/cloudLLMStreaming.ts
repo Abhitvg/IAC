@@ -41,9 +41,7 @@ const ALLOWED_RESPONSE_HEADERS = [
   'x-request-id',
 ];
 
-export function validateCloudLLMStreamRequest(
-  value: unknown
-): value is CloudLLMStreamRequest {
+export function validateCloudLLMStreamRequest(value: unknown): value is CloudLLMStreamRequest {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const request = value as Record<string, unknown>;
   return (
@@ -150,11 +148,7 @@ export async function startCloudLLMStream(
     const primaryErrorBody = await response.text().catch(() => '');
     if (!isDailyQuotaError(primaryErrorBody)) {
       const secondaryKey = (await credentialStore.getKey('groq-secondary'))?.trim() || '';
-      if (
-        secondaryKey &&
-        secondaryKey !== apiKey &&
-        isValidProviderKey('groq', secondaryKey)
-      ) {
+      if (secondaryKey && secondaryKey !== apiKey && isValidProviderKey('groq', secondaryKey)) {
         response = await createProviderRequest(request, secondaryKey, signal);
         usedSecondaryKey = true;
       } else {
@@ -210,7 +204,8 @@ export async function startCloudLLMStream(
   void (async () => {
     try {
       let receivedBytes = false;
-      const isEventStream = /text\\/event-stream/i.test(response.headers.get('content-type') || '');
+      const isEventStream =
+        /text\\/eentv - stream / i.test(response.headers.get('content-type') || '');
       let pendingSseText = '';
       let receivedSseData = false;
 
