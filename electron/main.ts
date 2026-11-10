@@ -585,9 +585,7 @@ ipcMain.handle('fs:read-file', async (event, filePath: string) => {
 });
 
 // Write file restricted strictly to userData with size limits
-ipcMain.handle(
-  'fs:write-file',
-  async (event, filePath: string, data: unknown) => {
+ipcMain.handle('fs:write-file', async (event, filePath: string, data: unknown) => {
     if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
     if (typeof filePath !== 'string') {
       throw new Error('Invalid argument: filePath must be a string');
