@@ -961,6 +961,59 @@ async function fetchCloudProviderResponse(
   }
 }
 
+export const MAX_RENDERER_LLM_RESPONSE_BYTES = 8 * 1024 * 1024;
+export const MAX_RENDERER_LLM_ERROR_BYTES = 64 * 1024;
+
+async function readResponseTextLimited(response: Response, maxBytes: number): Promise<string> {
+  if (!response.body) {
+    // Keep lightweight provider/test adapters compatible while enforcing the byte ceiling.
+    if (typeof response.text === 'function') {
+      const fallbackText = await response.text();
+      if (new TextEncoder().encode(fallbackText).byteLength > maxBytes) {
+        throw new RangeError('AI provider response exceeded the ' + maxBytes + '-byte limit.');
+      }
+      return fallbackText;
+    }
+    return '';
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let bytesRead = 0;
+  let text = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytesRead += value.byteLength;
+      if (bytesRead > maxBytes) {
+        try {
+          void reader.cancel('Response body exceeded configured size limit').catch(() => undefined);
+        } catch {
+          // Preserve the deterministic size-limit error if cancellation fails.
+        }
+        throw new RangeError(`AI provider response exceeded the ${maxBytes}-byte limit.`);
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      // The stream may already have released its reader.
+    }
+  }
+}
+
+async function readResponseJsonLimited(response: Response, maxBytes: number): Promise<any> {
+  const text = await readResponseTextLimited(response, maxBytes);
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error('AI provider returned invalid JSON.');
+  }
+}
+
 export async function streamAnswer(
   question: string,
   config: AIProviderConfig,
@@ -1057,14 +1110,14 @@ export async function streamAnswer(
     if (!activeResponse.ok) {
       let rawErrorBody: any = '';
       try {
-        const raw = await activeResponse.text();
+        const raw = await readResponseTextLimited(activeResponse, MAX_RENDERER_LLM_ERROR_BYTES);
         try {
           rawErrorBody = JSON.parse(raw);
         } catch {
           rawErrorBody = raw;
         }
       } catch {
-        rawErrorBody = activeResponse.statusText;
+        rawErrorBody = 'Provider error response could not be read within the safe size limit.';
       }
 
       // Explicitly classify error: distinguish auth/quota/rate-limit from model-not-found
@@ -1185,6 +1238,7 @@ export async function streamAnswer(
     parser = new AIStreamParser();
     const buffer = new SentenceBuffer();
     let sseBuffer = '';
+    let responseBytesRead = 0;
 
     try {
       while (true) {
@@ -1259,6 +1313,19 @@ export async function streamAnswer(
           break;
         }
 
+        responseBytesRead += value.byteLength;
+        if (responseBytesRead > MAX_RENDERER_LLM_RESPONSE_BYTES) {
+          try {
+            void reader
+              .cancel('AI provider response exceeded configured size limit')
+              .catch(() => undefined);
+          } catch {
+            // Preserve the response-size error if cancellation fails.
+          }
+          throw new RangeError(
+            `AI provider response exceeded the ${MAX_RENDERER_LLM_RESPONSE_BYTES}-byte limit.`
+          );
+        }
         sseBuffer += decoder.decode(value, { stream: true });
         const lines = sseBuffer.split('\n');
         sseBuffer = lines.pop() || '';
@@ -1370,7 +1437,10 @@ export async function streamAnswer(
                   signal: requestSignal,
                 });
           if (recoveryResponse.ok) {
-            const recoveryData = await recoveryResponse.json();
+            const recoveryData = await readResponseJsonLimited(
+              recoveryResponse,
+              MAX_RENDERER_LLM_RESPONSE_BYTES
+            );
             const recovered = recoveryData.choices?.[0]?.message?.content;
             if (typeof recovered === 'string' && recovered.trim()) {
               cleanText = recovered.trim();
