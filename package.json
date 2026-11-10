@@ -122,5 +122,22 @@
     "electron",
     "react",
     "typescript"
-  ]
+  ],
+  "overrides": {
+    "@electron/universal": {
+      "minimatch": "11.0.5"
+    },
+    "app-builder-lib": {
+      "minimatch": "11.0.5"
+    },
+    "eslint": {
+      "minimatch": "11.0.5"
+    },
+    "@eslint/config-array": {
+      "minimatch": "11.0.5"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.5"
+    }
+  }
 }
