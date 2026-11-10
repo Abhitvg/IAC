@@ -54,7 +54,8 @@ export function isValidCloudTranscriptionRequest(
   }
   if (
     request.language !== undefined &&
-    (typeof request.language !== 'string' || !/^[a-zA-Z]{2,3}(?:-[a-zA-Z]{2,4})?$/.test(request.language))
+    (typeof request.language !== 'string' ||
+      !/^[a-zA-Z]{2,3}(?:-[a-zA-Z]{2,4})?$/.test(request.language))
   ) {
     return false;
   }
@@ -99,7 +100,9 @@ export async function transcribeCloudAudio(
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}` },
     body: formData,
-    signal: signal || AbortSignal.timeout(90_000),
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(90_000)])
+      : AbortSignal.timeout(90_000),
   });
 
   if (!response.ok) {
@@ -123,7 +126,9 @@ export async function transcribeCloudAudio(
             Boolean(segment) &&
             typeof segment === 'object' &&
             typeof (segment as Record<string, unknown>).start === 'number' &&
+            Number.isFinite((segment as Record<string, unknown>).start) &&
             typeof (segment as Record<string, unknown>).end === 'number' &&
+            Number.isFinite((segment as Record<string, unknown>).end) &&
             typeof (segment as Record<string, unknown>).text === 'string'
         )
         .slice(0, 20_000)
@@ -137,7 +142,10 @@ export async function transcribeCloudAudio(
   return {
     text: data.text.slice(0, 500_000),
     language: typeof data.language === 'string' ? data.language.slice(0, 20) : undefined,
-    duration: typeof data.duration === 'number' && Number.isFinite(data.duration) ? data.duration : undefined,
+    duration:
+      typeof data.duration === 'number' && Number.isFinite(data.duration)
+        ? data.duration
+        : undefined,
     segments,
   };
 }
