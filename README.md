@@ -3,7 +3,7 @@
 <div align="center">
 
 ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-blue?style=flat-square)
-![Electron](https://img.shields.io/badge/Electron-33.2-47848F?style=flat-square&logo=electron)
+![Electron](https://img.shields.io/badge/Electron-45.2.3-47848F?style=flat-square&logo=electron)
 ![React](https://img.shields.io/badge/React-18.3-61DAFB?style=flat-square&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript)
 ![Tested With Vitest](https://img.shields.io/badge/Tested%20With-Vitest-729B1B?style=flat-square&logo=vitest)
