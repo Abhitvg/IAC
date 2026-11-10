@@ -2,7 +2,8 @@
 
 **Repository:** `Abhitvg/IAC`  
 **Audit baseline:** `f3686d204408f2cfc8f0f36f070144abbed4a65e`  
-**Latest verified product fixes:** PRs #157, #164, #165, #167, and #169.  
+**Latest verified product fixes:** PRs #157, #164, #165, #167, and #169.
+**Latest document import limit:** 25 MB at both PDF/DOCX IPC entry points, with a parser-level PDF guard.  
 **Scope:** Electron main/preload/IPC, credential storage, renderer answer generation, application shell and keyboard interactions, package metadata, tests, CI workflows, and engineering documentation.
 
 ## Audit limitations
