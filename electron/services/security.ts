@@ -3,6 +3,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 export const MAX_WRITE_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB max write limit
+export const MAX_READ_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB max read limit
 
 export interface ExtensionTokenInfo {
   port: number;
@@ -129,6 +130,65 @@ export function validateReadPath(
     };
   } catch (err: any) {
     return { allowed: false, reason: `Path validation error: ${err.message || String(err)}` };
+  }
+}
+
+export function readFileSafely(
+  filePath: string,
+  userDataDir: string,
+  approvedFilePaths: Set<string>,
+  maxSizeBytes: number = MAX_READ_FILE_SIZE_BYTES
+): Buffer {
+  if (!Number.isSafeInteger(maxSizeBytes) || maxSizeBytes < 0) {
+    throw new Error('Invalid maximum file read size');
+  }
+
+  const validation = validateReadPath(filePath, userDataDir, approvedFilePaths);
+  if (!validation.allowed || !validation.resolvedPath) {
+    throw new Error(validation.reason || 'Access denied');
+  }
+
+  let fileDescriptor: number | undefined;
+  try {
+    const noFollow = fs.constants.O_NOFOLLOW || 0;
+    fileDescriptor = fs.openSync(validation.resolvedPath, fs.constants.O_RDONLY | noFollow);
+
+    const descriptorStat = fs.fstatSync(fileDescriptor);
+    const destinationStat = fs.lstatSync(validation.resolvedPath);
+    if (
+      !descriptorStat.isFile() ||
+      !destinationStat.isFile() ||
+      destinationStat.isSymbolicLink() ||
+      descriptorStat.dev !== destinationStat.dev ||
+      descriptorStat.ino !== destinationStat.ino
+    ) {
+      throw new Error('Access denied: File changed or is not a regular file');
+    }
+
+    const realDestination = fs.realpathSync(validation.resolvedPath);
+    const realUserData = getCanonicalPath(userDataDir);
+    const isInsideUserData =
+      realDestination === realUserData || realDestination.startsWith(realUserData + path.sep);
+    if (!isInsideUserData && !approvedFilePaths.has(realDestination)) {
+      throw new Error('Access denied: File is no longer approved');
+    }
+
+    const chunks: Buffer[] = [];
+    const chunk = Buffer.allocUnsafe(64 * 1024);
+    let totalBytes = 0;
+    while (true) {
+      const bytesRead = fs.readSync(fileDescriptor, chunk, 0, chunk.length, null);
+      if (bytesRead === 0) break;
+      totalBytes += bytesRead;
+      if (totalBytes > maxSizeBytes) {
+        throw new Error(`File exceeds maximum allowed read size of ${maxSizeBytes} bytes`);
+      }
+      chunks.push(Buffer.from(chunk.subarray(0, bytesRead)));
+    }
+
+    return Buffer.concat(chunks, totalBytes);
+  } finally {
+    if (fileDescriptor !== undefined) fs.closeSync(fileDescriptor);
   }
 }
 
