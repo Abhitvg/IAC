@@ -60,9 +60,9 @@ export async function validateDocxArchiveExpansionInBrowser(
       new Uint8Array(compressedBuffer).set(compressedData);
       let reader: ReadableStreamDefaultReader<Uint8Array>;
       try {
-        const stream = new Blob([compressedBuffer]).stream().pipeThrough(
-          new DecompressionStream('deflate-raw')
-        );
+        const stream = new Blob([compressedBuffer])
+          .stream()
+          .pipeThrough(new DecompressionStream('deflate-raw'));
         reader = stream.getReader();
       } catch {
         return {
