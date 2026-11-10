@@ -1,7 +1,7 @@
 # IAC Engineering Audit — 2026-11-10
 
 **Repository:** `Abhitvg/IAC`  
-**Audit baseline:** `934e3fdf564b31ec8687ac6ffa37f032b4d93c64`  
+**Audit baseline:** `ab4dff7b27271c698e1d6a89054544ea9c0242a8`  
 **Scope:** Electron main/preload/IPC, credential storage, renderer answer generation, application shell and keyboard interactions, package metadata, tests, CI workflows, and engineering documentation.
 
 ## Audit limitations
@@ -19,7 +19,7 @@ This is **not a production-readiness certification**. Remaining work includes de
 | Priority | Area                                  | Evidence / impact                                                                                                                                                                                                  | Status                                                                                                                                                                                                                                                                                                                    |
 | -------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **P0**   | Provider credential isolation         | Saved provider credentials were previously returned to renderer through `credentials:get`; LLM streaming and STT also issued provider requests from renderer.                                                      | **Fixed on main:** LLM streaming, model fallback, non-streaming recovery, Groq secondary-key failover, STT, and cloud preflight resolve credentials and perform cloud requests in Electron main. `credentials:get` and the preload `getApiKey` method are removed. Raw saved provider keys no longer cross IPC.           |
-| **P1**   | Deterministic dependency installation | The repository has no committed npm lockfile. CI therefore uses `npm install`, which can resolve different dependency trees over time; npm caching is disabled because setup-node caching requires a lockfile.     | **Open:** commit and review `package-lock.json`, then restore deterministic `npm ci` and npm caching. PRs #124 and #127 remove the immediate install/cache failure paths but do not make installs reproducible.                                                                                                           |
+| **P1**   | Deterministic dependency installation | The committed npm lockfile now exists (lockfileVersion 3, 787 package entries) and its root direct dependency/devDependency declarations match `package.json`. | **Implemented on main in PR #134:** CI now caches using `package-lock.json` and runs `npm ci --no-audit --no-fund`; it no longer silently falls back to a non-deterministic `npm install`. CI execution evidence for this merge was not returned by the connector. |
 | **P1**   | Groq credential parsing               | Credential input, stored values, environment variables, and startup migration must reject valid-looking substrings embedded in malformed text.                                                                     | **Fixed on main:** PRs #126 and #129 require complete Groq keys and anchor `.env.local` parsing; regression tests cover malformed values.                                                                                                                                                                                 |
 | **P1**   | File-read race and resource bounds    | A separate path-validation/read sequence left a symlink-swap window, and renderer-triggered reads had no explicit byte limit.                                                                                      | **Fixed on main in PR #131:** descriptor-based reads, no-follow where supported, inode checks, approval revalidation, and a 25 MB streaming read cap.                                                                                                                                                                     |
 | **P2**   | Empty successful AI streams           | A provider could return HTTP success with an empty response body and be reported as a successful completion.                                                                                                       | **Fixed on main in PR #125:** empty streams now surface as stream errors with regression coverage.                                                                                                                                                                                                                        |
@@ -51,7 +51,7 @@ Keep these invariants covered. Future providers, custom endpoints, or new IPC me
 
 - `npm audit` fails on high/critical advisories while preserving the detailed advisory report (PR #79).
 - Packaged-app smoke coverage runs on Ubuntu, macOS, and Windows (PR #94).
-- PR #124 added an install fallback for the missing lockfile; PR #127 disabled setup-node npm caching so setup-node does not fail before that fallback. Neither change replaces a committed lockfile.
+- PR #124 and #127 were temporary compatibility fixes while the lockfile was absent. After confirming the lockfile appeared on main and matched direct dependency declarations, PR #134 restored npm caching and deterministic `npm ci`.
 - The recent merge commits queried during this audit did not return workflow-run or combined-status records. This report does not claim that the latest changes have passed CI.
 - Regression coverage now includes credential isolation, provider routing, cloud transcription, streaming, cancellation, and IPC payload validation (including PR #132).
 - Keep the secret-bundle scan and extend it with source-level checks against renderer-side provider-secret environment variables.
@@ -63,11 +63,11 @@ The codebase contains an established design-system directory and a large applica
 
 ## Next execution order
 
-1. Commit a reviewed npm lockfile and restore deterministic `npm ci` installs and dependency caching.
-2. Obtain and review complete CI results for the latest main commit on Ubuntu, macOS, and Windows; do not infer green status from a successful merge.
+1. Obtain and review complete CI results for the latest main commit on Ubuntu, macOS, and Windows; do not infer green status from a successful merge.
+2. Review the open dependency-update PRs individually; several propose major-version changes with compatibility risk.
 3. Assess major dependency upgrades individually and keep the dependency audit gate enforced.
 4. Complete a structured UX pass across onboarding, candidate setup, preparation, live interview, practice, history and analytics, including narrow-window and accessibility checks.
 5. Validate the product visually on representative window sizes and real operating systems; hosted CI does not replace hands-on usability review.
 6. Optimize performance and polish visual hierarchy only after correctness and security gates are green.
 
-**Audit conclusion:** The previous raw-credential renderer exposure is fixed on main. The repository is still not certified release-ready: dependency installation is not deterministic, latest CI evidence was not available in this audit session, and hands-on visual/accessibility validation remains outstanding.
+**Audit conclusion:** The previous raw-credential renderer exposure is fixed on main. The repository is still not certified release-ready: deterministic installation is now configured but its CI run has not been verified, dependency upgrades remain pending, and hands-on visual/accessibility validation remains outstanding.
