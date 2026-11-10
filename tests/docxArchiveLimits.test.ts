@@ -93,8 +93,7 @@ describe('validateDocxArchive', () => {
     expect(validateDocxArchive(Buffer.from('not a zip')).allowed).toBe(false);
     expect(
       validateDocxArchive(createZip([{ name: 'readme.txt', data: Buffer.from('hello') }])).reason
-    )
-      .toContain('not a valid DOCX');
+    ).toContain('not a valid DOCX');
   });
 
   it('rejects archives with excessive entry counts', () => {
