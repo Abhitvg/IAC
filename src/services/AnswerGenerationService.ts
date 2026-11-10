@@ -141,6 +141,14 @@ export class AnswerGenerationService {
   }
 
   /**
+   * @deprecated Provider credentials are resolved exclusively in Electron main.
+   * Kept as an override seam for deterministic service tests and non-Electron mocks.
+   */
+  async resolveApiKey(_provider: string): Promise<string> {
+    return '';
+  }
+
+  /**
    * Generates a streaming answer for an interview question or screen problem.
    */
   async generateAnswer(
