@@ -217,10 +217,9 @@ export class InterviewReportGenerator {
     const correctnessScore = Math.min(5, Math.max(1, Math.round(avgScore * 10) / 10));
     const depthScore = Math.min(5, Math.max(1, Math.round((avgScore - 0.2) * 10) / 10));
     const approachScore = Math.min(5, Math.max(1, Math.round((avgScore + 0.1) * 10) / 10));
+    const complexityOptimality = allCodingRecords[0]?.complexityAnalysis.isOptimal ?? null;
     const complexityScore =
-      allCodingRecords.length > 0 && allCodingRecords[0].complexityAnalysis.isOptimal
-        ? 4.5
-        : 3.0;
+      complexityOptimality === true ? 4.5 : complexityOptimality === false ? 2.5 : 3.0;
     const commScore = sessionState.overallScorecard?.deliveryScore || 3.5;
     const edgeScore =
       allCodingRecords.length > 0 &&
@@ -362,9 +361,16 @@ export class InterviewReportGenerator {
           name: 'Complexity Analysis',
           score: complexityScore,
           weight: 0.15,
-          measuredEvidence: `Determined from stated and actual Big-O bounds.`,
-          qualitativeFeedback: complexityScore >= 4.0 ? 'Accurately articulated amortized and worst-case complexities.' : 'Struggled with space complexity or recursive call stack overhead.',
-          rubricCriteriaApplied: ['Big-O time complexity', 'Auxiliary space tracking'],
+          measuredEvidence: allCodingRecords.length > 0
+            ? 'Static heuristic estimates only; submitted code was not executed and runtime complexity was not measured.'
+            : 'No coding submission was available for complexity assessment.',
+          qualitativeFeedback:
+            complexityOptimality === true
+              ? 'Static estimates match the supplied baseline; runtime complexity remains unverified.'
+              : complexityOptimality === false
+                ? 'Static estimates differ from the supplied baseline; runtime complexity remains unverified.'
+                : 'Optimality was not assessed because no problem-specific baseline was supplied.',
+          rubricCriteriaApplied: ['Static Big-O pattern estimate', 'Baseline comparison when supplied', 'Runtime execution not performed'],
         },
         communication: {
           name: 'Communication & Structuring',
@@ -396,7 +402,7 @@ export class InterviewReportGenerator {
         isMeasuredResult: true,
         rubricVersion: 'v1.0.0-ciu-grounded',
         aiAssistedFeedbackDisclaimer:
-          'Numerical scores reflect deterministic rubric evaluations and static analysis (static_analysis_only). Untrusted code execution is safely restricted to static analysis.',
+          'Coding complexity values are static heuristic estimates, not measured runtime results. Submitted code is not executed; functional correctness and optimality must not be inferred unless separately verified. Numerical rubric scores are deterministic coaching signals, not proof that code passes tests.',
       },
     };
   }
