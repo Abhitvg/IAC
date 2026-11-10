@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  MAX_WRITE_FILE_SIZE_BYTES,
-  prepareFileWritePayload,
-} from '../electron/services/security';
+import { MAX_WRITE_FILE_SIZE_BYTES, prepareFileWritePayload } from '../electron/services/security';
 
 describe('IPC file-write payload normalization', () => {
   it('measures UTF-8 string bytes rather than JavaScript characters', () => {
@@ -26,7 +23,7 @@ describe('IPC file-write payload normalization', () => {
 
     expect(prepared.byteLength).toBe(MAX_WRITE_FILE_SIZE_BYTES + 1);
     expect(Buffer.isBuffer(prepared.payload)).toBe(true);
-    expect(prepared.payload.byteLength).toBe(MAX_WRITE_FILE_SIZE_BYTES + 1);
+    expect((prepared.payload as Buffer).byteLength).toBe(MAX_WRITE_FILE_SIZE_BYTES + 1);
   });
 
   it('preserves the byte offset and length of typed-array views', () => {
@@ -54,8 +51,6 @@ describe('IPC file-write payload normalization', () => {
     expect(() => prepareFileWritePayload({ byteLength: 50_000_000 })).toThrow(
       'expected a string or binary data'
     );
-    expect(() => prepareFileWritePayload(null)).toThrow(
-      'expected a string or binary data'
-    );
+    expect(() => prepareFileWritePayload(null)).toThrow('expected a string or binary data');
   });
 });
