@@ -177,7 +177,10 @@ export async function startCloudLLMStream(
   let response = await createProviderRequest(request, apiKey, signal);
 
   if (request.provider === 'groq' && response.status === 429 && !usedSecondaryKey) {
-    const primaryErrorBody = await readResponseTextLimited(response, MAX_CLOUD_LLM_ERROR_BYTES).catch(() => '');
+    const primaryErrorBody = await readResponseTextLimited(
+      response,
+      MAX_CLOUD_LLM_ERROR_BYTES
+    ).catch(() => '');
     if (!isDailyQuotaError(primaryErrorBody)) {
       const secondaryKey = (await credentialStore.getKey('groq-secondary'))?.trim() || '';
       if (secondaryKey && secondaryKey !== apiKey && isValidProviderKey('groq', secondaryKey)) {
