@@ -3,6 +3,7 @@ import {
   inspectEvidenceDocument,
   inspectEvidenceRepository,
   verifyEvidenceAttestation,
+  verifyEvidenceSeal,
 } from '../services/boundedEvidenceInspection';
 import { validateDocumentImportSize } from '../services/documentImportLimits';
 import {
@@ -685,7 +686,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       throw new Error('Unauthorized IPC sender');
     }
     if (!result || typeof result !== 'object') return false;
-    return EvidenceVerificationService.verifySeal(result);
+    return verifyEvidenceSeal(result);
   });
 
   ipcMain.handle('ws:stop', (event) => {
