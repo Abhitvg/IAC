@@ -144,25 +144,26 @@ export async function transcribeAudio(
   const cancelRequest = () => {
     void electronAPI.cancelCloudTranscription?.(requestId).catch(() => undefined);
   };
+
+  if (signal?.aborted) {
+    const abortErr = new Error('Transcription aborted');
+    abortErr.name = 'AbortError';
+    throw abortErr;
+  }
+
+  const requestPromise = electronAPI.transcribeCloudAudio({
+    requestId,
+    provider: targetProvider,
+    model: targetModel,
+    audio,
+    language: sttConfig.language,
+    prompt,
+  });
   signal?.addEventListener('abort', cancelRequest, { once: true });
 
   try {
-    if (signal?.aborted) {
-      cancelRequest();
-      const abortErr = new Error('Transcription aborted');
-      abortErr.name = 'AbortError';
-      throw abortErr;
-    }
-
-    const result = await electronAPI.transcribeCloudAudio({
-      requestId,
-      provider: targetProvider,
-      model: targetModel,
-      audio,
-      language: sttConfig.language,
-      prompt,
-    });
-
+    if (signal?.aborted) cancelRequest();
+    const result = await requestPromise;
     return {
       ...result,
       text: postProcessTranscript(result.text || ''),
