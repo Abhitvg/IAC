@@ -1,3 +1,5 @@
+import { validateDocxArchive } from '../../../electron/services/docxArchiveLimits';
+
 /**
  * DOCX Document Extractor
  * Uses Mammoth to extract text, tables, and paragraphs while preserving document structure.
@@ -55,6 +57,15 @@ export async function extractDocxDocument(arrayBuffer: ArrayBuffer): Promise<Doc
     };
   }
 
+  const archiveValidation = validateDocxArchive(arrayBuffer);
+  if (!archiveValidation.allowed) {
+    return {
+      text: '',
+      headings: [],
+      warnings: [archiveValidation.reason || 'DOCX archive failed resource validation.'],
+    };
+  }
+
   // 1. Try Main-Process Electron DOCX parser
   if (typeof window !== 'undefined' && window.electronAPI?.parseDocx) {
     try {
@@ -72,7 +83,15 @@ export async function extractDocxDocument(arrayBuffer: ArrayBuffer): Promise<Doc
         };
       }
     } catch (err: any) {
-      warnings.push(`Electron DOCX bridge warning: ${err?.message || err}`);
+      const message = String(err?.message || err);
+      warnings.push(`Electron DOCX bridge warning: ${message}`);
+      if (message.startsWith('DOCX import rejected:')) {
+        return {
+          text: '',
+          headings: [],
+          warnings,
+        };
+      }
     }
   }
 
@@ -118,4 +137,3 @@ export async function extractDocxDocument(arrayBuffer: ArrayBuffer): Promise<Doc
     };
   }
 }
-

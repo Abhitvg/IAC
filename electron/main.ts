@@ -1,5 +1,7 @@
 import { parsePdfBuffer } from './services/pdfParser';
 import { validateDocumentImportSize } from './services/documentImportLimits';
+import { validateDocxArchive } from './services/docxArchiveLimits';
+import { validateDocxArchiveExpansion } from './services/docxArchiveExpansion';
 import { stitchOcrTexts } from './services/ocrStitcher';
 import { SafeConnectionFetcher, PinnedFetchOptions } from './services/safeConnectionFetcher';
 import { resolveOcrBinaryPath, getOcrEngineInfo } from './services/ocrService';
@@ -839,6 +841,19 @@ ipcMain.handle('fs:parse-docx', async (event, arrayBuffer: ArrayBuffer) => {
   const sizeValidation = validateDocumentImportSize(arrayBuffer.byteLength);
   if (!sizeValidation.allowed) {
     throw new Error(sizeValidation.reason || 'Document import size is invalid.');
+  }
+  const archiveValidation = validateDocxArchive(arrayBuffer);
+  if (!archiveValidation.allowed) {
+    throw new Error(`DOCX import rejected: ${archiveValidation.reason || 'Invalid DOCX archive.'}`);
+  }
+  const expansionValidation = validateDocxArchiveExpansion(
+    arrayBuffer,
+    archiveValidation.entries || []
+  );
+  if (!expansionValidation.allowed) {
+    throw new Error(
+      `DOCX import rejected: ${expansionValidation.reason || 'Unsafe DOCX expansion.'}`
+    );
   }
   const buffer = Buffer.from(arrayBuffer);
   try {

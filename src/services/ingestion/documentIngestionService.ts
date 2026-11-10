@@ -5,6 +5,7 @@
  */
 
 import { IngestionResult, SourceType } from './types';
+import { validateDocumentImportSize } from '../../../electron/services/documentImportLimits';
 import { extractPdfDocument } from './pdfExtractor';
 import { extractDocxDocument } from './docxExtractor';
 import { extractTextDocument } from './textExtractor';
@@ -22,7 +23,12 @@ export function detectFileFormat(
     }
     const headLimit = Math.min(bytes.length - 4, 1024);
     for (let i = 1; i <= headLimit; i++) {
-      if (bytes[i] === 0x25 && bytes[i + 1] === 0x50 && bytes[i + 2] === 0x44 && bytes[i + 3] === 0x46) {
+      if (
+        bytes[i] === 0x25 &&
+        bytes[i + 1] === 0x50 &&
+        bytes[i + 2] === 0x44 &&
+        bytes[i + 3] === 0x46
+      ) {
         return 'pdf';
       }
     }
@@ -47,6 +53,11 @@ export class DocumentIngestionService {
    * Ingest a File object from upload or drag-and-drop
    */
   public static async ingestFile(file: File): Promise<IngestionResult> {
+    const sizeValidation = validateDocumentImportSize(file.size);
+    if (!sizeValidation.allowed) {
+      throw new Error(sizeValidation.reason || 'Document import size is invalid.');
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const detectedFormat = detectFileFormat(arrayBuffer, file.name);
     const sourceId = `src-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
