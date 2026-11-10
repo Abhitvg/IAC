@@ -134,6 +134,28 @@ describe('CredentialStore', () => {
     );
   });
 
+  it('rejects Groq keys with valid-looking substrings surrounded by other text', async () => {
+    const creds = new CredentialStore(mockStore, tempDir);
+
+    await expect(creds.setKey('groq', 'prefix gsk_valid_key_123')).rejects.toThrow(
+      /complete key/i
+    );
+    await expect(creds.setKey('groq-secondary', 'gsk_valid_key_123 trailing')).rejects.toThrow(
+      /complete key/i
+    );
+    expect(mockStore.get('secure_credentials.groq')).toBeUndefined();
+    expect(mockStore.get('secure_credentials.groq-secondary')).toBeUndefined();
+    expect(safeStorage.encryptStringAsync).not.toHaveBeenCalled();
+  });
+
+  it('ignores malformed Groq environment credentials instead of extracting a substring', async () => {
+    vi.stubEnv('GROQ_API_KEY', 'prefix gsk_valid_key_123 trailing');
+
+    const creds = new CredentialStore(mockStore, tempDir);
+    await expect(creds.getKey('groq')).resolves.toBeNull();
+    expect(safeStorage.encryptStringAsync).not.toHaveBeenCalled();
+  });
+
   it('uses Electron asynchronous safeStorage when the OS key provider is available', async () => {
     const creds = new CredentialStore(mockStore, tempDir);
     const success = await creds.setKey('groq', 'gsk_test_key_12345');
