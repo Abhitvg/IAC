@@ -1,0 +1,32 @@
+name: Temporary Prettier normalization
+on:
+  push:
+    branches:
+      - fix/format-file-write-handler-20261111
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/format-file-write-handler-20261111
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx prettier --write electron/main.ts
+      - name: Commit formatted file
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add electron/main.ts
+          git commit -m "style: normalize main process formatting"
+          git push
