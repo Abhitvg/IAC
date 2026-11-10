@@ -1,0 +1,36 @@
+name: Temporary engineering audit formatter
+
+on:
+  push:
+    branches:
+      - docs/refresh-engineering-audit-after-remediation
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/refresh-engineering-audit-after-remediation
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Format and verify engineering audit
+        run: |
+          npx prettier --write docs/ENGINEERING_AUDIT_2026-11-10.md
+          npx prettier --check docs/ENGINEERING_AUDIT_2026-11-10.md
+      - name: Commit formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/ENGINEERING_AUDIT_2026-11-10.md
+          if ! git diff --cached --quiet; then
+            git commit -m "style: format current engineering audit"
+            git push origin HEAD:docs/refresh-engineering-audit-after-remediation
+          fi
