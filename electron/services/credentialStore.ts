@@ -13,6 +13,7 @@ export const ALLOWED_SERVICES = [
 export type AllowedService = (typeof ALLOWED_SERVICES)[number];
 
 const LEGACY_FALLBACK_KEY_FILE = '.machine_secret';
+const GROQ_API_KEY_PATTERN = /^gsk_[A-Za-z0-9_-]+$/;
 
 function getExistingLegacyAesKey(userDataPath: string): Buffer {
   const keyPath = path.join(userDataPath, LEGACY_FALLBACK_KEY_FILE);
@@ -133,11 +134,9 @@ export class CredentialStore {
 
     let trimmed = key.trim();
     if (service === 'groq' || service === 'groq-secondary') {
-      const match = trimmed.match(/gsk_[A-Za-z0-9_-]+/);
-      if (!match) {
-        throw new Error('Invalid Groq API key format. Groq API keys must begin with "gsk_".');
+      if (!GROQ_API_KEY_PATTERN.test(trimmed)) {
+        throw new Error('Invalid Groq API key format. Enter the complete key beginning with "gsk_".');
       }
-      trimmed = match[0];
     }
 
     await this.assertSecureStorageAvailable();
@@ -207,8 +206,8 @@ export class CredentialStore {
               await this.setKey(service, decrypted);
             }
             if (service === 'groq' || service === 'groq-secondary') {
-              const match = decrypted.match(/gsk_[A-Za-z0-9_-]+/);
-              if (match) return match[0];
+              const normalized = decrypted.trim();
+              if (GROQ_API_KEY_PATTERN.test(normalized)) return normalized;
               console.warn(
                 '[CredentialStore] Stored Groq credential was invalid. Falling back to env key.'
               );
@@ -226,8 +225,8 @@ export class CredentialStore {
           this.removeLegacyKeyFileWhenUnused();
 
           if (service === 'groq' || service === 'groq-secondary') {
-            const match = decrypted.match(/gsk_[A-Za-z0-9_-]+/);
-            return match ? match[0] : null;
+            const normalized = decrypted.trim();
+            return GROQ_API_KEY_PATTERN.test(normalized) ? normalized : null;
           }
           return decrypted;
         }
@@ -243,8 +242,10 @@ export class CredentialStore {
     if (service === 'groq' || service === 'openai' || service === 'openrouter') {
       const fallbackKey = this.getEnvKey(service);
       if (fallbackKey) {
-        const match = service === 'groq' ? fallbackKey.match(/gsk_[A-Za-z0-9_-]+/) : null;
-        const clean = service === 'groq' ? match?.[0] || '' : fallbackKey;
+        const clean =
+          service === 'groq'
+            ? GROQ_API_KEY_PATTERN.test(fallbackKey) ? fallbackKey : ''
+            : fallbackKey;
         if (!clean) return null;
         this.setKey(service, clean).catch(() => {});
         return clean;
