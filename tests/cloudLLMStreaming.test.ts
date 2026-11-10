@@ -56,9 +56,10 @@ describe('cloud LLM streaming response handling', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
   it.each([
-    [': keep-alive\\n\\n', 'comment-only'],
-    ['data: [DONE]\\n\\n', 'terminal-marker-only'],
-    ['event: ping\\n\\n: heartbeat\\n\\n', 'event-and-comment-only'],
+    [': keep-alive\n\n', 'comment-only'],
+    ['data:   \n\n', 'whitespace-only-data'],
+    ['data: [DONE]\n\n', 'terminal-marker-only'],
+    ['event: ping\n\n: heartbeat\n\n', 'event-and-comment-only'],
   ])('rejects %s SSE bodies without a data payload (%s)', async (body) => {
     const streamBody = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -116,7 +117,7 @@ describe('cloud LLM streaming response handling', () => {
     const streamBody = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(new TextEncoder().encode('data: {"choices":'));
-        controller.enqueue(new TextEncoder().encode('[{"delta":{"content":"hello"}}]}\\n\\n'));
+        controller.enqueue(new TextEncoder().encode('[{"delta":{"content":"hello"}}]}\n\n'));
         controller.close();
       },
     });
