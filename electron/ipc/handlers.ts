@@ -56,12 +56,10 @@ export function validateCloudTranscriptionRequest(
   const audio = candidate.audio;
   return (
     typeof candidate.requestId === 'string' &&
-    candidate.requestId.length > 0 &&
-    candidate.requestId.length <= 128 &&
+    /^[a-zA-Z0-9_-]{1,80}$/.test(candidate.requestId) &&
     (candidate.provider === 'groq' || candidate.provider === 'openai') &&
-    typeof candidate.model === 'string' &&
-    candidate.model.trim().length > 0 &&
-    candidate.model.length <= 160 &&
+    candidate.model ===
+      (candidate.provider === 'groq' ? 'whisper-large-v3-turbo' : 'whisper-1') &&
     audio instanceof Uint8Array &&
     audio.byteLength >= 400 &&
     audio.byteLength <= 25 * 1024 * 1024 &&
