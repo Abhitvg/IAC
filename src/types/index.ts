@@ -268,6 +268,20 @@ export interface ElectronAPI {
     provider: 'groq' | 'openai' | 'openrouter',
     model: string
   ) => Promise<{ valid: boolean; code?: string; message?: string; latencyMs?: number }>;
+  transcribeCloudAudio: (request: {
+    requestId: string;
+    provider: 'groq' | 'openai';
+    model: string;
+    audio: Uint8Array;
+    language?: string;
+    prompt?: string;
+  }) => Promise<{
+    text: string;
+    language?: string;
+    duration?: number;
+    segments?: Array<{ start: number; end: number; text: string }>;
+  }>;
+  cancelCloudTranscription: (requestId: string) => Promise<boolean>;
   getWsInfo: () => Promise<{ port: number; tokenPreview: string }>;
   copyWsToken: () => Promise<boolean>;
   startWsServer: () => Promise<{ port: number; tokenPreview?: string }>;
