@@ -264,6 +264,10 @@ export interface ElectronAPI {
   hasApiKey: (service: string) => Promise<boolean>;
   deleteApiKey: (service: string) => Promise<boolean>;
   listConfiguredKeys: () => Promise<Record<string, boolean>>;
+  preflightAI: (
+    provider: 'groq' | 'openai' | 'openrouter',
+    model: string
+  ) => Promise<{ valid: boolean; code?: string; message?: string; latencyMs?: number }>;
   getWsInfo: () => Promise<{ port: number; tokenPreview: string }>;
   copyWsToken: () => Promise<boolean>;
   startWsServer: () => Promise<{ port: number; tokenPreview?: string }>;
