@@ -408,7 +408,7 @@ export class InterviewReportGenerator {
         isMeasuredResult: true,
         rubricVersion: 'v1.0.0-ciu-grounded',
         aiAssistedFeedbackDisclaimer:
-          'Coding complexity values are static heuristic estimates, not measured runtime results. Submitted code is not executed; functional correctness and optimality must not be inferred unless separately verified. Numerical rubric scores are deterministic coaching signals, not proof that code passes tests.',
+          'Numerical scores reflect deterministic rubric evaluations and static analysis (static_analysis_only), not executed test results. Coding complexity values are static heuristic estimates, not measured runtime results. Submitted code is not executed; functional correctness and optimality must not be inferred unless separately verified. These scores are coaching signals, not proof that code passes tests.',
       },
     };
   }
