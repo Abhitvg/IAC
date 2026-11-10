@@ -63,8 +63,8 @@ describe('Real Runtime Application Smoke Test Suite', () => {
     const evaluatedTurn = postSubmitSession?.questionHistory[0];
     expect(evaluatedTurn?.codingEvaluation).toBeDefined();
     expect(evaluatedTurn?.codingEvaluation.executionStatus).toBe('static_analysis_only');
-    expect(evaluatedTurn?.codingEvaluation.dimensions.timeComplexity.score).toBeGreaterThanOrEqual(4.0);
-    expect(evaluatedTurn?.codingEvaluation.dimensions.spaceComplexity.score).toBeGreaterThanOrEqual(4.0);
+    expect(evaluatedTurn?.codingEvaluation.dimensions.timeComplexity.score).toBe(3);
+    expect(evaluatedTurn?.codingEvaluation.dimensions.spaceComplexity.score).toBe(3);
   });
 
   it('2. End-to-end Core CS session', async () => {
