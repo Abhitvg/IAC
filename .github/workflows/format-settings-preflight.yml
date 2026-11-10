@@ -1,0 +1,36 @@
+name: Temporary Settings preflight formatter
+
+on:
+  push:
+    branches:
+      - security/move-settings-preflight-to-main
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/move-settings-preflight-to-main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Format and verify Settings preflight changes
+        run: |
+          npx prettier --write electron/ipc/handlers.ts electron/preload.ts electron/services/modelPreflight.ts src/types/index.ts src/components/SettingsPanel.tsx tests/ipcValidation.test.ts tests/electronSecurityAudit.test.ts tests/electronModelPreflight.test.ts
+          npx prettier --check electron/ipc/handlers.ts electron/preload.ts electron/services/modelPreflight.ts src/types/index.ts src/components/SettingsPanel.tsx tests/ipcValidation.test.ts tests/electronSecurityAudit.test.ts tests/electronModelPreflight.test.ts
+      - name: Commit formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add electron/ipc/handlers.ts electron/preload.ts electron/services/modelPreflight.ts src/types/index.ts src/components/SettingsPanel.tsx tests/ipcValidation.test.ts tests/electronSecurityAudit.test.ts tests/electronModelPreflight.test.ts
+          if ! git diff --cached --quiet; then
+            git commit -m "style: format main-process Settings preflight"
+            git push origin HEAD:security/move-settings-preflight-to-main
+          fi
