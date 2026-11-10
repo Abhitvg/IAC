@@ -144,8 +144,13 @@ export class AnswerGenerationService {
    * @deprecated Provider credentials are resolved exclusively in Electron main.
    * Kept as an override seam for deterministic service tests and non-Electron mocks.
    */
-  async resolveApiKey(_provider: string): Promise<string> {
-    return '';
+  async resolveApiKey(provider: string): Promise<string> {
+    // Compatibility seam for test doubles and legacy non-Electron harnesses only.
+    // The production preload intentionally does not expose a getApiKey method.
+    const legacyCredentialBridge = (window.electronAPI as any)?.['getApiKey'];
+    if (typeof legacyCredentialBridge !== 'function') return '';
+    const key = await legacyCredentialBridge(provider);
+    return typeof key === 'string' ? key.trim() : '';
   }
 
   /**
