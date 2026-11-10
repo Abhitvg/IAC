@@ -24,6 +24,8 @@ jobs:
       - name: Format and verify extension token files
         run: |
           npx prettier --write electron/preload.ts src/components/SettingsPanel.tsx src/types/index.ts
+          npx prettier --write src/types/index.ts
+          git diff -- src/types/index.ts
           npx prettier --check electron/preload.ts src/components/SettingsPanel.tsx src/types/index.ts
       - name: Commit formatting
         run: |
