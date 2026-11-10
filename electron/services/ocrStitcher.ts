@@ -3,10 +3,8 @@ import { redactSensitiveData } from './security';
 export const MAX_OCR_TEXT_LENGTH = 100_000;
 
 export function sanitizeOcrText(text: string): string {
-  return redactSensitiveData(typeof text === 'string' ? text : '').slice(
-    0,
-    MAX_OCR_TEXT_LENGTH
-  );
+  const sanitizedText = redactSensitiveData(typeof text === 'string' ? text : '');
+  return sanitizedText.slice(0, MAX_OCR_TEXT_LENGTH);
 }
 
 /**
@@ -67,8 +65,8 @@ export function stitchOcrTexts(topText: string, bottomText: string): string {
  * the combined text. This also sanitizes text previously supplied to the append buffer.
  */
 export function stitchSanitizedOcrTexts(topText: string, bottomText: string): string {
-  return stitchOcrTexts(
-    sanitizeOcrText(topText),
-    sanitizeOcrText(bottomText)
-  ).slice(0, MAX_OCR_TEXT_LENGTH);
+  const sanitizedTop = sanitizeOcrText(topText);
+  const sanitizedBottom = sanitizeOcrText(bottomText);
+  const stitched = stitchOcrTexts(sanitizedTop, sanitizedBottom);
+  return stitched.slice(0, MAX_OCR_TEXT_LENGTH);
 }
