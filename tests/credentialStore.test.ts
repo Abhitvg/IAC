@@ -18,7 +18,10 @@ vi.mock('electron', () => ({
 }));
 
 import { safeStorage } from 'electron';
-import { CredentialStore } from '../electron/services/credentialStore';
+import {
+  CredentialStore,
+  parseGroqApiKeyFromEnvContent,
+} from '../electron/services/credentialStore';
 
 class MockStore {
   private data: Record<string, any> = {};
@@ -134,8 +137,7 @@ describe('CredentialStore', () => {
     );
   });
 
-  it('parses only complete Groq keys from environment-file assignments', async () => {
-    const { parseGroqApiKeyFromEnvContent } = await import('../electron/services/credentialStore');
+  it('parses only complete Groq keys from environment-file assignments', () => {
 
     expect(parseGroqApiKeyFromEnvContent('GROQ_API_KEY=gsk_valid_key_123')).toBe(
       'gsk_valid_key_123'
