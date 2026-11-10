@@ -7,10 +7,7 @@ import {
   type AuditorSignedAttestation,
   type ImmutableIndependentAuditResult,
 } from './evidenceVerificationService';
-import {
-  MAX_DOCUMENT_IMPORT_SIZE_BYTES,
-  validateDocumentImportSize,
-} from './documentImportLimits';
+import { MAX_DOCUMENT_IMPORT_SIZE_BYTES, validateDocumentImportSize } from './documentImportLimits';
 
 const MAX_ISSUER_NAME_LENGTH = 256;
 const MAX_ISSUER_ID_LENGTH = 128;
@@ -48,11 +45,7 @@ function requireBoundedString(value: unknown, field: string, maxLength: number):
   return value;
 }
 
-function requireOptionalBoundedString(
-  value: unknown,
-  field: string,
-  maxLength: number
-): void {
+function requireOptionalBoundedString(value: unknown, field: string, maxLength: number): void {
   if (value === undefined || value === null || value === '') return;
   requireBoundedString(value, field, maxLength);
 }
@@ -89,9 +82,7 @@ function validateEvidenceInspectionMetadata(request: DocumentInspectionRequest):
       issuer.signatureHex.length % 2 !== 0 ||
       !/^[0-9a-f]+$/i.test(issuer.signatureHex)
     ) {
-      throw new Error(
-        'Invalid issuer.signatureHex; expected bounded hexadecimal signature data.'
-      );
+      throw new Error('Invalid issuer.signatureHex; expected bounded hexadecimal signature data.');
     }
   }
 

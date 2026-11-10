@@ -7,9 +7,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function attestation(
-  overrides: Partial<AuditorSignedAttestation> = {}
-): AuditorSignedAttestation {
+function attestation(overrides: Partial<AuditorSignedAttestation> = {}): AuditorSignedAttestation {
   return {
     schemaVersion: 'iac.audit.v1',
     auditorKeyId: 'test-auditor',
