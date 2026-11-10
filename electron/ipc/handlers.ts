@@ -17,6 +17,10 @@ import {
 } from '../services/cloudTranscription';
 import { validateCloudModelPreflight } from '../services/modelPreflight';
 import {
+  startCloudLLMStream,
+  validateCloudLLMStreamRequest,
+} from '../services/cloudLLMStreaming';
+import {
   MessageRateLimiter,
   parseBrowserContextMessage,
 } from '../services/browserContextValidation';
@@ -25,6 +29,7 @@ let wsServer: WebSocketServer | null = null;
 let httpServer: http.Server | null = null;
 let mainWindowRef: BrowserWindow | null = null;
 const cloudTranscriptionControllers = new Map<string, AbortController>();
+const cloudLLMStreamControllers = new Map<string, AbortController>();
 
 const ALLOWED_SETTING_KEYS = new Set([
   'aiProvider',
@@ -271,6 +276,52 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     }
     const apiKey = await credentialStore.getKey(request.provider);
     return validateCloudModelPreflight(request.provider, request.model, apiKey || '');
+  });
+
+  // Cloud LLM requests and credentials stay in Electron main; only stream chunks cross IPC.
+  ipcMain.handle('ai:stream-start', async (event, request: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (!validateCloudLLMStreamRequest(request)) {
+      throw new Error('Invalid cloud LLM streaming request.');
+    }
+    if (cloudLLMStreamControllers.has(request.requestId)) {
+      throw new Error('An LLM stream with this ID is already active.');
+    }
+
+    const controller = new AbortController();
+    cloudLLMStreamControllers.set(request.requestId, controller);
+    try {
+      const result = await startCloudLLMStream(
+        request,
+        credentialStore,
+        controller.signal,
+        (channel, payload) => {
+          if (event.sender.isDestroyed()) return;
+          event.sender.send(channel, payload);
+          if (channel === 'ai:stream-done' || channel === 'ai:stream-error') {
+            cloudLLMStreamControllers.delete(request.requestId);
+          }
+        }
+      );
+      if (!request.stream || !result.ok) {
+        cloudLLMStreamControllers.delete(request.requestId);
+      }
+      return result;
+    } catch (error) {
+      cloudLLMStreamControllers.delete(request.requestId);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('ai:stream-cancel', (event, requestId: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (typeof requestId !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(requestId)) {
+      throw new Error('Invalid LLM stream request ID.');
+    }
+    const controller = cloudLLMStreamControllers.get(requestId);
+    if (!controller) return false;
+    controller.abort();
+    return true;
   });
 
   ipcMain.handle('stt:transcribe', async (event, request: unknown) => {
