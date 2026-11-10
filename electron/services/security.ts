@@ -155,6 +155,7 @@ export function readFileSafely(
 
     const descriptorStat = fs.fstatSync(fileDescriptor);
     const destinationStat = fs.lstatSync(validation.resolvedPath);
+    // Windows exposes different file identity metadata for descriptor and path stats.
     const identityMismatch =
       process.platform === 'win32'
         ? descriptorStat.size !== destinationStat.size ||
