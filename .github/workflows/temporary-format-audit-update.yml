@@ -3,6 +3,9 @@ name: Temporary format repair for refreshed engineering audit
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - docs/format-audit-after-dependency-remediation-20261110
 
 permissions:
   contents: write
