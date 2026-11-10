@@ -878,6 +878,9 @@ async function fetchCloudProviderResponse(
   },
   signal: AbortSignal
 ): Promise<Response> {
+  if (signal.aborted) {
+    throw Object.assign(new Error('AI generation cancelled.'), { name: 'AbortError' });
+  }
   const requestId = request.requestId;
   const encoder = new TextEncoder();
   let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
