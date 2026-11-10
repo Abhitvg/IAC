@@ -1225,13 +1225,21 @@ export async function validateModelPreflight(
         ? body.models.map((m: any) => m.name)
         : [];
       const normModel = model.trim().toLowerCase();
-      const hasModel =
-        availableModels.length === 0 ||
-        availableModels.some(
-          (name) => name.toLowerCase().includes(normModel) || normModel.includes(name.toLowerCase())
-        );
+      if (availableModels.length === 0) {
+        return {
+          valid: false,
+          code: 'MODEL_NOT_FOUND',
+          message: 'No models are installed in the local Ollama instance. Pull a model before running preflight.',
+          latencyMs,
+          availableModels,
+        };
+      }
 
-      if (!hasModel && availableModels.length > 0) {
+      const hasModel = availableModels.some(
+        (name) => name.toLowerCase().includes(normModel) || normModel.includes(name.toLowerCase())
+      );
+
+      if (!hasModel) {
         return {
           valid: false,
           code: 'MODEL_NOT_FOUND',
