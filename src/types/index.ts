@@ -263,8 +263,9 @@ export interface ElectronAPI {
   hasApiKey: (service: string) => Promise<boolean>;
   deleteApiKey: (service: string) => Promise<boolean>;
   listConfiguredKeys: () => Promise<Record<string, boolean>>;
-  getWsInfo: () => Promise<{ port: number; token: string }>;
-  startWsServer: () => Promise<{ port: number; token?: string }>;
+  getWsInfo: () => Promise<{ port: number; tokenPreview: string }>;
+  copyWsToken: () => Promise<boolean>;
+  startWsServer: () => Promise<{ port: number; tokenPreview?: string }>;
   stopWsServer: () => Promise<boolean>;
   onBrowserContext: (callback: (data: BrowserContext) => void) => () => void;
   onTriggerScreenCapture?: (callback: () => void) => () => void;
