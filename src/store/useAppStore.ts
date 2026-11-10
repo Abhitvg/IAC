@@ -5,6 +5,11 @@ import {
   DEFAULT_TARGET_ROLE,
 } from '../services/candidatePersona';
 import { create } from 'zustand';
+import {
+  createSettingWriteQueue,
+  enqueueSettingWrite,
+  type SettingWriteQueue,
+} from '../utils/settingWriteQueue';
 import { InterviewEngine } from '../services/InterviewEngine';
 import { InterviewWorkspace } from '../types';
 import {
@@ -267,6 +272,8 @@ interface InterviewState {
   generateAnswerFromTranscript: (transcriptText: string, requestId?: string) => Promise<void>;
   overrideTranscriptAsQuestion: (transcriptText: string) => Promise<void>;
 }
+
+const settingWriteQueues = new Map<string, SettingWriteQueue<unknown>>();
 
 let _pendingTokens = '';
 let _tokenBatchTimeout: any = null;
@@ -1116,14 +1123,42 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         localStorage.setItem('preferred_coding_language', String(val));
       } catch {}
     }
-    if (typeof window !== 'undefined' && window.electronAPI?.setSettings) {
-      try {
-        window.electronAPI.setSettings(key, val);
-      } catch {}
-    }
+
+    // Optimistically update the UI, but serialize writes per key. If Electron
+    // rejects the latest write, restore the last value confirmed by main.
     set((state) => ({
       settings: { ...state.settings, [key]: val },
     }));
+
+    if (typeof window === 'undefined' || !window.electronAPI?.setSettings) return;
+
+    let writeQueue = settingWriteQueues.get(key);
+    if (!writeQueue) {
+      writeQueue = createSettingWriteQueue(get().settings?.[key]);
+      settingWriteQueues.set(key, writeQueue);
+    }
+
+    const persist = window.electronAPI.setSettings;
+    enqueueSettingWrite(
+      writeQueue,
+      val,
+      async (nextValue) => {
+        const saved = await persist(key, nextValue);
+        if (saved === false) throw new Error('Electron rejected the settings update.');
+      },
+      (confirmedValue, error) => {
+        set((state) => ({
+          settings: { ...state.settings, [key]: confirmedValue },
+        }));
+        if (key === 'preferredLanguage') {
+          try {
+            localStorage.setItem('preferred_coding_language', String(confirmedValue ?? 'Java'));
+          } catch {}
+        }
+        console.error(`[Settings] Failed to persist "${key}":`, error);
+        get().setToast(`Could not save ${key}. Your previous setting has been restored.`);
+      }
+    );
   },
   setSettingsOpen: (o) => set({ settingsOpen: o }),
   clearAllData: async () => {
