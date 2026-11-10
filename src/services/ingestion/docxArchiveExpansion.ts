@@ -37,12 +37,18 @@ export async function validateDocxArchiveExpansionInBrowser(
       entry.dataOffset > bytes.byteLength ||
       entry.compressedSize > bytes.byteLength - entry.dataOffset
     ) {
-      return { allowed: false, reason: 'DOCX entry has invalid compressed data bounds.' };
+      return {
+        allowed: false,
+        reason: 'DOCX entry has invalid compressed data bounds.',
+      };
     }
 
     if (entry.compressionMethod === 0) {
       if (entry.compressedSize !== entry.uncompressedSize) {
-        return { allowed: false, reason: 'DOCX stored entry has inconsistent size metadata.' };
+        return {
+          allowed: false,
+          reason: 'DOCX stored entry has inconsistent size metadata.',
+        };
       }
       totalUncompressedBytes += entry.compressedSize;
     } else if (entry.compressionMethod === 8) {
@@ -101,7 +107,10 @@ export async function validateDocxArchiveExpansionInBrowser(
         };
       }
     } else {
-      return { allowed: false, reason: 'DOCX archive uses an unsupported compression method.' };
+      return {
+        allowed: false,
+        reason: 'DOCX archive uses an unsupported compression method.',
+      };
     }
 
     if (totalUncompressedBytes > MAX_DOCX_UNCOMPRESSED_BYTES) {
@@ -112,5 +121,7 @@ export async function validateDocxArchiveExpansionInBrowser(
     }
   }
 
-  return { allowed: true };
+  return {
+    allowed: true,
+  };
 }
