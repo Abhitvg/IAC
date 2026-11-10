@@ -60,6 +60,62 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listConfiguredKeys: () => ipcRenderer.invoke('credentials:list'),
   preflightAI: (provider: 'groq' | 'openai' | 'openrouter', model: string) =>
     ipcRenderer.invoke('ai:preflight', { provider, model }),
+  startAIStream: async (
+    request: {
+      requestId: string;
+      provider: 'groq' | 'openai' | 'openrouter';
+      model: string;
+      systemPrompt: string;
+      question: string;
+      temperature: number;
+      maxTokens: number;
+      stream: boolean;
+    },
+    callbacks: {
+      onChunk: (chunk: string) => void;
+      onComplete: () => void;
+      onError: (error: { name: string; message: string }) => void;
+    }
+  ) => {
+    const matchesRequest = (payload: any) => payload?.requestId === request.requestId;
+    const cleanup = () => {
+      ipcRenderer.removeListener('ai:stream-chunk', onChunk);
+      ipcRenderer.removeListener('ai:stream-done', onDone);
+      ipcRenderer.removeListener('ai:stream-error', onError);
+    };
+    const onChunk = (_event: any, payload: any) => {
+      if (matchesRequest(payload) && typeof payload.chunk === 'string') {
+        callbacks.onChunk(payload.chunk);
+      }
+    };
+    const onDone = (_event: any, payload: any) => {
+      if (!matchesRequest(payload)) return;
+      cleanup();
+      callbacks.onComplete();
+    };
+    const onError = (_event: any, payload: any) => {
+      if (!matchesRequest(payload)) return;
+      cleanup();
+      callbacks.onError({
+        name: typeof payload.name === 'string' ? payload.name : 'Error',
+        message: typeof payload.message === 'string' ? payload.message : 'AI stream failed.',
+      });
+    };
+
+    ipcRenderer.on('ai:stream-chunk', onChunk);
+    ipcRenderer.on('ai:stream-done', onDone);
+    ipcRenderer.on('ai:stream-error', onError);
+
+    try {
+      const result = await ipcRenderer.invoke('ai:stream-start', request);
+      if (!request.stream || !result?.ok) cleanup();
+      return result;
+    } catch (error) {
+      cleanup();
+      throw error;
+    }
+  },
+  cancelAIStream: (requestId: string) => ipcRenderer.invoke('ai:stream-cancel', requestId),
   transcribeCloudAudio: (request: {
     requestId: string;
     provider: 'groq' | 'openai';
