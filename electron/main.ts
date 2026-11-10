@@ -2,7 +2,7 @@ import { parsePdfBuffer } from './services/pdfParser';
 import { validateDocumentImportSize } from './services/documentImportLimits';
 import { validateDocxArchive } from './services/docxArchiveLimits';
 import { validateDocxArchiveExpansion } from './services/docxArchiveExpansion';
-import { stitchOcrTexts } from './services/ocrStitcher';
+import { stitchOcrTexts, stitchSanitizedOcrTexts } from './services/ocrStitcher';
 import { SafeConnectionFetcher, PinnedFetchOptions } from './services/safeConnectionFetcher';
 import { resolveOcrBinaryPath, getOcrEngineInfo } from './services/ocrService';
 import {
@@ -1045,7 +1045,7 @@ ipcMain.handle(
       }
 
       // Stitch previous capture with new capture, deduplicating overlapping lines
-      const stitched = stitchOcrTexts(lastCapturedOcrText, newText);
+      const stitched = stitchSanitizedOcrTexts(lastCapturedOcrText, newText);
       lastCapturedOcrText = stitched;
 
       return {
