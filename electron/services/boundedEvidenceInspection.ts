@@ -7,10 +7,7 @@ import {
   type AuditorSignedAttestation,
   type ImmutableIndependentAuditResult,
 } from './evidenceVerificationService';
-import {
-  MAX_DOCUMENT_IMPORT_SIZE_BYTES,
-  validateDocumentImportSize,
-} from './documentImportLimits';
+import { MAX_DOCUMENT_IMPORT_SIZE_BYTES, validateDocumentImportSize } from './documentImportLimits';
 
 const MAX_ISSUER_NAME_LENGTH = 256;
 const MAX_ISSUER_ID_LENGTH = 128;
