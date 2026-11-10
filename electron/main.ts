@@ -31,6 +31,7 @@ import mammoth from 'mammoth';
 import { setupIpcHandlers } from './ipc/handlers';
 import {
   readFileSafely,
+  validateReadPath,
   validateWritePath,
   validateDeletePath,
   isPermissionAllowed,
