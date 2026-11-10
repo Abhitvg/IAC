@@ -135,7 +135,9 @@ export class CredentialStore {
     let trimmed = key.trim();
     if (service === 'groq' || service === 'groq-secondary') {
       if (!GROQ_API_KEY_PATTERN.test(trimmed)) {
-        throw new Error('Invalid Groq API key format. Enter the complete key beginning with "gsk_".');
+        throw new Error(
+          'Invalid Groq API key format. Enter the complete key beginning with "gsk_".'
+        );
       }
     }
 
@@ -244,7 +246,9 @@ export class CredentialStore {
       if (fallbackKey) {
         const clean =
           service === 'groq'
-            ? GROQ_API_KEY_PATTERN.test(fallbackKey) ? fallbackKey : ''
+            ? GROQ_API_KEY_PATTERN.test(fallbackKey)
+              ? fallbackKey
+              : ''
             : fallbackKey;
         if (!clean) return null;
         this.setKey(service, clean).catch(() => {});
