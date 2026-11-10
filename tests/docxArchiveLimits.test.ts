@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { deflateRawSync } from 'zlib';
 import {
   MAX_DOCX_ARCHIVE_ENTRIES,
   validateDocxArchive,
 } from '../electron/services/docxArchiveLimits';
+import { validateDocxArchiveExpansion } from '../electron/services/docxArchiveExpansion';
 
 interface ZipFixtureEntry {
   name: string;
@@ -65,7 +67,26 @@ function requiredDocxEntries(): ZipFixtureEntry[] {
 
 describe('validateDocxArchive', () => {
   it('accepts a structurally valid DOCX ZIP archive', () => {
-    expect(validateDocxArchive(createZip(requiredDocxEntries()))).toEqual({ allowed: true });
+    expect(validateDocxArchive(createZip(requiredDocxEntries())).allowed).toBe(true);
+  });
+
+  it('checks actual DEFLATE output against declared uncompressed sizes', () => {
+    const compressedDocument = deflateRawSync(Buffer.from('<document/>'));
+    const archive = createZip([
+      { name: '[Content_Types].xml', data: Buffer.from('<Types/>') },
+      {
+        name: 'word/document.xml',
+        data: compressedDocument,
+        method: 8,
+        uncompressedSize: 1024,
+      },
+    ]);
+    const validation = validateDocxArchive(archive);
+
+    expect(validation.allowed).toBe(true);
+    expect(
+      validateDocxArchiveExpansion(archive, validation.entries || []).reason
+    ).toContain('does not match');
   });
 
   it('rejects malformed and non-DOCX ZIP payloads', () => {
