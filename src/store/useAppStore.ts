@@ -656,7 +656,10 @@ export const useAppStore = create<InterviewState>((set, get) => ({
                 localStorage.setItem(key, previous);
               }
             } catch (rollbackError) {
-              console.error('[AppStore] Failed to restore candidate context after reset error:', rollbackError);
+              console.error(
+                '[AppStore] Failed to restore candidate context after reset error:',
+                rollbackError
+              );
             }
           }
           console.error('[AppStore] Candidate document reset failed:', error);
