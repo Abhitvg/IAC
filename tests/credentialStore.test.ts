@@ -95,9 +95,7 @@ describe('CredentialStore', () => {
     const rendererServices = [
       'src/services/AnswerGenerationService.ts',
       'src/services/whisper.ts',
-    ].map((sourcePath) =>
-      fs.readFileSync(path.resolve(process.cwd(), sourcePath), 'utf8')
-    );
+    ].map((sourcePath) => fs.readFileSync(path.resolve(process.cwd(), sourcePath), 'utf8'));
 
     for (const source of rendererServices) {
       expect(source).not.toMatch(/VITE_(?:GROQ|OPENAI|OPENROUTER)_API_KEY/);
