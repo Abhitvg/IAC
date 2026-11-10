@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {\n  MAX_CLOUD_TRANSCRIPTION_RESPONSE_BYTES,\n  transcribeCloudAudio,\n} from '../electron/services/cloudTranscription';
+import {
+  MAX_CLOUD_TRANSCRIPTION_RESPONSE_BYTES,
+  transcribeCloudAudio,
+} from '../electron/services/cloudTranscription';
 
 const request = {
   requestId: 'stt-test-request',
@@ -75,6 +78,36 @@ describe('Electron main-process cloud transcription', () => {
 
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.openai.com/v1/audio/transcriptions');
     expect(result.text).toBe('OpenAI transcript');
+  });
+
+  it('rejects oversized successful provider response bodies', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new Uint8Array(MAX_CLOUD_TRANSCRIPTION_RESPONSE_BYTES + 1), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      transcribeCloudAudio(request, 'gsk_private_main_process_key', new AbortController().signal)
+    ).rejects.toThrow(
+      `Transcription provider response exceeded the ${MAX_CLOUD_TRANSCRIPTION_RESPONSE_BYTES}-byte limit.`
+    );
+  });
+
+  it('bounds oversized provider error bodies and returns a safe failure', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('x'.repeat(100_000), {
+        status: 500,
+        headers: { 'content-type': 'text/plain' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      transcribeCloudAudio(request, 'gsk_private_main_process_key', new AbortController().signal)
+    ).rejects.toThrow('[PROVIDER_UNAVAILABLE]');
   });
 
   it('redacts provider error details before returning them to the renderer', async () => {
