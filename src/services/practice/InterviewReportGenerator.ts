@@ -94,10 +94,18 @@ export class InterviewReportGenerator {
   ): StructuredInterviewReport {
     const catalog = CurriculumCatalogService.getInstance();
     const history = sessionState.questionHistory || [];
-    const allCodingRecords: CodingAssessmentRecord[] = [
-      ...codingRecords,
-      ...history.map((h: any) => h.codingEvaluation).filter(Boolean),
-    ];
+    const historyCodingRecords = history
+      .map((item) => item.codingEvaluation as CodingAssessmentRecord | undefined)
+      .filter((record): record is CodingAssessmentRecord => Boolean(record));
+    const codingRecordKey = (record: CodingAssessmentRecord) =>
+      `${record.problemId}:${record.evaluatedAt}:${record.candidateSubmission}`;
+    const allCodingRecords = Array.from(
+      new Map(
+        [...codingRecords, ...historyCodingRecords].map(
+          (record) => [codingRecordKey(record), record] as const
+        )
+      ).values()
+    );
     const questionsAttempted = history.length;
     const questionsCompleted = history.filter(
       (h) => (h.candidateTranscript || '').trim().length > 30
@@ -192,15 +200,25 @@ export class InterviewReportGenerator {
       };
     }
 
-    // Measure scores from evaluations
+    // A coding turn's rubric evaluation already carries its coding score for
+    // legacy compatibility. Count that turn once, not again via codingEvaluation.
     const evalScores: number[] = [];
+    const historyCodingSubmissions = new Set(
+      historyCodingRecords.map((record) => record.candidateSubmission)
+    );
     for (const item of history) {
-      if (item.evaluation?.overallScore) {
+      if (typeof item.evaluation?.overallScore === 'number') {
         evalScores.push(item.evaluation.overallScore);
+      } else if (typeof item.codingEvaluation?.overallScore === 'number') {
+        evalScores.push(item.codingEvaluation.overallScore);
       }
     }
-    for (const cr of allCodingRecords) {
-      evalScores.push(cr.overallScore);
+    const countedCodingSubmissions = new Set(historyCodingSubmissions);
+    for (const cr of codingRecords) {
+      if (!countedCodingSubmissions.has(cr.candidateSubmission)) {
+        evalScores.push(cr.overallScore);
+        countedCodingSubmissions.add(cr.candidateSubmission);
+      }
     }
 
     const avgScore =

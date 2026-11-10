@@ -104,7 +104,9 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
 
     // 3. Topic-Level Analysis
     expect(report.topicLevelAnalysis.length).toBeGreaterThanOrEqual(2);
-    const hashAnalysis = report.topicLevelAnalysis.find((t) => t.curriculumTopicId === 'ds_hash_tables');
+    const hashAnalysis = report.topicLevelAnalysis.find(
+      (t) => t.curriculumTopicId === 'ds_hash_tables'
+    );
     expect(hashAnalysis).toBeDefined();
     expect(hashAnalysis?.status).toBe('demonstrated_strength');
 
@@ -115,7 +117,52 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
     // 4. Improvement Recommendations
     expect(report.improvementRecommendations.recommendedNextDifficulty).toBe('advanced');
     expect(report.auditMetadata.isMeasuredResult).toBe(true);
-    expect(report.auditMetadata.aiAssistedFeedbackDisclaimer).toContain('Numerical scores reflect deterministic rubric evaluations');
+    expect(report.auditMetadata.aiAssistedFeedbackDisclaimer).toContain(
+      'Numerical scores reflect deterministic rubric evaluations'
+    );
+  });
+
+  it('does not count an attached coding evaluation twice in the session average', () => {
+    const codingTurn = {
+      ...mockSession.questionHistory[0],
+      question: 'Implement the requested array algorithm.',
+      category: 'coding',
+      candidateTranscript: mockCodingRecord.candidateSubmission,
+      evaluation: {
+        overallScore: mockCodingRecord.overallScore,
+        percentage: 88,
+        dimensions: [],
+        topLeverageFixes: [],
+        modelAnswer: '',
+        diffMissingPoints: [],
+        assessedAt: Date.now(),
+      },
+      codingEvaluation: mockCodingRecord,
+    };
+    const lowerScoringTurn = {
+      ...mockSession.questionHistory[0],
+      question: 'Explain a behavioral scenario.',
+      category: 'behavioral',
+      candidateTranscript: 'I would communicate the risk and coordinate a recovery plan.',
+      evaluation: {
+        overallScore: 1.6,
+        percentage: 32,
+        dimensions: [],
+        topLeverageFixes: [],
+        modelAnswer: '',
+        diffMissingPoints: [],
+        assessedAt: Date.now(),
+      },
+    };
+    const session: MockSessionState = {
+      ...mockSession,
+      questionHistory: [codingTurn, lowerScoringTurn],
+    };
+
+    const report = InterviewReportGenerator.generateReport(session, []);
+
+    // (4.4 + 1.6) / 2 = 3.0; the attached coding record must not add a third vote.
+    expect(report.technicalPerformance.correctness.score).toBe(3.0);
   });
 
   it('accurately identifies weak areas and misconceptions when scores are low', () => {
@@ -142,7 +189,9 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
     };
 
     const report = InterviewReportGenerator.generateReport(weakSession, []);
-    const graphTopic = report.topicLevelAnalysis.find((t) => t.curriculumTopicId === 'algo_graph_algorithms');
+    const graphTopic = report.topicLevelAnalysis.find(
+      (t) => t.curriculumTopicId === 'algo_graph_algorithms'
+    );
 
     expect(graphTopic).toBeDefined();
     expect(graphTopic?.status).toBe('weak_area');
@@ -152,4 +201,3 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
     expect(report.improvementRecommendations.recommendedNextDifficulty).toBe('easy');
   });
 });
-
