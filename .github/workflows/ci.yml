@@ -71,6 +71,10 @@ jobs:
           }
           NODE
 
+      - name: Print formatted DOCX archive tests (temporary)
+        if: always()
+        run: npx prettier tests/docxArchiveLimits.test.ts
+
       - name: Check formatting for changed files
         shell: bash
         run: |
