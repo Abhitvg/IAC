@@ -23,6 +23,7 @@ import {
   startCloudLLMStream,
   validateCloudLLMStreamRequest,
   type CloudLLMStreamRequest,
+  type CloudLLMStreamStartResult,
 } from '../services/cloudLLMStreaming';
 import {
   MessageRateLimiter,
@@ -56,6 +57,13 @@ const ALLOWED_SETTING_KEYS = new Set([
   'windowOpacity',
   'lastModelMigrationNotice',
 ]);
+
+export function shouldReleaseCloudLLMController(
+  request: Pick<CloudLLMStreamRequest, 'stream'>,
+  result: Pick<CloudLLMStreamStartResult, 'ok'>
+): boolean {
+  return !request.stream || !result.ok;
+}
 
 export function validateCloudTranscriptionRequest(
   request: unknown
@@ -298,13 +306,28 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
         credentialStore,
         controller.signal,
         (channel, payload) => {
-          mainWindowRef?.webContents.send(channel, payload);
+          if (event.sender.isDestroyed() || !mainWindowRef || mainWindowRef.isDestroyed()) {
+            controller.abort(new Error('Renderer window is no longer available.'));
+            cloudLLMControllers.delete(request.requestId);
+            return;
+          }
+
+          try {
+            event.sender.send(channel, payload);
+          } catch {
+            controller.abort(new Error('Renderer window is no longer available.'));
+            cloudLLMControllers.delete(request.requestId);
+            return;
+          }
+
           if (channel === 'ai:stream-done' || channel === 'ai:stream-error') {
             cloudLLMControllers.delete(request.requestId);
           }
         }
       );
-      if (!result.ok) cloudLLMControllers.delete(request.requestId);
+      if (shouldReleaseCloudLLMController(request, result)) {
+        cloudLLMControllers.delete(request.requestId);
+      }
       return result;
     } catch (error) {
       cloudLLMControllers.delete(request.requestId);
