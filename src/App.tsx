@@ -76,8 +76,13 @@ export default function App() {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      if (
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+        target.isContentEditable ||
+        target.closest('[contenteditable="true"], [role="textbox"]')
+      ) {
         return;
+      }
       if (settingsOpen || sessionsOpen) return;
 
       if ((e.metaKey || e.ctrlKey) && e.key === '1') {
@@ -111,6 +116,9 @@ export default function App() {
         clearAndResetToListen();
         return;
       }
+
+      // Preserve native browser/OS shortcuts such as Cmd+C, Ctrl+R, and Alt+Tab.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       switch (e.key.toLowerCase()) {
         case 'r':
