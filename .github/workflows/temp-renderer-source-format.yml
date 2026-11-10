@@ -1,0 +1,29 @@
+name: Temporary renderer source formatting
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - security/bound-renderer-llm-stream-20261111
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/bound-renderer-llm-stream-20261111
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write src/services/ai.ts
+      - run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/services/ai.ts
+            git commit -m "style: format renderer stream cancellation"
+            git push
+          fi
