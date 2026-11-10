@@ -1161,7 +1161,10 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         }));
         if (key === 'preferredLanguage') {
           try {
-            localStorage.setItem('preferred_coding_language', String(confirmedValue ?? 'java'));
+            localStorage.setItem(
+              'preferred_coding_language',
+              String(confirmedValue ?? 'java')
+            );
           } catch {}
         }
         console.error(`[Settings] Failed to persist "${key}":`, error);
