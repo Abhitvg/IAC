@@ -45,6 +45,7 @@ import {
   isSafeExternalUrl,
   isTrustedAppOrigin,
   validateSafeFetchPinnedIpc,
+  prepareFileWritePayload,
 } from './services/security';
 
 // Linux stability configurations: prevent XDG portal crashes & GPU driver compositor terminations
@@ -586,21 +587,14 @@ ipcMain.handle('fs:read-file', async (event, filePath: string) => {
 // Write file restricted strictly to userData with size limits
 ipcMain.handle(
   'fs:write-file',
-  async (event, filePath: string, data: Buffer | string | ArrayBuffer) => {
+  async (event, filePath: string, data: unknown) => {
     if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
     if (typeof filePath !== 'string') {
       throw new Error('Invalid argument: filePath must be a string');
     }
 
-    const byteLength =
-      typeof data === 'string'
-        ? Buffer.byteLength(data)
-        : Buffer.isBuffer(data)
-          ? data.length
-          : data instanceof ArrayBuffer
-            ? data.byteLength
-            : 0;
-
+    const preparedPayload = prepareFileWritePayload(data);
+    const byteLength = preparedPayload.byteLength;
     const userDataPath = app.getPath('userData');
     const initialValidation = validateWritePath(filePath, byteLength, userDataPath);
     if (!initialValidation.allowed || !initialValidation.resolvedPath) {
@@ -658,9 +652,8 @@ ipcMain.handle(
         throw new Error('Access denied: Destination resolves outside userData');
       }
 
-      const payload = data instanceof ArrayBuffer ? Buffer.from(data) : data;
       fs.ftruncateSync(fileDescriptor, 0);
-      fs.writeFileSync(fileDescriptor, payload as any);
+      fs.writeFileSync(fileDescriptor, preparedPayload.payload);
       return true;
     } finally {
       if (fileDescriptor !== undefined) {

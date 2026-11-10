@@ -10,6 +10,35 @@ export interface ExtensionTokenInfo {
   tokenPreview: string;
 }
 
+export interface PreparedFileWritePayload {
+  byteLength: number;
+  payload: string | Buffer;
+}
+
+/**
+ * Normalize renderer-supplied file data and measure its actual byte length.
+ * Electron's structured clone may deliver Buffer values as typed-array views,
+ * so ArrayBuffer.isView() must be handled rather than treating them as zero bytes.
+ */
+export function prepareFileWritePayload(data: unknown): PreparedFileWritePayload {
+  if (typeof data === 'string') {
+    return { byteLength: Buffer.byteLength(data, 'utf8'), payload: data };
+  }
+
+  if (data instanceof ArrayBuffer) {
+    return { byteLength: data.byteLength, payload: Buffer.from(data) };
+  }
+
+  if (ArrayBuffer.isView(data)) {
+    return {
+      byteLength: data.byteLength,
+      payload: Buffer.from(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength),
+    };
+  }
+
+  throw new Error('Invalid file write payload: expected a string or binary data.');
+}
+
 /**
  * Creates a renderer-safe extension pairing status.
  * The full authentication token must never cross the IPC boundary.
