@@ -7,7 +7,10 @@ import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
 import { CredentialStore } from '../services/credentialStore';
-import { MessageRateLimiter, parseBrowserContextMessage } from '../services/browserContextValidation';
+import {
+  MessageRateLimiter,
+  parseBrowserContextMessage,
+} from '../services/browserContextValidation';
 
 let wsServer: WebSocketServer | null = null;
 let httpServer: http.Server | null = null;
@@ -152,7 +155,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       });
     }
 
-    // Auto-heal provider/model settings ONLY for Groq retired models, leaving non-Groq and custom models untouched
+    // Auto-heal provider/model settings ONLY for Groq retired models, leaving non-Groq and
+    // custom models untouched
     const curProvider = store.get('aiProvider');
     if (!curProvider) {
       store.set('aiProvider', 'groq');
@@ -175,11 +179,16 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
         'gemma-7b-it',
         'openrouter/free',
       ]);
-      const rawModel = typeof curModel === 'string' ? curModel.trim().toLowerCase().replace(/^groq\//, '') : '';
+      const rawModel =
+        typeof curModel === 'string' ? curModel.trim().toLowerCase().replace(/^groq\//, '') : '';
       if (!curModel || RETIRED_GROQ_IDS.has(rawModel)) {
-        const newModel = rawModel.includes('8b') || rawModel.includes('9b') || rawModel.includes('1b') || rawModel.includes('3b')
-          ? 'openai/gpt-oss-20b'
-          : 'openai/gpt-oss-120b';
+        const newModel =
+          rawModel.includes('8b') ||
+          rawModel.includes('9b') ||
+          rawModel.includes('1b') ||
+          rawModel.includes('3b')
+            ? 'openai/gpt-oss-20b'
+            : 'openai/gpt-oss-120b';
         store.set('aiModel', newModel);
         store.set('lastModelMigrationNotice', {
           timestamp: Date.now(),
