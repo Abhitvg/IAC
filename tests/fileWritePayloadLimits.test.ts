@@ -35,7 +35,7 @@ describe('IPC file-write payload normalization', () => {
     const prepared = prepareFileWritePayload(view);
 
     expect(prepared.byteLength).toBe(3);
-    expect([...prepared.payload as Buffer]).toEqual([20, 30, 40]);
+    expect(Array.from(prepared.payload as Buffer)).toEqual([20, 30, 40]);
   });
 
   it('supports Buffer and DataView values transferred over IPC', () => {
@@ -45,9 +45,9 @@ describe('IPC file-write payload normalization', () => {
     );
 
     expect(bufferPrepared.byteLength).toBe(3);
-    expect([...bufferPrepared.payload as Buffer]).toEqual([1, 2, 3]);
+    expect(Array.from(bufferPrepared.payload as Buffer)).toEqual([1, 2, 3]);
     expect(dataViewPrepared.byteLength).toBe(2);
-    expect([...dataViewPrepared.payload as Buffer]).toEqual([5, 6]);
+    expect(Array.from(dataViewPrepared.payload as Buffer)).toEqual([5, 6]);
   });
 
   it('rejects unsupported payloads instead of silently assigning zero bytes', () => {
