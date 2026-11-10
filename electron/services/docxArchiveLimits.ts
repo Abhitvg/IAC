@@ -202,7 +202,8 @@ export function validateDocxArchive(
     ) {
       return {
         allowed: false,
-        reason: `DOCX entry exceeds the maximum compression ratio of ${MAX_DOCX_COMPRESSION_RATIO}:1.`,
+        reason:
+          `DOCX entry exceeds the maximum compression ratio of ${MAX_DOCX_COMPRESSION_RATIO}:1.`,
       };
     }
 
