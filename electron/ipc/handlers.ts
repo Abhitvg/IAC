@@ -122,7 +122,9 @@ export function validateSetting(key: string, value: any): boolean {
         !isBoundedString(value, 160) ||
         value.length === 0 ||
         !/^[A-Za-z0-9._:/-]+$/.test(value) ||
-        !value.split('/').every((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
+        !value.split('/').every(
+          (segment) => segment.length > 0 && segment !== '.' && segment !== '..'
+        )
       ) {
         throw new Error(
           `Invalid ${key}: expected a model identifier of at most 160 characters.`
