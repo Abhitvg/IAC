@@ -184,38 +184,41 @@ export function inspectEvidenceRepository(
 /**
  * Bound signed-attestation inputs before cryptographic verification and JSON parsing.
  */
+const MAX_AUDIT_ATTESTATION_PAYLOAD_BYTES = 64 * 1024;
+
 export function verifyEvidenceAttestation(
-  attestation: AuditorSignedAttestation
+  input: unknown
 ): Promise<ImmutableIndependentAuditResult | null> {
-  if (!attestation || typeof attestation !== 'object') {
-    throw new Error('Invalid signed audit attestation.');
+  if (!isRecord(input)) {
+    return Promise.resolve(null);
   }
 
-  const payload = attestation as unknown as Record<string, unknown>;
-  if (payload.schemaVersion !== 'iac.audit.v1') {
-    throw new Error('Unsupported signed audit attestation schema.');
-  }
-
-  requireBoundedString(payload.auditorKeyId, 'auditorKeyId', 128);
-
+  const { schemaVersion, auditorKeyId, payloadJson, signatureHex } = input;
   if (
-    typeof payload.payloadJson !== 'string' ||
-    payload.payloadJson.length === 0 ||
-    payload.payloadJson.length > 256 * 1024 ||
-    Buffer.byteLength(payload.payloadJson, 'utf8') > 512 * 1024
+    schemaVersion !== 'iac.audit.v1' ||
+    typeof auditorKeyId !== 'string' ||
+    !auditorKeyId.trim() ||
+    auditorKeyId.length > 128 ||
+    typeof payloadJson !== 'string' ||
+    !payloadJson ||
+    payloadJson.length > MAX_AUDIT_ATTESTATION_PAYLOAD_BYTES ||
+    typeof signatureHex !== 'string' ||
+    signatureHex.length !== 128 ||
+    !/^[0-9a-f]{128}$/i.test(signatureHex)
   ) {
-    throw new Error('Signed audit payload exceeds the maximum supported size.');
+    return Promise.resolve(null);
   }
 
-  if (
-    typeof payload.signatureHex !== 'string' ||
-    payload.signatureHex.length !== 128 ||
-    !/^[0-9a-f]{128}$/i.test(payload.signatureHex)
-  ) {
-    throw new Error(
-      'Invalid Ed25519 audit signature; expected exactly 128 hexadecimal characters.'
-    );
+  if (Buffer.byteLength(payloadJson, 'utf8') > MAX_AUDIT_ATTESTATION_PAYLOAD_BYTES) {
+    return Promise.resolve(null);
   }
+
+  const attestation: AuditorSignedAttestation = {
+    schemaVersion,
+    auditorKeyId,
+    payloadJson,
+    signatureHex,
+  };
 
   return EvidenceVerificationService.verifySignedAttestation(attestation);
 }
