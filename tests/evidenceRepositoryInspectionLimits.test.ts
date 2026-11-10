@@ -19,15 +19,15 @@ function request(
 
 describe('Evidence repository inspection metadata limits', () => {
   it('rejects oversized repository URLs before URL parsing', () => {
-    expect(() =>
-      inspectEvidenceRepository(request({ repositoryUrl: 'x'.repeat(2049) }))
-    ).toThrow('repositoryUrl');
+    expect(() => inspectEvidenceRepository(request({ repositoryUrl: 'x'.repeat(2049) }))).toThrow(
+      'repositoryUrl'
+    );
   });
 
   it('rejects oversized authorization headers before making network requests', () => {
-    expect(() =>
-      inspectEvidenceRepository(request({ authHeader: 'a'.repeat(4097) }))
-    ).toThrow('authHeader');
+    expect(() => inspectEvidenceRepository(request({ authHeader: 'a'.repeat(4097) }))).toThrow(
+      'authHeader'
+    );
   });
 
   it('rejects CRLF in authorization headers', () => {
