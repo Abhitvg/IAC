@@ -57,6 +57,15 @@ describe('Electron Security & Path Traversal Audit', () => {
     expect(settings.extensionToken).toBe('extension-secret');
   });
 
+  it('does not expose raw provider credentials through preload or IPC', () => {
+    const preload = fs.readFileSync(path.resolve(process.cwd(), 'electron/preload.ts'), 'utf8');
+    const handlers = fs.readFileSync(path.resolve(process.cwd(), 'electron/ipc/handlers.ts'), 'utf8');
+
+    expect(preload).not.toMatch(/getApiKey\s*:/);
+    expect(preload).not.toContain("ipcRenderer.invoke('credentials:get'");
+    expect(handlers).not.toContain("ipcMain.handle('credentials:get'");
+  });
+
   it('does not retrieve cloud STT API keys in the renderer', () => {
     const whisperService = fs.readFileSync(
       path.resolve(process.cwd(), 'src/services/whisper.ts'),
