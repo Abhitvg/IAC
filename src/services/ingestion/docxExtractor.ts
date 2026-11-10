@@ -1,3 +1,5 @@
+import { validateDocxArchive } from '../../../electron/services/docxArchiveLimits';
+
 /**
  * DOCX Document Extractor
  * Uses Mammoth to extract text, tables, and paragraphs while preserving document structure.
@@ -52,6 +54,15 @@ export async function extractDocxDocument(arrayBuffer: ArrayBuffer): Promise<Doc
       text: '',
       headings: [],
       warnings: ['Received empty DOCX buffer.'],
+    };
+  }
+
+  const archiveValidation = validateDocxArchive(arrayBuffer);
+  if (!archiveValidation.allowed) {
+    return {
+      text: '',
+      headings: [],
+      warnings: [archiveValidation.reason || 'DOCX archive failed resource validation.'],
     };
   }
 
