@@ -12,6 +12,7 @@ import {
 } from '../utils/settingWriteQueue';
 import { InterviewEngine } from '../services/InterviewEngine';
 import { InterviewWorkspace } from '../types';
+import { normalizePreferredLanguage } from '../utils/settings';
 import {
   resolveOrMigrateModel,
   getDefaultModelForProvider,
@@ -824,6 +825,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
           if (electronSettings && typeof electronSettings === 'object') {
             set((state) => {
               const merged = { ...state.settings, ...electronSettings };
+              merged.preferredLanguage = normalizePreferredLanguage(merged.preferredLanguage);
               const provider = (merged.aiProvider || 'groq') as AIProviderId;
               const res = resolveOrMigrateModel(provider, merged.aiModel, 'llm');
               if (res.wasMigrated) {
@@ -1105,10 +1107,10 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   currentPerformance: null,
   setSessionsOpen: (o) => set({ sessionsOpen: o }),
   settings: (() => {
-    let lang = 'Java';
+    let lang = normalizePreferredLanguage('java');
     try {
       const saved = localStorage.getItem('preferred_coding_language');
-      if (saved) lang = saved;
+      if (saved) lang = normalizePreferredLanguage(saved);
     } catch {}
     return {
       aiProvider: 'groq',
@@ -1121,18 +1123,20 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     };
   })(),
   updateSetting: (key: string, val: any) => {
+    const normalizedValue =
+      key === 'preferredLanguage' ? normalizePreferredLanguage(val) : val;
     const previousValue = get().settings?.[key];
 
     if (key === 'preferredLanguage') {
       try {
-        localStorage.setItem('preferred_coding_language', String(val));
+        localStorage.setItem('preferred_coding_language', String(normalizedValue));
       } catch {}
     }
 
     // Optimistically update the UI, but serialize writes per key. If Electron
     // rejects the latest write, restore the last value confirmed by main.
     set((state) => ({
-      settings: { ...state.settings, [key]: val },
+      settings: { ...state.settings, [key]: normalizedValue },
     }));
 
     if (typeof window === 'undefined' || !window.electronAPI?.setSettings) return;
@@ -1146,7 +1150,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     const persist = window.electronAPI.setSettings;
     enqueueSettingWrite(
       writeQueue,
-      val,
+      normalizedValue,
       async (nextValue) => {
         const saved = await persist(key, nextValue);
         if (saved === false) throw new Error('Electron rejected the settings update.');
