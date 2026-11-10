@@ -296,7 +296,10 @@ export function verifyEvidenceSeal(result: unknown): boolean {
       ) {
         return false;
       }
-      if (typeof result.resolvedCommitSha !== 'string' || !/^[0-9a-f]{40}$/i.test(result.resolvedCommitSha)) {
+      if (
+        typeof result.resolvedCommitSha !== 'string' ||
+        !/^[0-9a-f]{40}$/i.test(result.resolvedCommitSha)
+      ) {
         return false;
       }
       if (typeof result.treeSha !== 'string' || !/^[0-9a-f]{40}$/i.test(result.treeSha)) {
