@@ -64,9 +64,12 @@ describe('Evidence seal verification input limits', () => {
     expect(verifyEvidenceSeal({ ...base, candidateAuthorshipStatus: 'x'.repeat(100_000) })).toBe(
       false
     );
-    expect(verifyEvidenceSeal({ ...base, resolvedCommitSha: { toString: () => 'a'.repeat(40) } })).toBe(
-      false
-    );
+    expect(
+      verifyEvidenceSeal({
+        ...base,
+        resolvedCommitSha: { toString: () => 'a'.repeat(40) },
+      })
+    ).toBe(false);
   });
 
   it('requires primitive boolean fields in document seal canonical data', () => {
