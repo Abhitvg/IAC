@@ -77,7 +77,11 @@ function validateEvidenceInspectionMetadata(request: DocumentInspectionRequest):
     throw new Error('Invalid issuer.authorityLevel.');
   }
 
-  if (issuer.signatureHex !== undefined && issuer.signatureHex !== null && issuer.signatureHex !== '') {
+  if (
+    issuer.signatureHex !== undefined &&
+    issuer.signatureHex !== null &&
+    issuer.signatureHex !== ''
+  ) {
     if (
       typeof issuer.signatureHex !== 'string' ||
       issuer.signatureHex.length === 0 ||
@@ -85,7 +89,9 @@ function validateEvidenceInspectionMetadata(request: DocumentInspectionRequest):
       issuer.signatureHex.length % 2 !== 0 ||
       !/^[0-9a-f]+$/i.test(issuer.signatureHex)
     ) {
-      throw new Error('Invalid issuer.signatureHex; expected bounded hexadecimal signature data.');
+      throw new Error(
+        'Invalid issuer.signatureHex; expected bounded hexadecimal signature data.'
+      );
     }
   }
 
@@ -159,7 +165,11 @@ export function inspectEvidenceRepository(
   requireBoundedString(payload.repositoryUrl, 'repositoryUrl', 2048);
   requireOptionalBoundedString(payload.ref, 'ref', 128);
 
-  if (payload.authHeader !== undefined && payload.authHeader !== null && payload.authHeader !== '') {
+  if (
+    payload.authHeader !== undefined &&
+    payload.authHeader !== null &&
+    payload.authHeader !== ''
+  ) {
     const authHeader = requireBoundedString(payload.authHeader, 'authHeader', 4096);
     if (/[\r\n]/.test(authHeader)) {
       throw new Error('Invalid authHeader; line breaks are not permitted.');
