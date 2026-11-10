@@ -108,7 +108,13 @@ export async function transcribeCloudAudio(
     );
   }
 
-  const responseText = await readResponseTextLimited(response, MAX_CLOUD_TRANSCRIPTION_RESPONSE_BYTES);\n  let data: Record<string, unknown>;\n  try {\n    data = JSON.parse(responseText) as Record<string, unknown>;\n  } catch {\n    throw new Error('Transcription provider returned an invalid JSON response.');\n  }
+  const responseText = await readResponseTextLimited(response, MAX_CLOUD_TRANSCRIPTION_RESPONSE_BYTES);
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(responseText) as Record<string, unknown>;
+  } catch {
+    throw new Error('Transcription provider returned an invalid JSON response.');
+  }
   const segments = Array.isArray(data.segments)
     ? data.segments
         .filter(
