@@ -592,7 +592,7 @@ ipcMain.handle(
     if (typeof filePath !== 'string') {
       throw new Error('Invalid argument: filePath must be a string');
     }
-  
+
     const preparedPayload = prepareFileWritePayload(data);
     const byteLength = preparedPayload.byteLength;
     const userDataPath = app.getPath('userData');
@@ -600,12 +600,12 @@ ipcMain.handle(
     if (!initialValidation.allowed || !initialValidation.resolvedPath) {
       throw new Error(initialValidation.reason || 'Access denied');
     }
-  
+
     const dir = path.dirname(initialValidation.resolvedPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-  
+
     // Revalidate after directory creation and open without truncation first.
     // A final dangling symlink can pass existsSync() as "missing"; r+ will
     // follow a live symlink without changing its target, while wx+ refuses
@@ -615,14 +615,14 @@ ipcMain.handle(
     if (!validation.allowed || !validation.resolvedPath) {
       throw new Error(validation.reason || 'Access denied');
     }
-  
+
     const destination = validation.resolvedPath;
     const realUserData = fs.realpathSync(userDataPath);
     const realParent = fs.realpathSync(path.dirname(destination));
     if (realParent !== realUserData && !realParent.startsWith(realUserData + path.sep)) {
       throw new Error('Access denied: Destination parent resolves outside userData');
     }
-  
+
     let fileDescriptor: number | undefined;
     try {
       try {
@@ -631,7 +631,7 @@ ipcMain.handle(
         if (error?.code !== 'ENOENT') throw error;
         fileDescriptor = fs.openSync(destination, 'wx+', 0o600);
       }
-  
+
       const descriptorStat = fs.fstatSync(fileDescriptor);
       const destinationStat = fs.lstatSync(destination);
       if (
@@ -643,7 +643,7 @@ ipcMain.handle(
       ) {
         throw new Error('Access denied: Destination changed or is not a regular file');
       }
-  
+
       const realDestination = fs.realpathSync(destination);
       if (
         realDestination !== realUserData &&
@@ -651,7 +651,7 @@ ipcMain.handle(
       ) {
         throw new Error('Access denied: Destination resolves outside userData');
       }
-  
+
       fs.ftruncateSync(fileDescriptor, 0);
       fs.writeFileSync(fileDescriptor, preparedPayload.payload);
       return true;
