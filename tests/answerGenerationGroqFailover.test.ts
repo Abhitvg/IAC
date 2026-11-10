@@ -42,7 +42,12 @@ function createElectronGateway(credentialStore: { getKey: ReturnType<typeof vi.f
       const controller = new AbortController();
       controllers.set(request.requestId, controller);
       try {
-        const result = await startCloudLLMStream(request, credentialStore as any, controller.signal, send);
+        const result = await startCloudLLMStream(
+          request,
+          credentialStore as any,
+          controller.signal,
+          send
+        );
         if (!result.ok) controllers.delete(request.requestId);
         return result;
       } catch (error) {
