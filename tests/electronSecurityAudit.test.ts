@@ -57,6 +57,17 @@ describe('Electron Security & Path Traversal Audit', () => {
     expect(settings.extensionToken).toBe('extension-secret');
   });
 
+  it('does not load saved API keys into the Settings renderer', () => {
+    const settingsPanel = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/components/SettingsPanel.tsx'),
+      'utf8'
+    );
+
+    expect(settingsPanel).not.toMatch(/getApiKey\(/);
+    expect(settingsPanel).toContain('hasApiKey(');
+    expect(settingsPanel).toContain('preflightAI');
+  });
+
   it('returns only a masked extension token preview across IPC', () => {
     const token = '12345678-1234-1234-1234-1234567890ab';
     const info = createExtensionTokenInfo(31415, token);
