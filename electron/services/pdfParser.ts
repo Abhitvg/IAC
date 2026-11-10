@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { pathToFileURL } from 'url';
 import { executeOcr, getOcrEngineInfo } from './ocrService';
+import { validateDocumentImportSize } from './documentImportLimits';
 import { sortAndFormatTextItems } from './pdfLayout';
 export { sortAndFormatTextItems } from './pdfLayout';
 export type { ExtractedPdfItem } from './pdfLayout';
@@ -132,6 +133,11 @@ export async function parsePdfBuffer(
 ): Promise<string> {
   if (!arrayBuffer || ('byteLength' in arrayBuffer && arrayBuffer.byteLength === 0)) {
     return '';
+  }
+
+  const sizeValidation = validateDocumentImportSize(arrayBuffer.byteLength);
+  if (!sizeValidation.allowed) {
+    throw new Error(sizeValidation.reason || 'PDF import size is invalid.');
   }
 
   let uint8: Uint8Array;
