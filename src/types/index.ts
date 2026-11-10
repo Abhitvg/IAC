@@ -259,7 +259,6 @@ export interface ElectronAPI {
   openExternal: (url: string) => Promise<void>;
   getSettings: () => Promise<AppSettings>;
   setSettings: (key: string, value: any) => Promise<boolean>;
-  getApiKey: (service: string) => Promise<string | null>;
   setApiKey: (service: string, key: string) => Promise<boolean>;
   hasApiKey: (service: string) => Promise<boolean>;
   deleteApiKey: (service: string) => Promise<boolean>;
