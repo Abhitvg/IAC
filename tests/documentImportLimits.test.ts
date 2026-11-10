@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_DOCUMENT_IMPORT_SIZE_BYTES,
+  MAX_PDF_PAGE_COUNT,
   validateDocumentImportSize,
+  validatePdfPageCount,
 } from '../electron/services/documentImportLimits';
 
 describe('validateDocumentImportSize', () => {
@@ -21,6 +23,24 @@ describe('validateDocumentImportSize', () => {
   it('rejects buffers larger than the configured 25 MB import limit', () => {
     const result = validateDocumentImportSize(MAX_DOCUMENT_IMPORT_SIZE_BYTES + 1);
     expect(result.allowed).toBe(false);
-    expect(result.reason).toContain('maximum import size');
+    expect(result.reason).toBe(
+      `Document exceeds maximum import size of ${MAX_DOCUMENT_IMPORT_SIZE_BYTES} bytes.`
+    );
+  });
+});
+
+describe('validatePdfPageCount', () => {
+  it('accepts PDFs with a positive page count up to the limit', () => {
+    expect(validatePdfPageCount(1)).toEqual({ allowed: true });
+    expect(validatePdfPageCount(MAX_PDF_PAGE_COUNT)).toEqual({ allowed: true });
+  });
+
+  it('rejects invalid and excessive page counts', () => {
+    for (const count of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 101]) {
+      expect(validatePdfPageCount(count).allowed).toBe(false);
+    }
+    expect(validatePdfPageCount(MAX_PDF_PAGE_COUNT + 1).reason).toBe(
+      `PDF exceeds maximum supported page count of ${MAX_PDF_PAGE_COUNT} pages.`
+    );
   });
 });

@@ -24,6 +24,16 @@ describe('pdfParser', { timeout: 35000 }, () => {
     expect(result).toBe('');
   });
 
+  it('rejects PDFs above the page limit before OCR fallback', async () => {
+    const oversizedPdf = createTextPdf(
+      Array.from({ length: 101 }, (_, index) => `Page ${index + 1}`)
+    );
+
+    const result = await parsePdfBuffer(oversizedPdf);
+
+    expect(result).toBe('PDF exceeds the maximum supported page count of 100 pages.');
+  });
+
   it('correctly extracts text from valid PDF buffer', async () => {
     const buffer = createTextPdf(['Candidate Resume Text 2026']);
     const result = await parsePdfBuffer(buffer);
