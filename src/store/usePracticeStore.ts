@@ -23,7 +23,7 @@ import { QuestionBank } from '../services/practice/QuestionBank';
 import { CompanyPlanGenerator } from '../services/practice/CompanyPlanGenerator';
 import { CompetencyProfileService } from '../services/practice/CompetencyProfileService';
 import { CurriculumCatalogService } from '../data/curriculum/CurriculumCatalog';
-import { LLMManager } from '../services/providers/LLMProvider';
+import { createPracticeLLMCaller } from '../services/practice/createPracticeLLMCaller';
 
 interface PracticeState {
   activeView: 'teleprompter' | 'mock_gym' | 'career_ops';
@@ -307,16 +307,12 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     let updatedSession: MockSessionState;
     try {
       let llmCaller: ((prompt: string, model: string) => Promise<string>) | undefined;
-      try {
-        const llm = new LLMManager();
-        llmCaller = async (prompt: string, _model: string) => {
-          const res = await llm.executeWithFallback([{ role: 'user', content: prompt }], {
-            temperature: 0.2,
-          });
-          return res.text;
-        };
-      } catch (_e) {
-        // Fallback to offline
+      if (
+        typeof window !== 'undefined' &&
+        window.electronAPI?.getSettings &&
+        window.electronAPI?.startCloudLLMStream
+      ) {
+        llmCaller = createPracticeLLMCaller(window.electronAPI);
       }
 
       updatedSession = await MockInterviewerEngine.processAnswerSubmissionAsync(
