@@ -1,5 +1,9 @@
 import { EvidenceVerificationService } from '../services/evidenceVerificationService';
-import { createPublicSettingsSnapshot, isTrustedSender } from '../services/security';
+import {
+  createExtensionTokenInfo,
+  createPublicSettingsSnapshot,
+  isTrustedSender,
+} from '../services/security';
 import fs from 'fs';
 import path from 'path';
 import { ipcMain, BrowserWindow, clipboard } from 'electron';
@@ -255,7 +259,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     store.set('extensionToken', token);
     const address = httpServer?.address();
     const port = typeof address === 'object' ? address?.port : 31415;
-    return { port, tokenPreview: token.slice(-4) };
+    return createExtensionTokenInfo(port, token);
   });
 
   ipcMain.handle('ws:copy-token', (event) => {
@@ -271,8 +275,9 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     if (wsServer && httpServer) {
       const address = httpServer.address();
       const port = typeof address === 'object' ? address?.port : 31415;
-      const token = store.get('extensionToken');
-      return { port, tokenPreview: token?.slice(-4) };
+      const token = store.get('extensionToken') || crypto.randomUUID();
+      store.set('extensionToken', token);
+      return createExtensionTokenInfo(port, token);
     }
 
     const token = store.get('extensionToken') || crypto.randomUUID();
@@ -389,7 +394,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       console.log('[WebSocket] Server securely listening on 127.0.0.1:31415');
     });
 
-    return { port: 31415, token };
+    return createExtensionTokenInfo(31415, token);
   });
 
   // Privileged Evidence Inspection Handlers (Sender-validated, payload-sanitized)
