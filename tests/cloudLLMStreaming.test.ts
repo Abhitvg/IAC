@@ -156,4 +156,86 @@ describe('cloud LLM streaming response handling', () => {
     expect(events).toContain('ai:stream-chunk');
     expect(events).not.toContain('ai:stream-error');
   });
+
+  it('rejects streamed provider bodies that exceed the response byte budget', async () => {
+    const oversizedBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(MAX_CLOUD_LLM_RESPONSE_BYTES + 1));
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(oversizedBody, {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        })
+      )
+    );
+
+    const request: CloudLLMStreamRequest = {
+      requestId: 'oversized-stream-test',
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      systemPrompt: 'You are a concise assistant.',
+      question: 'Explain dependency injection.',
+      temperature: 0.2,
+      maxTokens: 256,
+      stream: true,
+    };
+    const credentials = {
+      getKey: vi.fn().mockResolvedValue('sk-test-provider-key'),
+    };
+    const terminalEvent = new Promise<{ channel: string; payload: Record<string, unknown> }>(
+      (resolve) => {
+        void startCloudLLMStream(
+          request,
+          credentials as never,
+          new AbortController().signal,
+          (channel, payload) => {
+            if (channel === 'ai:stream-error' || channel === 'ai:stream-done') {
+              resolve({ channel, payload });
+            }
+          }
+        );
+      }
+    );
+
+    await expect(terminalEvent).resolves.toMatchObject({
+      channel: 'ai:stream-error',
+      payload: {
+        requestId: 'oversized-stream-test',
+        message: `Provider streaming response exceeded maximum size limit of ${MAX_CLOUD_LLM_RESPONSE_BYTES} bytes.`,
+      },
+    });
+  });
+
+  it('bounds non-streaming successful provider response bodies', async () => {
+    const oversizedBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(MAX_CLOUD_LLM_RESPONSE_BYTES + 1));
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(oversizedBody, { status: 200 })));
+
+    const request: CloudLLMStreamRequest = {
+      requestId: 'oversized-nonstream-test',
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      systemPrompt: 'You are a concise assistant.',
+      question: 'Explain dependency injection.',
+      temperature: 0.2,
+      maxTokens: 256,
+      stream: false,
+    };
+    const credentials = {
+      getKey: vi.fn().mockResolvedValue('sk-test-provider-key'),
+    };
+
+    await expect(
+      startCloudLLMStream(request, credentials as never, new AbortController().signal, vi.fn())
+    ).rejects.toThrow(
+      `Provider response exceeded maximum size limit of ${MAX_CLOUD_LLM_RESPONSE_BYTES} bytes.`
+    );
+  });
 });
