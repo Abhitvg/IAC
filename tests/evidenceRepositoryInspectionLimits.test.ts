@@ -32,7 +32,7 @@ describe('Evidence repository inspection metadata limits', () => {
 
   it('rejects CRLF in authorization headers', () => {
     expect(() =>
-      inspectEvidenceRepository(request({ authHeader: 'Bearer token\\r\\nInjected: yes' }))
+      inspectEvidenceRepository(request({ authHeader: 'Bearer token\r\nInjected: yes' }))
     ).toThrow('line breaks');
   });
 
