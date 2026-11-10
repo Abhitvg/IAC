@@ -2,7 +2,7 @@ import { EvidenceVerificationService } from '../services/evidenceVerificationSer
 import { createPublicSettingsSnapshot, isTrustedSender } from '../services/security';
 import fs from 'fs';
 import path from 'path';
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, clipboard } from 'electron';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
@@ -255,7 +255,15 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     store.set('extensionToken', token);
     const address = httpServer?.address();
     const port = typeof address === 'object' ? address?.port : 31415;
-    return { port, token };
+    return { port, tokenPreview: token.slice(-4) };
+  });
+
+  ipcMain.handle('ws:copy-token', (event) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    const token = store.get('extensionToken') || crypto.randomUUID();
+    store.set('extensionToken', token);
+    clipboard.writeText(token);
+    return true;
   });
 
   ipcMain.handle('ws:start', (event) => {
@@ -264,7 +272,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       const address = httpServer.address();
       const port = typeof address === 'object' ? address?.port : 31415;
       const token = store.get('extensionToken');
-      return { port, token };
+      return { port, tokenPreview: token?.slice(-4) };
     }
 
     const token = store.get('extensionToken') || crypto.randomUUID();

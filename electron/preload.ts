@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // WebSocket server for browser extension
   getWsInfo: () => ipcRenderer.invoke('ws:get-info'),
+  copyWsToken: () => ipcRenderer.invoke('ws:copy-token'),
   startWsServer: () => ipcRenderer.invoke('ws:start'),
   stopWsServer: () => ipcRenderer.invoke('ws:stop'),
   onBrowserContext: (callback: (data: any) => void) => {
