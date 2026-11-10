@@ -7,6 +7,7 @@ import {
   validateWritePath,
   validateDeletePath,
   createPublicSettingsSnapshot,
+  createExtensionTokenInfo,
 } from '../electron/services/security';
 
 describe('Electron Security & Path Traversal Audit', () => {
@@ -49,17 +50,34 @@ describe('Electron Security & Path Traversal Audit', () => {
 
     const snapshot = createPublicSettingsSnapshot(
       settings,
-      new Set([
-        'aiProvider',
-        'theme',
-        'extensionToken',
-        'secure_credentials',
-        'apiKey',
-      ])
+      new Set(['aiProvider', 'theme', 'extensionToken', 'secure_credentials', 'apiKey'])
     );
 
     expect(snapshot).toEqual({ aiProvider: 'groq', theme: 'dark' });
     expect(settings.extensionToken).toBe('extension-secret');
+  });
+
+  it('returns only a masked extension token preview across IPC', () => {
+    const token = '12345678-1234-1234-1234-1234567890ab';
+    const info = createExtensionTokenInfo(31415, token);
+
+    expect(info).toEqual({ port: 31415, tokenPreview: '90ab' });
+    expect(info).not.toHaveProperty('token');
+    expect(JSON.stringify(info)).not.toContain(token);
+  });
+
+  it('uses the safe extension token response for every WebSocket startup path', () => {
+    const handlers = fs.readFileSync(
+      path.resolve(process.cwd(), 'electron/ipc/handlers.ts'),
+      'utf8'
+    );
+    const start = handlers.indexOf("ipcMain.handle('ws:get-info'");
+    const end = handlers.indexOf('// Privileged Evidence Inspection Handlers', start);
+    const wsHandlers = handlers.slice(start, end);
+
+    expect(wsHandlers.match(/createExtensionTokenInfo\(/g)).toHaveLength(3);
+    expect(wsHandlers).not.toMatch(/return\s*\{\s*port\s*:\s*31415\s*,\s*token\s*\}/);
+    expect(wsHandlers).not.toMatch(/return\s*\{\s*port\s*,\s*token\s*\}/);
   });
 
   it('allows read path inside userData', () => {

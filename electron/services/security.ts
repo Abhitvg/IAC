@@ -4,6 +4,22 @@ import { fileURLToPath } from 'url';
 
 export const MAX_WRITE_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB max write limit
 
+export interface ExtensionTokenInfo {
+  port: number;
+  tokenPreview: string;
+}
+
+/**
+ * Creates a renderer-safe extension pairing status.
+ * The full authentication token must never cross the IPC boundary.
+ */
+export function createExtensionTokenInfo(port: number, token: string): ExtensionTokenInfo {
+  return {
+    port,
+    tokenPreview: token.length >= 4 ? token.slice(-4) : '••••',
+  };
+}
+
 const SENSITIVE_RENDERER_SETTING_KEYS = new Set([
   'extensionToken',
   'secure_credentials',
