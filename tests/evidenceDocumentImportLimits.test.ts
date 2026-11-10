@@ -1,7 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { inspectEvidenceDocument } from '../electron/services/boundedEvidenceInspection';
 import { MAX_DOCUMENT_IMPORT_SIZE_BYTES } from '../electron/services/documentImportLimits';
-import type { DocumentInspectionRequest } from '../electron/services/evidenceVerificationService';
+import {
+  EvidenceVerificationService,
+  type DocumentInspectionRequest,
+  type ImmutableDocumentInspectionResult,
+} from '../electron/services/evidenceVerificationService';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('Evidence document import size limits', () => {
   const request = (
@@ -49,6 +57,34 @@ describe('Evidence document import size limits', () => {
     payload.candidateIdentity.fullName = 'x'.repeat(257);
 
     expect(() => inspectEvidenceDocument(payload)).toThrow('candidateIdentity.fullName');
+  });
+
+  it('caps returned performance metrics without invalidating the document seal', () => {
+    const result = {
+      inspectionId: 'inspection-123',
+      inspectedAt: Date.now(),
+      documentId: 'document-123',
+      documentType: 'publication',
+      documentSha256: 'a'.repeat(64),
+      documentByteLength: 16,
+      issuerName: 'Test Publisher',
+      issuerValidated: false,
+      authenticityStatus: 'UNAUTHENTICATED_CONTENT',
+      candidateMentioned: true,
+      projectMentioned: true,
+      personalWorkAttested: false,
+      evidenceModality: 'UNAUTHENTICATED_BYTE_INSPECTED',
+      supportedFields: {
+        performanceMetrics: Array.from({ length: 101 }, (_, index) => `metric ${index}`),
+      },
+      __documentSeal: 'b'.repeat(64),
+    } as ImmutableDocumentInspectionResult;
+    vi.spyOn(EvidenceVerificationService, 'inspectDocument').mockReturnValue(result);
+
+    const inspected = inspectEvidenceDocument(request(new Uint8Array(16)));
+
+    expect(inspected.supportedFields.performanceMetrics).toHaveLength(100);
+    expect(inspected.__documentSeal).toBe(result.__documentSeal);
   });
 
   it('rejects empty and unsupported document payloads', () => {
