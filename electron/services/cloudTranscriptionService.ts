@@ -90,7 +90,7 @@ export async function transcribeCloudAudio(
   }
 
   const formData = new FormData();
-  formData.append('file', new Blob([Buffer.from(request.audio)]), 'recording.wav');
+  formData.append('file', new Blob([request.audio]), 'recording.wav');
   formData.append('model', providerConfig.model);
   formData.append('response_format', 'verbose_json');
   if (request.language) formData.append('language', request.language);
