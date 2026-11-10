@@ -1,0 +1,36 @@
+name: Temporary PR 191 formatter
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/practice-static-coding-scores-neutral-20261111
+    paths:
+      - src/services/practice/CodingEvaluationService.ts
+      - tests/codingEvaluation.test.ts
+      - .github/workflows/temp-pr191-format.yml
+permissions:
+  contents: write
+jobs:
+  format:
+    if: github.ref == 'refs/heads/fix/practice-static-coding-scores-neutral-20261111'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/practice-static-coding-scores-neutral-20261111
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx prettier --write src/services/practice/CodingEvaluationService.ts tests/codingEvaluation.test.ts
+      - name: Commit formatting if needed
+        run: |
+          if [[ -n "$(git status --porcelain src/services/practice/CodingEvaluationService.ts tests/codingEvaluation.test.ts)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/services/practice/CodingEvaluationService.ts tests/codingEvaluation.test.ts
+            git commit -m "style(practice): format neutral coding assessment scores"
+            git push
+          fi
