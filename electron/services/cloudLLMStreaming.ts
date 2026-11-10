@@ -204,15 +204,16 @@ export async function startCloudLLMStream(
   void (async () => {
     try {
       let receivedBytes = false;
-      const isEventStream =
-        /text\\/eentv - stream / i.test(response.headers.get('content-type') || '');
+      const isEventStream = (response.headers.get('content-type') || '')
+        .toLowerCase()
+        .includes('text/event-stream');
       let pendingSseText = '';
       let receivedSseData = false;
 
       // SSE comments and heartbeats are transport noise; only non-terminal data events count as content.
       const inspectSseChunk = (chunk: string, flush = false) => {
         pendingSseText += chunk;
-        const lines = pendingSseText.split(/\\r?\\n/);
+        const lines = pendingSseText.split(/\r?\n/);
         pendingSseText = flush ? '' : lines.pop() || '';
         for (const line of lines) {
           if (!line.startsWith('data:')) continue;
