@@ -585,80 +585,83 @@ ipcMain.handle('fs:read-file', async (event, filePath: string) => {
 });
 
 // Write file restricted strictly to userData with size limits
-ipcMain.handle('fs:write-file', async (event, filePath: string, data: unknown) => {
-  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
-  if (typeof filePath !== 'string') {
-    throw new Error('Invalid argument: filePath must be a string');
-  }
+ipcMain.handle(
+  'fs:write-file',
+  async (event, filePath: string, data: unknown) => {
+    if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+    if (typeof filePath !== 'string') {
+      throw new Error('Invalid argument: filePath must be a string');
+    }
 
-  const preparedPayload = prepareFileWritePayload(data);
-  const byteLength = preparedPayload.byteLength;
-  const userDataPath = app.getPath('userData');
-  const initialValidation = validateWritePath(filePath, byteLength, userDataPath);
-  if (!initialValidation.allowed || !initialValidation.resolvedPath) {
-    throw new Error(initialValidation.reason || 'Access denied');
-  }
+    const preparedPayload = prepareFileWritePayload(data);
+    const byteLength = preparedPayload.byteLength;
+    const userDataPath = app.getPath('userData');
+    const initialValidation = validateWritePath(filePath, byteLength, userDataPath);
+    if (!initialValidation.allowed || !initialValidation.resolvedPath) {
+      throw new Error(initialValidation.reason || 'Access denied');
+    }
 
-  const dir = path.dirname(initialValidation.resolvedPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+    const dir = path.dirname(initialValidation.resolvedPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
-  // Revalidate after directory creation and open without truncation first.
-  // A final dangling symlink can pass existsSync() as "missing"; r+ will
-  // follow a live symlink without changing its target, while wx+ refuses
-  // to create through a dangling symlink. We verify the opened descriptor
-  // against lstat/realpath before truncating or writing any bytes.
-  const validation = validateWritePath(filePath, byteLength, userDataPath);
-  if (!validation.allowed || !validation.resolvedPath) {
-    throw new Error(validation.reason || 'Access denied');
-  }
+    // Revalidate after directory creation and open without truncation first.
+    // A final dangling symlink can pass existsSync() as "missing"; r+ will
+    // follow a live symlink without changing its target, while wx+ refuses
+    // to create through a dangling symlink. We verify the opened descriptor
+    // against lstat/realpath before truncating or writing any bytes.
+    const validation = validateWritePath(filePath, byteLength, userDataPath);
+    if (!validation.allowed || !validation.resolvedPath) {
+      throw new Error(validation.reason || 'Access denied');
+    }
 
-  const destination = validation.resolvedPath;
-  const realUserData = fs.realpathSync(userDataPath);
-  const realParent = fs.realpathSync(path.dirname(destination));
-  if (realParent !== realUserData && !realParent.startsWith(realUserData + path.sep)) {
-    throw new Error('Access denied: Destination parent resolves outside userData');
-  }
+    const destination = validation.resolvedPath;
+    const realUserData = fs.realpathSync(userDataPath);
+    const realParent = fs.realpathSync(path.dirname(destination));
+    if (realParent !== realUserData && !realParent.startsWith(realUserData + path.sep)) {
+      throw new Error('Access denied: Destination parent resolves outside userData');
+    }
 
-  let fileDescriptor: number | undefined;
-  try {
+    let fileDescriptor: number | undefined;
     try {
-      fileDescriptor = fs.openSync(destination, 'r+');
-    } catch (error: any) {
-      if (error?.code !== 'ENOENT') throw error;
-      fileDescriptor = fs.openSync(destination, 'wx+', 0o600);
-    }
+      try {
+        fileDescriptor = fs.openSync(destination, 'r+');
+      } catch (error: any) {
+        if (error?.code !== 'ENOENT') throw error;
+        fileDescriptor = fs.openSync(destination, 'wx+', 0o600);
+      }
 
-    const descriptorStat = fs.fstatSync(fileDescriptor);
-    const destinationStat = fs.lstatSync(destination);
-    if (
-      !descriptorStat.isFile() ||
-      !destinationStat.isFile() ||
-      destinationStat.isSymbolicLink() ||
-      descriptorStat.dev !== destinationStat.dev ||
-      descriptorStat.ino !== destinationStat.ino
-    ) {
-      throw new Error('Access denied: Destination changed or is not a regular file');
-    }
+      const descriptorStat = fs.fstatSync(fileDescriptor);
+      const destinationStat = fs.lstatSync(destination);
+      if (
+        !descriptorStat.isFile() ||
+        !destinationStat.isFile() ||
+        destinationStat.isSymbolicLink() ||
+        descriptorStat.dev !== destinationStat.dev ||
+        descriptorStat.ino !== destinationStat.ino
+      ) {
+        throw new Error('Access denied: Destination changed or is not a regular file');
+      }
 
-    const realDestination = fs.realpathSync(destination);
-    if (
-      realDestination !== realUserData &&
-      !realDestination.startsWith(realUserData + path.sep)
-    ) {
-      throw new Error('Access denied: Destination resolves outside userData');
-    }
+      const realDestination = fs.realpathSync(destination);
+      if (
+        realDestination !== realUserData &&
+        !realDestination.startsWith(realUserData + path.sep)
+      ) {
+        throw new Error('Access denied: Destination resolves outside userData');
+      }
 
-    fs.ftruncateSync(fileDescriptor, 0);
-    fs.writeFileSync(fileDescriptor, preparedPayload.payload);
-    return true;
-  } finally {
-    if (fileDescriptor !== undefined) {
-      fs.closeSync(fileDescriptor);
+      fs.ftruncateSync(fileDescriptor, 0);
+      fs.writeFileSync(fileDescriptor, preparedPayload.payload);
+      return true;
+    } finally {
+      if (fileDescriptor !== undefined) {
+        fs.closeSync(fileDescriptor);
+      }
     }
   }
-});
+);
 
 // List directory restricted to userData
 ipcMain.handle('fs:list-dir', async (event, dirPath: string) => {
