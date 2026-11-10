@@ -1306,7 +1306,9 @@ export async function streamAnswer(
         responseBytesRead += value.byteLength;
         if (responseBytesRead > MAX_RENDERER_LLM_RESPONSE_BYTES) {
           try {
-            void reader.cancel('AI provider response exceeded configured size limit').catch(() => undefined);
+            void reader
+              .cancel('AI provider response exceeded configured size limit')
+              .catch(() => undefined);
           } catch {
             // Preserve the response-size error if cancellation fails.
           }
