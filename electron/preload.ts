@@ -17,7 +17,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleContentProtection: () => ipcRenderer.send('window:toggle-content-protection'),
   setWindowOpacity: (opacity: number) => ipcRenderer.invoke('window:set-opacity', opacity),
   getWindowOpacity: () => ipcRenderer.invoke('window:get-opacity'),
-  setWindowSize: (width: number, height: number) => ipcRenderer.invoke('window:set-size', width, height),
+  setWindowSize: (width: number, height: number) =>
+    ipcRenderer.invoke('window:set-size', width, height),
   getWindowSize: () => ipcRenderer.invoke('window:get-size'),
   setWindowPosition: (x: number, y: number) => ipcRenderer.invoke('window:set-position', x, y),
   getWindowPosition: () => ipcRenderer.invoke('window:get-position'),
@@ -111,11 +112,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   autoTypeCode: (code: string, delayMs?: number) =>
     ipcRenderer.invoke('system:auto-type', code, delayMs),
 
-    // Privileged Evidence Inspection Operations
-  inspectRepository: (request: any) => ipcRenderer.invoke("evidence:inspect-repository", request),
-  inspectDocument: (request: any) => ipcRenderer.invoke("evidence:inspect-document", request),
-  verifyIndependentAudit: (attestation: any) => ipcRenderer.invoke("evidence:verify-audit", attestation),
-  verifyInspectionSeal: (result: any) => ipcRenderer.invoke("evidence:verify-seal", result),
+  // Privileged Evidence Inspection Operations
+  inspectRepository: (request: any) => ipcRenderer.invoke('evidence:inspect-repository', request),
+  inspectDocument: (request: any) => ipcRenderer.invoke('evidence:inspect-document', request),
+  verifyIndependentAudit: (attestation: any) =>
+    ipcRenderer.invoke('evidence:verify-audit', attestation),
+  verifyInspectionSeal: (result: any) => ipcRenderer.invoke('evidence:verify-seal', result),
 
   // Clipboard
   copyToClipboard: (text: string) => ipcRenderer.invoke('clipboard:write-text', text),

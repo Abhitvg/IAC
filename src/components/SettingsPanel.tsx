@@ -666,7 +666,9 @@ export default function SettingsPanel() {
                   <input
                     type="password"
                     readOnly
-                    value={extensionTokenPreview ? '••••••••' + extensionTokenPreview : 'Not generated'}
+                    value={
+                      extensionTokenPreview ? '••••••••' + extensionTokenPreview : 'Not generated'
+                    }
                     aria-label="Extension pairing token preview"
                     style={{
                       flex: 1,
