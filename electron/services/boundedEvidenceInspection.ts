@@ -136,16 +136,12 @@ export function inspectEvidenceDocument(
   const result = EvidenceVerificationService.inspectDocument(request);
   const metrics = result.supportedFields.performanceMetrics;
 
-  if (!metrics || metrics.length <= 100) {
-    return result;
-  }
-
   return {
     ...result,
     supportedFields: {
       ...result.supportedFields,
       personalContribution: result.supportedFields.personalContribution?.slice(0, 512),
-      performanceMetrics: metrics.slice(0, 100).map((metric) => metric.slice(0, 256)),
+      performanceMetrics: metrics?.slice(0, 100).map((metric) => metric.slice(0, 256)),
       architecture: result.supportedFields.architecture?.slice(0, 2048),
     },
   };
