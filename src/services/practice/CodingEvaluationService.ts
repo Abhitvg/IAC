@@ -167,7 +167,7 @@ export class CodingEvaluationService {
     code: string,
     _language: string
   ): {
-    hasSyntaxError: boolean;
+    isEmptySubmission: boolean;
     hasLoops: boolean;
     hasRecursion: boolean;
     hasComments: boolean;
@@ -183,7 +183,7 @@ export class CodingEvaluationService {
     );
 
     return {
-      hasSyntaxError: code.trim().length === 0,
+      isEmptySubmission: code.trim().length === 0,
       hasLoops,
       hasRecursion,
       hasComments,
@@ -263,9 +263,10 @@ export class CodingEvaluationService {
     const { code, transcript, staticCheck, complexity } = params;
 
     // 1. Functional Correctness
-    let correctnessScore = 3;
-    if (staticCheck.hasSyntaxError) correctnessScore = 1;
-    else if (code.includes('return') && code.length > 50) correctnessScore = 4;
+    // Static pattern checks cannot establish whether a submission returns correct
+    // results. Keep non-empty, unexecuted code neutral; only an empty submission
+    // is definitively incomplete without executing it.
+    const correctnessScore = staticCheck.isEmptySubmission ? 1 : 3;
 
     // 2. Algorithm Selection
     const algoScore = complexity.isOptimal === true ? 4 : complexity.isOptimal === false ? 2.5 : 3;
@@ -300,9 +301,9 @@ export class CodingEvaluationService {
       functionalCorrectness: {
         score: correctnessScore,
         quoteOrSnippet: code.slice(0, 80),
-        rationale: staticCheck.hasSyntaxError
-          ? 'Code submission is empty or malformed.'
-          : 'Syntactically structured with return values.',
+        rationale: staticCheck.isEmptySubmission
+          ? 'No code was submitted.'
+          : 'Not assessed: submitted code was not executed. A return statement or source-code shape cannot establish functional correctness.',
       },
       algorithmSelection: {
         score: algoScore,
