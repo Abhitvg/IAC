@@ -122,7 +122,17 @@ export default function App() {
           break;
       }
     },
-    [settingsOpen, sessionsOpen, isRecording, isGenerating, clearAndResetToListen]
+    [
+      settingsOpen,
+      sessionsOpen,
+      isRecording,
+      isGenerating,
+      toggleRecording,
+      analyzeTranscript,
+      copyAnswer,
+      clearAndResetToListen,
+      toggleInterviewFocusMode,
+    ]
   );
 
   useEffect(() => {
