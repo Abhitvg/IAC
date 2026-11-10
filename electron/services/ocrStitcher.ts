@@ -3,7 +3,10 @@ import { redactSensitiveData } from './security';
 export const MAX_OCR_TEXT_LENGTH = 100_000;
 
 export function sanitizeOcrText(text: string): string {
-  return redactSensitiveData(typeof text === 'string' ? text : '').slice(0, MAX_OCR_TEXT_LENGTH);
+  return redactSensitiveData(typeof text === 'string' ? text : '').slice(
+    0,
+    MAX_OCR_TEXT_LENGTH
+  );
 }
 
 /**
