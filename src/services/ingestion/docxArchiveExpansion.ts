@@ -50,10 +50,18 @@ export async function validateDocxArchiveExpansionInBrowser(
         entry.dataOffset,
         entry.dataOffset + entry.compressedSize
       );
-      const stream = new Blob([compressedData]).stream().pipeThrough(
-        new DecompressionStream('deflate-raw')
-      );
-      const reader = stream.getReader();
+      let reader: ReadableStreamDefaultReader<Uint8Array>;
+      try {
+        const stream = new Blob([compressedData]).stream().pipeThrough(
+          new DecompressionStream('deflate-raw')
+        );
+        reader = stream.getReader();
+      } catch {
+        return {
+          allowed: false,
+          reason: 'This environment cannot safely validate DOCX DEFLATE streams.',
+        };
+      }
       let entryUncompressedBytes = 0;
 
       try {
