@@ -6,11 +6,8 @@ function createAudioBlob(): Blob {
   return encodeWav(new Float32Array(16_000).fill(0.05), 16_000);
 }
 
-function mockTranscriptionResponse(text = 'transcribed words'): Response {
-  return new Response(JSON.stringify({ text }), {
-    status: 200,
-    headers: { 'content-type': 'application/json' },
-  });
+function createElectronApi(transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'cloud transcript' })) {
+  return { transcribeCloudAudio, cancelCloudTranscription: vi.fn().mockResolvedValue(true) };
 }
 
 describe('live transcription provider routing', () => {
@@ -29,10 +26,14 @@ describe('live transcription provider routing', () => {
   });
 
   it('does not call cloud credentials or cloud endpoints in Ollama mode', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('gsk_must_not_be_used');
-    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('local transcript'));
-
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+    const transcribeCloudAudio = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ text: 'local transcript' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await transcribeAudio(createAudioBlob(), {
@@ -43,14 +44,13 @@ describe('live transcription provider routing', () => {
     expect(result.text).toBe('local transcript');
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8080/inference');
-    expect(getApiKey).not.toHaveBeenCalled();
+    expect(transcribeCloudAudio).not.toHaveBeenCalled();
   });
 
-  it('uses OpenAI transcription when OpenAI is the configured application provider', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('sk-openai-test-key');
-    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('openai transcript'));
-
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+  it('routes OpenAI transcription through Electron main without exposing the key', async () => {
+    const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'openai transcript' });
+    vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
+    const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await transcribeAudio(createAudioBlob(), {
@@ -59,19 +59,19 @@ describe('live transcription provider routing', () => {
     });
 
     expect(result.text).toBe('openai transcript');
-    expect(fetchMock.mock.calls[0][0]).toBe('https://api.openai.com/v1/audio/transcriptions');
-    expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
-      Authorization: 'Bearer sk-openai-test-key',
+    expect(transcribeCloudAudio).toHaveBeenCalledOnce();
+    expect(transcribeCloudAudio.mock.calls[0][0]).toMatchObject({
+      provider: 'openai',
+      model: 'whisper-1',
     });
-    expect(getApiKey).toHaveBeenCalledOnce();
-    expect(getApiKey).toHaveBeenCalledWith('openai');
+    expect(transcribeCloudAudio.mock.calls[0][0].audio).toBeInstanceOf(ArrayBuffer);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('uses Groq transcription when Groq is the configured application provider', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('gsk_groq-test-key');
-    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('groq transcript'));
-
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+  it('routes Groq transcription through Electron main with the selected STT model', async () => {
+    const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'groq transcript' });
+    vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
+    const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await transcribeAudio(createAudioBlob(), {
@@ -80,19 +80,18 @@ describe('live transcription provider routing', () => {
     });
 
     expect(result.text).toBe('groq transcript');
-    expect(fetchMock.mock.calls[0][0]).toBe('https://api.groq.com/openai/v1/audio/transcriptions');
-    expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
-      Authorization: 'Bearer gsk_groq-test-key',
+    expect(transcribeCloudAudio.mock.calls[0][0]).toMatchObject({
+      provider: 'groq',
+      model: 'whisper-large-v3-turbo',
     });
-    expect(getApiKey).toHaveBeenCalledOnce();
-    expect(getApiKey).toHaveBeenCalledWith('groq');
+    expect(transcribeCloudAudio.mock.calls[0][0].prompt).toContain('Technical interview discussion');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('fails closed for OpenRouter because this app has no OpenRouter STT model', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('gsk_groq-test-key');
+    const transcribeCloudAudio = vi.fn();
     const fetchMock = vi.fn();
-
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
+    vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(
@@ -102,7 +101,7 @@ describe('live transcription provider routing', () => {
       })
     ).rejects.toThrow('OpenRouter is not configured for speech transcription');
 
-    expect(getApiKey).not.toHaveBeenCalled();
+    expect(transcribeCloudAudio).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -115,33 +114,51 @@ describe('live transcription provider routing', () => {
       })
     ).toBe('local');
   });
+
   it('uses the default Groq STT model when a model from another provider is stored', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('gsk_groq-test-key');
-    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('groq transcript'));
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
-    vi.stubGlobal('fetch', fetchMock);
+    const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'groq transcript' });
+    vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
 
     await transcribeAudio(createAudioBlob(), {
       aiProvider: 'groq',
       whisperModel: 'whisper-1',
     });
 
-    const body = fetchMock.mock.calls[0][1].body as FormData;
-    expect(body.get('model')).toBe('whisper-large-v3-turbo');
+    expect(transcribeCloudAudio.mock.calls[0][0].model).toBe('whisper-large-v3-turbo');
   });
 
   it('uses the default OpenAI STT model when a Groq model is stored', async () => {
-    const getApiKey = vi.fn().mockResolvedValue('sk-openai-test-key');
-    const fetchMock = vi.fn().mockResolvedValue(mockTranscriptionResponse('openai transcript'));
-    vi.stubGlobal('window', { electronAPI: { getApiKey } });
-    vi.stubGlobal('fetch', fetchMock);
+    const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'openai transcript' });
+    vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
 
     await transcribeAudio(createAudioBlob(), {
       aiProvider: 'openai',
       whisperModel: 'whisper-large-v3-turbo',
     });
 
-    const body = fetchMock.mock.calls[0][1].body as FormData;
-    expect(body.get('model')).toBe('whisper-1');
+    expect(transcribeCloudAudio.mock.calls[0][0].model).toBe('whisper-1');
+  });
+
+  it('requests main-process cancellation when the caller aborts', async () => {
+    const controller = new AbortController();
+    let resolveRequest: ((value: { text: string }) => void) | undefined;
+    const transcribeCloudAudio = vi.fn(
+      () => new Promise<{ text: string }>((resolve) => { resolveRequest = resolve; })
+    );
+    const cancelCloudTranscription = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal('window', {
+      electronAPI: { transcribeCloudAudio, cancelCloudTranscription },
+    });
+
+    const pending = transcribeAudio(
+      createAudioBlob(),
+      { aiProvider: 'groq', whisperModel: 'whisper-large-v3-turbo' },
+      controller.signal
+    );
+    await Promise.resolve();
+    controller.abort();
+    expect(cancelCloudTranscription).toHaveBeenCalledOnce();
+    resolveRequest?.({ text: 'cancelled transcript' });
+    await pending;
   });
 });
