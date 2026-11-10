@@ -58,8 +58,7 @@ export function validateCloudTranscriptionRequest(
     typeof candidate.requestId === 'string' &&
     /^[a-zA-Z0-9_-]{1,80}$/.test(candidate.requestId) &&
     (candidate.provider === 'groq' || candidate.provider === 'openai') &&
-    candidate.model ===
-      (candidate.provider === 'groq' ? 'whisper-large-v3-turbo' : 'whisper-1') &&
+    candidate.model === (candidate.provider === 'groq' ? 'whisper-large-v3-turbo' : 'whisper-1') &&
     audio instanceof Uint8Array &&
     audio.byteLength >= 400 &&
     audio.byteLength <= 25 * 1024 * 1024 &&

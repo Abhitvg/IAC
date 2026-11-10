@@ -62,13 +62,11 @@ describe('IPC Settings Validation', () => {
     };
 
     expect(validateCloudTranscriptionRequest(request)).toBe(true);
-    expect(
-      validateCloudTranscriptionRequest({ ...request, model: 'arbitrary-model' })
-    ).toBe(false);
+    expect(validateCloudTranscriptionRequest({ ...request, model: 'arbitrary-model' })).toBe(false);
     expect(validateCloudTranscriptionRequest({ ...request, requestId: '../invalid' })).toBe(false);
-    expect(
-      validateCloudTranscriptionRequest({ ...request, audio: new Uint8Array(100) })
-    ).toBe(false);
+    expect(validateCloudTranscriptionRequest({ ...request, audio: new Uint8Array(100) })).toBe(
+      false
+    );
     expect(
       validateCloudTranscriptionRequest({ ...request, audio: new Uint8Array(26 * 1024 * 1024) })
     ).toBe(false);
