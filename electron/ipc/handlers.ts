@@ -1,4 +1,5 @@
 import { EvidenceVerificationService } from '../services/evidenceVerificationService';
+import { verifyBoundedAuditAttestation } from '../services/boundedAuditAttestation';
 import {
   createExtensionTokenInfo,
   createPublicSettingsSnapshot,
@@ -658,7 +659,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     if (!attestation || typeof attestation !== 'object') {
       throw new Error('Invalid independent audit attestation payload');
     }
-    return EvidenceVerificationService.verifySignedAttestation(attestation);
+    return verifyBoundedAuditAttestation(attestation);
   });
 
   ipcMain.handle('evidence:verify-seal', async (event, result: any) => {
