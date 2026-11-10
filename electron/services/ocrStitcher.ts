@@ -67,8 +67,8 @@ export function stitchOcrTexts(topText: string, bottomText: string): string {
  * the combined text. This also sanitizes text previously supplied to the append buffer.
  */
 export function stitchSanitizedOcrTexts(topText: string, bottomText: string): string {
-  return stitchOcrTexts(sanitizeOcrText(topText), sanitizeOcrText(bottomText)).slice(
-    0,
-    MAX_OCR_TEXT_LENGTH
-  );
+  return stitchOcrTexts(
+    sanitizeOcrText(topText),
+    sanitizeOcrText(bottomText)
+  ).slice(0, MAX_OCR_TEXT_LENGTH);
 }
