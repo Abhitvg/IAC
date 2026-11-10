@@ -137,4 +137,3 @@ export async function extractDocxDocument(arrayBuffer: ArrayBuffer): Promise<Doc
     };
   }
 }
-

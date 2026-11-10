@@ -99,9 +99,9 @@ describe('validateDocxArchive', () => {
     const validation = validateDocxArchive(archive);
 
     expect(validation.allowed).toBe(true);
-    expect(
-      validateDocxArchiveExpansion(archive, validation.entries || []).reason
-    ).toContain('does not match');
+    expect(validateDocxArchiveExpansion(archive, validation.entries || []).reason).toContain(
+      'does not match'
+    );
   });
 
   it('rejects malformed and non-DOCX ZIP payloads', () => {

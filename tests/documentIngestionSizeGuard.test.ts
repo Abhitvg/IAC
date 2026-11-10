@@ -11,9 +11,7 @@ describe('DocumentIngestionService file-size guard', () => {
       arrayBuffer,
     } as unknown as File;
 
-    await expect(DocumentIngestionService.ingestFile(file)).rejects.toThrow(
-      'maximum import size'
-    );
+    await expect(DocumentIngestionService.ingestFile(file)).rejects.toThrow('maximum import size');
     expect(arrayBuffer).not.toHaveBeenCalled();
   });
 });

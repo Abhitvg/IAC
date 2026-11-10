@@ -46,9 +46,7 @@ function hasZip64ExtraField(view: DataView, start: number, length: number): bool
  * Inspect ZIP central-directory metadata before Mammoth can decompress DOCX entries.
  * The limits apply to both Electron main-process parsing and renderer fallbacks.
  */
-export function validateDocxArchive(
-  input: ArrayBuffer | Uint8Array
-): DocxArchiveValidation {
+export function validateDocxArchive(input: ArrayBuffer | Uint8Array): DocxArchiveValidation {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
   const sizeValidation = validateDocumentImportSize(bytes.byteLength);
 
@@ -88,11 +86,7 @@ export function validateDocxArchive(
   const centralDirectorySize = view.getUint32(eocdOffset + 12, true);
   const centralDirectoryOffset = view.getUint32(eocdOffset + 16, true);
 
-  if (
-    diskNumber !== 0 ||
-    centralDirectoryDisk !== 0 ||
-    entriesOnDisk !== totalEntries
-  ) {
+  if (diskNumber !== 0 || centralDirectoryDisk !== 0 || entriesOnDisk !== totalEntries) {
     return { allowed: false, reason: 'Multi-disk DOCX archives are not supported.' };
   }
 
@@ -100,8 +94,7 @@ export function validateDocxArchive(
     totalEntries === 0xffff ||
     centralDirectorySize === 0xffffffff ||
     centralDirectoryOffset === 0xffffffff ||
-    (eocdOffset >= 20 &&
-      view.getUint32(eocdOffset - 20, true) === ZIP64_EOCD_LOCATOR_SIGNATURE)
+    (eocdOffset >= 20 && view.getUint32(eocdOffset - 20, true) === ZIP64_EOCD_LOCATOR_SIGNATURE)
   ) {
     return { allowed: false, reason: 'ZIP64 DOCX archives are not supported.' };
   }
@@ -202,8 +195,7 @@ export function validateDocxArchive(
     ) {
       return {
         allowed: false,
-        reason:
-          `DOCX entry exceeds the maximum compression ratio of ${MAX_DOCX_COMPRESSION_RATIO}:1.`,
+        reason: `DOCX entry exceeds the maximum compression ratio of ${MAX_DOCX_COMPRESSION_RATIO}:1.`,
       };
     }
 
