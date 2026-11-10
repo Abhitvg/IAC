@@ -1,5 +1,11 @@
 import { redactSensitiveData } from './security';
 
+export const MAX_OCR_TEXT_LENGTH = 100_000;
+
+export function sanitizeOcrText(text: string): string {
+  return redactSensitiveData(typeof text === 'string' ? text : '').slice(0, MAX_OCR_TEXT_LENGTH);
+}
+
 /**
  * Multi-Page OCR Seam Stitcher for Electron Main Process
  * Automatically finds the overlapping seam lines between successive screen snips
@@ -58,5 +64,8 @@ export function stitchOcrTexts(topText: string, bottomText: string): string {
  * the combined text. This also sanitizes text previously supplied to the append buffer.
  */
 export function stitchSanitizedOcrTexts(topText: string, bottomText: string): string {
-  return stitchOcrTexts(redactSensitiveData(topText), redactSensitiveData(bottomText));
+  return stitchOcrTexts(sanitizeOcrText(topText), sanitizeOcrText(bottomText)).slice(
+    0,
+    MAX_OCR_TEXT_LENGTH
+  );
 }
