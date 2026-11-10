@@ -155,12 +155,19 @@ export function readFileSafely(
 
     const descriptorStat = fs.fstatSync(fileDescriptor);
     const destinationStat = fs.lstatSync(validation.resolvedPath);
+    const identityMismatch =
+      process.platform === 'win32'
+        ? descriptorStat.size !== destinationStat.size ||
+          descriptorStat.mtimeMs !== destinationStat.mtimeMs ||
+          descriptorStat.birthtimeMs !== destinationStat.birthtimeMs
+        : descriptorStat.dev !== destinationStat.dev ||
+          descriptorStat.ino !== destinationStat.ino;
+
     if (
       !descriptorStat.isFile() ||
       !destinationStat.isFile() ||
       destinationStat.isSymbolicLink() ||
-      descriptorStat.dev !== destinationStat.dev ||
-      descriptorStat.ino !== destinationStat.ino
+      identityMismatch
     ) {
       throw new Error('Access denied: File changed or is not a regular file');
     }
