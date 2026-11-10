@@ -91,12 +91,17 @@ describe('CredentialStore', () => {
     await expect(creds.getKey('openai')).resolves.toBeNull();
   });
 
-  it('keeps Vite-prefixed provider secrets out of renderer answer generation', () => {
-    const rendererService = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/services/AnswerGenerationService.ts'),
-      'utf8'
+  it('keeps Vite-prefixed provider secrets out of renderer AI services', () => {
+    const rendererServices = [
+      'src/services/AnswerGenerationService.ts',
+      'src/services/whisper.ts',
+    ].map((sourcePath) =>
+      fs.readFileSync(path.resolve(process.cwd(), sourcePath), 'utf8')
     );
-    expect(rendererService).not.toMatch(/VITE_(?:GROQ|OPENAI|OPENROUTER)_API_KEY/);
+
+    for (const source of rendererServices) {
+      expect(source).not.toMatch(/VITE_(?:GROQ|OPENAI|OPENROUTER)_API_KEY/);
+    }
   });
 
   it('validates allowed service names', () => {

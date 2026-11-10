@@ -137,14 +137,6 @@ export async function transcribeAudio(
     apiKey = (await window.electronAPI.getApiKey(targetProvider)) || undefined;
   }
 
-  if (!apiKey && typeof import.meta !== 'undefined' && (import.meta as any).env) {
-    const env = (import.meta as any).env;
-    apiKey =
-      targetProvider === 'groq'
-        ? env.VITE_GROQ_API_KEY || env.GROQ_API_KEY
-        : env.VITE_OPENAI_API_KEY || env.OPENAI_API_KEY;
-  }
-
   if (!apiKey) {
     throw new Error(
       `No speech-to-text API key found for ${targetProvider.toUpperCase()}. Please configure that provider in Settings.`
