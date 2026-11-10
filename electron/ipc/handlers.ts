@@ -258,7 +258,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     const token = store.get('extensionToken') || crypto.randomUUID();
     store.set('extensionToken', token);
     const address = httpServer?.address();
-    const port = typeof address === 'object' ? address?.port : 31415;
+    const port = address && typeof address === 'object' ? address.port : 31415;
     return createExtensionTokenInfo(port, token);
   });
 
@@ -274,7 +274,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     if (wsServer && httpServer) {
       const address = httpServer.address();
-      const port = typeof address === 'object' ? address?.port : 31415;
+      const port = address && typeof address === 'object' ? address.port : 31415;
       const token = store.get('extensionToken') || crypto.randomUUID();
       store.set('extensionToken', token);
       return createExtensionTokenInfo(port, token);
