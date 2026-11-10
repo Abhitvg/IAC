@@ -133,14 +133,27 @@ export function inspectEvidenceDocument(
   }
 
   validateEvidenceInspectionMetadata(request);
-  return EvidenceVerificationService.inspectDocument(request);
+  const result = EvidenceVerificationService.inspectDocument(request);
+  const metrics = result.supportedFields.performanceMetrics;
+
+  if (!metrics || metrics.length <= 100) {
+    return result;
+  }
+
+  return {
+    ...result,
+    supportedFields: {
+      ...result.supportedFields,
+      performanceMetrics: metrics.slice(0, 100),
+    },
+  };
 }
 
 /**
  * Bound repository-inspection metadata before URL parsing and outbound HTTP requests.
  * This is the only application entry point for renderer-originated repository inspection.
  */
-export function inspectEvidenceRepository(
+export async function inspectEvidenceRepository(
   request: RepositoryInspectionRequest
 ): Promise<ImmutableRepositoryInspectionResult> {
   if (!request || typeof request !== 'object') {
@@ -179,7 +192,26 @@ export function inspectEvidenceRepository(
   );
   requireBoundedString(payload.targetProjectName, 'targetProjectName', MAX_PROJECT_NAME_LENGTH);
 
-  return EvidenceVerificationService.inspectRepository(request);
+  const result = await EvidenceVerificationService.inspectRepository(request);
+
+  return {
+    ...result,
+    dependencyDeclarations: result.dependencyDeclarations.slice(0, 200),
+    sourceCodeUsage: result.sourceCodeUsage.slice(0, 200),
+    omittedFilePathsSample: result.omittedFilePathsSample?.slice(0, 25),
+    demonstratedImplementation: result.demonstratedImplementation?.slice(0, 8192),
+    detectedArchitecture: result.detectedArchitecture?.slice(0, 512),
+    authorEmailFound: result.authorEmailFound?.slice(0, MAX_CANDIDATE_EMAIL_LENGTH),
+    supportedFields: result.supportedFields
+      ? {
+          ...result.supportedFields,
+          technologies: result.supportedFields.technologies?.slice(0, 100),
+          architecture: result.supportedFields.architecture?.slice(0, 512),
+          databaseDesign: result.supportedFields.databaseDesign?.slice(0, 512),
+          engineeringChallenges: result.supportedFields.engineeringChallenges?.slice(0, 2048),
+        }
+      : undefined,
+  };
 }
 
 /**
