@@ -68,6 +68,19 @@ describe('Electron Security & Path Traversal Audit', () => {
     expect(settingsPanel).toContain('preflightAI');
   });
 
+  it('does not retrieve raw provider API keys in answer generation', () => {
+    const answerGeneration = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/services/AnswerGenerationService.ts'),
+      'utf8'
+    );
+    const preload = fs.readFileSync(path.resolve(process.cwd(), 'electron/preload.ts'), 'utf8');
+
+    expect(answerGeneration).not.toMatch(/getApiKey\(/);
+    expect(answerGeneration).not.toContain('resolveApiKey');
+    expect(preload).toContain('startCloudLLMStream');
+    expect(preload).not.toMatch(/getApiKey:\s*\(service: string\)/);
+  });
+
   it('returns only a masked extension token preview across IPC', () => {
     const token = '12345678-1234-1234-1234-1234567890ab';
     const info = createExtensionTokenInfo(31415, token);
