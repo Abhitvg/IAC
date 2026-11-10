@@ -11,7 +11,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
 import { CredentialStore } from '../services/credentialStore';
-import { validateModelPreflight, type AIProviderId } from '../../src/services/models/modelRegistry';
+import { validateCloudModelPreflight } from '../services/modelPreflight';
 import {
   MessageRateLimiter,
   parseBrowserContextMessage,
@@ -45,7 +45,7 @@ const ALLOWED_SETTING_KEYS = new Set([
 
 export function validateCloudPreflightRequest(
   request: unknown
-): request is { provider: Exclude<AIProviderId, 'ollama'>; model: string } {
+): request is { provider: 'groq' | 'openai' | 'openrouter'; model: string } {
   if (!request || typeof request !== 'object' || Array.isArray(request)) return false;
   const candidate = request as Record<string, unknown>;
   return (
@@ -244,7 +244,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       throw new Error('Invalid cloud model preflight request');
     }
     const apiKey = await credentialStore.getKey(request.provider);
-    return validateModelPreflight(request.provider, request.model, apiKey || '');
+    return validateCloudModelPreflight(request.provider, request.model, apiKey || '');
   });
 
   // Secure safeStorage credential handlers
