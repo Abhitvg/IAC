@@ -99,7 +99,7 @@ jobs:
 
       - name: Run Electron smoke and wizard accessibility tests
         if: matrix.os == 'ubuntu-24.04'
-        run: xvfb-run -a npx playwright test e2e/app-launch.spec.ts e2e/wizard-accessibility.spec.ts
+        run: xvfb-run -a npx playwright test e2e/app-launch.spec.ts e2e/wizard-accessibility.spec.ts e2e/responsive-shell.spec.ts
 
       - name: Build and launch packaged Linux application
         if: matrix.os == 'ubuntu-24.04'
