@@ -2,11 +2,7 @@ import { parsePdfBuffer } from './services/pdfParser';
 import { validateDocumentImportSize } from './services/documentImportLimits';
 import { validateDocxArchive } from './services/docxArchiveLimits';
 import { validateDocxArchiveExpansion } from './services/docxArchiveExpansion';
-import {
-  sanitizeOcrText,
-  stitchOcrTexts,
-  stitchSanitizedOcrTexts,
-} from './services/ocrStitcher';
+import { sanitizeOcrText, stitchSanitizedOcrTexts } from './services/ocrStitcher';
 import { SafeConnectionFetcher, PinnedFetchOptions } from './services/safeConnectionFetcher';
 import { resolveOcrBinaryPath, getOcrEngineInfo } from './services/ocrService';
 import {
@@ -44,7 +40,6 @@ import {
   isPermissionAllowed,
   buildCspHeader,
   getSandboxConfig,
-  redactSensitiveData,
   isTrustedSender,
   isSafeExternalUrl,
   isTrustedAppOrigin,
