@@ -210,17 +210,36 @@ export async function startCloudLLMStream(
   void (async () => {
     try {
       let receivedBytes = false;
+      const isEventStream = /text\\/event-stream/i.test(response.headers.get('content-type') || '');
+      let pendingSseText = '';
+      let receivedSseData = false;
+
+      const inspectSseChunk = (chunk: string, flush = false) => {
+        pendingSseText += chunk;
+        const lines = pendingSseText.split(/\\r?\\n/);
+        pendingSseText = flush ? '' : lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
+          const data = line.slice(5).trim();
+          if (data && data !== '[DONE]') receivedSseData = true;
+        }
+      };
+
       while (true) {
         if (signal.aborted) throw signal.reason || new Error('AI stream cancelled.');
         const { done, value } = await reader.read();
         if (done) break;
         if (value.byteLength > 0) receivedBytes = true;
         const chunk = decoder.decode(value, { stream: true });
+        if (isEventStream && chunk) inspectSseChunk(chunk);
         if (chunk) send('ai:stream-chunk', { requestId: request.requestId, chunk });
       }
       const tail = decoder.decode();
+      if (isEventStream) inspectSseChunk(tail, true);
       if (tail) send('ai:stream-chunk', { requestId: request.requestId, chunk: tail });
-      if (!receivedBytes) throw new Error('Provider returned an empty streaming response.');
+      if (!receivedBytes || (isEventStream && !receivedSseData)) {
+        throw new Error('Provider returned an empty streaming response.');
+      }
       send('ai:stream-done', { requestId: request.requestId });
     } catch (error) {
       const aborted = signal.aborted || (error as Error)?.name === 'AbortError';
