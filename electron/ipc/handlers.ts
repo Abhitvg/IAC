@@ -281,7 +281,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
 
   ipcMain.handle('ai:stream-start', async (event, request: unknown) => {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
-    if (!validateCloudLLMStreamRequest(request) || !request.stream) {
+    if (!validateCloudLLMStreamRequest(request)) {
       throw new Error('Invalid cloud generation request');
     }
     if (cloudLLMControllers.has(request.requestId)) {
