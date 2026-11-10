@@ -1,4 +1,5 @@
 import { parsePdfBuffer } from './services/pdfParser';
+import { validateDocumentImportSize } from './services/documentImportLimits';
 import { stitchOcrTexts } from './services/ocrStitcher';
 import { SafeConnectionFetcher, PinnedFetchOptions } from './services/safeConnectionFetcher';
 import { resolveOcrBinaryPath, getOcrEngineInfo } from './services/ocrService';
@@ -757,6 +758,10 @@ ipcMain.handle('fs:parse-pdf', async (event, arrayBuffer: ArrayBuffer) => {
   if (!(arrayBuffer instanceof ArrayBuffer) && !Buffer.isBuffer(arrayBuffer)) {
     throw new Error('Invalid argument: expected ArrayBuffer or Buffer');
   }
+  const sizeValidation = validateDocumentImportSize(arrayBuffer.byteLength);
+  if (!sizeValidation.allowed) {
+    throw new Error(sizeValidation.reason || 'Document import size is invalid.');
+  }
   try {
     return await parsePdfBuffer(arrayBuffer);
   } catch (err: any) {
@@ -830,6 +835,10 @@ ipcMain.handle('fs:parse-docx', async (event, arrayBuffer: ArrayBuffer) => {
   }
   if (!(arrayBuffer instanceof ArrayBuffer) && !Buffer.isBuffer(arrayBuffer)) {
     throw new Error('Invalid argument: expected ArrayBuffer or Buffer');
+  }
+  const sizeValidation = validateDocumentImportSize(arrayBuffer.byteLength);
+  if (!sizeValidation.allowed) {
+    throw new Error(sizeValidation.reason || 'Document import size is invalid.');
   }
   const buffer = Buffer.from(arrayBuffer);
   try {
