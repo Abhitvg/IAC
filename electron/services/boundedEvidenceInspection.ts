@@ -144,7 +144,9 @@ export function inspectEvidenceDocument(
     ...result,
     supportedFields: {
       ...result.supportedFields,
-      performanceMetrics: metrics.slice(0, 100),
+      personalContribution: result.supportedFields.personalContribution?.slice(0, 512),
+      performanceMetrics: metrics.slice(0, 100).map((metric) => metric.slice(0, 256)),
+      architecture: result.supportedFields.architecture?.slice(0, 2048),
     },
   };
 }
@@ -196,16 +198,24 @@ export async function inspectEvidenceRepository(
 
   return {
     ...result,
-    dependencyDeclarations: result.dependencyDeclarations.slice(0, 200),
-    sourceCodeUsage: result.sourceCodeUsage.slice(0, 200),
-    omittedFilePathsSample: result.omittedFilePathsSample?.slice(0, 25),
+    dependencyDeclarations: result.dependencyDeclarations
+      .slice(0, 200)
+      .map((dependency) => dependency.slice(0, 256)),
+    sourceCodeUsage: result.sourceCodeUsage
+      .slice(0, 200)
+      .map((source) => source.slice(0, 512)),
+    omittedFilePathsSample: result.omittedFilePathsSample
+      ?.slice(0, 25)
+      .map((filePath) => filePath.slice(0, 2048)),
     demonstratedImplementation: result.demonstratedImplementation?.slice(0, 8192),
     detectedArchitecture: result.detectedArchitecture?.slice(0, 512),
     authorEmailFound: result.authorEmailFound?.slice(0, MAX_CANDIDATE_EMAIL_LENGTH),
     supportedFields: result.supportedFields
       ? {
           ...result.supportedFields,
-          technologies: result.supportedFields.technologies?.slice(0, 100),
+          technologies: result.supportedFields.technologies
+            ?.slice(0, 100)
+            .map((technology) => technology.slice(0, 128)),
           architecture: result.supportedFields.architecture?.slice(0, 512),
           databaseDesign: result.supportedFields.databaseDesign?.slice(0, 512),
           engineeringChallenges: result.supportedFields.engineeringChallenges?.slice(0, 2048),
