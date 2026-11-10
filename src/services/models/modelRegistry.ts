@@ -1229,7 +1229,8 @@ export async function validateModelPreflight(
         return {
           valid: false,
           code: 'MODEL_NOT_FOUND',
-          message: 'No models are installed in the local Ollama instance. Pull a model before running preflight.',
+          message:
+            'No models are installed in the local Ollama instance. Pull a model before running preflight.',
           latencyMs,
           availableModels,
         };
