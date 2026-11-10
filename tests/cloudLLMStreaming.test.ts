@@ -57,4 +57,105 @@ describe('cloud LLM streaming response handling', () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+  it.each([
+    [': keep-alive\\n\\n', 'comment-only'],
+    ['data: [DONE]\\n\\n', 'terminal-marker-only'],
+    ['event: ping\\n\\n: heartbeat\\n\\n', 'event-and-comment-only'],
+  ])('rejects %s SSE bodies without a data payload (%s)', async (body) => {
+    const streamBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(body));
+        controller.close();
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(streamBody, {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        })
+      )
+    );
+
+    const request: CloudLLMStreamRequest = {
+      requestId: 'empty-sse-test',
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      systemPrompt: 'You are a concise assistant.',
+      question: 'Explain dependency injection.',
+      temperature: 0.2,
+      maxTokens: 256,
+      stream: true,
+    };
+    const credentials = {
+      getKey: vi.fn().mockResolvedValue('sk-test-provider-key'),
+    };
+    const event = new Promise<{ channel: string; payload: Record<string, unknown> }>((resolve) => {
+      void startCloudLLMStream(
+        request,
+        credentials as never,
+        new AbortController().signal,
+        (channel, payload) => {
+          if (channel === 'ai:stream-error' || channel === 'ai:stream-done') {
+            resolve({ channel, payload });
+          }
+        }
+      );
+    });
+
+    await expect(event).resolves.toMatchObject({
+      channel: 'ai:stream-error',
+      payload: {
+        requestId: 'empty-sse-test',
+        name: 'Error',
+        message: 'Provider returned an empty streaming response.',
+      },
+    });
+  });
+
+  it('accepts a valid SSE data event even when it is split across stream chunks', async () => {
+    const streamBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: {"choices":'));
+        controller.enqueue(new TextEncoder().encode('[{"delta":{"content":"hello"}}]}\\n\\n'));
+        controller.close();
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(streamBody, {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        })
+      )
+    );
+
+    const request: CloudLLMStreamRequest = {
+      requestId: 'valid-sse-test',
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      systemPrompt: 'You are a concise assistant.',
+      question: 'Say hello.',
+      temperature: 0.2,
+      maxTokens: 64,
+      stream: true,
+    };
+    const events: string[] = [];
+    const credentials = {
+      getKey: vi.fn().mockResolvedValue('sk-test-provider-key'),
+    };
+    await startCloudLLMStream(
+      request,
+      credentials as never,
+      new AbortController().signal,
+      (channel) => events.push(channel)
+    );
+
+    await vi.waitFor(() => expect(events).toContain('ai:stream-done'));
+    expect(events).toContain('ai:stream-chunk');
+    expect(events).not.toContain('ai:stream-error');
+  });
+
 });
