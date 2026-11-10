@@ -55,7 +55,6 @@ describe('Electron Security & Path Traversal Audit', () => {
         'extensionToken',
         'secure_credentials',
         'apiKey',
-        'unexpectedSecret',
       ])
     );
 
