@@ -38,7 +38,7 @@ describe('per-setting persistence queue', () => {
       rollback
     );
 
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(calls).toEqual(['first']);
 
     first.reject(new Error('first write failed'));
