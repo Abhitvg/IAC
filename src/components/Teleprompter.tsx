@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Play, Pause } from 'lucide-react';
+import { getNextTeleprompterIndex } from '../utils/teleprompter';
 
 export function selectTeleprompterSpeakableQueue(state: { teleprompterQueue: string[] }): string[] {
   return state.teleprompterQueue;
@@ -44,10 +45,13 @@ export default function Teleprompter() {
       const textWidth = textElement.offsetWidth;
 
       if (position < -textWidth) {
-        if (currentIndex < teleprompterQueue.length - 1) {
-          setCurrentIndex((prev) => prev + 1);
-          position = container.offsetWidth;
+        const nextIndex = getNextTeleprompterIndex(currentIndex, teleprompterQueue.length);
+        if (nextIndex === null) {
+          setIsPlaying(false);
+          return;
         }
+        setCurrentIndex(nextIndex);
+        position = container.offsetWidth;
       } else {
         textElement.style.transform = `translateX(${position}px)`;
       }
@@ -88,6 +92,7 @@ export default function Teleprompter() {
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
+            aria-label={`Change teleprompter speed, current speed ${speed}x`}
             onClick={() => setSpeed((s) => (s === 0.5 ? 2 : s === 2 ? 1 : s === 1 ? 1.5 : 0.5))}
             style={{
               background: '#1c1b26',
@@ -102,6 +107,8 @@ export default function Teleprompter() {
             {speed}x
           </button>
           <button
+            aria-label={isPlaying ? 'Pause teleprompter' : 'Resume teleprompter'}
+            aria-pressed={isPlaying}
             onClick={() => setIsPlaying(!isPlaying)}
             style={{
               background: '#1c1b26',
