@@ -12,6 +12,7 @@ export interface CloudTranscriptionRequest {
 }
 
 export interface CloudTranscriptionResult {
+  cancelled?: boolean;
   text: string;
   language?: string;
   duration?: number;
