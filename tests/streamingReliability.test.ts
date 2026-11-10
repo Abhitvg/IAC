@@ -28,12 +28,14 @@ describe('Suite B: Streaming Reliability', () => {
     global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, status: 200, headers: new Headers(), body: stream } as any)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          choices: [{ message: { content: 'A B-tree is a balanced search tree.' } }],
-        }),
-      } as any);
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'A B-tree is a balanced search tree.' } }],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      );
 
     let fullAnswer = '';
     await streamAnswer('Explain B-trees', baseConfig, 'java' as any, {
