@@ -145,15 +145,15 @@ describe('live transcription provider routing', () => {
 
   it('requests main-process cancellation when the caller aborts', async () => {
     const controller = new AbortController();
-    let rejectRequest: ((error: Error) => void) | undefined;
+    let resolveRequest: ((result: { cancelled?: boolean; text: string }) => void) | undefined;
     const transcribeCloudAudio = vi.fn(
       () =>
-        new Promise<{ text: string }>((_resolve, reject) => {
-          rejectRequest = reject;
+        new Promise<{ cancelled?: boolean; text: string }>((resolve) => {
+          resolveRequest = resolve;
         })
     );
     const cancelCloudTranscription = vi.fn().mockImplementation(async () => {
-      rejectRequest?.(Object.assign(new Error('Transcription aborted'), { name: 'AbortError' }));
+      resolveRequest?.({ cancelled: true, text: '' });
       return true;
     });
     vi.stubGlobal('window', {
