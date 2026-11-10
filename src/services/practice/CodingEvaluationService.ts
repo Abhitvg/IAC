@@ -26,7 +26,8 @@ export interface ComplexityAnalysisResult {
   actualTimeComplexity: string;
   statedSpaceComplexity?: string;
   actualSpaceComplexity: string;
-  isOptimal: boolean;
+  /** null means optimality could not be assessed against a supplied baseline. */
+  isOptimal: boolean | null;
   notes?: string;
 }
 
@@ -216,10 +217,11 @@ export class CodingEvaluationService {
       ? 'O(N)'
       : 'O(1)';
 
+    const normalizeComplexity = (value: string) => value.toLowerCase().replace(/\s/g, '');
     const isOptimal = expectedOptimal
-      ? actualTime.toLowerCase().replace(/\s/g, '') ===
-        expectedOptimal.time.toLowerCase().replace(/\s/g, '')
-      : true;
+      ? normalizeComplexity(actualTime) === normalizeComplexity(expectedOptimal.time) &&
+        normalizeComplexity(actualSpace) === normalizeComplexity(expectedOptimal.space)
+      : null;
 
     return {
       statedTimeComplexity: statedTime,
@@ -227,9 +229,13 @@ export class CodingEvaluationService {
       statedSpaceComplexity: undefined,
       actualSpaceComplexity: actualSpace,
       isOptimal,
-      notes: isOptimal
-        ? 'Algorithm matches theoretical optimal complexity.'
-        : `Detected ${actualTime}, but expected optimal is ${expectedOptimal?.time}.`,
+      notes:
+        'Complexity values are static heuristic estimates, not measured runtime results. ' +
+        (isOptimal === null
+          ? 'Optimality was not assessed because no problem-specific baseline was supplied.'
+          : isOptimal
+            ? 'Static estimates match the supplied time and space baseline; runtime behavior remains unverified.'
+            : `Static estimates (${actualTime} time, ${actualSpace} space) differ from the supplied baseline (${expectedOptimal?.time} time, ${expectedOptimal?.space} space).`),
     };
   }
 
@@ -253,7 +259,8 @@ export class CodingEvaluationService {
     else if (code.includes('return') && code.length > 50) correctnessScore = 4;
 
     // 2. Algorithm Selection
-    let algoScore = complexity.isOptimal ? 4 : 2.5;
+    const algoScore =
+      complexity.isOptimal === true ? 4 : complexity.isOptimal === false ? 2.5 : 3;
 
     // 3. Time Complexity
     let timeScore = 3;
@@ -296,19 +303,22 @@ export class CodingEvaluationService {
       algorithmSelection: {
         score: algoScore,
         quoteOrSnippet: `Complexity: ${complexity.actualTimeComplexity}`,
-        rationale: complexity.isOptimal
-          ? 'Selected optimal algorithmic paradigm for problem constraints.'
-          : 'Selected sub-optimal approach compared to curriculum baseline.',
+        rationale:
+          complexity.isOptimal === true
+            ? 'Static complexity estimates match the supplied baseline; runtime behavior is unverified.'
+            : complexity.isOptimal === false
+              ? 'Static complexity estimates differ from the supplied baseline; runtime behavior is unverified.'
+              : 'Optimality cannot be determined without a problem-specific baseline; the submission was not executed.',
       },
       timeComplexity: {
         score: timeScore,
         quoteOrSnippet: complexity.actualTimeComplexity,
-        rationale: `Detected runtime complexity of ${complexity.actualTimeComplexity}.`,
+        rationale: `Static heuristic estimate: ${complexity.actualTimeComplexity}; runtime complexity was not measured.`,
       },
       spaceComplexity: {
         score: spaceScore,
         quoteOrSnippet: complexity.actualSpaceComplexity,
-        rationale: `Auxiliary memory overhead bounded by ${complexity.actualSpaceComplexity}.`,
+        rationale: `Static heuristic estimate: ${complexity.actualSpaceComplexity}; memory usage was not measured.`,
       },
       edgeCaseHandling: {
         score: edgeScore,
@@ -344,12 +354,12 @@ export class CodingEvaluationService {
     hintsUsed: TieredHint[]
   ): string {
     const parts: string[] = [];
-    if (overallScore >= 4.0) {
-      parts.push('Strong coding demonstration with clean invariants and optimal complexity.');
+    if (overallScore >= 4.0 && complexity.isOptimal === true) {
+      parts.push('Promising static-analysis signals; the estimated complexity matches the supplied baseline, but correctness and runtime behavior remain unverified.');
     } else if (overallScore >= 2.5) {
-      parts.push('Solid working attempt with opportunities to optimize time complexity and edge-case guards.');
+      parts.push('Static review only: correctness and runtime behavior were not verified. Review the estimated complexity and edge-case signals before treating this as a completed coding assessment.');
     } else {
-      parts.push('Incomplete submission requiring revision of foundational data structures and boundary guards.');
+      parts.push('Static review found limited positive signals. The submission was not executed, so functional correctness remains unverified.');
     }
 
     if (hintsUsed.length > 0) {
