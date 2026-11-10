@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { streamAnswer } from '../src/services/ai';
+import {
+  MAX_RENDERER_LLM_ERROR_BYTES,
+  MAX_RENDERER_LLM_RESPONSE_BYTES,
+  streamAnswer,
+} from '../src/services/ai';
 import { AIProviderConfig } from '../src/types';
 
 describe('Suite B: Streaming Reliability', () => {
@@ -268,4 +272,75 @@ describe('Suite B: Streaming Reliability', () => {
 
     expect(fullAnswer.trim()).toBe('Hello World');
   });
+  it('cancels renderer streams that exceed the cumulative response byte limit', async () => {
+    let cancelled = false;
+    const oversizedChunk = new Uint8Array(MAX_RENDERER_LLM_RESPONSE_BYTES + 1);
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(oversizedChunk);
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      body: stream,
+    } as any);
+
+    await expect(
+      streamAnswer('Explain B-trees', baseConfig, 'java' as any, {})
+    ).rejects.toThrow(
+      `AI provider response exceeded the ${MAX_RENDERER_LLM_RESPONSE_BYTES}-byte limit.`
+    );
+    expect(cancelled).toBe(true);
+  });
+
+  it('bounds provider error bodies before classification', async () => {
+    const oversizedBody = new Uint8Array(MAX_RENDERER_LLM_ERROR_BYTES + 1);
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(oversizedBody, {
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+
+    await expect(
+      streamAnswer('Explain B-trees', baseConfig, 'java' as any, {})
+    ).rejects.toMatchObject({ status: 401 });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds non-streaming recovery JSON responses', async () => {
+    const emptyStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.close();
+      },
+    });
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        body: emptyStream,
+      })
+      .mockResolvedValueOnce(
+        new Response(new Uint8Array(MAX_RENDERER_LLM_RESPONSE_BYTES + 1), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      );
+
+    await expect(
+      streamAnswer('Explain B-trees', baseConfig, 'java' as any, {})
+    ).rejects.toThrow(
+      `AI provider response exceeded the ${MAX_RENDERER_LLM_RESPONSE_BYTES}-byte limit.`
+    );
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
 });
