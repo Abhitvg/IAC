@@ -65,17 +65,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }) => ipcRenderer.invoke('ai:stream-start', request),
   cancelCloudLLMStream: (requestId: string) => ipcRenderer.invoke('ai:stream-cancel', requestId),
   onAIStreamChunk: (callback: (payload: { requestId: string; chunk: string }) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, payload: { requestId: string; chunk: string }) => callback(payload);
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: { requestId: string; chunk: string }
+    ) => callback(payload);
     ipcRenderer.on('ai:stream-chunk', listener);
     return () => ipcRenderer.removeListener('ai:stream-chunk', listener);
   },
   onAIStreamDone: (callback: (payload: { requestId: string }) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, payload: { requestId: string }) => callback(payload);
+    const listener = (_event: Electron.IpcRendererEvent, payload: { requestId: string }) =>
+      callback(payload);
     ipcRenderer.on('ai:stream-done', listener);
     return () => ipcRenderer.removeListener('ai:stream-done', listener);
   },
-  onAIStreamError: (callback: (payload: { requestId: string; name: string; message: string }) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, payload: { requestId: string; name: string; message: string }) => callback(payload);
+  onAIStreamError: (
+    callback: (payload: { requestId: string; name: string; message: string }) => void
+  ) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: { requestId: string; name: string; message: string }
+    ) => callback(payload);
     ipcRenderer.on('ai:stream-error', listener);
     return () => ipcRenderer.removeListener('ai:stream-error', listener);
   },
