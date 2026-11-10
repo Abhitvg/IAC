@@ -168,7 +168,10 @@ export class CredentialStore {
       if (!fs.existsSync(envPath)) return null;
 
       const raw = fs.readFileSync(envPath, 'utf8');
-      const line = raw.split(/\r?\n/).find((entry) => entry.trim().startsWith(envName + '='));
+      const line = raw.split(/\r?\n/).find((entry) => {
+        const separator = entry.indexOf('=');
+        return separator >= 0 && entry.slice(0, separator).trim() === envName;
+      });
       if (!line) return null;
 
       const value = line.slice(line.indexOf('=') + 1).trim();
