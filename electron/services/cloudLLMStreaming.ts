@@ -214,6 +214,7 @@ export async function startCloudLLMStream(
       let pendingSseText = '';
       let receivedSseData = false;
 
+      // SSE comments and heartbeats are transport noise; only non-terminal data events count as content.
       const inspectSseChunk = (chunk: string, flush = false) => {
         pendingSseText += chunk;
         const lines = pendingSseText.split(/\\r?\\n/);
