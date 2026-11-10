@@ -141,6 +141,14 @@ export class AnswerGenerationService {
   }
 
   /**
+   * Test seam for legacy non-Electron harnesses.
+   * Production credentials are resolved only by the Electron main-process gateway.
+   */
+  async resolveApiKey(_provider: string): Promise<string> {
+    return '';
+  }
+
+  /**
    * Generates a streaming answer for an interview question or screen problem.
    */
   async generateAnswer(
