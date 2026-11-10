@@ -977,7 +977,7 @@ async function readResponseTextLimited(response: Response, maxBytes: number): Pr
       bytesRead += value.byteLength;
       if (bytesRead > maxBytes) {
         try {
-          await reader.cancel('Response body exceeded configured size limit');
+          void reader.cancel('Response body exceeded configured size limit').catch(() => undefined);
         } catch {
           // Preserve the deterministic size-limit error if cancellation fails.
         }
@@ -1306,7 +1306,7 @@ export async function streamAnswer(
         responseBytesRead += value.byteLength;
         if (responseBytesRead > MAX_RENDERER_LLM_RESPONSE_BYTES) {
           try {
-            await reader.cancel('AI provider response exceeded configured size limit');
+            void reader.cancel('AI provider response exceeded configured size limit').catch(() => undefined);
           } catch {
             // Preserve the response-size error if cancellation fails.
           }
