@@ -12,9 +12,7 @@ function deferred<T>() {
 }
 
 describe('per-setting persistence queue', () => {
-  it(
-    'serializes rapid writes and does not let an earlier failure roll back a newer value',
-    async () => {
+  it('serializes writes and ignores stale failures', async () => {
     const state = createSettingWriteQueue('initial');
     const first = deferred<void>();
     const second = deferred<void>();
@@ -51,10 +49,9 @@ describe('per-setting persistence queue', () => {
     second.resolve();
     await state.queue;
 
-      expect(state.confirmedValue).toBe('second');
-      expect(rollback).not.toHaveBeenCalled();
-    }
-  );
+    expect(state.confirmedValue).toBe('second');
+    expect(rollback).not.toHaveBeenCalled();
+  });
 
   it('rolls back the latest failed write to the last persisted value', async () => {
     const state = createSettingWriteQueue('initial');
