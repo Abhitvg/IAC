@@ -1,7 +1,7 @@
 import { validateDocumentImportSize } from './documentImportLimits';
 
 export const MAX_DOCX_ARCHIVE_ENTRIES = 512;
-export const MAX_DOCX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024;
+export const MAX_DOCX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024;
 export const MAX_DOCX_ENTRY_UNCOMPRESSED_BYTES = 32 * 1024 * 1024;
 export const MAX_DOCX_COMPRESSION_RATIO = 100;
 
