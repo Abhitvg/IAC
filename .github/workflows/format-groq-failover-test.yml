@@ -1,0 +1,35 @@
+name: Temporary Groq failover test formatting
+
+on:
+  push:
+    branches:
+      - test/groq-secondary-key-failover-integration
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: test/groq-secondary-key-failover-integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Format Groq failover integration test
+        run: npx prettier --write tests/answerGenerationGroqFailover.test.ts
+      - name: Commit formatter output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/answerGenerationGroqFailover.test.ts
+          if git diff --cached --quiet; then
+            echo "Test file already matches Prettier."
+          else
+            git commit -m "style: format Groq secondary-key failover test"
+            git push origin HEAD:test/groq-secondary-key-failover-integration
+          fi
