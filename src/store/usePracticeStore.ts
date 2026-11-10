@@ -43,15 +43,11 @@ interface PracticeState {
   topicMasteries: TopicMastery[];
   companyPlans: CompanyPracticePlan[];
   activeCompanyPlan: CompanyPracticePlan | null;
-
-  // Active answer draft in practice room
   currentCandidateAnswer: string;
   speakingStartTime: number | null;
   activeHintsUsed: TieredHint[];
   availableHints: TieredHint[];
   interruptionBanner: string | null;
-
-  // Actions
   setActiveView: (view: 'teleprompter' | 'mock_gym' | 'career_ops') => void;
   setActiveTab: (
     tab:
@@ -81,8 +77,6 @@ interface PracticeState {
   discardActiveSession: () => void;
   isEvaluatingAnswer: boolean;
   evaluationError: string | null;
-
-  // Story bank actions
   loadStoryBankFromResume: (resumeText: string) => void;
   saveStory: (story: BehavioralStory) => void;
   deleteStory: (id: string) => void;
@@ -91,11 +85,7 @@ interface PracticeState {
     importedCount: number;
     errors?: string[];
   };
-
-  // Spaced scheduler actions
   recordTopicScore: (topicId: string, score: number) => void;
-
-  // Company prep actions
   createCompanyPlan: (
     companyName: string,
     role: string,
@@ -196,16 +186,13 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   explainerAttempts: loadStored<ExplainerAttempt[]>(STORAGE_KEYS.EXPLAINER_ATTEMPTS, []),
   conceptCards: loadStored<Record<string, ConceptCard>>(STORAGE_KEYS.CONCEPT_CARDS, {}),
   activeExplainerTopic: 'Distributed Caching',
-
   currentCandidateAnswer: '',
   speakingStartTime: null,
   activeHintsUsed: [],
   availableHints: [],
   interruptionBanner: null,
-
   setActiveView: (view) => set({ activeView: view }),
   setActiveTab: (tab) => set({ activeTab: tab }),
-
   startMockSession: (
     roundType,
     persona = 'strict_big_tech',
@@ -225,9 +212,7 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     );
     const category = session.questionHistory[0]?.category || 'behavioral';
     const availableHints = CoachingEngine.getTieredHints(session.currentQuestion, category);
-
     persist(STORAGE_KEYS.ACTIVE_SESSION, session);
-
     set({
       activeSession: session,
       currentCandidateAnswer: '',
@@ -240,15 +225,11 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       evaluationError: null,
     });
   },
-
   tickTimer: () => {
     const { activeSession, speakingStartTime, currentCandidateAnswer } = get();
     if (!activeSession || !activeSession.isActive) return;
-
     const newTime = Math.max(0, activeSession.timeRemainingSeconds - 1);
-    let interviewerThinking = Math.max(0, activeSession.interviewerThinkingSeconds - 1);
-
-    // Check interruption trigger if enabled
+    const interviewerThinking = Math.max(0, activeSession.interviewerThinkingSeconds - 1);
     let banner = get().interruptionBanner;
     if (
       activeSession.interruptionEnabled &&
@@ -262,11 +243,8 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
         currentCandidateAnswer,
         activeSession.persona
       );
-      if (interruptCheck.shouldInterrupt) {
-        banner = interruptCheck.promptText;
-      }
+      if (interruptCheck.shouldInterrupt) banner = interruptCheck.promptText;
     }
-
     set({
       activeSession: {
         ...activeSession,
@@ -276,19 +254,15 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       interruptionBanner: banner,
     });
   },
-
   setCurrentCandidateAnswer: (text) => set({ currentCandidateAnswer: text }),
-
   requestHint: (tier) => {
     const { availableHints, activeHintsUsed } = get();
     const hint = availableHints.find((h) => h.tier === tier);
     if (!hint) return;
-
     if (!activeHintsUsed.some((h) => h.tier === tier)) {
       set({ activeHintsUsed: [...activeHintsUsed, hint] });
     }
   },
-
   submitCurrentAnswer: async () => {
     const {
       activeSession,
@@ -299,22 +273,14 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       isEvaluatingAnswer,
     } = get();
     if (!activeSession || !activeSession.isActive || isEvaluatingAnswer) return;
-
     set({ isEvaluatingAnswer: true, evaluationError: null });
-
     const durationSeconds = speakingStartTime ? (Date.now() - speakingStartTime) / 1000 : 45;
-
     let updatedSession: MockSessionState;
     try {
-      let llmCaller: ((prompt: string, model: string) => Promise<string>) | undefined;
-      if (
-        typeof window !== 'undefined' &&
-        window.electronAPI?.getSettings &&
-        window.electronAPI?.startCloudLLMStream
-      ) {
-        llmCaller = createPracticeLLMCaller(window.electronAPI);
-      }
-
+      const llmCaller =
+        typeof window !== 'undefined'
+          ? createPracticeLLMCaller(window.electronAPI)
+          : undefined;
       updatedSession = await MockInterviewerEngine.processAnswerSubmissionAsync(
         activeSession,
         currentCandidateAnswer,
@@ -331,14 +297,11 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
         activeHintsUsed
       );
     }
-
-    // Update topic mastery in spaced repetition table (backward compatibility)
     const lastQuestion = activeSession.currentQuestion;
     const topicId = SpacedScheduler.identifyTopicForQuestion(lastQuestion);
     const lastItemIndex = updatedSession.questionHistory.length - (updatedSession.isActive ? 2 : 1);
     const lastItem = updatedSession.questionHistory[lastItemIndex];
     const lastEval = lastItem?.evaluation;
-
     let updatedTopics = topicMasteries;
     if (lastEval) {
       updatedTopics = topicMasteries.map((t) =>
@@ -346,8 +309,6 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       );
       persist(STORAGE_KEYS.TOPICS, updatedTopics);
     }
-
-    // 3. Competency Assessment Integration (Phase 5)
     if (lastEval && currentCandidateAnswer.trim().length > 0) {
       const targetTopicId =
         lastItem.curriculumTopicId ||
@@ -356,7 +317,6 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
           : undefined) ||
         QuestionBank.mapLegacyTopicToCurriculumId(lastItem.category) ||
         updatedSession.selectedTopicId;
-
       if (targetTopicId && CurriculumCatalogService.getInstance().getTopic(targetTopicId)) {
         const isCodingRound =
           lastItem.category === 'coding' || updatedSession.roundType === 'dsa_coding';
@@ -377,8 +337,6 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
         });
       }
     }
-
-    // If session just ended, add to history and clear active session storage
     let newHistory = get().sessionHistory;
     if (!updatedSession.isActive) {
       newHistory = [updatedSession, ...newHistory].slice(0, 30);
@@ -387,8 +345,6 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     } else {
       persist(STORAGE_KEYS.ACTIVE_SESSION, updatedSession);
     }
-
-    // Refresh available hints for next question if continuing
     const nextCategory =
       updatedSession.questionHistory[updatedSession.questionHistory.length - 1]?.category ||
       'behavioral';
@@ -396,7 +352,6 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       updatedSession.currentQuestion,
       nextCategory
     );
-
     set({
       activeSession: updatedSession,
       sessionHistory: newHistory,
@@ -410,29 +365,20 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       evaluationError: null,
     });
   },
-
   dismissInterruption: () => set({ interruptionBanner: null }),
-
   endSession: () => {
     const { activeSession, sessionHistory } = get();
     if (!activeSession) return;
-
     const terminatedSession: MockSessionState = {
       ...activeSession,
       isActive: false,
       overallScorecard: MockInterviewerEngine.generateConsolidatedScorecard(activeSession),
     };
-
     const newHistory = [terminatedSession, ...sessionHistory].slice(0, 30);
     persist(STORAGE_KEYS.SESSIONS, newHistory);
     persist(STORAGE_KEYS.ACTIVE_SESSION, null);
-
-    set({
-      activeSession: terminatedSession,
-      sessionHistory: newHistory,
-    });
+    set({ activeSession: terminatedSession, sessionHistory: newHistory });
   },
-
   discardActiveSession: () => {
     persist(STORAGE_KEYS.ACTIVE_SESSION, null);
     set({
@@ -442,20 +388,15 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       evaluationError: null,
     });
   },
-
   loadStoryBankFromResume: (resumeText) => {
     const extracted = StoryBank.extractStoriesFromResume(resumeText);
     const existing = get().storyBank;
-
-    // Merge by title avoiding duplicates
     const existingTitles = new Set(existing.map((s) => s.title));
     const newStories = extracted.filter((s) => !existingTitles.has(s.title));
     const combined = [...existing, ...newStories];
-
     persist(STORAGE_KEYS.STORIES, combined);
     set({ storyBank: combined });
   },
-
   saveStory: (story) => {
     const existing = get().storyBank;
     const index = existing.findIndex((s) => s.id === story.id);
@@ -469,17 +410,12 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     persist(STORAGE_KEYS.STORIES, updated);
     set({ storyBank: updated });
   },
-
   deleteStory: (id) => {
     const updated = get().storyBank.filter((s) => s.id !== id);
     persist(STORAGE_KEYS.STORIES, updated);
     set({ storyBank: updated });
   },
-
-  importCustomQuestionPack: (pack) => {
-    return QuestionBank.importCustomPack(pack);
-  },
-
+  importCustomQuestionPack: (pack) => QuestionBank.importCustomPack(pack),
   recordTopicScore: (topicId, score) => {
     const updated = get().topicMasteries.map((t) =>
       t.topicId === topicId ? SpacedScheduler.recordAttempt(t, score) : t
@@ -487,7 +423,6 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     persist(STORAGE_KEYS.TOPICS, updated);
     set({ topicMasteries: updated });
   },
-
   createCompanyPlan: (companyName, role, jd, resume, days = 7) => {
     const plan = CompanyPlanGenerator.generatePlan(companyName, role, jd, resume, days);
     const existing = get().companyPlans;
@@ -498,12 +433,10 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     persist(STORAGE_KEYS.PLANS, updated);
     set({ companyPlans: updated, activeCompanyPlan: plan, activeTab: 'company_prep' });
   },
-
   toggleDrillCompleted: (planIndex, dayNumber) => {
     const plans = [...get().companyPlans];
     const plan = plans[planIndex];
     if (!plan) return;
-
     const drill = plan.dailyDrills.find((d) => d.day === dayNumber);
     if (drill) {
       drill.completed = !drill.completed;
@@ -511,7 +444,6 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       set({ companyPlans: plans, activeCompanyPlan: plan });
     }
   },
-
   addFeedbackRecord: (record) => {
     const existing = get().feedbackRecords;
     if (existing.some((r) => r.sourceHash === record.sourceHash)) {
@@ -522,25 +454,21 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     set({ feedbackRecords: updated });
     return { success: true };
   },
-
   updateFeedbackRecord: (record) => {
     const existing = get().feedbackRecords;
     const updated = existing.map((r) => (r.id === record.id ? record : r));
     persist(STORAGE_KEYS.FEEDBACK, updated);
     set({ feedbackRecords: updated });
   },
-
   deleteFeedbackRecord: (id) => {
     const updated = get().feedbackRecords.filter((r) => r.id !== id);
     persist(STORAGE_KEYS.FEEDBACK, updated);
     set({ feedbackRecords: updated });
   },
-
   setWeaknessPlan: (plan) => {
     persist(STORAGE_KEYS.WEAKNESS_PLAN, plan);
     set({ weaknessPlan: plan });
   },
-
   seedSchedulerFromWeaknesses: () => {
     const records = get().feedbackRecords;
     const weaknessResult = WeaknessMap.aggregateFeedback(records);
@@ -552,22 +480,17 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     persist(STORAGE_KEYS.TOPICS, updatedMasteries);
     set({ topicMasteries: updatedMasteries });
   },
-
   setActiveExplainerTopic: (topic) => set({ activeExplainerTopic: topic }),
-
   recordExplainerAttempt: (attempt) => {
     const attempts = [attempt, ...get().explainerAttempts];
     persist(STORAGE_KEYS.EXPLAINER_ATTEMPTS, attempts);
     set({ explainerAttempts: attempts });
-
-    // Feed into SpacedScheduler mastery upgrade rule (requires 2 consecutive attempts with structure >= 4 & concreteness >= 4)
     const masteries = [...get().topicMasteries];
     const topicLower = attempt.topic.toLowerCase();
     const mIdx = masteries.findIndex(
       (m) =>
         m.topicName.toLowerCase() === topicLower || m.topicId.toLowerCase().includes(topicLower)
     );
-
     if (mIdx !== -1) {
       const attemptsForTopic = attempts.filter((a) => a.topic.toLowerCase() === topicLower);
       const { updatedMastery, improved } = ExplainerDrillService.updateMasteryFromAttempts(
@@ -581,13 +504,11 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       }
     }
   },
-
   saveConceptCard: (card) => {
     const cards = { ...get().conceptCards, [card.topic.toLowerCase()]: card };
     persist(STORAGE_KEYS.CONCEPT_CARDS, cards);
     set({ conceptCards: cards });
   },
-
   toggleWeaknessDrillCompleted: (day, drillId) => {
     const currentPlan = get().weaknessPlan;
     if (!currentPlan) return;
@@ -602,15 +523,12 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     persist(STORAGE_KEYS.WEAKNESS_PLAN, updatedPlan);
     set({ weaknessPlan: updatedPlan });
   },
-
   clearAllFeedback: () => {
     persist(STORAGE_KEYS.FEEDBACK, []);
     set({ feedbackRecords: [] });
   },
-
   deleteAllFeedbackAndPracticeData: () => {
     const failedKeys: string[] = [];
-
     if (typeof localStorage !== 'undefined') {
       for (const key of Object.values(STORAGE_KEYS)) {
         try {
@@ -622,9 +540,6 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
         }
       }
     }
-
-    // Always clear sensitive in-memory state; the caller must not report full success
-    // while a persisted key remains.
     set({
       activeSession: null,
       sessionHistory: [],
@@ -643,7 +558,6 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       conceptCards: {},
       activeExplainerTopic: '',
     });
-
     return { success: failedKeys.length === 0, failedKeys };
   },
   addCompanyNote: (companyName, roundName, note) => {
