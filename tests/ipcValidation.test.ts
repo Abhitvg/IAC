@@ -109,9 +109,7 @@ describe('IPC Settings Validation', () => {
 
   it('validates every persisted setting shape and rejects malformed values', () => {
     expect(() => validateSetting('preferredLanguage', 'typescript')).not.toThrow();
-    expect(() => validateSetting('preferredLanguage', 'ruby')).toThrow(
-      'Invalid preferredLanguage'
-    );
+    expect(() => validateSetting('preferredLanguage', 'ruby')).toThrow('Invalid preferredLanguage');
     expect(() => validateSetting('theme', 'light')).not.toThrow();
     expect(() => validateSetting('theme', 'system')).toThrow('Invalid theme');
     expect(() => validateSetting('audioFormat', 'wav')).not.toThrow();
@@ -125,16 +123,17 @@ describe('IPC Settings Validation', () => {
     expect(() => validateSetting('maxTokens', 50.5)).toThrow('Invalid maxTokens');
 
     const shortcuts = {
-      record: 'R', analyze: 'A', copyAnswer: 'C', quickAnswer: 'Q',
-      detailedAnswer: 'D', minimize: 'Escape', regenerate: 'CommandOrControl+Enter',
+      record: 'R',
+      analyze: 'A',
+      copyAnswer: 'C',
+      quickAnswer: 'Q',
+      detailedAnswer: 'D',
+      minimize: 'Escape',
+      regenerate: 'CommandOrControl+Enter',
     };
     expect(() => validateSetting('shortcuts', shortcuts)).not.toThrow();
-    expect(() =>
-      validateSetting('shortcuts', { ...shortcuts, extra: 'X' })
-    ).toThrow('shortcuts');
-    expect(() =>
-      validateSetting('shortcuts', { ...shortcuts, record: 42 })
-    ).toThrow('shortcuts');
+    expect(() => validateSetting('shortcuts', { ...shortcuts, extra: 'X' })).toThrow('shortcuts');
+    expect(() => validateSetting('shortcuts', { ...shortcuts, record: 42 })).toThrow('shortcuts');
 
     const notice = {
       timestamp: Date.now(),

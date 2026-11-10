@@ -102,10 +102,7 @@ export function validateSetting(key: string, value: any): boolean {
     throw new Error(`Unauthorized setting key: "${key}"`);
   }
 
-  const isBoundedString = (
-    candidate: unknown,
-    maxLength: number
-  ): candidate is string =>
+  const isBoundedString = (candidate: unknown, maxLength: number): candidate is string =>
     typeof candidate === 'string' &&
     candidate.length <= maxLength &&
     !/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(candidate);
@@ -122,19 +119,15 @@ export function validateSetting(key: string, value: any): boolean {
         !isBoundedString(value, 160) ||
         value.length === 0 ||
         !/^[A-Za-z0-9._:/-]+$/.test(value) ||
-        !value.split('/').every(
-          (segment) => segment.length > 0 && segment !== '.' && segment !== '..'
-        )
+        !value
+          .split('/')
+          .every((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
       ) {
-        throw new Error(
-          `Invalid ${key}: expected a model identifier of at most 160 characters.`
-        );
+        throw new Error(`Invalid ${key}: expected a model identifier of at most 160 characters.`);
       }
       break;
     case 'preferredLanguage':
-      if (
-        !['java', 'python', 'cpp', 'javascript', 'typescript', 'go', 'csharp'].includes(value)
-      ) {
+      if (!['java', 'python', 'cpp', 'javascript', 'typescript', 'go', 'csharp'].includes(value)) {
         throw new Error(`Invalid preferredLanguage: "${value}"`);
       }
       break;
@@ -154,12 +147,7 @@ export function validateSetting(key: string, value: any): boolean {
       }
       break;
     case 'windowOpacity':
-      if (
-        typeof value !== 'number' ||
-        !Number.isFinite(value) ||
-        value < 0.1 ||
-        value > 1.0
-      ) {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0.1 || value > 1.0) {
         throw new Error(`Invalid windowOpacity: ${value}. Must be between 0.1 and 1.0.`);
       }
       break;
@@ -169,25 +157,13 @@ export function validateSetting(key: string, value: any): boolean {
       }
       break;
     case 'temperature':
-      if (
-        typeof value !== 'number' ||
-        !Number.isFinite(value) ||
-        value < 0 ||
-        value > 2
-      ) {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 2) {
         throw new Error(`Invalid temperature: ${value}. Must be between 0 and 2.`);
       }
       break;
     case 'maxTokens':
-      if (
-        typeof value !== 'number' ||
-        !Number.isInteger(value) ||
-        value < 50 ||
-        value > 8192
-      ) {
-        throw new Error(
-          `Invalid maxTokens: ${value}. Must be an integer between 50 and 8192.`
-        );
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < 50 || value > 8192) {
+        throw new Error(`Invalid maxTokens: ${value}. Must be an integer between 50 and 8192.`);
       }
       break;
     case 'browserIntegration':
@@ -254,9 +230,7 @@ export function validateSetting(key: string, value: any): boolean {
     case 'ollamaEndpoint':
     case 'customApiEndpoint':
       if (!isBoundedString(value, 512)) {
-        throw new Error(
-          `Endpoint URL for "${key}" must be a string of at most 512 characters.`
-        );
+        throw new Error(`Endpoint URL for "${key}" must be a string of at most 512 characters.`);
       }
       break;
   }
