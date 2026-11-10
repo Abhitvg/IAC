@@ -45,7 +45,7 @@ const ALLOWED_SETTING_KEYS = new Set([
 
 export function validateCloudPreflightRequest(
   request: unknown
-): request is { provider: Exclude<AIProviderId, 'ollama'>; model: string } {
+): request is { provider: 'groq' | 'openai' | 'openrouter'; model: string } {
   if (!request || typeof request !== 'object' || Array.isArray(request)) return false;
   const candidate = request as Record<string, unknown>;
   return (
