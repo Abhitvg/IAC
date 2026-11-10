@@ -304,15 +304,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     return true;
   });
 
-  // Secure safeStorage credential handlers
-  ipcMain.handle('credentials:get', async (event, service: string) => {
-    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
-    const k = await credentialStore.getKey(service);
-    // Key retrieved securely
-    console.log('[IPC credentials:get]', service, 'configured:', !!k);
-    return k;
-  });
-
+  // Credential reads stay in Electron main; only narrowly scoped operations are exposed to the renderer.
   ipcMain.handle('credentials:set', async (event, service: string, key: string) => {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     return credentialStore.setKey(service, key);
