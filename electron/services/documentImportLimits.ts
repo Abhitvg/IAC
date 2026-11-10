@@ -9,10 +9,7 @@ export interface DocumentImportSizeValidation {
 /** Bound renderer-supplied document buffers before parsers allocate or decode them. */
 export function validateDocumentImportSize(byteLength: unknown): DocumentImportSizeValidation {
   if (typeof byteLength !== 'number' || !Number.isSafeInteger(byteLength) || byteLength <= 0) {
-    return {
-      allowed: false,
-      reason: 'Document import must contain a non-empty valid byte buffer.',
-    };
+    return { allowed: false, reason: 'Document import must contain a non-empty valid byte buffer.' };
   }
 
   if (byteLength > MAX_DOCUMENT_IMPORT_SIZE_BYTES) {
@@ -28,10 +25,7 @@ export function validateDocumentImportSize(byteLength: unknown): DocumentImportS
 /** Prevent unbounded page-by-page PDF extraction and OCR work. */
 export function validatePdfPageCount(pageCount: unknown): DocumentImportSizeValidation {
   if (typeof pageCount !== 'number' || !Number.isSafeInteger(pageCount) || pageCount <= 0) {
-    return {
-      allowed: false,
-      reason: 'PDF must contain a valid positive page count.',
-    };
+    return { allowed: false, reason: 'PDF must contain a valid positive page count.' };
   }
 
   if (pageCount > MAX_PDF_PAGE_COUNT) {
