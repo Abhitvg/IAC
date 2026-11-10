@@ -31,9 +31,39 @@ vi.mock('electron-store', () => {
   };
 });
 
-import { validateCloudPreflightRequest, validateSetting } from '../electron/ipc/handlers';
+import {
+  validateCloudPreflightRequest,
+  validateCloudTranscriptionRequest,
+  validateSetting,
+} from '../electron/ipc/handlers';
 
 describe('IPC Settings Validation', () => {
+  it('accepts only bounded cloud transcription payloads', () => {
+    const validRequest = {
+      requestId: 'request-123',
+      provider: 'groq',
+      model: 'whisper-large-v3-turbo',
+      audio: new Uint8Array(1024),
+      language: 'en',
+      prompt: 'technical terms',
+    };
+
+    expect(validateCloudTranscriptionRequest(validRequest)).toBe(true);
+    expect(validateCloudTranscriptionRequest({ ...validRequest, provider: 'openrouter' })).toBe(
+      false
+    );
+    expect(validateCloudTranscriptionRequest({ ...validRequest, audio: new Uint8Array(100) })).toBe(
+      false
+    );
+    expect(
+      validateCloudTranscriptionRequest({
+        ...validRequest,
+        audio: new Uint8Array(25 * 1024 * 1024 + 1),
+      })
+    ).toBe(false);
+    expect(validateCloudTranscriptionRequest(null)).toBe(false);
+  });
+
   it('accepts only bounded cloud-provider preflight requests', () => {
     expect(
       validateCloudPreflightRequest({ provider: 'groq', model: 'llama-3.3-70b-versatile' })
