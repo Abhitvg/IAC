@@ -42,7 +42,7 @@ describe('Evidence repository inspection metadata limits', () => {
       detectedArchitecture: 'x'.repeat(1_000),
       candidateAuthorshipStatus: 'COMMIT_AUTHOR',
       authorEmailFound: 'x'.repeat(400),
-      authorRole: 'CONTRIBUTOR',
+      authorRole: 'contributor',
       productionDeploymentVerified: false,
       businessOutcomesVerified: false,
       inspectionLimitations: {
