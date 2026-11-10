@@ -205,7 +205,7 @@ export async function startCloudLLMStream(
 
   const headers = getSafeResponseHeaders(response.headers);
   if (!response.ok) {
-    const body = await response.text().catch(() => '');
+    const body = await readResponseTextLimited(response, MAX_CLOUD_LLM_ERROR_BYTES).catch(() => '');
     return {
       ok: false,
       status: response.status,
