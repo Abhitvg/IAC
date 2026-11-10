@@ -32,15 +32,13 @@ describe('Evidence repository inspection metadata limits', () => {
 
   it('rejects CRLF in authorization headers', () => {
     expect(() =>
-      inspectEvidenceRepository(request({ authHeader: 'Bearer token\r\nInjected: yes' }))
+      inspectEvidenceRepository(request({ authHeader: 'Bearer token\\r\\nInjected: yes' }))
     ).toThrow('line breaks');
   });
 
   it('rejects oversized candidate identity and project metadata', () => {
     expect(() =>
-      inspectEvidenceRepository(
-        request({ candidateIdentity: { fullName: 'x'.repeat(257) } })
-      )
+      inspectEvidenceRepository(request({ candidateIdentity: { fullName: 'x'.repeat(257) } }))
     ).toThrow('candidateIdentity.fullName');
 
     expect(() =>
