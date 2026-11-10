@@ -72,16 +72,16 @@ describe('Evidence repository inspection metadata limits', () => {
     expect(inspected.__inspectionSeal).toBe(result.__inspectionSeal);
   });
 
-  it('rejects oversized repository URLs before URL parsing', () => {
-    expect(() => inspectEvidenceRepository(request({ repositoryUrl: 'x'.repeat(2049) }))).toThrow(
-      'repositoryUrl'
-    );
+  it('rejects oversized repository URLs before URL parsing', async () => {
+    await expect(
+      inspectEvidenceRepository(request({ repositoryUrl: 'x'.repeat(2049) }))
+    ).rejects.toThrow('repositoryUrl');
   });
 
-  it('rejects oversized authorization headers before making network requests', () => {
-    expect(() => inspectEvidenceRepository(request({ authHeader: 'a'.repeat(4097) }))).toThrow(
-      'authHeader'
-    );
+  it('rejects oversized authorization headers before making network requests', async () => {
+    await expect(
+      inspectEvidenceRepository(request({ authHeader: 'a'.repeat(4097) }))
+    ).rejects.toThrow('authHeader');
   });
 
   it('rejects CRLF in authorization headers', () => {
@@ -90,13 +90,13 @@ describe('Evidence repository inspection metadata limits', () => {
     ).toThrow('line breaks');
   });
 
-  it('rejects oversized candidate identity and project metadata', () => {
-    expect(() =>
+  it('rejects oversized candidate identity and project metadata', async () => {
+    await expect(
       inspectEvidenceRepository(request({ candidateIdentity: { fullName: 'x'.repeat(257) } }))
-    ).toThrow('candidateIdentity.fullName');
+    ).rejects.toThrow('candidateIdentity.fullName');
 
-    expect(() =>
+    await expect(
       inspectEvidenceRepository(request({ targetProjectName: 'x'.repeat(257) }))
-    ).toThrow('targetProjectName');
+    ).rejects.toThrow('targetProjectName');
   });
 });
