@@ -48,6 +48,15 @@ function requireBoundedString(value: unknown, field: string, maxLength: number):
   return value;
 }
 
+function requireOptionalBoundedString(
+  value: unknown,
+  field: string,
+  maxLength: number
+): void {
+  if (value === undefined || value === null || value === '') return;
+  requireBoundedString(value, field, maxLength);
+}
+
 function validateEvidenceInspectionMetadata(request: DocumentInspectionRequest): void {
   const payload = request as unknown as Record<string, unknown>;
   const issuer = payload.issuer;
@@ -58,9 +67,7 @@ function validateEvidenceInspectionMetadata(request: DocumentInspectionRequest):
   }
 
   requireBoundedString(issuer.name, 'issuer.name', MAX_ISSUER_NAME_LENGTH);
-  if (issuer.issuerId !== undefined) {
-    requireBoundedString(issuer.issuerId, 'issuer.issuerId', MAX_ISSUER_ID_LENGTH);
-  }
+  requireOptionalBoundedString(issuer.issuerId, 'issuer.issuerId', MAX_ISSUER_ID_LENGTH);
 
   if (
     typeof issuer.authorityLevel !== 'string' ||
@@ -70,7 +77,7 @@ function validateEvidenceInspectionMetadata(request: DocumentInspectionRequest):
     throw new Error('Invalid issuer.authorityLevel.');
   }
 
-  if (issuer.signatureHex !== undefined) {
+  if (issuer.signatureHex !== undefined && issuer.signatureHex !== null && issuer.signatureHex !== '') {
     if (
       typeof issuer.signatureHex !== 'string' ||
       issuer.signatureHex.length === 0 ||
@@ -87,13 +94,11 @@ function validateEvidenceInspectionMetadata(request: DocumentInspectionRequest):
     'candidateIdentity.fullName',
     MAX_CANDIDATE_NAME_LENGTH
   );
-  if (candidateIdentity.email !== undefined) {
-    requireBoundedString(
-      candidateIdentity.email,
-      'candidateIdentity.email',
-      MAX_CANDIDATE_EMAIL_LENGTH
-    );
-  }
+  requireOptionalBoundedString(
+    candidateIdentity.email,
+    'candidateIdentity.email',
+    MAX_CANDIDATE_EMAIL_LENGTH
+  );
 
   requireBoundedString(payload.targetProjectName, 'targetProjectName', MAX_PROJECT_NAME_LENGTH);
 
@@ -152,11 +157,9 @@ export function inspectEvidenceRepository(
   }
 
   requireBoundedString(payload.repositoryUrl, 'repositoryUrl', 2048);
-  if (payload.ref !== undefined) {
-    requireBoundedString(payload.ref, 'ref', 128);
-  }
+  requireOptionalBoundedString(payload.ref, 'ref', 128);
 
-  if (payload.authHeader !== undefined) {
+  if (payload.authHeader !== undefined && payload.authHeader !== null && payload.authHeader !== '') {
     const authHeader = requireBoundedString(payload.authHeader, 'authHeader', 4096);
     if (/[\r\n]/.test(authHeader)) {
       throw new Error('Invalid authHeader; line breaks are not permitted.');
@@ -168,13 +171,11 @@ export function inspectEvidenceRepository(
     'candidateIdentity.fullName',
     MAX_CANDIDATE_NAME_LENGTH
   );
-  if (candidateIdentity.email !== undefined) {
-    requireBoundedString(
-      candidateIdentity.email,
-      'candidateIdentity.email',
-      MAX_CANDIDATE_EMAIL_LENGTH
-    );
-  }
+  requireOptionalBoundedString(
+    candidateIdentity.email,
+    'candidateIdentity.email',
+    MAX_CANDIDATE_EMAIL_LENGTH
+  );
   requireBoundedString(payload.targetProjectName, 'targetProjectName', MAX_PROJECT_NAME_LENGTH);
 
   return EvidenceVerificationService.inspectRepository(request);
