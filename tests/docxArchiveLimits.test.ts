@@ -89,7 +89,7 @@ describe('validateDocxArchive', () => {
     const entries = [
       ...requiredDocxEntries(),
       {
-        name: 'word/document.xml',
+        name: 'word/media/image.bin',
         data: Buffer.from('x'),
         method: 8 as const,
         uncompressedSize: 101,
@@ -116,6 +116,7 @@ describe('validateDocxArchive', () => {
   it('rejects ZIP64 archives', () => {
     const archive = createZip(requiredDocxEntries());
     const eocdOffset = archive.length - 22;
+    archive.writeUInt16LE(0xffff, eocdOffset + 8);
     archive.writeUInt16LE(0xffff, eocdOffset + 10);
 
     expect(validateDocxArchive(archive).reason).toContain('ZIP64');
