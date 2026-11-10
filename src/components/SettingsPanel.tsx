@@ -162,7 +162,6 @@ export default function SettingsPanel() {
         }
         return writeCredential(service, key);
       });
-      updateSetting('hasApiKey', true);
       setApiKey('');
       setApiKeyConfigured(true);
     } catch (error: unknown) {
@@ -188,7 +187,6 @@ export default function SettingsPanel() {
       });
       setApiKey('');
       setApiKeyConfigured(false);
-      updateSetting('hasApiKey', false);
     } catch (error: unknown) {
       setErrorMessage(
         error instanceof Error ? error.message : 'Failed to delete the saved API key.'
