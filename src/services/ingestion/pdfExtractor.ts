@@ -6,6 +6,10 @@
  */
 
 import { PageDiagnostic } from './types';
+import {
+  validateDocumentImportSize,
+  validatePdfPageCount,
+} from '../../../electron/services/documentImportLimits';
 
 export interface PdfExtractionResult {
   text: string;
@@ -93,7 +97,11 @@ export function sortAndFormatTextItems(rawItems: any[]): string {
     return lines
       .map((line) => {
         line.items.sort((a, b) => a.x - b.x);
-        return line.items.map((it) => it.str).join(' ').replace(/\s+/g, ' ').trim();
+        return line.items
+          .map((it) => it.str)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
       })
       .filter((l) => l.length > 0)
       .join('\n');
@@ -104,7 +112,11 @@ export function sortAndFormatTextItems(rawItems: any[]): string {
 
   if (pageWidth > 150 && items.length > 15) {
     const step = pageWidth / 40;
-    for (let candidateX = minX + 0.25 * pageWidth; candidateX <= minX + 0.70 * pageWidth; candidateX += step) {
+    for (
+      let candidateX = minX + 0.25 * pageWidth;
+      candidateX <= minX + 0.7 * pageWidth;
+      candidateX += step
+    ) {
       const gutterLeft = candidateX - 8;
       const gutterRight = candidateX + 8;
 
@@ -124,7 +136,7 @@ export function sortAndFormatTextItems(rawItems: any[]): string {
       }
 
       if (leftCount >= items.length * 0.15 && rightCount >= items.length * 0.15) {
-        const score = (leftCount + rightCount) - crossingCount * 2.5;
+        const score = leftCount + rightCount - crossingCount * 2.5;
         if (score > maxColumnScore) {
           maxColumnScore = score;
           bestSplitX = candidateX;
@@ -223,12 +235,34 @@ export async function extractPdfDocument(arrayBuffer: ArrayBuffer): Promise<PdfE
     };
   }
 
+  const sizeValidation = validateDocumentImportSize(arrayBuffer.byteLength);
+  if (!sizeValidation.allowed) {
+    return {
+      text: '',
+      pageCount: 0,
+      pages: [],
+      isScannedOrImageOnly: false,
+      ocrRequired: false,
+      warnings: [sizeValidation.reason || 'PDF import size is invalid.'],
+    };
+  }
+
   // 1. Try Main-Process Electron PDF Parser (has full Node/native access to CMap and macOS Vision OCR)
   if (typeof window !== 'undefined' && window.electronAPI?.parsePdf) {
     try {
       const fullText = await window.electronAPI.parsePdf(arrayBuffer);
       if (fullText && fullText.trim()) {
         const cleanFull = fullText.trim();
+        if (cleanFull.startsWith('PDF exceeds the maximum supported page count')) {
+          return {
+            text: '',
+            pageCount: 0,
+            pages: [],
+            isScannedOrImageOnly: false,
+            ocrRequired: false,
+            warnings: [cleanFull],
+          };
+        }
         const isGarbled = isGarbledOrMojibakeText(cleanFull);
 
         if (!isGarbled && !cleanFull.startsWith('Could not extract readable text')) {
@@ -255,7 +289,9 @@ export async function extractPdfDocument(arrayBuffer: ArrayBuffer): Promise<PdfE
             warnings: [],
           };
         } else {
-          warnings.push('PDF appears to have an unreadable, scanned, or corrupt font text layer. OCR required.');
+          warnings.push(
+            'PDF appears to have an unreadable, scanned, or corrupt font text layer. OCR required.'
+          );
         }
       }
     } catch (err: any) {
@@ -264,6 +300,7 @@ export async function extractPdfDocument(arrayBuffer: ArrayBuffer): Promise<PdfE
   }
 
   // 2. Client-side pdfjs-dist fallback
+  let loadingTask: any;
   try {
     const pdfjs = await import('pdfjs-dist');
     const uint8 = new Uint8Array(arrayBuffer);
@@ -282,7 +319,7 @@ export async function extractPdfDocument(arrayBuffer: ArrayBuffer): Promise<PdfE
       }
     }
 
-    const loadingTask = pdfjs.getDocument({
+    loadingTask = pdfjs.getDocument({
       data: uint8,
       useSystemFonts: true,
       disableFontFace: false, // Ensure font face parsing is enabled
@@ -290,6 +327,18 @@ export async function extractPdfDocument(arrayBuffer: ArrayBuffer): Promise<PdfE
     });
 
     const doc = await loadingTask.promise;
+    const pageCountValidation = validatePdfPageCount(doc.numPages);
+    if (!pageCountValidation.allowed) {
+      return {
+        text: '',
+        pageCount: doc.numPages,
+        pages: [],
+        isScannedOrImageOnly: false,
+        ocrRequired: false,
+        warnings: [pageCountValidation.reason || 'PDF page count is invalid.'],
+      };
+    }
+
     let combinedText = '';
     const pageDiagnostics: PageDiagnostic[] = [];
 
@@ -349,5 +398,13 @@ export async function extractPdfDocument(arrayBuffer: ArrayBuffer): Promise<PdfE
       ocrRequired: true,
       warnings,
     };
+  } finally {
+    if (loadingTask) {
+      try {
+        await loadingTask.destroy();
+      } catch {
+        // The PDF.js worker may already have been torn down after a parsing failure.
+      }
+    }
   }
 }
