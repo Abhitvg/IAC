@@ -88,10 +88,10 @@ describe('Evidence repository inspection metadata limits', () => {
     ).rejects.toThrow('authHeader');
   });
 
-  it('rejects CRLF in authorization headers', () => {
-    expect(() =>
+  it('rejects CRLF in authorization headers', async () => {
+    await expect(
       inspectEvidenceRepository(request({ authHeader: 'Bearer token\r\nInjected: yes' }))
-    ).toThrow('line breaks');
+    ).rejects.toThrow('line breaks');
   });
 
   it('rejects oversized candidate identity and project metadata', async () => {
