@@ -47,6 +47,46 @@ describe('Evidence seal verification input limits', () => {
     expect(verifyEvidenceSeal(result)).toBe(false);
   });
 
+  it('rejects unbounded or malformed canonical repository seal fields', () => {
+    const base = {
+      __inspectionSeal: 'a'.repeat(64),
+      inspectionId: 'inspection-123',
+      inspectedAt: Date.now(),
+      repositoryUrl: 'https://github.com/openai/openai',
+      resolvedCommitSha: 'a'.repeat(40),
+      treeSha: 'b'.repeat(40),
+      inspectedFiles: [],
+      verifiedTechnologies: [],
+      candidateAuthorshipStatus: 'COMMIT_AUTHOR',
+    };
+
+    expect(verifyEvidenceSeal({ ...base, inspectedAt: 'x'.repeat(100_000) })).toBe(false);
+    expect(verifyEvidenceSeal({ ...base, candidateAuthorshipStatus: 'x'.repeat(100_000) })).toBe(
+      false
+    );
+    expect(verifyEvidenceSeal({ ...base, resolvedCommitSha: { toString: () => 'a'.repeat(40) } })).toBe(
+      false
+    );
+  });
+
+  it('requires primitive boolean fields in document seal canonical data', () => {
+    const base = {
+      __documentSeal: 'a'.repeat(64),
+      inspectionId: 'inspection-123',
+      documentSha256: 'b'.repeat(64),
+      documentByteLength: 1024,
+      issuerName: 'Trusted Issuer',
+      issuerValidated: true,
+      candidateMentioned: true,
+      projectMentioned: false,
+      personalWorkAttested: true,
+      supportedFields: { performanceMetrics: [] },
+    };
+
+    expect(verifyEvidenceSeal({ ...base, issuerValidated: { value: true } })).toBe(false);
+    expect(verifyEvidenceSeal({ ...base, personalWorkAttested: 'true' })).toBe(false);
+  });
+
   it('rejects malformed seals before cryptographic comparison', () => {
     expect(verifyEvidenceSeal({ __inspectionSeal: 'not-a-digest' })).toBe(false);
     expect(verifyEvidenceSeal({ __documentSeal: 'not-a-digest' })).toBe(false);
