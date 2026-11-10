@@ -274,6 +274,29 @@ export interface ElectronAPI {
     segments?: Array<{ start: number; end: number; text: string }>;
   }>;
   cancelCloudTranscription: (requestId: string) => Promise<boolean>;
+  startCloudLLMStream: (request: {
+    requestId: string;
+    provider: 'groq' | 'openai' | 'openrouter';
+    model: string;
+    systemPrompt: string;
+    question: string;
+    temperature: number;
+    maxTokens: number;
+    stream: boolean;
+  }) => Promise<{
+    ok: boolean;
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    body?: string;
+    usedSecondaryKey?: boolean;
+  }>;
+  cancelCloudLLMStream: (requestId: string) => Promise<boolean>;
+  onAIStreamChunk: (callback: (payload: { requestId: string; chunk: string }) => void) => () => void;
+  onAIStreamDone: (callback: (payload: { requestId: string }) => void) => () => void;
+  onAIStreamError: (
+    callback: (payload: { requestId: string; name: string; message: string }) => void
+  ) => () => void;
   getApiKey: (service: string) => Promise<string | null>;
   setApiKey: (service: string, key: string) => Promise<boolean>;
   hasApiKey: (service: string) => Promise<boolean>;
