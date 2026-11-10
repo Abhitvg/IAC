@@ -138,7 +138,6 @@ describe('CredentialStore', () => {
   });
 
   it('parses only complete Groq keys from environment-file assignments', () => {
-
     expect(parseGroqApiKeyFromEnvContent('GROQ_API_KEY=gsk_valid_key_123')).toBe(
       'gsk_valid_key_123'
     );
