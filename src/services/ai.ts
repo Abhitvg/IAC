@@ -965,7 +965,17 @@ export const MAX_RENDERER_LLM_RESPONSE_BYTES = 8 * 1024 * 1024;
 export const MAX_RENDERER_LLM_ERROR_BYTES = 64 * 1024;
 
 async function readResponseTextLimited(response: Response, maxBytes: number): Promise<string> {
-  if (!response.body) return '';
+  if (!response.body) {
+    // Keep lightweight provider/test adapters compatible while enforcing the byte ceiling.
+    if (typeof response.text === 'function') {
+      const fallbackText = await response.text();
+      if (new TextEncoder().encode(fallbackText).byteLength > maxBytes) {
+        throw new RangeError('AI provider response exceeded the ' + maxBytes + '-byte limit.');
+      }
+      return fallbackText;
+    }
+    return '';
+  }
   const reader = response.body.getReader();
   const decoder = new TextDecoder('utf-8');
   let bytesRead = 0;
