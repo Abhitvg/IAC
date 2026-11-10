@@ -1,0 +1,35 @@
+name: Temporary format SSE regression tests
+
+on:
+  push:
+    branches:
+      - fix/detect-empty-sse-streams-20261110
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: fix/detect-empty-sse-streams-20261110
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.13.0
+      - run: npm ci --no-audit --no-fund
+      - run: npx prettier --write tests/cloudLLMStreaming.test.ts
+      - name: Commit formatted tests
+        run: |
+          if git diff --quiet -- tests/cloudLLMStreaming.test.ts; then
+            echo "Tests already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/cloudLLMStreaming.test.ts
+          git commit -m "style: format SSE streaming regression tests"
+          git pull --rebase origin fix/detect-empty-sse-streams-20261110
+          git push origin HEAD:fix/detect-empty-sse-streams-20261110
