@@ -5,9 +5,6 @@ on:
     branches: [main, 'fix/**', 'feat/**', 'security/**']
   pull_request:
 
-permissions:
-  contents: write
-
 jobs:
   validate:
     name: Test & Build (${{ matrix.os }})
@@ -32,19 +29,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-
-      - name: Format DOCX remediation files (temporary)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/security/docx-zip-resource-limits-20261110' && matrix.os == 'ubuntu-24.04'
-        run: |
-          npx prettier --write electron/services/docxArchiveLimits.ts src/services/ingestion/docxExtractor.ts tests/documentIngestionSizeGuard.test.ts tests/docxArchiveLimits.test.ts
-          if git diff --quiet; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add electron/services/docxArchiveLimits.ts src/services/ingestion/docxExtractor.ts tests/documentIngestionSizeGuard.test.ts tests/docxArchiveLimits.test.ts
-          git commit -m "style: format DOCX resource hardening"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Report dependency security advisories
         if: matrix.os == 'ubuntu-24.04'
