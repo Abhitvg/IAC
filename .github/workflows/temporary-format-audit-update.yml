@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - docs/align-final-audit-table-20261110
+      - docs/rebuild-audit-from-formatted-base-20261110
 
 permissions:
   contents: write
