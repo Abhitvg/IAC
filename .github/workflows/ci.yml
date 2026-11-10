@@ -60,6 +60,10 @@ jobs:
               paths: item.nodes
             }));
           }
+          if ((summary.high || 0) > 0 || (summary.critical || 0) > 0) {
+            console.error('Dependency audit failed: high or critical vulnerabilities must be remediated.');
+            process.exitCode = 1;
+          }
           NODE
 
       - name: Check formatting for changed files
