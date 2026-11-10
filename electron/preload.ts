@@ -52,8 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (key: string, value: any) => ipcRenderer.invoke('settings:set', key, value),
 
-  // Secure credentials
-  getApiKey: (service: string) => ipcRenderer.invoke('credentials:get', service),
+  // Credential reads stay in Electron main; renderer receives only configured-state metadata.
   setApiKey: (service: string, key: string) => ipcRenderer.invoke('credentials:set', service, key),
   hasApiKey: (service: string) => ipcRenderer.invoke('credentials:has', service),
   deleteApiKey: (service: string) => ipcRenderer.invoke('credentials:delete', service),
