@@ -24,18 +24,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.13.0
-          # Do not enable setup-node caching until a package lockfile is committed.
-          # The cache action requires a lockfile and would fail before the install fallback.
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        shell: bash
-        run: |
-          if [[ -f package-lock.json ]]; then
-            npm ci --no-audit --no-fund
-          else
-            echo '::warning::No package-lock.json found; using npm install. Commit a lockfile to make CI installs deterministic.'
-            npm install --no-audit --no-fund
-          fi
+        run: npm ci --no-audit --no-fund
 
       - name: Report dependency security advisories
         if: matrix.os == 'ubuntu-24.04'
