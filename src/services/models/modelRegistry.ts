@@ -1111,7 +1111,64 @@ export async function validateModelPreflight(
     }
   }
 
-  // 3. Ollama Provider Preflight
+  // 3. OpenRouter Provider Preflight
+  if (provider === 'openrouter') {
+    const cleanKey = (apiKey || '').trim();
+    if (!cleanKey) {
+      return {
+        valid: false,
+        code: 'AUTH_INVALID_KEY',
+        message: 'OpenRouter API key is missing. Please configure your key in Settings.',
+      };
+    }
+
+    try {
+      const startTime = Date.now();
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${cleanKey}`,
+          'HTTP-Referer': 'ai-interview-assistant',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: 'ping' }],
+          max_tokens: 1,
+        }),
+        signal,
+      });
+      const latencyMs = Date.now() - startTime;
+
+      if (!res.ok) {
+        let errData: any;
+        try {
+          errData = await res.json();
+        } catch {
+          errData = await res.text();
+        }
+        const classified = classifyAIError(provider, model, res.status, errData);
+        return {
+          valid: false,
+          code: classified.code,
+          message: sanitizeDiagnosticSecret(classified.originalErrorDetail || res.statusText),
+          latencyMs,
+        };
+      }
+
+      return { valid: true, latencyMs };
+    } catch (netErr: any) {
+      return {
+        valid: false,
+        code: 'NETWORK_ERROR',
+        message: sanitizeDiagnosticSecret(
+          `Network error verifying OpenRouter preflight: ${netErr.message || String(netErr)}`
+        ),
+      };
+    }
+  }
+
+  // 4. Ollama Provider Preflight
   if (provider === 'ollama') {
     const targetEndpoint = endpoint || 'http://127.0.0.1:11434';
     try {
