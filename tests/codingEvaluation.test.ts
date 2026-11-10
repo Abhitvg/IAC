@@ -57,6 +57,35 @@ function minSubArrayLen(target: number, nums: number[]): number {
     expect(result.complexityAnalysis.statedTimeComplexity).toBe('O(N)');
   });
 
+  it('does not claim optimality when no problem-specific complexity baseline is supplied', async () => {
+    const result = await CodingEvaluationService.evaluateSubmission({
+      problemId: 'cq_arrays_02',
+      candidateSubmission: sampleOptimalCode,
+      explanationTranscript: sampleExplanation,
+      language: 'typescript',
+    });
+
+    expect(result.executionStatus).toBe('static_analysis_only');
+    expect(result.complexityAnalysis.isOptimal).toBeNull();
+    expect(result.dimensions.algorithmSelection.score).toBe(3);
+    expect(result.complexityAnalysis.notes).toContain('Optimality was not assessed');
+    expect(result.summaryFeedback).toContain('Static review only');
+    expect(result.summaryFeedback).not.toContain('optimal complexity');
+  });
+
+  it('checks both time and space estimates against the supplied baseline', async () => {
+    const result = await CodingEvaluationService.evaluateSubmission({
+      problemId: 'cq_arrays_02',
+      candidateSubmission: sampleOptimalCode,
+      explanationTranscript: sampleExplanation,
+      language: 'typescript',
+      expectedOptimalComplexity: { time: 'O(N)', space: 'O(N)' },
+    });
+
+    expect(result.complexityAnalysis.isOptimal).toBe(false);
+    expect(result.complexityAnalysis.notes).toContain('differ from the supplied baseline');
+  });
+
   it('safely handles untrusted code execution status without direct eval in process', async () => {
     const dangerousCode = `require('child_process').execSync('whoami');`;
     const result = await CodingEvaluationService.evaluateSubmission({
@@ -130,4 +159,3 @@ function minSubArrayLen(target: number, nums: number[]): number {
     expect(result.dimensions.edgeCaseHandling.rationale).toContain('Lacks defensive validation');
   });
 });
-

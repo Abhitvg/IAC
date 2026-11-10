@@ -96,14 +96,17 @@ export class InterviewReportGenerator {
     const history = sessionState.questionHistory || [];
     const allCodingRecords: CodingAssessmentRecord[] = [
       ...codingRecords,
-      ...history
-        .map((h: any) => h.codingEvaluation)
-        .filter(Boolean),
+      ...history.map((h: any) => h.codingEvaluation).filter(Boolean),
     ];
     const questionsAttempted = history.length;
-    const questionsCompleted = history.filter((h) => (h.candidateTranscript || '').trim().length > 30).length;
+    const questionsCompleted = history.filter(
+      (h) => (h.candidateTranscript || '').trim().length > 30
+    ).length;
 
-    const elapsedSeconds = Math.max(0, sessionState.totalTimeSeconds - sessionState.timeRemainingSeconds);
+    const elapsedSeconds = Math.max(
+      0,
+      sessionState.totalTimeSeconds - sessionState.timeRemainingSeconds
+    );
     const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
 
     // Identify covered topics
@@ -123,8 +126,7 @@ export class InterviewReportGenerator {
 
     // Behavioral Competency Assessment
     const hasBehavioralTurns =
-      sessionState.roundType === 'behavioral' ||
-      history.some((h) => h.category === 'behavioral');
+      sessionState.roundType === 'behavioral' || history.some((h) => h.category === 'behavioral');
 
     let behavioralCompetencies: BehavioralCompetencyModel | undefined;
     if (hasBehavioralTurns) {
@@ -132,13 +134,11 @@ export class InterviewReportGenerator {
       const bScores = behavioralTurns
         .map((h) => h.evaluation?.overallScore)
         .filter((s): s is number => typeof s === 'number');
-      const bAvg =
-        bScores.length > 0
-          ? bScores.reduce((a, b) => a + b, 0) / bScores.length
-          : 3.5;
+      const bAvg = bScores.length > 0 ? bScores.reduce((a, b) => a + b, 0) / bScores.length : 3.5;
       const deliveryScore = sessionState.overallScorecard?.deliveryScore || 3.5;
       const sampleEvidence =
-        behavioralTurns.find((h) => (h.candidateTranscript || '').trim().length > 15)
+        behavioralTurns
+          .find((h) => (h.candidateTranscript || '').trim().length > 15)
           ?.candidateTranscript?.slice(0, 100) || undefined;
 
       behavioralCompetencies = {
@@ -160,36 +160,31 @@ export class InterviewReportGenerator {
             dimensionKey: 'problem_solving_explanation',
             score: Math.min(5, Math.max(1, Math.round(bAvg * 10) / 10)),
             evidenceQuote: sampleEvidence,
-            feedback:
-              'Structured explanation of business situation and engineering intervention.',
+            feedback: 'Structured explanation of business situation and engineering intervention.',
           },
           leadership: {
             name: 'Technical Leadership & Initiative',
             dimensionKey: 'leadership',
             score: Math.min(5, Math.max(1, Math.round((bAvg + 0.1) * 10) / 10)),
-            feedback:
-              'Demonstrates initiative in taking on technical ambiguity and mentoring.',
+            feedback: 'Demonstrates initiative in taking on technical ambiguity and mentoring.',
           },
           conflictResolution: {
             name: 'Conflict Resolution & Trade-Off Navigation',
             dimensionKey: 'conflict_resolution',
             score: Math.min(5, Math.max(1, Math.round((bAvg - 0.1) * 10) / 10)),
-            feedback:
-              'Balances engineering rigor with pragmatic business constraints.',
+            feedback: 'Balances engineering rigor with pragmatic business constraints.',
           },
           ownershipAccountability: {
             name: 'Ownership & Accountability',
             dimensionKey: 'ownership_accountability',
             score: Math.min(5, Math.max(1, Math.round(bAvg * 10) / 10)),
-            feedback:
-              'Clear ownership of outcomes, post-mortems, and lessons learned.',
+            feedback: 'Clear ownership of outcomes, post-mortems, and lessons learned.',
           },
           collaboration: {
             name: 'Cross-Functional Collaboration',
             dimensionKey: 'collaboration',
             score: Math.min(5, Math.max(1, Math.round((bAvg + 0.2) * 10) / 10)),
-            feedback:
-              'Works effectively across product, design, and infrastructure counterparts.',
+            feedback: 'Works effectively across product, design, and infrastructure counterparts.',
           },
         },
         starMethodologyNotes:
@@ -209,22 +204,18 @@ export class InterviewReportGenerator {
     }
 
     const avgScore =
-      evalScores.length > 0
-        ? evalScores.reduce((sum, s) => sum + s, 0) / evalScores.length
-        : 3.0;
+      evalScores.length > 0 ? evalScores.reduce((sum, s) => sum + s, 0) / evalScores.length : 3.0;
 
     // Build dimensions
     const correctnessScore = Math.min(5, Math.max(1, Math.round(avgScore * 10) / 10));
     const depthScore = Math.min(5, Math.max(1, Math.round((avgScore - 0.2) * 10) / 10));
     const approachScore = Math.min(5, Math.max(1, Math.round((avgScore + 0.1) * 10) / 10));
+    const complexityOptimality = allCodingRecords[0]?.complexityAnalysis.isOptimal ?? null;
     const complexityScore =
-      allCodingRecords.length > 0 && allCodingRecords[0].complexityAnalysis.isOptimal
-        ? 4.5
-        : 3.0;
+      complexityOptimality === true ? 4.5 : complexityOptimality === false ? 2.5 : 3.0;
     const commScore = sessionState.overallScorecard?.deliveryScore || 3.5;
     const edgeScore =
-      allCodingRecords.length > 0 &&
-      allCodingRecords[0].dimensions.edgeCaseHandling.score >= 3.5
+      allCodingRecords.length > 0 && allCodingRecords[0].dimensions.edgeCaseHandling.score >= 3.5
         ? 4.0
         : 2.5;
 
@@ -262,7 +253,9 @@ export class InterviewReportGenerator {
           misconceptionsTriggered: topic.commonMisconceptions.slice(0, 2),
         });
         conceptsToRevise.push(...topic.coreConcepts.slice(0, 2));
-        suggestedExercises.push(`Complete focused drill on ${topic.name}: implement ${topic.coreConcepts[0]}`);
+        suggestedExercises.push(
+          `Complete focused drill on ${topic.name}: implement ${topic.coreConcepts[0]}`
+        );
       } else {
         topicLevelAnalysis.push({
           curriculumTopicId: topicId,
@@ -277,9 +270,7 @@ export class InterviewReportGenerator {
 
     // Add unassessed related topics
     const allTopics = catalog.getAllTopics();
-    const unassessedSample = allTopics
-      .filter((t) => !coveredTopicIds.has(t.id))
-      .slice(0, 3);
+    const unassessedSample = allTopics.filter((t) => !coveredTopicIds.has(t.id)).slice(0, 3);
 
     for (const u of unassessedSample) {
       topicLevelAnalysis.push({
@@ -318,11 +309,7 @@ export class InterviewReportGenerator {
     }
 
     const topicsCoveredCount =
-      coveredTopicIds.size > 0
-        ? coveredTopicIds.size
-        : behavioralCompetencies
-        ? 1
-        : 0;
+      coveredTopicIds.size > 0 ? coveredTopicIds.size : behavioralCompetencies ? 1 : 0;
 
     return {
       sessionId: `session_${Date.now()}`,
@@ -339,15 +326,25 @@ export class InterviewReportGenerator {
           score: correctnessScore,
           weight: 0.25,
           measuredEvidence: `Measured across ${questionsCompleted} completed question(s).`,
-          qualitativeFeedback: correctnessScore >= 4.0 ? 'High accuracy on invariants and core principles.' : 'Multiple gaps in core theoretical assertions.',
-          rubricCriteriaApplied: ['Asymptotic accuracy', 'Invariant maintenance', 'Functional correctness'],
+          qualitativeFeedback:
+            correctnessScore >= 4.0
+              ? 'High accuracy on invariants and core principles.'
+              : 'Multiple gaps in core theoretical assertions.',
+          rubricCriteriaApplied: [
+            'Asymptotic accuracy',
+            'Invariant maintenance',
+            'Functional correctness',
+          ],
         },
         conceptualDepth: {
           name: 'Conceptual Depth',
           score: depthScore,
           weight: 0.2,
           measuredEvidence: 'Evaluated on follow-up probes and internal mechanics explanations.',
-          qualitativeFeedback: depthScore >= 3.5 ? 'Good grasp of underlying kernel/memory mechanics.' : 'Explanations remained on the surface syntax level.',
+          qualitativeFeedback:
+            depthScore >= 3.5
+              ? 'Good grasp of underlying kernel/memory mechanics.'
+              : 'Explanations remained on the surface syntax level.',
           rubricCriteriaApplied: ['Depth of mechanisms', 'Hardware/OS awareness'],
         },
         problemSolvingApproach: {
@@ -362,9 +359,21 @@ export class InterviewReportGenerator {
           name: 'Complexity Analysis',
           score: complexityScore,
           weight: 0.15,
-          measuredEvidence: `Determined from stated and actual Big-O bounds.`,
-          qualitativeFeedback: complexityScore >= 4.0 ? 'Accurately articulated amortized and worst-case complexities.' : 'Struggled with space complexity or recursive call stack overhead.',
-          rubricCriteriaApplied: ['Big-O time complexity', 'Auxiliary space tracking'],
+          measuredEvidence:
+            allCodingRecords.length > 0
+              ? 'Static heuristic estimates only; submitted code was not executed and runtime complexity was not measured.'
+              : 'No coding submission was available for complexity assessment.',
+          qualitativeFeedback:
+            complexityOptimality === true
+              ? 'Static estimates match the supplied baseline; runtime complexity remains unverified.'
+              : complexityOptimality === false
+                ? 'Static estimates differ from the supplied baseline; runtime complexity remains unverified.'
+                : 'Optimality was not assessed because no problem-specific baseline was supplied.',
+          rubricCriteriaApplied: [
+            'Static Big-O pattern estimate',
+            'Baseline comparison when supplied',
+            'Runtime execution not performed',
+          ],
         },
         communication: {
           name: 'Communication & Structuring',
@@ -379,7 +388,10 @@ export class InterviewReportGenerator {
           score: edgeScore,
           weight: 0.1,
           measuredEvidence: 'Boundary condition handling in code and verbal turns.',
-          qualitativeFeedback: edgeScore >= 3.5 ? 'Proactively anticipated empty collections and boundary bounds.' : 'Required prompting to identify boundary edge cases.',
+          qualitativeFeedback:
+            edgeScore >= 3.5
+              ? 'Proactively anticipated empty collections and boundary bounds.'
+              : 'Required prompting to identify boundary edge cases.',
           rubricCriteriaApplied: ['Null/empty input handling', 'Integer boundary validation'],
         },
         overallWeightedScore: weightedOverall,
@@ -396,7 +408,7 @@ export class InterviewReportGenerator {
         isMeasuredResult: true,
         rubricVersion: 'v1.0.0-ciu-grounded',
         aiAssistedFeedbackDisclaimer:
-          'Numerical scores reflect deterministic rubric evaluations and static analysis (static_analysis_only). Untrusted code execution is safely restricted to static analysis.',
+          'Numerical scores reflect deterministic rubric evaluations and static analysis (static_analysis_only), not executed test results. Coding complexity values are static heuristic estimates, not measured runtime results. Submitted code is not executed; functional correctness and optimality must not be inferred unless separately verified. These scores are coaching signals, not proof that code passes tests.',
       },
     };
   }

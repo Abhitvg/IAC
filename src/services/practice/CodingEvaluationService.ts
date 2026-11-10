@@ -26,7 +26,8 @@ export interface ComplexityAnalysisResult {
   actualTimeComplexity: string;
   statedSpaceComplexity?: string;
   actualSpaceComplexity: string;
-  isOptimal: boolean;
+  /** null means optimality could not be assessed against a supplied baseline. */
+  isOptimal: boolean | null;
   notes?: string;
 }
 
@@ -133,8 +134,7 @@ export class CodingEvaluationService {
 
     // Compute hint penalty on overall score
     const totalPenalty = hintsUsed.reduce((sum, h) => sum + (h.penaltyPoints || 0), 0);
-    const rawAverage =
-      Object.values(dimensions).reduce((sum, d) => sum + d.score, 0) / 8;
+    const rawAverage = Object.values(dimensions).reduce((sum, d) => sum + d.score, 0) / 8;
     const penalizedScore = Math.max(1.0, Math.round((rawAverage - totalPenalty * 0.3) * 10) / 10);
 
     return {
@@ -150,7 +150,12 @@ export class CodingEvaluationService {
       timeTakenSeconds: timeTaken,
       dimensions,
       overallScore: penalizedScore,
-      summaryFeedback: this.generateSummaryFeedback(penalizedScore, dimensions, complexity, hintsUsed),
+      summaryFeedback: this.generateSummaryFeedback(
+        penalizedScore,
+        dimensions,
+        complexity,
+        hintsUsed
+      ),
       evaluatedAt: Date.now(),
     };
   }
@@ -158,7 +163,10 @@ export class CodingEvaluationService {
   /**
    * Static syntactic and structural code analysis.
    */
-  private static performStaticAnalysis(code: string, _language: string): {
+  private static performStaticAnalysis(
+    code: string,
+    _language: string
+  ): {
     hasSyntaxError: boolean;
     hasLoops: boolean;
     hasRecursion: boolean;
@@ -170,7 +178,9 @@ export class CodingEvaluationService {
     const hasLoops = /\b(for|while|forEach)\b/.test(code);
     const hasRecursion = /\bfunction\s+([a-zA-Z0-9_]+)[\s\S]*?\1\s*\(/.test(code);
     const hasComments = /\/\/|\/\*|\*/.test(code) || /#/.test(code);
-    const detectedIdentifiers = Array.from(new Set(code.match(/\b[a-zA-Z_][a-zA-Z0-9_]{2,}\b/g) || []));
+    const detectedIdentifiers = Array.from(
+      new Set(code.match(/\b[a-zA-Z_][a-zA-Z0-9_]{2,}\b/g) || [])
+    );
 
     return {
       hasSyntaxError: code.trim().length === 0,
@@ -196,7 +206,9 @@ export class CodingEvaluationService {
 
     // Detect algorithmic patterns: sliding window with two pointers is O(N)
     const isSlidingWindow =
-      (code.includes('left') && code.includes('right') && (code.includes('left++') || code.includes('++left'))) ||
+      (code.includes('left') &&
+        code.includes('right') &&
+        (code.includes('left++') || code.includes('++left'))) ||
       transcript.toLowerCase().includes('sliding window') ||
       transcript.toLowerCase().includes('two pointer');
 
@@ -212,14 +224,13 @@ export class CodingEvaluationService {
       }
     }
 
-    const actualSpace = /\b(new Array|new Map|new Set|\[\]|\{\})\b/.test(code)
-      ? 'O(N)'
-      : 'O(1)';
+    const actualSpace = /\b(new Array|new Map|new Set|\[\]|\{\})\b/.test(code) ? 'O(N)' : 'O(1)';
 
+    const normalizeComplexity = (value: string) => value.toLowerCase().replace(/\s/g, '');
     const isOptimal = expectedOptimal
-      ? actualTime.toLowerCase().replace(/\s/g, '') ===
-        expectedOptimal.time.toLowerCase().replace(/\s/g, '')
-      : true;
+      ? normalizeComplexity(actualTime) === normalizeComplexity(expectedOptimal.time) &&
+        normalizeComplexity(actualSpace) === normalizeComplexity(expectedOptimal.space)
+      : null;
 
     return {
       statedTimeComplexity: statedTime,
@@ -227,9 +238,13 @@ export class CodingEvaluationService {
       statedSpaceComplexity: undefined,
       actualSpaceComplexity: actualSpace,
       isOptimal,
-      notes: isOptimal
-        ? 'Algorithm matches theoretical optimal complexity.'
-        : `Detected ${actualTime}, but expected optimal is ${expectedOptimal?.time}.`,
+      notes:
+        'Complexity values are static heuristic estimates, not measured runtime results. ' +
+        (isOptimal === null
+          ? 'Optimality was not assessed because no problem-specific baseline was supplied.'
+          : isOptimal
+            ? 'Static estimates match the supplied time and space baseline; runtime behavior remains unverified.'
+            : `Static estimates (${actualTime} time, ${actualSpace} space) differ from the supplied baseline (${expectedOptimal?.time} time, ${expectedOptimal?.space} space).`),
     };
   }
 
@@ -253,7 +268,7 @@ export class CodingEvaluationService {
     else if (code.includes('return') && code.length > 50) correctnessScore = 4;
 
     // 2. Algorithm Selection
-    let algoScore = complexity.isOptimal ? 4 : 2.5;
+    const algoScore = complexity.isOptimal === true ? 4 : complexity.isOptimal === false ? 2.5 : 3;
 
     // 3. Time Complexity
     let timeScore = 3;
@@ -279,11 +294,7 @@ export class CodingEvaluationService {
 
     // 8. Explanation and Reasoning
     const explanationScore =
-      transcript.length > 100
-        ? complexity.statedTimeComplexity
-          ? 5
-          : 4
-        : 2.5;
+      transcript.length > 100 ? (complexity.statedTimeComplexity ? 5 : 4) : 2.5;
 
     return {
       functionalCorrectness: {
@@ -296,19 +307,22 @@ export class CodingEvaluationService {
       algorithmSelection: {
         score: algoScore,
         quoteOrSnippet: `Complexity: ${complexity.actualTimeComplexity}`,
-        rationale: complexity.isOptimal
-          ? 'Selected optimal algorithmic paradigm for problem constraints.'
-          : 'Selected sub-optimal approach compared to curriculum baseline.',
+        rationale:
+          complexity.isOptimal === true
+            ? 'Static complexity estimates match the supplied baseline; runtime behavior is unverified.'
+            : complexity.isOptimal === false
+              ? 'Static complexity estimates differ from the supplied baseline; runtime behavior is unverified.'
+              : 'Optimality cannot be determined without a problem-specific baseline; the submission was not executed.',
       },
       timeComplexity: {
         score: timeScore,
         quoteOrSnippet: complexity.actualTimeComplexity,
-        rationale: `Detected runtime complexity of ${complexity.actualTimeComplexity}.`,
+        rationale: `Static heuristic estimate: ${complexity.actualTimeComplexity}; runtime complexity was not measured.`,
       },
       spaceComplexity: {
         score: spaceScore,
         quoteOrSnippet: complexity.actualSpaceComplexity,
-        rationale: `Auxiliary memory overhead bounded by ${complexity.actualSpaceComplexity}.`,
+        rationale: `Static heuristic estimate: ${complexity.actualSpaceComplexity}; memory usage was not measured.`,
       },
       edgeCaseHandling: {
         score: edgeScore,
@@ -330,9 +344,10 @@ export class CodingEvaluationService {
       explanationReasoning: {
         score: explanationScore,
         quoteOrSnippet: transcript.slice(0, 80) || 'Brief explanation',
-        rationale: transcript.length > 50
-          ? 'Clearly communicated approach and complexity trade-offs.'
-          : 'Candidate provided minimal verbal explanation.',
+        rationale:
+          transcript.length > 50
+            ? 'Clearly communicated approach and complexity trade-offs.'
+            : 'Candidate provided minimal verbal explanation.',
       },
     };
   }
@@ -344,16 +359,24 @@ export class CodingEvaluationService {
     hintsUsed: TieredHint[]
   ): string {
     const parts: string[] = [];
-    if (overallScore >= 4.0) {
-      parts.push('Strong coding demonstration with clean invariants and optimal complexity.');
+    if (overallScore >= 4.0 && complexity.isOptimal === true) {
+      parts.push(
+        'Promising static-analysis signals; the estimated complexity matches the supplied baseline, but correctness and runtime behavior remain unverified.'
+      );
     } else if (overallScore >= 2.5) {
-      parts.push('Solid working attempt with opportunities to optimize time complexity and edge-case guards.');
+      parts.push(
+        'Static review only: correctness and runtime behavior were not verified. Review the estimated complexity and edge-case signals before treating this as a completed coding assessment.'
+      );
     } else {
-      parts.push('Incomplete submission requiring revision of foundational data structures and boundary guards.');
+      parts.push(
+        'Static review found limited positive signals. The submission was not executed, so functional correctness remains unverified.'
+      );
     }
 
     if (hintsUsed.length > 0) {
-      parts.push(`Note: Candidate utilized ${hintsUsed.length} tiered hint(s), reflected in final scoring.`);
+      parts.push(
+        `Note: Candidate utilized ${hintsUsed.length} tiered hint(s), reflected in final scoring.`
+      );
     }
 
     return parts.join(' ');
