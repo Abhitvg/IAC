@@ -901,6 +901,42 @@ describe('Authoritative Model Registry & AI Reliability Governor', () => {
       expect(body.max_tokens).toBe(1);
     });
 
+    it('rejects missing OpenRouter credentials instead of reporting a false success', async () => {
+      const check = await validateModelPreflight('openrouter', 'openai/gpt-4o-mini', '');
+
+      expect(check.valid).toBe(false);
+      expect(check.code).toBe('AUTH_INVALID_KEY');
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('executes an active OpenRouter completion probe with the selected model', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { role: 'assistant', content: 'pong' } }],
+        }),
+      });
+
+      const check = await validateModelPreflight(
+        'openrouter',
+        'openai/gpt-4o-mini',
+        'sk-or-v1-valid-key'
+      );
+
+      expect(check.valid).toBe(true);
+      expect(typeof check.latencyMs).toBe('number');
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [url, options] = (global.fetch as any).mock.calls[0];
+      expect(url).toBe('https://openrouter.ai/api/v1/chat/completions');
+      expect(options.headers.Authorization).toBe('Bearer sk-or-v1-valid-key');
+      expect(options.headers['HTTP-Referer']).toBe('ai-interview-assistant');
+      expect(JSON.parse(options.body)).toMatchObject({
+        model: 'openai/gpt-4o-mini',
+        max_tokens: 1,
+      });
+    });
+
     it('distinguishes 401 Authentication Failure in preflight completion probe', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: false,
