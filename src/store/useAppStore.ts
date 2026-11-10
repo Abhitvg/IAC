@@ -1120,6 +1120,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       preferredLanguage: lang,
     };
   })(),
+  // Persist renderer settings through a serialized, rollback-safe IPC queue.
   updateSetting: (key: string, val: any) => {
     const previousValue = get().settings?.[key];
 
