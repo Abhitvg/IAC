@@ -151,17 +151,6 @@ export class AnswerGenerationService {
       } catch (_) {}
     }
 
-    if (!apiKey && typeof import.meta !== 'undefined' && (import.meta as any).env) {
-      const env = (import.meta as any).env;
-      if (provider === 'groq') {
-        apiKey = env.VITE_GROQ_API_KEY || env.GROQ_API_KEY || null;
-      } else if (provider === 'openai') {
-        apiKey = env.VITE_OPENAI_API_KEY || env.OPENAI_API_KEY || null;
-      } else if (provider === 'openrouter') {
-        apiKey = env.VITE_OPENROUTER_API_KEY || env.OPENROUTER_API_KEY || null;
-      }
-    }
-
     if (apiKey && provider === 'groq') {
       const match = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
       if (match) apiKey = match[0];
