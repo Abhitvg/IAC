@@ -263,6 +263,9 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     activeCloudTranscriptions.set(request.requestId, controller);
     try {
       return await transcribeCloudAudio(credentialStore, request, controller.signal);
+    } catch (error) {
+      if (controller.signal.aborted) return { cancelled: true, text: '' };
+      throw error;
     } finally {
       activeCloudTranscriptions.delete(request.requestId);
     }
