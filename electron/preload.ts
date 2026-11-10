@@ -58,6 +58,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hasApiKey: (service: string) => ipcRenderer.invoke('credentials:has', service),
   deleteApiKey: (service: string) => ipcRenderer.invoke('credentials:delete', service),
   listConfiguredKeys: () => ipcRenderer.invoke('credentials:list'),
+  preflightAI: (provider: 'groq' | 'openai' | 'openrouter', model: string) =>
+    ipcRenderer.invoke('ai:preflight', { provider, model }),
 
   // WebSocket server for browser extension
   getWsInfo: () => ipcRenderer.invoke('ws:get-info'),

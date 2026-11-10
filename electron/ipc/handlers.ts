@@ -11,6 +11,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
 import { CredentialStore } from '../services/credentialStore';
+import { validateModelPreflight, type AIProviderId } from '../../src/services/models/modelRegistry';
 import {
   MessageRateLimiter,
   parseBrowserContextMessage,
@@ -41,6 +42,19 @@ const ALLOWED_SETTING_KEYS = new Set([
   'windowOpacity',
   'lastModelMigrationNotice',
 ]);
+
+export function validateCloudPreflightRequest(
+  request: unknown
+): request is { provider: Exclude<AIProviderId, 'ollama'>; model: string } {
+  if (!request || typeof request !== 'object' || Array.isArray(request)) return false;
+  const candidate = request as Record<string, unknown>;
+  return (
+    ['groq', 'openai', 'openrouter'].includes(String(candidate.provider)) &&
+    typeof candidate.model === 'string' &&
+    candidate.model.trim().length > 0 &&
+    candidate.model.length <= 160
+  );
+}
 
 export function validateSetting(key: string, value: any): boolean {
   if (!ALLOWED_SETTING_KEYS.has(key)) {
@@ -221,6 +235,16 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     validateSetting(key, value);
     store.set(key, value);
     return true;
+  });
+
+  // Cloud-provider preflight runs in Electron main so saved API keys never enter Settings renderer state.
+  ipcMain.handle('ai:preflight', async (event, request: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (!validateCloudPreflightRequest(request)) {
+      throw new Error('Invalid cloud model preflight request');
+    }
+    const apiKey = await credentialStore.getKey(request.provider);
+    return validateModelPreflight(request.provider, request.model, apiKey || '');
   });
 
   // Secure safeStorage credential handlers

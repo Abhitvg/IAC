@@ -31,9 +31,22 @@ vi.mock('electron-store', () => {
   };
 });
 
-import { validateSetting } from '../electron/ipc/handlers';
+import { validateCloudPreflightRequest, validateSetting } from '../electron/ipc/handlers';
 
 describe('IPC Settings Validation', () => {
+  it('accepts only bounded cloud-provider preflight requests', () => {
+    expect(validateCloudPreflightRequest({ provider: 'groq', model: 'llama-3.3-70b-versatile' })).toBe(
+      true
+    );
+    expect(validateCloudPreflightRequest({ provider: 'openai', model: 'gpt-4o-mini' })).toBe(true);
+    expect(validateCloudPreflightRequest({ provider: 'ollama', model: 'llama3:8b' })).toBe(false);
+    expect(validateCloudPreflightRequest({ provider: 'openai', model: '' })).toBe(false);
+    expect(validateCloudPreflightRequest({ provider: 'openrouter', model: 'x'.repeat(161) })).toBe(
+      false
+    );
+    expect(validateCloudPreflightRequest(null)).toBe(false);
+  });
+
   it('allows valid setting keys and values', () => {
     expect(() => validateSetting('responseMode', 'interview')).not.toThrow();
     expect(() => validateSetting('responseMode', 'coding')).not.toThrow();

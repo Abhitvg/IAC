@@ -24,7 +24,9 @@ export default function SettingsPanel() {
   } = useAppStore();
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [apiKey, setApiKey] = useState('');
+  const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
   const [secondaryGroqKey, setSecondaryGroqKey] = useState('');
+  const [secondaryGroqConfigured, setSecondaryGroqConfigured] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [extensionTokenPreview, setExtensionTokenPreview] = useState('');
@@ -51,27 +53,28 @@ export default function SettingsPanel() {
     fetchDevices();
   }, []);
 
-  // Load current API key on mount
+  // Read credential presence only. Saved API keys are never loaded into renderer state.
   useEffect(() => {
-    const loadKey = async () => {
-      if (settings?.aiProvider) {
-        try {
-          const key = await window.electronAPI?.getApiKey(settings.aiProvider);
-          setApiKey(key || '');
-          if (settings.aiProvider === 'groq') {
-            const secondary = await window.electronAPI?.getApiKey('groq-secondary');
-            setSecondaryGroqKey(secondary || '');
-          } else {
-            setSecondaryGroqKey('');
-          }
-        } catch (error: unknown) {
-          setErrorMessage(
-            error instanceof Error ? error.message : 'Unable to retrieve stored API key.'
-          );
+    const loadCredentialStatus = async () => {
+      if (!settings?.aiProvider) return;
+      setApiKey('');
+      setSecondaryGroqKey('');
+      try {
+        const hasPrimaryKey = await window.electronAPI?.hasApiKey(settings.aiProvider);
+        setApiKeyConfigured(Boolean(hasPrimaryKey));
+        if (settings.aiProvider === 'groq') {
+          const hasSecondaryKey = await window.electronAPI?.hasApiKey('groq-secondary');
+          setSecondaryGroqConfigured(Boolean(hasSecondaryKey));
+        } else {
+          setSecondaryGroqConfigured(false);
         }
+      } catch (error: unknown) {
+        setErrorMessage(
+          error instanceof Error ? error.message : 'Unable to check saved credential status.'
+        );
       }
     };
-    loadKey();
+    loadCredentialStatus();
     window.electronAPI?.getWsInfo?.().then((info) => {
       if (info?.tokenPreview) setExtensionTokenPreview(info.tokenPreview);
     });
@@ -89,12 +92,19 @@ export default function SettingsPanel() {
   const runPreflight = async () => {
     setPreflightStatus({ running: true });
     try {
-      const res = await validateModelPreflight(
-        settings.aiProvider as AIProviderId,
-        settings.aiModel,
-        apiKey,
-        settings.ollamaEndpoint
-      );
+      const res =
+        settings.aiProvider === 'ollama'
+          ? await validateModelPreflight(
+              'ollama',
+              settings.aiModel,
+              '',
+              settings.ollamaEndpoint
+            )
+          : await window.electronAPI?.preflightAI?.(
+              settings.aiProvider as Exclude<AIProviderId, 'ollama'>,
+              settings.aiModel
+            );
+      if (!res) throw new Error('Secure model preflight is unavailable in this app session.');
       setPreflightStatus({
         running: false,
         valid: res.valid,
@@ -115,27 +125,21 @@ export default function SettingsPanel() {
     setLoading(true);
     setErrorMessage(null);
     try {
-      if (secondaryGroqKey.trim()) {
-        await persistCredential('groq-secondary', secondaryGroqKey, async (service, key) => {
-          const writeCredential = window.electronAPI?.setApiKey;
-          if (typeof writeCredential !== 'function') {
-            throw new Error(
-              'Secure credential storage is unavailable. Your API key was not saved.'
-            );
-          }
-          return writeCredential(service, key);
-        });
-      } else {
-        await deleteStoredCredential('groq-secondary', async (service) => {
-          const deleteCredential = window.electronAPI?.deleteApiKey;
-          if (typeof deleteCredential !== 'function') {
-            throw new Error(
-              'Secure credential storage is unavailable. The secondary API key was not deleted.'
-            );
-          }
-          return deleteCredential(service);
-        });
+      const trimmedKey = secondaryGroqKey.trim();
+      if (!trimmedKey) {
+        throw new Error('Enter a new secondary key to save, or use Remove to delete the saved key.');
       }
+      await persistCredential('groq-secondary', trimmedKey, async (service, key) => {
+        const writeCredential = window.electronAPI?.setApiKey;
+        if (typeof writeCredential !== 'function') {
+          throw new Error(
+            'Secure credential storage is unavailable. Your API key was not saved.'
+          );
+        }
+        return writeCredential(service, key);
+      });
+      setSecondaryGroqKey('');
+      setSecondaryGroqConfigured(true);
     } catch (error: unknown) {
       setErrorMessage(
         error instanceof Error
@@ -153,6 +157,9 @@ export default function SettingsPanel() {
     setErrorMessage(null);
     try {
       const trimmedKey = apiKey.trim();
+      if (!trimmedKey) {
+        throw new Error('Enter a new API key to save. Existing saved keys are never shown here.');
+      }
       await persistCredential(settings.aiProvider, trimmedKey, async (service, key) => {
         const writeCredential = window.electronAPI?.setApiKey;
         if (typeof writeCredential !== 'function') {
@@ -161,9 +168,59 @@ export default function SettingsPanel() {
         return writeCredential(service, key);
       });
       updateSetting('hasApiKey', true);
+      setApiKey('');
+      setApiKeyConfigured(true);
     } catch (error: unknown) {
       setErrorMessage(
         error instanceof Error ? error.message : 'Failed to securely store the API key.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteApiKey = async () => {
+    if (!settings.aiProvider) return;
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      await deleteStoredCredential(settings.aiProvider, async (service) => {
+        const deleteCredential = window.electronAPI?.deleteApiKey;
+        if (typeof deleteCredential !== 'function') {
+          throw new Error('Secure credential storage is unavailable. The API key was not deleted.');
+        }
+        return deleteCredential(service);
+      });
+      setApiKey('');
+      setApiKeyConfigured(false);
+      updateSetting('hasApiKey', false);
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to delete the saved API key.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteSecondaryGroqKey = async () => {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      await deleteStoredCredential('groq-secondary', async (service) => {
+        const deleteCredential = window.electronAPI?.deleteApiKey;
+        if (typeof deleteCredential !== 'function') {
+          throw new Error(
+            'Secure credential storage is unavailable. The secondary API key was not deleted.'
+          );
+        }
+        return deleteCredential(service);
+      });
+      setSecondaryGroqKey('');
+      setSecondaryGroqConfigured(false);
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to delete the secondary Groq API key.'
       );
     } finally {
       setLoading(false);
@@ -321,7 +378,7 @@ export default function SettingsPanel() {
                     style={{ flex: 1 }}
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder={`Enter ${settings.aiProvider} API key`}
+                    placeholder={apiKeyConfigured ? 'Enter a new key to replace the saved key' : `Enter ${settings.aiProvider} API key`}
                     aria-label={`Enter ${settings.aiProvider} API key`}
                   />
                   <button
@@ -337,11 +394,20 @@ export default function SettingsPanel() {
                       <Save size={14} />
                     )}
                   </button>
+                  {apiKeyConfigured && (
+                    <button
+                      type="button"
+                      className="action-btn"
+                      onClick={deleteApiKey}
+                      disabled={loading}
+                      aria-label="Remove saved API key"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
                 <span className="field__hint">
-                  Encrypted with OS-backed Electron safeStorage. On Linux, GNOME Keyring or KDE
-                  Wallet must be available. The app refuses to save API keys when an OS-backed
-                  credential provider is unavailable.
+                  {apiKeyConfigured ? 'A key is saved. It is never read back into this field.' : 'No key is currently saved.'} Encrypted with OS-backed Electron safeStorage. On Linux, GNOME Keyring or KDE Wallet must be available.
                 </span>
               </div>
             )}
@@ -359,7 +425,7 @@ export default function SettingsPanel() {
                     style={{ flex: 1 }}
                     value={secondaryGroqKey}
                     onChange={(e) => setSecondaryGroqKey(e.target.value)}
-                    placeholder="Optional second Groq key"
+                    placeholder={secondaryGroqConfigured ? 'Enter a new key to replace the saved key' : 'Optional second Groq key'}
                     aria-label="Secondary Groq API key"
                   />
                   <button
@@ -375,10 +441,20 @@ export default function SettingsPanel() {
                       <Save size={14} />
                     )}
                   </button>
+                  {secondaryGroqConfigured && (
+                    <button
+                      type="button"
+                      className="action-btn"
+                      onClick={deleteSecondaryGroqKey}
+                      disabled={loading}
+                      aria-label="Remove saved secondary Groq API key"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
                 <span className="field__hint">
-                  Optional. Stored separately and used only when the primary key is rate-limited.
-                  Uses the same OS-backed credential provider; no weaker local-key fallback is used.
+                  {secondaryGroqConfigured ? 'A secondary key is saved and is never read back into this field.' : 'Optional. No secondary key is currently saved.'} Stored separately and used only when the primary key is rate-limited.
                 </span>
               </div>
             )}
