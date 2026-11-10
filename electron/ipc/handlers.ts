@@ -1,4 +1,5 @@
-import { EvidenceVerificationService } from '../services/evidenceVerificationService';
+import { inspectEvidenceDocument } from '../services/boundedEvidenceInspection';
+import { validateDocumentImportSize } from '../services/documentImportLimits';
 import {
   createExtensionTokenInfo,
   createPublicSettingsSnapshot,
@@ -645,10 +646,23 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     if (!isTrustedSender(event, mainWindowRef)) {
       throw new Error('Unauthorized IPC sender');
     }
-    if (!request || typeof request !== 'object' || !request.documentBytes) {
+    if (!request || typeof request !== 'object' || !('documentBytes' in request)) {
       throw new Error('Invalid document inspection request payload');
     }
-    return EvidenceVerificationService.inspectDocument(request);
+
+    const documentBytes = request.documentBytes;
+    const byteLength =
+      typeof documentBytes === 'string'
+        ? Buffer.byteLength(documentBytes, 'utf8')
+        : documentBytes instanceof Uint8Array || documentBytes instanceof ArrayBuffer
+          ? documentBytes.byteLength
+          : Number.NaN;
+    const sizeValidation = validateDocumentImportSize(byteLength);
+    if (!sizeValidation.allowed) {
+      throw new Error(sizeValidation.reason || 'Document import size is invalid.');
+    }
+
+    return inspectEvidenceDocument(request);
   });
 
   ipcMain.handle('evidence:verify-audit', async (event, attestation: any) => {
