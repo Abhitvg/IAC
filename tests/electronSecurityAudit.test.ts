@@ -57,6 +57,17 @@ describe('Electron Security & Path Traversal Audit', () => {
     expect(settings.extensionToken).toBe('extension-secret');
   });
 
+  it('does not retrieve cloud STT API keys in the renderer', () => {
+    const whisperService = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/services/whisper.ts'),
+      'utf8'
+    );
+
+    expect(whisperService).not.toMatch(/getApiKey\(/);
+    expect(whisperService).not.toMatch(/VITE_(?:GROQ|OPENAI)_API_KEY/);
+    expect(whisperService).toContain('transcribeCloudAudio');
+  });
+
   it('does not load saved API keys into the Settings renderer', () => {
     const settingsPanel = fs.readFileSync(
       path.resolve(process.cwd(), 'src/components/SettingsPanel.tsx'),
