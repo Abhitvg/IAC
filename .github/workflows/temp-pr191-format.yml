@@ -6,6 +6,9 @@ on:
     branches:
       - fix/practice-static-coding-scores-neutral-20261111
 
+permissions:
+  contents: write
+
 jobs:
   format:
     runs-on: ubuntu-24.04
