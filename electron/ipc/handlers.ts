@@ -105,7 +105,7 @@ export function validateSetting(key: string, value: any): boolean {
   const isBoundedString = (candidate: unknown, maxLength: number): candidate is string =>
     typeof candidate === 'string' &&
     candidate.length <= maxLength &&
-    !/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]/.test(candidate);
+    !/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(candidate);
 
   switch (key) {
     case 'aiProvider':
