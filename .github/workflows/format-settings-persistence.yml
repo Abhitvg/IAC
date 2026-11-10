@@ -1,6 +1,12 @@
 name: Format settings persistence branch
 
 on:
+  pull_request:
+    paths:
+      - 'src/store/useAppStore.ts'
+      - 'src/utils/settingWriteQueue.ts'
+      - 'tests/settingWriteQueue.test.ts'
+      - '.github/workflows/format-settings-persistence.yml'
   push:
     branches:
       - fix/serialize-settings-persistence-20261110
