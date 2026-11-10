@@ -344,7 +344,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
 
   ipcMain.handle('stt:cancel', (event, requestId: unknown) => {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
-    if (typeof requestId !== 'string' || requestId.length > 128) return false;
+    if (typeof requestId !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(requestId)) return false;
     const controller = cloudTranscriptionControllers.get(requestId);
     if (!controller) return false;
     controller.abort();
