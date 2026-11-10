@@ -165,7 +165,7 @@ describe('live transcription provider routing', () => {
       { aiProvider: 'groq', whisperModel: 'whisper-large-v3-turbo' },
       controller.signal
     );
-    await Promise.resolve();
+    await vi.waitFor(() => expect(transcribeCloudAudio).toHaveBeenCalledOnce());
     controller.abort();
     expect(cancelCloudTranscription).toHaveBeenCalledOnce();
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
