@@ -98,7 +98,10 @@ export async function transcribeCloudAudio(
   });
 
   if (!response.ok) {
-    const detail = await readResponseTextLimited(response, MAX_CLOUD_TRANSCRIPTION_ERROR_BYTES).catch(() => '');
+    const detail = await readResponseTextLimited(
+      response,
+      MAX_CLOUD_TRANSCRIPTION_ERROR_BYTES
+    ).catch(() => '');
     const safeDetail = redactSensitiveData(detail).slice(0, 500);
     const code = classifyTranscriptionStatus(response.status);
     throw new Error(
@@ -108,7 +111,10 @@ export async function transcribeCloudAudio(
     );
   }
 
-  const responseText = await readResponseTextLimited(response, MAX_CLOUD_TRANSCRIPTION_RESPONSE_BYTES);
+  const responseText = await readResponseTextLimited(
+    response,
+    MAX_CLOUD_TRANSCRIPTION_RESPONSE_BYTES
+  );
   let data: Record<string, unknown>;
   try {
     data = JSON.parse(responseText) as Record<string, unknown>;
