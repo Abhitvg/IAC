@@ -1,4 +1,10 @@
-import { EvidenceVerificationService } from '../services/evidenceVerificationService';
+import {
+  inspectEvidenceDocument,
+  inspectEvidenceRepository,
+  verifyEvidenceAttestation,
+  verifyEvidenceSeal,
+} from '../services/boundedEvidenceInspection';
+import { validateDocumentImportSize } from '../services/documentImportLimits';
 import {
   createExtensionTokenInfo,
   createPublicSettingsSnapshot,
@@ -638,17 +644,30 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     if (!request || typeof request !== 'object' || !request.repositoryUrl) {
       throw new Error('Invalid repository inspection request payload');
     }
-    return EvidenceVerificationService.inspectRepository(request);
+    return inspectEvidenceRepository(request);
   });
 
   ipcMain.handle('evidence:inspect-document', async (event, request: any) => {
     if (!isTrustedSender(event, mainWindowRef)) {
       throw new Error('Unauthorized IPC sender');
     }
-    if (!request || typeof request !== 'object' || !request.documentBytes) {
+    if (!request || typeof request !== 'object' || !('documentBytes' in request)) {
       throw new Error('Invalid document inspection request payload');
     }
-    return EvidenceVerificationService.inspectDocument(request);
+
+    const documentBytes = request.documentBytes;
+    const byteLength =
+      typeof documentBytes === 'string'
+        ? Buffer.byteLength(documentBytes, 'utf8')
+        : documentBytes instanceof Uint8Array || documentBytes instanceof ArrayBuffer
+          ? documentBytes.byteLength
+          : Number.NaN;
+    const sizeValidation = validateDocumentImportSize(byteLength);
+    if (!sizeValidation.allowed) {
+      throw new Error(sizeValidation.reason || 'Document import size is invalid.');
+    }
+
+    return inspectEvidenceDocument(request);
   });
 
   ipcMain.handle('evidence:verify-audit', async (event, attestation: any) => {
@@ -658,7 +677,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     if (!attestation || typeof attestation !== 'object') {
       throw new Error('Invalid independent audit attestation payload');
     }
-    return EvidenceVerificationService.verifySignedAttestation(attestation);
+    return verifyEvidenceAttestation(attestation);
   });
 
   ipcMain.handle('evidence:verify-seal', async (event, result: any) => {
@@ -666,7 +685,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       throw new Error('Unauthorized IPC sender');
     }
     if (!result || typeof result !== 'object') return false;
-    return EvidenceVerificationService.verifySeal(result);
+    return verifyEvidenceSeal(result);
   });
 
   ipcMain.handle('ws:stop', (event) => {
