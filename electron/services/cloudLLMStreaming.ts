@@ -29,6 +29,9 @@ const PROVIDER_ENDPOINTS: Record<CloudLLMProvider, string> = {
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
 };
 
+export const MAX_CLOUD_LLM_RESPONSE_BYTES = 8 * 1024 * 1024;
+const MAX_CLOUD_LLM_ERROR_BYTES = 64 * 1024;
+
 const ALLOWED_RESPONSE_HEADERS = [
   'content-type',
   'retry-after',
@@ -82,6 +85,35 @@ function getSafeResponseHeaders(headers: Headers): Record<string, string> {
     if (value) result[name] = value;
   }
   return result;
+}
+
+async function readResponseTextLimited(response: Response, maxBytes: number): Promise<string> {
+  if (!response.body) return '';
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let totalBytes = 0;
+  let text = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        throw new Error(`Provider response exceeded maximum size limit of ${maxBytes} bytes.`);
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      // The response stream may already have released its lock.
+    }
+  }
 }
 
 function isDailyQuotaError(body: string): boolean {
@@ -145,7 +177,7 @@ export async function startCloudLLMStream(
   let response = await createProviderRequest(request, apiKey, signal);
 
   if (request.provider === 'groq' && response.status === 429 && !usedSecondaryKey) {
-    const primaryErrorBody = await response.text().catch(() => '');
+    const primaryErrorBody = await readResponseTextLimited(response, MAX_CLOUD_LLM_ERROR_BYTES).catch(() => '');
     if (!isDailyQuotaError(primaryErrorBody)) {
       const secondaryKey = (await credentialStore.getKey('groq-secondary'))?.trim() || '';
       if (secondaryKey && secondaryKey !== apiKey && isValidProviderKey('groq', secondaryKey)) {
@@ -173,7 +205,7 @@ export async function startCloudLLMStream(
 
   const headers = getSafeResponseHeaders(response.headers);
   if (!response.ok) {
-    const body = await response.text().catch(() => '');
+    const body = await readResponseTextLimited(response, MAX_CLOUD_LLM_ERROR_BYTES).catch(() => '');
     return {
       ok: false,
       status: response.status,
@@ -190,7 +222,7 @@ export async function startCloudLLMStream(
       status: response.status,
       statusText: response.statusText,
       headers,
-      body: await response.text(),
+      body: await readResponseTextLimited(response, MAX_CLOUD_LLM_RESPONSE_BYTES),
       usedSecondaryKey,
     };
   }
@@ -204,6 +236,7 @@ export async function startCloudLLMStream(
   void (async () => {
     try {
       let receivedBytes = false;
+      let totalBytes = 0;
       const isEventStream = (response.headers.get('content-type') || '')
         .toLowerCase()
         .includes('text/event-stream');
@@ -226,6 +259,12 @@ export async function startCloudLLMStream(
         if (signal.aborted) throw signal.reason || new Error('AI stream cancelled.');
         const { done, value } = await reader.read();
         if (done) break;
+        totalBytes += value.byteLength;
+        if (totalBytes > MAX_CLOUD_LLM_RESPONSE_BYTES) {
+          throw new Error(
+            `Provider streaming response exceeded maximum size limit of ${MAX_CLOUD_LLM_RESPONSE_BYTES} bytes.`
+          );
+        }
         if (value.byteLength > 0) receivedBytes = true;
         const chunk = decoder.decode(value, { stream: true });
         if (isEventStream && chunk) inspectSseChunk(chunk);
