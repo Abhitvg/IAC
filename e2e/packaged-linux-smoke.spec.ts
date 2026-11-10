@@ -1,7 +1,7 @@
 import { test, expect, _electron as electron } from '@playwright/test';
 import fs from 'fs';
 
-test('launches the packaged Linux application and loads its production renderer', async () => {
+test('launches the packaged Electron application and loads its production renderer', async () => {
   const executablePath = process.env.IAC_PACKAGED_EXECUTABLE;
   test.skip(
     !executablePath,
@@ -18,7 +18,7 @@ test('launches the packaged Linux application and loads its production renderer'
 
   const electronApp = await electron.launch({
     executablePath,
-    args: ['--no-sandbox'],
+    args: process.platform === 'linux' ? ['--no-sandbox'] : [],
     env,
   });
 
