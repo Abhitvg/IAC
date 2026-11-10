@@ -77,3 +77,6 @@ The codebase contains an established design-system directory and a large applica
 6. Optimize performance and polish visual hierarchy only after correctness and security gates are green.
 
 **Audit conclusion:** The previous raw-credential renderer exposure is fixed on main, deterministic installation is configured, UUID 14 is merged, and the minimatch security overrides are restored. The full current CI matrix passed on Ubuntu, macOS, and Windows in run #1023. The repository is still not certified release-ready: Tailwind/Vite migrations and hands-on visual/accessibility validation remain outstanding.
+
+
+This is a code-and-CI audit, not a product usability sign-off.
