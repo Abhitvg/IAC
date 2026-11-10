@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - docs/format-audit-after-dependency-remediation-20261110
+      - docs/align-final-audit-table-20261110
 
 permissions:
   contents: write
