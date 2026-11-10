@@ -50,9 +50,11 @@ export async function validateDocxArchiveExpansionInBrowser(
         entry.dataOffset,
         entry.dataOffset + entry.compressedSize
       );
+      const compressedBuffer = new ArrayBuffer(compressedData.byteLength);
+      new Uint8Array(compressedBuffer).set(compressedData);
       let reader: ReadableStreamDefaultReader<Uint8Array>;
       try {
-        const stream = new Blob([compressedData]).stream().pipeThrough(
+        const stream = new Blob([compressedBuffer]).stream().pipeThrough(
           new DecompressionStream('deflate-raw')
         );
         reader = stream.getReader();
