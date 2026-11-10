@@ -1118,6 +1118,8 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     };
   })(),
   updateSetting: (key: string, val: any) => {
+    const previousValue = get().settings?.[key];
+
     if (key === 'preferredLanguage') {
       try {
         localStorage.setItem('preferred_coding_language', String(val));
@@ -1134,7 +1136,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
 
     let writeQueue = settingWriteQueues.get(key);
     if (!writeQueue) {
-      writeQueue = createSettingWriteQueue(get().settings?.[key]);
+      writeQueue = createSettingWriteQueue(previousValue);
       settingWriteQueues.set(key, writeQueue);
     }
 
