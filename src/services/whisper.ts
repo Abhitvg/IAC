@@ -175,6 +175,11 @@ export async function transcribeAudio(
   try {
     if (signal?.aborted) cancelRequest();
     const result = await requestPromise;
+    if (result.cancelled) {
+      const abortErr = new Error('Transcription aborted');
+      abortErr.name = 'AbortError';
+      throw abortErr;
+    }
     return {
       ...result,
       text: postProcessTranscript(result.text || ''),
