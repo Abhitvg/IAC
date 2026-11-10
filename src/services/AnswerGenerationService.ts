@@ -217,6 +217,9 @@ export class AnswerGenerationService {
     const electronGatewayAvailable =
       typeof window !== 'undefined' && Boolean(window.electronAPI?.startCloudLLMStream);
     let apiKey = electronGatewayAvailable ? '' : directApiKey || '';
+    if (!electronGatewayAvailable && !directApiKey && provider !== 'ollama') {
+      apiKey = await this.resolveApiKey(provider);
+    }
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
