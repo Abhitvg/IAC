@@ -141,25 +141,6 @@ export class AnswerGenerationService {
   }
 
   /**
-   * Resolves the API key for the chosen provider securely.
-   */
-  async resolveApiKey(provider: string): Promise<string> {
-    let apiKey: string | null = null;
-    if (typeof window !== 'undefined' && window.electronAPI?.getApiKey) {
-      try {
-        apiKey = await window.electronAPI.getApiKey(provider);
-      } catch (_) {}
-    }
-
-    if (apiKey && provider === 'groq') {
-      const match = apiKey.match(/gsk_[A-Za-z0-9_-]+/);
-      if (match) apiKey = match[0];
-    }
-
-    return (apiKey || '').trim();
-  }
-
-  /**
    * Generates a streaming answer for an interview question or screen problem.
    */
   async generateAnswer(
@@ -167,7 +148,6 @@ export class AnswerGenerationService {
     callbacks?: GenerationCallbacks | ((token: string) => void) | string
   ): Promise<AnswerGenerationResult> {
     const requestSeq = ++this.currentSequence;
-    const directApiKey = typeof callbacks === 'string' ? callbacks : undefined;
     const cb: GenerationCallbacks =
       typeof callbacks === 'function'
         ? { onToken: callbacks }
@@ -225,65 +205,9 @@ export class AnswerGenerationService {
     }
 
     const provider = params.provider || 'groq';
-    let apiKey = directApiKey || '';
-    let secondaryGroqApiKey = '';
-    if (!directApiKey) {
-      apiKey = await new Promise<string>((resolve, reject) => {
-        let onAbort: () => void;
-        const cleanup = () => signal.removeEventListener('abort', onAbort);
-        onAbort = () => {
-          cleanup();
-          reject(
-            Object.assign(
-              new Error(
-                signal.reason?.message ||
-                  'Generation cancelled while resolving provider credentials.'
-              ),
-              { name: 'AbortError' }
-            )
-          );
-        };
-        signal.addEventListener('abort', onAbort, { once: true });
-        if (signal.aborted) {
-          onAbort();
-          return;
-        }
-        this.resolveApiKey(provider).then(
-          (resolvedKey) => {
-            cleanup();
-            resolve(resolvedKey);
-          },
-          (error) => {
-            cleanup();
-            reject(error);
-          }
-        );
-      }).catch((error: any) => {
-        clearTimeout(overallTimer);
-        callerSignal?.removeEventListener('abort', abortFromCaller);
-        if (error?.name !== 'AbortError') throw error;
-        return '';
-      });
-    }
-    if (
-      !directApiKey &&
-      provider === 'groq' &&
-      typeof window !== 'undefined' &&
-      window.electronAPI?.getApiKey
-    ) {
-      try {
-        secondaryGroqApiKey = ((await window.electronAPI.getApiKey('groq-secondary')) || '').trim();
-        const match = secondaryGroqApiKey.match(/gsk_[A-Za-z0-9_-]+/);
-        secondaryGroqApiKey = match?.[0] || '';
-        if (secondaryGroqApiKey === apiKey) secondaryGroqApiKey = '';
-        if (!apiKey && secondaryGroqApiKey) {
-          apiKey = secondaryGroqApiKey;
-          secondaryGroqApiKey = '';
-        }
-      } catch {
-        // Secondary credentials are optional; primary-key operation remains available.
-      }
-    }
+    const electronGatewayAvailable =
+      typeof window !== 'undefined' && Boolean(window.electronAPI?.startCloudLLMStream);
+    const apiKey = '';
 
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
@@ -294,7 +218,7 @@ export class AnswerGenerationService {
       return abortedResult;
     }
 
-    if (!apiKey && provider !== 'ollama') {
+    if (!apiKey && provider !== 'ollama' && !electronGatewayAvailable) {
       const err = new Error(
         `No API key configured for ${provider.toUpperCase()}. Please configure your API key in Settings.`
       );
@@ -384,7 +308,7 @@ export class AnswerGenerationService {
 
     const providerConfig: AIProviderConfig = {
       type: provider as any,
-      apiKey,
+      apiKey: '',
       model: chosenModel,
       temperature,
       maxTokens,
@@ -648,34 +572,6 @@ export class AnswerGenerationService {
           providerConfig.model
         );
 
-        if (
-          analysis.isRateLimited &&
-          !analysis.isDailyQuota &&
-          provider === 'groq' &&
-          secondaryGroqApiKey &&
-          providerConfig.apiKey !== secondaryGroqApiKey &&
-          retryCount < maxRetries
-        ) {
-          retryCount++;
-          providerConfig.apiKey = secondaryGroqApiKey;
-          console.warn(
-            '[AnswerGenerationService] Primary Groq key rate-limited; switching to configured secondary key.'
-          );
-          DiagnosticLoggerService.getInstance().recordEvent({
-            requestId,
-            pipelineStage: 'retrying',
-            httpStatus: 429,
-            retryAttempt: retryCount,
-            selectedProvider: provider,
-            selectedModel: providerConfig.model,
-            message: 'Primary Groq credential rate-limited; switched to secondary credential slot.',
-          });
-          useAppStore.getState().setPipelineStage('retrying');
-          useAppStore
-            .getState()
-            .setToast('⏳ Primary Groq key rate-limited. Retrying with secondary key...');
-          continue;
-        }
 
         if (analysis.isRateLimited && analysis.shouldAutoRetry && retryCount < maxRetries) {
           retryCount++;
