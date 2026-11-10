@@ -1091,7 +1091,11 @@ export async function validateModelPreflight(
 
       if (!res.ok) {
         let errData: any;
-        try { errData = await res.json(); } catch { errData = await res.text(); }
+        try {
+          errData = await res.json();
+        } catch {
+          errData = await res.text();
+        }
         const classified = classifyAIError(provider, model, res.status, errData);
         return {
           valid: false,
@@ -1106,7 +1110,9 @@ export async function validateModelPreflight(
       return {
         valid: false,
         code: 'NETWORK_ERROR',
-        message: sanitizeDiagnosticSecret(`Network error verifying OpenAI preflight: ${netErr.message || String(netErr)}`),
+        message: sanitizeDiagnosticSecret(
+          `Network error verifying OpenAI preflight: ${netErr.message || String(netErr)}`
+        ),
       };
     }
   }
