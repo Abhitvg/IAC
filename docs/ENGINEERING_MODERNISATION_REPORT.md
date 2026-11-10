@@ -1,3 +1,5 @@
+> **Historical report — not a current production certification.** This report reflects an October 31, 2026 snapshot. Its “RELEASE-READY / PRODUCTION CERTIFIED” status and Electron 33 platform statement are stale; the current package declares Electron 45.2.3, and the November 10 audit identifies unresolved provider-credential exposure in the renderer. Do not use this report as evidence of current release readiness. See [ENGINEERING_AUDIT_2026-11-10.md](./ENGINEERING_AUDIT_2026-11-10.md).
+
 # IAC — Principal Engineering Modernisation Report
 **Full-Stack Reliability, Candidate Intelligence, Website Sources, Universal Interview Answering, UI/UX and Production Hardening**
 

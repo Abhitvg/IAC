@@ -5,3 +5,7 @@ release
 .git
 package-lock.json
 *.log
+
+# Historical engineering snapshots retained as archival records.
+docs/ENGINEERING_BASELINE_AUDIT.md
+docs/ENGINEERING_MODERNISATION_REPORT.md

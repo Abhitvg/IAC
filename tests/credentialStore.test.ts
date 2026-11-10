@@ -68,11 +68,35 @@ describe('CredentialStore', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {
       // Ignore cleanup error.
     }
+  });
+
+  it('resolves non-Vite provider environment keys in the main process', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'sk-proj-main-process');
+    vi.stubEnv('VITE_OPENAI_API_KEY', 'sk-proj-renderer-exposed');
+
+    const creds = new CredentialStore(mockStore, tempDir);
+    await expect(creds.getKey('openai')).resolves.toBe('sk-proj-main-process');
+  });
+
+  it('does not accept Vite-prefixed variables as provider credentials', async () => {
+    vi.stubEnv('VITE_OPENAI_API_KEY', 'sk-proj-renderer-exposed');
+
+    const creds = new CredentialStore(mockStore, tempDir);
+    await expect(creds.getKey('openai')).resolves.toBeNull();
+  });
+
+  it('keeps Vite-prefixed provider secrets out of renderer answer generation', () => {
+    const rendererService = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/services/AnswerGenerationService.ts'),
+      'utf8'
+    );
+    expect(rendererService).not.toMatch(/VITE_(?:GROQ|OPENAI|OPENROUTER)_API_KEY/);
   });
 
   it('validates allowed service names', () => {

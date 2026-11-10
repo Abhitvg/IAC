@@ -1,4 +1,4 @@
-import { EvidenceVerificationService } from "../services/evidenceVerificationService";
+import { EvidenceVerificationService } from '../services/evidenceVerificationService';
 import { isTrustedSender } from '../services/security';
 import fs from 'fs';
 import path from 'path';
@@ -7,7 +7,10 @@ import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
 import { CredentialStore } from '../services/credentialStore';
-import { MessageRateLimiter, parseBrowserContextMessage } from '../services/browserContextValidation';
+import {
+  MessageRateLimiter,
+  parseBrowserContextMessage,
+} from '../services/browserContextValidation';
 
 let wsServer: WebSocketServer | null = null;
 let httpServer: http.Server | null = null;
@@ -137,10 +140,10 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
   // Automatic credential & model migration
   try {
     const envPath = path.join(process.cwd(), '.env.local');
-    let keyToMigrate = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+    let keyToMigrate = process.env.GROQ_API_KEY;
     if (!keyToMigrate && fs.existsSync(envPath)) {
       const envRaw = fs.readFileSync(envPath, 'utf8');
-      const match = envRaw.match(/(?:VITE_)?GROQ_API_KEY\s*=\s*['"]?(gsk_[A-Za-z0-9_-]+)['"]?/);
+      const match = envRaw.match(/GROQ_API_KEY\s*=\s*['"]?(gsk_[A-Za-z0-9_-]+)['"]?/);
       if (match && match[1]) keyToMigrate = match[1];
     }
     if (keyToMigrate) {
@@ -152,7 +155,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       });
     }
 
-    // Auto-heal provider/model settings ONLY for Groq retired models, leaving non-Groq and custom models untouched
+    // Auto-heal provider/model settings ONLY for Groq retired models, leaving non-Groq and
+    // custom models untouched
     const curProvider = store.get('aiProvider');
     if (!curProvider) {
       store.set('aiProvider', 'groq');
@@ -175,11 +179,21 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
         'gemma-7b-it',
         'openrouter/free',
       ]);
-      const rawModel = typeof curModel === 'string' ? curModel.trim().toLowerCase().replace(/^groq\//, '') : '';
+      const rawModel =
+        typeof curModel === 'string'
+          ? curModel
+              .trim()
+              .toLowerCase()
+              .replace(/^groq\//, '')
+          : '';
       if (!curModel || RETIRED_GROQ_IDS.has(rawModel)) {
-        const newModel = rawModel.includes('8b') || rawModel.includes('9b') || rawModel.includes('1b') || rawModel.includes('3b')
-          ? 'openai/gpt-oss-20b'
-          : 'openai/gpt-oss-120b';
+        const newModel =
+          rawModel.includes('8b') ||
+          rawModel.includes('9b') ||
+          rawModel.includes('1b') ||
+          rawModel.includes('3b')
+            ? 'openai/gpt-oss-20b'
+            : 'openai/gpt-oss-120b';
         store.set('aiModel', newModel);
         store.set('lastModelMigrationNotice', {
           timestamp: Date.now(),
@@ -371,43 +385,42 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     return { port: 31415, token };
   });
 
-  
   // Privileged Evidence Inspection Handlers (Sender-validated, payload-sanitized)
-  ipcMain.handle("evidence:inspect-repository", async (event, request: any) => {
+  ipcMain.handle('evidence:inspect-repository', async (event, request: any) => {
     if (!isTrustedSender(event, mainWindowRef)) {
-      throw new Error("Unauthorized IPC sender");
+      throw new Error('Unauthorized IPC sender');
     }
-    if (!request || typeof request !== "object" || !request.repositoryUrl) {
-      throw new Error("Invalid repository inspection request payload");
+    if (!request || typeof request !== 'object' || !request.repositoryUrl) {
+      throw new Error('Invalid repository inspection request payload');
     }
     return EvidenceVerificationService.inspectRepository(request);
   });
 
-  ipcMain.handle("evidence:inspect-document", async (event, request: any) => {
+  ipcMain.handle('evidence:inspect-document', async (event, request: any) => {
     if (!isTrustedSender(event, mainWindowRef)) {
-      throw new Error("Unauthorized IPC sender");
+      throw new Error('Unauthorized IPC sender');
     }
-    if (!request || typeof request !== "object" || !request.documentBytes) {
-      throw new Error("Invalid document inspection request payload");
+    if (!request || typeof request !== 'object' || !request.documentBytes) {
+      throw new Error('Invalid document inspection request payload');
     }
     return EvidenceVerificationService.inspectDocument(request);
   });
 
-  ipcMain.handle("evidence:verify-audit", async (event, attestation: any) => {
+  ipcMain.handle('evidence:verify-audit', async (event, attestation: any) => {
     if (!isTrustedSender(event, mainWindowRef)) {
-      throw new Error("Unauthorized IPC sender");
+      throw new Error('Unauthorized IPC sender');
     }
-    if (!attestation || typeof attestation !== "object") {
-      throw new Error("Invalid independent audit attestation payload");
+    if (!attestation || typeof attestation !== 'object') {
+      throw new Error('Invalid independent audit attestation payload');
     }
     return EvidenceVerificationService.verifySignedAttestation(attestation);
   });
 
-  ipcMain.handle("evidence:verify-seal", async (event, result: any) => {
+  ipcMain.handle('evidence:verify-seal', async (event, result: any) => {
     if (!isTrustedSender(event, mainWindowRef)) {
-      throw new Error("Unauthorized IPC sender");
+      throw new Error('Unauthorized IPC sender');
     }
-    if (!result || typeof result !== "object") return false;
+    if (!result || typeof result !== 'object') return false;
     return EvidenceVerificationService.verifySeal(result);
   });
 

@@ -152,21 +152,39 @@ export class CredentialStore {
   }
 
   private getEnvKey(service: string): string | null {
-    if (service === 'groq') {
-      const fromEnv = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
-      if (fromEnv && fromEnv.startsWith('gsk_')) return fromEnv;
-      try {
-        const envPath = path.join(process.cwd(), '.env.local');
-        if (fs.existsSync(envPath)) {
-          const raw = fs.readFileSync(envPath, 'utf8');
-          const match = raw.match(/(?:VITE_)?GROQ_API_KEY\s*=\s*['"]?(gsk_[A-Za-z0-9_-]+)['"]?/);
-          if (match && match[1]) return match[1];
-        }
-      } catch {
-        // Environment file lookup is best-effort; do not block normal startup.
-      }
+    const envNameByService: Partial<Record<AllowedService, string>> = {
+      groq: 'GROQ_API_KEY',
+      openai: 'OPENAI_API_KEY',
+      openrouter: 'OPENROUTER_API_KEY',
+    };
+    const envName = envNameByService[service as AllowedService];
+    if (!envName) return null;
+
+    const fromProcess = process.env[envName]?.trim();
+    if (fromProcess) return fromProcess;
+
+    try {
+      const envPath = path.join(process.cwd(), '.env.local');
+      if (!fs.existsSync(envPath)) return null;
+
+      const raw = fs.readFileSync(envPath, 'utf8');
+      const line = raw.split(/\r?\n/).find((entry) => {
+        const separator = entry.indexOf('=');
+        return separator >= 0 && entry.slice(0, separator).trim() === envName;
+      });
+      if (!line) return null;
+
+      const value = line.slice(line.indexOf('=') + 1).trim();
+      return (
+        value
+          .replace(/^["']|["']$/g, '')
+          .split('#')[0]
+          .trim() || null
+      );
+    } catch {
+      // Environment file lookup is best-effort; do not block normal startup.
+      return null;
     }
-    return null;
   }
 
   public async getKey(service: string): Promise<string | null> {
@@ -221,13 +239,14 @@ export class CredentialStore {
       }
     }
 
-    // Environment fallback is intentionally limited to the primary Groq key.
-    if (service === 'groq') {
-      const fallbackKey = this.getEnvKey('groq');
+    // Environment fallbacks are resolved only in the Electron main process.
+    if (service === 'groq' || service === 'openai' || service === 'openrouter') {
+      const fallbackKey = this.getEnvKey(service);
       if (fallbackKey) {
-        const match = fallbackKey.match(/gsk_[A-Za-z0-9_-]+/);
-        const clean = match ? match[0] : fallbackKey;
-        this.setKey('groq', clean).catch(() => {});
+        const match = service === 'groq' ? fallbackKey.match(/gsk_[A-Za-z0-9_-]+/) : null;
+        const clean = service === 'groq' ? match?.[0] || '' : fallbackKey;
+        if (!clean) return null;
+        this.setKey(service, clean).catch(() => {});
         return clean;
       }
     }
