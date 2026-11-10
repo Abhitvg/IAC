@@ -201,6 +201,8 @@ function minSubArrayLen(target: number, nums: number[]): number {
     });
 
     expect(result.dimensions.edgeCaseHandling.score).toBe(3);
-    expect(result.dimensions.edgeCaseHandling.rationale).toContain('does not prove that relevant edge cases are handled');
+    expect(result.dimensions.edgeCaseHandling.rationale).toContain(
+      'does not prove that relevant edge cases are handled'
+    );
   });
 });

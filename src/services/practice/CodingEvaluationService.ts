@@ -311,19 +311,23 @@ export class CodingEvaluationService {
       },
       edgeCaseHandling: {
         score: edgeScore,
-        quoteOrSnippet: hasEdgeChecks ? 'Potential guard token detected' : 'No guard token detected',
+        quoteOrSnippet: hasEdgeChecks
+          ? 'Potential guard token detected'
+          : 'No guard token detected',
         rationale:
           'Not assessed: detecting an if-statement or boundary keyword does not prove that relevant edge cases are handled.',
       },
       codeReadability: {
         score: readabilityScore,
         quoteOrSnippet: staticCheck.detectedIdentifiers.slice(0, 3).join(', '),
-        rationale: 'Not assessed: identifier length and line count are insufficient to judge readability.',
+        rationale:
+          'Not assessed: identifier length and line count are insufficient to judge readability.',
       },
       maintainability: {
         score: maintainabilityScore,
         quoteOrSnippet: `${staticCheck.lineCount} lines`,
-        rationale: 'Not assessed: comments and file length do not establish maintainability or modularity.',
+        rationale:
+          'Not assessed: comments and file length do not establish maintainability or modularity.',
       },
       explanationReasoning: {
         score: explanationScore,
