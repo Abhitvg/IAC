@@ -232,10 +232,8 @@ export class InterviewReportGenerator {
     const complexityScore =
       complexityOptimality === true ? 4.5 : complexityOptimality === false ? 2.5 : 3.0;
     const commScore = sessionState.overallScorecard?.deliveryScore || 3.5;
-    const edgeScore =
-      allCodingRecords.length > 0 && allCodingRecords[0].dimensions.edgeCaseHandling.score >= 3.5
-        ? 4.0
-        : 2.5;
+    // Static token scans cannot verify edge-case coverage; keep this dimension neutral.
+    const edgeScore = 3.0;
 
     const weightedOverall =
       Math.round(
