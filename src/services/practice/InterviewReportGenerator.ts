@@ -101,10 +101,9 @@ export class InterviewReportGenerator {
       `${record.problemId}:${record.evaluatedAt}:${record.candidateSubmission}`;
     const allCodingRecords = Array.from(
       new Map(
-        [...codingRecords, ...historyCodingRecords].map((record) => [
-          codingRecordKey(record),
-          record,
-        ] as const)
+        [...codingRecords, ...historyCodingRecords].map(
+          (record) => [codingRecordKey(record), record] as const
+        )
       ).values()
     );
     const questionsAttempted = history.length;
@@ -210,9 +209,7 @@ export class InterviewReportGenerator {
     for (const item of history) {
       if (typeof item.evaluation?.overallScore === 'number') {
         evalScores.push(item.evaluation.overallScore);
-      } else if (
-        typeof item.codingEvaluation?.overallScore === 'number'
-      ) {
+      } else if (typeof item.codingEvaluation?.overallScore === 'number') {
         evalScores.push(item.codingEvaluation.overallScore);
       }
     }

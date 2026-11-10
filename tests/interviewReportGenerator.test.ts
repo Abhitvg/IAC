@@ -104,7 +104,9 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
 
     // 3. Topic-Level Analysis
     expect(report.topicLevelAnalysis.length).toBeGreaterThanOrEqual(2);
-    const hashAnalysis = report.topicLevelAnalysis.find((t) => t.curriculumTopicId === 'ds_hash_tables');
+    const hashAnalysis = report.topicLevelAnalysis.find(
+      (t) => t.curriculumTopicId === 'ds_hash_tables'
+    );
     expect(hashAnalysis).toBeDefined();
     expect(hashAnalysis?.status).toBe('demonstrated_strength');
 
@@ -115,7 +117,9 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
     // 4. Improvement Recommendations
     expect(report.improvementRecommendations.recommendedNextDifficulty).toBe('advanced');
     expect(report.auditMetadata.isMeasuredResult).toBe(true);
-    expect(report.auditMetadata.aiAssistedFeedbackDisclaimer).toContain('Numerical scores reflect deterministic rubric evaluations');
+    expect(report.auditMetadata.aiAssistedFeedbackDisclaimer).toContain(
+      'Numerical scores reflect deterministic rubric evaluations'
+    );
   });
 
   it('does not count an attached coding evaluation twice in the session average', () => {
@@ -185,7 +189,9 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
     };
 
     const report = InterviewReportGenerator.generateReport(weakSession, []);
-    const graphTopic = report.topicLevelAnalysis.find((t) => t.curriculumTopicId === 'algo_graph_algorithms');
+    const graphTopic = report.topicLevelAnalysis.find(
+      (t) => t.curriculumTopicId === 'algo_graph_algorithms'
+    );
 
     expect(graphTopic).toBeDefined();
     expect(graphTopic?.status).toBe('weak_area');
@@ -195,4 +201,3 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
     expect(report.improvementRecommendations.recommendedNextDifficulty).toBe('easy');
   });
 });
-
