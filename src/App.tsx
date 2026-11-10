@@ -44,7 +44,8 @@ export default function App() {
   const [currentNav, setCurrentNav] = useState<AppNavId>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Synchronize native Electron window opacity between translucent teleprompter overlay and solid application shell
+  // Synchronize native Electron window opacity between translucent teleprompter overlay and solid
+  // application shell
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI?.setWindowOpacity) {
       if (currentNav === 'teleprompter') {
@@ -95,7 +96,11 @@ export default function App() {
         return;
       }
 
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.code === 'KeyF' || e.key.toLowerCase() === 'f')) {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        (e.code === 'KeyF' || e.key.toLowerCase() === 'f')
+      ) {
         e.preventDefault();
         toggleInterviewFocusMode();
         return;
