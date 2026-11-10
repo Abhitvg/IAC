@@ -104,7 +104,7 @@ export class InterviewReportGenerator {
         [...codingRecords, ...historyCodingRecords].map((record) => [
           codingRecordKey(record),
           record,
-        ])
+        ] as const)
       ).values()
     );
     const questionsAttempted = history.length;
