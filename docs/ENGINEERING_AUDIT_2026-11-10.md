@@ -1,12 +1,12 @@
 # IAC Engineering Audit — 2026-11-10
 
 **Repository:** `Abhitvg/IAC`  
-**Audit baseline:** `097081c740a2706b5fa10d97a5debf03cbe2d9b7`  
+**Audit baseline:** `1584ffb385cfaacdc434850ce6ddfba6277c085f`  
 **Scope:** Electron main/preload/IPC, credential storage, renderer answer generation, application shell and keyboard interactions, package metadata, tests, CI workflows, and engineering documentation.
 
 ## Audit limitations
 
-This is a source-and-CI audit, not a claim of complete runtime certification. The repository was inspected through GitHub source and Actions evidence. The latest full CI matrix (run #1023) passed on Ubuntu, macOS, and Windows, including packaged Electron smoke tests. Hosted CI evidence is not a substitute for hands-on end-user acceptance testing. No interactive local-device session or visual screenshot review was performed. Findings below are limited to evidence confirmed in the inspected source and workflow runs.
+This is a source-and-CI audit, not a claim of complete runtime certification. The repository was inspected through GitHub source and Actions evidence. The latest full CI matrix for the settings and language normalization change (run #1105) passed on Ubuntu, macOS, and Windows, including platform packaging checks. The teleprompter fix also passed a separate full matrix (run #1098). Hosted CI evidence is not a substitute for hands-on end-user acceptance testing. No interactive local-device session or visual screenshot review was performed. Findings below are limited to evidence confirmed in the inspected source and workflow runs.
 
 ## Executive summary
 
@@ -64,6 +64,9 @@ Keep these invariants covered. Future providers, custom endpoints, or new IPC me
 - Keep the secret-bundle scan and extend it with source-level checks against renderer-side provider-secret environment variables.
 - Require all checks to complete before release; a green typecheck/build alone is not a release certification.
 
+| **P2**   | Preferred-language settings value mismatch | The store defaulted to `Java` while the settings select uses lowercase IDs; legacy display labels could leave a controlled select with no matching option. | **Fixed on main in PR #164:** normalize legacy values and aliases on localStorage load, Electron settings hydration, and writes. Tests cover all supported language IDs and legacy labels; CI run #1105 passed on all three OSes. |
+| **P2**   | Teleprompter animation lifecycle | The animation continued scheduling `requestAnimationFrame` after the final queue item left the viewport, leaving an unnecessary perpetual renderer loop. | **Fixed on main in PR #165:** stop playback at queue completion, extract/test queue advancement, and add accessible labels to speed/playback controls. CI run #1098 passed on all three OSes. |
+
 ## Product and design audit boundary
 
 The codebase contains an established design-system directory and a large application shell with dashboard, preparation, live workspace, practice, career operations, documents, evidence, history and analytics views. Source inspection alone cannot establish visual quality, keyboard usability, or end-to-end user-flow correctness. CI now includes a targeted main-shell horizontal-overflow guard at representative widths, but that does not establish full visual quality. Hands-on screenshot review and workflow exercise remain outstanding. No visual redesign is certified by this source audit.
@@ -77,6 +80,6 @@ The codebase contains an established design-system directory and a large applica
 5. Validate the product visually on representative window sizes and real operating systems; hosted CI does not replace hands-on usability review.
 6. Optimize performance and polish visual hierarchy only after correctness and security gates are green.
 
-**Audit conclusion:** The previous raw-credential renderer exposure is fixed on main, deterministic installation is configured, UUID 14 is merged, and the minimatch security overrides are restored. The full current CI matrix passed on Ubuntu, macOS, and Windows in run #1023. The repository is still not certified release-ready: Tailwind/Vite migrations and hands-on visual/accessibility validation remain outstanding.
+**Audit conclusion:** The previous raw-credential renderer exposure is fixed on main, deterministic installation is configured, UUID 14 is merged, and the minimatch security overrides are restored. The latest relevant full CI matrices passed on Ubuntu, macOS, and Windows in runs #1098 and #1105. The repository is still not certified release-ready: Tailwind/Vite migrations and hands-on visual/accessibility validation remain outstanding.
 
 This is a code-and-CI audit, not a product usability sign-off. Future changes should retain this distinction.
