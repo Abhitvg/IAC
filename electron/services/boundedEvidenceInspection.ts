@@ -7,7 +7,10 @@ import {
   type AuditorSignedAttestation,
   type ImmutableIndependentAuditResult,
 } from './evidenceVerificationService';
-import { validateDocumentImportSize } from './documentImportLimits';
+import {
+  MAX_DOCUMENT_IMPORT_SIZE_BYTES,
+  validateDocumentImportSize,
+} from './documentImportLimits';
 
 const MAX_ISSUER_NAME_LENGTH = 256;
 const MAX_ISSUER_ID_LENGTH = 128;
@@ -212,4 +215,91 @@ export function verifyEvidenceAttestation(
   }
 
   return EvidenceVerificationService.verifySignedAttestation(attestation);
+}
+
+function isSha256Hex(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value);
+}
+
+/**
+ * Bound sealed result objects before the service canonicalizes and hashes nested arrays.
+ */
+export function verifyEvidenceSeal(result: unknown): boolean {
+  if (!isRecord(result)) return false;
+
+  try {
+    if (result.__inspectionSeal !== undefined) {
+      if (
+        !isSha256Hex(result.__inspectionSeal) ||
+        !Array.isArray(result.inspectedFiles) ||
+        result.inspectedFiles.length > 25 ||
+        !Array.isArray(result.verifiedTechnologies) ||
+        result.verifiedTechnologies.length > 100
+      ) {
+        return false;
+      }
+
+      requireBoundedString(result.inspectionId, 'inspectionId', 128);
+      requireBoundedString(result.repositoryUrl, 'repositoryUrl', 2048);
+      if (!/^[0-9a-f]{40}$/i.test(String(result.resolvedCommitSha || ''))) return false;
+      if (!/^[0-9a-f]{40}$/i.test(String(result.treeSha || ''))) return false;
+
+      for (const file of result.inspectedFiles) {
+        if (!isRecord(file)) return false;
+        requireBoundedString(file.path, 'inspectedFiles.path', 2048);
+        if (!isSha256Hex(file.sha256)) return false;
+      }
+
+      for (const technology of result.verifiedTechnologies) {
+        requireBoundedString(technology, 'verifiedTechnologies[]', 128);
+      }
+
+      return EvidenceVerificationService.verifySeal(result);
+    }
+
+    if (result.__documentSeal !== undefined) {
+      if (
+        !isSha256Hex(result.__documentSeal) ||
+        !isSha256Hex(result.documentSha256) ||
+        !Number.isSafeInteger(result.documentByteLength) ||
+        Number(result.documentByteLength) <= 0 ||
+        Number(result.documentByteLength) > MAX_DOCUMENT_IMPORT_SIZE_BYTES
+      ) {
+        return false;
+      }
+
+      requireBoundedString(result.inspectionId, 'inspectionId', 128);
+      requireBoundedString(result.issuerName, 'issuerName', MAX_ISSUER_NAME_LENGTH);
+
+      if (result.supportedFields !== undefined) {
+        if (!isRecord(result.supportedFields)) return false;
+        const metrics = result.supportedFields.performanceMetrics;
+        if (metrics !== undefined) {
+          if (!Array.isArray(metrics) || metrics.length > 100) return false;
+          for (const metric of metrics) {
+            requireBoundedString(metric, 'performanceMetrics[]', 256);
+          }
+        }
+      }
+
+      return EvidenceVerificationService.verifySeal(result);
+    }
+
+    if (result.__auditSeal !== undefined) {
+      if (!isSha256Hex(result.__auditSeal)) return false;
+      requireBoundedString(result.auditId, 'auditId', 128);
+      requireBoundedString(result.auditorId, 'auditorId', 128);
+      requireBoundedString(result.projectId, 'projectId', 128);
+      requireBoundedString(result.candidateId, 'candidateId', 128);
+      if (typeof result.verifiedAt !== 'number' || !Number.isFinite(result.verifiedAt)) {
+        return false;
+      }
+
+      return EvidenceVerificationService.verifySeal(result);
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
 }
