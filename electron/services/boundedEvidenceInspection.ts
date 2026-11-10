@@ -211,7 +211,9 @@ export function verifyEvidenceAttestation(
     payload.signatureHex.length !== 128 ||
     !/^[0-9a-f]{128}$/i.test(payload.signatureHex)
   ) {
-    throw new Error('Invalid Ed25519 audit signature; expected exactly 128 hexadecimal characters.');
+    throw new Error(
+      'Invalid Ed25519 audit signature; expected exactly 128 hexadecimal characters.'
+    );
   }
 
   return EvidenceVerificationService.verifySignedAttestation(attestation);
