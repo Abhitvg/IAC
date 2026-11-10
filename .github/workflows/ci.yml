@@ -24,7 +24,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.13.0
-          cache: 'npm'
+          # Do not enable setup-node caching until a package lockfile is committed.
+          # The cache action requires a lockfile and would fail before the install fallback.
 
       - name: Install dependencies
         shell: bash
