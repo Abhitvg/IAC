@@ -1,5 +1,5 @@
 import { deflateRawSync } from 'zlib';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { validateDocxArchiveExpansionInBrowser } from '../src/services/ingestion/docxArchiveExpansion';
 
 function asArrayBuffer(buffer: Buffer): ArrayBuffer {
@@ -8,6 +8,10 @@ function asArrayBuffer(buffer: Buffer): ArrayBuffer {
     buffer.byteOffset + buffer.byteLength
   ) as ArrayBuffer;
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('renderer DOCX expansion validation', () => {
   it('accepts DEFLATE entries whose actual output matches the declared size', async () => {
@@ -71,6 +75,15 @@ describe('renderer DOCX expansion validation', () => {
 
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('bounds');
+  });
+
+  it('fails closed when browser decompression is unavailable', async () => {
+    vi.stubGlobal('DecompressionStream', undefined);
+    const input = new ArrayBuffer(8);
+    const result = await validateDocxArchiveExpansionInBrowser(input, []);
+
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('cannot safely validate');
   });
 
   it('rejects unsupported compression methods', async () => {
