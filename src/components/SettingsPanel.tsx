@@ -1,4 +1,3 @@
-import { copyToClipboard } from '../utils/clipboard';
 import { deleteStoredCredential, persistCredential } from '../services/onboarding/credentialSetup';
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -28,7 +27,7 @@ export default function SettingsPanel() {
   const [secondaryGroqKey, setSecondaryGroqKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [extensionToken, setExtensionToken] = useState('');
+  const [extensionTokenPreview, setExtensionTokenPreview] = useState('');
   const [tokenCopied, setTokenCopied] = useState(false);
   const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted());
   const [preflightStatus, setPreflightStatus] = useState<{
@@ -74,7 +73,7 @@ export default function SettingsPanel() {
     };
     loadKey();
     window.electronAPI?.getWsInfo?.().then((info) => {
-      if (info?.token) setExtensionToken(info.token);
+      if (info?.tokenPreview) setExtensionTokenPreview(info.tokenPreview);
     });
   }, [settings?.aiProvider]);
 
@@ -667,8 +666,8 @@ export default function SettingsPanel() {
                   <input
                     type="password"
                     readOnly
-                    value={extensionToken}
-                    aria-label="Extension pairing security token"
+                    value={extensionTokenPreview ? '••••••••' + extensionTokenPreview : 'Not generated'}
+                    aria-label="Extension pairing security token preview"
                     style={{
                       flex: 1,
                       fontSize: '11px',
@@ -682,7 +681,8 @@ export default function SettingsPanel() {
                   <button
                     type="button"
                     onClick={async () => {
-                      await copyToClipboard(extensionToken);
+                      const copied = await window.electronAPI?.copyWsToken?.();
+                      if (!copied) return;
                       setTokenCopied(true);
                       setTimeout(() => setTokenCopied(false), 2000);
                     }}
