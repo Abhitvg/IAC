@@ -18,7 +18,8 @@ export function validateDocumentImportSize(byteLength: unknown): DocumentImportS
   if (byteLength > MAX_DOCUMENT_IMPORT_SIZE_BYTES) {
     return {
       allowed: false,
-      reason: `Document exceeds the maximum import size of ${MAX_DOCUMENT_IMPORT_SIZE_BYTES} bytes.`,
+      reason:
+        `Document exceeds the maximum import size of ${MAX_DOCUMENT_IMPORT_SIZE_BYTES} bytes.`,
     };
   }
 
