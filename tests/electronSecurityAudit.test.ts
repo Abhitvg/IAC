@@ -6,6 +6,7 @@ import {
   validateReadPath,
   validateWritePath,
   validateDeletePath,
+  createPublicSettingsSnapshot,
 } from '../electron/services/security';
 
 describe('Electron Security & Path Traversal Audit', () => {
@@ -34,6 +35,32 @@ describe('Electron Security & Path Traversal Audit', () => {
     try {
       fs.rmSync(tempBaseDir, { recursive: true, force: true });
     } catch {}
+  });
+
+  it('returns only allowlisted public settings and strips sensitive values', () => {
+    const settings = {
+      aiProvider: 'groq',
+      theme: 'dark',
+      extensionToken: 'extension-secret',
+      secure_credentials: { groq: { data: 'encrypted-record' } },
+      apiKey: 'provider-secret',
+      unexpectedSecret: 'must-not-cross-ipc',
+    };
+
+    const snapshot = createPublicSettingsSnapshot(
+      settings,
+      new Set([
+        'aiProvider',
+        'theme',
+        'extensionToken',
+        'secure_credentials',
+        'apiKey',
+        'unexpectedSecret',
+      ])
+    );
+
+    expect(snapshot).toEqual({ aiProvider: 'groq', theme: 'dark' });
+    expect(settings.extensionToken).toBe('extension-secret');
   });
 
   it('allows read path inside userData', () => {

@@ -49,6 +49,12 @@ describe('IPC Settings Validation', () => {
     expect(() => validateSetting('windowOpacity', 0.88)).not.toThrow();
   });
 
+  it('does not allow the renderer to set the main-process extension token', () => {
+    expect(() => validateSetting('extensionToken', 'renderer-controlled-token')).toThrow(
+      'Unauthorized setting key'
+    );
+  });
+
   it('rejects unauthorized setting keys to prevent prototype pollution or arbitrary storage', () => {
     expect(() => validateSetting('__proto__', {})).toThrow('Unauthorized setting key');
     expect(() => validateSetting('isAdmin', true)).toThrow('Unauthorized setting key');

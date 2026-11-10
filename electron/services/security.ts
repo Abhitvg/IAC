@@ -4,6 +4,40 @@ import { fileURLToPath } from 'url';
 
 export const MAX_WRITE_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB max write limit
 
+const SENSITIVE_RENDERER_SETTING_KEYS = new Set([
+  'extensionToken',
+  'secure_credentials',
+  'apiKey',
+  'api_key',
+  'groqApiKey',
+  'openaiApiKey',
+  'openrouterApiKey',
+  'authToken',
+  'accessToken',
+  'refreshToken',
+]);
+
+/**
+ * Returns only allowlisted, non-secret settings to the renderer.
+ * Never expose credential records or extension authentication tokens through
+ * the broad settings snapshot IPC.
+ */
+export function createPublicSettingsSnapshot(
+  settings: Record<string, unknown>,
+  allowedKeys: ReadonlySet<string>
+): Record<string, unknown> {
+  const snapshot: Record<string, unknown> = {};
+
+  for (const key of allowedKeys) {
+    if (SENSITIVE_RENDERER_SETTING_KEYS.has(key)) continue;
+    if (Object.prototype.hasOwnProperty.call(settings, key)) {
+      snapshot[key] = settings[key];
+    }
+  }
+
+  return snapshot;
+}
+
 export interface PathValidationResult {
   allowed: boolean;
   resolvedPath?: string;
