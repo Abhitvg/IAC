@@ -1,3 +1,5 @@
+> **Historical snapshot — superseded by the current audit.** This document records findings as of 2026-10-31 and is not a current security certification. Its statement that provider credentials are “never exposed to renderer window memory” is inaccurate for the current code: `getApiKey()` is exposed through preload and decrypted credentials are consumed by renderer code. See [ENGINEERING_AUDIT_2026-11-10.md](./ENGINEERING_AUDIT_2026-11-10.md) for confirmed current findings and remediation status.
+
 # IAC Engineering Baseline Audit & Architecture Assessment
 
 **Date**: 2026-10-31  
