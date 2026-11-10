@@ -137,10 +137,10 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
   // Automatic credential & model migration
   try {
     const envPath = path.join(process.cwd(), '.env.local');
-    let keyToMigrate = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+    let keyToMigrate = process.env.GROQ_API_KEY;
     if (!keyToMigrate && fs.existsSync(envPath)) {
       const envRaw = fs.readFileSync(envPath, 'utf8');
-      const match = envRaw.match(/(?:VITE_)?GROQ_API_KEY\s*=\s*['"]?(gsk_[A-Za-z0-9_-]+)['"]?/);
+      const match = envRaw.match(/GROQ_API_KEY\s*=\s*['"]?(gsk_[A-Za-z0-9_-]+)['"]?/);
       if (match && match[1]) keyToMigrate = match[1];
     }
     if (keyToMigrate) {
