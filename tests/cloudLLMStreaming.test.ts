@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  MAX_CLOUD_LLM_RESPONSE_BYTES,
   startCloudLLMStream,
   type CloudLLMStreamRequest,
 } from '../electron/services/cloudLLMStreaming';
