@@ -1,0 +1,35 @@
+name: Temporary format PDF page audit
+
+on:
+  push:
+    branches:
+      - docs/audit-pdf-page-limit-20261110
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: docs/audit-pdf-page-limit-20261110
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.13.0
+      - run: npm ci --no-audit --no-fund
+      - run: npx prettier --write docs/ENGINEERING_AUDIT_2026-11-10.md
+      - name: Commit formatted audit
+        run: |
+          if git diff --quiet -- docs/ENGINEERING_AUDIT_2026-11-10.md; then
+            echo "Audit already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/ENGINEERING_AUDIT_2026-11-10.md
+          git commit -m "style: format PDF page-count audit update"
+          git pull --rebase origin docs/audit-pdf-page-limit-20261110
+          git push origin HEAD:docs/audit-pdf-page-limit-20261110
