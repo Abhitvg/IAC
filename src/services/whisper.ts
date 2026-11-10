@@ -129,7 +129,7 @@ export async function transcribeAudio(
   const targetModel = resolveTranscriptionModel(targetProvider, sttConfig.model);
   const wavBlob = await convertBlobToWav(audioBlob);
   const audio = await wavBlob.arrayBuffer();
-  let prompt = '';
+  let prompt: string;
 
   if (targetProvider === 'groq') {
     const store = useAppStore.getState();
