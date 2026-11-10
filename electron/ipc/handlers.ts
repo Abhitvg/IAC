@@ -11,6 +11,10 @@ import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
 import { CredentialStore } from '../services/credentialStore';
+import {
+  isValidCloudTranscriptionRequest,
+  transcribeCloudAudio,
+} from '../services/cloudTranscriptionService';
 import { validateCloudModelPreflight } from '../services/modelPreflight';
 import {
   MessageRateLimiter,
@@ -20,6 +24,7 @@ import {
 let wsServer: WebSocketServer | null = null;
 let httpServer: http.Server | null = null;
 let mainWindowRef: BrowserWindow | null = null;
+const activeCloudTranscriptions = new Map<string, AbortController>();
 
 const ALLOWED_SETTING_KEYS = new Set([
   'aiProvider',
@@ -245,6 +250,33 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     }
     const apiKey = await credentialStore.getKey(request.provider);
     return validateCloudModelPreflight(request.provider, request.model, apiKey || '');
+  });
+
+  // Cloud speech transcription runs in Electron main; provider credentials never cross IPC.
+  ipcMain.handle('stt:transcribe', async (event, request: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (!isValidCloudTranscriptionRequest(request)) {
+      throw new Error('Invalid cloud transcription request.');
+    }
+
+    const controller = new AbortController();
+    activeCloudTranscriptions.set(request.requestId, controller);
+    try {
+      return await transcribeCloudAudio(credentialStore, request, controller.signal);
+    } finally {
+      activeCloudTranscriptions.delete(request.requestId);
+    }
+  });
+
+  ipcMain.handle('stt:cancel', (event, requestId: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (typeof requestId !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(requestId)) {
+      throw new Error('Invalid transcription request ID.');
+    }
+    const controller = activeCloudTranscriptions.get(requestId);
+    if (!controller) return false;
+    controller.abort();
+    return true;
   });
 
   // Secure safeStorage credential handlers
