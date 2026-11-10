@@ -28,7 +28,7 @@
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",
     "react-syntax-highlighter": "^16.1.2",
-    "uuid": "^11.0.3",
+    "uuid": "^14.0.3",
     "ws": "^8.18.0",
     "zod": "^4.6.7",
     "zustand": "^5.0.1"
@@ -122,22 +122,5 @@
     "electron",
     "react",
     "typescript"
-  ],
-  "overrides": {
-    "@electron/universal": {
-      "minimatch": "11.0.5"
-    },
-    "app-builder-lib": {
-      "minimatch": "11.0.5"
-    },
-    "eslint": {
-      "minimatch": "11.0.5"
-    },
-    "@eslint/config-array": {
-      "minimatch": "11.0.5"
-    },
-    "@typescript-eslint/typescript-estree": {
-      "minimatch": "11.0.5"
-    }
-  }
+  ]
 }
