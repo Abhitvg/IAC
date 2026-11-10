@@ -3,6 +3,7 @@
 **Repository:** `Abhitvg/IAC`  
 **Audit baseline:** `9089e8024fbe07d0489cf51c54b3c97c829afe79`  
 **Latest verified product fixes:** PRs #157, #164, #165, #167, #169, and #171.
+**PDF extraction guard:** maximum 100 pages; OCR fallback is skipped above this limit.
 **Latest document import limit:** 25 MB at both PDF/DOCX IPC entry points, with a parser-level PDF guard.  
 **Scope:** Electron main/preload/IPC, credential storage, renderer answer generation, application shell and keyboard interactions, package metadata, tests, CI workflows, and engineering documentation.
 
