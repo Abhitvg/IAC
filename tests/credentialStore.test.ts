@@ -18,7 +18,10 @@ vi.mock('electron', () => ({
 }));
 
 import { safeStorage } from 'electron';
-import { CredentialStore } from '../electron/services/credentialStore';
+import {
+  CredentialStore,
+  parseGroqApiKeyFromEnvContent,
+} from '../electron/services/credentialStore';
 
 class MockStore {
   private data: Record<string, any> = {};
@@ -132,6 +135,20 @@ describe('CredentialStore', () => {
     await expect(creds.setKey('groq', 'a'.repeat(3000))).rejects.toThrow(
       'API key exceeds maximum length'
     );
+  });
+
+  it('parses only complete Groq keys from environment-file assignments', () => {
+    expect(parseGroqApiKeyFromEnvContent('GROQ_API_KEY=gsk_valid_key_123')).toBe(
+      'gsk_valid_key_123'
+    );
+    expect(parseGroqApiKeyFromEnvContent('GROQ_API_KEY="gsk_valid_key_123" # local key')).toBe(
+      'gsk_valid_key_123'
+    );
+    expect(parseGroqApiKeyFromEnvContent("GROQ_API_KEY='gsk_valid_key_123'")).toBe(
+      'gsk_valid_key_123'
+    );
+    expect(parseGroqApiKeyFromEnvContent('GROQ_API_KEY=prefix gsk_valid_key_123')).toBeNull();
+    expect(parseGroqApiKeyFromEnvContent('GROQ_API_KEY=gsk_valid_key_123 trailing')).toBeNull();
   });
 
   it('rejects Groq keys with valid-looking substrings surrounded by other text', async () => {

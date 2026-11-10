@@ -10,7 +10,10 @@ import { ipcMain, BrowserWindow, clipboard } from 'electron';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
-import { CredentialStore } from '../services/credentialStore';
+import {
+  CredentialStore,
+  parseGroqApiKeyFromEnvContent,
+} from '../services/credentialStore';
 import {
   transcribeCloudAudio,
   type CloudTranscriptionRequest,
@@ -192,8 +195,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     let keyToMigrate = process.env.GROQ_API_KEY;
     if (!keyToMigrate && fs.existsSync(envPath)) {
       const envRaw = fs.readFileSync(envPath, 'utf8');
-      const match = envRaw.match(/GROQ_API_KEY\s*=\s*['"]?(gsk_[A-Za-z0-9_-]+)['"]?/);
-      if (match && match[1]) keyToMigrate = match[1];
+      keyToMigrate = parseGroqApiKeyFromEnvContent(envRaw) || undefined;
     }
     if (keyToMigrate) {
       credentialStore.hasKey('groq').then((has) => {
