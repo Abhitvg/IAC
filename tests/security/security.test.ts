@@ -208,6 +208,17 @@ describe('Security Hardening & Path Validation', () => {
   });
 
   describe('Content Security Policy & Sandbox', () => {
+    it('does not allow inline scripts in production or development', () => {
+      for (const isDev of [false, true]) {
+        const scriptDirective = buildCspHeader(isDev)
+          .split(';')
+          .find((directive) => directive.trim().startsWith('script-src'));
+
+        expect(scriptDirective).toBeTruthy();
+        expect(scriptDirective).not.toContain("'unsafe-inline'");
+      }
+    });
+
     it('generates strict Content-Security-Policy header in production', () => {
       const csp = buildCspHeader(false);
       expect(csp).toContain("default-src 'self'");
