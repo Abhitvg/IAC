@@ -862,6 +862,122 @@ export interface AIStreamCallbacks {
   onComplete?: (fullResponse: string) => void | Promise<void>;
   onError?: (error: Error) => void;
   onDiagnostic?: (diagnostic: FallbackDiagnosticRecord) => void;
+  onSecondaryKeyFailover?: () => void;
+}
+
+async function requestAIProviderResponse(
+  url: string,
+  provider: AIProviderId,
+  requestBody: Record<string, unknown>,
+  headers: Record<string, string>,
+  signal: AbortSignal,
+  onSecondaryKeyFailover?: () => void
+): Promise<Response> {
+  const cloudProvider = provider === 'groq' || provider === 'openai' || provider === 'openrouter';
+  const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
+  if (!cloudProvider || !electronAPI?.startAIStream) {
+    return fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+      signal,
+    });
+  }
+
+  if (signal.aborted) {
+    throw Object.assign(new Error('AI request was cancelled before it started.'), {
+      name: 'AbortError',
+    });
+  }
+
+  const messages = Array.isArray(requestBody.messages) ? requestBody.messages : [];
+  const systemPrompt =
+    messages.find(
+      (message: any) => message && typeof message.content === 'string' && message.role === 'system'
+    )?.content || '';
+  const question = messages
+    .filter(
+      (message: any) => message && typeof message.content === 'string' && message.role === 'user'
+    )
+    .map((message: any) => message.content)
+    .join('\n');
+  const requestId = crypto.randomUUID();
+  let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+  let signalCleanup = () => signal.removeEventListener('abort', cancelRequest);
+  const cancelRequest = () => {
+    void electronAPI.cancelAIStream(requestId).catch(() => undefined);
+  };
+  const responseBody = new ReadableStream<Uint8Array>({
+    start(controller) {
+      streamController = controller;
+    },
+    cancel() {
+      cancelRequest();
+      signalCleanup();
+    },
+  });
+
+  const startPromise = electronAPI.startAIStream(
+    {
+      requestId,
+      provider,
+      model: String(requestBody.model || ''),
+      systemPrompt,
+      question,
+      temperature:
+        typeof requestBody.temperature === 'number' ? requestBody.temperature : 0.7,
+      maxTokens:
+        typeof requestBody.max_tokens === 'number'
+          ? Math.max(1, Math.min(8_000, Math.round(requestBody.max_tokens)))
+          : 1_500,
+      stream: requestBody.stream === true,
+    },
+    {
+      onChunk: (chunk) => {
+        if (streamController) streamController.enqueue(new TextEncoder().encode(chunk));
+      },
+      onComplete: () => {
+        try {
+          streamController?.close();
+        } catch {
+          // The renderer may already have cancelled the response body.
+        }
+        signalCleanup();
+      },
+      onError: (error) => {
+        try {
+          streamController?.error(Object.assign(new Error(error.message), { name: error.name }));
+        } catch {
+          // The renderer may already have cancelled the response body.
+        }
+        signalCleanup();
+      },
+    }
+  );
+
+  signal.addEventListener('abort', cancelRequest, { once: true });
+  if (signal.aborted) cancelRequest();
+
+  try {
+    const result = await startPromise;
+    if (result.usedSecondaryKey) onSecondaryKeyFailover?.();
+    if (!result.ok || requestBody.stream !== true) {
+      signalCleanup();
+      return new Response(result.body || '', {
+        status: result.status,
+        statusText: result.statusText,
+        headers: result.headers,
+      });
+    }
+    return new Response(responseBody, {
+      status: result.status,
+      statusText: result.statusText,
+      headers: result.headers,
+    });
+  } catch (error) {
+    signalCleanup();
+    throw error;
+  }
 }
 
 export async function streamAnswer(
@@ -920,10 +1036,10 @@ export async function streamAnswer(
   let parser: AIStreamParser | null = null;
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
+    const response = await requestAIProviderResponse(
+      url,
+      providerId,
+      {
         model: effectiveModel,
         messages: [
           { role: 'system', content: lowLatencyPrompt },
@@ -932,9 +1048,11 @@ export async function streamAnswer(
         stream: true,
         temperature: config.temperature,
         max_tokens: config.maxTokens,
-      }),
-      signal: requestSignal,
-    });
+      },
+      headers,
+      requestSignal,
+      callbacks.onSecondaryKeyFailover
+    );
 
     let activeResponse = response;
 
@@ -994,10 +1112,10 @@ export async function streamAnswer(
         );
 
         try {
-          const fallbackRes = await fetch(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
+          const fallbackRes = await requestAIProviderResponse(
+            url,
+            providerId,
+            {
               model: fbModel,
               messages: [
                 { role: 'system', content: lowLatencyPrompt },
@@ -1006,9 +1124,11 @@ export async function streamAnswer(
               stream: true,
               temperature: config.temperature,
               max_tokens: Math.min(config.maxTokens || 1500, 1500),
-            }),
-            signal: requestSignal,
-          });
+            },
+            headers,
+            requestSignal,
+            callbacks.onSecondaryKeyFailover
+          );
 
           if (fallbackRes.ok && fallbackRes.body) {
             activeResponse = fallbackRes;
@@ -1202,10 +1322,10 @@ export async function streamAnswer(
         // Some provider/model combinations terminate an SSE stream without content deltas.
         // Make exactly one non-streaming recovery request before surfacing an empty answer.
         if (!cleanText) {
-          const recoveryResponse = await fetch(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
+          const recoveryResponse = await requestAIProviderResponse(
+            url,
+            providerId,
+            {
               model: effectiveModel,
               messages: [
                 { role: 'system', content: lowLatencyPrompt },
@@ -1214,9 +1334,11 @@ export async function streamAnswer(
               stream: false,
               temperature: config.temperature,
               max_tokens: config.maxTokens,
-            }),
-            signal: requestSignal,
-          });
+            },
+            headers,
+            requestSignal,
+            callbacks.onSecondaryKeyFailover
+          );
           if (recoveryResponse.ok) {
             const recoveryData = await recoveryResponse.json();
             const recovered = recoveryData.choices?.[0]?.message?.content;
