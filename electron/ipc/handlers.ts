@@ -102,55 +102,112 @@ export function validateSetting(key: string, value: any): boolean {
     throw new Error(`Unauthorized setting key: "${key}"`);
   }
 
+  const isBoundedString = (candidate: unknown, maxLength: number): candidate is string =>
+    typeof candidate === 'string' &&
+    candidate.length <= maxLength &&
+    !/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(candidate);
+
   switch (key) {
     case 'aiProvider':
       if (!['openai', 'groq', 'openrouter', 'ollama'].includes(value)) {
         throw new Error(`Invalid aiProvider: "${value}"`);
       }
       break;
+    case 'aiModel':
+    case 'whisperModel':
+      if (!isBoundedString(value, 160) || value.length === 0 || !/^[A-Za-z0-9._:/-]+$/.test(value)) {
+        throw new Error(`Invalid ${key}: expected a model identifier of at most 160 characters.`);
+      }
+      break;
+    case 'preferredLanguage':
+      if (!['java', 'python', 'cpp', 'javascript', 'typescript', 'go', 'csharp'].includes(value)) {
+        throw new Error(`Invalid preferredLanguage: "${value}"`);
+      }
+      break;
+    case 'theme':
+      if (value !== 'dark' && value !== 'light') throw new Error(`Invalid theme: "${value}"`);
+      break;
+    case 'audioFormat':
+      if (value !== 'wav' && value !== 'webm') throw new Error(`Invalid audioFormat: "${value}"`);
+      break;
+    case 'teleprompterFontSize':
+      if (!['small', 'medium', 'large', 'xlarge'].includes(value)) {
+        throw new Error(`Invalid teleprompterFontSize: "${value}"`);
+      }
+      break;
     case 'windowOpacity':
-      if (typeof value !== 'number' || isNaN(value) || value < 0.1 || value > 1.0) {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0.1 || value > 1.0) {
         throw new Error(`Invalid windowOpacity: ${value}. Must be between 0.1 and 1.0.`);
       }
       break;
     case 'responseMode':
-      if (!['coding', 'interview'].includes(value)) {
-        throw new Error(`Invalid responseMode: "${value}"`);
-      }
+      if (!['coding', 'interview'].includes(value)) throw new Error(`Invalid responseMode: "${value}"`);
       break;
     case 'temperature':
-      if (typeof value !== 'number' || value < 0 || value > 2) {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 2) {
         throw new Error(`Invalid temperature: ${value}. Must be between 0 and 2.`);
       }
       break;
     case 'maxTokens':
-      if (typeof value !== 'number' || value < 50 || value > 8192) {
-        throw new Error(`Invalid maxTokens: ${value}. Must be between 50 and 8192.`);
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < 50 || value > 8192) {
+        throw new Error(`Invalid maxTokens: ${value}. Must be an integer between 50 and 8192.`);
       }
       break;
     case 'browserIntegration':
     case 'alwaysOnTop':
     case 'hasCompletedOnboarding':
-      if (typeof value !== 'boolean') {
-        throw new Error(`Setting "${key}" must be a boolean.`);
+      if (typeof value !== 'boolean') throw new Error(`Setting "${key}" must be a boolean.`);
+      break;
+    case 'systemPrompt':
+      if (!isBoundedString(value, 20_000)) {
+        throw new Error('systemPrompt must be a string of at most 20000 characters.');
       }
       break;
+    case 'shortcuts': {
+      const shortcutKeys = [
+        'record', 'analyze', 'copyAnswer', 'quickAnswer',
+        'detailedAnswer', 'minimize', 'regenerate',
+      ];
+      if (
+        !value || typeof value !== 'object' || Array.isArray(value) ||
+        Object.keys(value).length !== shortcutKeys.length ||
+        !shortcutKeys.every((shortcut) =>
+          Object.prototype.hasOwnProperty.call(value, shortcut) &&
+          isBoundedString(value[shortcut], 80) && value[shortcut].length > 0
+        )
+      ) {
+        throw new Error('shortcuts must contain exactly the supported shortcut names and bounded string values.');
+      }
+      break;
+    }
     case 'lastModelMigrationNotice':
-      if (value !== null && typeof value !== 'object') {
-        throw new Error(`Setting "${key}" must be an object or null.`);
+      if (value !== null) {
+        const notice = value as Record<string, unknown>;
+        if (
+          !notice || typeof notice !== 'object' || Array.isArray(notice) ||
+          !Number.isFinite(notice.timestamp) ||
+          !isBoundedString(notice.previousModel, 160) ||
+          !isBoundedString(notice.newModel, 160) ||
+          !isBoundedString(notice.reason, 500) ||
+          (notice.dismissed !== undefined && typeof notice.dismissed !== 'boolean') ||
+          Object.keys(notice).some((field) =>
+            !['timestamp', 'previousModel', 'newModel', 'reason', 'dismissed'].includes(field)
+          )
+        ) {
+          throw new Error('lastModelMigrationNotice has an invalid shape.');
+        }
       }
       break;
     case 'ollamaEndpoint':
     case 'customApiEndpoint':
-      if (typeof value !== 'string' || value.length > 512) {
-        throw new Error(`Endpoint URL for "${key}" exceeds max length.`);
+      if (!isBoundedString(value, 512)) {
+        throw new Error(`Endpoint URL for "${key}" must be a string of at most 512 characters.`);
       }
       break;
   }
 
   return true;
 }
-
 export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
   mainWindowRef = mainWindow;
 
