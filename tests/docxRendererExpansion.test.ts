@@ -31,6 +31,21 @@ describe('renderer DOCX expansion validation', () => {
     ).resolves.toEqual({ allowed: true });
   });
 
+  it('rejects stored entries with inconsistent compressed and uncompressed sizes', async () => {
+    const input = new ArrayBuffer(8);
+    const result = await validateDocxArchiveExpansionInBrowser(input, [
+      {
+        compressionMethod: 0,
+        compressedSize: 8,
+        uncompressedSize: 7,
+        dataOffset: 0,
+      },
+    ]);
+
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('inconsistent size metadata');
+  });
+
   it('rejects forged metadata when actual DEFLATE output exceeds the declared size', async () => {
     const actualContent = Buffer.alloc(1024, 0x41);
     const compressed = deflateRawSync(actualContent);
