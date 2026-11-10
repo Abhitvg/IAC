@@ -79,6 +79,15 @@ export interface TranscriptionSegment {
   text: string;
 }
 
+async function readErrorBody(response: Response): Promise<string> {
+  try {
+    const body = await response.text();
+    return body.slice(0, 1500) || '(empty response body)';
+  } catch {
+    return '(could not read response body)';
+  }
+}
+
 /**
  * Transcribe audio using cloud providers through Electron main, or a local Whisper server.
  * Provider credentials never enter the renderer process.
