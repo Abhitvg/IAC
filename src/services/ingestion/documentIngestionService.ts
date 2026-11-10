@@ -23,7 +23,12 @@ export function detectFileFormat(
     }
     const headLimit = Math.min(bytes.length - 4, 1024);
     for (let i = 1; i <= headLimit; i++) {
-      if (bytes[i] === 0x25 && bytes[i + 1] === 0x50 && bytes[i + 2] === 0x44 && bytes[i + 3] === 0x46) {
+      if (
+        bytes[i] === 0x25 &&
+        bytes[i + 1] === 0x50 &&
+        bytes[i + 2] === 0x44 &&
+        bytes[i + 3] === 0x46
+      ) {
         return 'pdf';
       }
     }
