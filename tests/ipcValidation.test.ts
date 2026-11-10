@@ -35,7 +35,16 @@ import {
   validateCloudPreflightRequest,
   validateCloudTranscriptionRequest,
   validateSetting,
+  shouldReleaseCloudLLMController,
 } from '../electron/ipc/handlers';
+
+describe('Cloud LLM controller lifecycle', () => {
+  it('releases controllers for non-streaming requests and failed responses', () => {
+    expect(shouldReleaseCloudLLMController({ stream: false }, { ok: true })).toBe(true);
+    expect(shouldReleaseCloudLLMController({ stream: true }, { ok: false })).toBe(true);
+    expect(shouldReleaseCloudLLMController({ stream: true }, { ok: true })).toBe(false);
+  });
+});
 
 describe('IPC Settings Validation', () => {
   it('accepts only bounded cloud-provider preflight requests', () => {
