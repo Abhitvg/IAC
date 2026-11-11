@@ -115,6 +115,14 @@ describe('Canonical candidate profile encrypted persistence', () => {
     expect(localStorage.length).toBe(0);
   });
 
+  it('allows a no-op flush when the OS keyring is unavailable and no writes are pending', async () => {
+    secureApi.securePersistenceGet.mockRejectedValueOnce(new Error('OS keyring is locked'));
+    const service = CanonicalProfileService.getInstance();
+
+    await expect(service.ready()).resolves.toBe(false);
+    await expect(service.flushPendingPersistence()).resolves.toBe(true);
+  });
+
   it('does not claim a save succeeded when the encrypted store rejects the write', async () => {
     const service = CanonicalProfileService.getInstance();
     await expect(service.ready()).resolves.toBe(true);
