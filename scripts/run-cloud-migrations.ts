@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
-import { Pool } from 'pg';
 import { loadCloudMigrations, runCloudMigrations } from '../apps/api/src/migrations';
 import { createPostgresPoolFromUrl } from '../apps/api/src/postgres-pool';
+import type { CloudEnvironment } from '../apps/api/src/config';
 
 async function migrate(): Promise<void> {
   const connectionString = process.env.CAREEROPS_MIGRATION_DATABASE_URL;
@@ -9,8 +9,12 @@ async function migrate(): Promise<void> {
     throw new Error('CAREEROPS_MIGRATION_DATABASE_URL is required for schema migrations');
   }
 
-  const nodeEnvironment =
-    process.env.NODE_ENV === 'production' ? 'production' : process.env.NODE_ENV === 'test' ? 'test' : 'development';
+  const nodeEnvironment: CloudEnvironment['NODE_ENV'] =
+    process.env.NODE_ENV === 'production'
+      ? 'production'
+      : process.env.NODE_ENV === 'test'
+        ? 'test'
+        : 'development';
   const pool = createPostgresPoolFromUrl(connectionString, nodeEnvironment, 1);
 
   try {
