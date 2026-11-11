@@ -126,21 +126,25 @@ export class PiiVault {
       typeof this.storage.encryptStringAsync !== 'function' ||
       typeof this.storage.decryptStringAsync !== 'function'
     ) {
-      throw new Error('OS-backed encryption is unavailable. PII remains locked; no fallback is permitted.');
+      throw new Error(
+        'OS-backed encryption is unavailable. PII remains locked; no fallback is permitted.'
+      );
     }
 
     if (process.platform === 'linux') {
       const backend = this.storage.getSelectedStorageBackend?.() || 'unknown';
       if (backend === 'unknown' || backend === 'basic_text') {
         throw new Error(
-          'Secure Linux keyring is unavailable. Configure GNOME Keyring or KDE Wallet before accessing encrypted PII.'
+          'Secure Linux keyring is unavailable. Configure GNOME Keyring or KDE Wallet before ' +
+            'accessing encrypted PII.'
         );
       }
     }
 
     if (!(await this.storage.isAsyncEncryptionAvailable())) {
       throw new Error(
-        'OS-backed encryption is unavailable or locked. Unlock the system keyring before accessing encrypted PII.'
+        'OS-backed encryption is unavailable or locked. Unlock the system keyring before ' +
+          'accessing encrypted PII.'
       );
     }
   }
@@ -152,7 +156,9 @@ export class PiiVault {
     if (fs.existsSync(this.keyPath)) {
       const keyStat = await fs.promises.lstat(this.keyPath);
       if (!keyStat.isFile() || keyStat.isSymbolicLink() || keyStat.size > 4096) {
-        throw new Error('PII vault key metadata is not a valid regular file. Data was not overwritten.');
+        throw new Error(
+          'PII vault key metadata is not a valid regular file. Data was not overwritten.'
+        );
       }
       const raw = await fs.promises.readFile(this.keyPath, 'utf8');
       let record: { version?: unknown; data?: unknown };
@@ -180,7 +186,8 @@ export class PiiVault {
 
     if (await this.hasExistingEncryptedRecords()) {
       throw new Error(
-        'PII vault master key is missing while encrypted records exist. Data was preserved; restore the key from backup.'
+        'PII vault master key is missing while encrypted records exist. Data was preserved; ' +
+          'restore the key from backup.'
       );
     }
 
