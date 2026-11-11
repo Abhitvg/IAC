@@ -85,10 +85,7 @@ export class PiiVault {
     }
     const realParent = await fs.promises.realpath(parentPath);
     const realDirectory = await fs.promises.realpath(directoryPath);
-    if (
-      realDirectory !== realParent &&
-      !realDirectory.startsWith(realParent + path.sep)
-    ) {
+    if (realDirectory !== realParent && !realDirectory.startsWith(realParent + path.sep)) {
       throw new Error('PII vault directory resolves outside its storage boundary.');
     }
   }
