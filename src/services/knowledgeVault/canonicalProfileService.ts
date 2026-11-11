@@ -57,14 +57,21 @@ export class CanonicalProfileService {
   private getSecurePersistenceApi() {
     if (typeof window === 'undefined') return null;
     const api = window.electronAPI;
+    const securePersistenceGet = api?.securePersistenceGet;
+    const securePersistenceSet = api?.securePersistenceSet;
+    const securePersistenceRemove = api?.securePersistenceRemove;
     if (
-      typeof api?.securePersistenceGet !== 'function' ||
-      typeof api.securePersistenceSet !== 'function' ||
-      typeof api.securePersistenceRemove !== 'function'
+      typeof securePersistenceGet !== 'function' ||
+      typeof securePersistenceSet !== 'function' ||
+      typeof securePersistenceRemove !== 'function'
     ) {
       return null;
     }
-    return api;
+    return {
+      securePersistenceGet: securePersistenceGet.bind(api),
+      securePersistenceSet: securePersistenceSet.bind(api),
+      securePersistenceRemove: securePersistenceRemove.bind(api),
+    };
   }
 
   private async initializeEncryptedPersistence(): Promise<boolean> {
@@ -100,7 +107,8 @@ export class CanonicalProfileService {
         }
 
         const written = await api.securePersistenceSet('candidate-profile', legacyValue);
-        if (written !== true) throw new Error('Encrypted candidate profile migration was not committed.');
+        if (written !== true)
+          throw new Error('Encrypted candidate profile migration was not committed.');
         const verified = await api.securePersistenceGet('candidate-profile');
         if (verified !== legacyValue) {
           throw new Error('Encrypted candidate profile migration verification failed.');
@@ -132,7 +140,8 @@ export class CanonicalProfileService {
         this.persistenceQueue = Promise.resolve(true);
         return true;
       } catch (error) {
-        this.persistenceError = error instanceof Error ? error.message : 'Local persistence failed.';
+        this.persistenceError =
+          error instanceof Error ? error.message : 'Local persistence failed.';
         this.persistenceQueue = Promise.resolve(false);
         return false;
       }
@@ -149,7 +158,9 @@ export class CanonicalProfileService {
         return true;
       } catch (error) {
         this.persistenceError =
-          error instanceof Error ? error.message : 'Encrypted candidate profile persistence failed.';
+          error instanceof Error
+            ? error.message
+            : 'Encrypted candidate profile persistence failed.';
         console.error('[CanonicalProfileService] Encrypted profile save failed:', error);
         return false;
       }
