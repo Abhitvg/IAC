@@ -71,6 +71,19 @@ jobs:
           }
           NODE
 
+      - name: TEMP format and upload CareerOps audit documents
+        if: matrix.os == 'ubuntu-24.04' && github.event_name == 'pull_request' && github.event.pull_request.number == 196
+        run: npx prettier --write docs/architecture.md docs/audit.md
+      - name: TEMP upload formatted audit documents
+        if: matrix.os == 'ubuntu-24.04' && github.event_name == 'pull_request' && github.event.pull_request.number == 196
+        uses: actions/upload-artifact@v4
+        with:
+          name: careerops-formatted-audit-docs
+          path: |
+            docs/architecture.md
+            docs/audit.md
+          if-no-files-found: error
+
       - name: Check formatting for changed files
         shell: bash
         run: |
