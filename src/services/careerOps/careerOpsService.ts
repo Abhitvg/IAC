@@ -23,16 +23,40 @@ export function evaluateJobHeuristically(
 
   // Common high-frequency tech terms
   const techKeywords = [
-    'java', 'spring', 'python', 'typescript', 'javascript', 'react', 'node', 'aws',
-    'docker', 'kubernetes', 'kafka', 'sql', 'nosql', 'postgresql', 'mongodb', 'microservices',
-    'system design', 'distributed systems', 'ci/cd', 'linux', 'git', 'testing', 'graphql', 'rest'
+    'java',
+    'spring',
+    'python',
+    'typescript',
+    'javascript',
+    'react',
+    'node',
+    'aws',
+    'docker',
+    'kubernetes',
+    'kafka',
+    'sql',
+    'nosql',
+    'postgresql',
+    'mongodb',
+    'microservices',
+    'system design',
+    'distributed systems',
+    'ci/cd',
+    'linux',
+    'git',
+    'testing',
+    'graphql',
+    'rest',
   ];
 
   const jdTechMatches = techKeywords.filter((k) => jdLower.includes(k));
   const matchedInResume = jdTechMatches.filter((k) => resumeLower.includes(k));
   const missingTech = jdTechMatches.filter((k) => !resumeLower.includes(k));
 
-  const roleTokens = roleTitle.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+  const roleTokens = roleTitle
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 3);
   const roleMatches = roleTokens.filter((token) => resumeLower.includes(token));
   const roleRatio = roleTokens.length > 0 ? roleMatches.length / roleTokens.length : 0.4;
 
@@ -72,12 +96,15 @@ export function evaluateJobHeuristically(
   // Check work authorization signals
   let workAuthAlert: string | undefined;
   if (/no sponsorship|must be us citizen|security clearance required|no c2c/i.test(jdLower)) {
-    workAuthAlert = '⚠️ Strict Work-Authorization Alert: Posting specifies no visa sponsorship or clearance required.';
+    workAuthAlert =
+      '⚠️ Strict Work-Authorization Alert: Posting specifies no visa sponsorship or clearance required.';
   }
 
   // Estimate compensation from text if numbers present
   let estimatedRange = 'Not disclosed in the job description';
-  const salaryMatch = jdText.match(/\$[0-9]{2,3}(?:,[0-9]{3})*(?:\s*-\s*\$[0-9]{2,3}(?:,[0-9]{3})*)?/);
+  const salaryMatch = jdText.match(
+    /\$[0-9]{2,3}(?:,[0-9]{3})*(?:\s*-\s*\$[0-9]{2,3}(?:,[0-9]{3})*)?/
+  );
   if (salaryMatch) {
     estimatedRange = `${salaryMatch[0]} (Extracted from JD)`;
   }
@@ -96,8 +123,12 @@ export function evaluateJobHeuristically(
     weightedRequirements,
     levelStrategy:
       'Use only the seniority, ownership, and delivery evidence explicitly supported by the source resume; do not infer level from keyword overlap.',
-    identifiedGaps: missingTech.length > 0 ? missingTech.map((t) => `Missing direct reference to ${t.toUpperCase()}`) : ['No critical architectural gaps identified.'],
-    strategicAngle: 'Choose a verified resume example that directly addresses the highest-priority requirement in this job description.',
+    identifiedGaps:
+      missingTech.length > 0
+        ? missingTech.map((t) => `Missing direct reference to ${t.toUpperCase()}`)
+        : ['No critical architectural gaps identified.'],
+    strategicAngle:
+      'Choose a verified resume example that directly addresses the highest-priority requirement in this job description.',
     compensationEstimate: {
       estimatedRange,
       analysis: 'No independent market benchmark is calculated in offline heuristic mode.',
@@ -187,11 +218,14 @@ OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or preamble,
         model: targetModel,
         temperature: 0.1,
         maxTokens: 2000,
-        systemPrompt: 'You are an expert technical recruiter and career strategist. You return only valid, well-formed JSON.',
+        systemPrompt:
+          'You are an expert technical recruiter and career strategist. You return only valid, well-formed JSON.',
       },
       'javascript',
       {
-        onToken: (tok) => { fullResponse += tok; },
+        onToken: (tok) => {
+          fullResponse += tok;
+        },
         onSentence: () => {},
         onComplete: () => {},
         onError: () => {},
@@ -267,22 +301,25 @@ function escapeLatexText(value: string): string {
     '{': '\\{',
     '}': '\\}',
     '%': '\\%',
-    '$': '\\$',
+    $: '\\$',
     '&': '\\&',
     '#': '\\#',
-    '_': '\\_',
+    _: '\\_',
     '~': '\\textasciitilde{}',
     '^': '\\textasciicircum{}',
   };
   return Array.from(value, (character) => replacements[character] ?? character).join('');
 }
 
-function buildSourceResumeLatex(resumeText: string, roleTitle: string, companyName: string): string {
+function buildSourceResumeLatex(
+  resumeText: string,
+  roleTitle: string,
+  companyName: string
+): string {
   const source = resumeText.trim()
     ? escapeLatexText(resumeText.trim()).split(/\r?\n/).join('\\\\\n')
     : 'No source resume supplied. Add a verified resume before generating a tailored version.';
-  return SB2NOV_LATEX_TEMPLATE
-    .replace(/{{TARGET_ROLE}}/g, escapeLatexText(roleTitle))
+  return SB2NOV_LATEX_TEMPLATE.replace(/{{TARGET_ROLE}}/g, escapeLatexText(roleTitle))
     .replace(/{{COMPANY_NAME}}/g, escapeLatexText(companyName))
     .replace('{{SOURCE_RESUME}}', source);
 }
@@ -344,31 +381,33 @@ STRICT LATEX REQUIREMENTS (sb2nov/resume standard):
       model: targetModel,
       temperature: 0.2,
       maxTokens: 2500,
-      systemPrompt: 'You are an elite LaTeX resume architect who outputs 100% valid compilable sb2nov LaTeX resumes with zero preamble or markdown wrapping.',
+      systemPrompt:
+        'You are an elite LaTeX resume architect who outputs 100% valid compilable sb2nov LaTeX resumes with zero preamble or markdown wrapping.',
     },
     'javascript',
     {
-      onToken: (tok) => { full += tok; },
+      onToken: (tok) => {
+        full += tok;
+      },
       onSentence: () => {},
       onComplete: () => {},
       onError: () => {},
     }
   );
 
-  return full || SB2NOV_LATEX_TEMPLATE.replace(/{{TARGET_ROLE}}/g, roleTitle).replace(/{{COMPANY_NAME}}/g, companyName);
+  return (
+    full ||
+    SB2NOV_LATEX_TEMPLATE.replace(/{{TARGET_ROLE}}/g, roleTitle).replace(
+      /{{COMPANY_NAME}}/g,
+      companyName
+    )
+  );
 }
 
 export type CoverLetterAngle =
-  | 'problem_solver'
-  | 'technical_depth'
-  | 'fast_impact'
-  | 'cultural_alignment';
+  'problem_solver' | 'technical_depth' | 'fast_impact' | 'cultural_alignment';
 
-export type CoverLetterExperienceLevel =
-  | 'senior'
-  | 'mid'
-  | 'entry'
-  | 'career_switcher';
+export type CoverLetterExperienceLevel = 'senior' | 'mid' | 'entry' | 'career_switcher';
 
 /**
  * Generates high-impact Software Engineer Cover Letters adhering to the
@@ -389,17 +428,23 @@ export async function generateCoverLetter(
   providerConfig?: ProviderConfig
 ): Promise<string> {
   const angleDescriptions: Record<CoverLetterAngle, string> = {
-    problem_solver: 'Focuses directly on a critical high-stakes engineering challenge the company faces and how candidate solves it.',
-    technical_depth: 'Focuses deeply on architectural mastery, code quality, and distributed systems design.',
+    problem_solver:
+      'Focuses directly on a critical high-stakes engineering challenge the company faces and how candidate solves it.',
+    technical_depth:
+      'Focuses deeply on architectural mastery, code quality, and distributed systems design.',
     fast_impact: 'Focuses on rapid 30-60-90 day value acceleration and immediate team velocity.',
-    cultural_alignment: 'Focuses on passion for the mission, product excellence, and collaborative ownership.',
+    cultural_alignment:
+      'Focuses on passion for the mission, product excellence, and collaborative ownership.',
   };
 
   const levelDescriptions: Record<CoverLetterExperienceLevel, string> = {
-    senior: 'Senior / Staff Engineer: emphasizes systems architecture, mentoring, 50k+ QPS scale, and cross-functional leadership.',
+    senior:
+      'Senior / Staff Engineer: emphasizes systems architecture, mentoring, 50k+ QPS scale, and cross-functional leadership.',
     mid: 'Full-Stack / Backend Engineer: emphasizes end-to-end feature delivery, clean REST/gRPC API design, and automated test coverage.',
-    entry: 'New Graduate / Entry-Level Engineer: emphasizes core computer science foundations, hackathon/capstone achievements, and internship impact (27% bug reduction).',
-    career_switcher: 'Career Switcher / Bootcamp Graduate: emphasizes rapid technical immersion, shipped full-stack applications, and translating domain problem-solving into software engineering.',
+    entry:
+      'New Graduate / Entry-Level Engineer: emphasizes core computer science foundations, hackathon/capstone achievements, and internship impact (27% bug reduction).',
+    career_switcher:
+      'Career Switcher / Bootcamp Graduate: emphasizes rapid technical immersion, shipped full-stack applications, and translating domain problem-solving into software engineering.',
   };
 
   const prompt = `Write an exceptional, compelling 4-paragraph Software Engineering Cover Letter for the role of "${roleTitle}" at "${companyName}".
@@ -473,11 +518,14 @@ Sincerely,
       model: coverLetterModel,
       temperature: 0.3,
       maxTokens: 1000,
-      systemPrompt: 'You write sharp, authentic, senior-level software engineering cover letters that hiring managers actually enjoy reading, adhering to Indeed and Intuit industry best practices.',
+      systemPrompt:
+        'You write sharp, authentic, senior-level software engineering cover letters that hiring managers actually enjoy reading, adhering to Indeed and Intuit industry best practices.',
     },
     'javascript',
     {
-      onToken: (tok) => { full += tok; },
+      onToken: (tok) => {
+        full += tok;
+      },
       onSentence: () => {},
       onComplete: () => {},
       onError: () => {},
@@ -502,9 +550,17 @@ export async function generateOutreachNotes(
   coldEmailBody: string;
 }> {
   // Always provide high-conversion deterministic drafts <= 300 chars
-  const linkedinRecruiter = `Hi! I saw the ${roleTitle} opening at ${companyName} and submitted my application. With background in ${strategicAngle}, I'd love to connect and see if my background aligns with what your team needs this quarter. Thanks!`.slice(0, 298);
+  const linkedinRecruiter =
+    `Hi! I saw the ${roleTitle} opening at ${companyName} and submitted my application. With background in ${strategicAngle}, I'd love to connect and see if my background aligns with what your team needs this quarter. Thanks!`.slice(
+      0,
+      298
+    );
 
-  const linkedinHiringManager = `Hi! Noticed you're leading the team for the ${roleTitle} role at ${companyName}. Having built equivalent ${strategicAngle} systems, I just applied and would love to follow your team's engineering updates. Best regards!`.slice(0, 298);
+  const linkedinHiringManager =
+    `Hi! Noticed you're leading the team for the ${roleTitle} role at ${companyName}. Having built equivalent ${strategicAngle} systems, I just applied and would love to follow your team's engineering updates. Best regards!`.slice(
+      0,
+      298
+    );
 
   const coldEmailSubject = `Application: ${roleTitle} — High-Reliability Systems Background`;
   const coldEmailBody = `Hi ${companyName} Team,

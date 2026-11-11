@@ -88,12 +88,7 @@ Systems Engineer. No sponsorship available. Must be US Citizen with active Secre
 Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 `;
 
-      const report = evaluateJobHeuristically(
-        compJd,
-        sampleResume,
-        'Staff Engineer',
-        'FintechCo'
-      );
+      const report = evaluateJobHeuristically(compJd, sampleResume, 'Staff Engineer', 'FintechCo');
 
       expect(report.compensationEstimate.estimatedRange).toContain('$180,000');
     });
@@ -227,7 +222,9 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       // Test status update
       store.updateJob(newId, { status: 'interviewing' });
-      expect(useCareerOpsStore.getState().applications.find((a) => a.id === newId)?.status).toBe('interviewing');
+      expect(useCareerOpsStore.getState().applications.find((a) => a.id === newId)?.status).toBe(
+        'interviewing'
+      );
 
       // Test stats calculation
       const stats = useCareerOpsStore.getState().stats;
