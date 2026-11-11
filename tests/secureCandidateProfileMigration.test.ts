@@ -40,9 +40,7 @@ describe('Canonical candidate profile encrypted persistence', () => {
     vi.restoreAllMocks();
   });
 
-  it(
-    'migrates legacy plaintext only after encrypted write and read-back verification',
-    async () => {
+  it('migrates legacy plaintext only after encrypted write and read-back verification', async () => {
       const profile = createDefaultCanonicalProfile();
       profile.identity.fullName = 'Candidate Profile Test';
       const legacy = JSON.stringify(profile);
@@ -64,9 +62,7 @@ describe('Canonical candidate profile encrypted persistence', () => {
     }
   );
 
-  it(
-    'preserves plaintext and refuses to fall back when an encrypted record cannot be decrypted',
-    async () => {
+  it('preserves plaintext and refuses to fall back when an encrypted record cannot be decrypted', async () => {
       const profile = createDefaultCanonicalProfile();
       profile.identity.fullName = 'Legacy Candidate';
       const legacy = JSON.stringify(profile);
@@ -97,9 +93,7 @@ describe('Canonical candidate profile encrypted persistence', () => {
     expect(service.getPersistenceError()).toContain('JSON');
   });
 
-  it(
-    'writes profile updates through encrypted storage and verifies the committed value',
-    async () => {
+  it('writes profile updates through encrypted storage and verifies the committed value', async () => {
       const service = CanonicalProfileService.getInstance();
       await expect(service.ready()).resolves.toBe(true);
 
