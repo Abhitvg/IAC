@@ -1,9 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { AlertCircle, Briefcase, Clock3, Plus, Radar, RefreshCw, Trash2 } from 'lucide-react';
 import { useCareerOpsStore } from '../../store/useCareerOpsStore';
-
-const AUTO_SCAN_INTERVAL_MS = 12 * 60 * 60 * 1000;
-const TIMER_POLL_INTERVAL_MS = 30 * 60 * 1000;
 
 export function CareerDiscoveryPanel() {
   const {
@@ -22,23 +19,6 @@ export function CareerDiscoveryPanel() {
   const [keywords, setKeywords] = useState('');
   const [message, setMessage] = useState('');
   const [lastResult, setLastResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
-
-  useEffect(() => {
-    const scanIfDue = () => {
-      const due = sources.some(
-        (source) =>
-          source.enabled &&
-          (!source.lastCheckedAt || Date.now() - source.lastCheckedAt >= AUTO_SCAN_INTERVAL_MS)
-      );
-      if (due && !isDiscovering) {
-        void discoverJobsFromSources();
-      }
-    };
-
-    scanIfDue();
-    const timer = window.setInterval(scanIfDue, TIMER_POLL_INTERVAL_MS);
-    return () => window.clearInterval(timer);
-  }, [sources, isDiscovering, discoverJobsFromSources]);
 
   const handleAddSource = (event: React.FormEvent) => {
     event.preventDefault();
@@ -105,7 +85,7 @@ export function CareerDiscoveryPanel() {
         <div style={{ flex: 1 }}>
           <h3 style={{ margin: 0, color: '#f8fafc', fontSize: 16, fontWeight: 800 }}>Job Discovery Automation</h3>
           <p style={{ margin: '5px 0 0', color: '#94a3b8', fontSize: 12, lineHeight: 1.6 }}>
-            Add public company career pages or ATS boards. CareerOps checks enabled sources every 12 hours while the app is open, imports new postings, and deduplicates by URL. It never applies automatically.
+            Add public company career pages or ATS boards. CareerOps checks enabled sources every 12 hours while CareerOps is open, imports new postings, and deduplicates by URL. It never applies automatically.
           </p>
         </div>
         <button type="button" onClick={handleScan} disabled={isDiscovering || sources.every((source) => !source.enabled)} style={{ ...buttonStyle, background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 0, opacity: isDiscovering ? 0.6 : 1 }}>
