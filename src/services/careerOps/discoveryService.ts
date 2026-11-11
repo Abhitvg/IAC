@@ -49,7 +49,7 @@ function decodeHtml(value: string): string {
 export function extractCareerPageJobLinks(
   html: string,
   sourceUrl: string,
-  limit = 20
+  limit = 10
 ): Array<{ url: string; titleHint: string }> {
   const links: Array<{ url: string; titleHint: string }> = [];
   const seen = new Set<string>();
@@ -131,7 +131,7 @@ export async function discoverJobsFromCareerPage(
     throw new Error('Career page did not return HTML.');
   }
 
-  const links = extractCareerPageJobLinks(page.body, sourceUrl, 20);
+  const links = extractCareerPageJobLinks(page.body, sourceUrl, 10);
   const jobs: DiscoveredJob[] = [];
   const errors: string[] = [];
   let skipped = 0;
