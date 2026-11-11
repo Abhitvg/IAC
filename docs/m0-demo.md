@@ -25,7 +25,7 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 
 1. Call `GET /health/live`; expect 200 without credentials.
 2. Call `GET /v1/me` without a bearer token; expect 401.
-3. Call `GET /v1/me` with a correctly signed token; the tenant ID returned must come from server-side membership lookup, not a JWT tenant claim.
+3. Call `GET /v1/me` with a valid RS256 OIDC access token; the tenant ID returned must come from server-side membership lookup, not a JWT tenant claim.
 4. Call `GET /v1/controls`; expect the tenant's global kill switch to be enabled by default.
 5. Attempt a control update with an invalid body; expect 400 and no state change.
 6. Exercise the domain policy with the kill switch enabled; any action authorization must fail closed.
@@ -34,7 +34,7 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 
 ## Tests
 
-- Signed JWT verification: signature, issuer, audience, expiry and malformed token.
+- OIDC RS256/JWKS verification: signature, issuer, audience, expiry, key rotation and malformed token.
 - Tenant membership resolution: no membership and ambiguous membership fail closed.
 - Sprint Contract validation: schema bounds and outreach consent.
 - Kill switch/channel pause/cap enforcement.
