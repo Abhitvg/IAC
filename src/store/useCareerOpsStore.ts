@@ -264,9 +264,9 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
         company: jobData.company || 'New Company',
         role: jobData.role || 'Software Engineer',
         url: jobData.url || '',
-        salaryRange: jobData.salaryRange || 'Pending Evaluation',
-        location: jobData.location || 'Remote',
-        workType: jobData.workType || 'remote',
+        salaryRange: jobData.salaryRange || 'Not disclosed',
+        location: jobData.location || 'Not specified',
+        workType: jobData.workType,
         status: jobData.status || 'scouted',
         score: jobData.score !== undefined ? jobData.score : null,
         recommendation:
