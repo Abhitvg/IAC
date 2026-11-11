@@ -1,5 +1,6 @@
 import { appendAuditEvent, type AuditRecord } from '../../../packages/cloud-core/src/audit';
 import type { CloudApiRepository } from './ports';
+import type { ConsentRecord } from '../../../packages/cloud-core/src/contract';
 import type {
   TenantMembership,
   TenantMembershipRepository,
@@ -228,4 +229,132 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
       );
     });
   }
+
+  async acceptSprintContract(record: ConsentRecord): Promise<{ id: string; revision: number }> {
+    return inTransaction(this.pool, record.subject, record.tenantId, async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [record.tenantId]);
+      const latest = await client.query<{ next_revision: number }>(
+        `SELECT COALESCE(MAX(revision), 0) + 1 AS next_revision
+           FROM sprint_contracts WHERE tenant_id = $1`,
+        [record.tenantId]
+      );
+      const revision = Number(latest.rows[0]?.next_revision ?? 1);
+      const inserted = await client.query<{ id: string }>(
+        `INSERT INTO sprint_contracts
+          (tenant_id, version, revision, contract_json, contract_hash, accepted_by,
+           accepted_at, signature, revoked_at)
+         VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, NULL)
+         RETURNING id`,
+        [
+          record.tenantId,
+          record.contract.version,
+          revision,
+          JSON.stringify(record.contract),
+          record.contractHash,
+          record.subject,
+          record.acceptedAt,
+          record.signature,
+        ]
+      );
+      const id = inserted.rows[0]?.id;
+      if (!id) throw new Error('Sprint Contract insert did not return an ID');
+      const previous = await client.query<{ event_hash: string }>(
+        `SELECT event_hash FROM audit_events WHERE tenant_id = $1
+          ORDER BY sequence_id DESC LIMIT 1`,
+        [record.tenantId]
+      );
+      await appendAuditEvent({
+        append: async (event: AuditRecord) => {
+          await client.query(
+            `INSERT INTO audit_events
+              (tenant_id, actor_subject, action, entity_type, entity_id, occurred_at,
+               metadata, previous_hash, event_hash)
+             VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
+            [event.tenantId, event.actorSubject, event.action, event.entityType, event.entityId,
+             event.occurredAt, JSON.stringify(event.metadata ?? {}), event.previousHash, event.eventHash]
+          );
+        },
+      }, {
+        tenantId: record.tenantId,
+        actorSubject: record.subject,
+        action: 'sprint_contract.accepted',
+        entityType: 'sprint_contract',
+        entityId: id,
+        occurredAt: record.acceptedAt,
+        metadata: { revision, contractHash: record.contractHash },
+      }, previous.rows[0]?.event_hash ?? null);
+      return { id, revision };
+    });
+  }
+
+  async getActiveSprintContract(tenantId: string): Promise<(ConsentRecord & { id: string; revision: number }) | null> {
+    return inTransaction(this.pool, 'system:api', tenantId, async (client) => {
+      const result = await client.query<{
+        id: string; revision: number; tenant_id: string; contract_json: ConsentRecord['contract'];
+        contract_hash: string; accepted_by: string; accepted_at: Date | string;
+        signature: string; revoked_at: Date | string | null;
+      }>(
+        `SELECT id, revision, tenant_id, contract_json, contract_hash, accepted_by,
+                accepted_at, signature, revoked_at
+           FROM sprint_contracts
+          WHERE tenant_id = $1 AND revoked_at IS NULL
+          ORDER BY revision DESC LIMIT 1`,
+        [tenantId]
+      );
+      const row = result.rows[0];
+      if (!row) return null;
+      return {
+        id: row.id,
+        revision: Number(row.revision),
+        tenantId: row.tenant_id,
+        subject: row.accepted_by,
+        contract: row.contract_json,
+        contractHash: row.contract_hash,
+        acceptedAt: new Date(row.accepted_at).toISOString(),
+        signature: row.signature,
+        revokedAt: row.revoked_at ? new Date(row.revoked_at).toISOString() : null,
+      };
+    });
+  }
+
+  async revokeSprintContract(input: {
+    tenantId: string; subject: string; contractId: string; revokedAt: string;
+    metadata: Record<string, string | boolean>;
+  }): Promise<void> {
+    await inTransaction(this.pool, input.subject, input.tenantId, async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [input.tenantId]);
+      const updated = await client.query(
+        `UPDATE sprint_contracts SET revoked_at = $4
+          WHERE tenant_id = $1 AND accepted_by = $2 AND id = $3 AND revoked_at IS NULL`,
+        [input.tenantId, input.subject, input.contractId, input.revokedAt]
+      );
+      if (updated.rowCount !== 1) throw new Error('Active Sprint Contract not found');
+      const previous = await client.query<{ event_hash: string }>(
+        `SELECT event_hash FROM audit_events WHERE tenant_id = $1
+          ORDER BY sequence_id DESC LIMIT 1`,
+        [input.tenantId]
+      );
+      await appendAuditEvent({
+        append: async (event: AuditRecord) => {
+          await client.query(
+            `INSERT INTO audit_events
+              (tenant_id, actor_subject, action, entity_type, entity_id, occurred_at,
+               metadata, previous_hash, event_hash)
+             VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
+            [event.tenantId, event.actorSubject, event.action, event.entityType, event.entityId,
+             event.occurredAt, JSON.stringify(event.metadata ?? {}), event.previousHash, event.eventHash]
+          );
+        },
+      }, {
+        tenantId: input.tenantId,
+        actorSubject: input.subject,
+        action: 'sprint_contract.revoked',
+        entityType: 'sprint_contract',
+        entityId: input.contractId,
+        occurredAt: input.revokedAt,
+        metadata: input.metadata,
+      }, previous.rows[0]?.event_hash ?? null);
+    });
+  }
+
 }
