@@ -33,9 +33,13 @@ export class CanonicalProfileService {
   private currentProfile: CanonicalCandidateProfile;
   private listeners: Array<(profile: CanonicalCandidateProfile) => void> = [];
   private isSyncing = false;
+  private persistenceReady: Promise<boolean>;
+  private persistenceQueue: Promise<boolean> = Promise.resolve(true);
+  private persistenceError: string | null = null;
 
   private constructor() {
     this.currentProfile = this.loadFromStorage();
+    this.persistenceReady = this.initializeEncryptedPersistence();
     this.setupBidirectionalListeners();
   }
 
@@ -48,6 +52,142 @@ export class CanonicalProfileService {
 
   public getProfile(): CanonicalCandidateProfile {
     return this.currentProfile;
+  }
+
+  private getSecurePersistenceApi() {
+    if (typeof window === 'undefined') return null;
+    const api = window.electronAPI;
+    if (
+      typeof api?.securePersistenceGet !== 'function' ||
+      typeof api.securePersistenceSet !== 'function' ||
+      typeof api.securePersistenceRemove !== 'function'
+    ) {
+      return null;
+    }
+    return api;
+  }
+
+  private async initializeEncryptedPersistence(): Promise<boolean> {
+    const api = this.getSecurePersistenceApi();
+    if (!api) return true;
+
+    try {
+      const encryptedValue = await api.securePersistenceGet('candidate-profile');
+      if (encryptedValue !== null) {
+        const parsed = JSON.parse(encryptedValue);
+        const validation = validateCanonicalProfile(parsed);
+        if (!validation.success) {
+          throw new Error('Encrypted candidate profile failed schema validation.');
+        }
+        this.currentProfile = validation.profile;
+
+        // Remove a stale plaintext copy only after the encrypted source has been
+        // decrypted and validated successfully.
+        if (typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY) !== null) {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+        this.notify();
+        return true;
+      }
+
+      const legacyValue =
+        typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+      if (legacyValue !== null) {
+        const parsed = JSON.parse(legacyValue);
+        const validation = validateCanonicalProfile(parsed);
+        if (!validation.success) {
+          throw new Error('Legacy candidate profile failed schema validation; source preserved.');
+        }
+
+        const written = await api.securePersistenceSet('candidate-profile', legacyValue);
+        if (written !== true) throw new Error('Encrypted candidate profile migration was not committed.');
+        const verified = await api.securePersistenceGet('candidate-profile');
+        if (verified !== legacyValue) {
+          throw new Error('Encrypted candidate profile migration verification failed.');
+        }
+
+        // The plaintext source is deleted only after durable encrypted read-back.
+        localStorage.removeItem(STORAGE_KEY);
+        this.currentProfile = validation.profile;
+        this.notify();
+      }
+      return true;
+    } catch (error) {
+      this.persistenceError =
+        error instanceof Error ? error.message : 'Secure candidate profile storage is unavailable.';
+      // Do not fall back to a plaintext copy when an encrypted record exists but
+      // cannot be decrypted or validated. Keep all on-disk sources untouched.
+      this.currentProfile = createDefaultCanonicalProfile();
+      this.notify();
+      console.error('[CanonicalProfileService] Secure persistence initialization failed:', error);
+      return false;
+    }
+  }
+
+  private queuePersistenceSnapshot(snapshot: string): void {
+    const api = this.getSecurePersistenceApi();
+    if (!api) {
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, snapshot);
+        this.persistenceQueue = Promise.resolve(true);
+      } catch (error) {
+        this.persistenceError = error instanceof Error ? error.message : 'Local persistence failed.';
+        this.persistenceQueue = Promise.resolve(false);
+      }
+      return;
+    }
+
+    this.persistenceQueue = this.persistenceQueue.then(async () => {
+      if (!(await this.persistenceReady)) return false;
+      try {
+        const saved = await api.securePersistenceSet('candidate-profile', snapshot);
+        if (saved !== true) throw new Error('Encrypted candidate profile write was not committed.');
+        const verified = await api.securePersistenceGet('candidate-profile');
+        if (verified !== snapshot) throw new Error('Encrypted candidate profile read-back failed.');
+        this.persistenceError = null;
+        return true;
+      } catch (error) {
+        this.persistenceError =
+          error instanceof Error ? error.message : 'Encrypted candidate profile persistence failed.';
+        console.error('[CanonicalProfileService] Encrypted profile save failed:', error);
+        return false;
+      }
+    });
+  }
+
+  public async ready(): Promise<boolean> {
+    return this.persistenceReady;
+  }
+
+  public async flushPendingPersistence(): Promise<boolean> {
+    if (!(await this.persistenceReady)) return false;
+    return this.persistenceQueue;
+  }
+
+  public getPersistenceError(): string | null {
+    return this.persistenceError;
+  }
+
+  public async clearAllCandidateDataSecure(
+    clearCandidateDocuments: () => boolean
+  ): Promise<{ success: boolean; failedStores: string[] }> {
+    if (!(await this.persistenceReady)) {
+      return { success: false, failedStores: ['canonical-profile-secure-storage'] };
+    }
+
+    const api = this.getSecurePersistenceApi();
+    if (api) {
+      try {
+        const removed = await api.securePersistenceRemove('candidate-profile');
+        if (removed !== true) throw new Error('Encrypted candidate profile was not removed.');
+        if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
+      } catch (error) {
+        console.error('[CanonicalProfileService] Secure profile reset failed:', error);
+        return { success: false, failedStores: ['canonical-profile'] };
+      }
+    }
+
+    return this.clearAllCandidateData(clearCandidateDocuments);
   }
 
   public subscribe(listener: (profile: CanonicalCandidateProfile) => void): () => void {
@@ -73,23 +213,12 @@ export class CanonicalProfileService {
       updatedAt: Date.now(),
     };
 
-    let savedSuccessfully = true;
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
-      } catch (e) {
-        savedSuccessfully = false;
-        console.error(
-          '[CanonicalProfileService] Failed to save profile to localStorage (quota or storage error):',
-          e
-        );
-      }
-    }
+    this.queuePersistenceSnapshot(JSON.stringify(this.currentProfile));
 
     // Bidirectional sync with legacy stores
     this.syncToSubsystems(this.currentProfile);
     this.notify();
-    return savedSuccessfully;
+    return true;
   }
 
   /**
@@ -807,13 +936,7 @@ export class CanonicalProfileService {
 
       if (changed) {
         this.currentProfile = updated;
-        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
-          } catch (e) {
-            console.error('[CanonicalProfileService] LocalStorage save error during sync:', e);
-          }
-        }
+        this.queuePersistenceSnapshot(JSON.stringify(this.currentProfile));
         this.notify();
       }
     } finally {
@@ -918,16 +1041,7 @@ export class CanonicalProfileService {
 
       if (changed) {
         this.currentProfile = updated;
-        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
-          } catch (e) {
-            console.error(
-              '[CanonicalProfileService] LocalStorage save error during CareerOps sync:',
-              e
-            );
-          }
-        }
+        this.queuePersistenceSnapshot(JSON.stringify(this.currentProfile));
         this.notify();
       }
     } finally {
