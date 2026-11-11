@@ -154,6 +154,10 @@ export class SecurePersistenceStore {
 
   private async writeAtomically(namespace: SecurePersistenceNamespace, envelope: Buffer): Promise<void> {
     await fs.promises.mkdir(this.rootPath, { recursive: true, mode: 0o700 });
+    await this.assertSafeStoragePath(namespace, true);
+    if (process.platform !== 'win32') {
+      await fs.promises.chmod(this.rootPath, 0o700);
+    }
     const target = this.getRecordPath(namespace);
     const temporary = path.join(this.rootPath, '.' + namespace + '.' + randomUUID() + '.tmp');
     await this.assertSafeStoragePath(namespace, true);
