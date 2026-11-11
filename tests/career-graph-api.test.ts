@@ -109,9 +109,7 @@ describe('Career Graph API routes', () => {
     return dependencies;
   }
 
-  it(
-    'binds fact creation to verified tenant and actor, rejecting client-supplied identity fields',
-    async () => {
+  it('binds fact creation to verified tenant and actor', async () => {
     const dependencies = await startServer();
     const headers = {
       authorization: 'Bearer test-token',
@@ -168,9 +166,7 @@ describe('Career Graph API routes', () => {
 
 
 describe('Postgres Career Graph repository', () => {
-  it(
-    'locks the fact key before allocating a version and commits its audit event atomically',
-    async () => {
+  it('locks fact version allocation and audits atomically', async () => {
     const statements: string[] = [];
     const client = {
       query: async (sql: string) => {
@@ -182,22 +178,24 @@ describe('Postgres Career Graph repository', () => {
         if (sql.includes('SELECT event_hash')) return { rows: [] };
         if (sql.includes('FROM career_graph_facts f')) {
           return {
-            rows: [{
-              id: factId,
-              tenant_id: tenantId,
-              fact_key: 'profile.current_role',
-              version: 1,
-              value_envelope: fact.valueEnvelope,
-              source_kind: 'user_input',
-              source_reference: null,
-              evidence_sha256: null,
-              created_by: subject,
-              created_at: '2026-11-11T00:00:00.000Z',
-              decision: null,
-              reason: null,
-              reviewed_by: null,
-              reviewed_at: null,
-            }],
+            rows: [
+              {
+                id: factId,
+                tenant_id: tenantId,
+                fact_key: 'profile.current_role',
+                version: 1,
+                value_envelope: fact.valueEnvelope,
+                source_kind: 'user_input',
+                source_reference: null,
+                evidence_sha256: null,
+                created_by: subject,
+                created_at: '2026-11-11T00:00:00.000Z',
+                decision: null,
+                reason: null,
+                reviewed_by: null,
+                reviewed_at: null,
+              },
+            ],
           };
         }
         return { rows: [], rowCount: 1 };
@@ -235,22 +233,24 @@ describe('Postgres Career Graph repository', () => {
         statements.push(sql);
         if (sql.includes('FROM career_graph_facts f')) {
           return {
-            rows: [{
-              id: factId,
-              tenant_id: tenantId,
-              fact_key: 'profile.current_role',
-              version: 1,
-              value_envelope: fact.valueEnvelope,
-              source_kind: 'user_input',
-              source_reference: null,
-              evidence_sha256: null,
-              created_by: 'another-user',
-              created_at: '2026-11-11T00:00:00.000Z',
-              decision: null,
-              reason: null,
-              reviewed_by: null,
-              reviewed_at: null,
-            }],
+            rows: [
+              {
+                id: factId,
+                tenant_id: tenantId,
+                fact_key: 'profile.current_role',
+                version: 1,
+                value_envelope: fact.valueEnvelope,
+                source_kind: 'user_input',
+                source_reference: null,
+                evidence_sha256: null,
+                created_by: 'another-user',
+                created_at: '2026-11-11T00:00:00.000Z',
+                decision: null,
+                reason: null,
+                reviewed_by: null,
+                reviewed_at: null,
+              },
+            ],
           };
         }
         return { rows: [], rowCount: 1 };
