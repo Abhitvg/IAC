@@ -1,4 +1,9 @@
-import { createHmac, createPublicKey, timingSafeEqual, verify as verifySignature } from 'node:crypto';
+import {
+  createHmac,
+  createPublicKey,
+  timingSafeEqual,
+  verify as verifySignature,
+} from 'node:crypto';
 
 export interface VerifiedIdentity {
   subject: string;
@@ -99,7 +104,6 @@ export function readBearerToken(header: string | undefined): string {
   return header.slice(7);
 }
 
-
 export interface OidcJwksConfig {
   issuer: string;
   audience: string;
@@ -131,10 +135,14 @@ export class OidcJwksVerifier {
     this.jwksUrl = url;
   }
 
-  async verify(token: string, nowSeconds = Math.floor(Date.now() / 1000)): Promise<VerifiedIdentity> {
+  async verify(
+    token: string,
+    nowSeconds = Math.floor(Date.now() / 1000)
+  ): Promise<VerifiedIdentity> {
     if (typeof token !== 'string' || token.length > 8192) throw new Error('Invalid access token');
     const segments = token.split('.');
-    if (segments.length !== 3 || segments.some((part) => !part)) throw new Error('Malformed access token');
+    if (segments.length !== 3 || segments.some((part) => !part))
+      throw new Error('Malformed access token');
     const header = decodeSegment(segments[0]);
     const claims = decodeSegment(segments[1]);
     if (
@@ -144,19 +152,28 @@ export class OidcJwksVerifier {
       header.kid.length < 1 ||
       header.kid.length > 200 ||
       header.crit !== undefined
-    ) throw new Error('Unsupported OIDC access token header');
+    )
+      throw new Error('Unsupported OIDC access token header');
 
     let jwk = await this.findSigningKey(header.kid);
     if (!jwk && Date.now() - this.lastJwksFetchAt >= 30_000) {
       jwk = await this.findSigningKey(header.kid, true);
     }
-    if (!jwk || jwk.kty !== 'RSA' || (jwk.use && jwk.use !== 'sig') ||
-        (jwk.alg && jwk.alg !== 'RS256') || (jwk.key_ops && !jwk.key_ops.includes('verify'))) {
+    if (
+      !jwk ||
+      jwk.kty !== 'RSA' ||
+      (jwk.use && jwk.use !== 'sig') ||
+      (jwk.alg && jwk.alg !== 'RS256') ||
+      (jwk.key_ops && !jwk.key_ops.includes('verify'))
+    ) {
       throw new Error('No valid OIDC signing key found');
     }
 
     const publicKey = createPublicKey({ key: jwk, format: 'jwk' });
-    if (publicKey.asymmetricKeyType !== 'rsa' || (publicKey.asymmetricKeyDetails?.modulusLength ?? 0) < 2048) {
+    if (
+      publicKey.asymmetricKeyType !== 'rsa' ||
+      (publicKey.asymmetricKeyDetails?.modulusLength ?? 0) < 2048
+    ) {
       throw new Error('OIDC signing key must be RSA-2048 or stronger');
     }
     const signature = Buffer.from(segments[2], 'base64url');
@@ -173,17 +190,24 @@ export class OidcJwksVerifier {
     const nbf = claims.nbf;
     const iat = claims.iat;
     if (
-      typeof claims.sub !== 'string' || claims.sub.length < 1 || claims.sub.length > 255 ||
+      typeof claims.sub !== 'string' ||
+      claims.sub.length < 1 ||
+      claims.sub.length > 255 ||
       claims.iss !== this.config.issuer ||
-      !Number.isInteger(exp) || (exp as number) <= nowSeconds - tolerance ||
+      !Number.isInteger(exp) ||
+      (exp as number) <= nowSeconds - tolerance ||
       (nbf !== undefined && (!Number.isInteger(nbf) || (nbf as number) > nowSeconds + tolerance)) ||
       (iat !== undefined && (!Number.isInteger(iat) || (iat as number) > nowSeconds + tolerance))
-    ) throw new Error('Access token claims are invalid or expired');
+    )
+      throw new Error('Access token claims are invalid or expired');
 
     const audience = Array.isArray(claims.aud)
       ? claims.aud.filter((value): value is string => typeof value === 'string')
-      : typeof claims.aud === 'string' ? [claims.aud] : [];
-    if (!audience.includes(this.config.audience)) throw new Error('Access token audience is invalid');
+      : typeof claims.aud === 'string'
+        ? [claims.aud]
+        : [];
+    if (!audience.includes(this.config.audience))
+      throw new Error('Access token audience is invalid');
 
     return { subject: claims.sub, issuer: this.config.issuer, audience, expiresAt: exp as number };
   }
@@ -202,14 +226,19 @@ export class OidcJwksVerifier {
       const raw = await response.text();
       if (raw.length > 64 * 1024) throw new Error('OIDC signing key response too large');
       const parsed = JSON.parse(raw) as unknown;
-      if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as { keys?: unknown }).keys)) {
+      if (
+        !parsed ||
+        typeof parsed !== 'object' ||
+        !Array.isArray((parsed as { keys?: unknown }).keys)
+      ) {
         throw new Error('Malformed OIDC signing key set');
       }
       const keys = (parsed as { keys: unknown[] }).keys;
       if (keys.length < 1 || keys.length > 100) throw new Error('Invalid OIDC signing key count');
       this.cachedKeys = { keys: keys as JsonWebKeySet['keys'] };
       this.lastJwksFetchAt = Date.now();
-      this.cacheExpiresAt = Date.now() + Math.min(Math.max(this.config.cacheTtlMs ?? 300_000, 10_000), 900_000);
+      this.cacheExpiresAt =
+        Date.now() + Math.min(Math.max(this.config.cacheTtlMs ?? 300_000, 10_000), 900_000);
     }
     const matches = this.cachedKeys.keys.filter((key) => key.kid === kid);
     if (matches.length > 1) throw new Error('OIDC signing key identifier is ambiguous');

@@ -7,7 +7,10 @@ const CloudEnvironmentSchema = z.object({
     .url()
     .refine((value) => value.startsWith('https://'), 'Issuer must use HTTPS'),
   CAREEROPS_JWT_AUDIENCE: z.string().min(3).max(200),
-  CAREEROPS_JWKS_URL: z.string().url().refine((value) => value.startsWith('https://'), 'JWKS URL must use HTTPS'),
+  CAREEROPS_JWKS_URL: z
+    .string()
+    .url()
+    .refine((value) => value.startsWith('https://'), 'JWKS URL must use HTTPS'),
   CAREEROPS_CONSENT_SIGNING_SECRET: z.string().min(32),
   CAREEROPS_MAX_REQUEST_BYTES: z.coerce
     .number()

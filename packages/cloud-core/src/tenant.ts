@@ -23,7 +23,10 @@ export async function resolveTenantContext(
   if (!subject || subject.length > 255) throw new Error('Invalid authenticated subject');
   const memberships = await repository.findMembershipsBySubject(subject);
   const active = memberships.filter((membership) => membership.status === 'active');
-  if (requestedTenantId && (requestedTenantId.length > 100 || !/^[0-9a-f-]{36}$/i.test(requestedTenantId))) {
+  if (
+    requestedTenantId &&
+    (requestedTenantId.length > 100 || !/^[0-9a-f-]{36}$/i.test(requestedTenantId))
+  ) {
     throw new Error('Invalid requested tenant ID');
   }
   if (requestedTenantId) {
