@@ -34,8 +34,8 @@ import {
   Upload,
 } from 'lucide-react';
 import {
-  parseJobUrlMetadata,
   parseJobPageContent,
+  fetchJobPostingFromUrl,
   detectAtsPlatform,
 } from '../../services/careerOps/jobScraperService';
 import { useCandidateVaultStore } from '../../store/useCandidateVaultStore';
@@ -99,7 +99,7 @@ export function CareerOpsView() {
   const [newRole, setNewRole] = useState('');
   const [newUrl, setNewUrl] = useState('');
   const [newSalary, setNewSalary] = useState('');
-  const [newLocation, setNewLocation] = useState('Remote');
+  const [newLocation, setNewLocation] = useState('Not specified');
   const [newJdText, setNewJdText] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
   const [coverAngle, setCoverAngle] = useState<'problem_solver' | 'technical_depth' | 'fast_impact' | 'cultural_alignment'>('problem_solver');
@@ -122,22 +122,39 @@ export function CareerOpsView() {
   // Job Scraper URL state in Evaluator Modal
   const [scrapeUrlInput, setScrapeUrlInput] = useState('');
   const [detectedAtsInModal, setDetectedAtsInModal] = useState<string | null>(null);
+  const [isImportingJob, setIsImportingJob] = useState(false);
 
-  const handleScrapeUrl = () => {
+  const handleScrapeUrl = async () => {
     if (!scrapeUrlInput.trim()) {
       setToast('Please enter a job posting URL.');
       return;
     }
     const ats = detectAtsPlatform(scrapeUrlInput);
     setDetectedAtsInModal(ats);
-    const parsed = parseJobPageContent(newJdText || scrapeUrlInput, scrapeUrlInput);
-    setNewCompany(parsed.company);
-    setNewRole(parsed.role);
-    setNewUrl(scrapeUrlInput.trim());
-    if (parsed.salaryRange) setNewSalary(parsed.salaryRange);
-    if (parsed.location) setNewLocation(parsed.location);
-    if (parsed.jdText && !newJdText) setNewJdText(parsed.jdText);
-    setToast(`Extracted ${parsed.role} at ${parsed.company} (${ats.toUpperCase()})!`);
+
+    try {
+      let parsed;
+      if (newJdText.trim()) {
+        // Pasted job descriptions are parsed locally and never sent to a remote scraper.
+        parsed = parseJobPageContent(newJdText, scrapeUrlInput);
+      } else {
+        setIsImportingJob(true);
+        parsed = await fetchJobPostingFromUrl(scrapeUrlInput);
+      }
+
+      setNewCompany(parsed.company);
+      setNewRole(parsed.role);
+      setNewUrl(parsed.url);
+      setNewSalary(parsed.salaryRange || '');
+      setNewLocation(parsed.location || 'Not specified');
+      if (parsed.jdText) setNewJdText(parsed.jdText);
+      setToast(`Imported job-page content for ${parsed.company}. Review the extracted details before saving.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not import this job posting.';
+      setToast(message);
+    } finally {
+      setIsImportingJob(false);
+    }
   };
 
   const activeJob = applications.find((a) => a.id === activeJobId) || applications[0] || null;
@@ -188,6 +205,14 @@ export function CareerOpsView() {
       setToast('Please provide at least a Company name and Role title.');
       return;
     }
+    if (!newJdText.trim()) {
+      setToast('Add the complete job description before running an evaluation.');
+      return;
+    }
+    if (!resumeText.trim()) {
+      setToast('Import or add your resume before evaluating a job.');
+      return;
+    }
 
     const id = addJob({
       company: newCompany.trim(),
@@ -204,6 +229,7 @@ export function CareerOpsView() {
     setNewRole('');
     setNewUrl('');
     setNewSalary('');
+    setNewLocation('Not specified');
     setNewJdText('');
 
     setToast(`Added ${newRole} at ${newCompany}. Starting CareerOps evaluation...`);
@@ -212,7 +238,7 @@ export function CareerOpsView() {
     const providerConfig = settings?.aiProvider
       ? {
           type: settings.aiProvider,
-          apiKey: '',
+          apiKey: settings.apiKey || '',
           model: resolveOrMigrateModel(
             settings.aiProvider as AIProviderId,
             settings.aiModel,
@@ -2123,6 +2149,7 @@ export function CareerOpsView() {
                 <button
                   type="button"
                   onClick={handleScrapeUrl}
+                  disabled={isImportingJob}
                   style={{
                     padding: '6px 12px',
                     borderRadius: '6px',
@@ -2135,7 +2162,7 @@ export function CareerOpsView() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  ⚡ Auto-Extract
+                  {isImportingJob ? 'Fetching page…' : 'Fetch & Extract'}
                 </button>
               </div>
             </div>
