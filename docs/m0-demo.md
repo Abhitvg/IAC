@@ -9,8 +9,8 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 1. Install the repository dependencies with Node 22.
 2. Run `npm run typecheck:cloud`.
 3. Run `npx vitest run tests/cloud-foundation.test.ts`.
-4. Start the API in a harness that injects a production `CloudApiRepository`, verified identity configuration and KMS adapter. The server intentionally has no insecure in-memory production fallback.
-5. Apply `apps/api/migrations/0001_cloud_foundation.sql` using a dedicated migration role. The runtime role must not own the tables or have RLS bypass privileges.
+4. Start the API in a harness that injects `PostgresCloudApiRepository`, a shared rate limiter, verified identity configuration and KMS adapter. The server intentionally has no insecure in-memory production fallback.
+5. Apply `apps/api/migrations/0001_cloud_foundation.sql` and `0002_runtime_role_hardening.sql` using a database administrator. Grant the deployment login membership in `careerops_app`; it must not own tables or have RLS bypass privileges.
 
 ## Demo script
 
@@ -36,8 +36,9 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 ## Known gaps (must be closed before production)
 
 - Identity-provider OIDC/JWKS integration and user/tenant provisioning are not configured; the current token verifier is an injectable HS256 trust adapter for the initial boundary, not a public login system.
-- A concrete PostgreSQL pool adapter and runtime composition root are still required; RLS migration and repository contracts are included, but the API cannot be deployed with a memory repository.
+- The PostgreSQL repository adapter is implemented against a pg-compatible pool interface, but the pg driver, runtime composition root, tenant provisioning and identity-provider OIDC/JWKS integration are not wired yet. The API is not deployable until these are supplied.
 - A production KMS implementation, cloud object storage and secrets manager are not selected or wired. Tests use an explicitly test-only fake key provider.
+- The API requires an injected shared rate-limiter implementation (for example Redis); the interface and fail-closed enforcement are present, but no process-local fallback is provided.
 - Audit append and kill-switch state changes must be committed atomically by the production repository implementation.
-- Database roles, grants, backup encryption, key rotation, DSAR workflows, rate limiting and abuse controls need deployment integration tests.
+- Database roles/grants and append-only audit triggers are included in migration 0002. Backup encryption, key rotation, DSAR workflows, distributed rate-limiter deployment and abuse controls need deployment integration tests.
 - Existing desktop plaintext persistence and issue #72 remain unresolved; no automatic cloud import is performed.
