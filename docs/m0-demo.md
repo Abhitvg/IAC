@@ -4,6 +4,13 @@
 
 M0 adds the first cloud trust boundary and security primitives. It does not enable job discovery, ATS submission, email sending, LinkedIn actions, inbox polling or calendar writes.
 
+## Required environment
+
+- `CAREEROPS_JWT_ISSUER`: exact HTTPS issuer value expected in access-token `iss`.
+- `CAREEROPS_JWT_AUDIENCE`: API audience expected in access-token `aud`.
+- `CAREEROPS_JWKS_URL`: trusted HTTPS JWKS endpoint for that issuer. Redirects are rejected.
+- `CAREEROPS_CONSENT_SIGNING_SECRET`: separate high-entropy secret (at least 32 characters); never reuse the identity-provider signing key.
+
 ## Run locally
 
 1. Install the repository dependencies with Node 22.
@@ -37,8 +44,8 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 
 ## Known gaps (must be closed before production)
 
-- Identity-provider OIDC/JWKS integration and user/tenant provisioning are not configured; the current token verifier is an injectable HS256 trust adapter for the initial boundary, not a public login system.
-- The PostgreSQL repository adapter is implemented against a pg-compatible pool interface, but the pg driver, runtime composition root, tenant provisioning and identity-provider OIDC/JWKS integration are not wired yet. The API is not deployable until these are supplied.
+- RS256 OIDC/JWKS verification is implemented with HTTPS-pinned issuer/JWKS configuration, bounded key caching, key-rotation refresh and RSA-2048 minimum. The identity provider, issuer/JWKS endpoints, OAuth client, login/callback flow and account provisioning are not configured; this verifier validates access tokens only and is not a public login system.
+- The PostgreSQL repository adapter is implemented against a pg-compatible pool interface, but the pg driver, runtime composition root and tenant provisioning workflow are not wired yet. Multi-tenant memberships and explicit `x-tenant-id` selection are supported by the domain boundary and RLS schema. The API is not deployable until these are supplied.
 - A production KMS implementation, cloud object storage and secrets manager are not selected or wired. Tests use an explicitly test-only fake key provider.
 - The API requires an injected shared rate-limiter implementation (for example Redis); the interface and fail-closed enforcement are present, but no process-local fallback is provided.
 - The consent HMAC secret must be separate from the JWT signing secret and configured as `CAREEROPS_CONSENT_SIGNING_SECRET`.
