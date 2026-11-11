@@ -1,7 +1,15 @@
+import { isIP } from 'node:net';
 import { Pool, type PoolConfig } from 'pg';
 import type { CloudEnvironment } from './config';
 
 const TLS_OVERRIDE_PARAMETERS = ['sslmode', 'sslcert', 'sslkey', 'sslrootcert'];
+
+function isLoopbackHost(hostname: string): boolean {
+  if (hostname.toLowerCase() === 'localhost') return true;
+  const address = hostname.replace(/^\\[|\\]$/g, '');
+  const version = isIP(address);
+  return (version === 4 && address.startsWith('127.')) || (version === 6 && address === '::1');
+}
 
 export function createPostgresPoolFromUrl(
   connectionString: string,
@@ -29,13 +37,20 @@ export function createPostgresPoolFromUrl(
     throw new Error('PostgreSQL URL must use postgres:// or postgresql:// without TLS overrides');
   }
 
+  const loopback = isLoopbackHost(parsed.hostname);
+  if (nodeEnvironment !== 'production' && !loopback) {
+    throw new Error(
+      'Non-production PostgreSQL connections are restricted to loopback hosts; remote databases require NODE_ENV=production'
+    );
+  }
+
   const config: PoolConfig = {
     connectionString,
     max,
     connectionTimeoutMillis: 5_000,
     idleTimeoutMillis: 30_000,
     allowExitOnIdle: false,
-    ssl: nodeEnvironment === 'production' ? { rejectUnauthorized: true } : false,
+    ssl: loopback && nodeEnvironment !== 'production' ? false : { rejectUnauthorized: true },
   };
   return new Pool(config);
 }
