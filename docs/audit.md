@@ -25,6 +25,7 @@ The requested transformation therefore requires a deliberate service boundary an
 ## 2. CareerOps implementation
 
 Primary files:
+
 - `src/components/careerOps/CareerOpsView.tsx` — large renderer view and workflow UI.
 - `src/components/careerOps/CareerDiscoveryPanel.tsx` — career source configuration and discovery UI.
 - `src/store/useCareerOpsStore.ts` — Zustand application/source state, discovery, evaluation, tailoring, cover-letter and outreach draft actions.
@@ -38,6 +39,7 @@ Primary files:
 - Tests include `tests/careerOps.test.ts`, `tests/careerOpsAutoFill.test.ts`, `tests/careerOpsDiscovery.test.ts`, and `tests/careerOpsExtensions.test.ts`.
 
 Observed limitations:
+
 1. CareerOps applications, sources and candidate profile are persisted in renderer `localStorage`; state is not tenant-aware or synchronized to a service.
 2. Discovery is triggered from the open CareerOps view and checks sources on a local interval. It stops when the app/view is not running. It has no durable schedule, workflow history or distributed concurrency control.
 3. Discovery is generic public HTML link extraction, not a set of maintained ATS connectors with per-provider contracts, pagination, rate budgets and fixtures.
@@ -87,6 +89,7 @@ Observed limitations:
 Relevant files: `electron/main.ts`, `electron/preload.ts`, `electron/ipc/handlers.ts`, `electron/services/security.ts`.
 
 Existing protections observed:
+
 - BrowserWindow uses context isolation and disables Node integration; production sandbox is enabled.
 - Navigation and window-open handlers restrict untrusted origins.
 - CSP is set through session headers.
@@ -97,6 +100,7 @@ Existing protections observed:
 - Cloud LLM and transcription requests have bounded request validation and cancellation controllers.
 
 Risks / migration requirements:
+
 - IPC is a local desktop trust boundary; it is not an authenticated tenant API. Do not expose these IPC methods or local WebSocket endpoints to cloud workers.
 - The current extension authenticates to loopback using a token stored in `chrome.storage.local`. This design must not be reused as an internet bearer-token architecture.
 - IPC controller maps have request-level cancellation but need bounded concurrency and resource quotas if request volume increases.
