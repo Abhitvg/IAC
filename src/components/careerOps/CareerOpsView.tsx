@@ -949,10 +949,11 @@ export function CareerOpsView() {
 
                   <button
                     onClick={() => {
-                      updateJob(activeJob.id, { status: 'applied', appliedAt: Date.now() });
-                      setToast(`Marked ${activeJob.role} at ${activeJob.company} as Applied!`);
-                      if (activeJob.url && activeJob.url.startsWith('http')) {
-                        window.open(activeJob.url, '_blank');
+                      if (activeJob.url && activeJob.url.startsWith('https://')) {
+                        window.open(activeJob.url, '_blank', 'noopener,noreferrer');
+                        setToast(`Opened ${activeJob.company} application portal. Confirm submission only after you actually submit.`);
+                      } else {
+                        setToast('A valid HTTPS application URL is required.');
                       }
                     }}
                     style={{
@@ -970,7 +971,7 @@ export function CareerOpsView() {
                     }}
                   >
                     <CheckCircle2 size={12} />
-                    <span>{activeJob.status === 'applied' ? 'Applied' : 'Mark Applied'}</span>
+                    <span>Open Application Portal</span>
                   </button>
                 </div>
               </div>
@@ -1390,10 +1391,11 @@ export function CareerOpsView() {
 
                 <button
                   onClick={() => {
-                    updateJob(activeJob.id, { status: 'applied', appliedAt: Date.now() });
-                    setToast(`Status updated: Applied to ${activeJob.company}!`);
-                    if (activeJob.url && activeJob.url.startsWith('http')) {
-                      window.open(activeJob.url, '_blank');
+                    if (activeJob.url && activeJob.url.startsWith('https://')) {
+                      window.open(activeJob.url, '_blank', 'noopener,noreferrer');
+                      setToast(`Opened ${activeJob.company} application portal. Mark it applied only after submission.`);
+                    } else {
+                      setToast('A valid HTTPS application URL is required.');
                     }
                   }}
                   style={{
@@ -2659,27 +2661,41 @@ export function CareerOpsView() {
             {vaultSubTab === 'work_auth' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
-                  <input
-                    type="checkbox"
-                    id="authCheck"
-                    checked={candidateVault.authorizedToWork}
-                    onChange={(e) => updateCandidateVault({ authorizedToWork: e.target.checked })}
-                  />
-                  <label htmlFor="authCheck" style={{ fontSize: '11px', color: '#f8fafc', cursor: 'pointer' }}>
-                    Legally authorized to work in the country without restriction
+                  <label htmlFor="authCheck" style={{ fontSize: '11px', color: '#f8fafc', cursor: 'pointer', flex: 1 }}>
+                    Legally authorized to work in the country
                   </label>
+                  <select
+                    id="authCheck"
+                    value={!candidateVault.authorizedToWorkVerified ? 'unknown' : candidateVault.authorizedToWork ? 'yes' : 'no'}
+                    onChange={(e) => updateCandidateVault({
+                      authorizedToWork: e.target.value === 'yes',
+                      authorizedToWorkVerified: e.target.value !== 'unknown',
+                    })}
+                    style={{ padding: '5px 8px', borderRadius: '6px', background: '#1e293b', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.15)' }}
+                  >
+                    <option value="unknown">Not specified</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
-                  <input
-                    type="checkbox"
-                    id="sponCheck"
-                    checked={candidateVault.requiresSponsorship}
-                    onChange={(e) => updateCandidateVault({ requiresSponsorship: e.target.checked })}
-                  />
-                  <label htmlFor="sponCheck" style={{ fontSize: '11px', color: '#f8fafc', cursor: 'pointer' }}>
-                    Will now or in the future require visa sponsorship (H-1B, etc.)
+                  <label htmlFor="sponCheck" style={{ fontSize: '11px', color: '#f8fafc', cursor: 'pointer', flex: 1 }}>
+                    Will now or in the future require visa sponsorship
                   </label>
+                  <select
+                    id="sponCheck"
+                    value={!candidateVault.requiresSponsorshipVerified ? 'unknown' : candidateVault.requiresSponsorship ? 'yes' : 'no'}
+                    onChange={(e) => updateCandidateVault({
+                      requiresSponsorship: e.target.value === 'yes',
+                      requiresSponsorshipVerified: e.target.value !== 'unknown',
+                    })}
+                    style={{ padding: '5px 8px', borderRadius: '6px', background: '#1e293b', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.15)' }}
+                  >
+                    <option value="unknown">Not specified</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
