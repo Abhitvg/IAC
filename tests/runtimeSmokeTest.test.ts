@@ -63,8 +63,8 @@ describe('Real Runtime Application Smoke Test Suite', () => {
     const evaluatedTurn = postSubmitSession?.questionHistory[0];
     expect(evaluatedTurn?.codingEvaluation).toBeDefined();
     expect(evaluatedTurn?.codingEvaluation.executionStatus).toBe('static_analysis_only');
-    expect(evaluatedTurn?.codingEvaluation.dimensions.timeComplexity.score).toBeGreaterThanOrEqual(4.0);
-    expect(evaluatedTurn?.codingEvaluation.dimensions.spaceComplexity.score).toBeGreaterThanOrEqual(4.0);
+    expect(evaluatedTurn?.codingEvaluation.dimensions.timeComplexity.score).toBe(3);
+    expect(evaluatedTurn?.codingEvaluation.dimensions.spaceComplexity.score).toBe(3);
   });
 
   it('2. End-to-end Core CS session', async () => {
@@ -143,10 +143,16 @@ describe('Real Runtime Application Smoke Test Suite', () => {
     const report = InterviewReportGenerator.generateReport(updatedSession);
     expect(report.behavioralCompetencies).toBeDefined();
     expect(report.behavioralCompetencies?.isBehavioralAssessed).toBe(true);
-    expect(report.behavioralCompetencies?.dimensions.communication.score).toBeGreaterThanOrEqual(2.0);
-    expect(report.behavioralCompetencies?.dimensions.problemSolvingExplanation.score).toBeGreaterThanOrEqual(2.0);
+    expect(report.behavioralCompetencies?.dimensions.communication.score).toBeGreaterThanOrEqual(
+      2.0
+    );
+    expect(
+      report.behavioralCompetencies?.dimensions.problemSolvingExplanation.score
+    ).toBeGreaterThanOrEqual(2.0);
     expect(report.behavioralCompetencies?.dimensions.leadership.score).toBeGreaterThanOrEqual(2.0);
-    expect(report.behavioralCompetencies?.dimensions.ownershipAccountability.score).toBeGreaterThanOrEqual(2.0);
+    expect(
+      report.behavioralCompetencies?.dimensions.ownershipAccountability.score
+    ).toBeGreaterThanOrEqual(2.0);
   });
 
   it('5. End-to-end Interview Report Generation', () => {

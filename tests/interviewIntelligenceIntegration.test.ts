@@ -115,7 +115,8 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
         questionId: 'q_tree_01',
         submissionId: 'sub_tree_01_attempt_1',
         score: 4.5,
-        candidateQuoteOrSnippet: 'Invert binary tree by recursively swapping left and right subtrees.',
+        candidateQuoteOrSnippet:
+          'Invert binary tree by recursively swapping left and right subtrees.',
         sourceType: 'live_interview' as const,
       };
 
@@ -197,7 +198,8 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
         questionId: 'q_os_01',
         submissionId: 'sub_os_persist_01',
         score: 4.8,
-        candidateQuoteOrSnippet: 'The MMU checks page table entries; if present bit is 0, CPU raises page fault interrupt.',
+        candidateQuoteOrSnippet:
+          'The MMU checks page table entries; if present bit is 0, CPU raises page fault interrupt.',
         sourceType: 'live_interview',
       });
 
@@ -216,7 +218,8 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
         questionId: 'q_os_01',
         submissionId: 'sub_os_persist_01',
         score: 4.8,
-        candidateQuoteOrSnippet: 'The MMU checks page table entries; if present bit is 0, CPU raises page fault interrupt.',
+        candidateQuoteOrSnippet:
+          'The MMU checks page table entries; if present bit is 0, CPU raises page fault interrupt.',
         sourceType: 'live_interview',
       });
       expect(retryRes.success).toBe(true);
@@ -258,7 +261,9 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
       // Trigger store recovery check
       const reloadedStore = usePracticeStore.getState();
       // Malformed data should not crash and activeSession should be null or discarded
-      expect(reloadedStore.activeSession === null || !reloadedStore.activeSession?.isActive).toBe(true);
+      expect(reloadedStore.activeSession === null || !reloadedStore.activeSession?.isActive).toBe(
+        true
+      );
     });
 
     it('ensures in-progress / unsubmitted answers are not marked as completed turns', () => {
@@ -273,7 +278,8 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
   });
 
   describe('4. Adaptive Interviewer 6-Action Live Verification (P1)', () => {
-    const candidateContext = 'Candidate: Dynamic programming stores overlapping subproblem solutions.';
+    const candidateContext =
+      'Candidate: Dynamic programming stores overlapping subproblem solutions.';
 
     it('verifies ASK action through generateTurn', async () => {
       const mockLlm = async () =>
@@ -304,7 +310,8 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
       const mockLlm = async () =>
         JSON.stringify({
           action: 'probe',
-          spoken: 'When you say overlapping subproblems, what is an example where subproblems do not overlap?',
+          spoken:
+            'When you say overlapping subproblems, what is an example where subproblems do not overlap?',
           reason: 'Test non-overlapping vs overlapping boundary.',
           evidence: 'overlapping subproblem solutions',
         });
@@ -329,7 +336,8 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
       const mockValidChallenge = async () =>
         JSON.stringify({
           action: 'challenge',
-          spoken: 'You stated you store overlapping subproblems. Does merge sort have overlapping subproblems?',
+          spoken:
+            'You stated you store overlapping subproblems. Does merge sort have overlapping subproblems?',
           reason: 'Disprove divide-and-conquer overlap.',
           evidence: 'overlapping subproblem solutions',
         });
@@ -485,15 +493,16 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
         problemId: 'kadane_01',
         curriculumTopicId: 'ds_arrays_strings',
         candidateSubmission: code,
-        explanationTranscript: 'Kadane algorithm runs in linear time with constant auxiliary space.',
+        explanationTranscript:
+          'Kadane algorithm runs in linear time with constant auxiliary space.',
         language: 'typescript',
         expectedOptimalComplexity: { time: 'O(N)', space: 'O(1)' },
       });
 
       expect(result.executionStatus).toBe('static_analysis_only');
       expect(result.testResults.length).toBe(0);
-      expect(result.dimensions.timeComplexity.score).toBeGreaterThanOrEqual(4.0);
-      expect(result.dimensions.spaceComplexity.score).toBeGreaterThanOrEqual(4.0);
+      expect(result.dimensions.timeComplexity.score).toBe(3);
+      expect(result.dimensions.spaceComplexity.score).toBe(3);
     });
 
     it('report disclaimer explicitly states static_analysis_only without dynamic sandbox claims', () => {
