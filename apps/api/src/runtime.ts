@@ -23,10 +23,7 @@ export function createCloudApiRuntime(
       jwksUrl: environment.CAREEROPS_JWKS_URL,
     }),
     repository,
-    rateLimiter: new PostgresCloudRateLimiter(
-      pool,
-      environment.CAREEROPS_RATE_LIMIT_HASH_SECRET
-    ),
+    rateLimiter: new PostgresCloudRateLimiter(pool, environment.CAREEROPS_RATE_LIMIT_HASH_SECRET),
     config: {
       issuer: environment.CAREEROPS_JWT_ISSUER,
       audience: environment.CAREEROPS_JWT_AUDIENCE,

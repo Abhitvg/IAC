@@ -18,8 +18,13 @@ export class PostgresCloudRateLimiter implements CloudRateLimiter {
   }
 
   async consume(key: string, limit: number, windowMs: number): Promise<boolean> {
-    if (!key || !Number.isSafeInteger(limit) || limit < 1 ||
-        !Number.isSafeInteger(windowMs) || windowMs < 1) {
+    if (
+      !key ||
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      !Number.isSafeInteger(windowMs) ||
+      windowMs < 1
+    ) {
       throw new Error('Invalid rate-limit key, limit, or window');
     }
 

@@ -105,7 +105,11 @@ describe('PostgreSQL shared rate limiter', () => {
   });
 
   it('rejects weak secrets and invalid rate-limit parameters', async () => {
-    const pool = { connect: async () => { throw new Error('should not connect'); } } as unknown as SqlPool;
+    const pool = {
+      connect: async () => {
+        throw new Error('should not connect');
+      },
+    } as unknown as SqlPool;
     expect(() => new PostgresCloudRateLimiter(pool, 'too-short')).toThrow();
     const limiter = new PostgresCloudRateLimiter(pool, rateSecret);
     await expect(limiter.consume('', 1, 1000)).rejects.toThrow();
@@ -548,7 +552,7 @@ describe('M0 cloud security foundation', () => {
         checkReady: async () => {
           if (!databaseReady) throw new Error('database unavailable');
         },
-      getControlState: async (tenantId) => ({
+        getControlState: async (tenantId) => ({
           tenantId,
           globalKillSwitch: true,
           pausedChannels: [],
