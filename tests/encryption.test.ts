@@ -62,9 +62,9 @@ describe('Tenant envelope encryption', () => {
     await expect(
       cipher.decrypt(envelope, '20000000-0000-4000-8000-000000000002', context)
     ).rejects.toThrow(/tenant or context mismatch/);
-    await expect(
-      cipher.decrypt(envelope, tenantId, 'career-graph:profile.email')
-    ).rejects.toThrow(/tenant or context mismatch/);
+    await expect(cipher.decrypt(envelope, tenantId, 'career-graph:profile.email')).rejects.toThrow(
+      /tenant or context mismatch/
+    );
     expect(unwrapDataKey).not.toHaveBeenCalled();
   });
 
@@ -82,11 +82,7 @@ describe('Tenant envelope encryption', () => {
     ).rejects.toThrow();
 
     await expect(
-      cipher.decrypt(
-        { ...envelope, keyVersion: 'rotated-key-version' },
-        tenantId,
-        context
-      )
+      cipher.decrypt({ ...envelope, keyVersion: 'rotated-key-version' }, tenantId, context)
     ).rejects.toThrow();
   });
 
@@ -95,9 +91,9 @@ describe('Tenant envelope encryption', () => {
     const cipher = new TenantEnvelopeCipher(kms);
     const envelope = await encryptTestFact(cipher);
 
-    await expect(
-      cipher.decrypt({ ...envelope, iv: 'AA==' }, tenantId, context)
-    ).rejects.toThrow(/cryptographic fields/);
+    await expect(cipher.decrypt({ ...envelope, iv: 'AA==' }, tenantId, context)).rejects.toThrow(
+      /cryptographic fields/
+    );
     await expect(
       cipher.decrypt({ ...envelope, authTag: 'not-base64' }, tenantId, context)
     ).rejects.toThrow(/authentication tag/);
