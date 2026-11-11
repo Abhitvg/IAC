@@ -81,7 +81,20 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
 
       if (request.method === 'GET' && url.pathname === '/v1/sprint-contract') {
         const record = await dependencies.repository.getActiveSprintContract(tenant.tenantId);
-        sendJson(response, 200, { contract: record });
+        sendJson(response, 200, {
+          contract: record
+            ? {
+                id: record.id,
+                revision: record.revision,
+                tenantId: record.tenantId,
+                acceptedBy: record.subject,
+                contract: record.contract,
+                contractHash: record.contractHash,
+                acceptedAt: record.acceptedAt,
+                revokedAt: record.revokedAt,
+              }
+            : null,
+        });
         return;
       }
 
