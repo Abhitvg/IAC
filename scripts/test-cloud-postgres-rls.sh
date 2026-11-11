@@ -14,7 +14,7 @@ OWNER_SUBJECT="bootstrap-integration-owner" \
   bash "$ROOT/scripts/provision-careerops-tenant.sh"
 
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-DO $
+DO $bootstrap$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM tenant_memberships
@@ -38,7 +38,7 @@ BEGIN
     RAISE EXCEPTION 'Tenant bootstrap did not append initial audit event';
   END IF;
 END
-$;
+$bootstrap$;
 SQL
 
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
