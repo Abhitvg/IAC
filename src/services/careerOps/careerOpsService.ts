@@ -218,135 +218,68 @@ OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or preamble,
 /**
  * Generates ATS-Tailored Resume content
  */
-export const SB2NOV_LATEX_TEMPLATE = `%-------------------------
-% Resume in Latex
-% Author : Sourabh Bajaj
-% Website: https://github.com/sb2nov/resume
-% License : MIT
-%------------------------
+export const SB2NOV_LATEX_TEMPLATE = `% Source-preserving sb2nov-compatible template.
+% Offline mode does not invent candidate identity, employers, achievements, metrics, or education.
 
 \\documentclass[letterpaper,11pt]{article}
-
-\\usepackage{latexsym}
 \\usepackage[empty]{fullpage}
 \\usepackage{titlesec}
-\\usepackage{marvosym}
-\\usepackage[usenames,dvipsnames]{color}
-\\usepackage{verbatim}
 \\usepackage{enumitem}
-\\usepackage[pdftex]{hyperref}
+\\usepackage[hidelinks]{hyperref}
 \\usepackage{fancyhdr}
-
-
 \\pagestyle{fancy}
-\\fancyhf{} % clear all header and footer fields
-\\fancyfoot{}
+\\fancyhf{}
 \\renewcommand{\\headrulewidth}{0pt}
 \\renewcommand{\\footrulewidth}{0pt}
-
-% Adjust margins
 \\addtolength{\\oddsidemargin}{-0.375in}
 \\addtolength{\\evensidemargin}{-0.375in}
 \\addtolength{\\textwidth}{1in}
 \\addtolength{\\topmargin}{-.5in}
 \\addtolength{\\textheight}{1.0in}
-
-\\urlstyle{same}
-
 \\raggedbottom
 \\raggedright
 \\setlength{\\tabcolsep}{0in}
-
-% Sections formatting
-\\titleformat{\\section}{
-  \\vspace{-4pt}\\scshape\\raggedright\\large
-}{}{0em}{}[\\color{black}\\titlerule \\vspace{-5pt}]
-
-%-------------------------
-% Custom commands
-\\newcommand{\\resumeItem}[2]{
-  \\item\\small{
-    \\textbf{#1}{: #2 \\vspace{-2pt}}
-  }
-}
-
-\\newcommand{\\resumeSubheading}[4]{
-  \\vspace{-1pt}\\item
-    \\begin{tabular*}{0.97\\textwidth}{l@{\\extracolsep{\\fill}}r}
-      \\textbf{#1} & #2 \\\\
-      \\textit{\\small#3} & \\textit{\\small #4} \\\\
-    \\end{tabular*}\\vspace{-5pt}
-}
-
-\\newcommand{\\resumeSubItem}[2]{\\resumeItem{#1}{#2}\\vspace{-4pt}}
-
-\\renewcommand{\\labelitemii}{$\\circ$}
-
-\\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}[leftmargin=*]}
-\\newcommand{\\resumeSubHeadingListEnd}{\\end{itemize}}
-\\newcommand{\\resumeItemListStart}{\\begin{itemize}}
-\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-5pt}}
-
-%-------------------------------------------
-%%%%%%  CV STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
+\\newcommand{\\resumeItem}[2]{\\item\\small{\\textbf{#1}: #2}}
 \\begin{document}
+\\begin{center}
+  {\\Large \\textbf{[Candidate Name]}}\\\\
+  [Email] \\quad [Phone] \\quad [Portfolio / GitHub]\\\\
+  Target Role: {{TARGET_ROLE}} at {{COMPANY_NAME}}
+\\end{center}
 
-%----------HEADING-----------------
-\\begin{tabular*}{\\textwidth}{l@{\\extracolsep{\\fill}}r}
-  \\textbf{\\href{https://github.com/Abhitvg}{\\Large Abhishek Singh}} & Email : \\href{mailto:abhishek@example.com}{abhishek@example.com}\\\\
-  \\href{https://github.com/Abhitvg}{https://github.com/Abhitvg} & Target Role : {{TARGET_ROLE}} \\\\
-\\end{tabular*}
-
-%-----------EXPERIENCE-----------------
 \\section{Experience}
-  \\resumeSubHeadingListStart
+\\begin{itemize}[leftmargin=*]
+  \\item {{SOURCE_RESUME}}
+\\end{itemize}
 
-    \\resumeSubheading
-      {Senior Software Engineer}{Remote}
-      {Distributed Systems \\& High-Throughput Engineering}{2022 - Present}
-      \\resumeItemListStart
-        \\resumeItem{Distributed Architecture}
-          {Architected and scaled event-driven microservices handling 50k+ QPS with sub-50ms P99 latency. Implemented asynchronous message routing and horizontal autoscaling tailored for {{COMPANY_NAME}}.}
-        \\resumeItem{Performance Optimization}
-          {Optimized database query execution and Redis caching strategies, reducing CPU utilization by 35\\% and eliminating cold-start latency spikes.}
-        \\resumeItem{Reliability \\& Observability}
-          {Engineered structured telemetry pipelines and distributed tracing, cutting mean time to resolution (MTTR) by 45\\% during production incidents.}
-      \\resumeItemListEnd
-
-  \\resumeSubHeadingListEnd
-
-%-----------PROJECTS-----------------
 \\section{Projects}
-  \\resumeSubHeadingListStart
-    \\resumeSubItem{Collaborative Document Engine}
-      {Real-time collaborative document platform with document synchronization, conflict resolution, and WebSocket transport.}
-    \\resumeSubItem{Quorum Enterprise Monorepo}
-      {High-reliability full-stack platform featuring end-to-end type safety, automated CI/CD deployment pipelines, and zero-downtime database migrations.}
-  \\resumeSubHeadingListEnd
+\\textit{No projects are added in offline mode unless they are explicitly present in the source resume.}
 
-%--------PROGRAMMING SKILLS------------
 \\section{Programming Skills}
- \\resumeSubHeadingListStart
-   \\item{
-     \\textbf{Languages}{: Java, TypeScript, JavaScript, Python, SQL, C++}
-     \\hfill
-     \\textbf{Technologies}{: AWS, Docker, Kubernetes, Kafka, Spring Boot, React, Node.js}
-   }
- \\resumeSubHeadingListEnd
+\\textit{Use only skills explicitly listed in the source resume.}
 
-%-----------EDUCATION-----------------
 \\section{Education}
-  \\resumeSubHeadingListStart
-    \\resumeSubheading
-      {Bachelor of Technology in Computer Science}{India}
-      {First Class with Distinction; GPA: 3.8/4.0}{Graduated}
-  \\resumeSubHeadingListEnd
-
-%-------------------------------------------
+\\textit{Use only education details explicitly listed in the source resume.}
 \\end{document}
 `;
+
+function escapeLatexText(value: string): string {
+  return value
+    .replace(/\\\\/g, '\\\\textbackslash{}')
+    .replace(/([{}%$&#_])/g, '\\\\$1')
+    .replace(/~/g, '\\\\textasciitilde{}')
+    .replace(/\\^/g, '\\\\textasciicircum{}');
+}
+
+function buildSourceResumeLatex(resumeText: string, roleTitle: string, companyName: string): string {
+  const source = resumeText.trim()
+    ? escapeLatexText(resumeText.trim()).replace(/\\r?\\n/g, '\\\\\\\n')
+    : 'No source resume supplied. Add a verified resume before generating a tailored version.';
+  return SB2NOV_LATEX_TEMPLATE
+    .replace(/{{TARGET_ROLE}}/g, escapeLatexText(roleTitle))
+    .replace(/{{COMPANY_NAME}}/g, escapeLatexText(companyName))
+    .replace('{{SOURCE_RESUME}}', source);
+}
 
 /**
  * Generates ATS-Tailored Resume strictly using the Sourabh Bajaj (sb2nov) LaTeX standard
@@ -387,9 +320,7 @@ STRICT LATEX REQUIREMENTS (sb2nov/resume standard):
 6. ABSOLUTELY ZERO FABRICATION: Only re-frame, highlight, and mirror real experience from the candidate's resume.`;
 
   if (!providerConfig || !providerConfig.apiKey) {
-    return SB2NOV_LATEX_TEMPLATE
-      .replace(/{{TARGET_ROLE}}/g, roleTitle)
-      .replace(/{{COMPANY_NAME}}/g, companyName);
+    return buildSourceResumeLatex(resumeText, roleTitle, companyName);
   }
 
   const targetModel = resolveOrMigrateModel(
@@ -487,8 +418,8 @@ STRICT 4-PARAGRAPH BLUEPRINT (Indeed & Intuit Standard):
    - ABSOLUTELY ZERO generic boilerplate cliches (e.g. "I am writing to express my enthusiastic interest in...", "Please find enclosed my resume").
 
 2. PARAGRAPH 2 (Skill Proof & Quantifiable Impact):
-   - Highlight 1-2 real-world engineering accomplishments from candidate experience.
-   - Include specific, measurable outcomes (e.g. percentage improvements in latency, uptime metrics, QPS throughput, or bug reduction).
+   - Highlight only accomplishments explicitly supported by the candidate resume.
+   - Use a metric only when the exact metric is present in the resume; otherwise do not invent one.
    - Directly connect technical decisions to user and business value.
 
 3. PARAGRAPH 3 (Relevant Tech Stack & Team Collaboration):
@@ -496,80 +427,29 @@ STRICT 4-PARAGRAPH BLUEPRINT (Indeed & Intuit Standard):
    - Emphasize engineering rigor: testing (unit/integration/E2E), CI/CD automation, code reviews, and cross-functional agile teamwork with Product and Design.
 
 4. PARAGRAPH 4 (Why ${companyName} & Confident Close):
-   - Express genuine, informed enthusiasm for ${companyName}'s specific product challenges or engineering mission.
+   - Mention company-specific product or mission details only when supported by the supplied job description; otherwise keep this section role-focused.
    - Confident, professional call to action to discuss team needs.
    - Include actionable contact placeholders: [Phone Number] | [Email] | [GitHub / Portfolio].
    - Professional sign-off: "Sincerely,\nCandidate Name".
 
-Length: 240 to 320 words max. Sharp, authentic, senior engineering tone.`;
+Length: 180 to 260 words max. Sharp, authentic, role-appropriate tone. Never invent candidate identity, seniority, years of experience, projects, employers, metrics, or company facts.`;
 
   if (!providerConfig || !providerConfig.apiKey) {
-    if (level === 'entry') {
-      return `Dear ${companyName} Engineering Hiring Team,
+    const sourceContext = resumeText.trim()
+      ? 'My relevant experience and project work are documented in the attached resume. I would welcome the opportunity to discuss the parts most closely aligned with your team’s needs.'
+      : 'I would be glad to share my resume and discuss how my verified experience aligns with the role.';
+    return `Dear ${companyName} Hiring Team,
 
-I am writing to apply for the ${roleTitle} position at ${companyName}. As a Computer Science graduate with hands-on experience building full-stack applications and participating in competitive hackathons, I have long admired ${companyName}'s technological innovation and look forward to contributing to your engineering mission.
+I am applying for the ${roleTitle} position at ${companyName}. The role’s focus on ${jdText.trim().slice(0, 180) || 'software engineering'} is relevant to the work I am looking to contribute to.
 
-During my recent software engineering internship, I collaborated with cross-functional engineers and product teams to test and optimize internal data services, driving a 27% reduction in late-cycle software bugs through automated integration testing. Additionally, I built an open-source real-time collaborative document engine utilizing WebSockets and conflict-free data types, demonstrating my grasp of distributed state and asynchronous networking.
+${sourceContext}
 
-My foundational skills span Java, Python, JavaScript/TypeScript, SQL, and Git version control, along with practical experience in Docker and cloud deployment basics. I thrive in agile environments where rapid feedback, continuous learning, and clean algorithmic problem-solving drive daily progress.
+I focus on clear engineering fundamentals, maintainable implementation, and collaborating with product and engineering teams to deliver reliable software. I would be happy to provide specific examples from my work that match the responsibilities described in the job posting.
 
-Joining ${companyName} would be an extraordinary opportunity to work alongside talented engineers and solve challenging problems at scale. I am confident my strong fundamentals, curiosity, and work ethic make me an immediate contributor to your team.
-
-You can reach me at [Phone] or [Email]. My portfolio and GitHub repositories are located at [GitHub / Portfolio]. Thank you for your time and consideration.
-
-Sincerely,
-Candidate`;
-    }
-
-    if (level === 'career_switcher') {
-      return `Dear ${companyName} Engineering Hiring Team,
-
-I am excited to submit my application for the ${roleTitle} role at ${companyName}. Bringing a decade of professional problem-solving and domain expertise combined with rigorous software engineering immersion, I am eager to contribute to ${companyName}'s impactful technology initiatives.
-
-During my intensive software engineering training and subsequent freelance development, I built and deployed multiple production-ready applications, including a custom full-stack analytics tool that boosted user engagement by 33% and reduced workflow errors by 78%. I have engineered responsive web frontends and reliable backend APIs with rigorous input validation and secure database interactions.
-
-My technical toolkit includes JavaScript, TypeScript, React, Node.js, SQL, and cloud deployment on AWS. Having navigated complex stakeholder demands and operational constraints in my previous career, I bring unique strengths in cross-functional communication, adaptability, and high-pressure problem solving alongside my coding capabilities.
-
-${companyName}'s mission of empowering users through innovative software resonates deeply with my own values. I would welcome the opportunity to discuss how my unique blend of domain perspective and modern engineering skills can support your team's objectives.
-
-You can reach me at [Phone] or [Email]. My engineering portfolio and projects are available at [GitHub / Portfolio]. Thank you for your time and consideration.
+Thank you for reviewing my application. I would welcome a conversation about the role and the problems your team is prioritizing.
 
 Sincerely,
-Candidate`;
-    }
-
-    if (level === 'mid') {
-      return `Dear ${companyName} Engineering Hiring Team,
-
-I am excited to apply for the ${roleTitle} role at ${companyName}. As a software engineer with extensive experience building scalable web applications and RESTful microservices, I admire ${companyName}'s commitment to engineering craft and seamless user experiences. I am eager to contribute to your team's feature velocity and platform reliability.
-
-In my current work, I built and deployed full-stack features that improved core transaction throughput by 30% and cut API response latency by 40%. Collaborating closely with product managers and designers, I led the development of a real-time collaborative synchronization module that eliminated data contention for over 100,000 active users.
-
-My daily stack includes TypeScript, Python, Node.js, SQL, Docker, and AWS. I take pride in writing clean, well-tested code backed by comprehensive unit and integration test suites, automated CI/CD pipelines, and thorough peer code reviews that prevent regressions before reaching production.
-
-I would love to bring my technical drive and collaborative mindset to ${companyName}'s engineering organization. I look forward to the possibility of discussing how my experience can support your upcoming product launches.
-
-You can reach me at [Phone] or [Email]. You can also review my work at [GitHub / Portfolio]. Thank you for your consideration.
-
-Sincerely,
-Candidate`;
-    }
-
-    // Default: 'senior'
-    return `Dear ${companyName} Engineering Hiring Team,
-
-Please consider my application for the ${roleTitle} position at ${companyName}. Having architected distributed microservices and scaled real-time data pipelines, I have followed ${companyName}'s technical growth with keen interest. Given your focus on building resilient, high-throughput systems, I am eager to apply my experience in distributed reliability and performance optimization to support your team's upcoming roadmap.
-
-In my recent engineering roles, I designed and scaled event-driven backend architectures processing over 50,000 QPS with sub-50ms P99 latency. By refactoring asynchronous messaging pipelines and optimizing database indexing strategies, my team reduced server CPU utilization by 35% and eliminated critical cold-start latency spikes. I also established structured distributed tracing that decreased our mean time to resolution (MTTR) by 45% during production incidents, ensuring 99.99% system availability.
-
-My technical toolkit centers on production-grade backend engineering with Java, TypeScript, Kafka, Docker, Kubernetes, and AWS, complemented by modern frontend workflows in React. Beyond systems architecture, I prioritize engineering excellence through rigorous automated integration testing, trunk-based CI/CD workflows, and active mentorship of junior engineers across the full software development lifecycle.
-
-What excites me most about ${companyName} is your dedication to solving complex engineering problems while keeping customer experience at the center. I would welcome the opportunity to discuss how my architectural background and delivery track record can help accelerate your team's milestones this quarter.
-
-You can reach me directly at [Phone] or [Email]. My open-source projects and code are available at [GitHub / Portfolio]. Thank you for your time and consideration.
-
-Sincerely,
-Candidate`;
+[Candidate Name]`;
   }
 
   const coverLetterModel = resolveOrMigrateModel(
