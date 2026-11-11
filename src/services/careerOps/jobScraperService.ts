@@ -49,13 +49,13 @@ export function parseJobUrlMetadata(url: string): { company: string; role: strin
     // Lever: jobs.lever.co/{company}/{jobId}
     if (host.includes('lever.co') && pathParts.length >= 1) {
       const company = pathParts[0].replace(/[-_]/g, ' ');
-      return { company: capitalizeWords(company), role: 'Software Engineer' };
+      return { company: capitalizeWords(company), role: 'Unknown role' };
     }
 
     // Ashby: jobs.ashbyhq.com/{company}/{jobId}
     if (host.includes('ashbyhq.com') && pathParts.length >= 1) {
       const company = pathParts[0].replace(/[-_]/g, ' ');
-      return { company: capitalizeWords(company), role: 'Software Engineer' };
+      return { company: capitalizeWords(company), role: 'Unknown role' };
     }
 
     // Workday: {company}.myworkdayjobs.com/en-US/{careerSite}/job/...
@@ -67,7 +67,7 @@ export function parseJobUrlMetadata(url: string): { company: string; role: strin
     // Default heuristic from hostname
     const domainParts = host.replace('www.', '').split('.');
     const companyGuess = domainParts[0].replace(/[-_]/g, ' ');
-    return { company: capitalizeWords(companyGuess), role: 'Software Engineer' };
+    return { company: capitalizeWords(companyGuess), role: 'Unknown role' };
   } catch {
     return { company: 'Unknown Company', role: 'Unknown role' };
   }
