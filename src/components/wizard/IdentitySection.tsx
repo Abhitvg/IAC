@@ -32,7 +32,10 @@ export const IdentitySection: React.FC<IdentitySectionProps> = React.memo(
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateIdentity(draftRef.current, true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedIdentityRef.current)) {
+        lastSyncedIdentityRef.current = draftRef.current;
+        onUpdateIdentity(draftRef.current, true);
+      }
     }, [onUpdateIdentity]);
 
     // Register flush handler with parent wizard so step transitions flush draft first
