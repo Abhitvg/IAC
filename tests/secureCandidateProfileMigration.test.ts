@@ -104,6 +104,7 @@ describe('Canonical candidate profile encrypted persistence', () => {
 
     expect(encryptedValue).toContain('Encrypted Candidate');
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    expect(localStorage.length).toBe(0);
   });
 
   it('does not claim a save succeeded when the encrypted store rejects the write', async () => {
