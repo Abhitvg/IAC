@@ -195,7 +195,7 @@ describe('CareerOps Advanced Architecture & Automation Suite', () => {
   describe('overleafPusher — LaTeX Source Parser for Visual Preview', () => {
     it('parses Sourabh Bajaj LaTeX document into clean previewable sections', () => {
       const parsed = parseLatexForVisualPreview(SB2NOV_LATEX_TEMPLATE);
-      expect(parsed.name).toContain('Abhishek Singh');
+      expect(parsed.name).toContain('Candidate Name');
       expect(parsed.sections.length).toBeGreaterThanOrEqual(3);
       expect(parsed.sections.some((s) => s.title === 'Experience')).toBe(true);
       expect(parsed.sections.some((s) => s.title === 'Projects')).toBe(true);
