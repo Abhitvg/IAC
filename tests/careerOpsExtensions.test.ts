@@ -45,6 +45,7 @@ describe('CareerOps Advanced Architecture & Automation Suite', () => {
       expect(result.company).toBe('Datadog');
       expect(result.role).toContain('Staff Distributed Systems Engineer');
       expect(result.workType).toBe('remote');
+      expect(result.location).toBe('Remote, US');
       expect(result.salaryRange).toContain('$190,000 - $230,000');
     });
 
