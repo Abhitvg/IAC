@@ -30,6 +30,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSessionsDir: () => ipcRenderer.invoke('get-sessions-dir'),
   getUserDataPath: () => ipcRenderer.invoke('get-user-data-path'),
 
+  // Encrypted candidate/practice/session persistence (main-process only).
+  piiVaultGet: (namespace: string, key: string) =>
+    ipcRenderer.invoke('pii-vault:get', namespace, key),
+  piiVaultPut: (namespace: string, key: string, value: unknown) =>
+    ipcRenderer.invoke('pii-vault:put', namespace, key, value),
+  piiVaultVerify: (namespace: string, key: string, value: unknown) =>
+    ipcRenderer.invoke('pii-vault:verify', namespace, key, value),
+  piiVaultDelete: (namespace: string, key: string) =>
+    ipcRenderer.invoke('pii-vault:delete', namespace, key),
+
   // File dialogs
   openFileDialog: (options?: any) => ipcRenderer.invoke('dialog:open-file', options),
 
