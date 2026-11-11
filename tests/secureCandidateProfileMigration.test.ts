@@ -13,7 +13,18 @@ describe('Canonical candidate profile encrypted persistence', () => {
   };
 
   beforeEach(() => {
-    localStorage.clear();
+    const entries = new Map<string, string>();
+    const storage = {
+      get length() {
+        return entries.size;
+      },
+      clear: () => entries.clear(),
+      getItem: (key: string) => entries.get(key) ?? null,
+      key: (index: number) => Array.from(entries.keys())[index] ?? null,
+      removeItem: (key: string) => entries.delete(key),
+      setItem: (key: string, value: string) => entries.set(key, String(value)),
+    } as Storage;
+    vi.stubGlobal('localStorage', storage);
     encryptedValue = null;
     secureApi = {
       securePersistenceGet: vi.fn(async () => encryptedValue),
@@ -26,18 +37,14 @@ describe('Canonical candidate profile encrypted persistence', () => {
         return true;
       }),
     };
-    Object.defineProperty(window, 'electronAPI', {
-      configurable: true,
-      value: secureApi,
-    });
+    vi.stubGlobal('window', { electronAPI: secureApi });
     (CanonicalProfileService as any).instance = null;
   });
 
   afterEach(() => {
-    localStorage.clear();
-    delete (window as any).electronAPI;
     (CanonicalProfileService as any).instance = null;
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('migrates legacy plaintext only after encrypted write and read-back verification', async () => {
