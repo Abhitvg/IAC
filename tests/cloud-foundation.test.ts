@@ -336,10 +336,10 @@ describe('M0 cloud security foundation', () => {
         1_900_000_000
       )
     ).rejects.toThrow('authorized party');
-    const [headerPart, payloadPart, signaturePart] = token.split('.');
+    const [tamperedHeaderPart, tamperedPayloadPart, tamperedSignaturePart] = token.split('.');
     const tamperedSignature = `${signaturePart[0] === 'A' ? 'B' : 'A'}${signaturePart.slice(1)}`;
     await expect(
-      verifier.verify(`${headerPart}.${payloadPart}.${tamperedSignature}`, 1_900_000_000)
+      verifier.verify(`${tamperedHeaderPart}.${tamperedPayloadPart}.${tamperedSignature}`, 1_900_000_000)
     ).rejects.toThrow();
     const wrongIssuer = Buffer.from(
       JSON.stringify({ ...claims, iss: 'https://attacker.test' })
