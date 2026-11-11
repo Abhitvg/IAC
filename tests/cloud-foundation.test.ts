@@ -500,9 +500,10 @@ describe('M0 cloud security foundation', () => {
       now: new Date('2026-11-12T00:00:00.000Z'),
     };
 
-    expect(() =>
-      assertActionAllowed(record, controls, { ...base, action: 'assist_queue.prepare' }, secret)
-    ).not.toThrow();
+    const authorize = (action: string) =>
+      assertActionAllowed(record, controls, { ...base, action }, secret);
+
+    expect(() => authorize('assist_queue.prepare')).not.toThrow();
 
     for (const action of [
       'linkedin.connection.request',
@@ -511,9 +512,9 @@ describe('M0 cloud security foundation', () => {
       'linkedin.scrape',
       'linkedin.like',
     ]) {
-      expect(() =>
-        assertActionAllowed(record, controls, { ...base, action }, secret)
-      ).toThrow('LinkedIn actions may only be prepared');
+      expect(() => authorize(action)).toThrow(
+        'LinkedIn actions may only be prepared'
+      );
     }
   });
 
