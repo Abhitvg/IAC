@@ -340,7 +340,7 @@ export function CareerDiscoveryPanel({ resumeText, providerConfig }: CareerDisco
                   border: '1px solid rgba(255,255,255,0.06)',
                 }}
               >
-                <BriefcaseBusiness size={15} color="#fb923c" />
+                <Briefcase size={15} color="#fb923c" />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ color: '#f8fafc', fontSize: 12, fontWeight: 700 }}>
                     {source.label}
