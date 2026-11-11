@@ -117,7 +117,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       }
 
       const factReviewMatch = url.pathname.match(
-        /^\\/v1\\/career-graph\\/facts\\/([0-9a-f-]{36})\\/review$/i
+        /^\/v1\/career-graph\/facts\/([0-9a-f-]{36})\/review$/i
       );
       if (request.method === 'POST' && factReviewMatch) {
         const body = await readJson(request, maxBytes);
