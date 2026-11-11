@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import { loadCloudEnvironment, type CloudEnvironment } from './config';
 import { createOidcIdentityVerifier } from './identity';
-import { PostgresCloudApiRepository, type SqlPool } from './postgres-repository';
+import { PostgresCloudApiRepository, type ClosableSqlPool } from './postgres-repository';
 import { PostgresCloudRateLimiter } from './postgres-rate-limiter';
 import { createCloudApiServer } from './server';
 
@@ -12,7 +12,7 @@ export interface CloudApiRuntime {
 }
 
 export function createCloudApiRuntime(
-  pool: SqlPool,
+  pool: ClosableSqlPool,
   environment: CloudEnvironment = loadCloudEnvironment()
 ): CloudApiRuntime {
   const repository = new PostgresCloudApiRepository(pool);
@@ -60,7 +60,7 @@ export function createCloudApiRuntime(
           });
         }
       } finally {
-        await pool.end?.();
+        await pool.end();
       }
     },
   };
