@@ -40,7 +40,7 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 - Kill switch/channel pause/cap enforcement.
 - Tamper-evident audit event hashing.
 - AES-256-GCM envelope integrity and tenant/context binding.
-- HTTP health, auth, server-side tenant resolution, and Sprint Contract accept/read/revoke lifecycle.
+- HTTP health, auth, server-side tenant resolution, and Sprint Contract accept/read/revoke lifecycle. Only the accepting owner may revoke that acceptance.
 
 ## Known gaps (must be closed before production)
 
