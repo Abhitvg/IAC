@@ -184,6 +184,8 @@ export class CanonicalProfileService {
         const removed = await api.securePersistenceRemove('candidate-profile');
         if (removed !== true) throw new Error('Encrypted candidate profile was not removed.');
         if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
+        this.persistenceQueue = Promise.resolve(true);
+        this.persistenceError = null;
       } catch (error) {
         console.error('[CanonicalProfileService] Secure profile reset failed:', error);
         return { success: false, failedStores: ['canonical-profile'] };
