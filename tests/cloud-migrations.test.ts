@@ -20,11 +20,11 @@ function createPool(
       if (sql.includes('to_regclass')) {
         return {
           rows: [
-          {
-            ledger_table: ledgerExists ? 'careerops_schema_migrations' : null,
-            existing_tables: legacyTables,
-          },
-        ] as Row[],
+            {
+              ledger_table: ledgerExists ? 'careerops_schema_migrations' : null,
+              existing_tables: legacyTables,
+            },
+          ] as Row[],
         };
       }
       if (sql.includes('COUNT(*)::int AS migration_count')) {
@@ -65,28 +65,31 @@ describe('cloud database migrations', () => {
   it(
     'applies fresh-database migrations and records their checksums under one advisory lock',
     async () => {
-    const migrations: CloudMigration[] = [
-      { name: '0002_second.sql', sql: 'BEGIN; SELECT 2; COMMIT;' },
-      { name: '0001_first.sql', sql: 'SELECT 1;' },
-    ];
-    const { pool, calls, client } = createPool();
+      const migrations: CloudMigration[] = [
+        { name: '0002_second.sql', sql: 'BEGIN; SELECT 2; COMMIT;' },
+        { name: '0001_first.sql', sql: 'SELECT 1;' },
+      ];
+      const { pool, calls, client } = createPool();
 
-    await expect(runCloudMigrations(pool, migrations)).resolves.toEqual({
-      applied: ['0001_first.sql', '0002_second.sql'],
-      skipped: [],
-    });
+      await expect(runCloudMigrations(pool, migrations)).resolves.toEqual({
+        applied: ['0001_first.sql', '0002_second.sql'],
+        skipped: [],
+      });
 
-    const statements = calls.map((call) => call.sql.trim());
-    expect(statements[0]).toContain('pg_advisory_lock');
-    expect(
-      statements.some((statement) => statement.includes('CREATE TABLE careerops_schema_migrations'))
-    ).toBe(true);
-    expect(statements).toContain('BEGIN');
-    expect(statements).toContain('SELECT 2;');
-    expect(statements).toContain('COMMIT');
-    expect(statements.at(-1)).toContain('pg_advisory_unlock');
-    expect(client.release).toHaveBeenCalledOnce();
-  });
+      const statements = calls.map((call) => call.sql.trim());
+      expect(statements[0]).toContain('pg_advisory_lock');
+      expect(
+        statements.some((statement) =>
+          statement.includes('CREATE TABLE careerops_schema_migrations')
+        )
+      ).toBe(true);
+      expect(statements).toContain('BEGIN');
+      expect(statements).toContain('SELECT 2;');
+      expect(statements).toContain('COMMIT');
+      expect(statements.at(-1)).toContain('pg_advisory_unlock');
+      expect(client.release).toHaveBeenCalledOnce();
+    }
+  );
 
   it('refuses to run against a pre-existing CareerOps schema without an explicit baseline', async () => {
     const { pool, calls, client } = createPool({}, ['tenants', 'sprint_contracts']);
@@ -100,8 +103,7 @@ describe('cloud database migrations', () => {
     ).toBe(false);
     expect(calls.some((call) => call.sql.trim() === 'BEGIN')).toBe(false);
     expect(client.release).toHaveBeenCalledOnce();
-    }
-  );
+  });
 
   it('refuses an empty migration ledger when CareerOps tables already exist', async () => {
     const { pool, calls } = createPool({}, ['tenants'], true);
