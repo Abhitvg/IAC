@@ -236,7 +236,7 @@ INSERT INTO career_graph_facts (
   '20000000-0000-4000-8000-000000000002',
   'profile.current_role',
   1,
-  '{"algorithm":"A256GCM","wrappedKey":"wrapped-key","keyVersion":"test-key-v1","iv":"AAAAAAAAAAAAAAAA","authTag":"AAAAAAAAAAAAAAAAAAAAAA==","ciphertext":"ciphertext","tenantId":"20000000-0000-4000-8000-000000000002"}'::jsonb,
+  '{"algorithm":"A256GCM","wrappedKey":"wrapped-key","keyVersion":"test-key-v1","iv":"AAAAAAAAAAAAAAAA","authTag":"AAAAAAAAAAAAAAAAAAAAAA==","ciphertext":"ciphertext","tenantId":"20000000-0000-4000-8000-000000000002","context":"career-graph:profile.current_role"}'::jsonb,
   'user_input',
   'user-a'
 );
