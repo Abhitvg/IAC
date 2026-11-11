@@ -37,7 +37,7 @@ M0 establishes the first cloud trust boundary and security primitives. It does n
 - A PostgreSQL advisory lock serializes concurrent migration runners.
 - Each migration and its SHA-256 ledger entry commit in the same transaction.
 - Reapplying an unchanged migration is a no-op; changing the contents of an already-applied migration fails closed.
-- The runner strips only the outer `BEGIN`/`COMMIT` wrapper from the existing migration format so the migration and ledger write share one transaction.
+- The runner strips only the outer `BEGIN`/`COMMIT` wrapper from the existing migration format so the migration and ledger write share one transaction. Before creating a new ledger, it checks for known CareerOps tables and refuses to run if any exist without the ledger; existing databases require an explicit reviewed baseline.
 - Run migrations with a dedicated schema-owner/migration credential, never with the API's restricted `careerops_app` role. Do not run migrations automatically during API startup.
 
 The API now includes a `pg` pool adapter, a Node process entrypoint and a compiled migration CLI. A deployment platform still needs to supply the database URLs/secrets, run the migration command as a one-off release job, and provision the distinct runtime and migration database roles. The existing SQL integration script applies migrations directly for disposable test databases. For a database that has already had migrations applied outside this ledger, do not point the runner at it: create and verify an explicit baseline as a separate reviewed operation first.
