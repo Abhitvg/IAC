@@ -108,6 +108,29 @@ describe('PostgreSQL shared rate limiter', () => {
     );
   });
 
+  it('fails closed and rolls back when PostgreSQL rate-limit storage is unavailable', async () => {
+    let rolledBack = false;
+    let released = false;
+    const pool = {
+      connect: async () => ({
+        query: async (sql: string) => {
+          if (sql === 'ROLLBACK') rolledBack = true;
+          if (sql.includes('INSERT INTO api_rate_limit_buckets')) {
+            throw new Error('database unavailable');
+          }
+          return { rows: [] };
+        },
+        release: () => {
+          released = true;
+        },
+      }),
+    } as unknown as SqlPool;
+    const limiter = new PostgresCloudRateLimiter(pool, rateSecret);
+    await expect(limiter.consume('ip:test', 10, 60_000)).rejects.toThrow('database unavailable');
+    expect(rolledBack).toBe(true);
+    expect(released).toBe(true);
+  });
+
   it('rejects weak secrets and invalid rate-limit parameters', async () => {
     const pool = {
       connect: async () => {
@@ -151,8 +174,10 @@ describe('cloud API runtime composition', () => {
     const ready = await fetch(`http://127.0.0.1:${address.port}/health/ready`);
     expect(ready.status).toBe(200);
     await runtime.close();
+    await runtime.close();
     expect(released).toBe(1);
     expect(ended).toBe(1);
+    expect(() => runtime.listen(8080)).toThrow('already closed');
   });
 });
 
