@@ -10,7 +10,7 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 - `CAREEROPS_JWT_AUDIENCE`: API audience expected in access-token `aud`.
 - `CAREEROPS_JWKS_URL`: trusted HTTPS JWKS endpoint for that issuer. Redirects are rejected.
 - `CAREEROPS_CONSENT_SIGNING_SECRET`: separate high-entropy secret (at least 32 characters); never reuse the identity-provider signing key.
-- `CAREEROPS_RATE_LIMIT_HASH_SECRET`: separate high-entropy secret (at least 32 characters) used to HMAC caller keys before they are persisted in shared rate-limit buckets.
+- `CAREEROPS_RATE_LIMIT_HASH_SECRET`: separate high-entropy secret (at least 32 characters) used to HMAC caller keys before they are persisted in shared rate-limit buckets; it must differ from the consent signing secret.
 
 ## Run locally
 
@@ -23,7 +23,7 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 7. Construct `createCloudApiRuntime(pool, loadCloudEnvironment())` with a pg-compatible PostgreSQL pool, then call `runtime.listen(port, host)`. The runtime composes the OIDC verifier, PostgreSQL repository and shared PostgreSQL rate limiter; `runtime.close()` closes the HTTP server and pool. The repository still requires an explicitly supplied PostgreSQL driver/pool adapter; no driver or in-memory production fallback is bundled.
 8. Probe `GET /health/ready` for database readiness (503 on database failure); `/health/live` remains independent of database availability.
 
-## Privileged tenant bootstrap\n\nAfter applying both migrations, grant the approved operator login membership in `careerops_provisioner`. Set `DATABASE_URL`, `TENANT_ID`, `TENANT_NAME` and the exact authenticated OIDC `OWNER_SUBJECT`, then run `bash scripts/provision-careerops-tenant.sh`. The script creates the tenant, first owner, default-paused controls and initial audit event in one transaction. It does not enable automation. Never grant `careerops_provisioner` to the API service login.\n\n## Demo script
+## Privileged tenant bootstrap\n\nAfter applying all four migrations, grant the approved operator login membership in `careerops_provisioner`. Set `DATABASE_URL`, `TENANT_ID`, `TENANT_NAME` and the exact authenticated OIDC `OWNER_SUBJECT`, then run `bash scripts/provision-careerops-tenant.sh`. The script creates the tenant, first owner, default-paused controls and initial audit event in one transaction. It does not enable automation. Never grant `careerops_provisioner` to the API service login.\n\n## Demo script
 
 1. Call `GET /health/live`; expect 200 without credentials.
 2. Call `GET /v1/me` without a bearer token; expect 401.
@@ -52,5 +52,5 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 - The shared PostgreSQL rate limiter uses atomic fixed-window upserts and HMAC-hashed caller keys; migration 0004 grants the restricted runtime role only the required bucket-table permissions. Production retention/cleanup cadence and abuse thresholds still need operational tuning.
 - The consent HMAC secret must be separate from the JWT signing secret and configured as `CAREEROPS_CONSENT_SIGNING_SECRET`.
 - The PostgreSQL repository commits Sprint Contract acceptance/revocation and control changes with their audit events atomically; live hosted database and concurrent-write testing remain required.
-- Database roles/grants, immutable consent evidence with one-way revocation, and append-only audit triggers are included in migration 0002. Backup encryption, key rotation, DSAR workflows, distributed rate-limiter deployment and abuse controls need deployment integration tests.
+- Database roles/grants, immutable consent evidence with one-way revocation, and append-only audit triggers are included in migration 0002. Backup encryption, key rotation, DSAR workflows, production rate-limit retention and abuse thresholds need deployment integration tests.
 - Existing desktop plaintext persistence and issue #72 remain unresolved; no automatic cloud import is performed.
