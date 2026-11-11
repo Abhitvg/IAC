@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { randomUUID } from 'node:crypto';
 import { readBearerToken } from '../../../packages/cloud-core/src/auth';
 import { createConsentRecord } from '../../../packages/cloud-core/src/contract';
+import { CareerGraphFactReviewSchema, validateCareerGraphFact } from '../../../packages/cloud-core/src/career-graph';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
 
@@ -84,6 +85,50 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           tenantId: tenant.tenantId,
           role: tenant.role,
         });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/career-graph/facts') {
+        const rawLimit = url.searchParams.get('limit');
+        const limit = rawLimit === null ? 50 : Number(rawLimit);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+          sendJson(response, 400, { error: 'limit must be an integer between 1 and 100', requestId });
+          return;
+        }
+        const facts = await dependencies.careerGraph.listFacts(
+          tenant.tenantId,
+          tenant.subject,
+          limit
+        );
+        sendJson(response, 200, { facts, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/career-graph/facts') {
+        const body = await readJson(request, maxBytes);
+        const input = validateCareerGraphFact(tenant.tenantId, tenant.subject, body);
+        const fact = await dependencies.careerGraph.createFact(
+          tenant.tenantId,
+          tenant.subject,
+          input
+        );
+        sendJson(response, 201, { fact, requestId });
+        return;
+      }
+
+      const factReviewMatch = url.pathname.match(
+        /^\\/v1\\/career-graph\\/facts\\/([0-9a-f-]{36})\\/review$/i
+      );
+      if (request.method === 'POST' && factReviewMatch) {
+        const body = await readJson(request, maxBytes);
+        const review = CareerGraphFactReviewSchema.parse(body);
+        const fact = await dependencies.careerGraph.reviewFact(
+          tenant.tenantId,
+          tenant.subject,
+          factReviewMatch[1],
+          review
+        );
+        sendJson(response, 200, { fact, requestId });
         return;
       }
 
