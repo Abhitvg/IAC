@@ -85,7 +85,7 @@ jobs:
           fi
           if [[ -s /tmp/changed-files.txt ]]; then
             xargs -r npx prettier --write < /tmp/changed-files.txt
-git diff -- apps/api/src/server.ts tests/career-graph-api.test.ts
+            git diff -- apps/api/src/server.ts tests/career-graph-api.test.ts
           else
             echo "No supported files changed; skipping formatting check."
           fi
