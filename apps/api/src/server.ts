@@ -113,6 +113,11 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       if (request.method === 'POST' && url.pathname === '/v1/career-graph/facts') {
         const body = await readJson(request, maxBytes);
         const input = validateCareerGraphFact(tenant.tenantId, tenant.subject, body);
+        await dependencies.careerGraphEnvelopeVerifier.verify(
+          input.valueEnvelope,
+          tenant.tenantId,
+          `career-graph:${input.factKey}`
+        );
         const fact = await dependencies.careerGraph.createFact(
           tenant.tenantId,
           tenant.subject,
