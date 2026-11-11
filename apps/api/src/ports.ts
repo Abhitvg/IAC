@@ -10,6 +10,7 @@ import type { TenantControlState } from '../../../packages/cloud-core/src/contro
 import type { TenantMembershipRepository } from '../../../packages/cloud-core/src/tenant';
 import type { VerifiedIdentity } from '../../../packages/cloud-core/src/auth';
 
+// Verifies ciphertext before tenant-scoped persistence.
 export interface CareerGraphEnvelopeVerifier {
   verify(
     envelope: EncryptedFactEnvelope,
