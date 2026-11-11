@@ -53,6 +53,7 @@ export class PiiVault {
   private readonly userDataPath: string;
   private readonly storage: SafeStorageAdapter;
   private masterKeyPromise: Promise<Buffer> | null = null;
+  private closed = false;
 
   constructor(userDataPath: string, storage: SafeStorageAdapter = safeStorage) {
     if (!path.isAbsolute(userDataPath)) {
@@ -172,16 +173,23 @@ export class PiiVault {
       }
 
       const encryptedKey = decodeBase64Url(record.data);
-      const decrypted = await this.storage.decryptStringAsync(encryptedKey);
-      const key = Buffer.from(decrypted.result, 'base64');
-      if (key.length !== 32) {
-        key.fill(0);
-        throw new Error('PII vault master key is invalid. Data was not overwritten.');
+      let key: Buffer | undefined;
+      try {
+        const decrypted = await this.storage.decryptStringAsync(encryptedKey);
+        key = Buffer.from(decrypted.result, 'base64');
+        if (key.length !== 32 || key.toString('base64') !== decrypted.result) {
+          throw new Error('PII vault master key is invalid. Data was not overwritten.');
+        }
+        if (decrypted.shouldReEncrypt) {
+          await this.writeWrappedMasterKey(key);
+        }
+        return key;
+      } catch (error) {
+        key?.fill(0);
+        throw error;
+      } finally {
+        encryptedKey.fill(0);
       }
-      if (decrypted.shouldReEncrypt) {
-        await this.writeWrappedMasterKey(key);
-      }
-      return key;
     }
 
     if (await this.hasExistingEncryptedRecords()) {
@@ -246,6 +254,7 @@ export class PiiVault {
   }
 
   private async getMasterKey(): Promise<Buffer> {
+    if (this.closed) throw new Error('PII vault is closed.');
     await this.assertSecureStorageAvailable();
     if (!this.masterKeyPromise) {
       this.masterKeyPromise = this.loadMasterKey().catch((error) => {
@@ -253,7 +262,22 @@ export class PiiVault {
         throw error;
       });
     }
-    return this.masterKeyPromise;
+    const key = await this.masterKeyPromise;
+    if (this.closed) {
+      key.fill(0);
+      throw new Error('PII vault is closed.');
+    }
+    return key;
+  }
+
+  public close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    const pendingKey = this.masterKeyPromise;
+    this.masterKeyPromise = null;
+    if (pendingKey) {
+      void pendingKey.then((key) => key.fill(0)).catch(() => undefined);
+    }
   }
 
   private validateAddress(namespace: string, key: string): void {
@@ -286,12 +310,14 @@ export class PiiVault {
       throw new Error('PII vault record exceeds the 10 MiB limit.');
     }
 
-    const masterKey = await this.getMasterKey();
-    const iv = crypto.randomBytes(12);
+    let iv: Buffer | undefined;
+    let encrypted: Buffer | undefined;
     try {
+      const masterKey = await this.getMasterKey();
+      iv = crypto.randomBytes(12);
       const cipher = crypto.createCipheriv('aes-256-gcm', masterKey, iv);
       cipher.setAAD(this.associatedData(namespace, key));
-      const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+      encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
       const record: EncryptedRecord = {
         format: 'iac-pii-vault',
         version: 1,
@@ -316,12 +342,11 @@ export class PiiVault {
         if (handle) await handle.close().catch(() => undefined);
         await fs.promises.rm(tempPath, { force: true }).catch(() => undefined);
         throw error;
-      } finally {
-        encrypted.fill(0);
       }
     } finally {
+      encrypted?.fill(0);
       plaintext.fill(0);
-      iv.fill(0);
+      iv?.fill(0);
     }
   }
 
@@ -358,29 +383,38 @@ export class PiiVault {
       throw new Error('PII vault record format is unsupported. Original data was preserved.');
     }
 
-    const iv = decodeBase64Url(record.iv, 12);
-    const tag = decodeBase64Url(record.tag, 16);
-    const ciphertext = decodeBase64Url(record.ciphertext);
-    if (ciphertext.length === 0 || ciphertext.length > MAX_RECORD_BYTES) {
-      throw new Error('PII vault ciphertext has an invalid size.');
-    }
-
-    const masterKey = await this.getMasterKey();
-    const decipher = crypto.createDecipheriv('aes-256-gcm', masterKey, iv);
-    decipher.setAAD(this.associatedData(namespace, key));
-    decipher.setAuthTag(tag);
+    let iv: Buffer | undefined;
+    let tag: Buffer | undefined;
+    let ciphertext: Buffer | undefined;
     const chunks: Buffer[] = [];
+    let plaintext: Buffer | undefined;
     try {
-      chunks.push(decipher.update(ciphertext));
-      chunks.push(decipher.final());
-      return JSON.parse(Buffer.concat(chunks).toString('utf8')) as T;
-    } catch {
-      throw new Error('PII vault authentication failed. Original data was preserved.');
+      iv = decodeBase64Url(record.iv, 12);
+      tag = decodeBase64Url(record.tag, 16);
+      ciphertext = decodeBase64Url(record.ciphertext);
+      if (ciphertext.length === 0 || ciphertext.length > MAX_RECORD_BYTES) {
+        throw new Error('PII vault ciphertext has an invalid size.');
+      }
+
+      const masterKey = await this.getMasterKey();
+      const decipher = crypto.createDecipheriv('aes-256-gcm', masterKey, iv);
+      decipher.setAAD(this.associatedData(namespace, key));
+      decipher.setAuthTag(tag);
+      try {
+        chunks.push(decipher.update(ciphertext));
+        chunks.push(decipher.final());
+      } catch {
+        throw new Error('PII vault authentication failed. Original data was preserved.');
+      }
+
+      plaintext = Buffer.concat(chunks);
+      return JSON.parse(plaintext.toString('utf8')) as T;
     } finally {
+      plaintext?.fill(0);
       for (const chunk of chunks) chunk.fill(0);
-      iv.fill(0);
-      tag.fill(0);
-      ciphertext.fill(0);
+      iv?.fill(0);
+      tag?.fill(0);
+      ciphertext?.fill(0);
     }
   }
 
