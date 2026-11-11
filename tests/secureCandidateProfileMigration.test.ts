@@ -40,7 +40,9 @@ describe('Canonical candidate profile encrypted persistence', () => {
     vi.restoreAllMocks();
   });
 
-  it('migrates legacy plaintext only after encrypted write and read-back verification', async () => {
+  it(
+    'migrates legacy plaintext only after encrypted write and read-back verification',
+    async () => {
     const profile = createDefaultCanonicalProfile();
     profile.identity.fullName = 'Candidate Profile Test';
     const legacy = JSON.stringify(profile);
@@ -59,7 +61,8 @@ describe('Canonical candidate profile encrypted persistence', () => {
     expect(secureApi.securePersistenceGet).toHaveBeenCalledTimes(2);
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     expect(service.getProfile().identity.fullName).toBe('Candidate Profile Test');
-  });
+    }
+  );
 
   it(
     'preserves plaintext and refuses to fall back when an encrypted record cannot be decrypted',
@@ -94,7 +97,9 @@ describe('Canonical candidate profile encrypted persistence', () => {
     expect(service.getPersistenceError()).toContain('JSON');
   });
 
-  it('writes profile updates through encrypted storage and verifies the committed value', async () => {
+  it(
+    'writes profile updates through encrypted storage and verifies the committed value',
+    async () => {
     const service = CanonicalProfileService.getInstance();
     await expect(service.ready()).resolves.toBe(true);
 
@@ -107,7 +112,8 @@ describe('Canonical candidate profile encrypted persistence', () => {
 
     expect(encryptedValue).toContain('Encrypted Candidate');
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
-  });
+    }
+  );
 
   it('does not claim a save succeeded when the encrypted store rejects the write', async () => {
     const service = CanonicalProfileService.getInstance();
