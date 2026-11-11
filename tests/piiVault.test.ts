@@ -63,6 +63,7 @@ describe('PiiVault', () => {
       await expect(vault.get('candidate', 'profile')).resolves.toEqual(profile);
     }
   );
+
   it('binds ciphertext to namespace and record key', async () => {
     const vault = new PiiVault(userDataPath);
     await vault.put('candidate', 'profile', { email: 'private@example.test' });
@@ -123,6 +124,7 @@ describe('PiiVault', () => {
       expect(fs.readFileSync(recordPath, 'utf8')).toBe(encryptedRecord);
     }
   );
+
   it('refuses access when the OS keyring is unavailable or locked', async () => {
     (safeStorage.isAsyncEncryptionAvailable as any).mockResolvedValue(false);
     const vault = new PiiVault(userDataPath);
