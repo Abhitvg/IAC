@@ -1166,21 +1166,25 @@ export class CanonicalProfileService {
       // 3. Sync with CareerOps Vault
       try {
         const store = useCandidateVaultStore.getState();
-        store.updateProfile({
-          fullName: profile.identity.fullName || store.profile.fullName,
-          email: profile.identity.email || store.profile.email,
-          phone: profile.identity.phone || store.profile.phone,
-          location: profile.identity.location || store.profile.location,
-          linkedin: profile.identity.links.linkedin || store.profile.linkedin,
-          github: profile.identity.links.github || store.profile.github,
-          portfolio: profile.identity.links.portfolio || store.profile.portfolio,
-          currentTitle: profile.career.currentRole || store.profile.currentTitle,
-          noticePeriod: profile.career.noticePeriod || store.profile.noticePeriod,
-          authorizedToWork:
-            profile.declarations.workAuthorization.authorized ?? store.profile.authorizedToWork,
-          requiresSponsorship:
-            profile.declarations.sponsorshipRequired.required ?? store.profile.requiresSponsorship,
-        }, persistLegacyMirrors);
+        store.updateProfile(
+          {
+            fullName: profile.identity.fullName || store.profile.fullName,
+            email: profile.identity.email || store.profile.email,
+            phone: profile.identity.phone || store.profile.phone,
+            location: profile.identity.location || store.profile.location,
+            linkedin: profile.identity.links.linkedin || store.profile.linkedin,
+            github: profile.identity.links.github || store.profile.github,
+            portfolio: profile.identity.links.portfolio || store.profile.portfolio,
+            currentTitle: profile.career.currentRole || store.profile.currentTitle,
+            noticePeriod: profile.career.noticePeriod || store.profile.noticePeriod,
+            authorizedToWork:
+              profile.declarations.workAuthorization.authorized ?? store.profile.authorizedToWork,
+            requiresSponsorship:
+              profile.declarations.sponsorshipRequired.required ??
+              store.profile.requiresSponsorship,
+          },
+          persistLegacyMirrors
+        );
       } catch (e) {
         // Ignored if useCandidateVaultStore not active
       }
