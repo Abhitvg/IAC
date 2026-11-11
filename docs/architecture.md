@@ -1,6 +1,6 @@
 # CareerOps Cloud Architecture
 
-**Status:** Proposed target architecture; implementation starts at M0.  
+**Status:** Proposed target architecture; implementation starts at M0.
 **Baseline:** `main` at `6a24b0b44271658c75fff68f798c1a9f8e1e68f4`.
 
 ## Product boundary
@@ -69,6 +69,7 @@ This layout is a target; preserve the existing Electron source tree until a migr
 A signed Sprint Contract is versioned and immutable after acceptance. Amendments create a new version. Every action is authorized against the currently active contract at execution time, not merely at workflow creation time.
 
 Contract fields include:
+
 - target roles, seniority, geographies, remote preferences, salary floor and currency;
 - work authorization and sponsorship facts with provenance/verification;
 - company/industry blocklists;
@@ -85,6 +86,7 @@ Global kill switch and per-channel pause are server-enforced. A pause is checked
 ### Career Graph
 
 Canonical facts have source, user confirmation state, confidence, valid-from/to and evidence references. Distinguish:
+
 - confirmed user fact;
 - imported but unconfirmed fact;
 - derived inference;
@@ -106,6 +108,7 @@ Connectors cannot directly invoke other connectors or change consent. Domain pol
 Temporal is the durable orchestrator. Workflows are deterministic; network calls, LLM calls, DB writes and browser operations execute as activities with bounded retries, timeouts and idempotency. External text is passed as opaque activity data, never as workflow instructions.
 
 Key workflows:
+
 - `SprintWorkflow`: time-bounded coordinator, daily allocation, channel pauses, end-of-sprint report.
 - `DiscoveryWorkflow`: source polling, normalization, dedupe and ghost/scam screening.
 - `EvaluateAndPrepareWorkflow`: relevance, A–H evaluation, score, answer generation and truth gate.
@@ -120,18 +123,23 @@ All workflows have idempotency keys, cancellation paths, activity audit records 
 ## Channel safety
 
 ### C1 ATS
+
 Use supported employer ATS endpoints/pages only. Before submission, recheck contract, blocklists, score threshold, ghost/scam result, duplicate state, required answers, daily cap and kill switch. Unknown/sensitive questions without a confirmed default skip the job. CAPTCHA, login or MFA goes to Assist Queue. Store screenshot and normalized submission payload as proof; redact unnecessary PII from telemetry.
 
 ### C2 Email
+
 Send through the user's authorized Gmail, Microsoft Graph or explicitly configured IMAP/SMTP connector, subject to provider terms and OAuth review. Only public or licensed-provider-verified business channels; no guessing or SMTP probing. Enforce sender identity, opt-out, global suppression, regional compliance, consent, 3 contacts/company/role, 30-day person cooldown, recipient-local quiet hours and adaptive daily caps. Stop on reply, bounce, complaint or opt-out. Follow-ups only at contract-authorized intervals and stop after day 4 for Sprint Mode.
 
 ### C3 Referrals
+
 Detect official referral portals and eligible referral paths. Contact ranking uses only consented/imported or public-source data with provenance. LinkedIn actions remain in Assist Queue.
 
 ### C4 LinkedIn
+
 Official OAuth/OpenID sign-in and basic profile only; user-uploaded connection export import; profile audit and guidance. No server-side passwords/cookies, scraping, profile visits, connection requests, messages, likes or other unattended LinkedIn actions. Assist Queue items are prepared content; each action requires an explicit user gesture in their own browser.
 
 ### C5 Inbound
+
 Classify inbound messages as untrusted content. Only approved templates/actions may reply. Propose/accept calendar slots only within explicit availability and contract policy. Create events only after provider API success; use idempotency keys and audit. Target <15 minute response time as an SLO, not a guarantee.
 
 ## LLM gateway and prompt-injection isolation
@@ -148,6 +156,7 @@ Classify inbound messages as untrusted content. Only approved templates/actions 
 Emit tenant-scoped traces, metrics and immutable audit events with opaque IDs. Track discovery, evaluation, apply, email, reply, interview and offer funnel rates; connector latency/errors; token costs; bounce/complaint/negative reply; truth gate blocks; cap denials; ATS failures; user pauses and restriction notices.
 
 Auto-pause thresholds:
+
 - bounce rate >5% over a defined minimum denominator/window;
 - any spam complaint;
 - mailbox-provider warning;
