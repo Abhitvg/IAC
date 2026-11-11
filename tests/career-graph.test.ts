@@ -20,7 +20,7 @@ const envelope = {
 describe('Career Graph fact integrity', () => {
   it('accepts bounded encrypted facts with explicit provenance', () => {
     expect(
-      validateCareerGraphFact('40000000-0000-4000-8000-000000000004', 'user-1', {
+      validateCareerGraphFact(tenantId, 'user-1', {
         factKey: 'profile.current_role',
         valueEnvelope: envelope,
         source: { kind: 'user_input' },
@@ -52,6 +52,14 @@ describe('Career Graph fact integrity', () => {
         source: { kind: 'user_input' },
       })
     ).toThrow(/context mismatch/);
+
+    expect(() =>
+      validateCareerGraphFact(tenantId, 'user-1', {
+        factKey: 'profile.current_role',
+        valueEnvelope: { ...envelope, iv: 'AA==' },
+        source: { kind: 'user_input' },
+      })
+    ).toThrow(/IV must be 12-byte base64/);
   });
 
   it('requires stable fact keys and bounded provenance', () => {
@@ -88,7 +96,18 @@ describe('Career Graph fact integrity', () => {
     expect(() => assertReviewAllowed(fact, 'user-1', 'confirmed')).not.toThrow();
     expect(() => assertReviewAllowed(fact, 'user-2', 'confirmed')).toThrow(/contributor/);
     expect(() =>
-      assertReviewAllowed({ ...fact, review: { decision: 'confirmed', reviewedBy: 'user-1', reviewedAt: fact.createdAt } }, 'user-1', 'rejected')
+      assertReviewAllowed(
+        {
+          ...fact,
+          review: {
+            decision: 'confirmed',
+            reviewedBy: 'user-1',
+            reviewedAt: fact.createdAt,
+          },
+        },
+        'user-1',
+        'rejected'
+      )
     ).toThrow(/immutable/);
   });
 });
