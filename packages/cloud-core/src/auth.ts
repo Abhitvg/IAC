@@ -19,10 +19,21 @@ export interface JwtVerificationConfig {
   clockToleranceSeconds?: number;
 }
 
+function decodeBase64UrlSegment(segment: string): Buffer {
+  if (!/^[A-Za-z0-9_-]+$/.test(segment)) {
+    throw new Error('Malformed base64url segment');
+  }
+  const decoded = Buffer.from(segment, 'base64url');
+  if (decoded.toString('base64url') !== segment) {
+    throw new Error('Non-canonical base64url segment');
+  }
+  return decoded;
+}
+
 function decodeSegment(segment: string): Record<string, unknown> {
   let value: unknown;
   try {
-    value = JSON.parse(Buffer.from(segment, 'base64url').toString('utf8')) as unknown;
+    value = JSON.parse(decodeBase64UrlSegment(segment).toString('utf8')) as unknown;
   } catch {
     throw new Error('Malformed token segment');
   }
@@ -58,7 +69,7 @@ export function verifyAccessToken(
   const expected = createHmac('sha256', config.hmacSecret)
     .update(segments.slice(0, 2).join('.'))
     .digest();
-  const actual = Buffer.from(segments[2], 'base64url');
+  const actual = decodeBase64UrlSegment(segments[2]);
   if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
     throw new Error('Invalid access token signature');
   }
@@ -176,7 +187,7 @@ export class OidcJwksVerifier {
     ) {
       throw new Error('OIDC signing key must be RSA-2048 or stronger');
     }
-    const signature = Buffer.from(segments[2], 'base64url');
+    const signature = decodeBase64UrlSegment(segments[2]);
     const valid = verifySignature(
       'RSA-SHA256',
       Buffer.from(segments.slice(0, 2).join('.')),
