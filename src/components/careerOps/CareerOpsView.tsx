@@ -49,6 +49,7 @@ import {
   parseLatexForVisualPreview,
 } from '../../services/careerOps/overleafPusher';
 import { useCareerOpsStore } from '../../store/useCareerOpsStore';
+import { CareerDiscoveryPanel } from './CareerDiscoveryPanel';
 import { useAppStore } from '../../store/useAppStore';
 import { usePracticeStore } from '../../store/usePracticeStore';
 import { ApplicationStatus, JobApplication } from '../../services/careerOps/types';
@@ -481,6 +482,7 @@ export function CareerOpsView() {
         <div style={{ display: 'flex', gap: '6px' }}>
           {[
             { id: 'pipeline', label: '📋 Pipeline Board', count: applications.length },
+            { id: 'discovery', label: '🔎 Job Discovery' },
             {
               id: 'evaluator',
               label: '⚡ A-H Job Evaluator',
@@ -580,6 +582,8 @@ export function CareerOpsView() {
 
       {/* Main Workspace Content Area */}
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+        {subTab === 'discovery' && <CareerDiscoveryPanel />}
+
         {/* TAB 1: PIPELINE BOARD */}
         {subTab === 'pipeline' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
