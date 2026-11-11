@@ -2223,7 +2223,14 @@ export function CareerOpsView() {
 
             {/* Automated Follow-Up Cadence & Timeline Engine */}
             {(() => {
-              const appliedTimestamp = activeJob.appliedAt || activeJob.createdAt || Date.now();
+              const appliedTimestamp = activeJob.appliedAt;
+              if (!appliedTimestamp || !['applied', 'interviewing'].includes(activeJob.status)) {
+                return (
+                  <div style={{ padding: '14px', borderRadius: '10px', background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: '11px' }}>
+                    Follow-up reminders start after you confirm that the application was submitted. Update this job’s status to Applied in the pipeline to start the Day 3 / 7 / 14 cadence.
+                  </div>
+                );
+              }
               const timeline = calculateFollowUpTimeline(
                 appliedTimestamp,
                 activeJob.company,
