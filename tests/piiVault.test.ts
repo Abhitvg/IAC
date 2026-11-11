@@ -201,6 +201,16 @@ describe('PiiVault', () => {
     );
   });
 
+  it('wipes the cached master key and rejects operations after close', async () => {
+    const vault = new PiiVault(userDataPath);
+    await vault.put('candidate', 'profile', { fullName: 'Private Candidate' });
+
+    vault.close();
+
+    await expect(vault.get('candidate', 'profile')).rejects.toThrow('PII vault is closed.');
+    expect(() => vault.close()).not.toThrow();
+  });
+
   it('returns null for missing records and deletes existing records', async () => {
     const vault = new PiiVault(userDataPath);
 
