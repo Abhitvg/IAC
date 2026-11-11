@@ -284,7 +284,7 @@ export function generatePlaywrightAutoFillScript(
   jobUrl: string,
   profile: CandidateAutoFillProfile,
   coverLetterText: string = '',
-  resumeFilePath: string = 'Abhishek_Singh_Resume.pdf'
+  resumeFilePath: string = ''
 ): string {
   let parsedJobUrl: URL;
   try {
@@ -317,7 +317,7 @@ async function autoApply() {
 
   // Attempt resume file upload if input[type="file"] exists
   const fileInput = await page.$('input[type="file"]');
-  if (fileInput) {
+  if (fileInput && ${serializedResumePath}) {
     try {
       console.log('Attaching resume file:', ${serializedResumePath});
       await fileInput.setInputFiles(${serializedResumePath});
