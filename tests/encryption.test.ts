@@ -86,6 +86,15 @@ describe('Tenant envelope encryption', () => {
     ).rejects.toThrow();
   });
 
+  it('verifies an envelope without returning decrypted plaintext', async () => {
+    const { kms, unwrapDataKey } = createKms();
+    const cipher = new TenantEnvelopeCipher(kms);
+    const envelope = await encryptTestFact(cipher);
+
+    await expect(cipher.verify(envelope, tenantId, context)).resolves.toBeUndefined();
+    expect(unwrapDataKey).toHaveBeenCalledOnce();
+  });
+
   it('rejects malformed cryptographic fields before contacting KMS', async () => {
     const { kms, unwrapDataKey } = createKms();
     const cipher = new TenantEnvelopeCipher(kms);
