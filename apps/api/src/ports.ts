@@ -7,7 +7,9 @@ import type { VerifiedIdentity } from '../../../packages/cloud-core/src/auth';
 export interface CloudApiRepository extends TenantMembershipRepository {
   getControlState(tenantId: string): Promise<TenantControlState>;
   acceptSprintContract(record: ConsentRecord): Promise<{ id: string; revision: number }>;
-  getActiveSprintContract(tenantId: string): Promise<(ConsentRecord & { id: string; revision: number }) | null>;
+  getActiveSprintContract(
+    tenantId: string
+  ): Promise<(ConsentRecord & { id: string; revision: number }) | null>;
   revokeSprintContract(input: {
     tenantId: string;
     subject: string;
