@@ -155,6 +155,5 @@ BEFORE TRUNCATE ON career_graph_fact_reviews
 FOR EACH STATEMENT EXECUTE FUNCTION reject_career_graph_mutation();
 
 GRANT SELECT, INSERT ON career_graph_facts, career_graph_fact_reviews TO careerops_app;
-GRANT SELECT, INSERT ON career_graph_facts, career_graph_fact_reviews TO careerops_provisioner;
 
 COMMIT;
