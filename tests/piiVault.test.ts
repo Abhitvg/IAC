@@ -61,9 +61,8 @@ describe('PiiVault', () => {
         'Private Candidate'
       );
       await expect(vault.get('candidate', 'profile')).resolves.toEqual(profile);
-    });
-  );
     }
+  );
   it('binds ciphertext to namespace and record key', async () => {
     const vault = new PiiVault(userDataPath);
     await vault.put('candidate', 'profile', { email: 'private@example.test' });
@@ -108,7 +107,7 @@ describe('PiiVault', () => {
 
   it(
     'does not create a replacement key when encrypted records exist but the key file is missing',
-      async () => {
+    async () => {
       const vault = new PiiVault(userDataPath);
       await vault.put('candidate', 'profile', { fullName: 'Private Candidate' });
       const keyPath = path.join(userDataPath, '.iac-pii-vault-key.v1');
@@ -122,9 +121,8 @@ describe('PiiVault', () => {
       ).rejects.toThrow(/master key is missing while encrypted records exist/);
       expect(fs.existsSync(keyPath)).toBe(false);
       expect(fs.readFileSync(recordPath, 'utf8')).toBe(encryptedRecord);
-  );
     }
-
+  );
   it('refuses access when the OS keyring is unavailable or locked', async () => {
     (safeStorage.isAsyncEncryptionAvailable as any).mockResolvedValue(false);
     const vault = new PiiVault(userDataPath);
