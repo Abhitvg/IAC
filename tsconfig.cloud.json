@@ -9,5 +9,9 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["apps/api/src/**/*.ts", "packages/cloud-core/src/**/*.ts", "tests/cloud-foundation.test.ts"]
+  "include": [
+    "apps/api/src/**/*.ts",
+    "packages/cloud-core/src/**/*.ts",
+    "tests/cloud-foundation.test.ts"
+  ]
 }

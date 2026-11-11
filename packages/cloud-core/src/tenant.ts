@@ -23,9 +23,11 @@ export async function resolveTenantContext(
   const memberships = await repository.findMembershipsBySubject(subject);
   const active = memberships.filter((membership) => membership.status === 'active');
   if (active.length !== 1) {
-    throw new Error(active.length === 0
-      ? 'No active tenant membership exists for this identity'
-      : 'Identity has multiple tenant memberships; explicit tenant selection is required');
+    throw new Error(
+      active.length === 0
+        ? 'No active tenant membership exists for this identity'
+        : 'Identity has multiple tenant memberships; explicit tenant selection is required'
+    );
   }
   const membership = active[0];
   return { tenantId: membership.tenantId, subject, role: membership.role };

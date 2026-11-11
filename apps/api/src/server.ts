@@ -15,7 +15,10 @@ function sendJson(response: ServerResponse, status: number, body: unknown): void
   response.end(JSON.stringify(body));
 }
 
-async function readJson(request: IncomingMessage, maxBytes: number): Promise<Record<string, unknown>> {
+async function readJson(
+  request: IncomingMessage,
+  maxBytes: number
+): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request) {
@@ -74,7 +77,8 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
 
       if (request.method === 'GET' && url.pathname === '/v1/controls') {
         const controls = await dependencies.repository.getControlState(tenant.tenantId);
-        if (controls.tenantId !== tenant.tenantId) throw new Error('Tenant control context mismatch');
+        if (controls.tenantId !== tenant.tenantId)
+          throw new Error('Tenant control context mismatch');
         sendJson(response, 200, controls);
         return;
       }
@@ -85,8 +89,14 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           return;
         }
         const body = await readJson(request, maxBytes);
-        if (typeof body.enabled !== 'boolean' || Object.keys(body).some((key) => key !== 'enabled')) {
-          sendJson(response, 400, { error: 'Expected exactly one boolean field: enabled', requestId });
+        if (
+          typeof body.enabled !== 'boolean' ||
+          Object.keys(body).some((key) => key !== 'enabled')
+        ) {
+          sendJson(response, 400, {
+            error: 'Expected exactly one boolean field: enabled',
+            requestId,
+          });
           return;
         }
         const occurredAt = new Date().toISOString();
@@ -97,10 +107,13 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           occurredAt,
           metadata: { requestId, enabled: body.enabled },
         });
-        sendJson(response, 200, { tenantId: tenant.tenantId, globalKillSwitch: body.enabled, updatedAt: occurredAt });
+        sendJson(response, 200, {
+          tenantId: tenant.tenantId,
+          globalKillSwitch: body.enabled,
+          updatedAt: occurredAt,
+        });
         return;
       }
-
 
       if (request.method === 'POST' && url.pathname === '/v1/controls/channel-pause') {
         if (tenant.role !== 'owner') {
@@ -115,7 +128,10 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           typeof body.paused !== 'boolean' ||
           Object.keys(body).some((key) => key !== 'channel' && key !== 'paused')
         ) {
-          sendJson(response, 400, { error: 'Expected a supported channel and boolean paused field', requestId });
+          sendJson(response, 400, {
+            error: 'Expected a supported channel and boolean paused field',
+            requestId,
+          });
           return;
         }
         const occurredAt = new Date().toISOString();
@@ -139,10 +155,16 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       sendJson(response, 404, { error: 'Not found', requestId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
-      const status = error instanceof SyntaxError ? 400
-        : /token|identity|membership|bearer|authorization/i.test(message) ? 401
-        : /size limit/i.test(message) ? 413
-          : /JSON|body/i.test(message) ? 400 : 500;
+      const status =
+        error instanceof SyntaxError
+          ? 400
+          : /token|identity|membership|bearer|authorization/i.test(message)
+            ? 401
+            : /size limit/i.test(message)
+              ? 413
+              : /JSON|body/i.test(message)
+                ? 400
+                : 500;
       sendJson(response, status, {
         error: status === 500 ? 'Internal server error' : message,
         requestId,

@@ -26,9 +26,12 @@ export function assertActionAllowed(
 ): void {
   if (controls.tenantId !== request.tenantId) throw new Error('Tenant control context mismatch');
   if (controls.globalKillSwitch) throw new Error('Automation is globally paused');
-  if (controls.pausedChannels.includes(request.channel)) throw new Error('Automation channel is paused');
-  if (!consent || !verifyConsentRecord(consent, consentSigningSecret)) throw new Error('A valid, unrevoked Sprint Contract is required');
-  if (consent.tenantId !== request.tenantId || consent.subject !== request.subject) throw new Error('Sprint Contract consent identity mismatch');
+  if (controls.pausedChannels.includes(request.channel))
+    throw new Error('Automation channel is paused');
+  if (!consent || !verifyConsentRecord(consent, consentSigningSecret))
+    throw new Error('A valid, unrevoked Sprint Contract is required');
+  if (consent.tenantId !== request.tenantId || consent.subject !== request.subject)
+    throw new Error('Sprint Contract consent identity mismatch');
   const contract = consent.contract;
 
   const now = request.now ?? new Date();
@@ -39,17 +42,19 @@ export function assertActionAllowed(
     throw new Error('Channel is not enabled in the Sprint Contract');
   }
 
-  const cap = request.channel === 'ats'
-    ? contract.dailyCaps.applications
-    : request.channel === 'email'
-      ? contract.dailyCaps.emails
-      : request.channel === 'linkedin_assist'
-        ? contract.dailyCaps.assistQueueItems
-        : contract.dailyCaps.calendarEvents;
+  const cap =
+    request.channel === 'ats'
+      ? contract.dailyCaps.applications
+      : request.channel === 'email'
+        ? contract.dailyCaps.emails
+        : request.channel === 'linkedin_assist'
+          ? contract.dailyCaps.assistQueueItems
+          : contract.dailyCaps.calendarEvents;
 
   if (!Number.isSafeInteger(request.dailyUsage) || request.dailyUsage < 0) {
     throw new Error('Daily usage counter is invalid');
   }
   if (request.dailyUsage >= cap) throw new Error('Daily action cap reached');
-  if (!request.action.trim() || request.action.length > 80) throw new Error('Invalid action identifier');
+  if (!request.action.trim() || request.action.length > 80)
+    throw new Error('Invalid action identifier');
 }

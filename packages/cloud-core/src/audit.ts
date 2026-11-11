@@ -22,8 +22,9 @@ export interface AuditRepository {
 function stableJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-  const entries = Object.entries(value as Record<string, unknown>)
-    .sort(([left], [right]) => left.localeCompare(right));
+  const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
+    left.localeCompare(right)
+  );
   return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(',')}}`;
 }
 
@@ -38,7 +39,13 @@ export async function appendAuditEvent(
   input: AuditEventInput,
   previousHash: string | null
 ): Promise<AuditRecord> {
-  if (!input.tenantId || !input.actorSubject || !input.action || !input.entityType || !input.entityId) {
+  if (
+    !input.tenantId ||
+    !input.actorSubject ||
+    !input.action ||
+    !input.entityType ||
+    !input.entityId
+  ) {
     throw new Error('Audit event identity fields are required');
   }
   if (input.action.length > 100 || input.entityType.length > 80 || input.entityId.length > 200) {

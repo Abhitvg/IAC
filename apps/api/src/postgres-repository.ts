@@ -1,6 +1,9 @@
 import { appendAuditEvent, type AuditRecord } from '../../../packages/cloud-core/src/audit';
 import type { CloudApiRepository } from './ports';
-import type { TenantMembership, TenantMembershipRepository } from '../../../packages/cloud-core/src/tenant';
+import type {
+  TenantMembership,
+  TenantMembershipRepository,
+} from '../../../packages/cloud-core/src/tenant';
 
 interface QueryResult<Row = Record<string, unknown>> {
   rows: Row[];
@@ -135,27 +138,31 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
         occurredAt: input.occurredAt,
         metadata: input.metadata,
       };
-      await appendAuditEvent({
-        append: async (record: AuditRecord) => {
-          await client.query(
-            `INSERT INTO audit_events
+      await appendAuditEvent(
+        {
+          append: async (record: AuditRecord) => {
+            await client.query(
+              `INSERT INTO audit_events
               (tenant_id, actor_subject, action, entity_type, entity_id, occurred_at,
                metadata, previous_hash, event_hash)
              VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
-            [
-              record.tenantId,
-              record.actorSubject,
-              record.action,
-              record.entityType,
-              record.entityId,
-              record.occurredAt,
-              JSON.stringify(record.metadata ?? {}),
-              record.previousHash,
-              record.eventHash,
-            ]
-          );
+              [
+                record.tenantId,
+                record.actorSubject,
+                record.action,
+                record.entityType,
+                record.entityId,
+                record.occurredAt,
+                JSON.stringify(record.metadata ?? {}),
+                record.previousHash,
+                record.eventHash,
+              ]
+            );
+          },
         },
-      }, auditInput, previous.rows[0]?.event_hash ?? null);
+        auditInput,
+        previous.rows[0]?.event_hash ?? null
+      );
     });
   }
 
@@ -194,27 +201,31 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
         occurredAt: input.occurredAt,
         metadata: input.metadata,
       };
-      await appendAuditEvent({
-        append: async (record: AuditRecord) => {
-          await client.query(
-            `INSERT INTO audit_events
+      await appendAuditEvent(
+        {
+          append: async (record: AuditRecord) => {
+            await client.query(
+              `INSERT INTO audit_events
               (tenant_id, actor_subject, action, entity_type, entity_id, occurred_at,
                metadata, previous_hash, event_hash)
              VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
-            [
-              record.tenantId,
-              record.actorSubject,
-              record.action,
-              record.entityType,
-              record.entityId,
-              record.occurredAt,
-              JSON.stringify(record.metadata ?? {}),
-              record.previousHash,
-              record.eventHash,
-            ]
-          );
+              [
+                record.tenantId,
+                record.actorSubject,
+                record.action,
+                record.entityType,
+                record.entityId,
+                record.occurredAt,
+                JSON.stringify(record.metadata ?? {}),
+                record.previousHash,
+                record.eventHash,
+              ]
+            );
+          },
         },
-      }, auditInput, previous.rows[0]?.event_hash ?? null);
+        auditInput,
+        previous.rows[0]?.event_hash ?? null
+      );
     });
   }
 }

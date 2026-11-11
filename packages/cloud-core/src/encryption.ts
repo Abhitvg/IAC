@@ -8,7 +8,12 @@ export interface GeneratedDataKey {
 
 export interface TenantKeyManagementService {
   generateDataKey(tenantId: string, context: string): Promise<GeneratedDataKey>;
-  unwrapDataKey(tenantId: string, wrappedKey: string, keyVersion: string, context: string): Promise<Buffer>;
+  unwrapDataKey(
+    tenantId: string,
+    wrappedKey: string,
+    keyVersion: string,
+    context: string
+  ): Promise<Buffer>;
 }
 
 export interface EncryptedEnvelope {
@@ -58,7 +63,11 @@ export class TenantEnvelopeCipher {
     }
   }
 
-  async decrypt(envelope: EncryptedEnvelope, expectedTenantId: string, expectedContext: string): Promise<Buffer> {
+  async decrypt(
+    envelope: EncryptedEnvelope,
+    expectedTenantId: string,
+    expectedContext: string
+  ): Promise<Buffer> {
     if (
       envelope.algorithm !== 'A256GCM' ||
       envelope.tenantId !== expectedTenantId ||

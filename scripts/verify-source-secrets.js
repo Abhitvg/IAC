@@ -6,8 +6,22 @@ const tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
   .filter(Boolean);
 
 const textExtensions = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.json', '.md', '.sql', '.yml', '.yaml',
-  '.sh', '.env', '.toml', '.xml', '.html', '.css', '.txt',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.json',
+  '.md',
+  '.sql',
+  '.yml',
+  '.yaml',
+  '.sh',
+  '.env',
+  '.toml',
+  '.xml',
+  '.html',
+  '.css',
+  '.txt',
 ]);
 
 // Provider key fixtures in tests are deliberately short; production token lengths are enforced here.
