@@ -141,7 +141,7 @@ export const CandidateProfileWizard: React.FC = () => {
     }
   }, [profileService]);
 
-  // Handle application close / beforeunload to safely flush pending changes
+  // Unload is best-effort; explicit wizard actions await the secure persistence queue.
   useEffect(() => {
     const handleBeforeUnload = () => {
       void flushPendingSave();
