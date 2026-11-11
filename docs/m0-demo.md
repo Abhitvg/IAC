@@ -32,7 +32,7 @@ M0 establishes the first cloud trust boundary and security primitives. It does n
 
 `apps/api/src/migrations.ts` provides `loadCloudMigrations(directory)` and `runCloudMigrations(pool, migrations)` for a dedicated release/deployment job:
 
-- Migration files are restricted to ordered names such as `0005_add_feature.sql`; symlinks and unrelated files are ignored.
+- Migration files are restricted to ordered names such as `0005_add_feature.sql`; non-SQL files are ignored, while SQL symlinks and malformed SQL filenames are rejected.
 - A PostgreSQL advisory lock serializes concurrent migration runners.
 - Each migration and its SHA-256 ledger entry commit in the same transaction.
 - Reapplying an unchanged migration is a no-op; changing the contents of an already-applied migration fails closed.
