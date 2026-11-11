@@ -84,6 +84,7 @@ function validateEnvelope(
   ) {
     throw new Error('Invalid encrypted envelope key metadata');
   }
+  associatedData(expectedTenantId, expectedContext, envelope.keyVersion);
   const iv = decodeCanonicalBase64(envelope.iv, 'IV', 16);
   const authTag = decodeCanonicalBase64(envelope.authTag, 'authentication tag', 24);
   const ciphertext = decodeCanonicalBase64(
