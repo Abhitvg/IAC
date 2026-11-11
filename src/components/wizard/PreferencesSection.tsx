@@ -29,7 +29,10 @@ export const PreferencesSection: React.FC<PreferencesSectionProps> = React.memo(
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdatePreferences(draftRef.current, true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdatePreferences(draftRef.current, true);
+      }
     }, [onUpdatePreferences]);
 
     useEffect(() => {
