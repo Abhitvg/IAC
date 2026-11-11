@@ -80,7 +80,9 @@ export const CareerSection: React.FC<CareerSectionProps> = React.memo(
 
         <div className="wizard-grid-2col">
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Current Role / Title
             </label>
             <input
@@ -102,7 +104,9 @@ export const CareerSection: React.FC<CareerSectionProps> = React.memo(
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Total Experience (Years)
             </label>
             <input
@@ -128,7 +132,9 @@ export const CareerSection: React.FC<CareerSectionProps> = React.memo(
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Target Seniority Level
             </label>
             <select
@@ -158,7 +164,9 @@ export const CareerSection: React.FC<CareerSectionProps> = React.memo(
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Notice Period
             </label>
             <input
