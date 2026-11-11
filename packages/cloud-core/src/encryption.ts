@@ -140,6 +140,15 @@ export class TenantEnvelopeCipher {
     }
   }
 
+  async verify(
+    envelope: EncryptedEnvelope,
+    expectedTenantId: string,
+    expectedContext: string
+  ): Promise<void> {
+    const plaintext = await this.decrypt(envelope, expectedTenantId, expectedContext);
+    plaintext.fill(0);
+  }
+
   async decrypt(
     envelope: EncryptedEnvelope,
     expectedTenantId: string,
