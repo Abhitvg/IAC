@@ -74,6 +74,13 @@ jobs:
           }
           NODE
 
+      - name: TEMP print Prettier-formatted PostgreSQL pool tests
+        if: matrix.os == 'ubuntu-24.04' && github.event_name == 'pull_request' && github.event.pull_request.number == 201
+        shell: bash
+        run: |
+          npx prettier --write tests/postgres-pool.test.ts
+          cat tests/postgres-pool.test.ts
+
       - name: Check formatting for changed files
         shell: bash
         run: |
