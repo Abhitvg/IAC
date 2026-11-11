@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const CloudEnvironmentSchema = z
   .object({
-    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    NODE_ENV: z.enum(['development', 'test', 'production']),
     CAREEROPS_JWT_ISSUER: z
       .string()
       .url()
