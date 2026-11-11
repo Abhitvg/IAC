@@ -21,7 +21,9 @@ export const EncryptedFactEnvelopeSchema = z
     algorithm: z.literal('A256GCM'),
     keyVersion: z.string().min(1).max(128),
     wrappedKey: z.string().min(1).max(4096),
-    iv: z.string().refine((value) => base64BytesOfLength(value, 12), 'IV must be 12-byte base64'),
+    iv: z
+      .string()
+      .refine((value) => base64BytesOfLength(value, 12), 'IV must be 12-byte base64'),
     authTag: z
       .string()
       .refine((value) => base64BytesOfLength(value, 16), 'Auth tag must be 16-byte base64'),
