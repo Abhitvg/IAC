@@ -1,0 +1,175 @@
+import { createHmac, randomBytes } from 'node:crypto';
+import { once } from 'node:events';
+import { afterEach, describe, expect, it } from 'vitest';
+import { verifyAccessToken } from '../packages/cloud-core/src/auth';
+import { createConsentRecord, SprintContractSchema } from '../packages/cloud-core/src/contract';
+import { assertActionAllowed, type TenantControlState } from '../packages/cloud-core/src/controls';
+import { appendAuditEvent, hashAuditEvent, type AuditRecord } from '../packages/cloud-core/src/audit';
+import { TenantEnvelopeCipher, type TenantKeyManagementService } from '../packages/cloud-core/src/encryption';
+import { resolveTenantContext, type TenantMembership } from '../packages/cloud-core/src/tenant';
+import { createCloudApiServer } from '../apps/api/src/server';
+import type { CloudApiDependencies } from '../apps/api/src/ports';
+
+const secret = 'test-only-secret-that-is-at-least-32-characters';
+const contractInput = {
+  version: 1 as const,
+  roles: ['Software Engineer'],
+  seniority: ['mid' as const],
+  locations: ['India'],
+  remotePreference: 'any' as const,
+  salaryFloor: { amount: 0, currency: 'INR' },
+  workAuthorization: { countries: ['IN'], requiresSponsorship: false, confirmed: true as const },
+  blocklist: { companies: [], industries: [] },
+  enabledChannels: ['ats', 'email'] as const,
+  dailyCaps: { applications: 10, emails: 5, assistQueueItems: 0 },
+  defaultAnswers: {},
+  allowedFactIds: [],
+  tone: 'professional' as const,
+  senderIdentity: { name: 'Test User', email: 'test@example.com' },
+  jurisdiction: ['IN'] as const,
+  outreachConsent: true,
+  consentTextVersion: '2026-01',
+  startsAt: '2026-11-11T00:00:00.000Z',
+  endsAt: '2026-11-15T00:00:00.000Z',
+};
+
+function signToken(claims: Record<string, unknown>, signingSecret = secret): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+  const content = `${header}.${payload}`;
+  const signature = createHmac('sha256', signingSecret).update(content).digest('base64url');
+  return `${content}.${signature}`;
+}
+
+const authConfig = { issuer: 'https://identity.example.test', audience: 'careerops-api', hmacSecret: secret };
+
+describe('M0 cloud security foundation', () => {
+  it('verifies signed access tokens and rejects tampering, wrong issuer, audience and expiry', () => {
+    const claims = { sub: 'user-1', iss: authConfig.issuer, aud: authConfig.audience, exp: 2_000_000_000 };
+    expect(verifyAccessToken(signToken(claims), authConfig, 1_900_000_000).subject).toBe('user-1');
+    const tampered = signToken(claims).replace(/.$/, 'x');
+    expect(() => verifyAccessToken(tampered, authConfig, 1_900_000_000)).toThrow();
+    expect(() => verifyAccessToken(signToken({ ...claims, iss: 'https://evil.test' }), authConfig, 1_900_000_000)).toThrow();
+    expect(() => verifyAccessToken(signToken({ ...claims, aud: 'other' }), authConfig, 1_900_000_000)).toThrow();
+    expect(() => verifyAccessToken(signToken({ ...claims, exp: 1 }), authConfig, 1_900_000_000)).toThrow();
+  });
+
+  it('never trusts tenant IDs in JWT claims and resolves exactly one server-side membership', async () => {
+    const membership: TenantMembership = { tenantId: 'tenant-server-side', subject: 'user-1', role: 'owner', status: 'active' };
+    const context = await resolveTenantContext('user-1', {
+      findMembershipsBySubject: async () => [membership],
+    });
+    expect(context.tenantId).toBe('tenant-server-side');
+    await expect(resolveTenantContext('user-1', {
+      findMembershipsBySubject: async () => [membership, { ...membership, tenantId: 'tenant-other' }],
+    })).rejects.toThrow('multiple tenant memberships');
+  });
+
+  it('validates Sprint Contract and requires explicit outreach consent for email', () => {
+    expect(SprintContractSchema.safeParse(contractInput).success).toBe(true);
+    expect(SprintContractSchema.safeParse({
+      ...contractInput,
+      outreachConsent: false,
+    }).success).toBe(false);
+    expect(SprintContractSchema.safeParse({
+      ...contractInput,
+      dailyCaps: { applications: 1000, emails: 5, assistQueueItems: 0 },
+    }).success).toBe(false);
+  });
+
+  it('signs a validated consent record and preserves the contract hash', () => {
+    const record = createConsentRecord('tenant-1', 'user-1', contractInput, secret);
+    expect(record.signature).toMatch(/^[a-f0-9]{64}$/);
+    expect(record.contractHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(record.revokedAt).toBeNull();
+  });
+
+  it('fails closed on global kill switch, channel pause, missing consent and expired contract', () => {
+    const record = createConsentRecord('tenant-1', 'user-1', contractInput, secret);
+    const base: TenantControlState = {
+      tenantId: 'tenant-1',
+      globalKillSwitch: false,
+      pausedChannels: [],
+      updatedAt: new Date().toISOString(),
+    };
+    const request = { tenantId: 'tenant-1', channel: 'email' as const, action: 'send', dailyUsage: 0, now: new Date('2026-11-12T00:00:00Z') };
+    expect(() => assertActionAllowed(record.contract, base, request)).not.toThrow();
+    expect(() => assertActionAllowed(record.contract, { ...base, globalKillSwitch: true }, request)).toThrow('globally paused');
+    expect(() => assertActionAllowed(record.contract, { ...base, pausedChannels: ['email'] }, request)).toThrow('channel is paused');
+    expect(() => assertActionAllowed(null, base, request)).toThrow('Sprint Contract');
+    expect(() => assertActionAllowed(record.contract, base, { ...request, dailyUsage: 5 })).toThrow('Daily action cap');
+  });
+
+  it('creates a tamper-evident audit hash chain and appends records', async () => {
+    const records: AuditRecord[] = [];
+    const input = {
+      tenantId: 'tenant-1',
+      actorSubject: 'user-1',
+      action: 'kill_switch.enabled',
+      entityType: 'tenant_control',
+      entityId: 'tenant-1',
+      occurredAt: '2026-11-11T00:00:00.000Z',
+      metadata: { enabled: true },
+    };
+    const first = await appendAuditEvent({ append: async (record) => { records.push(record); } }, input, null);
+    const second = await appendAuditEvent({ append: async (record) => { records.push(record); } }, { ...input, action: 'kill_switch.disabled' }, first.eventHash);
+    expect(second.previousHash).toBe(first.eventHash);
+    expect(records).toHaveLength(2);
+    expect(hashAuditEvent(input, null)).toBe(first.eventHash);
+    expect(hashAuditEvent({ ...input, metadata: { enabled: false } }, null)).not.toBe(first.eventHash);
+  });
+
+  it('encrypts with tenant/context binding and rejects cross-tenant or modified ciphertext', async () => {
+    const keys = new Map<string, Buffer>();
+    const kms: TenantKeyManagementService = {
+      generateDataKey: async (tenantId, context) => {
+        const key = randomBytes(32);
+        const id = `${tenantId}|${context}`;
+        keys.set(id, Buffer.from(key));
+        return { plaintextKey: key, wrappedKey: Buffer.from(id).toString('base64'), keyVersion: 'test-kek-v1' };
+      },
+      unwrapDataKey: async (tenantId, wrappedKey, _version, context) => {
+        const id = Buffer.from(wrappedKey, 'base64').toString('utf8');
+        if (id !== `${tenantId}|${context}`) throw new Error('KMS context mismatch');
+        return Buffer.from(keys.get(id)!);
+      },
+    };
+    const cipher = new TenantEnvelopeCipher(kms);
+    const envelope = await cipher.encrypt('tenant-1', 'resume:abc', Buffer.from('private resume'));
+    expect((await cipher.decrypt(envelope, 'tenant-1', 'resume:abc')).toString()).toBe('private resume');
+    await expect(cipher.decrypt(envelope, 'tenant-2', 'resume:abc')).rejects.toThrow('mismatch');
+    await expect(cipher.decrypt({ ...envelope, ciphertext: Buffer.from('tampered').toString('base64') }, 'tenant-1', 'resume:abc')).rejects.toThrow();
+  });
+
+  it('serves health and requires verified identity plus server-side tenant membership for private routes', async () => {
+    const membership: TenantMembership = { tenantId: 'tenant-1', subject: 'user-1', role: 'owner', status: 'active' };
+    const dependencies: CloudApiDependencies = {
+      config: { ...authConfig },
+      repository: {
+        findMembershipsBySubject: async () => [membership],
+        getControlState: async (tenantId) => ({ tenantId, globalKillSwitch: true, pausedChannels: [], updatedAt: new Date().toISOString() }),
+        setGlobalKillSwitchWithAudit: async () => undefined,
+        appendAudit: async () => undefined,
+        getLatestAuditHash: async () => null,
+      },
+    };
+    const server = createCloudApiServer(dependencies);
+    server.listen(0);
+    await once(server, 'listening');
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+    try {
+      const health = await fetch(`http://127.0.0.1:${address.port}/health/live`);
+      expect(health.status).toBe(200);
+      const unauthorized = await fetch(`http://127.0.0.1:${address.port}/v1/me`);
+      expect(unauthorized.status).toBe(401);
+      const token = signToken({ sub: 'user-1', iss: authConfig.issuer, aud: authConfig.audience, exp: 2_000_000_000, tenant_id: 'attacker-tenant' });
+      const me = await fetch(`http://127.0.0.1:${address.port}/v1/me`, { headers: { authorization: `Bearer ${token}` } });
+      expect(me.status).toBe(200);
+      expect(await me.json()).toMatchObject({ tenantId: 'tenant-1', subject: 'user-1' });
+    } finally {
+      server.close();
+      await once(server, 'close');
+    }
+  });
+});
