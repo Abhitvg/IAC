@@ -255,7 +255,8 @@ export const CandidateProfileWizard: React.FC = () => {
           } else {
             setSaveStatus('error');
             setSaveStatusText(
-              profileService.getPersistenceError() || 'Secure storage unavailable; changes were not saved'
+              profileService.getPersistenceError() ||
+                'Secure storage unavailable; changes were not saved'
             );
           }
         } catch (err) {
