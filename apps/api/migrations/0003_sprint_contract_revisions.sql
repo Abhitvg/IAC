@@ -11,4 +11,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS sprint_contracts_tenant_revision_idx
 CREATE INDEX IF NOT EXISTS sprint_contracts_active_revision_idx
   ON sprint_contracts (tenant_id, revision DESC)
   WHERE revoked_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS sprint_contracts_one_active_per_tenant_idx
+  ON sprint_contracts (tenant_id)
+  WHERE revoked_at IS NULL;
 COMMIT;
