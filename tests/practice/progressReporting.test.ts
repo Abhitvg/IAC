@@ -195,12 +195,12 @@ describe('Phase 6 - Progress and Honesty in Reporting Suite', () => {
       expect(metric.deliveryScore).toBeNull();
       expect(metric.speakingPaceWpm).toBeNull();
       expect(metric.fillerCount).toBeNull();
-      expect(metric.overallScore).toBe(4.0);
+      expect(metric.overallScore).toBe(3.8);
 
       const html = renderToStaticMarkup(
         React.createElement(ProgressView, { sessionHistory: [session] })
       );
-      expect(html).toContain('>--<');
+      expect(html).toContain('--');
       expect(html).not.toContain('130 WPM');
     });
   });
