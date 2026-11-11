@@ -16,6 +16,7 @@
     "tests/cloud-migrations.test.ts",
     "tests/career-graph.test.ts",
     "tests/postgres-pool.test.ts",
-    "tests/career-graph-api.test.ts"
+    "tests/career-graph-api.test.ts",
+    "tests/encryption.test.ts"
   ]
 }

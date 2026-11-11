@@ -4,10 +4,16 @@ import type {
   CareerGraphFact,
   CareerGraphFactInput,
   CareerGraphFactReview,
+  EncryptedFactEnvelope,
 } from '../../../packages/cloud-core/src/career-graph';
 import type { TenantControlState } from '../../../packages/cloud-core/src/controls';
 import type { TenantMembershipRepository } from '../../../packages/cloud-core/src/tenant';
 import type { VerifiedIdentity } from '../../../packages/cloud-core/src/auth';
+
+// Verifies ciphertext before tenant-scoped persistence.
+export interface CareerGraphEnvelopeVerifier {
+  verify(envelope: EncryptedFactEnvelope, tenantId: string, context: string): Promise<void>;
+}
 
 export interface CareerGraphRepository {
   createFact(
@@ -75,6 +81,7 @@ export interface CloudApiDependencies {
   identityVerifier: CloudIdentityVerifier;
   repository: CloudApiRepository;
   careerGraph: CareerGraphRepository;
+  careerGraphEnvelopeVerifier: CareerGraphEnvelopeVerifier;
   rateLimiter: CloudRateLimiter;
   config: CloudApiConfig;
 }

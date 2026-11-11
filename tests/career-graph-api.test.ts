@@ -82,6 +82,7 @@ function createDependencies(): CloudApiDependencies {
       setGlobalKillSwitchWithAudit: async () => undefined,
     },
     careerGraph: { createFact, listFacts, reviewFact },
+    careerGraphEnvelopeVerifier: { verify: async () => undefined },
   };
   return dependencies;
 }
@@ -142,6 +143,25 @@ describe('Career Graph API routes', () => {
       headers: { authorization: 'Bearer test-token' },
     });
     expect(invalidLimit.status).toBe(400);
+  });
+
+  it('fails closed when the hosted KMS envelope verifier is unavailable', async () => {
+    const dependencies = await startServer();
+    dependencies.careerGraphEnvelopeVerifier.verify = async () => {
+      throw new Error('Career Graph KMS provider is not configured');
+    };
+
+    const response = await fetch(`${baseUrl}/v1/career-graph/facts`, {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(validInput),
+    });
+
+    expect(response.status).toBe(503);
+    expect(dependencies.careerGraph.createFact).not.toHaveBeenCalled();
   });
 
   it('routes confirmation through the authenticated contributor identity', async () => {

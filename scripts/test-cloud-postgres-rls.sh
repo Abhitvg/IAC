@@ -4,6 +4,32 @@ set -euo pipefail
 : "${DATABASE_URL:?DATABASE_URL must point to a disposable PostgreSQL database}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# GitHub-hosted runners occasionally cannot reach Ubuntu package mirrors.
+# When the workflow supplies the PostgreSQL service container ID, use its
+# bundled psql client and stream host-side SQL files/stdin into that container.
+if [[ -n "${POSTGRES_CONTAINER_ID:-}" ]]; then
+  psql() {
+    local _database_url="$1"
+    shift
+    local _input_file=""
+    local -a _args=()
+    while (($#)); do
+      if [[ "$1" == "-f" ]]; then
+        _input_file="$2"
+        shift 2
+      else
+        _args+=("$1")
+        shift
+      fi
+    done
+    if [[ -n "$_input_file" ]]; then
+      docker exec -i "$POSTGRES_CONTAINER_ID" psql -U postgres -d careerops_test "${_args[@]}" < "$_input_file"
+    else
+      docker exec -i "$POSTGRES_CONTAINER_ID" psql -U postgres -d careerops_test "${_args[@]}"
+    fi
+  }
+fi
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0001_cloud_foundation.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0002_runtime_role_hardening.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0003_sprint_contract_revisions.sql"

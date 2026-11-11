@@ -625,6 +625,7 @@ describe('M0 cloud security foundation', () => {
             hmacSecret: secret,
           }),
       },
+      careerGraphEnvelopeVerifier: { verify: async () => undefined },
       careerGraph: {
         createFact: async () => {
           throw new Error('not exercised in this test');

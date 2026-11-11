@@ -5,6 +5,7 @@ import { PostgresCloudApiRepository, type ClosableSqlPool } from './postgres-rep
 import { PostgresCloudRateLimiter } from './postgres-rate-limiter';
 import { createCloudApiServer } from './server';
 import { PostgresCareerGraphRepository } from './career-graph-repository';
+import type { CareerGraphEnvelopeVerifier } from './ports';
 
 export interface CloudApiRuntime {
   server: Server;
@@ -14,7 +15,8 @@ export interface CloudApiRuntime {
 
 export function createCloudApiRuntime(
   pool: ClosableSqlPool,
-  environment: CloudEnvironment = loadCloudEnvironment()
+  environment: CloudEnvironment = loadCloudEnvironment(),
+  careerGraphEnvelopeVerifier?: CareerGraphEnvelopeVerifier
 ): CloudApiRuntime {
   const repository = new PostgresCloudApiRepository(pool);
   const server = createCloudApiServer({
@@ -25,6 +27,12 @@ export function createCloudApiRuntime(
     }),
     repository,
     careerGraph: new PostgresCareerGraphRepository(pool),
+    // No hosted fact writes until a real tenant-scoped cloud KMS verifier is configured.
+    careerGraphEnvelopeVerifier: careerGraphEnvelopeVerifier ?? {
+      verify: async () => {
+        throw new Error('Career Graph KMS provider is not configured');
+      },
+    },
     rateLimiter: new PostgresCloudRateLimiter(pool, environment.CAREEROPS_RATE_LIMIT_HASH_SECRET),
     config: {
       issuer: environment.CAREEROPS_JWT_ISSUER,
