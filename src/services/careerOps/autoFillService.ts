@@ -286,6 +286,18 @@ export function generatePlaywrightAutoFillScript(
   coverLetterText: string = '',
   resumeFilePath: string = 'Abhishek_Singh_Resume.pdf'
 ): string {
+  let parsedJobUrl: URL;
+  try {
+    parsedJobUrl = new URL(jobUrl);
+  } catch {
+    throw new Error('A valid HTTPS job posting URL is required.');
+  }
+  if (parsedJobUrl.protocol !== 'https:' || parsedJobUrl.username || parsedJobUrl.password) {
+    throw new Error('Playwright auto-fill only accepts public HTTPS job URLs.');
+  }
+  const serializedJobUrl = JSON.stringify(parsedJobUrl.toString());
+  const serializedResumePath = JSON.stringify(resumeFilePath);
+
   return `import { chromium } from 'playwright';
 
 /**
@@ -297,8 +309,8 @@ async function autoApply() {
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  console.log('Navigating to job portal: ${jobUrl}...');
-  await page.goto('${jobUrl}', { waitUntil: 'networkidle' });
+  console.log('Navigating to job portal:', ${serializedJobUrl});
+  await page.goto(${serializedJobUrl}, { waitUntil: 'networkidle' });
 
   // Inject CareerOps Auto-Fill logic into page
   await page.evaluate(${generateBrowserAutoFillScript(profile, coverLetterText)});
@@ -307,8 +319,8 @@ async function autoApply() {
   const fileInput = await page.$('input[type="file"]');
   if (fileInput) {
     try {
-      console.log('Attaching resume file: ${resumeFilePath}...');
-      await fileInput.setInputFiles('${resumeFilePath}');
+      console.log('Attaching resume file:', ${serializedResumePath});
+      await fileInput.setInputFiles(${serializedResumePath});
     } catch (e) {
       console.log('Note: Resume file input requires manual drop if path not found locally.');
     }
