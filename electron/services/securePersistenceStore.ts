@@ -40,7 +40,7 @@ export class SecurePersistenceStore {
     }
 
     if (process.platform === 'linux') {
-      let backend = 'unknown';
+      let backend: string;
       try {
         backend = safeStorage.getSelectedStorageBackend?.() || 'unknown';
       } catch {
@@ -53,7 +53,7 @@ export class SecurePersistenceStore {
       }
     }
 
-    let available = false;
+    let available: boolean;
     try {
       available = await safeStorage.isAsyncEncryptionAvailable();
     } catch {
