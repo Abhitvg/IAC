@@ -1,8 +1,8 @@
 # CareerOps Cloud Transformation — Repository Audit
 
-**Audit date:** 2026-11-11  
-**Repository:** `Abhitvg/IAC`  
-**Baseline:** `main` at `6a24b0b44271658c75fff68f798c1a9f8e1e68f4`  
+**Audit date:** 2026-11-11
+**Repository:** `Abhitvg/IAC`
+**Baseline:** `main` at `6a24b0b44271658c75fff68f798c1a9f8e1e68f4`
 **Scope:** CareerOps, candidate data, persistence, Electron IPC, LLM integration, browser extension, CI/security controls, and issue #72.
 
 ## Executive assessment
@@ -52,19 +52,19 @@ Observed limitations:
 
 ### Renderer `localStorage`
 
-| Owner | Observed keys / data | PII or sensitivity |
-|---|---|---|
-| `useAppStore` | `candidate_resume`, `target_job_description`, `target_role` | CV, employment history, target role, third-party job content |
-| `useAppStore` | `interview_workspaces_v1` | Candidate notes, job descriptions, workspace content |
-| `useAppStore` | `iac_session_history` | Interview transcripts, answers, session metadata and potentially captured sensitive material |
-| `usePracticeStore` | `ai_practice_active_session_v1`, `ai_practice_sessions_v1` | Session history, candidate answers, interview transcripts |
-| `usePracticeStore` | `ai_practice_stories_v1` | Behavioral stories, personal employment events |
-| `usePracticeStore` | `ai_practice_feedback_v1`, `ai_practice_weakness_plan_v1` | Performance feedback and inferred weaknesses |
-| `usePracticeStore` | topics, plans, explainer attempts, concept cards | Learning profile and career preparation data |
-| `useCareerOpsStore` | `career_ops_pipeline_v2`, legacy v1 | Job applications, notes, evaluation reports, form answers, status |
-| `useCareerOpsStore` | `career_ops_discovery_sources_v1` | Target companies, search URLs, job interests |
-| `useCandidateVaultStore` | `career_ops_candidate_vault_v2`, legacy v1 | Name, email, phone, location, profile URLs, work authorization/sponsorship declarations, salary expectation, notice period and career facts |
-| `useAppStore` | settings and device preference keys | Preferences; provider configuration may be sensitive depending on key |
+| Owner                    | Observed keys / data                                        | PII or sensitivity                                                                                                                          |
+| ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useAppStore`            | `candidate_resume`, `target_job_description`, `target_role` | CV, employment history, target role, third-party job content                                                                                |
+| `useAppStore`            | `interview_workspaces_v1`                                   | Candidate notes, job descriptions, workspace content                                                                                        |
+| `useAppStore`            | `iac_session_history`                                       | Interview transcripts, answers, session metadata and potentially captured sensitive material                                                |
+| `usePracticeStore`       | `ai_practice_active_session_v1`, `ai_practice_sessions_v1`  | Session history, candidate answers, interview transcripts                                                                                   |
+| `usePracticeStore`       | `ai_practice_stories_v1`                                    | Behavioral stories, personal employment events                                                                                              |
+| `usePracticeStore`       | `ai_practice_feedback_v1`, `ai_practice_weakness_plan_v1`   | Performance feedback and inferred weaknesses                                                                                                |
+| `usePracticeStore`       | topics, plans, explainer attempts, concept cards            | Learning profile and career preparation data                                                                                                |
+| `useCareerOpsStore`      | `career_ops_pipeline_v2`, legacy v1                         | Job applications, notes, evaluation reports, form answers, status                                                                           |
+| `useCareerOpsStore`      | `career_ops_discovery_sources_v1`                           | Target companies, search URLs, job interests                                                                                                |
+| `useCandidateVaultStore` | `career_ops_candidate_vault_v2`, legacy v1                  | Name, email, phone, location, profile URLs, work authorization/sponsorship declarations, salary expectation, notice period and career facts |
+| `useAppStore`            | settings and device preference keys                         | Preferences; provider configuration may be sensitive depending on key                                                                       |
 
 ### Electron `userData` and filesystem
 
@@ -135,23 +135,23 @@ Issue #72's acceptance criteria require a single persistence/encryption boundary
 
 ## 8. Security and compliance gaps against the target
 
-| Target control | Current evidence | Gap |
-|---|---|---|
-| Tenant isolation / PostgreSQL RLS | None found | No cloud tenant model or DB |
-| Auth / OAuth | No cloud auth service found | No identity/session lifecycle |
-| Per-tenant envelope encryption | None found | No KMS-backed tenant DEKs |
-| Immutable audit log | No cloud audit subsystem found | No append-only activity evidence |
-| Consent and Sprint Contract | No persistent consent ledger found | No signed scopes, revocation or versioning |
-| Kill switch / channel pause | Local UI state only | No server-enforced channel gates |
-| Durable workflow / scheduler | Local interval while UI open | No durable retries, timers or idempotency |
-| ATS apply worker | Renderer/browser autofill helpers | No isolated worker fleet or proof store |
-| Gmail / Outlook / Calendar | None found in inspected tree | No verified connectors/scopes |
-| Contact enrichment | None found | No licensed provider contract |
-| Suppression / compliance | None found | No consent, opt-out, jurisdiction or suppression service |
-| Truthfulness gate | No Career Graph-backed hard gate found | No claim-level evidence validation/blocking |
-| Prompt-injection defense | No unified policy boundary found | Needs explicit isolation and adversarial suite |
-| Forecast calibration | No measured funnel service found | No calibrated ranges or confidence intervals |
-| Observability / cost budget | Desktop logs and CI | No tenant-aware traces, quotas or alerting |
+| Target control                    | Current evidence                       | Gap                                                      |
+| --------------------------------- | -------------------------------------- | -------------------------------------------------------- |
+| Tenant isolation / PostgreSQL RLS | None found                             | No cloud tenant model or DB                              |
+| Auth / OAuth                      | No cloud auth service found            | No identity/session lifecycle                            |
+| Per-tenant envelope encryption    | None found                             | No KMS-backed tenant DEKs                                |
+| Immutable audit log               | No cloud audit subsystem found         | No append-only activity evidence                         |
+| Consent and Sprint Contract       | No persistent consent ledger found     | No signed scopes, revocation or versioning               |
+| Kill switch / channel pause       | Local UI state only                    | No server-enforced channel gates                         |
+| Durable workflow / scheduler      | Local interval while UI open           | No durable retries, timers or idempotency                |
+| ATS apply worker                  | Renderer/browser autofill helpers      | No isolated worker fleet or proof store                  |
+| Gmail / Outlook / Calendar        | None found in inspected tree           | No verified connectors/scopes                            |
+| Contact enrichment                | None found                             | No licensed provider contract                            |
+| Suppression / compliance          | None found                             | No consent, opt-out, jurisdiction or suppression service |
+| Truthfulness gate                 | No Career Graph-backed hard gate found | No claim-level evidence validation/blocking              |
+| Prompt-injection defense          | No unified policy boundary found       | Needs explicit isolation and adversarial suite           |
+| Forecast calibration              | No measured funnel service found       | No calibrated ranges or confidence intervals             |
+| Observability / cost budget       | Desktop logs and CI                    | No tenant-aware traces, quotas or alerting               |
 
 ## 9. Migration risks and sequencing
 
