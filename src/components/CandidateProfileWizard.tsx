@@ -108,14 +108,17 @@ export const CandidateProfileWizard: React.FC = () => {
       }
     }
 
+    const hasDebouncedChanges = debounceTimerRef.current !== null;
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
 
     try {
-      lastSelfSaveTimestampRef.current = Date.now();
-      profileService.saveProfile(profileRef.current);
+      if (hasDebouncedChanges) {
+        lastSelfSaveTimestampRef.current = Date.now();
+        profileService.saveProfile(profileRef.current);
+      }
       const saved = await profileService.flushPendingPersistence();
       if (saved) {
         setSaveStatus('saved');
