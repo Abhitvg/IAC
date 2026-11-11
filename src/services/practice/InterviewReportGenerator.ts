@@ -117,8 +117,10 @@ export class InterviewReportGenerator {
     );
     const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
 
-    // Identify covered topics
+    // Track topic coverage and scores independently. A session-wide average
+    // must never be reused as evidence for every topic in the report.
     const coveredTopicIds = new Set<string>();
+    const topicScoresById = new Map<string, number[]>();
     for (const item of history) {
       const topicId =
         item.curriculumTopicId ||
@@ -126,7 +128,13 @@ export class InterviewReportGenerator {
           ? QuestionBank.getQuestionById(item.questionId)?.curriculumTopicId
           : undefined) ||
         QuestionBank.mapLegacyTopicToCurriculumId(item.category);
-      if (topicId) coveredTopicIds.add(topicId);
+      if (!topicId) continue;
+      coveredTopicIds.add(topicId);
+      if (typeof item.evaluation?.overallScore === 'number') {
+        const scores = topicScoresById.get(topicId) || [];
+        scores.push(item.evaluation.overallScore);
+        topicScoresById.set(topicId, scores);
+      }
     }
     for (const cr of allCodingRecords) {
       if (cr.curriculumTopicId) coveredTopicIds.add(cr.curriculumTopicId);
@@ -259,30 +267,51 @@ export class InterviewReportGenerator {
       if (!topic) continue;
 
       const comp = competencyService.getTopicCompetency(topicId);
-      const isWeak = comp?.revisionStatus === 'NEEDS_REVISION' || avgScore < 2.5;
+      const topicEvidenceScores =
+        comp?.history.length
+          ? comp.history.map((evidence) => evidence.score)
+          : topicScoresById.get(topicId) || [];
+      const topicAverage =
+        topicEvidenceScores.length > 0
+          ? topicEvidenceScores.reduce((sum, score) => sum + score, 0) / topicEvidenceScores.length
+          : null;
+      const isWeak =
+        comp?.revisionStatus === 'NEEDS_REVISION' ||
+        (topicAverage !== null && topicAverage < 2.5);
 
-      if (isWeak) {
+      if (isWeak && topicAverage !== null) {
         topicLevelAnalysis.push({
           curriculumTopicId: topicId,
           topicName: topic.name,
           status: 'weak_area',
-          score: Math.min(2.5, avgScore),
-          details: `Candidate exhibited uncertainty or incomplete depth in ${topic.name}.`,
+          score: Math.round(topicAverage * 10) / 10,
+          details: `Topic-specific evidence indicates that ${topic.name} needs further work.`,
           misconceptionsTriggered: topic.commonMisconceptions.slice(0, 2),
         });
         conceptsToRevise.push(...topic.coreConcepts.slice(0, 2));
         suggestedExercises.push(
           `Complete focused drill on ${topic.name}: implement ${topic.coreConcepts[0]}`
         );
-      } else {
+      } else if (topicAverage !== null && topicAverage >= 3.5) {
         topicLevelAnalysis.push({
           curriculumTopicId: topicId,
           topicName: topic.name,
           status: 'demonstrated_strength',
-          score: Math.max(3.5, avgScore),
-          details: `Demonstrated solid conceptual mechanics and invariant verbalization for ${topic.name}.`,
+          score: Math.round(topicAverage * 10) / 10,
+          details: `Topic-specific assessment evidence supports a strength in ${topic.name}.`,
         });
         recommendedFollowUps.push(`Advanced scaling trade-off in ${topic.name}`);
+      } else {
+        topicLevelAnalysis.push({
+          curriculumTopicId: topicId,
+          topicName: topic.name,
+          status: 'not_assessed',
+          score: topicAverage === null ? undefined : Math.round(topicAverage * 10) / 10,
+          details:
+            topicAverage === null
+              ? `No topic-specific assessment score is available for ${topic.name}.`
+              : `Available evidence for ${topic.name} is inconclusive; no strength or weakness is assigned.`,
+        });
       }
     }
 
