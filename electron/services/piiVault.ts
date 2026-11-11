@@ -70,6 +70,33 @@ export class PiiVault {
     return path.join(this.userDataPath, VAULT_DIRECTORY);
   }
 
+  private async hasExistingEncryptedRecords(): Promise<boolean> {
+    let entries: fs.Dirent[];
+    try {
+      entries = await fs.promises.readdir(this.vaultPath, { withFileTypes: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+      throw error;
+    }
+
+    let found = false;
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) {
+        throw new Error('PII vault contains a symbolic link. Refusing key initialization.');
+      }
+      if (!entry.isDirectory()) continue;
+      const namespacePath = path.join(this.vaultPath, entry.name);
+      const records = await fs.promises.readdir(namespacePath, { withFileTypes: true });
+      for (const record of records) {
+        if (record.isSymbolicLink()) {
+          throw new Error('PII vault contains a symbolic link. Refusing key initialization.');
+        }
+        if (record.isFile() && record.name.endsWith('.json.enc')) found = true;
+      }
+    }
+    return found;
+  }
+
   private async assertSecureStorageAvailable(): Promise<void> {
     if (
       typeof this.storage.isAsyncEncryptionAvailable !== 'function' ||
@@ -100,6 +127,10 @@ export class PiiVault {
     await fs.promises.mkdir(this.userDataPath, { recursive: true, mode: 0o700 });
 
     if (fs.existsSync(this.keyPath)) {
+      const keyStat = await fs.promises.lstat(this.keyPath);
+      if (!keyStat.isFile() || keyStat.isSymbolicLink()) {
+        throw new Error('PII vault key metadata is not a regular file. Data was not overwritten.');
+      }
       const raw = await fs.promises.readFile(this.keyPath, 'utf8');
       let record: { version?: unknown; data?: unknown };
       try {
@@ -122,6 +153,12 @@ export class PiiVault {
         await this.writeWrappedMasterKey(key);
       }
       return key;
+    }
+
+    if (await this.hasExistingEncryptedRecords()) {
+      throw new Error(
+        'PII vault master key is missing while encrypted records exist. Data was preserved; restore the key from backup.'
+      );
     }
 
     const key = crypto.randomBytes(32);
