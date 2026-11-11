@@ -84,6 +84,20 @@ CREATE POLICY sprint_contracts_isolation ON sprint_contracts
     AND accepted_by = NULLIF(current_setting('app.user_subject', true), '')
   );
 
+
+-- Narrow privileged role for explicit tenant bootstrap only. It is never used by the API.
+DO $
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'careerops_provisioner') THEN
+    CREATE ROLE careerops_provisioner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT BYPASSRLS;
+  END IF;
+END
+$;
+ALTER ROLE careerops_provisioner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT BYPASSRLS;
+GRANT USAGE ON SCHEMA public TO careerops_provisioner;
+GRANT INSERT ON tenants, tenant_memberships, tenant_controls, audit_events TO careerops_provisioner;
+GRANT USAGE, SELECT ON SEQUENCE audit_events_sequence_id_seq TO careerops_provisioner;
+
 -- Runtime cannot mutate identity/membership tables or alter audit history.
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON tenants, tenant_memberships FROM careerops_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_events FROM careerops_app;
