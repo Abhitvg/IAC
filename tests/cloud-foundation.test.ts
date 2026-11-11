@@ -219,6 +219,7 @@ describe('M0 cloud security foundation', () => {
         findMembershipsBySubject: async () => [membership],
         getControlState: async (tenantId) => ({ tenantId, globalKillSwitch: true, pausedChannels: [], updatedAt: new Date().toISOString() }),
         setGlobalKillSwitchWithAudit: async () => undefined,
+        setChannelPauseWithAudit: async () => undefined,
       },
     };
     const server = createCloudApiServer(dependencies);
@@ -235,6 +236,13 @@ describe('M0 cloud security foundation', () => {
       const me = await fetch(`http://127.0.0.1:${address.port}/v1/me`, { headers: { authorization: `Bearer ${token}` } });
       expect(me.status).toBe(200);
       expect(await me.json()).toMatchObject({ tenantId: 'tenant-1', subject: 'user-1' });
+      const pause = await fetch(`http://127.0.0.1:${address.port}/v1/controls/channel-pause`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ channel: 'email', paused: true }),
+      });
+      expect(pause.status).toBe(200);
+      expect(await pause.json()).toMatchObject({ tenantId: 'tenant-1', channel: 'email', paused: true });
       rateLimitAllowed = false;
       const limited = await fetch(`http://127.0.0.1:${address.port}/v1/me`, { headers: { authorization: `Bearer ${token}` } });
       expect(limited.status).toBe(429);
