@@ -74,10 +74,10 @@ export function evaluateJobHeuristically(
   weightedRequirements.push({
     requirement: `Core competency in ${roleTitle} domain`,
     weight: 'critical',
-    fit: resumeLower.includes(roleTitle.toLowerCase().split(' ')[0]) ? 'strong' : 'partial',
+    fit: resumeLower.includes(roleTitle.toLowerCase().split(' ')[0]) ? 'partial' : 'gap',
     evidence: resumeLower.includes(roleTitle.toLowerCase().split(' ')[0])
       ? 'The role keyword appears in the supplied resume text; verify the surrounding context.'
-      : 'Transferable engineering background demonstrated across past production systems.',
+      : 'No role-token match found in the supplied resume text; assess transferable evidence manually.',
   });
 
   // Top tech requirements
@@ -86,7 +86,7 @@ export function evaluateJobHeuristically(
     weightedRequirements.push({
       requirement: `Production proficiency with ${tech.toUpperCase()}`,
       weight: idx < 2 ? 'critical' : 'high',
-      fit: has ? 'strong' : 'gap',
+      fit: has ? 'partial' : 'gap',
       evidence: has
         ? `The keyword ${tech} appears in the supplied resume text; this does not by itself verify proficiency or production use.`
         : `No explicit keyword match for ${tech} in current CV digest.`,
@@ -126,7 +126,7 @@ export function evaluateJobHeuristically(
     identifiedGaps:
       missingTech.length > 0
         ? missingTech.map((t) => `Missing direct reference to ${t.toUpperCase()}`)
-        : ['No critical architectural gaps identified.'],
+        : ['No tracked keyword gaps found; this does not establish full qualification.'],
     strategicAngle:
       'Choose a verified resume example that directly addresses the highest-priority requirement in this job description.',
     compensationEstimate: {
@@ -173,9 +173,9 @@ CORE EVALUATION DIRECTIVES (CareerOps A-H Protocol):
 1. Score the match honestly on a 1.0 to 5.0 scale (1 decimal point).
    - If score >= 4.0: recommendation MUST be 'apply'.
    - If score < 4.0: recommendation MUST be 'skip' (tell the candidate not to waste time on low fit).
-2. Weight requirements: critical, high, or medium. Assess candidate fit (strong, partial, gap) with evidence from resume.
+2. Weight requirements: critical, high, or medium. A keyword match alone is not proof of proficiency; mark it partial unless the resume contains concrete, relevant evidence. Mark unsupported claims as gaps or unknown.
 3. Identify genuine gaps without sugarcoating.
-4. Provide compensation benchmark and level strategy.
+4. Extract compensation only when stated in the job description. If absent, return 'Not disclosed'; do not invent a market range. Do not infer seniority or eligibility.
 5. Provide top 3 tailored STAR interview story prompts.
 
 OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or preamble, matching this exact schema:
