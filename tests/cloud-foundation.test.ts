@@ -26,6 +26,7 @@ import { PostgresCloudRateLimiter } from '../apps/api/src/postgres-rate-limiter'
 import { createCloudApiRuntime } from '../apps/api/src/runtime';
 
 const secret = 'test-only-secret-that-is-at-least-32-characters';
+const rateSecret = 'test-only-rate-limit-secret-that-is-different';
 const contractInput = {
   version: 1 as const,
   roles: ['Software Engineer'],
@@ -83,7 +84,7 @@ describe('PostgreSQL shared rate limiter', () => {
       }),
     } as unknown as SqlPool;
     let now = Date.parse('2026-11-11T10:00:10.000Z');
-    const limiter = new PostgresCloudRateLimiter(pool, secret, () => now);
+    const limiter = new PostgresCloudRateLimiter(pool, rateSecret, () => now);
 
     expect(await limiter.consume('ip:203.0.113.10', 2, 60_000)).toBe(true);
     expect(await limiter.consume('ip:203.0.113.10', 2, 60_000)).toBe(true);
@@ -106,7 +107,7 @@ describe('PostgreSQL shared rate limiter', () => {
   it('rejects weak secrets and invalid rate-limit parameters', async () => {
     const pool = { connect: async () => { throw new Error('should not connect'); } } as unknown as SqlPool;
     expect(() => new PostgresCloudRateLimiter(pool, 'too-short')).toThrow();
-    const limiter = new PostgresCloudRateLimiter(pool, secret);
+    const limiter = new PostgresCloudRateLimiter(pool, rateSecret);
     await expect(limiter.consume('', 1, 1000)).rejects.toThrow();
     await expect(limiter.consume('ip:test', 0, 1000)).rejects.toThrow();
     await expect(limiter.consume('ip:test', 1, 0)).rejects.toThrow();
@@ -133,7 +134,7 @@ describe('cloud API runtime composition', () => {
       CAREEROPS_JWT_AUDIENCE: authConfig.audience,
       CAREEROPS_JWKS_URL: authConfig.jwksUrl,
       CAREEROPS_CONSENT_SIGNING_SECRET: secret,
-      CAREEROPS_RATE_LIMIT_HASH_SECRET: secret,
+      CAREEROPS_RATE_LIMIT_HASH_SECRET: rateSecret,
     } as NodeJS.ProcessEnv);
     const runtime = createCloudApiRuntime(pool, environment);
     await runtime.listen(0, '127.0.0.1');
@@ -155,7 +156,7 @@ describe('M0 cloud security foundation', () => {
         CAREEROPS_JWT_AUDIENCE: 'careerops-api',
         CAREEROPS_JWKS_URL: 'https://identity.example.test/.well-known/jwks.json',
         CAREEROPS_CONSENT_SIGNING_SECRET: secret,
-        CAREEROPS_RATE_LIMIT_HASH_SECRET: secret,
+        CAREEROPS_RATE_LIMIT_HASH_SECRET: rateSecret,
       } as NodeJS.ProcessEnv)
     ).toThrow();
     expect(() =>
@@ -164,8 +165,18 @@ describe('M0 cloud security foundation', () => {
         CAREEROPS_JWT_AUDIENCE: 'careerops-api',
         CAREEROPS_JWKS_URL: 'https://identity.example.test/.well-known/jwks.json',
         CAREEROPS_CONSENT_SIGNING_SECRET: 'short',
+        CAREEROPS_RATE_LIMIT_HASH_SECRET: rateSecret,
       } as NodeJS.ProcessEnv)
     ).toThrow();
+    expect(() =>
+      loadCloudEnvironment({
+        CAREEROPS_JWT_ISSUER: 'https://identity.example.test',
+        CAREEROPS_JWT_AUDIENCE: 'careerops-api',
+        CAREEROPS_JWKS_URL: 'https://identity.example.test/.well-known/jwks.json',
+        CAREEROPS_CONSENT_SIGNING_SECRET: secret,
+        CAREEROPS_RATE_LIMIT_HASH_SECRET: secret,
+      } as NodeJS.ProcessEnv)
+    ).toThrow(/different from the consent signing secret/);
   });
   it('keeps the HS256 verifier available only as a deterministic test adapter', () => {
     const claims = {
