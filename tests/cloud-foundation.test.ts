@@ -21,7 +21,11 @@ import { resolveTenantContext, type TenantMembership } from '../packages/cloud-c
 import { createCloudApiServer } from '../apps/api/src/server';
 import { loadCloudEnvironment } from '../apps/api/src/config';
 import type { CloudApiDependencies } from '../apps/api/src/ports';
-import { PostgresCloudApiRepository, type SqlPool } from '../apps/api/src/postgres-repository';
+import {
+  PostgresCloudApiRepository,
+  type ClosableSqlPool,
+  type SqlPool,
+} from '../apps/api/src/postgres-repository';
 import { PostgresCloudRateLimiter } from '../apps/api/src/postgres-rate-limiter';
 import { createCloudApiRuntime } from '../apps/api/src/runtime';
 
@@ -132,7 +136,7 @@ describe('cloud API runtime composition', () => {
       end: async () => {
         ended += 1;
       },
-    } as unknown as SqlPool;
+    } as unknown as ClosableSqlPool;
     const environment = loadCloudEnvironment({
       CAREEROPS_JWT_ISSUER: authConfig.issuer,
       CAREEROPS_JWT_AUDIENCE: authConfig.audience,
