@@ -71,18 +71,32 @@ export const CandidateProfileWizard: React.FC = () => {
 
   // Subscribe to service updates (from external sources like ingestion or ledger)
   useEffect(() => {
+    let active = true;
     const unsub = profileService.subscribe((updated) => {
-      if (Date.now() - lastSelfSaveTimestampRef.current < 400) {
-        // Ignored: notification triggered by our own recent save
-        return;
-      }
+      if (Date.now() - lastSelfSaveTimestampRef.current < 400) return;
+      profileRef.current = updated;
       setProfile(updated);
     });
-    return () => unsub();
+    void profileService.ready().then((ready) => {
+      if (!active) return;
+      const loaded = profileService.getProfile();
+      profileRef.current = loaded;
+      setProfile(loaded);
+      if (!ready) {
+        setSaveStatus('error');
+        setSaveStatusText(
+          profileService.getPersistenceError() || 'Secure profile storage is unavailable'
+        );
+      }
+    });
+    return () => {
+      active = false;
+      unsub();
+    };
   }, [profileService]);
 
   // Flush pending debounced autosave immediately and report whether persistence succeeded.
-  const flushPendingSave = useCallback((): boolean => {
+  const flushPendingSave = useCallback(async (): Promise<boolean> => {
     if (sectionFlushRef.current) {
       try {
         sectionFlushRef.current();
@@ -94,14 +108,18 @@ export const CandidateProfileWizard: React.FC = () => {
       }
     }
 
+    const hasDebouncedChanges = debounceTimerRef.current !== null;
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
 
     try {
-      lastSelfSaveTimestampRef.current = Date.now();
-      const saved = profileService.saveProfile(profileRef.current);
+      if (hasDebouncedChanges) {
+        lastSelfSaveTimestampRef.current = Date.now();
+        profileService.saveProfile(profileRef.current);
+      }
+      const saved = await profileService.flushPendingPersistence();
       if (saved) {
         setSaveStatus('saved');
         const time = new Date().toLocaleTimeString([], {
@@ -114,7 +132,9 @@ export const CandidateProfileWizard: React.FC = () => {
       }
 
       setSaveStatus('error');
-      setSaveStatusText('Storage quota exceeded or save error');
+      setSaveStatusText(
+        profileService.getPersistenceError() || 'Secure storage unavailable; profile was not saved'
+      );
       return false;
     } catch (err) {
       console.error('[CandidateProfileWizard] Immediate flush failed:', err);
@@ -124,15 +144,15 @@ export const CandidateProfileWizard: React.FC = () => {
     }
   }, [profileService]);
 
-  // Handle application close / beforeunload to safely flush pending changes
+  // Unload is best-effort; explicit wizard actions await the secure persistence queue.
   useEffect(() => {
     const handleBeforeUnload = () => {
-      flushPendingSave();
+      void flushPendingSave();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      flushPendingSave();
+      void flushPendingSave();
     };
   }, [flushPendingSave]);
 
@@ -161,10 +181,10 @@ export const CandidateProfileWizard: React.FC = () => {
   // Keyboard navigation, accessibility, and focus trapping (Tab & Escape)
   useEffect(() => {
     if (!profileWizardOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (!flushPendingSave()) {
+        if (!(await flushPendingSave())) {
           setToast?.(
             'Your profile could not be saved. Fix the storage issue before closing this wizard.'
           );
@@ -222,10 +242,11 @@ export const CandidateProfileWizard: React.FC = () => {
         debounceTimerRef.current = null;
       }
 
-      if (immediate) {
+      const persist = async () => {
         try {
           lastSelfSaveTimestampRef.current = Date.now();
-          const success = profileService.saveProfile(nextProfile);
+          profileService.saveProfile(nextProfile);
+          const success = await profileService.flushPendingPersistence();
           if (success) {
             setSaveStatus('saved');
             const time = new Date().toLocaleTimeString([], {
@@ -236,35 +257,24 @@ export const CandidateProfileWizard: React.FC = () => {
             setSaveStatusText(`Autosaved at ${time}`);
           } else {
             setSaveStatus('error');
-            setSaveStatusText('Storage quota exceeded');
+            setSaveStatusText(
+              profileService.getPersistenceError() ||
+                'Secure storage unavailable; changes were not saved'
+            );
           }
         } catch (err) {
           console.error('[CandidateProfileWizard] Save failed:', err);
           setSaveStatus('error');
-          setSaveStatusText('Error saving changes to local storage');
+          setSaveStatusText('Failed to save profile');
         }
+      };
+
+      if (immediate) {
+        void persist();
       } else {
         debounceTimerRef.current = setTimeout(() => {
-          try {
-            lastSelfSaveTimestampRef.current = Date.now();
-            const success = profileService.saveProfile(nextProfile);
-            if (success) {
-              setSaveStatus('saved');
-              const time = new Date().toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-              });
-              setSaveStatusText(`Autosaved at ${time}`);
-            } else {
-              setSaveStatus('error');
-              setSaveStatusText('Storage quota exceeded');
-            }
-          } catch (err) {
-            console.error('[CandidateProfileWizard] Autosave failed:', err);
-            setSaveStatus('error');
-            setSaveStatusText('Error saving changes to local storage');
-          }
+          debounceTimerRef.current = null;
+          void persist();
         }, 350);
       }
     },
@@ -342,8 +352,8 @@ export const CandidateProfileWizard: React.FC = () => {
     [commitProfileChange]
   );
 
-  const handleCompleteAndLock = useCallback(() => {
-    if (!flushPendingSave()) {
+  const handleCompleteAndLock = useCallback(async () => {
+    if (!(await flushPendingSave())) {
       setToast?.(
         'Profile was not locked because the latest changes could not be saved. Resolve the storage error and try again.'
       );
@@ -480,8 +490,8 @@ export const CandidateProfileWizard: React.FC = () => {
   }, [handleNext]);
 
   // Export profile with latest unsaved changes flushed
-  const handleExportJson = useCallback(() => {
-    if (!flushPendingSave()) {
+  const handleExportJson = useCallback(async () => {
+    if (!(await flushPendingSave())) {
       setToast?.('Export cancelled because the latest profile changes could not be saved.');
       return;
     }
@@ -544,7 +554,7 @@ export const CandidateProfileWizard: React.FC = () => {
     [profileService, setToast]
   );
 
-  const handleResetProfile = useCallback(() => {
+  const handleResetProfile = useCallback(async () => {
     // Cancel pending autosaves before clearing storage. Otherwise an earlier
     // debounced callback can write the deleted profile back a few milliseconds
     // after the reset appears to have succeeded.
@@ -554,7 +564,7 @@ export const CandidateProfileWizard: React.FC = () => {
     }
     sectionFlushRef.current = null;
 
-    const result = profileService.clearAllCandidateData(clearCandidateDocuments);
+    const result = await profileService.clearAllCandidateDataSecure(clearCandidateDocuments);
     const latestProfile = profileService.getProfile();
     // Update the ref synchronously; React state is applied on the next render.
     // This prevents beforeunload/close handlers from flushing a stale profile.
@@ -565,7 +575,7 @@ export const CandidateProfileWizard: React.FC = () => {
     if (!result.success) {
       setToast?.(
         result.failedStores.includes('canonical-profile')
-          ? 'Profile was not deleted because browser storage rejected the request. Your existing profile remains available.'
+          ? 'Profile was not deleted because secure storage could not be accessed. Existing data was preserved; resolve the storage issue and retry.'
           : `Reset incomplete. Candidate data may remain in: ${result.failedStores.join(', ')}.`
       );
       return;
@@ -578,8 +588,8 @@ export const CandidateProfileWizard: React.FC = () => {
     setToast?.('All candidate profile copies were reset.');
   }, [clearCandidateDocuments, profileService, setToast]);
 
-  const handleClose = useCallback(() => {
-    if (!flushPendingSave()) {
+  const handleClose = useCallback(async () => {
+    if (!(await flushPendingSave())) {
       setToast?.(
         'Your profile could not be saved. Resolve the storage error before closing this wizard.'
       );

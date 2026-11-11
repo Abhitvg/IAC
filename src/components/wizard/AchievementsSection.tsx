@@ -30,7 +30,10 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = React.mem
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateAchievements(draftRef.current, true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdateAchievements(draftRef.current, true);
+      }
     }, [onUpdateAchievements]);
 
     useEffect(() => {
@@ -88,7 +91,14 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = React.mem
 
     return (
       <div data-testid="wizard-section-achievements">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+          }}
+        >
           <div>
             <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
               G. Achievements &amp; Publications (Optional)
@@ -187,7 +197,12 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = React.mem
                 <button
                   type="button"
                   onClick={() => handleRemoveAchievement(idx)}
-                  style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#f87171',
+                    cursor: 'pointer',
+                  }}
                 >
                   <Trash2 size={14} />
                 </button>

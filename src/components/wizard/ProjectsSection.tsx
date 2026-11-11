@@ -47,7 +47,10 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = React.memo(
         ...rest,
         technologyStack:
           _techStackRaw !== undefined
-            ? _techStackRaw.split(',').map((s) => s.trim()).filter(Boolean)
+            ? _techStackRaw
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean)
             : rest.technologyStack,
       }));
     };
@@ -57,7 +60,10 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = React.memo(
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateProjects(sanitizeDraftForExport(draftRef.current), true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdateProjects(sanitizeDraftForExport(draftRef.current), true);
+      }
     }, [onUpdateProjects]);
 
     useEffect(() => {
@@ -135,13 +141,21 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = React.memo(
 
     return (
       <div data-testid="wizard-section-projects">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+          }}
+        >
           <div>
             <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
               F. Projects &amp; Provenance Tracking
             </h3>
             <p style={{ fontSize: '12px', color: '#9299AA', margin: '2px 0 0 0' }}>
-              Repository code presence does not prove personal authorship without explicit contribution.
+              Repository code presence does not prove personal authorship without explicit
+              contribution.
             </p>
           </div>
           <button
@@ -191,14 +205,21 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = React.memo(
                   borderRadius: '8px',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}
+                >
                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#F3F4F8' }}>
                     Project #{idx + 1}: {proj.name || 'Untitled'}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleRemoveProject(idx)}
-                    style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#f87171',
+                      cursor: 'pointer',
+                    }}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -239,7 +260,14 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = React.memo(
 
                 <div className="wizard-grid-2col" style={{ marginBottom: '10px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#CBD5E1', marginBottom: '2px' }}>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '11px',
+                        color: '#CBD5E1',
+                        marginBottom: '2px',
+                      }}
+                    >
                       Ownership Category
                     </label>
                     <select
@@ -266,7 +294,14 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = React.memo(
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#CBD5E1', marginBottom: '2px' }}>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '11px',
+                        color: '#CBD5E1',
+                        marginBottom: '2px',
+                      }}
+                    >
                       Technology Stack (Comma-separated)
                     </label>
                     <input
@@ -289,14 +324,24 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = React.memo(
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#35C991', fontWeight: 600, marginBottom: '2px' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '11px',
+                      color: '#35C991',
+                      fontWeight: 600,
+                      marginBottom: '2px',
+                    }}
+                  >
                     Exact Personal Contribution (Required to Enable Live Answers)
                   </label>
                   <textarea
                     rows={3}
                     placeholder="State exactly what modules, logic, or optimizations you authored..."
                     value={proj.exactContribution}
-                    onChange={(e) => handleItemFieldChange(idx, 'exactContribution', e.target.value)}
+                    onChange={(e) =>
+                      handleItemFieldChange(idx, 'exactContribution', e.target.value)
+                    }
                     onBlur={flushDraft}
                     style={{
                       width: '100%',

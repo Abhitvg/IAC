@@ -3,7 +3,10 @@ import { CandidateAnswerPreferences } from './types';
 
 export interface PreferencesSectionProps {
   preferences: CandidateAnswerPreferences;
-  onUpdatePreferences: (updatedPreferences: CandidateAnswerPreferences, immediate?: boolean) => void;
+  onUpdatePreferences: (
+    updatedPreferences: CandidateAnswerPreferences,
+    immediate?: boolean
+  ) => void;
   registerFlushHandler: (flushFn: () => void) => () => void;
 }
 
@@ -29,7 +32,10 @@ export const PreferencesSection: React.FC<PreferencesSectionProps> = React.memo(
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdatePreferences(draftRef.current, true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdatePreferences(draftRef.current, true);
+      }
     }, [onUpdatePreferences]);
 
     useEffect(() => {
@@ -76,7 +82,9 @@ export const PreferencesSection: React.FC<PreferencesSectionProps> = React.memo(
 
         <div className="wizard-grid-2col">
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Answer Length
             </label>
             <select
@@ -102,7 +110,9 @@ export const PreferencesSection: React.FC<PreferencesSectionProps> = React.memo(
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Speaking Perspective
             </label>
             <select
@@ -121,13 +131,17 @@ export const PreferencesSection: React.FC<PreferencesSectionProps> = React.memo(
                 fontSize: '13px',
               }}
             >
-              <option value="first_person">First-Person (&quot;I designed...&quot; when verified)</option>
+              <option value="first_person">
+                First-Person (&quot;I designed...&quot; when verified)
+              </option>
               <option value="neutral">Neutral 3rd-Person (Objective technical guidance)</option>
             </select>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Technical Depth
             </label>
             <select
@@ -148,12 +162,16 @@ export const PreferencesSection: React.FC<PreferencesSectionProps> = React.memo(
             >
               <option value="conceptual">High-Level Conceptual &amp; Trade-offs</option>
               <option value="balanced">Balanced Architecture &amp; Decisions</option>
-              <option value="deep_code_and_architecture">Deep Implementation &amp; Concurrency</option>
+              <option value="deep_code_and_architecture">
+                Deep Implementation &amp; Concurrency
+              </option>
             </select>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Preferred Coding Language
             </label>
             <input

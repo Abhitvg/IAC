@@ -88,12 +88,12 @@ export class KnowledgeVaultService {
     }
   }
 
-  public saveVault(vault: CandidateKnowledgeVault): void {
+  public saveVault(vault: CandidateKnowledgeVault, persist = true): void {
     this.currentVault = {
       ...vault,
       lastSavedAt: Date.now(),
     };
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    if (persist && typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentVault));
       } catch (e) {

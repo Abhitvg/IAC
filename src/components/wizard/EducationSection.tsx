@@ -30,7 +30,10 @@ export const EducationSection: React.FC<EducationSectionProps> = React.memo(
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateEducation(draftRef.current, true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdateEducation(draftRef.current, true);
+      }
     }, [onUpdateEducation]);
 
     useEffect(() => {
@@ -92,7 +95,14 @@ export const EducationSection: React.FC<EducationSectionProps> = React.memo(
 
     return (
       <div data-testid="wizard-section-education">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+          }}
+        >
           <div>
             <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
               B. Education &amp; Certifications (Optional)
@@ -134,7 +144,8 @@ export const EducationSection: React.FC<EducationSectionProps> = React.memo(
               fontSize: '13px',
             }}
           >
-            No education records added yet. Click &quot;Add Degree&quot; or skip to the next section.
+            No education records added yet. Click &quot;Add Degree&quot; or skip to the next
+            section.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -148,14 +159,21 @@ export const EducationSection: React.FC<EducationSectionProps> = React.memo(
                   borderRadius: '8px',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}
+                >
                   <span style={{ fontSize: '12px', fontWeight: 600, color: '#8B7CFF' }}>
                     Degree #{idx + 1}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleRemoveDegree(idx)}
-                    style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#f87171',
+                      cursor: 'pointer',
+                    }}
                   >
                     <Trash2 size={14} />
                   </button>

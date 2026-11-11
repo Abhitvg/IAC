@@ -125,7 +125,7 @@ function loadVaultFromStorage(): CandidateVaultProfile {
 
 interface CandidateVaultState {
   profile: CandidateVaultProfile;
-  updateProfile: (updates: Partial<CandidateVaultProfile>) => void;
+  updateProfile: (updates: Partial<CandidateVaultProfile>, persist?: boolean) => void;
   resetToDefaults: () => boolean;
   exportVaultJson: () => string;
   importVaultJson: (jsonStr: string) => boolean;
@@ -134,13 +134,13 @@ interface CandidateVaultState {
 export const useCandidateVaultStore = create<CandidateVaultState>((set, get) => ({
   profile: loadVaultFromStorage(),
 
-  updateProfile: (updates) => {
+  updateProfile: (updates, persist = true) => {
     const updated = { ...get().profile, ...updates, isUserSupplied: true };
     if (updates.firstName !== undefined || updates.lastName !== undefined) {
       updated.fullName = `${updated.firstName || ''} ${updated.lastName || ''}`.trim();
     }
     set({ profile: updated });
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    if (persist && typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch (e) {

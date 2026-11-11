@@ -46,7 +46,10 @@ export const DeclarationsSection: React.FC<DeclarationsSectionProps> = React.mem
           ...rest.workAuthorization,
           jurisdictions:
             _jurisdictionsRaw !== undefined
-              ? _jurisdictionsRaw.split(',').map((s) => s.trim()).filter(Boolean)
+              ? _jurisdictionsRaw
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean)
               : rest.workAuthorization.jurisdictions,
         },
       };
@@ -57,7 +60,10 @@ export const DeclarationsSection: React.FC<DeclarationsSectionProps> = React.mem
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateDeclarations(sanitizeDraftForExport(draftRef.current), true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdateDeclarations(sanitizeDraftForExport(draftRef.current), true);
+      }
     }, [onUpdateDeclarations]);
 
     useEffect(() => {
@@ -105,17 +111,41 @@ export const DeclarationsSection: React.FC<DeclarationsSectionProps> = React.mem
             lineHeight: '1.4',
           }}
         >
-          <strong>Zero-Inference Invariant:</strong> These declarations are strictly optional. Unconfirmed declarations remain unstated and will prompt for clarification rather than being fabricated.
+          <strong>Zero-Inference Invariant:</strong> These declarations are strictly optional.
+          Unconfirmed declarations remain unstated and will prompt for clarification rather than
+          being fabricated.
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {/* Work Authorization */}
-          <div style={{ padding: '14px', background: '#171B24', border: '1px solid #292E3A', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div
+            style={{
+              padding: '14px',
+              background: '#171B24',
+              border: '1px solid #292E3A',
+              borderRadius: '8px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '8px',
+              }}
+            >
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#F3F4F8' }}>
                 1. Work Authorization Status
               </span>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#35C991' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '11px',
+                  color: '#35C991',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={draft.workAuthorization.confirmed}
@@ -136,7 +166,15 @@ export const DeclarationsSection: React.FC<DeclarationsSectionProps> = React.mem
             </div>
 
             <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#CBD5E1' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: '#CBD5E1',
+                }}
+              >
                 <input
                   type="radio"
                   name="workAuth"
@@ -156,7 +194,15 @@ export const DeclarationsSection: React.FC<DeclarationsSectionProps> = React.mem
                 />
                 <span>Legally authorized to work</span>
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#CBD5E1' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: '#CBD5E1',
+                }}
+              >
                 <input
                   type="radio"
                   name="workAuth"
@@ -203,12 +249,34 @@ export const DeclarationsSection: React.FC<DeclarationsSectionProps> = React.mem
           </div>
 
           {/* Visa Sponsorship */}
-          <div style={{ padding: '14px', background: '#171B24', border: '1px solid #292E3A', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div
+            style={{
+              padding: '14px',
+              background: '#171B24',
+              border: '1px solid #292E3A',
+              borderRadius: '8px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '8px',
+              }}
+            >
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#F3F4F8' }}>
                 2. Visa Sponsorship Requirements
               </span>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#35C991' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '11px',
+                  color: '#35C991',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={draft.sponsorshipRequired.confirmed}
@@ -229,7 +297,15 @@ export const DeclarationsSection: React.FC<DeclarationsSectionProps> = React.mem
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#CBD5E1' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: '#CBD5E1',
+                }}
+              >
                 <input
                   type="radio"
                   name="sponsorship"
@@ -249,7 +325,15 @@ export const DeclarationsSection: React.FC<DeclarationsSectionProps> = React.mem
                 />
                 <span>Will NOT require sponsorship</span>
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#CBD5E1' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: '#CBD5E1',
+                }}
+              >
                 <input
                   type="radio"
                   name="sponsorship"

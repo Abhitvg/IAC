@@ -33,9 +33,16 @@ export class CanonicalProfileService {
   private currentProfile: CanonicalCandidateProfile;
   private listeners: Array<(profile: CanonicalCandidateProfile) => void> = [];
   private isSyncing = false;
+  private persistenceReady: Promise<boolean>;
+  private persistenceQueue: Promise<boolean> = Promise.resolve(true);
+  private persistenceError: string | null = null;
+  private pendingPersistenceCount = 0;
+  private lastPersistenceResult = true;
+  private externalUnsubscribers: Array<() => void> = [];
 
   private constructor() {
     this.currentProfile = this.loadFromStorage();
+    this.persistenceReady = this.initializeEncryptedPersistence();
     this.setupBidirectionalListeners();
   }
 
@@ -48,6 +55,180 @@ export class CanonicalProfileService {
 
   public getProfile(): CanonicalCandidateProfile {
     return this.currentProfile;
+  }
+
+  private getSecurePersistenceApi() {
+    if (typeof window === 'undefined') return null;
+    const api = window.electronAPI;
+    const securePersistenceGet = api?.securePersistenceGet;
+    const securePersistenceSet = api?.securePersistenceSet;
+    const securePersistenceRemove = api?.securePersistenceRemove;
+    if (
+      typeof securePersistenceGet !== 'function' ||
+      typeof securePersistenceSet !== 'function' ||
+      typeof securePersistenceRemove !== 'function'
+    ) {
+      return null;
+    }
+    return {
+      securePersistenceGet: securePersistenceGet.bind(api),
+      securePersistenceSet: securePersistenceSet.bind(api),
+      securePersistenceRemove: securePersistenceRemove.bind(api),
+    };
+  }
+
+  private async initializeEncryptedPersistence(): Promise<boolean> {
+    const api = this.getSecurePersistenceApi();
+    if (!api) return true;
+
+    try {
+      const encryptedValue = await api.securePersistenceGet('candidate-profile');
+      if (encryptedValue !== null) {
+        const parsed = JSON.parse(encryptedValue);
+        const validation = validateCanonicalProfile(parsed);
+        if (!validation.success) {
+          throw new Error('Encrypted candidate profile failed schema validation.');
+        }
+        this.currentProfile = validation.profile;
+
+        // Remove a stale plaintext copy only after the encrypted source has been
+        // decrypted and validated successfully.
+        if (typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY) !== null) {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+        this.notify();
+        return true;
+      }
+
+      const legacyValue =
+        typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+      if (legacyValue !== null) {
+        const parsed = JSON.parse(legacyValue);
+        const validation = validateCanonicalProfile(parsed);
+        if (!validation.success) {
+          throw new Error('Legacy candidate profile failed schema validation; source preserved.');
+        }
+
+        const written = await api.securePersistenceSet('candidate-profile', legacyValue);
+        if (written !== true)
+          throw new Error('Encrypted candidate profile migration was not committed.');
+        const verified = await api.securePersistenceGet('candidate-profile');
+        if (verified !== legacyValue) {
+          throw new Error('Encrypted candidate profile migration verification failed.');
+        }
+
+        // The plaintext source is deleted only after durable encrypted read-back.
+        localStorage.removeItem(STORAGE_KEY);
+        this.currentProfile = validation.profile;
+        this.notify();
+      }
+      return true;
+    } catch (error) {
+      this.persistenceError =
+        error instanceof Error ? error.message : 'Secure candidate profile storage is unavailable.';
+      // Do not fall back to a plaintext copy when an encrypted record exists but
+      // cannot be decrypted or validated. Keep all on-disk sources untouched.
+      this.currentProfile = createDefaultCanonicalProfile();
+      this.notify();
+      console.error('[CanonicalProfileService] Secure persistence initialization failed:', error);
+      return false;
+    }
+  }
+
+  private queuePersistenceSnapshot(): boolean {
+    const api = this.getSecurePersistenceApi();
+    if (!api) {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
+        }
+        this.persistenceQueue = Promise.resolve(true);
+        this.lastPersistenceResult = true;
+        return true;
+      } catch (error) {
+        this.persistenceError =
+          error instanceof Error ? error.message : 'Local persistence failed.';
+        this.persistenceQueue = Promise.resolve(false);
+        this.lastPersistenceResult = false;
+        return false;
+      }
+    }
+
+    this.pendingPersistenceCount += 1;
+    this.persistenceQueue = this.persistenceQueue.then(async () => {
+      try {
+        if (!(await this.persistenceReady)) {
+          this.lastPersistenceResult = false;
+          return false;
+        }
+        const snapshot = JSON.stringify(this.currentProfile);
+        const saved = await api.securePersistenceSet('candidate-profile', snapshot);
+        if (saved !== true) throw new Error('Encrypted candidate profile write was not committed.');
+        // The main-process store performs authenticated read-back verification
+        // before returning true; avoid a second renderer-side read that can race
+        // with another queued profile update.
+        this.persistenceError = null;
+        this.lastPersistenceResult = true;
+        return true;
+      } catch (error) {
+        this.persistenceError =
+          error instanceof Error
+            ? error.message
+            : 'Encrypted candidate profile persistence failed.';
+        console.error('[CanonicalProfileService] Encrypted profile save failed:', error);
+        this.lastPersistenceResult = false;
+        return false;
+      } finally {
+        this.pendingPersistenceCount = Math.max(0, this.pendingPersistenceCount - 1);
+      }
+    });
+    return true;
+  }
+
+  public async ready(): Promise<boolean> {
+    return this.persistenceReady;
+  }
+
+  public async flushPendingPersistence(): Promise<boolean> {
+    if (this.pendingPersistenceCount === 0) return this.lastPersistenceResult;
+    if (!(await this.persistenceReady)) return false;
+
+    while (this.pendingPersistenceCount > 0) {
+      const pending = this.persistenceQueue;
+      if (!(await pending)) return false;
+    }
+    return true;
+  }
+
+  public getPersistenceError(): string | null {
+    return this.persistenceError;
+  }
+
+  public async clearAllCandidateDataSecure(
+    clearCandidateDocuments: () => boolean
+  ): Promise<{ success: boolean; failedStores: string[] }> {
+    if (!(await this.persistenceReady)) {
+      return { success: false, failedStores: ['canonical-profile-secure-storage'] };
+    }
+
+    await this.persistenceQueue;
+    const api = this.getSecurePersistenceApi();
+    if (api) {
+      try {
+        const removed = await api.securePersistenceRemove('candidate-profile');
+        if (removed !== true) throw new Error('Encrypted candidate profile was not removed.');
+        if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
+        this.persistenceQueue = Promise.resolve(true);
+        this.pendingPersistenceCount = 0;
+        this.lastPersistenceResult = true;
+        this.persistenceError = null;
+      } catch (error) {
+        console.error('[CanonicalProfileService] Secure profile reset failed:', error);
+        return { success: false, failedStores: ['canonical-profile'] };
+      }
+    }
+
+    return this.clearAllCandidateData(clearCandidateDocuments);
   }
 
   public subscribe(listener: (profile: CanonicalCandidateProfile) => void): () => void {
@@ -73,18 +254,7 @@ export class CanonicalProfileService {
       updatedAt: Date.now(),
     };
 
-    let savedSuccessfully = true;
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
-      } catch (e) {
-        savedSuccessfully = false;
-        console.error(
-          '[CanonicalProfileService] Failed to save profile to localStorage (quota or storage error):',
-          e
-        );
-      }
-    }
+    const savedSuccessfully = this.queuePersistenceSnapshot();
 
     // Bidirectional sync with legacy stores
     this.syncToSubsystems(this.currentProfile);
@@ -680,23 +850,32 @@ export class CanonicalProfileService {
   /**
    * Sets up bidirectional event listeners to legacy subsystems.
    */
+  public dispose(): void {
+    for (const unsubscribe of this.externalUnsubscribers.splice(0)) {
+      unsubscribe();
+    }
+    this.listeners = [];
+  }
+
   private setupBidirectionalListeners(): void {
     // 1. Listen to KnowledgeVaultService updates
     try {
-      KnowledgeVaultService.getInstance().subscribe((vault) => {
+      const unsubscribe = KnowledgeVaultService.getInstance().subscribe((vault) => {
         if (this.isSyncing) return;
         this.syncFromKnowledgeVault(vault);
       });
+      this.externalUnsubscribers.push(unsubscribe);
     } catch (e) {
       console.warn('[CanonicalProfileService] KnowledgeVault subscription error:', e);
     }
 
     // 2. Listen to useCandidateVaultStore (CareerOps) updates
     try {
-      useCandidateVaultStore.subscribe((state) => {
+      const unsubscribe = useCandidateVaultStore.subscribe((state) => {
         if (this.isSyncing || !state?.profile) return;
         this.syncFromCareerOpsVault(state.profile);
       });
+      this.externalUnsubscribers.push(unsubscribe);
     } catch (e) {
       console.warn('[CanonicalProfileService] CareerOps subscription error:', e);
     }
@@ -807,13 +986,7 @@ export class CanonicalProfileService {
 
       if (changed) {
         this.currentProfile = updated;
-        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
-          } catch (e) {
-            console.error('[CanonicalProfileService] LocalStorage save error during sync:', e);
-          }
-        }
+        this.queuePersistenceSnapshot();
         this.notify();
       }
     } finally {
@@ -918,16 +1091,7 @@ export class CanonicalProfileService {
 
       if (changed) {
         this.currentProfile = updated;
-        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
-          } catch (e) {
-            console.error(
-              '[CanonicalProfileService] LocalStorage save error during CareerOps sync:',
-              e
-            );
-          }
-        }
+        this.queuePersistenceSnapshot();
         this.notify();
       }
     } finally {
@@ -942,6 +1106,8 @@ export class CanonicalProfileService {
     if (this.isSyncing) return;
     this.isSyncing = true;
     try {
+      const persistLegacyMirrors = this.getSecurePersistenceApi() === null;
+
       // 1. Sync with KnowledgeVaultService
       try {
         const kv = KnowledgeVaultService.getInstance();
@@ -985,7 +1151,7 @@ export class CanonicalProfileService {
           }
         }
 
-        kv.saveVault(vault);
+        kv.saveVault(vault, persistLegacyMirrors);
       } catch (e) {
         // Ignored if KnowledgeVaultService not initialized yet
       }
@@ -1021,21 +1187,25 @@ export class CanonicalProfileService {
       // 3. Sync with CareerOps Vault
       try {
         const store = useCandidateVaultStore.getState();
-        store.updateProfile({
-          fullName: profile.identity.fullName || store.profile.fullName,
-          email: profile.identity.email || store.profile.email,
-          phone: profile.identity.phone || store.profile.phone,
-          location: profile.identity.location || store.profile.location,
-          linkedin: profile.identity.links.linkedin || store.profile.linkedin,
-          github: profile.identity.links.github || store.profile.github,
-          portfolio: profile.identity.links.portfolio || store.profile.portfolio,
-          currentTitle: profile.career.currentRole || store.profile.currentTitle,
-          noticePeriod: profile.career.noticePeriod || store.profile.noticePeriod,
-          authorizedToWork:
-            profile.declarations.workAuthorization.authorized ?? store.profile.authorizedToWork,
-          requiresSponsorship:
-            profile.declarations.sponsorshipRequired.required ?? store.profile.requiresSponsorship,
-        });
+        store.updateProfile(
+          {
+            fullName: profile.identity.fullName || store.profile.fullName,
+            email: profile.identity.email || store.profile.email,
+            phone: profile.identity.phone || store.profile.phone,
+            location: profile.identity.location || store.profile.location,
+            linkedin: profile.identity.links.linkedin || store.profile.linkedin,
+            github: profile.identity.links.github || store.profile.github,
+            portfolio: profile.identity.links.portfolio || store.profile.portfolio,
+            currentTitle: profile.career.currentRole || store.profile.currentTitle,
+            noticePeriod: profile.career.noticePeriod || store.profile.noticePeriod,
+            authorizedToWork:
+              profile.declarations.workAuthorization.authorized ?? store.profile.authorizedToWork,
+            requiresSponsorship:
+              profile.declarations.sponsorshipRequired.required ??
+              store.profile.requiresSponsorship,
+          },
+          persistLegacyMirrors
+        );
       } catch (e) {
         // Ignored if useCandidateVaultStore not active
       }

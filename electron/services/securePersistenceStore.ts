@@ -64,7 +64,10 @@ export class SecurePersistenceStore {
     }
   }
 
-  private async assertSafeStoragePath(namespace: SecurePersistenceNamespace, allowMissing: boolean): Promise<void> {
+  private async assertSafeStoragePath(
+    namespace: SecurePersistenceNamespace,
+    allowMissing: boolean
+  ): Promise<void> {
     try {
       const rootStat = await fs.promises.lstat(this.rootPath);
       if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
@@ -127,7 +130,10 @@ export class SecurePersistenceStore {
     return Buffer.from(ENVELOPE_PREFIX + encrypted.toString('base64'), 'utf8');
   }
 
-  private async decrypt(namespace: SecurePersistenceNamespace, envelope: Buffer): Promise<{
+  private async decrypt(
+    namespace: SecurePersistenceNamespace,
+    envelope: Buffer
+  ): Promise<{
     value: string;
     shouldReEncrypt: boolean;
   }> {
@@ -152,8 +158,15 @@ export class SecurePersistenceStore {
     };
   }
 
-  private async writeAtomically(namespace: SecurePersistenceNamespace, envelope: Buffer): Promise<void> {
+  private async writeAtomically(
+    namespace: SecurePersistenceNamespace,
+    envelope: Buffer
+  ): Promise<void> {
     await fs.promises.mkdir(this.rootPath, { recursive: true, mode: 0o700 });
+    await this.assertSafeStoragePath(namespace, true);
+    if (process.platform !== 'win32') {
+      await fs.promises.chmod(this.rootPath, 0o700);
+    }
     const target = this.getRecordPath(namespace);
     const temporary = path.join(this.rootPath, '.' + namespace + '.' + randomUUID() + '.tmp');
     await this.assertSafeStoragePath(namespace, true);
