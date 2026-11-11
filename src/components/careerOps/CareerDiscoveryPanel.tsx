@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, BriefcaseBusiness, Clock3, Plus, Radar, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertCircle, Briefcase, Clock3, Plus, Radar, RefreshCw, Trash2 } from 'lucide-react';
 import { useCareerOpsStore } from '../../store/useCareerOpsStore';
 
 const AUTO_SCAN_INTERVAL_MS = 12 * 60 * 60 * 1000;
