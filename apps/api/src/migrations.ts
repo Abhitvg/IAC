@@ -29,14 +29,14 @@ export interface CloudMigrationResult {
   skipped: string[];
 }
 
-const MIGRATION_NAME = /^\d{4}_[a-z0-9_]+\.sql$/;
+const MIGRATION_NAME = /^\\d{4}_[a-z0-9_]+\\.sql$/;
 const ADVISORY_LOCK_NAMESPACE = 741923;
 const ADVISORY_LOCK_ID = 5;
 
 function normalizeMigrationSql(sql: string): string {
   let normalized = sql.trim();
-  normalized = normalized.replace(/^BEGIN\s*;\s*/i, '');
-  normalized = normalized.replace(/\s*COMMIT\s*;?\s*$/i, '');
+  normalized = normalized.replace(/^BEGIN\\s*;\\s*/i, '');
+  normalized = normalized.replace(/\\s*COMMIT\\s*;?\\s*$/i, '');
   if (!normalized.trim()) throw new Error('Migration SQL must not be empty');
   return normalized;
 }
@@ -100,13 +100,41 @@ export async function runCloudMigrations(
     ]);
     lockAcquired = true;
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS careerops_schema_migrations (
-        name text PRIMARY KEY,
-        checksum char(64) NOT NULL,
-        applied_at timestamptz NOT NULL DEFAULT now()
-      )
+    // A database may predate the checksum ledger (for example, it may have been
+    // initialized by the disposable integration script). Never silently bless or
+    // replay that schema: a reviewed baseline must be recorded explicitly.
+    const schemaState = await client.query<{
+      ledger_table: string | null;
+      existing_tables: string[];
+    }>(`
+      SELECT
+        to_regclass('public.careerops_schema_migrations')::text AS ledger_table,
+        ARRAY_REMOVE(ARRAY[
+          to_regclass('public.tenants')::text,
+          to_regclass('public.tenant_memberships')::text,
+          to_regclass('public.tenant_controls')::text,
+          to_regclass('public.sprint_contracts')::text,
+          to_regclass('public.audit_events')::text,
+          to_regclass('public.api_rate_limit_buckets')::text
+        ], NULL) AS existing_tables
     `);
+    const ledgerExists = Boolean(schemaState.rows[0]?.ledger_table);
+    const preExistingTables = schemaState.rows[0]?.existing_tables ?? [];
+    if (!ledgerExists && preExistingTables.length > 0) {
+      throw new Error(
+        'Existing CareerOps schema detected without migration ledger; an explicit reviewed baseline is required before applying migrations'
+      );
+    }
+
+    if (!ledgerExists) {
+      await client.query(`
+        CREATE TABLE careerops_schema_migrations (
+          name text PRIMARY KEY,
+          checksum char(64) NOT NULL,
+          applied_at timestamptz NOT NULL DEFAULT now()
+        )
+      `);
+    }
 
     for (const migration of ordered) {
       const checksum = createHash('sha256').update(migration.sql, 'utf8').digest('hex');
