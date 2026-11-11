@@ -15,7 +15,12 @@ export interface JwtVerificationConfig {
 }
 
 function decodeSegment(segment: string): Record<string, unknown> {
-  const value = JSON.parse(Buffer.from(segment, 'base64url').toString('utf8')) as unknown;
+  let value: unknown;
+  try {
+    value = JSON.parse(Buffer.from(segment, 'base64url').toString('utf8')) as unknown;
+  } catch {
+    throw new Error('Malformed token segment');
+  }
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Malformed token segment');
   }
@@ -140,7 +145,8 @@ export class OidcJwksVerifier {
       header.crit !== undefined
     ) throw new Error('Unsupported OIDC access token header');
 
-    const jwk = await this.findSigningKey(header.kid);
+    let jwk = await this.findSigningKey(header.kid);
+    if (!jwk) jwk = await this.findSigningKey(header.kid, true);
     if (!jwk || jwk.kty !== 'RSA' || (jwk.use && jwk.use !== 'sig') ||
         (jwk.alg && jwk.alg !== 'RS256') || (jwk.key_ops && !jwk.key_ops.includes('verify'))) {
       throw new Error('No valid OIDC signing key found');
@@ -176,8 +182,8 @@ export class OidcJwksVerifier {
     return { subject: claims.sub, issuer: this.config.issuer, audience, expiresAt: exp as number };
   }
 
-  private async findSigningKey(kid: string): Promise<JsonWebKey | undefined> {
-    if (!this.cachedKeys || Date.now() >= this.cacheExpiresAt) {
+  private async findSigningKey(kid: string, forceRefresh = false): Promise<JsonWebKey | undefined> {
+    if (forceRefresh || !this.cachedKeys || Date.now() >= this.cacheExpiresAt) {
       const response = await this.fetcher(this.jwksUrl, {
         method: 'GET',
         redirect: 'error',
