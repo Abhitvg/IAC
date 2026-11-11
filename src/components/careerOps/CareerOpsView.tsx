@@ -1,5 +1,5 @@
 import { copyToClipboard } from '../../utils/clipboard';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Briefcase,
   TrendingUp,
@@ -86,6 +86,22 @@ export function CareerOpsView() {
 
   const { resumeText, setJobDescriptionText, setTargetRole, setToast, settings } = useAppStore();
 
+  const careerOpsProviderConfig = useMemo(
+    () =>
+      settings?.aiProvider
+        ? {
+            type: settings.aiProvider,
+            apiKey: settings.apiKey || '',
+            model: resolveOrMigrateModel(
+              settings.aiProvider as AIProviderId,
+              settings.aiModel,
+              'llm'
+            ).resolvedModel,
+          }
+        : undefined,
+    [settings?.aiProvider, settings?.apiKey, settings?.aiModel]
+  );
+
   const { setActiveView, createCompanyPlan } = usePracticeStore();
 
   useEffect(() => {
@@ -96,14 +112,14 @@ export function CareerOpsView() {
           (!source.lastCheckedAt || Date.now() - source.lastCheckedAt >= 12 * 60 * 60 * 1000)
       );
       if (due && !isDiscovering) {
-        void discoverJobsFromSources();
+        void discoverJobsFromSources(resumeText, careerOpsProviderConfig);
       }
     };
 
     scanIfDue();
     const timer = window.setInterval(scanIfDue, 30 * 60 * 1000);
     return () => window.clearInterval(timer);
-  }, [sources, isDiscovering, discoverJobsFromSources]);
+  }, [sources, isDiscovering, discoverJobsFromSources, resumeText, careerOpsProviderConfig]);
 
   // Internal sub-tab state
   const [subTab, setSubTab] = useState<'pipeline' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'>(
@@ -622,7 +638,9 @@ export function CareerOpsView() {
 
       {/* Main Workspace Content Area */}
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
-        {subTab === 'discovery' && <CareerDiscoveryPanel />}
+        {subTab === 'discovery' && (
+          <CareerDiscoveryPanel resumeText={resumeText} providerConfig={careerOpsProviderConfig} />
+        )}
 
         {/* TAB 1: PIPELINE BOARD */}
         {subTab === 'pipeline' && (
