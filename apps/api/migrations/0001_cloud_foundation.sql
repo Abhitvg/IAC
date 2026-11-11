@@ -16,8 +16,7 @@ CREATE TABLE IF NOT EXISTS tenant_memberships (
   role text NOT NULL CHECK (role IN ('owner', 'member')),
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended')),
   created_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (tenant_id, subject),
-  UNIQUE (subject)
+  PRIMARY KEY (tenant_id, subject)
 );
 
 CREATE TABLE IF NOT EXISTS tenant_controls (
