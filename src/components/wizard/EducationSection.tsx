@@ -30,7 +30,10 @@ export const EducationSection: React.FC<EducationSectionProps> = React.memo(
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateEducation(draftRef.current, true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdateEducation(draftRef.current, true);
+      }
     }, [onUpdateEducation]);
 
     useEffect(() => {
