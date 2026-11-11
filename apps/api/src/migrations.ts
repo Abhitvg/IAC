@@ -115,7 +115,10 @@ export async function runCloudMigrations(
           to_regclass('public.audit_events')::text,
           to_regclass('public.api_rate_limit_buckets')::text,
           to_regclass('public.career_graph_facts')::text,
-          to_regclass('public.career_graph_fact_reviews')::text
+          to_regclass('public.career_graph_fact_reviews')::text,
+          to_regclass('public.applications')::text,
+          to_regclass('public.application_timeline_events')::text,
+          to_regclass('public.activity_feed_events')::text
         ], NULL) AS existing_tables
     `);
     const ledgerExists = Boolean(schemaState.rows[0]?.ledger_table);

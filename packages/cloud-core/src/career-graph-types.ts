@@ -111,3 +111,4 @@ export interface CandidateFact {
   };
   suggestedConfidence: number; // 0.0 to 1.0
 }
+

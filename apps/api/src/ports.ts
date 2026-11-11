@@ -63,6 +63,8 @@ export interface CloudApiConfig {
   maxRequestBytes?: number;
 }
 
+import type { ApplicationTrackerRepository } from './application-repository';
+
 export interface CloudRateLimiter {
   consume(key: string, limit: number, windowMs: number): Promise<boolean>;
 }
@@ -75,6 +77,7 @@ export interface CloudApiDependencies {
   identityVerifier: CloudIdentityVerifier;
   repository: CloudApiRepository;
   careerGraph: CareerGraphRepository;
+  applicationTracker?: ApplicationTrackerRepository;
   rateLimiter: CloudRateLimiter;
   config: CloudApiConfig;
 }

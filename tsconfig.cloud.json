@@ -19,6 +19,9 @@
     "tests/career-graph-api.test.ts",
     "tests/m1-career-graph-importers.test.ts",
     "tests/m1-sprint-contract-onboarding.test.ts",
-    "tests/m1-api-routes.test.ts"
+    "tests/m1-api-routes.test.ts",
+    "tests/m2-tracker-state-machine.test.ts",
+    "tests/m2-activity-feed-sse.test.ts",
+    "tests/m2-api-applications.test.ts"
   ]
 }

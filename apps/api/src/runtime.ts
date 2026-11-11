@@ -5,6 +5,7 @@ import { PostgresCloudApiRepository, type ClosableSqlPool } from './postgres-rep
 import { PostgresCloudRateLimiter } from './postgres-rate-limiter';
 import { createCloudApiServer } from './server';
 import { PostgresCareerGraphRepository } from './career-graph-repository';
+import { PostgresApplicationTrackerRepository } from './application-repository';
 
 export interface CloudApiRuntime {
   server: Server;
@@ -25,6 +26,7 @@ export function createCloudApiRuntime(
     }),
     repository,
     careerGraph: new PostgresCareerGraphRepository(pool),
+    applicationTracker: new PostgresApplicationTrackerRepository(pool),
     rateLimiter: new PostgresCloudRateLimiter(pool, environment.CAREEROPS_RATE_LIMIT_HASH_SECRET),
     config: {
       issuer: environment.CAREEROPS_JWT_ISSUER,

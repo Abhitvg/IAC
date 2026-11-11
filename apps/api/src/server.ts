@@ -13,6 +13,12 @@ import {
   type GitHubUserProfile,
   type GitHubRepository,
 } from '../../../packages/cloud-core/src/importers/github';
+import {
+  ApplicationInputSchema,
+  ApplicationStatusEnum,
+  type TransitionRequest,
+} from '../../../packages/cloud-core/src/tracker';
+import { globalActivityHub } from './activity-hub';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
 
@@ -346,23 +352,173 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
+      if (request.method === 'GET' && url.pathname === '/v1/applications') {
+        if (!dependencies.applicationTracker) {
+          sendJson(response, 501, { error: 'Application tracker not configured', requestId });
+          return;
+        }
+        const rawStatus = url.searchParams.get('status');
+        const status = rawStatus ? ApplicationStatusEnum.parse(rawStatus) : undefined;
+        const limit = url.searchParams.has('limit') ? Number(url.searchParams.get('limit')) : 50;
+        const offset = url.searchParams.has('offset') ? Number(url.searchParams.get('offset')) : 0;
+        const applications = await dependencies.applicationTracker.listApplications(
+          tenant.tenantId,
+          {
+            status,
+            limit,
+            offset,
+          }
+        );
+        sendJson(response, 200, { applications, count: applications.length, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/applications') {
+        if (!dependencies.applicationTracker) {
+          sendJson(response, 501, { error: 'Application tracker not configured', requestId });
+          return;
+        }
+        const body = await readJson(request, maxBytes);
+        const input = ApplicationInputSchema.parse(body);
+        const application = await dependencies.applicationTracker.createApplication(
+          tenant.tenantId,
+          tenant.subject,
+          input
+        );
+        sendJson(response, 201, { application, requestId });
+        return;
+      }
+
+      const appMatch = url.pathname.match(/^\/v1\/applications\/([0-9a-f-]{36})$/i);
+      if (request.method === 'GET' && appMatch) {
+        if (!dependencies.applicationTracker) {
+          sendJson(response, 501, { error: 'Application tracker not configured', requestId });
+          return;
+        }
+        const application = await dependencies.applicationTracker.getApplication(
+          tenant.tenantId,
+          appMatch[1]
+        );
+        if (!application) {
+          sendJson(response, 404, { error: 'Application not found', requestId });
+          return;
+        }
+        const timeline = await dependencies.applicationTracker.getApplicationTimeline(
+          tenant.tenantId,
+          appMatch[1]
+        );
+        sendJson(response, 200, { application, timeline, requestId });
+        return;
+      }
+
+      const transitionMatch = url.pathname.match(
+        /^\/v1\/applications\/([0-9a-f-]{36})\/transition$/i
+      );
+      if (request.method === 'POST' && transitionMatch) {
+        if (!dependencies.applicationTracker) {
+          sendJson(response, 501, { error: 'Application tracker not configured', requestId });
+          return;
+        }
+        const body = await readJson(request, maxBytes);
+        const requestPayload = body as unknown as TransitionRequest;
+        const application = await dependencies.applicationTracker.transitionApplication(
+          tenant.tenantId,
+          tenant.subject,
+          transitionMatch[1],
+          requestPayload
+        );
+        sendJson(response, 200, { application, requestId });
+        return;
+      }
+
+      const withdrawMatch = url.pathname.match(/^\/v1\/applications\/([0-9a-f-]{36})\/withdraw$/i);
+      if (request.method === 'POST' && withdrawMatch) {
+        if (!dependencies.applicationTracker) {
+          sendJson(response, 501, { error: 'Application tracker not configured', requestId });
+          return;
+        }
+        const body = await readJson(request, maxBytes);
+        if (typeof body.reason !== 'string' || !body.reason.trim()) {
+          sendJson(response, 400, {
+            error: 'A clear reason is required to withdraw an application',
+            requestId,
+          });
+          return;
+        }
+        const application = await dependencies.applicationTracker.withdrawApplication(
+          tenant.tenantId,
+          tenant.subject,
+          withdrawMatch[1],
+          body.reason
+        );
+        sendJson(response, 200, { application, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/dashboard/stats') {
+        if (!dependencies.applicationTracker) {
+          sendJson(response, 501, { error: 'Application tracker not configured', requestId });
+          return;
+        }
+        const metrics = await dependencies.applicationTracker.getDashboardMetrics(tenant.tenantId);
+        sendJson(response, 200, { metrics, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/activity-feed') {
+        if (!dependencies.applicationTracker) {
+          sendJson(response, 501, { error: 'Application tracker not configured', requestId });
+          return;
+        }
+        const limit = url.searchParams.has('limit') ? Number(url.searchParams.get('limit')) : 50;
+        const events = await dependencies.applicationTracker.listActivityEvents(
+          tenant.tenantId,
+          limit
+        );
+        sendJson(response, 200, { events, count: events.length, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/activity-feed/stream') {
+        response.writeHead(200, {
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-cache',
+          connection: 'keep-alive',
+          'x-accel-buffering': 'no',
+        });
+        response.write(
+          `event: ready\ndata: ${JSON.stringify({ tenantId: tenant.tenantId, requestId })}\n\n`
+        );
+
+        const unsubscribe = globalActivityHub.subscribe(tenant.tenantId, (event) => {
+          response.write(`event: activity\ndata: ${JSON.stringify(event)}\n\n`);
+        });
+
+        request.on('close', () => {
+          unsubscribe();
+        });
+        return;
+      }
+
       sendJson(response, 404, { error: 'Not found', requestId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
       const status =
         error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')
           ? 400
-          : /active Sprint Contract must be revoked|reviewed fact is immutable/i.test(message)
+          : /active Sprint Contract must be revoked|reviewed fact is immutable|already tracking/i.test(
+                message
+              )
             ? 409
             : /Only the fact contributor/i.test(message)
               ? 403
-              : /Career Graph fact not found/i.test(message)
+              : /Career Graph fact not found|Application not found/i.test(message)
                 ? 404
                 : /token|identity|membership|bearer|authorization/i.test(message)
                   ? 401
                   : /size limit/i.test(message)
                     ? 413
-                    : /JSON|body|Career Graph envelope|Authenticated tenant and actor/i.test(
+                    : /JSON|body|Career Graph envelope|Authenticated tenant and actor|Illegal application status transition|Proof of submission|A clear reason is required/i.test(
                           message
                         )
                       ? 400
