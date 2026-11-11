@@ -36,6 +36,7 @@ export class CanonicalProfileService {
   private persistenceReady: Promise<boolean>;
   private persistenceQueue: Promise<boolean> = Promise.resolve(true);
   private persistenceError: string | null = null;
+  private externalUnsubscribers: Array<() => void> = [];
 
   private constructor() {
     this.currentProfile = this.loadFromStorage();
@@ -825,23 +826,32 @@ export class CanonicalProfileService {
   /**
    * Sets up bidirectional event listeners to legacy subsystems.
    */
+  public dispose(): void {
+    for (const unsubscribe of this.externalUnsubscribers.splice(0)) {
+      unsubscribe();
+    }
+    this.listeners = [];
+  }
+
   private setupBidirectionalListeners(): void {
     // 1. Listen to KnowledgeVaultService updates
     try {
-      KnowledgeVaultService.getInstance().subscribe((vault) => {
+      const unsubscribe = KnowledgeVaultService.getInstance().subscribe((vault) => {
         if (this.isSyncing) return;
         this.syncFromKnowledgeVault(vault);
       });
+      this.externalUnsubscribers.push(unsubscribe);
     } catch (e) {
       console.warn('[CanonicalProfileService] KnowledgeVault subscription error:', e);
     }
 
     // 2. Listen to useCandidateVaultStore (CareerOps) updates
     try {
-      useCandidateVaultStore.subscribe((state) => {
+      const unsubscribe = useCandidateVaultStore.subscribe((state) => {
         if (this.isSyncing || !state?.profile) return;
         this.syncFromCareerOpsVault(state.profile);
       });
+      this.externalUnsubscribers.push(unsubscribe);
     } catch (e) {
       console.warn('[CanonicalProfileService] CareerOps subscription error:', e);
     }
