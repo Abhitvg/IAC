@@ -265,15 +265,15 @@ export const SB2NOV_LATEX_TEMPLATE = `% Source-preserving sb2nov-compatible temp
 
 function escapeLatexText(value: string): string {
   return value
-    .replace(/\\\\/g, '\\\\textbackslash{}')
-    .replace(/([{}%$&#_])/g, '\\\\$1')
-    .replace(/~/g, '\\\\textasciitilde{}')
-    .replace(/\\^/g, '\\\\textasciicircum{}');
+    .replace(/\\/g, '\\textbackslash{}')
+    .replace(/([{}%$&#_])/g, '\\$1')
+    .replace(/~/g, '\\textasciitilde{}')
+    .replace(/\^/g, '\\textasciicircum{}');
 }
 
 function buildSourceResumeLatex(resumeText: string, roleTitle: string, companyName: string): string {
   const source = resumeText.trim()
-    ? escapeLatexText(resumeText.trim()).replace(/\\r?\\n/g, '\\\\\\\n')
+    ? escapeLatexText(resumeText.trim()).split(/\r?\n/).join('\\\\\n')
     : 'No source resume supplied. Add a verified resume before generating a tailored version.';
   return SB2NOV_LATEX_TEMPLATE
     .replace(/{{TARGET_ROLE}}/g, escapeLatexText(roleTitle))
