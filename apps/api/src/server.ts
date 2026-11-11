@@ -214,7 +214,9 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       const status =
         error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')
           ? 400
-          : /token|identity|membership|bearer|authorization/i.test(message)
+          : /active Sprint Contract must be revoked/i.test(message)
+            ? 409
+            : /token|identity|membership|bearer|authorization/i.test(message)
             ? 401
             : /size limit/i.test(message)
               ? 413
