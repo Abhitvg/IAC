@@ -185,15 +185,15 @@ OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or preamble,
   "verdictHeadline": "🟢 High Fit: Strong systems background matches core JD needs",
   "summary": "Concise 2-sentence summary of mutual fit and leverage points.",
   "weightedRequirements": [
-    { "requirement": "5+ years Java / Distributed Systems", "weight": "critical", "fit": "strong", "evidence": "Verified 5 yrs experience on resume" },
-    { "requirement": "Kafka event streams", "weight": "high", "fit": "partial", "evidence": "Used Kafka for logging, not primary bus" }
+    { "requirement": "Java", "weight": "critical", "fit": "partial", "evidence": "The source resume mentions Java; verify depth and context before scoring proficiency." },
+    { "requirement": "Kafka", "weight": "high", "fit": "gap", "evidence": "No concrete Kafka evidence was supplied." }
   ],
-  "levelStrategy": "Senior Engineer pitch emphasizing scale and architectural independence",
-  "identifiedGaps": ["No direct Kubernetes operator experience mentioned"],
-  "strategicAngle": "Frame your background around fault tolerance and observability",
+  "levelStrategy": "Use only seniority and ownership evidence explicitly present in the source resume.",
+  "identifiedGaps": ["List only requirements that are absent or unsupported in the source resume."],
+  "strategicAngle": "Connect one verified candidate example to a stated job requirement.",
   "compensationEstimate": {
-    "estimatedRange": "$140,000 - $180,000 / yr",
-    "analysis": "Based on US Senior remote market percentiles"
+    "estimatedRange": "Not disclosed in the job description",
+    "analysis": "No salary range was supplied in the posting."
   },
   "workAuthAlert": null,
   "topInterviewStories": [
@@ -428,23 +428,17 @@ export async function generateCoverLetter(
   providerConfig?: ProviderConfig
 ): Promise<string> {
   const angleDescriptions: Record<CoverLetterAngle, string> = {
-    problem_solver:
-      'Focuses directly on a critical high-stakes engineering challenge the company faces and how candidate solves it.',
-    technical_depth:
-      'Focuses deeply on architectural mastery, code quality, and distributed systems design.',
-    fast_impact: 'Focuses on rapid 30-60-90 day value acceleration and immediate team velocity.',
-    cultural_alignment:
-      'Focuses on passion for the mission, product excellence, and collaborative ownership.',
+    problem_solver: 'Connect one verified candidate example to a problem explicitly described in the job description.',
+    technical_depth: 'Explain technical depth only where the source resume provides concrete evidence.',
+    fast_impact: 'Describe realistic early contributions based on verified skills; do not invent outcomes or metrics.',
+    cultural_alignment: 'Reference company mission or culture only when supported by the supplied job description.',
   };
 
   const levelDescriptions: Record<CoverLetterExperienceLevel, string> = {
-    senior:
-      'Senior / Staff Engineer: emphasizes systems architecture, mentoring, 50k+ QPS scale, and cross-functional leadership.',
-    mid: 'Mid-level Engineer: emphasize end-to-end delivery, API design, and testing only where the resume provides concrete examples.',
-    entry:
-      'New Graduate / Entry-Level Engineer: emphasizes core computer science foundations, hackathon/capstone achievements, and internship impact (27% bug reduction).',
-    career_switcher:
-      'Career Switcher / Bootcamp Graduate: emphasizes rapid technical immersion, shipped full-stack applications, and translating domain problem-solving into software engineering.',
+    senior: 'Emphasize architecture ownership, mentoring, and cross-functional leadership only when directly supported by the resume.',
+    mid: 'Emphasize end-to-end delivery, API design, and testing only where the resume provides concrete examples.',
+    entry: 'Emphasize verified education, projects, internships, and fundamentals without inventing outcomes or metrics.',
+    career_switcher: 'Emphasize verified transferable experience and shipped projects; do not assume prior career duration or business outcomes.',
   };
 
   const prompt = `Write an exceptional, compelling 4-paragraph Software Engineering Cover Letter for the role of "${roleTitle}" at "${companyName}".
