@@ -9,6 +9,7 @@ END
 $$;
 
 ALTER ROLE careerops_app NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+REVOKE ALL ON tenants, tenant_memberships, tenant_controls, sprint_contracts, audit_events FROM careerops_app;
 REVOKE ALL ON tenants, tenant_memberships, tenant_controls, sprint_contracts, audit_events FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO careerops_app;
 GRANT SELECT ON tenants, tenant_memberships TO careerops_app;
