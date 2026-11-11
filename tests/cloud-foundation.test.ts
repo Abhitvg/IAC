@@ -23,6 +23,7 @@ import { loadCloudEnvironment } from '../apps/api/src/config';
 import type { CloudApiDependencies } from '../apps/api/src/ports';
 import { PostgresCloudApiRepository, type SqlPool } from '../apps/api/src/postgres-repository';
 import { PostgresCloudRateLimiter } from '../apps/api/src/postgres-rate-limiter';
+import { createCloudApiRuntime } from '../apps/api/src/runtime';
 
 const secret = 'test-only-secret-that-is-at-least-32-characters';
 const contractInput = {
@@ -109,6 +110,40 @@ describe('PostgreSQL shared rate limiter', () => {
     await expect(limiter.consume('', 1, 1000)).rejects.toThrow();
     await expect(limiter.consume('ip:test', 0, 1000)).rejects.toThrow();
     await expect(limiter.consume('ip:test', 1, 0)).rejects.toThrow();
+  });
+});
+
+describe('cloud API runtime composition', () => {
+  it('composes PostgreSQL adapters and supports graceful listener/pool shutdown', async () => {
+    let released = 0;
+    let ended = 0;
+    const pool = {
+      connect: async () => ({
+        query: async () => ({ rows: [{ '?column?': 1 }] }),
+        release: () => {
+          released += 1;
+        },
+      }),
+      end: async () => {
+        ended += 1;
+      },
+    } as unknown as SqlPool;
+    const environment = loadCloudEnvironment({
+      CAREEROPS_JWT_ISSUER: authConfig.issuer,
+      CAREEROPS_JWT_AUDIENCE: authConfig.audience,
+      CAREEROPS_JWKS_URL: authConfig.jwksUrl,
+      CAREEROPS_CONSENT_SIGNING_SECRET: secret,
+      CAREEROPS_RATE_LIMIT_HASH_SECRET: secret,
+    } as NodeJS.ProcessEnv);
+    const runtime = createCloudApiRuntime(pool, environment);
+    await runtime.listen(0, '127.0.0.1');
+    const address = runtime.server.address();
+    if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+    const ready = await fetch(`http://127.0.0.1:${address.port}/health/ready`);
+    expect(ready.status).toBe(200);
+    await runtime.close();
+    expect(released).toBe(1);
+    expect(ended).toBe(1);
   });
 });
 
