@@ -176,14 +176,14 @@ describe('M0 cloud security foundation', () => {
       resolveTenantContext(
         'user-1',
         { findMembershipsBySubject: async () => memberships },
-        'tenant-other'
+        '20000000-0000-4000-8000-000000000002'
       )
-    ).resolves.toMatchObject({ tenantId: 'tenant-other', role: 'member' });
+    ).resolves.toMatchObject({ tenantId: '20000000-0000-4000-8000-000000000002', role: 'member' });
     await expect(
       resolveTenantContext(
         'user-1',
         { findMembershipsBySubject: async () => memberships },
-        'tenant-forged'
+        '30000000-0000-4000-8000-000000000003'
       )
     ).rejects.toThrow('selected tenant');
   });
@@ -210,7 +210,7 @@ describe('M0 cloud security foundation', () => {
     expect(record.contractHash).toMatch(/^[a-f0-9]{64}$/);
     expect(record.revokedAt).toBeNull();
     expect(verifyConsentRecord(record, secret)).toBe(true);
-    expect(verifyConsentRecord({ ...record, tenantId: 'tenant-other' }, secret)).toBe(false);
+    expect(verifyConsentRecord({ ...record, tenantId: '20000000-0000-4000-8000-000000000002' }, secret)).toBe(false);
   });
 
   it('fails closed on global kill switch, channel pause, missing consent and expired contract', () => {
