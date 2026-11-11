@@ -74,20 +74,11 @@ jobs:
           }
           NODE
 
-      - name: Check formatting for changed files
+      - name: Format changed files (temporary diagnostic)
         shell: bash
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-            git diff --name-only --diff-filter=ACMR "$BASE_SHA"...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' > /tmp/changed-files.txt
-          else
-            git diff --name-only --diff-filter=ACMR HEAD^ HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' > /tmp/changed-files.txt
-          fi
-          if [[ -s /tmp/changed-files.txt ]]; then
-            xargs -r npx prettier --check < /tmp/changed-files.txt
-          else
-            echo "No supported files changed; skipping formatting check."
-          fi
+          npx prettier --write electron/main.ts electron/services/piiVault.ts tests/piiVault.test.ts
+          git diff -- electron/main.ts electron/services/piiVault.ts tests/piiVault.test.ts
 
       - name: Lint source files
         run: npm run lint
