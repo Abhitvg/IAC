@@ -161,6 +161,7 @@ describe('cloud API runtime composition', () => {
       },
     } as unknown as ClosableSqlPool;
     const environment = loadCloudEnvironment({
+        NODE_ENV: 'test',
       CAREEROPS_JWT_ISSUER: authConfig.issuer,
       CAREEROPS_JWT_AUDIENCE: authConfig.audience,
       CAREEROPS_JWKS_URL: authConfig.jwksUrl,
@@ -185,6 +186,7 @@ describe('M0 cloud security foundation', () => {
   it('requires HTTPS issuer/JWKS endpoints and a separate consent signing secret', () => {
     expect(() =>
       loadCloudEnvironment({
+        NODE_ENV: 'test',
         CAREEROPS_JWT_ISSUER: 'http://identity.example.test',
         CAREEROPS_JWT_AUDIENCE: 'careerops-api',
         CAREEROPS_JWKS_URL: 'https://identity.example.test/.well-known/jwks.json',
@@ -194,6 +196,7 @@ describe('M0 cloud security foundation', () => {
     ).toThrow();
     expect(() =>
       loadCloudEnvironment({
+        NODE_ENV: 'test',
         CAREEROPS_JWT_ISSUER: 'https://identity.example.test',
         CAREEROPS_JWT_AUDIENCE: 'careerops-api',
         CAREEROPS_JWKS_URL: 'https://identity.example.test/.well-known/jwks.json',
@@ -203,6 +206,7 @@ describe('M0 cloud security foundation', () => {
     ).toThrow();
     expect(() =>
       loadCloudEnvironment({
+        NODE_ENV: 'test',
         CAREEROPS_JWT_ISSUER: 'https://identity.example.test',
         CAREEROPS_JWT_AUDIENCE: 'careerops-api',
         CAREEROPS_JWKS_URL: 'https://identity.example.test/.well-known/jwks.json',
