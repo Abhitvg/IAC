@@ -10,6 +10,7 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 - `CAREEROPS_JWT_AUDIENCE`: API audience expected in access-token `aud`.
 - `CAREEROPS_JWKS_URL`: trusted HTTPS JWKS endpoint for that issuer. Redirects are rejected.
 - `CAREEROPS_CONSENT_SIGNING_SECRET`: separate high-entropy secret (at least 32 characters); never reuse the identity-provider signing key.
+- `CAREEROPS_RATE_LIMIT_HASH_SECRET`: separate high-entropy secret (at least 32 characters) used to HMAC caller keys before they are persisted in shared rate-limit buckets.
 
 ## Run locally
 
@@ -17,9 +18,10 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 2. Run `npm run typecheck:cloud`.
 3. Run `npm run security:source`.
 4. Run `npx vitest run tests/cloud-foundation.test.ts`.
-5. Run `bash scripts/test-cloud-postgres-rls.sh` against a disposable PostgreSQL 16 database. The script applies all three migrations using the supplied database credentials and runs the isolation/immutability assertions.
+5. Run `bash scripts/test-cloud-postgres-rls.sh` against a disposable PostgreSQL 16 database. The script applies all four migrations using the supplied database credentials and runs the isolation/immutability assertions.
 6. Ensure the API deployment login is a member of `careerops_app`; it must not own tables or have RLS bypass privileges. The separate tenant-provisioning operator login may be granted membership in `careerops_provisioner` and should be used only for the audited bootstrap script.
-7. Start the API in a harness that injects `PostgresCloudApiRepository`, a shared rate limiter, verified identity configuration and KMS adapter. The server intentionally has no insecure in-memory production fallback.
+7. Construct `createCloudApiRuntime(pool, loadCloudEnvironment())` with a pg-compatible PostgreSQL pool, then call `runtime.listen(port, host)`. The runtime composes the OIDC verifier, PostgreSQL repository and shared PostgreSQL rate limiter; `runtime.close()` closes the HTTP server and pool. The repository still requires an explicitly supplied PostgreSQL driver/pool adapter; no driver or in-memory production fallback is bundled.
+8. Probe `GET /health/ready` for database readiness (503 on database failure); `/health/live` remains independent of database availability.
 
 ## Privileged tenant bootstrap\n\nAfter applying both migrations, grant the approved operator login membership in `careerops_provisioner`. Set `DATABASE_URL`, `TENANT_ID`, `TENANT_NAME` and the exact authenticated OIDC `OWNER_SUBJECT`, then run `bash scripts/provision-careerops-tenant.sh`. The script creates the tenant, first owner, default-paused controls and initial audit event in one transaction. It does not enable automation. Never grant `careerops_provisioner` to the API service login.\n\n## Demo script
 
@@ -40,14 +42,14 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 - Kill switch/channel pause/cap enforcement.
 - Tamper-evident audit event hashing.
 - AES-256-GCM envelope integrity and tenant/context binding.
-- HTTP health, auth, server-side tenant resolution, and Sprint Contract accept/read/revoke lifecycle. Only the accepting owner may revoke that acceptance.
+- HTTP liveness/readiness, auth, server-side tenant resolution, shared rate-limit enforcement, and Sprint Contract accept/read/revoke lifecycle. Only the accepting owner may revoke that acceptance.
 
 ## Known gaps (must be closed before production)
 
 - RS256 OIDC/JWKS verification is implemented with HTTPS-pinned issuer/JWKS configuration, bounded key caching, key-rotation refresh and RSA-2048 minimum. The identity provider, issuer/JWKS endpoints, OAuth client, login/callback flow and account provisioning are not configured; this verifier validates access tokens only and is not a public login system.
-- The PostgreSQL repository adapter is implemented against a pg-compatible pool interface. A privileged, explicit tenant bootstrap script and narrowly granted BYPASSRLS provisioning role are included; operator identity verification, pg driver, runtime composition root and hosted account provisioning are still not wired. Multi-tenant memberships and explicit `x-tenant-id` selection are supported by the domain boundary and RLS schema. The API is not deployable until these are supplied. Contract lifecycle routes are implemented, but hosted login, provisioning, and runtime composition remain deployment blockers.
+- The PostgreSQL repository and shared fixed-window rate limiter are implemented against a pg-compatible pool interface. The runtime composition root wires OIDC verification, repository, rate limiter and HTTP server, with liveness/readiness and graceful shutdown. A concrete PostgreSQL driver/pool bootstrap, hosted login/callback flow, account provisioning, deployment manifests and operator identity verification are still not wired. Multi-tenant memberships and explicit `x-tenant-id` selection are supported by the domain boundary and RLS schema.
 - A production KMS implementation, cloud object storage and secrets manager are not selected or wired. Tests use an explicitly test-only fake key provider.
-- The API requires an injected shared rate-limiter implementation (for example Redis); the interface and fail-closed enforcement are present, but no process-local fallback is provided.
+- The shared PostgreSQL rate limiter uses atomic fixed-window upserts and HMAC-hashed caller keys; migration 0004 grants the restricted runtime role only the required bucket-table permissions. Production retention/cleanup cadence and abuse thresholds still need operational tuning.
 - The consent HMAC secret must be separate from the JWT signing secret and configured as `CAREEROPS_CONSENT_SIGNING_SECRET`.
 - The PostgreSQL repository commits Sprint Contract acceptance/revocation and control changes with their audit events atomically; live hosted database and concurrent-write testing remain required.
 - Database roles/grants, immutable consent evidence with one-way revocation, and append-only audit triggers are included in migration 0002. Backup encryption, key rotation, DSAR workflows, distributed rate-limiter deployment and abuse controls need deployment integration tests.
