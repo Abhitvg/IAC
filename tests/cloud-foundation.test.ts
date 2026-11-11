@@ -23,7 +23,7 @@ const contractInput = {
   workAuthorization: { countries: ['IN'], requiresSponsorship: false, confirmed: true as const },
   blocklist: { companies: [], industries: [] },
   enabledChannels: ['ats', 'email'] as const,
-  dailyCaps: { applications: 10, emails: 5, assistQueueItems: 0 },
+  dailyCaps: { applications: 10, emails: 5, assistQueueItems: 0, calendarEvents: 5 },
   defaultAnswers: {},
   allowedFactIds: [],
   tone: 'professional' as const,
