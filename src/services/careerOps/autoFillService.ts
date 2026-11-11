@@ -206,31 +206,52 @@ export function generateBrowserAutoFillScript(
   matchByLabelOrAttr(data.portfolio, ['portfolio', 'website', 'personal site', 'url'], 'Portfolio (Fuzzy)');
   matchByLabelOrAttr(data.coverLetter, ['cover_letter', 'cover letter', 'note to hiring', 'additional info', 'comments'], 'Cover Letter (Fuzzy)');
 
-  // --- RADIO / CHECKBOX HEURISTICS FOR WORK AUTHORIZATION ---
-  const radios = Array.from(document.querySelectorAll('input[type="radio"], input[type="checkbox"]'));
-  radios.forEach(r => {
-    const parent = r.closest('div, fieldset, tr, li') || r.parentElement;
-    if (!parent) return;
-    const txt = parent.innerText.toLowerCase();
+  // --- VERIFIED WORK-AUTHORIZATION RADIO ANSWERS ONLY ---
+  // Do not infer answers from a whole form's text or from unchecked checkboxes.
+  // A fieldset/radiogroup and a per-option label must both be identifiable.
+  function optionLabel(input) {
+    const associated = input.id
+      ? document.querySelector('label[for="' + CSS.escape(input.id) + '"]')
+      : null;
+    const wrapped = input.closest('label');
+    return [
+      associated ? associated.innerText : '',
+      wrapped ? wrapped.innerText : '',
+      input.value || '',
+      input.getAttribute('aria-label') || ''
+    ].join(' ').toLowerCase();
+  }
 
-    // Work authorization
-    if (data.authorizedToWorkVerified && (txt.includes('authorized to work') || txt.includes('legally authorized'))) {
-      if ((data.authorizedToWork && (txt.includes('yes') || r.value === 'yes' || r.value === '1')) ||
-          (!data.authorizedToWork && (txt.includes('no') || r.value === 'no' || r.value === '0'))) {
-        r.checked = true;
-        r.dispatchEvent(new Event('change', { bubbles: true }));
-        filledCount++;
-      }
+  const radios = Array.from(document.querySelectorAll('input[type="radio"]'));
+  radios.forEach(r => {
+    const group = r.closest('fieldset, [role="radiogroup"]');
+    if (!group) return;
+    const question = (group.innerText || '').toLowerCase();
+    const option = optionLabel(r);
+    const isYes = /\b(yes|i am|authorized|eligible|true|1)\b/.test(option) ||
+      ['yes', 'true', '1'].includes(String(r.value).toLowerCase());
+    const isNo = /\b(no|not authorized|not eligible|false|0)\b/.test(option) ||
+      ['no', 'false', '0'].includes(String(r.value).toLowerCase());
+
+    if (
+      data.authorizedToWorkVerified &&
+      (question.includes('authorized to work') || question.includes('legally authorized')) &&
+      ((data.authorizedToWork && isYes) || (!data.authorizedToWork && isNo))
+    ) {
+      r.checked = true;
+      r.dispatchEvent(new Event('change', { bubbles: true }));
+      filledCount++;
+      return;
     }
 
-    // Sponsorship
-    if (data.requiresSponsorshipVerified && (txt.includes('require sponsorship') || txt.includes('sponsorship in the future'))) {
-      if ((!data.requiresSponsorship && (txt.includes('no') || r.value === 'no' || r.value === '0')) ||
-          (data.requiresSponsorship && (txt.includes('yes') || r.value === 'yes' || r.value === '1'))) {
-        r.checked = true;
-        r.dispatchEvent(new Event('change', { bubbles: true }));
-        filledCount++;
-      }
+    if (
+      data.requiresSponsorshipVerified &&
+      (question.includes('require sponsorship') || question.includes('sponsorship in the future')) &&
+      ((data.requiresSponsorship && isYes) || (!data.requiresSponsorship && isNo))
+    ) {
+      r.checked = true;
+      r.dispatchEvent(new Event('change', { bubbles: true }));
+      filledCount++;
     }
   });
 
