@@ -82,6 +82,7 @@ function createDependencies(): CloudApiDependencies {
       setGlobalKillSwitchWithAudit: async () => undefined,
     },
     careerGraph: { createFact, listFacts, reviewFact },
+    careerGraphEnvelopeVerifier: { verify: async () => undefined },
   };
   return dependencies;
 }
