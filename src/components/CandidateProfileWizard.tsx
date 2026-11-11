@@ -572,7 +572,7 @@ export const CandidateProfileWizard: React.FC = () => {
     if (!result.success) {
       setToast?.(
         result.failedStores.includes('canonical-profile')
-          ? 'Profile was not deleted because browser storage rejected the request. Your existing profile remains available.'
+          ? 'Profile was not deleted because secure storage could not be accessed. Existing data was preserved; resolve the storage issue and retry.'
           : `Reset incomplete. Candidate data may remain in: ${result.failedStores.join(', ')}.`
       );
       return;
