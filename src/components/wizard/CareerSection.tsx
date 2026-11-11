@@ -29,7 +29,10 @@ export const CareerSection: React.FC<CareerSectionProps> = React.memo(
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateCareer(draftRef.current, true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdateCareer(draftRef.current, true);
+      }
     }, [onUpdateCareer]);
 
     useEffect(() => {
