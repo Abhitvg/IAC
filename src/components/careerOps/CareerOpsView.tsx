@@ -1,5 +1,5 @@
 import { copyToClipboard } from '../../utils/clipboard';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Briefcase,
   TrendingUp,
@@ -63,6 +63,9 @@ import {
 export function CareerOpsView() {
   const {
     applications,
+    sources,
+    isDiscovering,
+    discoverJobsFromSources,
     activeJobId,
     filterStatus,
     searchQuery,
@@ -85,8 +88,25 @@ export function CareerOpsView() {
 
   const { setActiveView, createCompanyPlan } = usePracticeStore();
 
+  useEffect(() => {
+    const scanIfDue = () => {
+      const due = sources.some(
+        (source) =>
+          source.enabled &&
+          (!source.lastCheckedAt || Date.now() - source.lastCheckedAt >= 12 * 60 * 60 * 1000)
+      );
+      if (due && !isDiscovering) {
+        void discoverJobsFromSources();
+      }
+    };
+
+    scanIfDue();
+    const timer = window.setInterval(scanIfDue, 30 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [sources, isDiscovering, discoverJobsFromSources]);
+
   // Internal sub-tab state
-  const [subTab, setSubTab] = useState<'pipeline' | 'evaluator' | 'tailor' | 'outreach'>(
+  const [subTab, setSubTab] = useState<'pipeline' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'>(
     'pipeline'
   );
   const [copiedField, setCopiedField] = useState<string | null>(null);
