@@ -100,9 +100,7 @@ export async function runCloudMigrations(
     ]);
     lockAcquired = true;
 
-    // A database may predate the checksum ledger (for example, it may have been
-    // initialized by the disposable integration script). Never silently bless or
-    // replay that schema: a reviewed baseline must be recorded explicitly.
+    // Never silently bless a database initialized outside the checksum runner.
     const schemaState = await client.query<{
       ledger_table: string | null;
       existing_tables: string[];
@@ -115,7 +113,9 @@ export async function runCloudMigrations(
           to_regclass('public.tenant_controls')::text,
           to_regclass('public.sprint_contracts')::text,
           to_regclass('public.audit_events')::text,
-          to_regclass('public.api_rate_limit_buckets')::text
+          to_regclass('public.api_rate_limit_buckets')::text,
+          to_regclass('public.career_graph_facts')::text,
+          to_regclass('public.career_graph_fact_reviews')::text
         ], NULL) AS existing_tables
     `);
     const ledgerExists = Boolean(schemaState.rows[0]?.ledger_table);
