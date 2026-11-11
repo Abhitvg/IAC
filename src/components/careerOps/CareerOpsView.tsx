@@ -245,7 +245,7 @@ export function CareerOpsView() {
       company: newCompany.trim(),
       role: newRole.trim(),
       url: newUrl.trim(),
-      salaryRange: newSalary.trim() || 'Market Rate',
+      salaryRange: newSalary.trim() || 'Not disclosed',
       location: newLocation.trim(),
       jdText: newJdText.trim(),
       status: 'scouted',
