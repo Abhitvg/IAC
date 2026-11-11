@@ -86,13 +86,13 @@ CREATE POLICY sprint_contracts_isolation ON sprint_contracts
 
 
 -- Narrow privileged role for explicit tenant bootstrap only. It is never used by the API.
-DO $
+DO $provisioner$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'careerops_provisioner') THEN
     CREATE ROLE careerops_provisioner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT BYPASSRLS;
   END IF;
 END
-$;
+$provisioner$;
 ALTER ROLE careerops_provisioner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT BYPASSRLS;
 GRANT USAGE ON SCHEMA public TO careerops_provisioner;
 GRANT INSERT ON tenants, tenant_memberships, tenant_controls, audit_events TO careerops_provisioner;
