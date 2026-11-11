@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -127,13 +126,22 @@ describe('PiiVault', () => {
     await vault.put('candidate', 'profile', { fullName: 'Private Candidate' });
     const keyPath = path.join(userDataPath, '.iac-pii-vault-key.v1');
     const first = fs.readFileSync(keyPath, 'utf8');
+    const keyRecord = JSON.parse(first);
+    const masterKeyBase64 = Buffer.from(keyRecord.data, 'base64url')
+      .toString()
+      .slice('os-keyring:'.length);
     (safeStorage.decryptStringAsync as any).mockResolvedValueOnce({
-      result: Buffer.alloc(32, 7).toString('base64'),
+      result: masterKeyBase64,
       shouldReEncrypt: true,
     });
+    (safeStorage.encryptStringAsync as any).mockResolvedValueOnce(
+      Buffer.from(`rotated-keyring:${masterKeyBase64}`)
+    );
     // A fresh vault instance forces the persisted wrapped key to be read again.
     const secondVault = new PiiVault(userDataPath);
-    await expect(secondVault.get('candidate', 'profile')).rejects.toThrow();
+    await expect(secondVault.get('candidate', 'profile')).resolves.toEqual({
+      fullName: 'Private Candidate',
+    });
     expect(fs.readFileSync(keyPath, 'utf8')).not.toBe(first);
   });
 
