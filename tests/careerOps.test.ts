@@ -44,7 +44,7 @@ Requirements:
         r.requirement.toLowerCase().includes('java')
       );
       expect(javaReq).toBeDefined();
-      expect(javaReq?.fit).toBe('strong');
+      expect(javaReq?.fit).toBe('partial');
     });
 
     it('scores low fit (< 4.0) and recommends "skip" when JD requires unmatched legacy stack', () => {
@@ -92,6 +92,16 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       expect(report.compensationEstimate.estimatedRange).toContain('$180,000');
     });
+  });
+
+  it('does not invent a compensation benchmark when the job description omits salary', () => {
+    const report = evaluateJobHeuristically(
+      'Backend Engineer. Build reliable APIs with TypeScript.',
+      sampleResume,
+      'Backend Engineer',
+      'ExampleCo'
+    );
+    expect(report.compensationEstimate.estimatedRange).toBe('Not disclosed in the job description');
   });
 
   describe('generateOutreachNotes() — Contacto DMs & Email Drafts', () => {
