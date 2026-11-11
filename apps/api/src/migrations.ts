@@ -43,28 +43,39 @@ function normalizeMigrationSql(sql: string): string {
 
 function validateMigrations(migrations: CloudMigration[]): CloudMigration[] {
   const names = new Set<string>();
+  const versions = new Set<string>();
   for (const migration of migrations) {
     if (!MIGRATION_NAME.test(migration.name)) {
       throw new Error(`Invalid cloud migration filename: ${migration.name}`);
     }
-    if (names.has(migration.name)) {
-      throw new Error(`Duplicate cloud migration filename: ${migration.name}`);
+    const version = migration.name.slice(0, 4);
+    if (names.has(migration.name) || versions.has(version)) {
+      throw new Error(`Duplicate cloud migration version: ${version}`);
     }
     if (!migration.sql.trim()) {
       throw new Error(`Cloud migration is empty: ${migration.name}`);
     }
     names.add(migration.name);
+    versions.add(version);
   }
-  return [...migrations].sort((a, b) => a.name.localeCompare(b.name));
+  return [...migrations].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
 export async function loadCloudMigrations(directory: string): Promise<CloudMigration[]> {
   const absoluteDirectory = resolve(directory);
   const entries = await readdir(absoluteDirectory, { withFileTypes: true });
-  const files = entries
-    .filter((entry) => entry.isFile() && MIGRATION_NAME.test(entry.name))
+  const sqlEntries = entries.filter((entry) => entry.name.endsWith('.sql'));
+  for (const entry of sqlEntries) {
+    if (!entry.isFile()) {
+      throw new Error(`Cloud migration must be a regular file: ${entry.name}`);
+    }
+    if (!MIGRATION_NAME.test(entry.name)) {
+      throw new Error(`Invalid cloud migration filename: ${entry.name}`);
+    }
+  }
+  const files = sqlEntries
     .map((entry) => entry.name)
-    .sort((a, b) => a.localeCompare(b));
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
   return Promise.all(
     files.map(async (name) => ({
