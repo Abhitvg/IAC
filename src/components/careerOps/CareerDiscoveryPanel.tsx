@@ -120,6 +120,9 @@ export function CareerDiscoveryPanel({ resumeText, providerConfig }: CareerDisco
           <input type="checkbox" checked={autoEvaluate} onChange={(event) => setAutoEvaluate(event.target.checked)} />
           Automatically evaluate newly imported jobs against my loaded resume
         </label>
+        <p style={{ gridColumn: '1 / -1', margin: '-4px 0 0 24px', color: '#64748b', fontSize: 10, lineHeight: 1.5 }}>
+          When enabled, the job description and loaded resume are evaluated locally or sent to your configured AI provider. Review every result; keyword-only scores are marked as preliminary.
+        </p>
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
           <button type="submit" style={{ ...buttonStyle, background: 'rgba(249,115,22,0.16)', color: '#fdba74', borderColor: 'rgba(249,115,22,0.35)' }}>
             <Plus size={13} /> Add career page
