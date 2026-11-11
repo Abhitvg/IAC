@@ -200,4 +200,57 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
     expect(report.improvementRecommendations.suggestedExercises.length).toBeGreaterThan(0);
     expect(report.improvementRecommendations.recommendedNextDifficulty).toBe('easy');
   });
+
+  it('classifies each topic from its own evidence instead of the session-wide average', () => {
+    const session: MockSessionState = {
+      ...mockSession,
+      questionHistory: [
+        {
+          question: 'Explain collision resolution in hash tables.',
+          category: 'ds_hash_tables',
+          isFollowUp: false,
+          candidateTranscript: 'Separate chaining stores colliding keys in a bucket-specific chain.',
+          hintsUsed: [],
+          evaluation: {
+            overallScore: 4.8,
+            percentage: 96,
+            dimensions: [],
+            topLeverageFixes: [],
+            modelAnswer: '',
+            diffMissingPoints: [],
+            assessedAt: Date.now(),
+          },
+        },
+        {
+          question: 'Explain Dijkstra shortest path with negative edges.',
+          category: 'algo_graph_algorithms',
+          isFollowUp: false,
+          candidateTranscript: 'Dijkstra works fine with negative edges.',
+          hintsUsed: [],
+          evaluation: {
+            overallScore: 1.5,
+            percentage: 30,
+            dimensions: [],
+            topLeverageFixes: [],
+            modelAnswer: '',
+            diffMissingPoints: [],
+            assessedAt: Date.now(),
+          },
+        },
+      ],
+    };
+
+    const report = InterviewReportGenerator.generateReport(session, []);
+    const hashTopic = report.topicLevelAnalysis.find(
+      (topic) => topic.curriculumTopicId === 'ds_hash_tables'
+    );
+    const graphTopic = report.topicLevelAnalysis.find(
+      (topic) => topic.curriculumTopicId === 'algo_graph_algorithms'
+    );
+
+    expect(hashTopic?.status).toBe('demonstrated_strength');
+    expect(hashTopic?.score).toBe(4.8);
+    expect(graphTopic?.status).toBe('weak_area');
+    expect(graphTopic?.score).toBe(1.5);
+  });
 });
