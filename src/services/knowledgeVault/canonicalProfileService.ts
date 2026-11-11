@@ -37,6 +37,7 @@ export class CanonicalProfileService {
   private persistenceQueue: Promise<boolean> = Promise.resolve(true);
   private persistenceError: string | null = null;
   private pendingPersistenceCount = 0;
+  private lastPersistenceResult = true;
   private externalUnsubscribers: Array<() => void> = [];
 
   private constructor() {
@@ -142,11 +143,13 @@ export class CanonicalProfileService {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
         }
         this.persistenceQueue = Promise.resolve(true);
+        this.lastPersistenceResult = true;
         return true;
       } catch (error) {
         this.persistenceError =
           error instanceof Error ? error.message : 'Local persistence failed.';
         this.persistenceQueue = Promise.resolve(false);
+        this.lastPersistenceResult = false;
         return false;
       }
     }
@@ -154,7 +157,10 @@ export class CanonicalProfileService {
     this.pendingPersistenceCount += 1;
     this.persistenceQueue = this.persistenceQueue.then(async () => {
       try {
-        if (!(await this.persistenceReady)) return false;
+        if (!(await this.persistenceReady)) {
+          this.lastPersistenceResult = false;
+          return false;
+        }
         const snapshot = JSON.stringify(this.currentProfile);
         const saved = await api.securePersistenceSet('candidate-profile', snapshot);
         if (saved !== true) throw new Error('Encrypted candidate profile write was not committed.');
@@ -162,6 +168,7 @@ export class CanonicalProfileService {
         // before returning true; avoid a second renderer-side read that can race
         // with another queued profile update.
         this.persistenceError = null;
+        this.lastPersistenceResult = true;
         return true;
       } catch (error) {
         this.persistenceError =
@@ -169,6 +176,7 @@ export class CanonicalProfileService {
             ? error.message
             : 'Encrypted candidate profile persistence failed.';
         console.error('[CanonicalProfileService] Encrypted profile save failed:', error);
+        this.lastPersistenceResult = false;
         return false;
       } finally {
         this.pendingPersistenceCount = Math.max(0, this.pendingPersistenceCount - 1);
@@ -182,7 +190,7 @@ export class CanonicalProfileService {
   }
 
   public async flushPendingPersistence(): Promise<boolean> {
-    if (this.pendingPersistenceCount === 0) return true;
+    if (this.pendingPersistenceCount === 0) return this.lastPersistenceResult;
     if (!(await this.persistenceReady)) return false;
 
     while (this.pendingPersistenceCount > 0) {
@@ -212,6 +220,7 @@ export class CanonicalProfileService {
         if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
         this.persistenceQueue = Promise.resolve(true);
         this.pendingPersistenceCount = 0;
+        this.lastPersistenceResult = true;
         this.persistenceError = null;
       } catch (error) {
         console.error('[CanonicalProfileService] Secure profile reset failed:', error);
