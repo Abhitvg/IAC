@@ -33,6 +33,7 @@ import fs from 'fs';
 import dns from 'dns';
 import mammoth from 'mammoth';
 import { setupIpcHandlers } from './ipc/handlers';
+import { PiiVault } from './services/piiVault';
 import {
   readFileSafely,
   validateReadPath,
@@ -67,6 +68,7 @@ let mainWindow: BrowserWindow | null = null;
 let isContentProtected = true;
 let tray: Tray | null = null;
 let lastCapturedOcrText = '';
+let piiVault: PiiVault | null = null;
 
 let RECORDINGS_DIR = '';
 let SESSIONS_DIR = '';
@@ -398,6 +400,7 @@ if (!gotTheLock) {
     });
 
     ensureDirectories();
+    piiVault = new PiiVault(app.getPath('userData'));
     createWindow();
     setupIpcHandlers(mainWindow);
     setupNativeApplicationMenu();
@@ -553,6 +556,30 @@ ipcMain.handle('get-sessions-dir', (event) => {
 ipcMain.handle('get-user-data-path', (event) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   return app.getPath('userData');
+});
+
+// PII persistence is mediated by the main process; the renderer never receives
+// the OS-wrapped master key or the AES data-encryption key.
+ipcMain.handle('pii-vault:get', async (event, namespace: string, key: string) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (!piiVault) throw new Error('PII vault is not initialized.');
+  return piiVault.get(namespace, key);
+});
+ipcMain.handle('pii-vault:put', async (event, namespace: string, key: string, value: unknown) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (!piiVault) throw new Error('PII vault is not initialized.');
+  await piiVault.put(namespace, key, value);
+  return true;
+});
+ipcMain.handle('pii-vault:verify', async (event, namespace: string, key: string, value: unknown) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (!piiVault) throw new Error('PII vault is not initialized.');
+  return piiVault.verify(namespace, key, value);
+});
+ipcMain.handle('pii-vault:delete', async (event, namespace: string, key: string) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (!piiVault) throw new Error('PII vault is not initialized.');
+  return piiVault.delete(namespace, key);
 });
 
 // File dialog with path approval registration
