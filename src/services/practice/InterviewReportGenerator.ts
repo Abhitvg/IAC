@@ -228,7 +228,9 @@ export class InterviewReportGenerator {
     const correctnessScore = Math.min(5, Math.max(1, Math.round(avgScore * 10) / 10));
     const depthScore = Math.min(5, Math.max(1, Math.round((avgScore - 0.2) * 10) / 10));
     const approachScore = Math.min(5, Math.max(1, Math.round((avgScore + 0.1) * 10) / 10));
-    const complexityOptimality = allCodingRecords[0]?.complexityAnalysis.isOptimal ?? null;
+    // Report-level complexity optimality remains unassessed: the report must not
+    // promote legacy/static heuristic flags into verified evidence.
+    const complexityOptimality: boolean | null = null;
     const complexityScore =
       complexityOptimality === true ? 4.5 : complexityOptimality === false ? 2.5 : 3.0;
     const commScore = sessionState.overallScorecard?.deliveryScore || 3.5;
@@ -384,7 +386,7 @@ export class InterviewReportGenerator {
               ? 'Static estimates match the supplied baseline; runtime complexity remains unverified.'
               : complexityOptimality === false
                 ? 'Static estimates differ from the supplied baseline; runtime complexity remains unverified.'
-                : 'Optimality was not assessed because no problem-specific baseline was supplied.',
+                : 'Optimality was not assessed because submitted code was not executed or semantically analyzed.',
           rubricCriteriaApplied: [
             'Static Big-O pattern estimate',
             'Baseline comparison when supplied',
@@ -405,9 +407,7 @@ export class InterviewReportGenerator {
           weight: 0.1,
           measuredEvidence: 'Boundary condition handling in code and verbal turns.',
           qualitativeFeedback:
-            edgeScore >= 3.5
-              ? 'Proactively anticipated empty collections and boundary bounds.'
-              : 'Required prompting to identify boundary edge cases.',
+            'Not assessed: static token scans and unexecuted code cannot establish edge-case coverage.',
           rubricCriteriaApplied: ['Null/empty input handling', 'Integer boundary validation'],
         },
         overallWeightedScore: weightedOverall,
