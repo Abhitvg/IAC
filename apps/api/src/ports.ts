@@ -11,8 +11,6 @@ export interface CloudApiRepository extends TenantMembershipRepository {
     occurredAt: string;
     metadata: Record<string, string | boolean>;
   }): Promise<void>;
-  appendAudit(record: AuditRecord): Promise<void>;
-  getLatestAuditHash(tenantId: string): Promise<string | null>;
 }
 
 export interface CloudApiConfig {
