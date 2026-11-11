@@ -18,7 +18,10 @@ interface SqlClient {
 
 export interface SqlPool {
   connect(): Promise<SqlClient>;
-  end?(): Promise<void>;
+}
+
+export interface ClosableSqlPool extends SqlPool {
+  end(): Promise<void>;
 }
 
 interface MembershipRow {
