@@ -23,6 +23,10 @@ function createKms(overrides: Partial<TenantKeyManagementService> = {}) {
   return { kms, generateDataKey, unwrapDataKey };
 }
 
+async function encryptTestFact(cipher: TenantEnvelopeCipher) {
+  return cipher.encrypt(tenantId, context, Buffer.from('candidate fact'));
+}
+
 describe('Tenant envelope encryption', () => {
   it('round-trips AES-256-GCM data with tenant and fact context binding', async () => {
     const { kms, generateDataKey, unwrapDataKey } = createKms();
@@ -53,11 +57,7 @@ describe('Tenant envelope encryption', () => {
   it('rejects a different tenant or context before asking KMS to unwrap', async () => {
     const { kms, unwrapDataKey } = createKms();
     const cipher = new TenantEnvelopeCipher(kms);
-    const envelope = await cipher.encrypt(
-      tenantId,
-      context,
-      Buffer.from('candidate fact')
-    );
+    const envelope = await encryptTestFact(cipher);
 
     await expect(
       cipher.decrypt(envelope, '20000000-0000-4000-8000-000000000002', context)
@@ -68,12 +68,10 @@ describe('Tenant envelope encryption', () => {
     expect(unwrapDataKey).not.toHaveBeenCalled();
   });
 
-  it(
-    'authenticates ciphertext and key version using AES-GCM and associated data',
-    async () => {
+  it('authenticates ciphertext and key version', async () => {
     const { kms } = createKms();
     const cipher = new TenantEnvelopeCipher(kms);
-    const envelope = await cipher.encrypt(tenantId, context, Buffer.from('candidate fact'));
+    const envelope = await encryptTestFact(cipher);
 
     await expect(
       cipher.decrypt(
@@ -95,13 +93,11 @@ describe('Tenant envelope encryption', () => {
   it('rejects malformed cryptographic fields before contacting KMS', async () => {
     const { kms, unwrapDataKey } = createKms();
     const cipher = new TenantEnvelopeCipher(kms);
-    const envelope = await cipher.encrypt(tenantId, context, Buffer.from('candidate fact'));
+    const envelope = await encryptTestFact(cipher);
 
     await expect(
       cipher.decrypt({ ...envelope, iv: 'AA==' }, tenantId, context)
-    ).rejects.toThrow(
-      /cryptographic fields/
-    );
+    ).rejects.toThrow(/cryptographic fields/);
     await expect(
       cipher.decrypt({ ...envelope, authTag: 'not-base64' }, tenantId, context)
     ).rejects.toThrow(/authentication tag/);
@@ -167,9 +163,7 @@ describe('Tenant envelope encryption', () => {
     await expect(cipher.encrypt(tenantId, context, Buffer.alloc(0))).rejects.toThrow(
       /non-empty Buffer/
     );
-    await expect(
-      cipher.encrypt('', context, Buffer.from('fact'))
-    ).rejects.toThrow(
+    await expect(cipher.encrypt('', context, Buffer.from('fact'))).rejects.toThrow(
       /Invalid encryption context/
     );
   });
