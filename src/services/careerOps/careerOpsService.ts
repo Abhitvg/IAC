@@ -550,20 +550,20 @@ export async function generateOutreachNotes(
   coldEmailBody: string;
 }> {
   // Keep deterministic drafts factual; candidate-specific claims belong in reviewed resume evidence.
-  const linkedinRecruiter = `Hi! I saw the ${roleTitle} opening at ${companyName} and have applied. I'd appreciate the chance to connect and learn what the team is prioritizing for this role. Thanks!`.slice(
+  const linkedinRecruiter = `Hi! I'm interested in the ${roleTitle} opening at ${companyName} and would appreciate the chance to connect and learn what the team is prioritizing. Thanks!`.slice(
     0,
     298
   );
 
-  const linkedinHiringManager = `Hi! I'm interested in the ${roleTitle} role at ${companyName}. I've applied and would welcome a chance to learn more about the team's current engineering priorities. Thanks!`.slice(
+  const linkedinHiringManager = `Hi! I'm interested in the ${roleTitle} role at ${companyName} and would welcome a chance to learn more about the team's current engineering priorities. Thanks!`.slice(
     0,
     298
   );
 
-  const coldEmailSubject = `Application: ${roleTitle} — High-Reliability Systems Background`;
+  const coldEmailSubject = `Regarding the ${roleTitle} role at ${companyName}`;
   const coldEmailBody = `Hi ${companyName} Team,
 
-I recently applied for the ${roleTitle} position on your careers portal. I would welcome the opportunity to discuss the role and the engineering problems your team is prioritizing.
+I'm reaching out regarding the ${roleTitle} position at ${companyName}. I would welcome the opportunity to discuss the role and the engineering problems your team is prioritizing.
 
 My relevant experience and projects are described in my resume. I would be glad to explain how that verified work aligns with the role.
 
