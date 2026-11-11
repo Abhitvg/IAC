@@ -173,7 +173,16 @@ export class TenantEnvelopeCipher {
       const decipher = createDecipheriv('aes-256-gcm', key, iv);
       decipher.setAAD(associatedData(expectedTenantId, expectedContext, envelope.keyVersion));
       decipher.setAuthTag(authTag);
-      return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+      // `decipher.update` may emit unauthenticated plaintext before `final` checks the GCM tag.
+      // Always wipe those intermediate chunks, including when authentication fails.
+      const plaintextChunks: Buffer[] = [];
+      try {
+        plaintextChunks.push(decipher.update(ciphertext));
+        plaintextChunks.push(decipher.final());
+        return Buffer.concat(plaintextChunks);
+      } finally {
+        for (const chunk of plaintextChunks) chunk.fill(0);
+      }
     } finally {
       key.fill(0);
     }
