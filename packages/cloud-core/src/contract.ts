@@ -24,6 +24,7 @@ export const SprintContractSchema = z.object({
     applications: z.number().int().min(0).max(100),
     emails: z.number().int().min(0).max(100),
     assistQueueItems: z.number().int().min(0).max(100),
+    calendarEvents: z.number().int().min(0).max(100),
   }),
   defaultAnswers: z.record(z.string().max(160), z.object({
     answer: boundedText(2000),
