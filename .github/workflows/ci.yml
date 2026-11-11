@@ -84,8 +84,7 @@ jobs:
             git diff --name-only --diff-filter=ACMR HEAD^ HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' > /tmp/changed-files.txt
           fi
           if [[ -s /tmp/changed-files.txt ]]; then
-            xargs -r npx prettier --write < /tmp/changed-files.txt
-            git diff -- apps/api/src/server.ts tests/career-graph-api.test.ts
+            xargs -r npx prettier --check < /tmp/changed-files.txt
           else
             echo "No supported files changed; skipping formatting check."
           fi
