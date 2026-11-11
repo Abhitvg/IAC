@@ -124,17 +124,18 @@ export class CanonicalProfileService {
     }
   }
 
-  private queuePersistenceSnapshot(snapshot: string): void {
+  private queuePersistenceSnapshot(snapshot: string): boolean {
     const api = this.getSecurePersistenceApi();
     if (!api) {
       try {
         if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, snapshot);
         this.persistenceQueue = Promise.resolve(true);
+        return true;
       } catch (error) {
         this.persistenceError = error instanceof Error ? error.message : 'Local persistence failed.';
         this.persistenceQueue = Promise.resolve(false);
+        return false;
       }
-      return;
     }
 
     this.persistenceQueue = this.persistenceQueue.then(async () => {
@@ -153,6 +154,7 @@ export class CanonicalProfileService {
         return false;
       }
     });
+    return true;
   }
 
   public async ready(): Promise<boolean> {
@@ -175,6 +177,7 @@ export class CanonicalProfileService {
       return { success: false, failedStores: ['canonical-profile-secure-storage'] };
     }
 
+    await this.persistenceQueue;
     const api = this.getSecurePersistenceApi();
     if (api) {
       try {
@@ -213,12 +216,12 @@ export class CanonicalProfileService {
       updatedAt: Date.now(),
     };
 
-    this.queuePersistenceSnapshot(JSON.stringify(this.currentProfile));
+    const savedSuccessfully = this.queuePersistenceSnapshot(JSON.stringify(this.currentProfile));
 
     // Bidirectional sync with legacy stores
     this.syncToSubsystems(this.currentProfile);
     this.notify();
-    return true;
+    return savedSuccessfully;
   }
 
   /**
