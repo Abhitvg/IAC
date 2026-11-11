@@ -209,7 +209,8 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
           question: 'Explain collision resolution in hash tables.',
           category: 'ds_hash_tables',
           isFollowUp: false,
-          candidateTranscript: 'Separate chaining stores colliding keys in a bucket-specific chain.',
+          candidateTranscript:
+            'Separate chaining stores colliding keys in a bucket-specific chain.',
           hintsUsed: [],
           evaluation: {
             overallScore: 4.8,
