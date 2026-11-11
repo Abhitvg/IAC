@@ -115,6 +115,7 @@ interface JsonWebKeySet {
 export class OidcJwksVerifier {
   private cachedKeys: JsonWebKeySet | null = null;
   private cacheExpiresAt = 0;
+  private lastJwksFetchAt = 0;
   private readonly jwksUrl: URL;
 
   constructor(
@@ -146,7 +147,9 @@ export class OidcJwksVerifier {
     ) throw new Error('Unsupported OIDC access token header');
 
     let jwk = await this.findSigningKey(header.kid);
-    if (!jwk) jwk = await this.findSigningKey(header.kid, true);
+    if (!jwk && Date.now() - this.lastJwksFetchAt >= 30_000) {
+      jwk = await this.findSigningKey(header.kid, true);
+    }
     if (!jwk || jwk.kty !== 'RSA' || (jwk.use && jwk.use !== 'sig') ||
         (jwk.alg && jwk.alg !== 'RS256') || (jwk.key_ops && !jwk.key_ops.includes('verify'))) {
       throw new Error('No valid OIDC signing key found');
@@ -205,6 +208,7 @@ export class OidcJwksVerifier {
       const keys = (parsed as { keys: unknown[] }).keys;
       if (keys.length < 1 || keys.length > 100) throw new Error('Invalid OIDC signing key count');
       this.cachedKeys = { keys: keys as JsonWebKeySet['keys'] };
+      this.lastJwksFetchAt = Date.now();
       this.cacheExpiresAt = Date.now() + Math.min(Math.max(this.config.cacheTtlMs ?? 300_000, 10_000), 900_000);
     }
     const matches = this.cachedKeys.keys.filter((key) => key.kid === kid);
