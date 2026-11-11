@@ -8,11 +8,19 @@ import {
   type CloudMigration,
 } from '../apps/api/src/migrations';
 
-function createPool(existing: Record<string, string> = {}) {
+function createPool(existing: Record<string, string> = {}, legacyTables: string[] = []) {
   const calls: Array<{ sql: string; values?: unknown[] }> = [];
   const client = {
     async query<Row = Record<string, unknown>>(sql: string, values?: unknown[]) {
       calls.push({ sql, values });
+      if (sql.includes('to_regclass')) {
+        return {
+          rows: [{
+            ledger_table: Object.keys(existing).length ? 'careerops_schema_migrations' : null,
+            existing_tables: legacyTables,
+          }] as Row[],
+        };
+      }
       if (sql.startsWith('SELECT checksum')) {
         const name = String(values?.[0]);
         const checksum = existing[name];
@@ -45,7 +53,7 @@ describe('cloud database migrations', () => {
     ]);
   });
 
-  it('applies each migration and records its checksum under one advisory lock', async () => {
+  it('applies fresh-database migrations and records their checksums under one advisory lock', async () => {
     const migrations: CloudMigration[] = [
       { name: '0002_second.sql', sql: 'BEGIN; SELECT 2; COMMIT;' },
       { name: '0001_first.sql', sql: 'SELECT 1;' },
@@ -59,10 +67,23 @@ describe('cloud database migrations', () => {
 
     const statements = calls.map((call) => call.sql.trim());
     expect(statements[0]).toContain('pg_advisory_lock');
+    expect(statements.some((statement) => statement.includes('CREATE TABLE careerops_schema_migrations'))).toBe(true);
     expect(statements).toContain('BEGIN');
     expect(statements).toContain('SELECT 2;');
     expect(statements).toContain('COMMIT');
     expect(statements.at(-1)).toContain('pg_advisory_unlock');
+    expect(client.release).toHaveBeenCalledOnce();
+  });
+
+  it('refuses to run against a pre-existing CareerOps schema without an explicit baseline', async () => {
+    const { pool, calls, client } = createPool({}, ['tenants', 'sprint_contracts']);
+
+    await expect(
+      runCloudMigrations(pool, [{ name: '0001_first.sql', sql: 'SELECT 1;' }])
+    ).rejects.toThrow(/explicit reviewed baseline is required/);
+
+    expect(calls.some((call) => call.sql.includes('CREATE TABLE careerops_schema_migrations'))).toBe(false);
+    expect(calls.some((call) => call.sql.trim() === 'BEGIN')).toBe(false);
     expect(client.release).toHaveBeenCalledOnce();
   });
 
