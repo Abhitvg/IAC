@@ -164,7 +164,6 @@ describe('Career Graph API routes', () => {
   });
 });
 
-
 describe('Postgres Career Graph repository', () => {
   it('locks fact version allocation and audits atomically', async () => {
     const statements: string[] = [];
