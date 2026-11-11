@@ -38,6 +38,7 @@ describe('Canonical candidate profile encrypted persistence', () => {
       }),
     };
     vi.stubGlobal('window', { electronAPI: secureApi });
+    (CanonicalProfileService as any).instance?.dispose?.();
     (CanonicalProfileService as any).instance = null;
   });
 
