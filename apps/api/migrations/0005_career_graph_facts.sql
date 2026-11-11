@@ -37,7 +37,7 @@ CREATE TABLE career_graph_fact_reviews (
   reviewed_at timestamptz NOT NULL DEFAULT now(),
   reason text CHECK (reason IS NULL OR length(reason) <= 512),
   FOREIGN KEY (tenant_id, fact_id) REFERENCES career_graph_facts(tenant_id, id) ON DELETE CASCADE,
-  UNIQUE (tenant_id, fact_id, id)
+  UNIQUE (tenant_id, fact_id)
 );
 
 CREATE INDEX career_graph_fact_reviews_latest_idx
