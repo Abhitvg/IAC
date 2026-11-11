@@ -108,7 +108,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
-      const revokeMatch = url.pathname.match(/^\\/v1\\/sprint-contract\\/([0-9a-f-]{36})\\/revoke$/i);
+      const revokeMatch = url.pathname.match(/^\/v1\/sprint-contract\/([0-9a-f-]{36})\/revoke$/i);
       if (request.method === 'POST' && revokeMatch) {
         if (tenant.role !== 'owner') {
           sendJson(response, 403, { error: 'Tenant owner role required', requestId });
