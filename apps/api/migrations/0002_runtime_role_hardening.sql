@@ -15,7 +15,7 @@ GRANT SELECT ON tenants, tenant_memberships TO careerops_app;
 GRANT SELECT, UPDATE ON tenant_controls TO careerops_app;
 GRANT SELECT, INSERT, UPDATE ON sprint_contracts TO careerops_app;
 GRANT SELECT, INSERT ON audit_events TO careerops_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO careerops_app;
+GRANT USAGE, SELECT ON SEQUENCE audit_events_sequence_id_seq TO careerops_app;
 
 CREATE OR REPLACE FUNCTION reject_audit_event_mutation()
 RETURNS trigger
