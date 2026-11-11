@@ -232,10 +232,9 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
 
   async acceptSprintContract(record: ConsentRecord): Promise<{ id: string; revision: number }> {
     return inTransaction(this.pool, record.subject, record.tenantId, async (client) => {
-      await client.query(
-        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
-        [record.tenantId]
-      );
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+        record.tenantId,
+      ]);
       const active = await client.query(
         `SELECT id FROM sprint_contracts WHERE tenant_id = $1 AND revoked_at IS NULL LIMIT 1`,
         [record.tenantId]
@@ -273,26 +272,39 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
           ORDER BY sequence_id DESC LIMIT 1`,
         [record.tenantId]
       );
-      await appendAuditEvent({
-        append: async (event: AuditRecord) => {
-          await client.query(
-            `INSERT INTO audit_events
+      await appendAuditEvent(
+        {
+          append: async (event: AuditRecord) => {
+            await client.query(
+              `INSERT INTO audit_events
               (tenant_id, actor_subject, action, entity_type, entity_id, occurred_at,
                metadata, previous_hash, event_hash)
              VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
-            [event.tenantId, event.actorSubject, event.action, event.entityType, event.entityId,
-             event.occurredAt, JSON.stringify(event.metadata ?? {}), event.previousHash, event.eventHash]
-          );
+              [
+                event.tenantId,
+                event.actorSubject,
+                event.action,
+                event.entityType,
+                event.entityId,
+                event.occurredAt,
+                JSON.stringify(event.metadata ?? {}),
+                event.previousHash,
+                event.eventHash,
+              ]
+            );
+          },
         },
-      }, {
-        tenantId: record.tenantId,
-        actorSubject: record.subject,
-        action: 'sprint_contract.accepted',
-        entityType: 'sprint_contract',
-        entityId: id,
-        occurredAt: record.acceptedAt,
-        metadata: { revision, contractHash: record.contractHash },
-      }, previous.rows[0]?.event_hash ?? null);
+        {
+          tenantId: record.tenantId,
+          actorSubject: record.subject,
+          action: 'sprint_contract.accepted',
+          entityType: 'sprint_contract',
+          entityId: id,
+          occurredAt: record.acceptedAt,
+          metadata: { revision, contractHash: record.contractHash },
+        },
+        previous.rows[0]?.event_hash ?? null
+      );
       return { id, revision };
     });
   }
@@ -302,9 +314,15 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
   ): Promise<(ConsentRecord & { id: string; revision: number }) | null> {
     return inTransaction(this.pool, 'system:api', tenantId, async (client) => {
       const result = await client.query<{
-        id: string; revision: number; tenant_id: string; contract_json: ConsentRecord['contract'];
-        contract_hash: string; accepted_by: string; accepted_at: Date | string;
-        signature: string; revoked_at: Date | string | null;
+        id: string;
+        revision: number;
+        tenant_id: string;
+        contract_json: ConsentRecord['contract'];
+        contract_hash: string;
+        accepted_by: string;
+        accepted_at: Date | string;
+        signature: string;
+        revoked_at: Date | string | null;
       }>(
         `SELECT id, revision, tenant_id, contract_json, contract_hash, accepted_by,
                 accepted_at, signature, revoked_at
@@ -330,7 +348,10 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
   }
 
   async revokeSprintContract(input: {
-    tenantId: string; subject: string; contractId: string; revokedAt: string;
+    tenantId: string;
+    subject: string;
+    contractId: string;
+    revokedAt: string;
     metadata: Record<string, string | boolean>;
   }): Promise<void> {
     await inTransaction(this.pool, input.subject, input.tenantId, async (client) => {
@@ -346,27 +367,39 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
           ORDER BY sequence_id DESC LIMIT 1`,
         [input.tenantId]
       );
-      await appendAuditEvent({
-        append: async (event: AuditRecord) => {
-          await client.query(
-            `INSERT INTO audit_events
+      await appendAuditEvent(
+        {
+          append: async (event: AuditRecord) => {
+            await client.query(
+              `INSERT INTO audit_events
               (tenant_id, actor_subject, action, entity_type, entity_id, occurred_at,
                metadata, previous_hash, event_hash)
              VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
-            [event.tenantId, event.actorSubject, event.action, event.entityType, event.entityId,
-             event.occurredAt, JSON.stringify(event.metadata ?? {}), event.previousHash, event.eventHash]
-          );
+              [
+                event.tenantId,
+                event.actorSubject,
+                event.action,
+                event.entityType,
+                event.entityId,
+                event.occurredAt,
+                JSON.stringify(event.metadata ?? {}),
+                event.previousHash,
+                event.eventHash,
+              ]
+            );
+          },
         },
-      }, {
-        tenantId: input.tenantId,
-        actorSubject: input.subject,
-        action: 'sprint_contract.revoked',
-        entityType: 'sprint_contract',
-        entityId: input.contractId,
-        occurredAt: input.revokedAt,
-        metadata: input.metadata,
-      }, previous.rows[0]?.event_hash ?? null);
+        {
+          tenantId: input.tenantId,
+          actorSubject: input.subject,
+          action: 'sprint_contract.revoked',
+          entityType: 'sprint_contract',
+          entityId: input.contractId,
+          occurredAt: input.revokedAt,
+          metadata: input.metadata,
+        },
+        previous.rows[0]?.event_hash ?? null
+      );
     });
   }
-
 }

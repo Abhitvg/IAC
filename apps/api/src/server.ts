@@ -78,7 +78,6 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
-
       if (request.method === 'GET' && url.pathname === '/v1/sprint-contract') {
         const record = await dependencies.repository.getActiveSprintContract(tenant.tenantId);
         sendJson(response, 200, {
@@ -230,12 +229,12 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           : /active Sprint Contract must be revoked/i.test(message)
             ? 409
             : /token|identity|membership|bearer|authorization/i.test(message)
-            ? 401
-            : /size limit/i.test(message)
-              ? 413
-              : /JSON|body/i.test(message)
-                ? 400
-                : 500;
+              ? 401
+              : /size limit/i.test(message)
+                ? 413
+                : /JSON|body/i.test(message)
+                  ? 400
+                  : 500;
       sendJson(response, status, {
         error: status === 500 ? 'Internal server error' : message,
         requestId,
