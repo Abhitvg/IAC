@@ -149,8 +149,6 @@ describe('M0 cloud security foundation', () => {
         findMembershipsBySubject: async () => [membership],
         getControlState: async (tenantId) => ({ tenantId, globalKillSwitch: true, pausedChannels: [], updatedAt: new Date().toISOString() }),
         setGlobalKillSwitchWithAudit: async () => undefined,
-        appendAudit: async () => undefined,
-        getLatestAuditHash: async () => null,
       },
     };
     const server = createCloudApiServer(dependencies);
