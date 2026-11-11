@@ -311,7 +311,9 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
               ? 403
               : /Career Graph fact not found/i.test(message)
                 ? 404
-                : /token|identity|membership|bearer|authorization/i.test(message)
+                : /Career Graph KMS provider is not configured/i.test(message)
+                  ? 503
+                  : /token|identity|membership|bearer|authorization/i.test(message)
                   ? 401
                   : /size limit/i.test(message)
                     ? 413
