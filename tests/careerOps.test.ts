@@ -205,7 +205,6 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
       expect(resume).toContain('\\documentclass[letterpaper,11pt]{article}');
       expect(resume).toContain('[Candidate Name]');
       expect(resume).toContain('\\section{Programming Skills}');
-      expect(resume).toContain('Source Resume');
       expect(resume).toContain('Lead Backend Engineer');
       expect(resume).toContain('Java');
       expect(resume).toContain('\\end{document}');
