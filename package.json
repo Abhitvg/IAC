@@ -16,7 +16,9 @@
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "security:check": "node scripts/verify-no-secrets.js"
+    "security:check": "node scripts/verify-no-secrets.js",
+    "typecheck:cloud": "tsc --project tsconfig.cloud.json",
+    "security:source": "node scripts/verify-source-secrets.js"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
