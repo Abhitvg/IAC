@@ -43,7 +43,9 @@ describe('CareerOps career-page discovery', () => {
         return {
           statusCode: 200,
           contentType: 'text/html',
-          body: '<h1>Backend Engineer</h1><p>Build backend APIs, distributed services, and production systems with TypeScript and PostgreSQL. Collaborate with product teams.</p>',
+          body: options.url.endsWith('/456')
+            ? '<h1>Product Designer</h1><p>Design user journeys, research customer needs, create prototypes, and partner with product and engineering teams on accessible interfaces.</p>'
+            : '<h1>Backend Engineer</h1><p>Build backend APIs, distributed services, and production systems with TypeScript and PostgreSQL. Collaborate with product teams.</p>',
         };
       }
     );
