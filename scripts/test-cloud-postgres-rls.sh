@@ -7,6 +7,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0001_cloud_foundation.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0002_runtime_role_hardening.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0003_sprint_contract_revisions.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0004_shared_rate_limits.sql"
 
 DATABASE_URL="$DATABASE_URL" \
 TENANT_ID="30000000-0000-4000-8000-000000000003" \
@@ -53,6 +54,27 @@ INSERT INTO tenant_memberships (tenant_id, subject, role) VALUES
 INSERT INTO tenant_controls (tenant_id) VALUES
   ('10000000-0000-4000-8000-000000000001'),
   ('20000000-0000-4000-8000-000000000002');
+SQL
+
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+SET ROLE careerops_app;
+BEGIN;
+INSERT INTO api_rate_limit_buckets (bucket_key, window_started_at, request_count, expires_at)
+VALUES (repeat('b', 64), date_trunc('minute', now()), 1, now() + interval '2 minutes')
+ON CONFLICT (bucket_key) DO UPDATE SET request_count = api_rate_limit_buckets.request_count + 1;
+DO $rate_limit$
+DECLARE bucket_count integer;
+BEGIN
+  SELECT request_count INTO bucket_count FROM api_rate_limit_buckets
+   WHERE bucket_key = repeat('b', 64);
+  IF bucket_count <> 1 THEN
+    RAISE EXCEPTION 'Runtime rate-limit table access failed: expected count 1, got %', bucket_count;
+  END IF;
+END
+$rate_limit$;
+DELETE FROM api_rate_limit_buckets WHERE bucket_key = repeat('b', 64);
+COMMIT;
+RESET ROLE;
 SQL
 
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
