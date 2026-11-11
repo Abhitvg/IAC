@@ -137,6 +137,20 @@ describe('SecurePersistenceStore', () => {
     expect(safeStorage.encryptStringAsync).toHaveBeenCalledTimes(2);
   });
 
+  it('rejects symlinked encrypted records instead of following them', async () => {
+    if (process.platform === 'win32') return;
+    await store.set('candidate-profile', 'private-data');
+    const record = path.join(root, 'secure-persistence', 'candidate-profile.enc');
+    const outside = path.join(root, 'outside.txt');
+    fs.writeFileSync(outside, 'plaintext outside the vault');
+    fs.unlinkSync(record);
+    fs.symlinkSync(outside, record);
+
+    await expect(store.get('candidate-profile')).rejects.toThrow(
+      'Secure persistence record is not a regular file.'
+    );
+  });
+
   it('removes only the selected encrypted record', async () => {
     await store.set('candidate-profile', 'private-data');
     await expect(store.remove('candidate-profile')).resolves.toBe(true);
