@@ -251,8 +251,18 @@ export function CareerOpsView() {
         }
       : undefined;
 
-    await evaluateJob(id, resumeText, providerConfig);
-    setToast('CareerOps A-H Evaluation completed!');
+    try {
+      await evaluateJob(id, resumeText, providerConfig);
+      setToast(
+        providerConfig?.apiKey
+          ? 'AI evaluation completed. Review the evidence and gaps before deciding.'
+          : 'Preliminary keyword scan completed. This is not a verified fit assessment.'
+      );
+    } catch (error) {
+      setToast(
+        `Job saved, but evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   };
 
   const handleRunEvaluation = async (id: string) => {
@@ -269,8 +279,18 @@ export function CareerOpsView() {
         }
       : undefined;
 
-    await evaluateJob(id, resumeText, providerConfig);
-    setToast('Evaluation complete!');
+    try {
+      await evaluateJob(id, resumeText, providerConfig);
+      setToast(
+        providerConfig?.apiKey
+          ? 'AI evaluation completed. Review the evidence and gaps before deciding.'
+          : 'Preliminary keyword scan completed. This is not a verified fit assessment.'
+      );
+    } catch (error) {
+      setToast(
+        `Evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   };
 
   const handleSendToGym = (job: JobApplication) => {
