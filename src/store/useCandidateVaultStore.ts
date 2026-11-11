@@ -18,6 +18,8 @@ export interface CandidateVaultProfile {
   yearsOfExperience: string;
   authorizedToWork: boolean;
   requiresSponsorship: boolean;
+  authorizedToWorkVerified: boolean;
+  requiresSponsorshipVerified: boolean;
   salaryExpectation: string;
   earliestStartDate: string;
   noticePeriod: string;
@@ -51,6 +53,8 @@ export const INITIAL_CANDIDATE_VAULT: CandidateVaultProfile = {
   yearsOfExperience: 'unknown',
   authorizedToWork: false,
   requiresSponsorship: false,
+  authorizedToWorkVerified: false,
+  requiresSponsorshipVerified: false,
   salaryExpectation: 'unknown',
   earliestStartDate: '',
   noticePeriod: '',
@@ -80,7 +84,12 @@ function loadVaultFromStorage(): CandidateVaultProfile {
       if (rawV2) {
         const parsed = JSON.parse(rawV2);
         if (!isKnownFabricatedDemoProfile(parsed)) {
-          return { ...INITIAL_CANDIDATE_VAULT, ...parsed };
+          return {
+            ...INITIAL_CANDIDATE_VAULT,
+            ...parsed,
+            authorizedToWorkVerified: parsed.authorizedToWorkVerified === true,
+            requiresSponsorshipVerified: parsed.requiresSponsorshipVerified === true,
+          };
         }
       }
 
@@ -97,7 +106,13 @@ function loadVaultFromStorage(): CandidateVaultProfile {
           return INITIAL_CANDIDATE_VAULT;
         } else {
           // Genuine user-supplied data from v1: migrate to v2
-          const migrated = { ...INITIAL_CANDIDATE_VAULT, ...legacyParsed, isUserSupplied: true };
+          const migrated = {
+            ...INITIAL_CANDIDATE_VAULT,
+            ...legacyParsed,
+            authorizedToWorkVerified: false,
+            requiresSponsorshipVerified: false,
+            isUserSupplied: true,
+          };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
           localStorage.removeItem(LEGACY_STORAGE_KEY);
           return migrated;
