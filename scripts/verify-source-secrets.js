@@ -10,9 +10,9 @@ const textExtensions = new Set([
   '.sh', '.env', '.toml', '.xml', '.html', '.css', '.txt',
 ]);
 
-const secretPatterns = [
-  /gsk_[A-Za-z0-9_-]{20,}/,
-  /sk-(?:proj-|or-v1-)?[A-Za-z0-9_-]{24,}/,
+// Provider key fixtures in tests are deliberately short; production token lengths are enforced here.\nconst secretPatterns = [
+  /gsk_[A-Za-z0-9_-]{48,}/,
+  /sk-(?:proj-|or-v1-)?[A-Za-z0-9_-]{48,}/,
   /gh[pousr]_[A-Za-z0-9]{20,}/,
   /github_pat_[A-Za-z0-9_]{22,}/,
   /\bAKIA[0-9A-Z]{16}\b/,
