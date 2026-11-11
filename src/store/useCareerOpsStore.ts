@@ -84,8 +84,8 @@ function loadInitialSources(): CareerOpsSource[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (source): source is CareerOpsSource =>
+    return parsed
+      .filter((source): source is CareerOpsSource =>
         Boolean(
           source &&
           typeof source.id === 'string' &&
@@ -95,7 +95,8 @@ function loadInitialSources(): CareerOpsSource[] {
           Array.isArray(source.keywords) &&
           typeof source.enabled === 'boolean'
         )
-    ).map((source) => ({ ...source, autoEvaluate: source.autoEvaluate === true }));
+      )
+      .map((source) => ({ ...source, autoEvaluate: source.autoEvaluate === true }));
   } catch (error) {
     console.warn('[CareerOps] Failed to read discovery sources:', error);
     return [];
@@ -159,9 +160,7 @@ function loadInitialApplications(): JobApplication[] {
         const parsed = JSON.parse(rawV1);
         if (Array.isArray(parsed)) {
           // Filter out legacy hardcoded sample items
-          const genuine = parsed.filter(
-            (a) => a && a.id && !a.id.startsWith('job-sample-')
-          );
+          const genuine = parsed.filter((a) => a && a.id && !a.id.startsWith('job-sample-'));
           localStorage.setItem(STORAGE_KEY, JSON.stringify(genuine));
           localStorage.removeItem(LEGACY_STORAGE_KEY);
           return genuine;
@@ -191,10 +190,18 @@ interface CareerOpsState {
 
   // Actions
   addJob: (job: Partial<JobApplication>) => string;
-  addSource: (source: { label: string; url: string; keywords?: string[]; autoEvaluate?: boolean }) => string;
+  addSource: (source: {
+    label: string;
+    url: string;
+    keywords?: string[];
+    autoEvaluate?: boolean;
+  }) => string;
   updateSource: (id: string, updates: Partial<CareerOpsSource>) => void;
   removeSource: (id: string) => void;
-  discoverJobsFromSources: (resumeText?: string, providerConfig?: ProviderConfig) => Promise<{ imported: number; skipped: number; errors: string[] }>;
+  discoverJobsFromSources: (
+    resumeText?: string,
+    providerConfig?: ProviderConfig
+  ) => Promise<{ imported: number; skipped: number; errors: string[] }>;
   updateJob: (id: string, updates: Partial<JobApplication>) => void;
   deleteJob: (id: string) => void;
   setActiveJobId: (id: string | null) => void;
@@ -202,18 +209,16 @@ interface CareerOpsState {
   setSearchQuery: (query: string) => void;
   enableDemoMode: () => void;
   clearDemoData: () => void;
-  saveFormAnswer: (jobId: string, questionId: string, questionText: string, answer: string, isCopied?: boolean) => void;
+  saveFormAnswer: (
+    jobId: string,
+    questionId: string,
+    questionText: string,
+    answer: string,
+    isCopied?: boolean
+  ) => void;
 
-  evaluateJob: (
-    id: string,
-    resumeText: string,
-    config?: ProviderConfig
-  ) => Promise<void>;
-  tailorResumeForJob: (
-    id: string,
-    resumeText: string,
-    config?: ProviderConfig
-  ) => Promise<string>;
+  evaluateJob: (id: string, resumeText: string, config?: ProviderConfig) => Promise<void>;
+  tailorResumeForJob: (id: string, resumeText: string, config?: ProviderConfig) => Promise<string>;
   generateCoverLetterForJob: (
     id: string,
     resumeText: string,
@@ -221,10 +226,7 @@ interface CareerOpsState {
     level?: CoverLetterExperienceLevel,
     config?: ProviderConfig
   ) => Promise<string>;
-  generateOutreachForJob: (
-    id: string,
-    config?: ProviderConfig
-  ) => Promise<void>;
+  generateOutreachForJob: (id: string, config?: ProviderConfig) => Promise<void>;
 
   exportPipelineJson: () => string;
   importPipelineJson: (jsonStr: string) => boolean;
@@ -302,7 +304,9 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
         throw new Error('Enter a valid career page URL.');
       }
       if (parsedUrl.protocol !== 'https:' || parsedUrl.username || parsedUrl.password) {
-        throw new Error('Career page sources must use public HTTPS URLs without embedded credentials.');
+        throw new Error(
+          'Career page sources must use public HTTPS URLs without embedded credentials.'
+        );
       }
       const label = sourceData.label.trim();
       if (!label) throw new Error('Give this career page source a name.');
@@ -312,7 +316,10 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
         id: 'source-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
         label,
         url: parsedUrl.toString(),
-        keywords: (sourceData.keywords || []).map((item) => item.trim()).filter(Boolean).slice(0, 20),
+        keywords: (sourceData.keywords || [])
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .slice(0, 20),
         enabled: true,
         autoEvaluate: sourceData.autoEvaluate === true,
       };
@@ -378,7 +385,9 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
 
               if (source.autoEvaluate) {
                 if (!resumeText.trim()) {
-                  errors.push(`${source.label}: auto-evaluation skipped because no resume is loaded.`);
+                  errors.push(
+                    `${source.label}: auto-evaluation skipped because no resume is loaded.`
+                  );
                 } else {
                   try {
                     await get().evaluateJob(newJobId, resumeText, providerConfig);
@@ -457,7 +466,13 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
       });
     },
 
-    saveFormAnswer: (jobId: string, questionId: string, questionText: string, answer: string, isCopied: boolean = false) => {
+    saveFormAnswer: (
+      jobId: string,
+      questionId: string,
+      questionText: string,
+      answer: string,
+      isCopied: boolean = false
+    ) => {
       const job = get().applications.find((a) => a.id === jobId);
       if (!job) return;
 

@@ -263,18 +263,26 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
         url: 'https://jobs.example.com/careers',
         keywords: ['backend', 'AI'],
       });
-      expect(useCareerOpsStore.getState().sources.find((source) => source.id === id)?.enabled).toBe(true);
+      expect(useCareerOpsStore.getState().sources.find((source) => source.id === id)?.enabled).toBe(
+        true
+      );
 
       store.updateSource(id, { enabled: false });
-      expect(useCareerOpsStore.getState().sources.find((source) => source.id === id)?.enabled).toBe(false);
+      expect(useCareerOpsStore.getState().sources.find((source) => source.id === id)?.enabled).toBe(
+        false
+      );
 
       store.removeSource(id);
-      expect(useCareerOpsStore.getState().sources.find((source) => source.id === id)).toBeUndefined();
+      expect(
+        useCareerOpsStore.getState().sources.find((source) => source.id === id)
+      ).toBeUndefined();
     });
 
     it('rejects insecure career discovery sources', () => {
       const store = useCareerOpsStore.getState();
-      expect(() => store.addSource({ label: 'Unsafe', url: 'http://example.com/careers' })).toThrow('HTTPS');
+      expect(() => store.addSource({ label: 'Unsafe', url: 'http://example.com/careers' })).toThrow(
+        'HTTPS'
+      );
     });
   });
 });

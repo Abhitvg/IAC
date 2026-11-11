@@ -29,13 +29,7 @@ export interface JobEvaluationReport {
 }
 
 export type ApplicationStatus =
-  | 'scouted'
-  | 'evaluated'
-  | 'applied'
-  | 'interviewing'
-  | 'offer'
-  | 'rejected'
-  | 'archived';
+  'scouted' | 'evaluated' | 'applied' | 'interviewing' | 'offer' | 'rejected' | 'archived';
 
 export interface FormQuestionRecord {
   questionId: string;
@@ -81,7 +75,6 @@ export interface CareerOpsStats {
   avgScore: number;
   highFitCount: number; // score >= 4.0
 }
-
 
 export interface CareerOpsSource {
   id: string;

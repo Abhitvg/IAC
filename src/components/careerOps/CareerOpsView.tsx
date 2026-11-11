@@ -122,9 +122,9 @@ export function CareerOpsView() {
   }, [sources, isDiscovering, discoverJobsFromSources, resumeText, careerOpsProviderConfig]);
 
   // Internal sub-tab state
-  const [subTab, setSubTab] = useState<'pipeline' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'>(
-    'pipeline'
-  );
+  const [subTab, setSubTab] = useState<
+    'pipeline' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
+  >('pipeline');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // New Job Input Modal / Form
@@ -323,9 +323,7 @@ export function CareerOpsView() {
           : 'Preliminary keyword scan completed. This is not a verified fit assessment.'
       );
     } catch (error) {
-      setToast(
-        `Evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      setToast(`Evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -795,7 +793,8 @@ export function CareerOpsView() {
                   const isSelected = job.id === activeJobId;
                   const hasScore = typeof job.score === 'number' && job.score > 0;
                   const isApply = hasScore && (job.score as number) >= 4.0;
-                  const isHeuristic = job.evaluationReport?.summary?.includes('lightweight keyword scan') ?? false;
+                  const isHeuristic =
+                    job.evaluationReport?.summary?.includes('lightweight keyword scan') ?? false;
                   return (
                     <div
                       key={job.id}
@@ -874,17 +873,24 @@ export function CareerOpsView() {
                               fontWeight: 900,
                               padding: '2px 8px',
                               borderRadius: '6px',
-                              background: hasScore && !isHeuristic
-                                ? isApply
-                                  ? 'rgba(34, 197, 94, 0.2)'
-                                  : 'rgba(239, 68, 68, 0.2)'
-                                : 'rgba(148, 163, 184, 0.15)',
-                              color: hasScore && !isHeuristic ? (isApply ? '#4ade80' : '#f87171') : '#94a3b8',
-                              border: hasScore && !isHeuristic
-                                ? isApply
-                                  ? '1px solid rgba(34, 197, 94, 0.4)'
-                                  : '1px solid rgba(239, 68, 68, 0.4)'
-                                : '1px solid rgba(148, 163, 184, 0.3)',
+                              background:
+                                hasScore && !isHeuristic
+                                  ? isApply
+                                    ? 'rgba(34, 197, 94, 0.2)'
+                                    : 'rgba(239, 68, 68, 0.2)'
+                                  : 'rgba(148, 163, 184, 0.15)',
+                              color:
+                                hasScore && !isHeuristic
+                                  ? isApply
+                                    ? '#4ade80'
+                                    : '#f87171'
+                                  : '#94a3b8',
+                              border:
+                                hasScore && !isHeuristic
+                                  ? isApply
+                                    ? '1px solid rgba(34, 197, 94, 0.4)'
+                                    : '1px solid rgba(239, 68, 68, 0.4)'
+                                  : '1px solid rgba(148, 163, 184, 0.3)',
                             }}
                           >
                             {hasScore ? `★ ${job.score!.toFixed(1)} / 5.0` : 'Pending Evaluation'}
@@ -2264,8 +2270,19 @@ export function CareerOpsView() {
               const appliedTimestamp = activeJob.appliedAt;
               if (!appliedTimestamp || !['applied', 'interviewing'].includes(activeJob.status)) {
                 return (
-                  <div style={{ padding: '14px', borderRadius: '10px', background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: '11px' }}>
-                    Follow-up reminders start after you confirm that the application was submitted. Update this job’s status to Applied in the pipeline to start the Day 3 / 7 / 14 cadence.
+                  <div
+                    style={{
+                      padding: '14px',
+                      borderRadius: '10px',
+                      background: 'rgba(15, 23, 42, 0.65)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      color: '#94a3b8',
+                      fontSize: '11px',
+                    }}
+                  >
+                    Follow-up reminders start after you confirm that the application was submitted.
+                    Update this job’s status to Applied in the pipeline to start the Day 3 / 7 / 14
+                    cadence.
                   </div>
                 );
               }

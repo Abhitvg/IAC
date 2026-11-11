@@ -58,7 +58,12 @@ export function extractCareerPageJobLinks(
 
   while ((match = anchorPattern.exec(html)) && links.length < limit) {
     const href = decodeHtml(match[1].trim());
-    const titleHint = decodeHtml(match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+    const titleHint = decodeHtml(
+      match[2]
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    );
     const url = normalizeJobUrl(href, sourceUrl);
     if (!url || seen.has(url)) continue;
 
@@ -145,7 +150,9 @@ export async function discoverJobsFromCareerPage(
         details.company = source.label.trim() || 'Unknown Company';
       }
       const keywordText = `${details.role} ${details.jdText}`.toLowerCase();
-      const keywords = (source.keywords || []).map((item) => item.trim().toLowerCase()).filter(Boolean);
+      const keywords = (source.keywords || [])
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean);
       if (keywords.length && !keywords.some((keyword) => keywordText.includes(keyword))) {
         skipped += 1;
         continue;

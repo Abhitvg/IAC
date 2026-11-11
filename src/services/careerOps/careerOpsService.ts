@@ -428,17 +428,24 @@ export async function generateCoverLetter(
   providerConfig?: ProviderConfig
 ): Promise<string> {
   const angleDescriptions: Record<CoverLetterAngle, string> = {
-    problem_solver: 'Connect one verified candidate example to a problem explicitly described in the job description.',
-    technical_depth: 'Explain technical depth only where the source resume provides concrete evidence.',
-    fast_impact: 'Describe realistic early contributions based on verified skills; do not invent outcomes or metrics.',
-    cultural_alignment: 'Reference company mission or culture only when supported by the supplied job description.',
+    problem_solver:
+      'Connect one verified candidate example to a problem explicitly described in the job description.',
+    technical_depth:
+      'Explain technical depth only where the source resume provides concrete evidence.',
+    fast_impact:
+      'Describe realistic early contributions based on verified skills; do not invent outcomes or metrics.',
+    cultural_alignment:
+      'Reference company mission or culture only when supported by the supplied job description.',
   };
 
   const levelDescriptions: Record<CoverLetterExperienceLevel, string> = {
-    senior: 'Emphasize architecture ownership, mentoring, and cross-functional leadership only when directly supported by the resume.',
+    senior:
+      'Emphasize architecture ownership, mentoring, and cross-functional leadership only when directly supported by the resume.',
     mid: 'Emphasize end-to-end delivery, API design, and testing only where the resume provides concrete examples.',
-    entry: 'Emphasize verified education, projects, internships, and fundamentals without inventing outcomes or metrics.',
-    career_switcher: 'Emphasize verified transferable experience and shipped projects; do not assume prior career duration or business outcomes.',
+    entry:
+      'Emphasize verified education, projects, internships, and fundamentals without inventing outcomes or metrics.',
+    career_switcher:
+      'Emphasize verified transferable experience and shipped projects; do not assume prior career duration or business outcomes.',
   };
 
   const prompt = `Write an exceptional, compelling 4-paragraph Software Engineering Cover Letter for the role of "${roleTitle}" at "${companyName}".
@@ -544,15 +551,17 @@ export async function generateOutreachNotes(
   coldEmailBody: string;
 }> {
   // Keep deterministic drafts factual; candidate-specific claims belong in reviewed resume evidence.
-  const linkedinRecruiter = `Hi! I'm interested in the ${roleTitle} opening at ${companyName} and would appreciate the chance to connect and learn what the team is prioritizing. Thanks!`.slice(
-    0,
-    298
-  );
+  const linkedinRecruiter =
+    `Hi! I'm interested in the ${roleTitle} opening at ${companyName} and would appreciate the chance to connect and learn what the team is prioritizing. Thanks!`.slice(
+      0,
+      298
+    );
 
-  const linkedinHiringManager = `Hi! I'm interested in the ${roleTitle} role at ${companyName} and would welcome a chance to learn more about the team's current engineering priorities. Thanks!`.slice(
-    0,
-    298
-  );
+  const linkedinHiringManager =
+    `Hi! I'm interested in the ${roleTitle} role at ${companyName} and would welcome a chance to learn more about the team's current engineering priorities. Thanks!`.slice(
+      0,
+      298
+    );
 
   const coldEmailSubject = `Regarding the ${roleTitle} role at ${companyName}`;
   const coldEmailBody = `Hi ${companyName} Team,
