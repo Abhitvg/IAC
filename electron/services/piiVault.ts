@@ -168,7 +168,8 @@ export class PiiVault {
     }
   }
 
-  private getMasterKey(): Promise<Buffer> {
+  private async getMasterKey(): Promise<Buffer> {
+    await this.assertSecureStorageAvailable();
     if (!this.masterKeyPromise) {
       this.masterKeyPromise = this.loadMasterKey().catch((error) => {
         this.masterKeyPromise = null;
@@ -232,12 +233,7 @@ export class PiiVault {
         await handle.close();
         handle = undefined;
         await fs.promises.rename(tempPath, destination);
-        const directory = await fs.promises.open(path.dirname(destination), 'r');
-        try {
-          await directory.sync();
-        } finally {
-          await directory.close();
-        }
+        await this.syncDirectory(path.dirname(destination));
       } catch (error) {
         if (handle) await handle.close().catch(() => undefined);
         await fs.promises.rm(tempPath, { force: true }).catch(() => undefined);
