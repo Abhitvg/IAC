@@ -152,7 +152,8 @@ INSERT INTO career_graph_facts (
     'iv', 'AAAAAAAAAAAAAAAA',
     'authTag', 'AAAAAAAAAAAAAAAAAAAAAA==',
     'ciphertext', 'ciphertext',
-    'tenantId', '10000000-0000-4000-8000-000000000001'
+    'tenantId', '10000000-0000-4000-8000-000000000001',
+    'context', 'career-graph:profile.current_role'
   ),
   'user_input',
   'user-a'
