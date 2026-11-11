@@ -52,7 +52,7 @@ export function evaluateJobHeuristically(
     weight: 'critical',
     fit: resumeLower.includes(roleTitle.toLowerCase().split(' ')[0]) ? 'strong' : 'partial',
     evidence: resumeLower.includes(roleTitle.toLowerCase().split(' ')[0])
-      ? 'Verified domain experience present in resume.'
+      ? 'The role keyword appears in the supplied resume text; verify the surrounding context.'
       : 'Transferable engineering background demonstrated across past production systems.',
   });
 
@@ -64,7 +64,7 @@ export function evaluateJobHeuristically(
       weight: idx < 2 ? 'critical' : 'high',
       fit: has ? 'strong' : 'gap',
       evidence: has
-        ? `Explicit mentions and project usage of ${tech} identified in candidate experience.`
+        ? `The keyword ${tech} appears in the supplied resume text; this does not by itself verify proficiency or production use.`
         : `No explicit keyword match for ${tech} in current CV digest.`,
     });
   });
@@ -76,7 +76,7 @@ export function evaluateJobHeuristically(
   }
 
   // Estimate compensation from text if numbers present
-  let estimatedRange = '$130,000 - $175,000 / yr (Market Benchmark)';
+  let estimatedRange = 'Not disclosed in the job description';
   const salaryMatch = jdText.match(/\$[0-9]{2,3}(?:,[0-9]{3})*(?:\s*-\s*\$[0-9]{2,3}(?:,[0-9]{3})*)?/);
   if (salaryMatch) {
     estimatedRange = `${salaryMatch[0]} (Extracted from JD)`;
@@ -87,28 +87,26 @@ export function evaluateJobHeuristically(
     recommendation,
     verdictHeadline:
       recommendation === 'apply'
-        ? `🟢 Recommended to Apply (${score}/5.0) — Strong alignment across ${matchedInResume.length} core competencies`
-        : `🔴 Do Not Apply (${score}/5.0) — Significant tech stack gaps (${missingTech.slice(0, 3).join(', ') || 'Domain misalignment'})`,
+        ? `🟡 Preliminary Keyword Match (${score}/5.0) — ${matchedInResume.length} matching terms found; verify evidence`
+        : `🟡 Preliminary Keyword Match (${score}/5.0) — Missing terms: ${missingTech.slice(0, 3).join(', ') || 'limited role overlap'}`,
     summary:
       recommendation === 'apply'
-        ? `This role at ${companyName} exhibits high mutual alignment with your production background. You meet ${Math.round(matchRatio * 100)}% of explicitly stated technical prerequisites.`
-        : `This role requires substantial unverified capabilities (${missingTech.slice(0, 4).join(', ')}). The career-ops heuristic recommends preserving energy for roles with >= 4.0 alignment.`,
+        ? `A lightweight keyword scan found overlap with ${matchedInResume.length} listed technical terms. This is not proof of proficiency or eligibility; inspect each requirement against your actual experience before applying.`
+        : `A lightweight keyword scan found gaps in ${missingTech.slice(0, 4).join(', ') || 'role terminology'}. This is not a definitive rejection; review transferable experience and non-keyword requirements before deciding.`,
     weightedRequirements,
     levelStrategy:
-      score >= 4.5
-        ? 'Position as Senior/Lead. Anchor negotiations on your end-to-end architecture ownership.'
-        : 'Position as a strong mid-to-senior contributor emphasizing rapid onboarding and adjacent skills.',
+      'Use only the seniority, ownership, and delivery evidence explicitly supported by the source resume; do not infer level from keyword overlap.',
     identifiedGaps: missingTech.length > 0 ? missingTech.map((t) => `Missing direct reference to ${t.toUpperCase()}`) : ['No critical architectural gaps identified.'],
-    strategicAngle: `Emphasize high-scale distributed reliability and clean code practices demonstrated across past production roles at ${companyName}.`,
+    strategicAngle: 'Choose a verified resume example that directly addresses the highest-priority requirement in this job description.',
     compensationEstimate: {
       estimatedRange,
-      analysis: 'Benchmark based on role level, tech stack rarity, and market percentiles.',
+      analysis: 'No independent market benchmark is calculated in offline heuristic mode.',
     },
     workAuthAlert,
     topInterviewStories: [
-      `How I optimized production latency and throughput in high-concurrency systems.`,
-      `How I led cross-functional debugging under pressure when critical services degraded.`,
-      `Designing maintainable, test-driven microservices that scale horizontally.`,
+      'Prepare a STAR example from verified experience that demonstrates the most relevant technical requirement.',
+      'Prepare a real example of diagnosing a difficult engineering issue; do not invent incident details or outcomes.',
+      'Prepare a project example that demonstrates maintainability, testing, and collaboration where supported by your resume.',
     ],
   };
 }
