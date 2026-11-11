@@ -61,7 +61,7 @@ const authConfig = {
 };
 
 describe('M0 cloud security foundation', () => {
-  it('requires HTTPS identity issuer and a sufficiently strong JWT verification secret', () => {
+  it('requires HTTPS issuer/JWKS endpoints and a separate consent signing secret', () => {
     expect(() =>
       loadCloudEnvironment({
         CAREEROPS_JWT_ISSUER: 'http://identity.example.test',
@@ -122,14 +122,16 @@ describe('M0 cloud security foundation', () => {
       findMembershipsBySubject: async () => [membership],
     });
     expect(context.tenantId).toBe('tenant-server-side');
+    const memberships = [membership, { ...membership, tenantId: 'tenant-other', role: 'member' as const }];
     await expect(
-      resolveTenantContext('user-1', {
-        findMembershipsBySubject: async () => [
-          membership,
-          { ...membership, tenantId: 'tenant-other' },
-        ],
-      })
+      resolveTenantContext('user-1', { findMembershipsBySubject: async () => memberships })
     ).rejects.toThrow('multiple tenant memberships');
+    await expect(
+      resolveTenantContext('user-1', { findMembershipsBySubject: async () => memberships }, 'tenant-other')
+    ).resolves.toMatchObject({ tenantId: 'tenant-other', role: 'member' });
+    await expect(
+      resolveTenantContext('user-1', { findMembershipsBySubject: async () => memberships }, 'tenant-forged')
+    ).rejects.toThrow('selected tenant');
   });
 
   it('validates Sprint Contract and requires explicit outreach consent for email', () => {
