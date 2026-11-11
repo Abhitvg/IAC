@@ -6,7 +6,7 @@ M0 establishes the first cloud trust boundary and security primitives. It does n
 
 ## Required environment
 
-- `NODE_ENV`: required; set explicitly to `production` for hosted API and migration jobs. Use `development` or `test` only for intentionally local/test environments. Missing or invalid values fail startup rather than silently disabling database TLS.
+- `NODE_ENV`: required; set explicitly to `production` for hosted API and migration jobs. `development` and `test` permit plaintext PostgreSQL only when the connection host is loopback (`localhost`, `127.0.0.0/8` or `::1`); remote hosts are rejected. Production always uses certificate-verified TLS, including for loopback connections. Missing or invalid values fail closed.
 - `CAREEROPS_JWT_ISSUER`: exact HTTPS issuer value expected in access-token `iss`.
 - `CAREEROPS_JWT_AUDIENCE`: API audience expected in access-token `aud`.
 - `CAREEROPS_JWKS_URL`: trusted HTTPS JWKS endpoint for that issuer. Redirects are rejected.
