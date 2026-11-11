@@ -413,6 +413,7 @@ describe('M0 cloud security foundation', () => {
         issuer: authConfig.issuer,
         audience: authConfig.audience,
         jwksUrl: authConfig.jwksUrl,
+        consentSigningSecret: secret,
       },
       identityVerifier: {
         verify: async (token) =>
@@ -425,6 +426,9 @@ describe('M0 cloud security foundation', () => {
       rateLimiter: { consume: async () => rateLimitAllowed },
       repository: {
         findMembershipsBySubject: async () => [membership],
+        acceptSprintContract: async () => ({ id: '40000000-0000-4000-8000-000000000004', revision: 1 }),
+        getActiveSprintContract: async () => null,
+        revokeSprintContract: async () => undefined,
         getControlState: async (tenantId) => ({
           tenantId,
           globalKillSwitch: true,
