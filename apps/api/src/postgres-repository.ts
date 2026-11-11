@@ -232,7 +232,10 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
 
   async acceptSprintContract(record: ConsentRecord): Promise<{ id: string; revision: number }> {
     return inTransaction(this.pool, record.subject, record.tenantId, async (client) => {
-      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [record.tenantId]);
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        [record.tenantId]
+      );
       const active = await client.query(
         `SELECT id FROM sprint_contracts WHERE tenant_id = $1 AND revoked_at IS NULL LIMIT 1`,
         [record.tenantId]
@@ -294,7 +297,9 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
     });
   }
 
-  async getActiveSprintContract(tenantId: string): Promise<(ConsentRecord & { id: string; revision: number }) | null> {
+  async getActiveSprintContract(
+    tenantId: string
+  ): Promise<(ConsentRecord & { id: string; revision: number }) | null> {
     return inTransaction(this.pool, 'system:api', tenantId, async (client) => {
       const result = await client.query<{
         id: string; revision: number; tenant_id: string; contract_json: ConsentRecord['contract'];
