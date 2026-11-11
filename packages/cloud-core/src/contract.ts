@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 
 const boundedText = (max: number) => z.string().trim().min(1).max(max);
@@ -76,4 +76,19 @@ export function createConsentRecord(
   const payload = [tenantId, subject, contractHash, acceptedAt].join('|');
   const signature = createHmac('sha256', signingSecret).update(payload).digest('hex');
   return { tenantId, subject, contract, contractHash, acceptedAt, signature, revokedAt: null };
+}
+
+export function verifyConsentRecord(record: ConsentRecord, signingSecret: string): boolean {
+  if (!signingSecret || signingSecret.length < 32 || record.revokedAt !== null) return false;
+  const contract = SprintContractSchema.safeParse(record.contract);
+  if (!contract.success) return false;
+  const expectedHash = createHmac('sha256', signingSecret)
+    .update(JSON.stringify(contract.data))
+    .digest();
+  const actualHash = Buffer.from(record.contractHash, 'hex');
+  if (actualHash.length !== expectedHash.length || !timingSafeEqual(actualHash, expectedHash)) return false;
+  const payload = [record.tenantId, record.subject, record.contractHash, record.acceptedAt].join('|');
+  const expectedSignature = createHmac('sha256', signingSecret).update(payload).digest();
+  const actualSignature = Buffer.from(record.signature, 'hex');
+  return actualSignature.length === expectedSignature.length && timingSafeEqual(actualSignature, expectedSignature);
 }
