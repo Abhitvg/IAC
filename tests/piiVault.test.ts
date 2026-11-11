@@ -47,7 +47,9 @@ describe('PiiVault', () => {
     const raw = fs.readFileSync(recordPath, 'utf8');
     expect(raw).not.toContain('Private Candidate');
     expect(raw).not.toContain('private@example.test');
-    expect(fs.statSync(recordPath).mode & 0o777).toBe(0o600);
+    if (process.platform !== 'win32') {
+      expect(fs.statSync(recordPath).mode & 0o777).toBe(0o600);
+    }
 
     const keyRecord = JSON.parse(
       fs.readFileSync(path.join(userDataPath, '.iac-pii-vault-key.v1'), 'utf8')
