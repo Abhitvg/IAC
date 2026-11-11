@@ -36,17 +36,12 @@ describe('PostgreSQL runtime pool configuration', () => {
       )
     ).toThrow('Non-production PostgreSQL connections are restricted to loopback hosts');
     expect(() =>
-      createPostgresPoolFromUrl(
-        'postgres://user:password@db.example.test:5432/careerops',
-        'test'
-      )
+      createPostgresPoolFromUrl('postgres://user:password@db.example.test/careerops', 'test')
     ).toThrow('Non-production PostgreSQL connections are restricted to loopback hosts');
   });
 
   it('requires a PostgreSQL URL and rejects connection-string TLS overrides', () => {
-    expect(() =>
-      createPostgresPoolFromUrl('https://db.example.test', 'development')
-    ).toThrow();
+    expect(() => createPostgresPoolFromUrl('https://db.example.test', 'development')).toThrow();
     expect(() =>
       createPostgresPoolFromUrl(
         'postgres://user:password@db.example.test:5432/careerops?sslmode=disable',
@@ -73,18 +68,10 @@ describe('PostgreSQL runtime pool configuration', () => {
 
   it('rejects unsafe pool sizes before creating a pool', () => {
     expect(() =>
-      createPostgresPoolFromUrl(
-        'postgres://user:password@db.example.test/careerops',
-        'test',
-        0
-      )
+      createPostgresPoolFromUrl('postgres://user:password@db.example.test/careerops', 'test', 0)
     ).toThrow('between 1 and 50');
     expect(() =>
-      createPostgresPoolFromUrl(
-        'postgres://user:password@db.example.test/careerops',
-        'test',
-        51
-      )
+      createPostgresPoolFromUrl('postgres://user:password@db.example.test/careerops', 'test', 51)
     ).toThrow('between 1 and 50');
   });
 });
