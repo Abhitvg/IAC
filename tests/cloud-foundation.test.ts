@@ -183,6 +183,15 @@ describe('cloud API runtime composition', () => {
 });
 
 describe('M0 cloud security foundation', () => {
+  it('requires NODE_ENV instead of silently defaulting cloud runtime to development', () => {
+    expect(() => loadCloudEnvironment({
+      CAREEROPS_JWT_ISSUER: authConfig.issuer,
+      CAREEROPS_JWT_AUDIENCE: authConfig.audience,
+      CAREEROPS_JWKS_URL: authConfig.jwksUrl,
+      CAREEROPS_CONSENT_SIGNING_SECRET: secret,
+      CAREEROPS_RATE_LIMIT_HASH_SECRET: rateSecret,
+    } as NodeJS.ProcessEnv)).toThrow();
+  });
   it('requires HTTPS issuer/JWKS endpoints and a separate consent signing secret', () => {
     expect(() =>
       loadCloudEnvironment({
