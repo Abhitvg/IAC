@@ -52,4 +52,23 @@ describe('CareerOps Application Auto-Fill Service', () => {
     expect(pwScript).toContain('resumes/Abhishek_Singh_Resume.pdf');
     expect(pwScript).toContain('page.evaluate');
   });
+
+  it('serializes untrusted URL and file path values instead of interpolating executable source', () => {
+    const maliciousUrl = "https://jobs.example/apply'); console.log('injected";
+    const maliciousPath = "resume.pdf'); console.log('injected";
+    const script = generatePlaywrightAutoFillScript(
+      'https://jobs.example/apply',
+      DEFAULT_CANDIDATE_PROFILE,
+      '',
+      maliciousPath
+    );
+    expect(script).toContain(JSON.stringify(maliciousPath));
+    expect(script).not.toContain("setInputFiles('resume.pdf'); console.log");
+    expect(() =>
+      generatePlaywrightAutoFillScript('http://jobs.example/apply', DEFAULT_CANDIDATE_PROFILE)
+    ).toThrow('HTTPS');
+    expect(() =>
+      generatePlaywrightAutoFillScript(maliciousUrl, DEFAULT_CANDIDATE_PROFILE)
+    ).not.toThrow();
+  });
 });
