@@ -37,7 +37,9 @@ describe('PiiVault', () => {
     fs.rmSync(userDataPath, { recursive: true, force: true });
   });
 
-  it('creates a random OS-wrapped key and stores authenticated ciphertext, not plaintext', async () => {
+  it(
+    'creates a random OS-wrapped key and stores authenticated ciphertext, not plaintext',
+    async () => {
     const vault = new PiiVault(userDataPath);
     const profile = { fullName: 'Private Candidate', email: 'private@example.test' };
 
@@ -96,14 +98,16 @@ describe('PiiVault', () => {
     fs.writeFileSync(keyPath, '{broken');
     const vault = new PiiVault(userDataPath);
 
-    await expect(vault.put('candidate', 'profile', { email: 'private@example.test' })).rejects.toThrow(
-      'PII vault key metadata is corrupt'
-    );
+    await expect(
+      vault.put('candidate', 'profile', { email: 'private@example.test' })
+    ).rejects.toThrow('PII vault key metadata is corrupt');
     expect(safeStorage.encryptStringAsync).not.toHaveBeenCalled();
     expect(fs.readFileSync(keyPath, 'utf8')).toBe('{broken');
   });
 
-  it('does not create a replacement key when encrypted records exist but the key file is missing', async () => {
+  it(
+    'does not create a replacement key when encrypted records exist but the key file is missing',
+    async () => {
     const vault = new PiiVault(userDataPath);
     await vault.put('candidate', 'profile', { fullName: 'Private Candidate' });
     const keyPath = path.join(userDataPath, '.iac-pii-vault-key.v1');
@@ -123,9 +127,9 @@ describe('PiiVault', () => {
     (safeStorage.isAsyncEncryptionAvailable as any).mockResolvedValue(false);
     const vault = new PiiVault(userDataPath);
 
-    await expect(vault.put('candidate', 'profile', { email: 'private@example.test' })).rejects.toThrow(
-      /OS-backed encryption is unavailable or locked/
-    );
+    await expect(
+      vault.put('candidate', 'profile', { email: 'private@example.test' })
+    ).rejects.toThrow(/OS-backed encryption is unavailable or locked/);
     expect(fs.existsSync(path.join(userDataPath, '.iac-pii-vault-key.v1'))).toBe(false);
   });
 
@@ -134,9 +138,9 @@ describe('PiiVault', () => {
     (safeStorage.getSelectedStorageBackend as any).mockReturnValue('basic_text');
     const vault = new PiiVault(userDataPath);
 
-    await expect(vault.put('candidate', 'profile', { email: 'private@example.test' })).rejects.toThrow(
-      /Secure Linux keyring is unavailable/
-    );
+    await expect(
+      vault.put('candidate', 'profile', { email: 'private@example.test' })
+    ).rejects.toThrow(/Secure Linux keyring is unavailable/);
   });
 
   it('rewraps the master key when Electron reports key rotation', async () => {
