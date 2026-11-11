@@ -142,7 +142,14 @@ export const ExperienceSection: React.FC<ExperienceSectionProps> = React.memo(
 
     return (
       <div data-testid="wizard-section-experience">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+          }}
+        >
           <div>
             <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
               E. Work Experience &amp; Authorship
@@ -198,14 +205,22 @@ export const ExperienceSection: React.FC<ExperienceSectionProps> = React.memo(
                   borderRadius: '8px',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}
+                >
                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#F3F4F8' }}>
-                    Role #{idx + 1}: {exp.title || 'Untitled'} {exp.employer ? `@ ${exp.employer}` : ''}
+                    Role #{idx + 1}: {exp.title || 'Untitled'}{' '}
+                    {exp.employer ? `@ ${exp.employer}` : ''}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleRemoveRole(idx)}
-                    style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#f87171',
+                      cursor: 'pointer',
+                    }}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -245,7 +260,15 @@ export const ExperienceSection: React.FC<ExperienceSectionProps> = React.memo(
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#35C991', fontWeight: 600, marginBottom: '4px' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '11px',
+                      color: '#35C991',
+                      fontWeight: 600,
+                      marginBottom: '4px',
+                    }}
+                  >
                     Personally Implemented Work (Strictly Your Own Code / Architecture)
                   </label>
                   <textarea
