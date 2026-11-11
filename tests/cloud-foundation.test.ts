@@ -8,6 +8,7 @@ import { appendAuditEvent, hashAuditEvent, type AuditRecord } from '../packages/
 import { TenantEnvelopeCipher, type TenantKeyManagementService } from '../packages/cloud-core/src/encryption';
 import { resolveTenantContext, type TenantMembership } from '../packages/cloud-core/src/tenant';
 import { createCloudApiServer } from '../apps/api/src/server';
+import { loadCloudEnvironment } from '../apps/api/src/config';
 import type { CloudApiDependencies } from '../apps/api/src/ports';
 
 const secret = 'test-only-secret-that-is-at-least-32-characters';
@@ -44,6 +45,18 @@ function signToken(claims: Record<string, unknown>, signingSecret = secret): str
 const authConfig = { issuer: 'https://identity.example.test', audience: 'careerops-api', hmacSecret: secret };
 
 describe('M0 cloud security foundation', () => {
+  it('requires HTTPS identity issuer and a sufficiently strong JWT verification secret', () => {
+    expect(() => loadCloudEnvironment({
+      CAREEROPS_JWT_ISSUER: 'http://identity.example.test',
+      CAREEROPS_JWT_AUDIENCE: 'careerops-api',
+      CAREEROPS_JWT_HMAC_SECRET: secret,
+    } as NodeJS.ProcessEnv)).toThrow();
+    expect(() => loadCloudEnvironment({
+      CAREEROPS_JWT_ISSUER: 'https://identity.example.test',
+      CAREEROPS_JWT_AUDIENCE: 'careerops-api',
+      CAREEROPS_JWT_HMAC_SECRET: 'short',
+    } as NodeJS.ProcessEnv)).toThrow();
+  });
   it('verifies signed access tokens and rejects tampering, wrong issuer, audience and expiry', () => {
     const claims = { sub: 'user-1', iss: authConfig.issuer, aud: authConfig.audience, exp: 2_000_000_000 };
     expect(verifyAccessToken(signToken(claims), authConfig, 1_900_000_000).subject).toBe('user-1');
@@ -142,9 +155,11 @@ describe('M0 cloud security foundation', () => {
   });
 
   it('serves health and requires verified identity plus server-side tenant membership for private routes', async () => {
+    let rateLimitAllowed = true;
     const membership: TenantMembership = { tenantId: 'tenant-1', subject: 'user-1', role: 'owner', status: 'active' };
     const dependencies: CloudApiDependencies = {
       config: { ...authConfig },
+      rateLimiter: { consume: async () => rateLimitAllowed },
       repository: {
         findMembershipsBySubject: async () => [membership],
         getControlState: async (tenantId) => ({ tenantId, globalKillSwitch: true, pausedChannels: [], updatedAt: new Date().toISOString() }),
@@ -165,6 +180,9 @@ describe('M0 cloud security foundation', () => {
       const me = await fetch(`http://127.0.0.1:${address.port}/v1/me`, { headers: { authorization: `Bearer ${token}` } });
       expect(me.status).toBe(200);
       expect(await me.json()).toMatchObject({ tenantId: 'tenant-1', subject: 'user-1' });
+      rateLimitAllowed = false;
+      const limited = await fetch(`http://127.0.0.1:${address.port}/v1/me`, { headers: { authorization: `Bearer ${token}` } });
+      expect(limited.status).toBe(429);
     } finally {
       server.close();
       await once(server, 'close');
