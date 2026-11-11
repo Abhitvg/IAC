@@ -113,8 +113,14 @@ export function generateBrowserAutoFillScript(
 
   let filledCount = 0;
 
+  function isKnownValue(value) {
+    if (typeof value !== 'string') return false;
+    const normalized = value.trim().toLowerCase();
+    return normalized.length > 0 && !['unknown', 'not specified', 'n/a', 'none', 'null'].includes(normalized);
+  }
+
   function tryFill(selector, val, label) {
-    if (!val) return;
+    if (!isKnownValue(val)) return;
     const el = document.querySelector(selector);
     if (el && !el.disabled && el.offsetParent !== null) {
       if (setNativeValue(el, val)) {
@@ -125,7 +131,7 @@ export function generateBrowserAutoFillScript(
   }
 
   function matchByLabelOrAttr(val, keywords, label) {
-    if (!val) return;
+    if (!isKnownValue(val)) return;
     const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="file"]):not([type="submit"]), textarea'));
     for (const input of inputs) {
       if (input.value && input.value.trim().length > 0) continue;
