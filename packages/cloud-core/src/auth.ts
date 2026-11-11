@@ -201,13 +201,20 @@ export class OidcJwksVerifier {
     )
       throw new Error('Access token claims are invalid or expired');
 
-    const audience = Array.isArray(claims.aud)
-      ? claims.aud.filter((value): value is string => typeof value === 'string')
-      : typeof claims.aud === 'string'
+    const audience =
+      typeof claims.aud === 'string'
         ? [claims.aud]
-        : [];
-    if (!audience.includes(this.config.audience))
-      throw new Error('Access token audience is invalid');
+        : Array.isArray(claims.aud) && claims.aud.length > 0 &&
+            claims.aud.every((value) => typeof value === 'string')
+          ? (claims.aud as string[])
+          : [];
+    if (
+      !audience.includes(this.config.audience) ||
+      (audience.length > 1 && claims.azp !== this.config.audience) ||
+      (claims.azp !== undefined && claims.azp !== this.config.audience)
+    ) {
+      throw new Error('Access token audience or authorized party is invalid');
+    }
 
     return { subject: claims.sub, issuer: this.config.issuer, audience, expiresAt: exp as number };
   }
