@@ -96,6 +96,7 @@ function loadInitialSources(): CareerOpsSource[] {
           typeof source.enabled === 'boolean'
         )
     ).map((source) => ({ ...source, autoEvaluate: source.autoEvaluate === true }));
+  } catch (error) {
     console.warn('[CareerOps] Failed to read discovery sources:', error);
     return [];
   }
