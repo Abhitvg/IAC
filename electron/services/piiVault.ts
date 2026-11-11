@@ -155,16 +155,26 @@ export class PiiVault {
       await handle.close();
       handle = undefined;
       await fs.promises.rename(tempPath, this.keyPath);
-      const directory = await fs.promises.open(this.userDataPath, 'r');
-      try {
-        await directory.sync();
-      } finally {
-        await directory.close();
-      }
+      await this.syncDirectory(this.userDataPath);
     } catch (error) {
       if (handle) await handle.close().catch(() => undefined);
       await fs.promises.rm(tempPath, { force: true }).catch(() => undefined);
       throw error;
+    }
+  }
+
+  private async syncDirectory(directoryPath: string): Promise<void> {
+    let directory: fs.promises.FileHandle | undefined;
+    try {
+      directory = await fs.promises.open(directoryPath, 'r');
+      await directory.sync();
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!['EINVAL', 'ENOTSUP', 'EISDIR', 'EPERM', 'EACCES'].includes(code || '')) {
+        throw error;
+      }
+    } finally {
+      await directory?.close();
     }
   }
 
