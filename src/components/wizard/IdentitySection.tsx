@@ -48,7 +48,8 @@ export const IdentitySection: React.FC<IdentitySectionProps> = React.memo(
     }, [registerFlushHandler, flushDraft]);
 
     const handleFieldChange = (field: keyof CandidateIdentity, value: string) => {
-      const isCandidateConfirmed = field === 'fullName' || field === 'email' ? true : draftRef.current.candidateConfirmed;
+      const isCandidateConfirmed =
+        field === 'fullName' || field === 'email' ? true : draftRef.current.candidateConfirmed;
       const nextDraft: CandidateIdentity = {
         ...draftRef.current,
         [field]: value,
@@ -103,7 +104,9 @@ export const IdentitySection: React.FC<IdentitySectionProps> = React.memo(
 
         <div className="wizard-grid-2col">
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Full Legal Name <span style={{ color: '#F7B955' }}>*</span>
             </label>
             <input
@@ -119,21 +122,28 @@ export const IdentitySection: React.FC<IdentitySectionProps> = React.memo(
                 width: '100%',
                 padding: '8px 12px',
                 background: '#171B24',
-                border: !isFullNameValid && draft.fullName.length > 0 ? '1px solid #f87171' : '1px solid #292E3A',
+                border:
+                  !isFullNameValid && draft.fullName.length > 0
+                    ? '1px solid #f87171'
+                    : '1px solid #292E3A',
                 borderRadius: '6px',
                 color: '#F3F4F8',
                 fontSize: '13px',
               }}
             />
             {!isFullNameValid && draft.fullName.length > 0 && (
-              <span style={{ fontSize: '10px', color: '#f87171', marginTop: '2px', display: 'block' }}>
+              <span
+                style={{ fontSize: '10px', color: '#f87171', marginTop: '2px', display: 'block' }}
+              >
                 Please enter your full name (at least 2 characters)
               </span>
             )}
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Preferred Name
             </label>
             <input
@@ -156,7 +166,9 @@ export const IdentitySection: React.FC<IdentitySectionProps> = React.memo(
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Email Address <span style={{ color: '#F7B955' }}>*</span>
             </label>
             <input
@@ -172,21 +184,28 @@ export const IdentitySection: React.FC<IdentitySectionProps> = React.memo(
                 width: '100%',
                 padding: '8px 12px',
                 background: '#171B24',
-                border: !isEmailValid && draft.email.length > 0 ? '1px solid #f87171' : '1px solid #292E3A',
+                border:
+                  !isEmailValid && draft.email.length > 0
+                    ? '1px solid #f87171'
+                    : '1px solid #292E3A',
                 borderRadius: '6px',
                 color: '#F3F4F8',
                 fontSize: '13px',
               }}
             />
             {!isEmailValid && draft.email.length > 0 && (
-              <span style={{ fontSize: '10px', color: '#f87171', marginTop: '2px', display: 'block' }}>
+              <span
+                style={{ fontSize: '10px', color: '#f87171', marginTop: '2px', display: 'block' }}
+              >
                 Please enter a valid email address
               </span>
             )}
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Phone (Optional)
             </label>
             <input
@@ -209,7 +228,9 @@ export const IdentitySection: React.FC<IdentitySectionProps> = React.memo(
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Current Location
             </label>
             <input
@@ -232,7 +253,9 @@ export const IdentitySection: React.FC<IdentitySectionProps> = React.memo(
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+            <label
+              style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+            >
               Time Zone
             </label>
             <input
@@ -256,7 +279,9 @@ export const IdentitySection: React.FC<IdentitySectionProps> = React.memo(
         </div>
 
         <div style={{ marginTop: '16px' }}>
-          <label style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}>
+          <label
+            style={{ display: 'block', fontSize: '12px', color: '#CBD5E1', marginBottom: '4px' }}
+          >
             Links &amp; Profiles
           </label>
           <div className="wizard-grid-2col">
