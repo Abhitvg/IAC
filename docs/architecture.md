@@ -86,6 +86,8 @@ Global kill switch and per-channel pause are server-enforced. A pause is checked
 ### Career Graph
 
 Canonical facts have source, user confirmation state, confidence, valid-from/to and evidence references. Distinguish:
+
+- confirmed user fact;
 - imported but unconfirmed fact;
 - derived inference;
 - stale or disputed fact.
