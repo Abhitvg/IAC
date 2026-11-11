@@ -72,6 +72,17 @@ export const SprintContractSchema = z
 
 export type SprintContract = z.infer<typeof SprintContractSchema>;
 
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+      a.localeCompare(b)
+    );
+    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 export interface ConsentRecord {
   tenantId: string;
   subject: string;
@@ -94,9 +105,9 @@ export function createConsentRecord(
   }
   const contract = SprintContractSchema.parse(input);
   const contractHash = createHmac('sha256', signingSecret)
-    .update(JSON.stringify(contract))
+    .update(canonicalJson(contract))
     .digest('hex');
-  const payload = [tenantId, subject, contractHash, acceptedAt].join('|');
+  const payload = JSON.stringify([tenantId, subject, contractHash, acceptedAt]);
   const signature = createHmac('sha256', signingSecret).update(payload).digest('hex');
   return { tenantId, subject, contract, contractHash, acceptedAt, signature, revokedAt: null };
 }
@@ -106,14 +117,17 @@ export function verifyConsentRecord(record: ConsentRecord, signingSecret: string
   const contract = SprintContractSchema.safeParse(record.contract);
   if (!contract.success) return false;
   const expectedHash = createHmac('sha256', signingSecret)
-    .update(JSON.stringify(contract.data))
+    .update(canonicalJson(contract.data))
     .digest();
   const actualHash = Buffer.from(record.contractHash, 'hex');
   if (actualHash.length !== expectedHash.length || !timingSafeEqual(actualHash, expectedHash))
     return false;
-  const payload = [record.tenantId, record.subject, record.contractHash, record.acceptedAt].join(
-    '|'
-  );
+  const payload = JSON.stringify([
+    record.tenantId,
+    record.subject,
+    record.contractHash,
+    record.acceptedAt,
+  ]);
   const expectedSignature = createHmac('sha256', signingSecret).update(payload).digest();
   const actualSignature = Buffer.from(record.signature, 'hex');
   return (
