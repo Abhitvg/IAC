@@ -29,14 +29,14 @@ export interface CloudMigrationResult {
   skipped: string[];
 }
 
-const MIGRATION_NAME = /^\\d{4}_[a-z0-9_]+\\.sql$/;
+const MIGRATION_NAME = /^\d{4}_[a-z0-9_]+\.sql$/;
 const ADVISORY_LOCK_NAMESPACE = 741923;
 const ADVISORY_LOCK_ID = 5;
 
 function normalizeMigrationSql(sql: string): string {
   let normalized = sql.trim();
-  normalized = normalized.replace(/^BEGIN\\s*;\\s*/i, '');
-  normalized = normalized.replace(/\\s*COMMIT\\s*;?\\s*$/i, '');
+  normalized = normalized.replace(/^BEGIN\s*;\s*/i, '');
+  normalized = normalized.replace(/\s*COMMIT\s*;?\s*$/i, '');
   if (!normalized.trim()) throw new Error('Migration SQL must not be empty');
   return normalized;
 }
@@ -128,7 +128,8 @@ export async function runCloudMigrations(
     const ledgerEntryCount = Number(ledgerCountResult?.rows[0]?.migration_count ?? 0);
     if (preExistingTables.length > 0 && (!ledgerExists || ledgerEntryCount === 0)) {
       throw new Error(
-        'Existing CareerOps schema detected without a populated migration ledger; an explicit reviewed baseline is required before applying migrations'
+        'Existing CareerOps schema detected without a populated migration ledger; ' +
+          'an explicit reviewed baseline is required before applying migrations'
       );
     }
 
