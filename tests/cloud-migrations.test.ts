@@ -77,6 +77,19 @@ describe('cloud database migrations', () => {
     );
   });
 
+  it('skips an already-applied migration with an unchanged checksum', async () => {
+    const { createHash } = await import('node:crypto');
+    const migration = { name: '0001_first.sql', sql: 'SELECT 1;' };
+    const checksum = createHash('sha256').update(migration.sql, 'utf8').digest('hex');
+    const { pool, calls } = createPool({ [migration.name]: checksum });
+
+    await expect(runCloudMigrations(pool, [migration])).resolves.toEqual({
+      applied: [],
+      skipped: [migration.name],
+    });
+    expect(calls.some((call) => call.sql.trim() === 'BEGIN')).toBe(false);
+  });
+
   it('rejects invalid or duplicate migration names before opening a connection', async () => {
     const connect = vi.fn();
     const pool = { connect };
@@ -87,9 +100,9 @@ describe('cloud database migrations', () => {
     await expect(
       runCloudMigrations(pool, [
         { name: '0001_first.sql', sql: 'SELECT 1;' },
-        { name: '0001_first.sql', sql: 'SELECT 2;' },
+        { name: '0001_second.sql', sql: 'SELECT 2;' },
       ])
-    ).rejects.toThrow('Duplicate cloud migration filename');
+    ).rejects.toThrow('Duplicate cloud migration version');
     expect(connect).not.toHaveBeenCalled();
   });
 });
