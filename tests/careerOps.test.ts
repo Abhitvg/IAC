@@ -131,7 +131,7 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       expect(letter).toContain('Alignerr');
       expect(letter).toContain('Senior Software Developer');
-      expect(letter).toContain('50,000 QPS');
+      expect(letter).not.toContain('50,000 QPS');
       expect(letter).toContain('latency');
       expect(letter).toContain('Dear Alignerr Engineering Hiring Team');
       expect(letter).toContain('[GitHub / Portfolio]');
@@ -151,8 +151,8 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       expect(letter).toContain('Datadog');
       expect(letter).toContain('Associate Software Engineer');
-      expect(letter).toContain('27% reduction in late-cycle software bugs');
-      expect(letter).toContain('Computer Science graduate');
+      expect(letter).not.toContain('27% reduction in late-cycle software bugs');
+      expect(letter).not.toContain('Computer Science graduate');
     });
 
     it('generates Mid-Level cover letters emphasizing API throughput and collaboration', async () => {
@@ -167,8 +167,8 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       expect(letter).toContain('Stripe');
       expect(letter).toContain('Software Engineer');
-      expect(letter).toContain('transaction throughput by 30%');
-      expect(letter).toContain('100,000 active users');
+      expect(letter).not.toContain('transaction throughput by 30%');
+      expect(letter).not.toContain('100,000 active users');
     });
 
     it('generates Career Switcher cover letters translating domain depth into software impact', async () => {
@@ -183,8 +183,8 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       expect(letter).toContain('Intuit');
       expect(letter).toContain('Junior Software Engineer');
-      expect(letter).toContain('boosted user engagement by 33%');
-      expect(letter).toContain('reduced workflow errors by 78%');
+      expect(letter).not.toContain('boosted user engagement by 33%');
+      expect(letter).not.toContain('reduced workflow errors by 78%');
     });
   });
 
@@ -198,8 +198,9 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
       );
 
       expect(resume).toContain('\\documentclass[letterpaper,11pt]{article}');
-      expect(resume).toContain('sb2nov/resume');
+      expect(resume).toContain('[Candidate Name]');
       expect(resume).toContain('\\section{Programming Skills}');
+      expect(resume).toContain('Source Resume');
       expect(resume).toContain('Lead Backend Engineer');
       expect(resume).toContain('Java');
       expect(resume).toContain('\\end{document}');
