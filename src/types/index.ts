@@ -299,6 +299,9 @@ export interface ElectronAPI {
   onAIStreamError: (
     callback: (payload: { requestId: string; name: string; message: string }) => void
   ) => () => void;
+  securePersistenceGet?: (namespace: 'candidate-profile') => Promise<string | null>;
+  securePersistenceSet?: (namespace: 'candidate-profile', value: string) => Promise<boolean>;
+  securePersistenceRemove?: (namespace: 'candidate-profile') => Promise<boolean>;
   setApiKey: (service: string, key: string) => Promise<boolean>;
   hasApiKey: (service: string) => Promise<boolean>;
   deleteApiKey: (service: string) => Promise<boolean>;
