@@ -74,20 +74,6 @@ jobs:
           }
           NODE
 
-      - name: TEMP format CareerOps security files and export
-        if: matrix.os == 'ubuntu-24.04' && github.event_name == 'pull_request' && github.event.pull_request.number == 201
-        shell: bash
-        run: |
-          npx prettier --write apps/api/src/postgres-pool.ts tests/postgres-pool.test.ts packages/cloud-core/src/contract.ts tests/cloud-foundation.test.ts
-          for entry in "POOL:apps/api/src/postgres-pool.ts" "POOL_TEST:tests/postgres-pool.test.ts" "CONTRACT:packages/cloud-core/src/contract.ts" "FOUNDATION_TEST:tests/cloud-foundation.test.ts"; do
-            label="${entry%%:*}"
-            path="${entry#*:}"
-            echo "${label}_BASE64_BEGIN"
-            base64 -w0 "$path"
-            echo
-            echo "${label}_BASE64_END"
-          done
-
       - name: Check formatting for changed files
         shell: bash
         run: |
