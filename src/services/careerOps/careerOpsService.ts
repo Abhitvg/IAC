@@ -264,11 +264,19 @@ export const SB2NOV_LATEX_TEMPLATE = `% Source-preserving sb2nov-compatible temp
 `;
 
 function escapeLatexText(value: string): string {
-  return value
-    .replace(/\\/g, '\\textbackslash{}')
-    .replace(/([{}%$&#_])/g, '\\$1')
-    .replace(/~/g, '\\textasciitilde{}')
-    .replace(/\^/g, '\\textasciicircum{}');
+  const replacements: Record<string, string> = {
+    '\\': '\\textbackslash{}',
+    '{': '\\{',
+    '}': '\\}',
+    '%': '\\%',
+    '$': '\\$',
+    '&': '\\&',
+    '#': '\\#',
+    '_': '\\_',
+    '~': '\\textasciitilde{}',
+    '^': '\\textasciicircum{}',
+  };
+  return Array.from(value, (character) => replacements[character] ?? character).join('');
 }
 
 function buildSourceResumeLatex(resumeText: string, roleTitle: string, companyName: string): string {
