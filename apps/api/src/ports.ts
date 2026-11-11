@@ -1,8 +1,24 @@
 import type { AuditRecord } from '../../../packages/cloud-core/src/audit';
 import type { ConsentRecord } from '../../../packages/cloud-core/src/contract';
+import type {
+  CareerGraphFact,
+  CareerGraphFactInput,
+  CareerGraphFactReview,
+} from '../../../packages/cloud-core/src/career-graph';
 import type { TenantControlState } from '../../../packages/cloud-core/src/controls';
 import type { TenantMembershipRepository } from '../../../packages/cloud-core/src/tenant';
 import type { VerifiedIdentity } from '../../../packages/cloud-core/src/auth';
+
+export interface CareerGraphRepository {
+  createFact(tenantId: string, actorSubject: string, input: CareerGraphFactInput): Promise<CareerGraphFact>;
+  listFacts(tenantId: string, actorSubject: string, limit: number): Promise<CareerGraphFact[]>;
+  reviewFact(
+    tenantId: string,
+    actorSubject: string,
+    factId: string,
+    input: CareerGraphFactReview
+  ): Promise<CareerGraphFact>;
+}
 
 export interface CloudApiRepository extends TenantMembershipRepository {
   checkReady(): Promise<void>;
@@ -54,6 +70,7 @@ export interface CloudIdentityVerifier {
 export interface CloudApiDependencies {
   identityVerifier: CloudIdentityVerifier;
   repository: CloudApiRepository;
+  careerGraph: CareerGraphRepository;
   rateLimiter: CloudRateLimiter;
   config: CloudApiConfig;
 }
