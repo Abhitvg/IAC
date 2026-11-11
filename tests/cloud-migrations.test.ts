@@ -19,10 +19,12 @@ function createPool(
       calls.push({ sql, values });
       if (sql.includes('to_regclass')) {
         return {
-          rows: [{
+          rows: [
+          {
             ledger_table: ledgerExists ? 'careerops_schema_migrations' : null,
             existing_tables: legacyTables,
-          }] as Row[],
+          },
+        ] as Row[],
         };
       }
       if (sql.includes('COUNT(*)::int AS migration_count')) {
@@ -60,7 +62,9 @@ describe('cloud database migrations', () => {
     ]);
   });
 
-  it('applies fresh-database migrations and records their checksums under one advisory lock', async () => {
+  it(
+    'applies fresh-database migrations and records their checksums under one advisory lock',
+    async () => {
     const migrations: CloudMigration[] = [
       { name: '0002_second.sql', sql: 'BEGIN; SELECT 2; COMMIT;' },
       { name: '0001_first.sql', sql: 'SELECT 1;' },
@@ -96,8 +100,8 @@ describe('cloud database migrations', () => {
     ).toBe(false);
     expect(calls.some((call) => call.sql.trim() === 'BEGIN')).toBe(false);
     expect(client.release).toHaveBeenCalledOnce();
-  });
-
+    }
+  );
 
   it('refuses an empty migration ledger when CareerOps tables already exist', async () => {
     const { pool, calls } = createPool({}, ['tenants'], true);
