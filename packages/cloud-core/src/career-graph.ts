@@ -1,35 +1,59 @@
+import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 
-const FactKeySchema = z.string().trim().min(1).max(120).regex(
-  /^[a-z][a-z0-9_.-]*$/,
-  'Fact keys must be stable lowercase identifiers'
-);
+const FactKeySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(120)
+  .regex(/^[a-z][a-z0-9_.-]*$/, 'Fact keys must be stable lowercase identifiers');
 
-export const EncryptedFactEnvelopeSchema = z.object({
-  algorithm: z.literal('A256GCM'),
-  keyVersion: z.string().min(1).max(128),
-  wrappedKey: z.string().min(1).max(4096),
-  iv: z.string().regex(/^[A-Za-z0-9+/]+={0,2}$/).max(64),
-  authTag: z.string().regex(/^[A-Za-z0-9+/]+={0,2}$/).max(64),
-  ciphertext: z.string().min(1).max(1_000_000),
-  tenantId: z.string().uuid(),
-  context: z.string().min(1).max(256),
-}).strict();
+function base64BytesOfLength(value: string, expectedBytes: number): boolean {
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
+    return false;
+  }
+  const decoded = Buffer.from(value, 'base64');
+  return decoded.length === expectedBytes && decoded.toString('base64') === value;
+}
 
-export const CareerGraphFactInputSchema = z.object({
-  factKey: FactKeySchema,
-  valueEnvelope: EncryptedFactEnvelopeSchema,
-  source: z.object({
-    kind: z.enum(['user_input', 'document', 'integration', 'import']),
-    reference: z.string().max(512).optional(),
-    evidenceSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
-  }).strict(),
-}).strict();
+export const EncryptedFactEnvelopeSchema = z
+  .object({
+    algorithm: z.literal('A256GCM'),
+    keyVersion: z.string().min(1).max(128),
+    wrappedKey: z.string().min(1).max(4096),
+    iv: z.string().refine((value) => base64BytesOfLength(value, 12), 'IV must be 12-byte base64'),
+    authTag: z
+      .string()
+      .refine((value) => base64BytesOfLength(value, 16), 'Auth tag must be 16-byte base64'),
+    ciphertext: z.string().min(1).max(1_000_000),
+    tenantId: z.string().uuid(),
+    context: z.string().min(1).max(256),
+  })
+  .strict();
 
-export const CareerGraphFactReviewSchema = z.object({
-  decision: z.enum(['confirmed', 'rejected']),
-  reason: z.string().trim().max(512).optional(),
-}).strict();
+export const CareerGraphFactInputSchema = z
+  .object({
+    factKey: FactKeySchema,
+    valueEnvelope: EncryptedFactEnvelopeSchema,
+    source: z
+      .object({
+        kind: z.enum(['user_input', 'document', 'integration', 'import']),
+        reference: z.string().max(512).optional(),
+        evidenceSha256: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export const CareerGraphFactReviewSchema = z
+  .object({
+    decision: z.enum(['confirmed', 'rejected']),
+    reason: z.string().trim().max(512).optional(),
+  })
+  .strict();
 
 export type EncryptedFactEnvelope = z.infer<typeof EncryptedFactEnvelopeSchema>;
 export type CareerGraphFactInput = z.infer<typeof CareerGraphFactInputSchema>;
