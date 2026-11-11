@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Scan tracked source for committed secrets
+        run: npm run security:source
+
       - name: Report dependency security advisories
         if: matrix.os == 'ubuntu-24.04'
         shell: bash
@@ -92,6 +95,9 @@ jobs:
       - name: Type check (TypeScript)
         run: npm run typecheck
 
+      - name: Type check cloud foundation (TypeScript)
+        run: npm run typecheck:cloud
+
       - name: Run unit & integration tests
         run: npm test
 
@@ -145,3 +151,30 @@ jobs:
 
       - name: Verify zero secret leakage in build artifacts
         run: npm run security:check
+
+  cloud-postgres-rls:
+    name: Cloud tenant isolation (PostgreSQL)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: careerops_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d careerops_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply migrations and verify tenant RLS / audit immutability
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/careerops_test
+        run: bash scripts/test-cloud-postgres-rls.sh
