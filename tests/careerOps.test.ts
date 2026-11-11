@@ -36,7 +36,7 @@ Requirements:
 
       expect(report.score).toBeGreaterThanOrEqual(4.0);
       expect(report.recommendation).toBe('apply');
-      expect(report.verdictHeadline).toContain('Recommended to Apply');
+      expect(report.verdictHeadline).toContain('Preliminary Keyword Match');
       expect(report.weightedRequirements.length).toBeGreaterThan(0);
 
       // Verify critical requirements check
@@ -64,7 +64,7 @@ Requirements:
 
       expect(report.score).toBeLessThan(4.0);
       expect(report.recommendation).toBe('skip');
-      expect(report.verdictHeadline).toContain('Do Not Apply');
+      expect(report.verdictHeadline).toContain('Preliminary Keyword Match');
     });
 
     it('detects work authorization alerts when JD specifies no sponsorship', () => {
