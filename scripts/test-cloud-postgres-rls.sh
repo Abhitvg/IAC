@@ -8,6 +8,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0001_cloud
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0002_runtime_role_hardening.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0003_sprint_contract_revisions.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0004_shared_rate_limits.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0005_career_graph_facts.sql"
 
 DATABASE_URL="$DATABASE_URL" \
 TENANT_ID="30000000-0000-4000-8000-000000000003" \
@@ -136,8 +137,114 @@ INSERT INTO audit_events (
   '10000000-0000-4000-8000-000000000001', 'user-a', 'test.append',
   'test', 'tenant-a', now(), '{}'::jsonb, NULL, repeat('a', 64)
 );
+
+-- Career Graph facts must use contiguous versions and tenant-bound encrypted envelopes.
+INSERT INTO career_graph_facts (
+  tenant_id, fact_key, version, value_envelope, source_kind, created_by
+) VALUES (
+  '10000000-0000-4000-8000-000000000001',
+  'profile.current_role',
+  1,
+  jsonb_build_object(
+    'algorithm', 'A256GCM',
+    'wrappedKey', 'wrapped-key',
+    'keyVersion', 'test-key-v1',
+    'iv', 'AAAAAAAAAAAAAAAA',
+    'authTag', 'AAAAAAAAAAAAAAAAAAAAAA==',
+    'ciphertext', 'ciphertext',
+    'tenantId', '10000000-0000-4000-8000-000000000001'
+  ),
+  'user_input',
+  'user-a'
+);
+INSERT INTO career_graph_facts (
+  tenant_id, fact_key, version, value_envelope, source_kind, created_by
+) SELECT
+  tenant_id, fact_key, 2, value_envelope, source_kind, created_by
+  FROM career_graph_facts
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND fact_key = 'profile.current_role' AND version = 1;
+
+INSERT INTO career_graph_fact_reviews (tenant_id, fact_id, decision, reviewed_by)
+SELECT tenant_id, id, 'confirmed', 'user-a'
+  FROM career_graph_facts
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND fact_key = 'profile.current_role' AND version = 1;
 COMMIT;
 SQL
+
+if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+SET ROLE careerops_app;
+BEGIN;
+SELECT set_config('app.user_subject', 'user-a', true);
+SELECT set_config('app.tenant_id', '10000000-0000-4000-8000-000000000001', true);
+INSERT INTO career_graph_facts (
+  tenant_id, fact_key, version, value_envelope, source_kind, created_by
+)
+SELECT
+  tenant_id, fact_key, 4, value_envelope, source_kind, created_by
+  FROM career_graph_facts
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND fact_key = 'profile.current_role' AND version = 1;
+COMMIT;
+SQL
+then
+  echo "Expected non-contiguous Career Graph fact version to be rejected, but it succeeded."
+  exit 1
+fi
+
+if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+SET ROLE careerops_app;
+BEGIN;
+SELECT set_config('app.user_subject', 'user-b', true);
+SELECT set_config('app.tenant_id', '10000000-0000-4000-8000-000000000001', true);
+INSERT INTO career_graph_fact_reviews (tenant_id, fact_id, decision, reviewed_by)
+SELECT tenant_id, id, 'confirmed', 'user-b'
+  FROM career_graph_facts
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND fact_key = 'profile.current_role' AND version = 2;
+COMMIT;
+SQL
+then
+  echo "Expected non-contributor Career Graph review to be rejected, but it succeeded."
+  exit 1
+fi
+
+if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+SET ROLE careerops_app;
+BEGIN;
+SELECT set_config('app.user_subject', 'user-a', true);
+SELECT set_config('app.tenant_id', '10000000-0000-4000-8000-000000000001', true);
+UPDATE career_graph_facts SET source_kind = 'import'
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001';
+COMMIT;
+SQL
+then
+  echo "Expected append-only Career Graph fact update to be rejected, but it succeeded."
+  exit 1
+fi
+
+if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+SET ROLE careerops_app;
+BEGIN;
+SELECT set_config('app.user_subject', 'user-a', true);
+SELECT set_config('app.tenant_id', '10000000-0000-4000-8000-000000000001', true);
+INSERT INTO career_graph_facts (
+  tenant_id, fact_key, version, value_envelope, source_kind, created_by
+) VALUES (
+  '20000000-0000-4000-8000-000000000002',
+  'profile.current_role',
+  1,
+  '{"algorithm":"A256GCM","wrappedKey":"wrapped-key","keyVersion":"test-key-v1","iv":"AAAAAAAAAAAAAAAA","authTag":"AAAAAAAAAAAAAAAAAAAAAA==","ciphertext":"ciphertext","tenantId":"20000000-0000-4000-8000-000000000002"}'::jsonb,
+  'user_input',
+  'user-a'
+);
+COMMIT;
+SQL
+then
+  echo "Expected cross-tenant Career Graph insert to be rejected, but it succeeded."
+  exit 1
+fi
 
 if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
 SET ROLE careerops_app;
@@ -167,4 +274,4 @@ then
   exit 1
 fi
 
-echo "PostgreSQL tenant RLS and append-only audit integration checks passed."
+echo "PostgreSQL tenant RLS, Career Graph integrity, and append-only integration checks passed."
