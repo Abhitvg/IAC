@@ -70,7 +70,7 @@ export class ProgressMetricsService {
         .filter(Boolean) as NonNullable<(typeof session.questionHistory)[0]['delivery']>[];
 
       // Extract Structure score
-      let structureScore = session.overallScorecard?.structureScore;
+      let structureScore: number | null | undefined = session.overallScorecard?.structureScore;
       if (structureScore === undefined) {
         const structureDims = evals.flatMap((e) =>
           e.dimensions.filter((d) => d.name.toLowerCase().includes('structure'))
@@ -84,7 +84,7 @@ export class ProgressMetricsService {
       }
 
       // Extract Concreteness score
-      let concretenessScore = session.overallScorecard?.concretenessScore;
+      let concretenessScore: number | null | undefined = session.overallScorecard?.concretenessScore;
       if (concretenessScore === undefined) {
         const concDims = evals.flatMap((e) =>
           e.dimensions.filter((d) => d.name.toLowerCase().includes('concreteness'))
@@ -97,7 +97,7 @@ export class ProgressMetricsService {
       }
 
       // Extract Delivery score & pace
-      let deliveryScore = session.overallScorecard?.deliveryScore;
+      let deliveryScore: number | null | undefined = session.overallScorecard?.deliveryScore;
       if (deliveryScore === undefined) {
         const measuredDeliveries = deliveries.filter(
           (delivery) => delivery.wordCount > 0 && delivery.durationSeconds > 0
@@ -119,9 +119,12 @@ export class ProgressMetricsService {
           ? Math.round((totalWords / totalDuration) * 60)
           : null;
 
+      const measuredDeliveries = deliveries.filter(
+        (delivery) => delivery.wordCount > 0 && delivery.durationSeconds > 0
+      );
       const fillerCount =
-        deliveries.length > 0
-          ? deliveries.reduce((acc, d) => acc + (d.fillerWordsCount || 0), 0)
+        measuredDeliveries.length > 0
+          ? measuredDeliveries.reduce((acc, d) => acc + (d.fillerWordsCount || 0), 0)
           : null;
 
       // Overall score
