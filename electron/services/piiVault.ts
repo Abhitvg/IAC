@@ -261,6 +261,10 @@ export class PiiVault {
     const source = this.recordPath(namespace, key);
     let raw: string;
     try {
+      const stat = await fs.promises.stat(source);
+      if (!stat.isFile() || stat.size > MAX_RECORD_BYTES + 4096) {
+        throw new Error('PII vault record has an invalid size or file type.');
+      }
       raw = await fs.promises.readFile(source, 'utf8');
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
