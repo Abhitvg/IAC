@@ -37,32 +37,27 @@ describe('PiiVault', () => {
     fs.rmSync(userDataPath, { recursive: true, force: true });
   });
 
-  it(
-    'creates a random OS-wrapped key and stores authenticated ciphertext, not plaintext',
-    async () => {
-      const vault = new PiiVault(userDataPath);
-      const profile = { fullName: 'Private Candidate', email: 'private@example.test' };
+  it('creates a random OS-wrapped key and stores authenticated ciphertext, not plaintext', async () => {
+    const vault = new PiiVault(userDataPath);
+    const profile = { fullName: 'Private Candidate', email: 'private@example.test' };
 
-      await vault.put('candidate', 'profile', profile);
+    await vault.put('candidate', 'profile', profile);
 
-      const recordPath = path.join(userDataPath, 'pii-vault', 'candidate', 'profile.json.enc');
-      const raw = fs.readFileSync(recordPath, 'utf8');
-      expect(raw).not.toContain('Private Candidate');
-      expect(raw).not.toContain('private@example.test');
-      if (process.platform !== 'win32') {
-        expect(fs.statSync(recordPath).mode & 0o777).toBe(0o600);
-      }
-
-      const keyRecord = JSON.parse(
-        fs.readFileSync(path.join(userDataPath, '.iac-pii-vault-key.v1'), 'utf8')
-      );
-      expect(keyRecord.version).toBe(1);
-      expect(Buffer.from(keyRecord.data, 'base64url').toString()).not.toContain(
-        'Private Candidate'
-      );
-      await expect(vault.get('candidate', 'profile')).resolves.toEqual(profile);
+    const recordPath = path.join(userDataPath, 'pii-vault', 'candidate', 'profile.json.enc');
+    const raw = fs.readFileSync(recordPath, 'utf8');
+    expect(raw).not.toContain('Private Candidate');
+    expect(raw).not.toContain('private@example.test');
+    if (process.platform !== 'win32') {
+      expect(fs.statSync(recordPath).mode & 0o777).toBe(0o600);
     }
-  );
+
+    const keyRecord = JSON.parse(
+      fs.readFileSync(path.join(userDataPath, '.iac-pii-vault-key.v1'), 'utf8')
+    );
+    expect(keyRecord.version).toBe(1);
+    expect(Buffer.from(keyRecord.data, 'base64url').toString()).not.toContain('Private Candidate');
+    await expect(vault.get('candidate', 'profile')).resolves.toEqual(profile);
+  });
 
   it('binds ciphertext to namespace and record key', async () => {
     const vault = new PiiVault(userDataPath);
@@ -106,24 +101,21 @@ describe('PiiVault', () => {
     expect(fs.readFileSync(keyPath, 'utf8')).toBe('{broken');
   });
 
-  it(
-    'does not create a replacement key when encrypted records exist but the key file is missing',
-    async () => {
-      const vault = new PiiVault(userDataPath);
-      await vault.put('candidate', 'profile', { fullName: 'Private Candidate' });
-      const keyPath = path.join(userDataPath, '.iac-pii-vault-key.v1');
-      const recordPath = path.join(userDataPath, 'pii-vault', 'candidate', 'profile.json.enc');
-      const encryptedRecord = fs.readFileSync(recordPath, 'utf8');
-      fs.unlinkSync(keyPath);
+  it('does not create a replacement key when encrypted records exist but the key file is missing', async () => {
+    const vault = new PiiVault(userDataPath);
+    await vault.put('candidate', 'profile', { fullName: 'Private Candidate' });
+    const keyPath = path.join(userDataPath, '.iac-pii-vault-key.v1');
+    const recordPath = path.join(userDataPath, 'pii-vault', 'candidate', 'profile.json.enc');
+    const encryptedRecord = fs.readFileSync(recordPath, 'utf8');
+    fs.unlinkSync(keyPath);
 
-      const restartedVault = new PiiVault(userDataPath);
-      await expect(
-        restartedVault.put('candidate', 'other-profile', { fullName: 'Another Candidate' })
-      ).rejects.toThrow(/master key is missing while encrypted records exist/);
-      expect(fs.existsSync(keyPath)).toBe(false);
-      expect(fs.readFileSync(recordPath, 'utf8')).toBe(encryptedRecord);
-    }
-  );
+    const restartedVault = new PiiVault(userDataPath);
+    await expect(
+      restartedVault.put('candidate', 'other-profile', { fullName: 'Another Candidate' })
+    ).rejects.toThrow(/master key is missing while encrypted records exist/);
+    expect(fs.existsSync(keyPath)).toBe(false);
+    expect(fs.readFileSync(recordPath, 'utf8')).toBe(encryptedRecord);
+  });
 
   it('refuses access when the OS keyring is unavailable or locked', async () => {
     (safeStorage.isAsyncEncryptionAvailable as any).mockResolvedValue(false);
