@@ -757,6 +757,7 @@ export function CareerOpsView() {
                   const isSelected = job.id === activeJobId;
                   const hasScore = typeof job.score === 'number' && job.score > 0;
                   const isApply = hasScore && (job.score as number) >= 4.0;
+                  const isHeuristic = job.evaluationReport?.summary?.includes('lightweight keyword scan') ?? false;
                   return (
                     <div
                       key={job.id}
@@ -835,13 +836,13 @@ export function CareerOpsView() {
                               fontWeight: 900,
                               padding: '2px 8px',
                               borderRadius: '6px',
-                              background: hasScore
+                              background: hasScore && !isHeuristic
                                 ? isApply
                                   ? 'rgba(34, 197, 94, 0.2)'
                                   : 'rgba(239, 68, 68, 0.2)'
                                 : 'rgba(148, 163, 184, 0.15)',
-                              color: hasScore ? (isApply ? '#4ade80' : '#f87171') : '#94a3b8',
-                              border: hasScore
+                              color: hasScore && !isHeuristic ? (isApply ? '#4ade80' : '#f87171') : '#94a3b8',
+                              border: hasScore && !isHeuristic
                                 ? isApply
                                   ? '1px solid rgba(34, 197, 94, 0.4)'
                                   : '1px solid rgba(239, 68, 68, 0.4)'
@@ -855,11 +856,11 @@ export function CareerOpsView() {
                               fontSize: '9px',
                               fontWeight: 700,
                               marginTop: '2px',
-                              color: isApply ? '#86efac' : '#fca5a5',
+                              color: isHeuristic ? '#fbbf24' : isApply ? '#86efac' : '#fca5a5',
                               textTransform: 'uppercase',
                             }}
                           >
-                            {isApply ? '✓ Apply' : '✗ Skip'}
+                            {isHeuristic ? 'Review Evidence' : isApply ? '✓ Apply' : '✗ Skip'}
                           </span>
                         </div>
                       </div>
@@ -876,11 +877,11 @@ export function CareerOpsView() {
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <DollarSign size={12} color="#34d399" />
-                          <span>{job.salaryRange || 'Market Benchmark'}</span>
+                          <span>{job.salaryRange || 'Not disclosed'}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <MapPin size={12} color="#60a5fa" />
-                          <span>{job.location || 'Remote'}</span>
+                          <span>{job.location || 'Not specified'}</span>
                         </div>
                       </div>
 
