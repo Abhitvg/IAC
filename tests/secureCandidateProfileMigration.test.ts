@@ -99,7 +99,7 @@ describe('Canonical candidate profile encrypted persistence', () => {
     expect(service.getPersistenceError()).toContain('JSON');
   });
 
-  it('writes profile updates through encrypted storage and verifies the committed value', async () => {
+  it('writes profile updates through encrypted storage and awaits commit acknowledgement', async () => {
     const service = CanonicalProfileService.getInstance();
     await expect(service.ready()).resolves.toBe(true);
 
