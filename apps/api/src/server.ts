@@ -294,15 +294,19 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       const status =
         error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')
           ? 400
-          : /active Sprint Contract must be revoked/i.test(message)
+          : /active Sprint Contract must be revoked|reviewed fact is immutable/i.test(message)
             ? 409
-            : /token|identity|membership|bearer|authorization/i.test(message)
-              ? 401
-              : /size limit/i.test(message)
-                ? 413
-                : /JSON|body/i.test(message)
-                  ? 400
-                  : 500;
+            : /Only the fact contributor/i.test(message)
+              ? 403
+              : /Career Graph fact not found/i.test(message)
+                ? 404
+                : /token|identity|membership|bearer|authorization/i.test(message)
+                  ? 401
+                  : /size limit/i.test(message)
+                    ? 413
+                    : /JSON|body|Career Graph envelope|Authenticated tenant and actor/i.test(message)
+                      ? 400
+                      : 500;
       sendJson(response, status, {
         error: status === 500 ? 'Internal server error' : message,
         requestId,
