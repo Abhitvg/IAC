@@ -74,16 +74,6 @@ jobs:
           }
           NODE
 
-      - name: TEMP format PostgreSQL pool tests
-        if: matrix.os == 'ubuntu-24.04' && github.event_name == 'pull_request' && github.event.pull_request.number == 201
-        run: npx prettier --write tests/postgres-pool.test.ts
-      - name: TEMP upload formatted PostgreSQL pool tests
-        if: matrix.os == 'ubuntu-24.04' && github.event_name == 'pull_request' && github.event.pull_request.number == 201
-        uses: actions/upload-artifact@v4
-        with:
-          name: careerops-formatted-pool-tests
-          path: tests/postgres-pool.test.ts
-          if-no-files-found: error
       - name: Check formatting for changed files
         shell: bash
         run: |
