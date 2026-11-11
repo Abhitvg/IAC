@@ -68,6 +68,7 @@ describe('M0 cloud security foundation', () => {
         CAREEROPS_JWT_AUDIENCE: 'careerops-api',
         CAREEROPS_JWKS_URL: 'https://identity.example.test/.well-known/jwks.json',
         CAREEROPS_CONSENT_SIGNING_SECRET: secret,
+        CAREEROPS_RATE_LIMIT_HASH_SECRET: secret,
       } as NodeJS.ProcessEnv)
     ).toThrow();
     expect(() =>
