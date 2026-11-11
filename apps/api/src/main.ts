@@ -12,6 +12,8 @@ function readPort(value: string | undefined): number {
 
 async function start(): Promise<void> {
   const environment = loadCloudEnvironment();
+  const port = readPort(process.env.PORT);
+  const host = process.env.HOST ?? '0.0.0.0';
   const pool = createPostgresPool(environment);
   pool.on('error', (error: Error) => {
     // Never log connection strings, query parameters, or SQL values.
@@ -19,8 +21,6 @@ async function start(): Promise<void> {
   });
 
   const runtime = createCloudApiRuntime(pool, environment);
-  const port = readPort(process.env.PORT);
-  const host = process.env.HOST ?? '0.0.0.0';
 
   let shutdown: Promise<void> | undefined;
   const stop = () => {
