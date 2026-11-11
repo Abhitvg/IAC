@@ -31,7 +31,7 @@ export function CareerDiscoveryPanel() {
       setLabel('');
       setUrl('');
       setKeywords('');
-      setMessage('Career page added. It will be scanned while CareerOps is running.');
+      setMessage('Career page added. It will be scanned while CareerOps is open.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not add this career page.');
     }
