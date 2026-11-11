@@ -204,7 +204,8 @@ export class OidcJwksVerifier {
     const audience =
       typeof claims.aud === 'string'
         ? [claims.aud]
-        : Array.isArray(claims.aud) && claims.aud.length > 0 &&
+        : Array.isArray(claims.aud) &&
+            claims.aud.length > 0 &&
             claims.aud.every((value) => typeof value === 'string')
           ? (claims.aud as string[])
           : [];

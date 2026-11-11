@@ -73,9 +73,7 @@ export async function loadCloudMigrations(directory: string): Promise<CloudMigra
       throw new Error(`Invalid cloud migration filename: ${entry.name}`);
     }
   }
-  const files = sqlEntries
-    .map((entry) => entry.name)
-    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const files = sqlEntries.map((entry) => entry.name).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
   return Promise.all(
     files.map(async (name) => ({
