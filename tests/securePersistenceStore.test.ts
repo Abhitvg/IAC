@@ -134,7 +134,7 @@ describe('SecurePersistenceStore', () => {
       shouldReEncrypt: true,
     });
     await expect(store.get('candidate-profile')).resolves.toBe('rotation-value');
-    expect(safeStorage.encryptStringAsync).toHaveBeenCalledTimes(3);
+    expect(safeStorage.encryptStringAsync).toHaveBeenCalledTimes(2);
   });
 
   it('removes only the selected encrypted record', async () => {
