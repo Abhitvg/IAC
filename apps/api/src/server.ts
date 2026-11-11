@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { readBearerToken, verifyAccessToken } from '../../../packages/cloud-core/src/auth';
+import { readBearerToken } from '../../../packages/cloud-core/src/auth';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
 
@@ -55,11 +55,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       }
 
       const token = readBearerToken(request.headers.authorization);
-      const identity = verifyAccessToken(token, {
-        issuer: dependencies.config.issuer,
-        audience: dependencies.config.audience,
-        hmacSecret: dependencies.config.jwtHmacSecret,
-      });
+      const identity = await dependencies.identityVerifier.verify(token);
       const tenant = await resolveTenantContext(identity.subject, dependencies.repository);
       if (!(await dependencies.rateLimiter.consume(`tenant:${tenant.tenantId}`, 300, 60_000))) {
         sendJson(response, 429, { error: 'Tenant rate limit exceeded', requestId });
