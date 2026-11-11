@@ -1,0 +1,33 @@
+name: Temporary CareerOps docs formatter export
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  format-export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out documentation branch
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.13.0
+      - name: Format audit documents
+        run: npx --yes prettier@3.9.10 --write docs/architecture.md docs/audit.md
+      - name: Export formatted content to job log
+        shell: bash
+        run: |
+          echo ARCHITECTURE_BASE64_BEGIN
+          base64 -w0 docs/architecture.md
+          echo
+          echo ARCHITECTURE_BASE64_END
+          echo AUDIT_BASE64_BEGIN
+          base64 -w0 docs/audit.md
+          echo
+          echo AUDIT_BASE64_END
