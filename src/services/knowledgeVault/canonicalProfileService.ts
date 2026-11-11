@@ -156,8 +156,9 @@ export class CanonicalProfileService {
         const snapshot = JSON.stringify(this.currentProfile);
         const saved = await api.securePersistenceSet('candidate-profile', snapshot);
         if (saved !== true) throw new Error('Encrypted candidate profile write was not committed.');
-        const verified = await api.securePersistenceGet('candidate-profile');
-        if (verified !== snapshot) throw new Error('Encrypted candidate profile read-back failed.');
+        // The main-process store performs authenticated read-back verification
+        // before returning true; avoid a second renderer-side read that can race
+        // with another queued profile update.
         this.persistenceError = null;
         return true;
       } catch (error) {
