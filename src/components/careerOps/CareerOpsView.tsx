@@ -1291,7 +1291,7 @@ export function CareerOpsView() {
                 </h4>
                 <p style={{ margin: 0, fontSize: '12px', color: '#cbd5e1', lineHeight: '1.5' }}>
                   {activeJob.evaluationReport?.strategicAngle ||
-                    'Emphasize high-scale distributed reliability and clean code practices.'}
+                    'Select a verified example from the source resume that maps to the most important job requirement.'}
                 </p>
                 <div
                   style={{
@@ -1302,7 +1302,7 @@ export function CareerOpsView() {
                 >
                   <span style={{ fontSize: '11px', color: '#94a3b8' }}>Level Strategy: </span>
                   <span style={{ fontSize: '11px', fontWeight: 700, color: '#f1f5f9' }}>
-                    {activeJob.evaluationReport?.levelStrategy || 'Senior Software Engineer'}
+                    {activeJob.evaluationReport?.levelStrategy || 'Seniority not assessed'}
                   </span>
                 </div>
               </div>
@@ -1326,7 +1326,7 @@ export function CareerOpsView() {
                 </div>
                 <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#94a3b8' }}>
                   {activeJob.evaluationReport?.compensationEstimate?.analysis ||
-                    'Based on verified remote Senior Software Engineer compensation percentiles.'}
+                    'No compensation analysis available. Check the employer’s posted range or official compensation information.'}
                 </p>
               </div>
             </div>
