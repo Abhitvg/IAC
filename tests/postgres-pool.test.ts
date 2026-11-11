@@ -3,15 +3,20 @@ import { createPostgresPoolFromUrl } from '../apps/api/src/postgres-pool';
 
 describe('PostgreSQL runtime pool configuration', () => {
   it('rejects missing or invalid runtime environment values', () => {
-    expect(() => createPostgresPoolFromUrl(
-      'postgres://user:password@db.example.test/careerops',
-      undefined as never
-    )).toThrow('A valid NODE_ENV is required');
-    expect(() => createPostgresPoolFromUrl(
-      'postgres://user:password@db.example.test/careerops',
-      'staging' as never
-    )).toThrow('A valid NODE_ENV is required');
+    expect(() =>
+      createPostgresPoolFromUrl(
+        'postgres://user:password@db.example.test/careerops',
+        undefined as never
+      )
+    ).toThrow('A valid NODE_ENV is required');
+    expect(() =>
+      createPostgresPoolFromUrl(
+        'postgres://user:password@db.example.test/careerops',
+        'staging' as never
+      )
+    ).toThrow('A valid NODE_ENV is required');
   });
+
   it('requires a PostgreSQL URL and rejects connection-string TLS overrides', () => {
     expect(() => createPostgresPoolFromUrl('https://db.example.test', 'development')).toThrow();
     expect(() =>
