@@ -34,7 +34,7 @@ const fact: CareerGraphFact = {
 const validInput = {
   factKey: 'profile.current_role',
   valueEnvelope: fact.valueEnvelope,
-  source: { kind: 'user_input' },
+  source: { kind: 'user_input' as const },
 };
 
 function createDependencies(): CloudApiDependencies {
