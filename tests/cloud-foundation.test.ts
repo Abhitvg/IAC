@@ -433,7 +433,11 @@ describe('M0 cloud security foundation', () => {
       repository: {
         findMembershipsBySubject: async () => [membership],
         acceptSprintContract: async (record) => {
-          acceptedContract = record;
+          acceptedContract = {
+            ...record,
+            id: '40000000-0000-4000-8000-000000000004',
+            revision: 1,
+          };
           return { id: '40000000-0000-4000-8000-000000000004', revision: 1 };
         },
         getActiveSprintContract: async () => acceptedContract as never,
