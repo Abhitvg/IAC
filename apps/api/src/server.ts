@@ -1,6 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { appendAuditEvent } from '../../../packages/cloud-core/src/audit';
 import { readBearerToken, verifyAccessToken } from '../../../packages/cloud-core/src/auth';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
