@@ -415,6 +415,10 @@ if (!gotTheLock) {
   });
 }
 
+app.on('before-quit', () => {
+  piiVault?.close();
+});
+
 app.on('window-all-closed', () => {
   globalShortcut.unregisterAll();
   app.quit();
