@@ -42,6 +42,14 @@ BEGIN
   END IF;
 END
 $$;
+INSERT INTO sprint_contracts (tenant_id, version, contract_json, contract_hash, accepted_by, accepted_at, signature)
+VALUES (
+  '10000000-0000-4000-8000-000000000001', 1, '{}'::jsonb, repeat('c', 64),
+  'user-a', now(), repeat('d', 64)
+);
+UPDATE sprint_contracts SET revoked_at = now()
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001' AND version = 1;
+
 INSERT INTO audit_events (
   tenant_id, actor_subject, action, entity_type, entity_id,
   occurred_at, metadata, previous_hash, event_hash
