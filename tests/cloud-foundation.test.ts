@@ -407,12 +407,10 @@ describe('M0 cloud security foundation', () => {
     expect(verifyConsentRecord(record, secret)).toBe(true);
     // Buffer.from(..., 'hex') silently ignores malformed trailing characters.
     // Authentication material must therefore be canonical, fixed-length hex.
-    expect(
-      verifyConsentRecord({ ...record, signature: `${record.signature}zz` }, secret)
-    ).toBe(false);
-    expect(
-      verifyConsentRecord({ ...record, contractHash: `${record.contractHash}zz` }, secret)
-    ).toBe(false);
+    const malformedSignature = { ...record, signature: `${record.signature}zz` };
+    const malformedHash = { ...record, contractHash: `${record.contractHash}zz` };
+    expect(verifyConsentRecord(malformedSignature, secret)).toBe(false);
+    expect(verifyConsentRecord(malformedHash, secret)).toBe(false);
     const reorderedContract = Object.fromEntries(
       Object.entries(record.contract).reverse()
     ) as typeof record.contract;
