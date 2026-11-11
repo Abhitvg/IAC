@@ -311,8 +311,8 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
                   : /size limit/i.test(message)
                     ? 413
                     : /JSON|body|Career Graph envelope|Authenticated tenant and actor/i.test(
-                        message
-                      )
+                          message
+                        )
                       ? 400
                       : 500;
       sendJson(response, status, {
