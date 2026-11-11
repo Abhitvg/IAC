@@ -302,26 +302,24 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       sendJson(response, 404, { error: 'Not found', requestId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
-      const status =
-        error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')
-          ? 400
-          : /active Sprint Contract must be revoked|reviewed fact is immutable/i.test(message)
-            ? 409
-            : /Only the fact contributor/i.test(message)
-              ? 403
-              : /Career Graph fact not found/i.test(message)
-                ? 404
-                : /Career Graph KMS provider is not configured/i.test(message)
-                  ? 503
-                  : /token|identity|membership|bearer|authorization/i.test(message)
-                  ? 401
-                  : /size limit/i.test(message)
-                    ? 413
-                    : /JSON|body|Career Graph envelope|Authenticated tenant and actor/i.test(
-                          message
-                        )
-                      ? 400
-                      : 500;
+      let status = 500;
+      if (error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')) {
+        status = 400;
+      } else if (/active Sprint Contract must be revoked|reviewed fact is immutable/i.test(message)) {
+        status = 409;
+      } else if (/Only the fact contributor/i.test(message)) {
+        status = 403;
+      } else if (/Career Graph fact not found/i.test(message)) {
+        status = 404;
+      } else if (/Career Graph KMS provider is not configured/i.test(message)) {
+        status = 503;
+      } else if (/token|identity|membership|bearer|authorization/i.test(message)) {
+        status = 401;
+      } else if (/size limit/i.test(message)) {
+        status = 413;
+      } else if (/JSON|body|Career Graph envelope|Authenticated tenant and actor/i.test(message)) {
+        status = 400;
+      }
       sendJson(response, status, {
         error: status === 500 ? 'Internal server error' : message,
         requestId,
