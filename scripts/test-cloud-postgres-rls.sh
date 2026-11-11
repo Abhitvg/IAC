@@ -86,6 +86,12 @@ VALUES (
 UPDATE sprint_contracts SET revoked_at = now()
  WHERE tenant_id = '10000000-0000-4000-8000-000000000001' AND version = 1;
 
+-- A second active acceptance for the same tenant must be rejected even with a new revision.
+INSERT INTO sprint_contracts (tenant_id, version, revision, contract_json, contract_hash, accepted_by, accepted_at, signature)
+VALUES (
+  '10000000-0000-4000-8000-000000000001', 1, 2, '{}'::jsonb, repeat('e', 64),
+  'user-a', now(), repeat('f', 64)
+);
 INSERT INTO audit_events (
   tenant_id, actor_subject, action, entity_type, entity_id,
   occurred_at, metadata, previous_hash, event_hash
