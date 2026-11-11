@@ -76,6 +76,28 @@ function isKnownFabricatedDemoProfile(profile: any): boolean {
   );
 }
 
+function clearUnknownPlaceholder(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return /^(unknown|not specified|n\\/a|none|null)$/i.test(value.trim()) ? '' : value;
+}
+
+function normalizeVaultProfile(profile: Partial<CandidateVaultProfile>): CandidateVaultProfile {
+  return {
+    ...INITIAL_CANDIDATE_VAULT,
+    ...profile,
+    location: clearUnknownPlaceholder(profile.location),
+    city: clearUnknownPlaceholder(profile.city),
+    state: clearUnknownPlaceholder(profile.state),
+    country: clearUnknownPlaceholder(profile.country),
+    currentCompany: clearUnknownPlaceholder(profile.currentCompany),
+    currentTitle: clearUnknownPlaceholder(profile.currentTitle),
+    yearsOfExperience: clearUnknownPlaceholder(profile.yearsOfExperience),
+    salaryExpectation: clearUnknownPlaceholder(profile.salaryExpectation),
+    authorizedToWorkVerified: profile.authorizedToWorkVerified === true,
+    requiresSponsorshipVerified: profile.requiresSponsorshipVerified === true,
+  };
+}
+
 function loadVaultFromStorage(): CandidateVaultProfile {
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     try {
@@ -84,12 +106,7 @@ function loadVaultFromStorage(): CandidateVaultProfile {
       if (rawV2) {
         const parsed = JSON.parse(rawV2);
         if (!isKnownFabricatedDemoProfile(parsed)) {
-          return {
-            ...INITIAL_CANDIDATE_VAULT,
-            ...parsed,
-            authorizedToWorkVerified: parsed.authorizedToWorkVerified === true,
-            requiresSponsorshipVerified: parsed.requiresSponsorshipVerified === true,
-          };
+          return normalizeVaultProfile(parsed);
         }
       }
 
@@ -106,13 +123,7 @@ function loadVaultFromStorage(): CandidateVaultProfile {
           return INITIAL_CANDIDATE_VAULT;
         } else {
           // Genuine user-supplied data from v1: migrate to v2
-          const migrated = {
-            ...INITIAL_CANDIDATE_VAULT,
-            ...legacyParsed,
-            authorizedToWorkVerified: false,
-            requiresSponsorshipVerified: false,
-            isUserSupplied: true,
-          };
+          const migrated = normalizeVaultProfile({ ...legacyParsed, isUserSupplied: true });
           localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
           localStorage.removeItem(LEGACY_STORAGE_KEY);
           return migrated;
