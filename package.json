@@ -5,7 +5,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && tsc -p tsconfig.electron.json",
+    "build": "tsc && vite build && tsc -p tsconfig.electron.json && npm run build:api",
     "preview": "vite preview",
     "electron:dev": "tsc -p tsconfig.electron.json && vite",
     "electron:build": "npm run build && electron-builder",
@@ -16,7 +16,12 @@
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "security:check": "node scripts/verify-no-secrets.js"
+    "security:check": "node scripts/verify-no-secrets.js",
+    "typecheck:cloud": "tsc --project tsconfig.cloud.json",
+    "security:source": "node scripts/verify-source-secrets.js",
+    "build:api": "tsc --project tsconfig.api.build.json",
+    "start:api": "node dist-api/apps/api/src/main.js",
+    "migrate:cloud": "node dist-api/scripts/run-cloud-migrations.js"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
@@ -24,6 +29,7 @@
     "lucide-react": "^0.460.0",
     "mammoth": "^1.8.0",
     "pdfjs-dist": "^6.4.299",
+    "pg": "^8.23.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",
@@ -36,6 +42,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.64.1",
+    "@types/pg": "^8.23.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/react-syntax-highlighter": "^15.5.13",
