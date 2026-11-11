@@ -344,7 +344,11 @@ describe('M0 cloud security foundation', () => {
       status: 'active',
     };
     const dependencies: CloudApiDependencies = {
-      config: { ...authConfig },
+      config: {
+        issuer: authConfig.issuer,
+        audience: authConfig.audience,
+        jwtHmacSecret: authConfig.hmacSecret,
+      },
       rateLimiter: { consume: async () => rateLimitAllowed },
       repository: {
         findMembershipsBySubject: async () => [membership],
