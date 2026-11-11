@@ -30,7 +30,10 @@ export const AchievementsSection: React.FC<AchievementsSectionProps> = React.mem
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateAchievements(draftRef.current, true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdateAchievements(draftRef.current, true);
+      }
     }, [onUpdateAchievements]);
 
     useEffect(() => {
