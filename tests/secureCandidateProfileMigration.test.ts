@@ -43,24 +43,24 @@ describe('Canonical candidate profile encrypted persistence', () => {
   it(
     'migrates legacy plaintext only after encrypted write and read-back verification',
     async () => {
-        const profile = createDefaultCanonicalProfile();
-        profile.identity.fullName = 'Candidate Profile Test';
-        const legacy = JSON.stringify(profile);
-        localStorage.setItem(STORAGE_KEY, legacy);
+      const profile = createDefaultCanonicalProfile();
+      profile.identity.fullName = 'Candidate Profile Test';
+      const legacy = JSON.stringify(profile);
+      localStorage.setItem(STORAGE_KEY, legacy);
 
-        secureApi.securePersistenceSet.mockImplementationOnce(async (_namespace, value) => {
-          expect(localStorage.getItem(STORAGE_KEY)).toBe(legacy);
-          encryptedValue = value;
-          return true;
-        });
+      secureApi.securePersistenceSet.mockImplementationOnce(async (_namespace, value) => {
+        expect(localStorage.getItem(STORAGE_KEY)).toBe(legacy);
+        encryptedValue = value;
+        return true;
+      });
 
-        const service = CanonicalProfileService.getInstance();
-        await expect(service.ready()).resolves.toBe(true);
+      const service = CanonicalProfileService.getInstance();
+      await expect(service.ready()).resolves.toBe(true);
 
-        expect(encryptedValue).toBe(legacy);
-        expect(secureApi.securePersistenceGet).toHaveBeenCalledTimes(2);
-        expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
-        expect(service.getProfile().identity.fullName).toBe('Candidate Profile Test');
+      expect(encryptedValue).toBe(legacy);
+      expect(secureApi.securePersistenceGet).toHaveBeenCalledTimes(2);
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+      expect(service.getProfile().identity.fullName).toBe('Candidate Profile Test');
     }
   );
 
@@ -100,18 +100,18 @@ describe('Canonical candidate profile encrypted persistence', () => {
   it(
     'writes profile updates through encrypted storage and verifies the committed value',
     async () => {
-    const service = CanonicalProfileService.getInstance();
-    await expect(service.ready()).resolves.toBe(true);
+      const service = CanonicalProfileService.getInstance();
+      await expect(service.ready()).resolves.toBe(true);
 
-    const next = {
-      ...service.getProfile(),
-      identity: { ...service.getProfile().identity, fullName: 'Encrypted Candidate' },
-    };
-    expect(service.saveProfile(next)).toBe(true);
-    await expect(service.flushPendingPersistence()).resolves.toBe(true);
+      const next = {
+        ...service.getProfile(),
+        identity: { ...service.getProfile().identity, fullName: 'Encrypted Candidate' },
+      };
+      expect(service.saveProfile(next)).toBe(true);
+      await expect(service.flushPendingPersistence()).resolves.toBe(true);
 
-    expect(encryptedValue).toContain('Encrypted Candidate');
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+      expect(encryptedValue).toContain('Encrypted Candidate');
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     }
   );
 
