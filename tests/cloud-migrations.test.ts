@@ -67,7 +67,9 @@ describe('cloud database migrations', () => {
 
     const statements = calls.map((call) => call.sql.trim());
     expect(statements[0]).toContain('pg_advisory_lock');
-    expect(statements.some((statement) => statement.includes('CREATE TABLE careerops_schema_migrations'))).toBe(true);
+    expect(
+      statements.some((statement) => statement.includes('CREATE TABLE careerops_schema_migrations'))
+    ).toBe(true);
     expect(statements).toContain('BEGIN');
     expect(statements).toContain('SELECT 2;');
     expect(statements).toContain('COMMIT');
@@ -82,7 +84,9 @@ describe('cloud database migrations', () => {
       runCloudMigrations(pool, [{ name: '0001_first.sql', sql: 'SELECT 1;' }])
     ).rejects.toThrow(/explicit reviewed baseline is required/);
 
-    expect(calls.some((call) => call.sql.includes('CREATE TABLE careerops_schema_migrations'))).toBe(false);
+    expect(
+      calls.some((call) => call.sql.includes('CREATE TABLE careerops_schema_migrations'))
+    ).toBe(false);
     expect(calls.some((call) => call.sql.trim() === 'BEGIN')).toBe(false);
     expect(client.release).toHaveBeenCalledOnce();
   });
