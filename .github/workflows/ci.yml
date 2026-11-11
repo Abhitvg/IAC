@@ -85,7 +85,7 @@ jobs:
           fi
           if [[ -s /tmp/changed-files.txt ]]; then
             xargs -r npx prettier --write < /tmp/changed-files.txt
-git diff -- tests/encryption.test.ts tsconfig.cloud.json
+            git diff -- tests/encryption.test.ts tsconfig.cloud.json
           else
             echo "No supported files changed; skipping formatting check."
           fi
