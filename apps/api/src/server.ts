@@ -131,7 +131,9 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           sendJson(response, 400, { error: 'Revocation request body must be empty', requestId });
           return;
         }
-        const activeContract = await dependencies.repository.getActiveSprintContract(tenant.tenantId);
+        const activeContract = await dependencies.repository.getActiveSprintContract(
+          tenant.tenantId
+        );
         if (!activeContract || activeContract.id !== revokeMatch[1]) {
           sendJson(response, 404, { error: 'Active Sprint Contract not found', requestId });
           return;
