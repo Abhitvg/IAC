@@ -100,7 +100,8 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       sendJson(response, 404, { error: 'Not found', requestId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
-      const status = /token|identity|membership|bearer|authorization/i.test(message) ? 401
+      const status = error instanceof SyntaxError ? 400
+        : /token|identity|membership|bearer|authorization/i.test(message) ? 401
         : /size limit/i.test(message) ? 413
           : /JSON|body/i.test(message) ? 400 : 500;
       sendJson(response, status, {
