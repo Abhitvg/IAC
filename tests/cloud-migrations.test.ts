@@ -91,7 +91,9 @@ describe('cloud database migrations', () => {
     }
   );
 
-  it('refuses to run against a pre-existing CareerOps schema without an explicit baseline', async () => {
+  it(
+    'refuses to run against a pre-existing CareerOps schema without an explicit baseline',
+    async () => {
     const { pool, calls, client } = createPool({}, ['tenants', 'sprint_contracts']);
 
     await expect(
@@ -102,8 +104,9 @@ describe('cloud database migrations', () => {
       calls.some((call) => call.sql.includes('CREATE TABLE careerops_schema_migrations'))
     ).toBe(false);
     expect(calls.some((call) => call.sql.trim() === 'BEGIN')).toBe(false);
-    expect(client.release).toHaveBeenCalledOnce();
-  });
+      expect(client.release).toHaveBeenCalledOnce();
+    }
+  );
 
   it('refuses an empty migration ledger when CareerOps tables already exist', async () => {
     const { pool, calls } = createPool({}, ['tenants'], true);
