@@ -17,6 +17,32 @@ describe('PostgreSQL runtime pool configuration', () => {
     ).toThrow('A valid NODE_ENV is required');
   });
 
+  it('allows plaintext only for loopback development/test databases', async () => {
+    for (const environment of ['development', 'test'] as const) {
+      const pool = createPostgresPoolFromUrl(
+        'postgres://user:password@127.0.0.1:5432/careerops',
+        environment
+      );
+      try {
+        expect(pool.options.ssl).toBe(false);
+      } finally {
+        await pool.end();
+      }
+    }
+    expect(() =>
+      createPostgresPoolFromUrl(
+        'postgres://user:password@db.example.test:5432/careerops',
+        'development'
+      )
+    ).toThrow('Non-production PostgreSQL connections are restricted to loopback hosts');
+    expect(() =>
+      createPostgresPoolFromUrl(
+        'postgres://user:password@db.example.test:5432/careerops',
+        'test'
+      )
+    ).toThrow('Non-production PostgreSQL connections are restricted to loopback hosts');
+  });
+
   it('requires a PostgreSQL URL and rejects connection-string TLS overrides', () => {
     expect(() => createPostgresPoolFromUrl('https://db.example.test', 'development')).toThrow();
     expect(() =>
