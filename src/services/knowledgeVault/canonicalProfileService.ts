@@ -1072,6 +1072,8 @@ export class CanonicalProfileService {
     if (this.isSyncing) return;
     this.isSyncing = true;
     try {
+      const persistLegacyMirrors = this.getSecurePersistenceApi() === null;
+
       // 1. Sync with KnowledgeVaultService
       try {
         const kv = KnowledgeVaultService.getInstance();
@@ -1115,7 +1117,7 @@ export class CanonicalProfileService {
           }
         }
 
-        kv.saveVault(vault);
+        kv.saveVault(vault, persistLegacyMirrors);
       } catch (e) {
         // Ignored if KnowledgeVaultService not initialized yet
       }
@@ -1165,7 +1167,7 @@ export class CanonicalProfileService {
             profile.declarations.workAuthorization.authorized ?? store.profile.authorizedToWork,
           requiresSponsorship:
             profile.declarations.sponsorshipRequired.required ?? store.profile.requiresSponsorship,
-        });
+        }, persistLegacyMirrors);
       } catch (e) {
         // Ignored if useCandidateVaultStore not active
       }
