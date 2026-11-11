@@ -58,7 +58,10 @@ export const ExperienceSection: React.FC<ExperienceSectionProps> = React.memo(
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateExperience(sanitizeDraftForExport(draftRef.current), true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdateExperience(sanitizeDraftForExport(draftRef.current), true);
+      }
     }, [onUpdateExperience]);
 
     useEffect(() => {
