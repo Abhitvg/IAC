@@ -43,6 +43,7 @@ describe('Canonical candidate profile encrypted persistence', () => {
   });
 
   afterEach(() => {
+    (CanonicalProfileService as any).instance?.dispose?.();
     (CanonicalProfileService as any).instance = null;
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
