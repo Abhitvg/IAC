@@ -94,7 +94,7 @@ export function CareerDiscoveryPanel() {
         </button>
       </div>
 
-      <form onSubmit={handleAddSource} style={{ ...panelStyle, display: 'grid', gridTemplateColumns: 'minmax(160px,1fr) minmax(220px,2fr)', gap: 10 }}>
+      <form onSubmit={handleAddSource} style={{ ...panelStyle, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
         <div>
           <label htmlFor="career-source-label" style={{ display: 'block', color: '#94a3b8', fontSize: 10, fontWeight: 800, marginBottom: 5 }}>SOURCE NAME</label>
           <input id="career-source-label" required value={label} onChange={(event) => setLabel(event.target.value)} placeholder="e.g. Anthropic Careers" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 10px', borderRadius: 7, background: '#0b1220', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.13)', fontSize: 12 }} />
