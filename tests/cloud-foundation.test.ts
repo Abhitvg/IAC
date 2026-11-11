@@ -22,6 +22,7 @@ import { createCloudApiServer } from '../apps/api/src/server';
 import { loadCloudEnvironment } from '../apps/api/src/config';
 import type { CloudApiDependencies } from '../apps/api/src/ports';
 import { PostgresCloudApiRepository, type SqlPool } from '../apps/api/src/postgres-repository';
+import { PostgresCloudRateLimiter } from '../apps/api/src/postgres-rate-limiter';
 
 const secret = 'test-only-secret-that-is-at-least-32-characters';
 const contractInput = {
@@ -59,6 +60,57 @@ const authConfig = {
   audience: 'careerops-api',
   jwksUrl: 'https://identity.example.test/.well-known/jwks.json',
 };
+
+describe('PostgreSQL shared rate limiter', () => {
+  it('atomically counts fixed-window requests without storing raw caller keys', async () => {
+    const statements: Array<{ sql: string; values?: unknown[] }> = [];
+    let count = 0;
+    let windowStart: Date | null = null;
+    const pool = {
+      connect: async () => ({
+        query: async (sql: string, values?: unknown[]) => {
+          statements.push({ sql, values });
+          if (sql.includes('INSERT INTO api_rate_limit_buckets')) {
+            const incomingWindow = values?.[1] as Date;
+            count = windowStart?.getTime() === incomingWindow.getTime() ? count + 1 : 1;
+            windowStart = incomingWindow;
+            return { rows: [{ request_count: count }] };
+          }
+          return { rows: [] };
+        },
+        release: () => undefined,
+      }),
+    } as unknown as SqlPool;
+    let now = Date.parse('2026-11-11T10:00:10.000Z');
+    const limiter = new PostgresCloudRateLimiter(pool, secret, () => now);
+
+    expect(await limiter.consume('ip:203.0.113.10', 2, 60_000)).toBe(true);
+    expect(await limiter.consume('ip:203.0.113.10', 2, 60_000)).toBe(true);
+    expect(await limiter.consume('ip:203.0.113.10', 2, 60_000)).toBe(false);
+
+    const bucketInsert = statements.find((item) =>
+      item.sql.includes('INSERT INTO api_rate_limit_buckets')
+    );
+    expect(bucketInsert?.values?.[0]).toMatch(/^[a-f0-9]{64}$/);
+    expect(bucketInsert?.values?.[0]).not.toContain('203.0.113.10');
+
+    now += 60_000;
+    expect(await limiter.consume('ip:203.0.113.10', 2, 60_000)).toBe(true);
+    expect(count).toBe(1);
+    expect(statements.some((item) => item.sql.includes('ON CONFLICT (bucket_key) DO UPDATE'))).toBe(
+      true
+    );
+  });
+
+  it('rejects weak secrets and invalid rate-limit parameters', async () => {
+    const pool = { connect: async () => { throw new Error('should not connect'); } } as unknown as SqlPool;
+    expect(() => new PostgresCloudRateLimiter(pool, 'too-short')).toThrow();
+    const limiter = new PostgresCloudRateLimiter(pool, secret);
+    await expect(limiter.consume('', 1, 1000)).rejects.toThrow();
+    await expect(limiter.consume('ip:test', 0, 1000)).rejects.toThrow();
+    await expect(limiter.consume('ip:test', 1, 0)).rejects.toThrow();
+  });
+});
 
 describe('M0 cloud security foundation', () => {
   it('requires HTTPS issuer/JWKS endpoints and a separate consent signing secret', () => {
@@ -415,6 +467,7 @@ describe('M0 cloud security foundation', () => {
     };
     let acceptedContract: unknown = null;
     let revokedContractId: string | null = null;
+    let databaseReady = true;
     const dependencies: CloudApiDependencies = {
       config: {
         issuer: authConfig.issuer,
@@ -446,7 +499,9 @@ describe('M0 cloud security foundation', () => {
           revokedContractId = contractId;
           acceptedContract = null;
         },
-        checkReady: async () => undefined,
+        checkReady: async () => {
+          if (!databaseReady) throw new Error('database unavailable');
+        },
       getControlState: async (tenantId) => ({
           tenantId,
           globalKillSwitch: true,
@@ -465,6 +520,12 @@ describe('M0 cloud security foundation', () => {
     try {
       const health = await fetch(`http://127.0.0.1:${address.port}/health/live`);
       expect(health.status).toBe(200);
+      const ready = await fetch(`http://127.0.0.1:${address.port}/health/ready`);
+      expect(ready.status).toBe(200);
+      databaseReady = false;
+      const notReady = await fetch(`http://127.0.0.1:${address.port}/health/ready`);
+      expect(notReady.status).toBe(503);
+      databaseReady = true;
       const unauthorized = await fetch(`http://127.0.0.1:${address.port}/v1/me`);
       expect(unauthorized.status).toBe(401);
       const token = signToken({
