@@ -68,6 +68,16 @@ export const SprintContractSchema = z
         message: 'Email requires explicit outreach consent',
       });
     }
+    const allowedFactIds = new Set(contract.allowedFactIds);
+    for (const [answerKey, answer] of Object.entries(contract.defaultAnswers)) {
+      if (answer.confirmedFactIds.some((factId) => !allowedFactIds.has(factId))) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['defaultAnswers', answerKey, 'confirmedFactIds'],
+          message: 'Default answers may reference only explicitly allowed fact IDs',
+        });
+      }
+    }
   });
 
 export type SprintContract = z.infer<typeof SprintContractSchema>;
