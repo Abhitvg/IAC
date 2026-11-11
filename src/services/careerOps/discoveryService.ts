@@ -125,7 +125,7 @@ export async function discoverJobsFromCareerPage(
   });
 
   if (page.statusCode < 200 || page.statusCode >= 300) {
-    throw new Error(\`Career page returned HTTP \${page.statusCode}.\`);
+    throw new Error(`Career page returned HTTP ${page.statusCode}.`);
   }
   if (!/text\/html|application\/xhtml\+xml/i.test(page.contentType)) {
     throw new Error('Career page did not return HTML.');
@@ -144,7 +144,7 @@ export async function discoverJobsFromCareerPage(
       if (!details.company || details.company === 'Unknown Company') {
         details.company = source.label.trim() || 'Unknown Company';
       }
-      const keywordText = \`\${details.role} \${details.jdText}\`.toLowerCase();
+      const keywordText = `${details.role} ${details.jdText}`.toLowerCase();
       const keywords = (source.keywords || []).map((item) => item.trim().toLowerCase()).filter(Boolean);
       if (keywords.length && !keywords.some((keyword) => keywordText.includes(keyword))) {
         skipped += 1;
@@ -153,7 +153,7 @@ export async function discoverJobsFromCareerPage(
       jobs.push({ details, sourceLabel: source.label });
     } catch (error) {
       errors.push(
-        \`\${link.url}: \${error instanceof Error ? error.message : 'Could not import posting'}\`
+        `${link.url}: ${error instanceof Error ? error.message : 'Could not import posting'}`
       );
     }
   }
