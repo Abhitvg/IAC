@@ -36,9 +36,11 @@ export function createCloudApiRuntime(
     },
   });
 
+  let closed = false;
   return {
     server,
     listen(port, host = '0.0.0.0') {
+      if (closed) throw new Error('Cloud API runtime is already closed');
       if (!Number.isInteger(port) || port < 0 || port > 65535 || !host.trim()) {
         throw new Error('Invalid API listen address');
       }
@@ -52,12 +54,17 @@ export function createCloudApiRuntime(
       });
     },
     async close() {
-      if (server.listening) {
-        await new Promise<void>((resolve, reject) => {
-          server.close((error) => (error ? reject(error) : resolve()));
-        });
+      if (closed) return;
+      closed = true;
+      try {
+        if (server.listening) {
+          await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()));
+          });
+        }
+      } finally {
+        await pool.end?.();
       }
-      await pool.end?.();
     },
   };
 }
