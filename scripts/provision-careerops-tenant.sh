@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${DATABASE_URL:?DATABASE_URL must use a privileged provisioning/migration database role}"
+: "${DATABASE_URL:?DATABASE_URL must use a login explicitly granted membership in careerops_provisioner}"
 : "${TENANT_ID:?TENANT_ID must be a UUID}"
 : "${TENANT_NAME:?TENANT_NAME is required}"
 : "${OWNER_SUBJECT:?OWNER_SUBJECT must be the exact OIDC issuer subject}"
@@ -48,6 +48,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -v owner_subject="$OWNER_SUBJECT" \
   -v occurred_at="$OCCURRED_AT" \
   -v event_hash="$EVENT_HASH" <<'SQL'
+SET ROLE careerops_provisioner;
 BEGIN;
 
 INSERT INTO tenants (id, display_name)
@@ -69,6 +70,7 @@ INSERT INTO audit_events (
 );
 
 COMMIT;
+RESET ROLE;
 SQL
 
 echo "Tenant provisioned. Global kill switch remains ENABLED; no automation is authorized."
