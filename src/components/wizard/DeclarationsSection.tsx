@@ -57,7 +57,10 @@ export const DeclarationsSection: React.FC<DeclarationsSectionProps> = React.mem
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateDeclarations(sanitizeDraftForExport(draftRef.current), true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdateDeclarations(sanitizeDraftForExport(draftRef.current), true);
+      }
     }, [onUpdateDeclarations]);
 
     useEffect(() => {
