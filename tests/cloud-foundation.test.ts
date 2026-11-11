@@ -141,7 +141,11 @@ describe('M0 cloud security foundation', () => {
     const input = `${header}.${payload}`;
     const token = `${input}.${signJwt('RSA-SHA256', Buffer.from(input), pair.privateKey).toString('base64url')}`;
     expect((await verifier.verify(token, 1_900_000_000)).subject).toBe('user-oidc');
-    await expect(verifier.verify(token.replace(/.$/, 'x'), 1_900_000_000)).rejects.toThrow();
+    const [headerPart, payloadPart, signaturePart] = token.split('.');
+    const tamperedSignature = `${signaturePart[0] === 'A' ? 'B' : 'A'}${signaturePart.slice(1)}`;
+    await expect(
+      verifier.verify(`${headerPart}.${payloadPart}.${tamperedSignature}`, 1_900_000_000)
+    ).rejects.toThrow();
     const wrongIssuer = Buffer.from(
       JSON.stringify({ ...claims, iss: 'https://attacker.test' })
     ).toString('base64url');
@@ -160,7 +164,7 @@ describe('M0 cloud security foundation', () => {
     const context = await resolveTenantContext('user-1', {
       findMembershipsBySubject: async () => [membership],
     });
-    expect(context.tenantId).toBe('tenant-server-side');
+    expect(context.tenantId).toBe('10000000-0000-4000-8000-000000000001');
     const memberships = [
       membership,
       { ...membership, tenantId: '20000000-0000-4000-8000-000000000002', role: 'member' as const },
