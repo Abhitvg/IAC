@@ -83,10 +83,25 @@ VALUES (
   '10000000-0000-4000-8000-000000000001', 1, '{}'::jsonb, repeat('c', 64),
   'user-a', now(), repeat('d', 64)
 );
+DO $active_contract$
+BEGIN
+  BEGIN
+    INSERT INTO sprint_contracts
+      (tenant_id, version, revision, contract_json, contract_hash, accepted_by, accepted_at, signature)
+    VALUES (
+      '10000000-0000-4000-8000-000000000001', 1, 2, '{}'::jsonb, repeat('e', 64),
+      'user-a', now(), repeat('f', 64)
+    );
+    RAISE EXCEPTION 'A second active Sprint Contract was unexpectedly accepted';
+  EXCEPTION WHEN unique_violation THEN
+    NULL;
+  END;
+END
+$active_contract$;
 UPDATE sprint_contracts SET revoked_at = now()
  WHERE tenant_id = '10000000-0000-4000-8000-000000000001' AND version = 1;
 
--- A second active acceptance for the same tenant must be rejected even with a new revision.
+-- After revocation, a replacement acceptance can use the next revision.
 INSERT INTO sprint_contracts (tenant_id, version, revision, contract_json, contract_hash, accepted_by, accepted_at, signature)
 VALUES (
   '10000000-0000-4000-8000-000000000001', 1, 2, '{}'::jsonb, repeat('e', 64),
