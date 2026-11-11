@@ -43,7 +43,7 @@ FOR EACH STATEMENT EXECUTE FUNCTION reject_audit_event_mutation();
 CREATE OR REPLACE FUNCTION enforce_sprint_contract_immutability()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+AS $fn$
 BEGIN
   IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
      OR NEW.version IS DISTINCT FROM OLD.version
@@ -59,7 +59,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$fn$;
 
 DROP TRIGGER IF EXISTS sprint_contracts_immutable_evidence ON sprint_contracts;
 CREATE TRIGGER sprint_contracts_immutable_evidence
