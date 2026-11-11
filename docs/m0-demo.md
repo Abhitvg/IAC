@@ -11,17 +11,22 @@ M0 establishes the first cloud trust boundary and security primitives. It does n
 - `CAREEROPS_JWKS_URL`: trusted HTTPS JWKS endpoint for that issuer. Redirects are rejected.
 - `CAREEROPS_CONSENT_SIGNING_SECRET`: separate high-entropy secret (at least 32 characters); never reuse the identity-provider signing key.
 - `CAREEROPS_RATE_LIMIT_HASH_SECRET`: separate high-entropy secret (at least 32 characters) used to HMAC caller keys before they are persisted in shared rate-limit buckets; it must differ from the consent signing secret.
+- `CAREEROPS_DATABASE_URL`: PostgreSQL connection URL for the API runtime. Production uses certificate-verified TLS; TLS override query parameters are rejected.
+- `CAREEROPS_DB_POOL_MAX`: optional PostgreSQL pool size from 1 to 50 (default 10).
+- `CAREEROPS_MIGRATION_DATABASE_URL`: separate schema-owner connection URL used only by the migration release command. Never use this credential for the API runtime.
 
 ## Run locally
 
 1. Install the repository dependencies with Node 22.
 2. Run `npm run typecheck:cloud`.
-3. Run `npm run security:source`.
-4. Run `npx vitest run tests/cloud-foundation.test.ts tests/cloud-migrations.test.ts`.
-5. Run `bash scripts/test-cloud-postgres-rls.sh` against a disposable PostgreSQL 16 database. The script applies the four schema migrations and verifies tenant isolation, bootstrap defaults, rate-limit grants and append-only audit behavior.
-6. Ensure the API deployment login is a member of `careerops_app`; it must not own tables or have RLS bypass privileges. The separate tenant-provisioning operator login may be granted membership in `careerops_provisioner` and should be used only for the audited bootstrap script.
-7. Construct `createCloudApiRuntime(pool, loadCloudEnvironment())` with a pg-compatible PostgreSQL pool, then call `runtime.listen(port, host)`. The runtime composes the OIDC verifier, PostgreSQL repository and shared PostgreSQL rate limiter; `runtime.close()` closes the HTTP server and pool. A concrete PostgreSQL driver/pool adapter is still required; no driver or in-memory production fallback is bundled.
-8. Probe `GET /health/ready` for database readiness (503 on database failure); `/health/live` remains independent of database availability.
+3. Run `npm run build:api` to compile the Node API and migration release command into `dist-api/`.
+4. Set `CAREEROPS_DATABASE_URL` and the required OIDC/signing secrets, then run `npm run start:api` to start the API process.
+5. For a fresh database only, set `CAREEROPS_MIGRATION_DATABASE_URL` to the dedicated migration-role URL and run `npm run migrate:cloud`. The migration command uses the advisory-lock/checksum runner and closes its pool on exit.
+6. Run `npm run security:source`.
+7. Run `npx vitest run tests/cloud-foundation.test.ts tests/cloud-migrations.test.ts tests/postgres-pool.test.ts`.
+8. Run `bash scripts/test-cloud-postgres-rls.sh` against a disposable PostgreSQL 16 database. The script applies the four schema migrations and verifies tenant isolation, bootstrap defaults, rate-limit grants and append-only audit behavior.
+9. Ensure the API deployment login is a member of `careerops_app`; it must not own tables or have RLS bypass privileges. The separate tenant-provisioning operator login may be granted membership in `careerops_provisioner` and should be used only for the audited bootstrap script.
+10. Probe `GET /health/ready` for database readiness (503 on database failure); `/health/live` remains independent of database availability.
 
 ## Transactional migration runner
 
@@ -34,7 +39,7 @@ M0 establishes the first cloud trust boundary and security primitives. It does n
 - The runner strips only the outer `BEGIN`/`COMMIT` wrapper from the existing migration format so the migration and ledger write share one transaction.
 - Run migrations with a dedicated schema-owner/migration credential, never with the API's restricted `careerops_app` role. Do not run migrations automatically during API startup.
 
-The repository still needs a concrete PostgreSQL driver/pool bootstrap and a release-job entrypoint before this runner can be invoked in a hosted deployment. The existing SQL integration script applies migrations directly for disposable test databases. For a database that has already had migrations applied outside this ledger, do not point the runner at it: create and verify an explicit baseline as a separate reviewed operation first.
+The API now includes a `pg` pool adapter, a Node process entrypoint and a compiled migration CLI. A deployment platform still needs to supply the database URLs/secrets, run the migration command as a one-off release job, and provision the distinct runtime and migration database roles. The existing SQL integration script applies migrations directly for disposable test databases. For a database that has already had migrations applied outside this ledger, do not point the runner at it: create and verify an explicit baseline as a separate reviewed operation first.
 
 ## Privileged tenant bootstrap
 
@@ -65,7 +70,7 @@ After applying the schema migrations, grant the approved operator login membersh
 ## Known gaps (must be closed before production)
 
 - RS256 OIDC/JWKS verification is implemented with HTTPS-pinned issuer/JWKS configuration, bounded key caching, key-rotation refresh and RSA-2048 minimum. The identity provider, issuer/JWKS endpoints, OAuth client, login/callback flow and account provisioning are not configured; this verifier validates access tokens only and is not a public login system.
-- The PostgreSQL repository and shared fixed-window rate limiter are implemented against a pg-compatible pool interface. The runtime composition root wires OIDC verification, repository, rate limiter and HTTP server, with liveness/readiness and graceful shutdown. A concrete PostgreSQL driver/pool bootstrap, hosted login/callback flow, account provisioning, migration release-job entrypoint, deployment manifests and operator identity verification are still not wired.
+- The PostgreSQL repository, shared fixed-window rate limiter, concrete `pg` pool adapter, API process entrypoint and separate migration CLI are implemented. The runtime uses bounded pool settings and certificate-verified TLS in production; a hosted login/callback flow, account provisioning, deployment manifests, secrets-manager integration and operator identity verification are still not wired.
 - A production KMS implementation, cloud object storage and secrets manager are not selected or wired. Tests use an explicitly test-only fake key provider.
 - The shared PostgreSQL rate limiter uses atomic fixed-window upserts and HMAC-hashed caller keys; migration 0004 grants the restricted runtime role only the required bucket-table permissions. Production retention/cleanup cadence and abuse thresholds still need operational tuning.
 - The consent HMAC secret must be separate from the JWT signing secret and configured as `CAREEROPS_CONSENT_SIGNING_SECRET`.
