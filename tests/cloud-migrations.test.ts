@@ -94,16 +94,16 @@ describe('cloud database migrations', () => {
   it(
     'refuses to run against a pre-existing CareerOps schema without an explicit baseline',
     async () => {
-    const { pool, calls, client } = createPool({}, ['tenants', 'sprint_contracts']);
+      const { pool, calls, client } = createPool({}, ['tenants', 'sprint_contracts']);
 
-    await expect(
-      runCloudMigrations(pool, [{ name: '0001_first.sql', sql: 'SELECT 1;' }])
-    ).rejects.toThrow(/explicit reviewed baseline is required/);
+      await expect(
+        runCloudMigrations(pool, [{ name: '0001_first.sql', sql: 'SELECT 1;' }])
+      ).rejects.toThrow(/explicit reviewed baseline is required/);
 
-    expect(
-      calls.some((call) => call.sql.includes('CREATE TABLE careerops_schema_migrations'))
-    ).toBe(false);
-    expect(calls.some((call) => call.sql.trim() === 'BEGIN')).toBe(false);
+      expect(
+        calls.some((call) => call.sql.includes('CREATE TABLE careerops_schema_migrations'))
+      ).toBe(false);
+      expect(calls.some((call) => call.sql.trim() === 'BEGIN')).toBe(false);
       expect(client.release).toHaveBeenCalledOnce();
     }
   );
