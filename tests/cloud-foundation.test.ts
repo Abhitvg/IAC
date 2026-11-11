@@ -475,6 +475,47 @@ describe('M0 cloud security foundation', () => {
     ).toThrow('Daily action cap');
   });
 
+  it('allows LinkedIn Assist Queue preparation only and blocks unattended LinkedIn actions', () => {
+    const record = createConsentRecord(
+      'tenant-1',
+      'user-1',
+      {
+        ...contractInput,
+        enabledChannels: [...contractInput.enabledChannels, 'linkedin_assist'],
+        dailyCaps: { ...contractInput.dailyCaps, assistQueueItems: 5 },
+      },
+      secret
+    );
+    const controls: TenantControlState = {
+      tenantId: 'tenant-1',
+      globalKillSwitch: false,
+      pausedChannels: [],
+      updatedAt: new Date().toISOString(),
+    };
+    const base = {
+      tenantId: 'tenant-1',
+      subject: 'user-1',
+      channel: 'linkedin_assist' as const,
+      dailyUsage: 0,
+      now: new Date('2026-11-12T00:00:00.000Z'),
+    };
+
+    const authorize = (action: string) =>
+      assertActionAllowed(record, controls, { ...base, action }, secret);
+
+    expect(() => authorize('assist_queue.prepare')).not.toThrow();
+
+    for (const action of [
+      'linkedin.connection.request',
+      'linkedin.message.send',
+      'linkedin.profile.visit',
+      'linkedin.scrape',
+      'linkedin.like',
+    ]) {
+      expect(() => authorize(action)).toThrow('LinkedIn actions may only be prepared');
+    }
+  });
+
   it('creates a tamper-evident audit hash chain and appends records', async () => {
     const records: AuditRecord[] = [];
     const input = {

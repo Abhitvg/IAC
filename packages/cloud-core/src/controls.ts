@@ -57,4 +57,11 @@ export function assertActionAllowed(
   if (request.dailyUsage >= cap) throw new Error('Daily action cap reached');
   if (!request.action.trim() || request.action.length > 80)
     throw new Error('Invalid action identifier');
+
+  // LinkedIn is never an automated execution channel. The cloud service may only
+  // prepare a queue item; the browser extension must execute nothing without a
+  // direct user gesture in the user's own browser.
+  if (request.channel === 'linkedin_assist' && request.action !== 'assist_queue.prepare') {
+    throw new Error('LinkedIn actions may only be prepared for the user Assist Queue');
+  }
 }
