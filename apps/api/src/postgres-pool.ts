@@ -8,6 +8,9 @@ export function createPostgresPoolFromUrl(
   nodeEnvironment: CloudEnvironment['NODE_ENV'],
   max = 10
 ): Pool {
+  if (!['development', 'test', 'production'].includes(nodeEnvironment)) {
+    throw new Error('A valid NODE_ENV is required for PostgreSQL connections');
+  }
   if (!Number.isInteger(max) || max < 1 || max > 50) {
     throw new Error('PostgreSQL pool max must be an integer between 1 and 50');
   }
