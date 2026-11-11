@@ -43,7 +43,7 @@ export function CareerDiscoveryPanel() {
       const result = await discoverJobsFromSources();
       setLastResult(result);
       setMessage(
-        \`Scan complete: \${result.imported} new jobs imported, \${result.skipped} duplicates or keyword mismatches skipped.\`
+        `Scan complete: ${result.imported} new jobs imported, ${result.skipped} duplicates or keyword mismatches skipped.`
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Career page scan failed.');
@@ -129,7 +129,7 @@ export function CareerDiscoveryPanel() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
           <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13, fontWeight: 800 }}>Configured sources ({sources.length})</h4>
           <span style={{ color: '#64748b', fontSize: 10 }}>
-            {lastDiscoveryAt ? \`Last scan finished \${new Date(lastDiscoveryAt).toLocaleString()}\` : 'No scan completed in this session'}
+            {lastDiscoveryAt ? `Last scan finished ${new Date(lastDiscoveryAt).toLocaleString()}` : 'No scan completed in this session'}
           </span>
         </div>
         {sources.length === 0 ? (
@@ -143,13 +143,13 @@ export function CareerDiscoveryPanel() {
                   <div style={{ color: '#f8fafc', fontSize: 12, fontWeight: 700 }}>{source.label}</div>
                   <div style={{ color: '#64748b', fontSize: 10, overflowWrap: 'anywhere' }}>{source.url}</div>
                   <div style={{ color: source.lastError ? '#fca5a5' : '#64748b', fontSize: 10, marginTop: 3 }}>
-                    {source.lastError || (source.lastCheckedAt ? \`Checked \${new Date(source.lastCheckedAt).toLocaleString()}\` : 'Not scanned yet')}
+                    {source.lastError || (source.lastCheckedAt ? `Checked ${new Date(source.lastCheckedAt).toLocaleString()}` : 'Not scanned yet')}
                   </div>
                 </div>
                 <button type="button" onClick={() => updateSource(source.id, { enabled: !source.enabled })} style={{ ...buttonStyle, padding: '5px 8px', color: source.enabled ? '#86efac' : '#94a3b8' }}>
                   {source.enabled ? 'Enabled' : 'Paused'}
                 </button>
-                <button type="button" aria-label={\`Remove \${source.label}\`} onClick={() => removeSource(source.id)} style={{ ...buttonStyle, padding: 6, color: '#fca5a5' }}>
+                <button type="button" aria-label={`Remove ${source.label}`} onClick={() => removeSource(source.id)} style={{ ...buttonStyle, padding: 6, color: '#fca5a5' }}>
                   <Trash2 size={13} />
                 </button>
               </div>
