@@ -512,9 +512,7 @@ describe('M0 cloud security foundation', () => {
       'linkedin.scrape',
       'linkedin.like',
     ]) {
-      expect(() => authorize(action)).toThrow(
-        'LinkedIn actions may only be prepared'
-      );
+      expect(() => authorize(action)).toThrow('LinkedIn actions may only be prepared');
     }
   });
 
