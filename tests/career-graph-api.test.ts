@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CareerGraphFact } from '../packages/cloud-core/src/career-graph';
 import type { CloudApiDependencies } from '../apps/api/src/ports';
 import { createCloudApiServer } from '../apps/api/src/server';
+import { PostgresCareerGraphRepository } from '../apps/api/src/career-graph-repository';
+import type { SqlPool } from '../apps/api/src/postgres-repository';
 
 const tenantId = '10000000-0000-4000-8000-000000000001';
 const factId = '20000000-0000-4000-8000-000000000002';
@@ -159,5 +161,99 @@ describe('Career Graph API routes', () => {
     expect(await response.json()).toMatchObject({
       fact: { id: factId, review: { decision: 'confirmed', reviewedBy: subject } },
     });
+  });
+});
+
+
+describe('Postgres Career Graph repository', () => {
+  it('locks the fact key before allocating a version and commits its audit event atomically', async () => {
+    const statements: string[] = [];
+    const client = {
+      query: async (sql: string) => {
+        statements.push(sql);
+        if (sql.includes('COALESCE(MAX(version)')) return { rows: [{ next_version: 1 }] };
+        if (sql.includes('INSERT INTO career_graph_facts')) return { rows: [{ id: factId }], rowCount: 1 };
+        if (sql.includes('SELECT event_hash')) return { rows: [] };
+        if (sql.includes('FROM career_graph_facts f')) {
+          return {
+            rows: [{
+              id: factId,
+              tenant_id: tenantId,
+              fact_key: 'profile.current_role',
+              version: 1,
+              value_envelope: fact.valueEnvelope,
+              source_kind: 'user_input',
+              source_reference: null,
+              evidence_sha256: null,
+              created_by: subject,
+              created_at: '2026-11-11T00:00:00.000Z',
+              decision: null,
+              reason: null,
+              reviewed_by: null,
+              reviewed_at: null,
+            }],
+          };
+        }
+        return { rows: [], rowCount: 1 };
+      },
+      release: () => statements.push('RELEASE'),
+    };
+    const pool = { connect: async () => client } as unknown as SqlPool;
+    const repository = new PostgresCareerGraphRepository(pool);
+    const created = await repository.createFact(tenantId, subject, validInput);
+
+    expect(created).toMatchObject({ id: factId, tenantId, factKey: 'profile.current_role', version: 1 });
+    const factLock = statements.findIndex((sql) => sql.includes('pg_advisory_xact_lock'));
+    const allocateVersion = statements.findIndex((sql) => sql.includes('COALESCE(MAX(version)'));
+    const insertFact = statements.findIndex((sql) => sql.includes('INSERT INTO career_graph_facts'));
+    const insertAudit = statements.findIndex((sql) => sql.includes('INSERT INTO audit_events'));
+    expect(factLock).toBeGreaterThan(-1);
+    expect(factLock).toBeLessThan(allocateVersion);
+    expect(allocateVersion).toBeLessThan(insertFact);
+    expect(insertAudit).toBeGreaterThan(insertFact);
+    expect(statements.indexOf('COMMIT')).toBeGreaterThan(insertAudit);
+    expect(statements.at(-1)).toBe('RELEASE');
+  });
+
+  it('rolls back a review attempt by anyone other than the fact contributor', async () => {
+    const statements: string[] = [];
+    const client = {
+      query: async (sql: string) => {
+        statements.push(sql);
+        if (sql.includes('FROM career_graph_facts f')) {
+          return {
+            rows: [{
+              id: factId,
+              tenant_id: tenantId,
+              fact_key: 'profile.current_role',
+              version: 1,
+              value_envelope: fact.valueEnvelope,
+              source_kind: 'user_input',
+              source_reference: null,
+              evidence_sha256: null,
+              created_by: 'another-user',
+              created_at: '2026-11-11T00:00:00.000Z',
+              decision: null,
+              reason: null,
+              reviewed_by: null,
+              reviewed_at: null,
+            }],
+          };
+        }
+        return { rows: [], rowCount: 1 };
+      },
+      release: () => statements.push('RELEASE'),
+    };
+    const pool = { connect: async () => client } as unknown as SqlPool;
+    const repository = new PostgresCareerGraphRepository(pool);
+
+    await expect(
+      repository.reviewFact(tenantId, subject, factId, { decision: 'confirmed' })
+    ).rejects.toThrow('Only the fact contributor');
+    expect(statements.some((sql) => sql.includes('INSERT INTO career_graph_fact_reviews'))).toBe(
+      false
+    );
+    expect(statements).toContain('ROLLBACK');
+    expect(statements.at(-1)).toBe('RELEASE');
   });
 });
