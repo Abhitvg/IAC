@@ -24,7 +24,11 @@ export interface CareerGraphRepository {
     actorSubject: string,
     input: CareerGraphFactInput
   ): Promise<CareerGraphFact>;
-  listFacts(tenantId: string, actorSubject: string, limit: number): Promise<CareerGraphFact[]>;
+  listFacts(
+    tenantId: string,
+    actorSubject: string,
+    limit: number
+  ): Promise<CareerGraphFact[]>;
   reviewFact(
     tenantId: string,
     actorSubject: string,
