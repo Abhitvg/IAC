@@ -259,7 +259,7 @@ export function CareerOpsView() {
     const providerConfig = settings?.aiProvider
       ? {
           type: settings.aiProvider,
-          apiKey: '',
+          apiKey: settings.apiKey || '',
           model: resolveOrMigrateModel(
             settings.aiProvider as AIProviderId,
             settings.aiModel,
