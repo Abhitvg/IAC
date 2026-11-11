@@ -48,6 +48,15 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         sendJson(response, 200, { status: 'ok', requestId });
         return;
       }
+      if (request.method === 'GET' && url.pathname === '/health/ready') {
+        try {
+          await dependencies.repository.checkReady();
+          sendJson(response, 200, { status: 'ready', requestId });
+        } catch {
+          sendJson(response, 503, { status: 'not_ready', requestId });
+        }
+        return;
+      }
 
       const ipKey = `ip:${request.socket.remoteAddress ?? 'unknown'}`;
       if (!(await dependencies.rateLimiter.consume(ipKey, 60, 60_000))) {
