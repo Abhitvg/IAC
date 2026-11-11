@@ -378,6 +378,25 @@ describe('M0 cloud security foundation', () => {
         dailyCaps: { applications: 1000, emails: 5, assistQueueItems: 0, calendarEvents: 5 },
       }).success
     ).toBe(false);
+    const factId = '30000000-0000-4000-8000-000000000003';
+    const answer = {
+      answer: 'I am authorized to work in India',
+      confirmedFactIds: [factId],
+    };
+    expect(
+      SprintContractSchema.safeParse({
+        ...contractInput,
+        defaultAnswers: { work_authorization: answer },
+        allowedFactIds: [],
+      }).success
+    ).toBe(false);
+    expect(
+      SprintContractSchema.safeParse({
+        ...contractInput,
+        defaultAnswers: { work_authorization: answer },
+        allowedFactIds: [factId],
+      }).success
+    ).toBe(true);
   });
 
   it('signs a validated consent record and preserves the contract hash', () => {
