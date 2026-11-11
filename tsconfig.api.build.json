@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.cloud.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "outDir": "dist-api",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": [
+    "apps/api/src/**/*.ts",
+    "packages/cloud-core/src/**/*.ts",
+    "scripts/run-cloud-migrations.ts"
+  ]
+}
