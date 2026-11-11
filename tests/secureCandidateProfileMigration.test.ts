@@ -43,24 +43,24 @@ describe('Canonical candidate profile encrypted persistence', () => {
   it(
     'migrates legacy plaintext only after encrypted write and read-back verification',
     async () => {
-    const profile = createDefaultCanonicalProfile();
-    profile.identity.fullName = 'Candidate Profile Test';
-    const legacy = JSON.stringify(profile);
-    localStorage.setItem(STORAGE_KEY, legacy);
+        const profile = createDefaultCanonicalProfile();
+        profile.identity.fullName = 'Candidate Profile Test';
+        const legacy = JSON.stringify(profile);
+        localStorage.setItem(STORAGE_KEY, legacy);
 
-    secureApi.securePersistenceSet.mockImplementationOnce(async (_namespace, value) => {
-      expect(localStorage.getItem(STORAGE_KEY)).toBe(legacy);
-      encryptedValue = value;
-      return true;
-    });
+        secureApi.securePersistenceSet.mockImplementationOnce(async (_namespace, value) => {
+          expect(localStorage.getItem(STORAGE_KEY)).toBe(legacy);
+          encryptedValue = value;
+          return true;
+        });
 
-    const service = CanonicalProfileService.getInstance();
-    await expect(service.ready()).resolves.toBe(true);
+        const service = CanonicalProfileService.getInstance();
+        await expect(service.ready()).resolves.toBe(true);
 
-    expect(encryptedValue).toBe(legacy);
-    expect(secureApi.securePersistenceGet).toHaveBeenCalledTimes(2);
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
-    expect(service.getProfile().identity.fullName).toBe('Candidate Profile Test');
+        expect(encryptedValue).toBe(legacy);
+        expect(secureApi.securePersistenceGet).toHaveBeenCalledTimes(2);
+        expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+        expect(service.getProfile().identity.fullName).toBe('Candidate Profile Test');
     }
   );
 
