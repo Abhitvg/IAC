@@ -10,7 +10,8 @@ const textExtensions = new Set([
   '.sh', '.env', '.toml', '.xml', '.html', '.css', '.txt',
 ]);
 
-// Provider key fixtures in tests are deliberately short; production token lengths are enforced here.\nconst secretPatterns = [
+// Provider key fixtures in tests are deliberately short; production token lengths are enforced here.
+const secretPatterns = [
   /gsk_[A-Za-z0-9_-]{48,}/,
   /sk-(?:proj-|or-v1-)?[A-Za-z0-9_-]{48,}/,
   /gh[pousr]_[A-Za-z0-9]{20,}/,
