@@ -15,6 +15,7 @@
     "tests/cloud-foundation.test.ts",
     "tests/cloud-migrations.test.ts",
     "tests/career-graph.test.ts",
-    "tests/postgres-pool.test.ts"
+    "tests/postgres-pool.test.ts",
+    "tests/career-graph-api.test.ts"
   ]
 }

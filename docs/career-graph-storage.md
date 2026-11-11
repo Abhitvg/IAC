@@ -4,7 +4,7 @@
 
 Migration `0005_career_graph_facts.sql` establishes the tenant-scoped persistence boundary for versioned candidate facts. The domain contract lives in `packages/cloud-core/src/career-graph.ts`.
 
-This is a storage/domain foundation, not a claim that Career Graph is already exposed as a production API or that a cloud KMS adapter is deployed.
+This includes authenticated API and PostgreSQL persistence workflows. It is not a claim that a cloud KMS adapter is deployed or that fact-driven tailoring is enabled.
 
 ## Data model
 
@@ -18,12 +18,12 @@ This is a storage/domain foundation, not a claim that Career Graph is already ex
 ## Security and rollout constraints
 
 1. A real cloud KMS adapter must generate and unwrap data keys before this storage can be used by a hosted service. The existing envelope cipher is an interface-based primitive; test-only key management is not production KMS.
-2. The API must derive tenant and actor from verified identity/membership, never from request payload fields.
-3. Writes must append a tenant audit event in the same transaction as the fact/review record.
+2. The API derives tenant and actor from verified identity/membership. The create endpoint rejects client-supplied tenant/actor fields. The API routes are `GET/POST /v1/career-graph/facts` and `POST /v1/career-graph/facts/:id/review`.
+3. Fact creation and review append a tenant audit event in the same PostgreSQL transaction. Fact version allocation takes the same tenant/fact-key advisory lock as the database trigger before reading `MAX(version)`.
 4. Reads must return encrypted envelopes unless the caller passes an explicit authorization and KMS-backed decryption boundary.
 5. Resume tailoring, default answers, and application forms must use only facts with an explicit `confirmed` review and an accepted Sprint Contract allow-list.
 6. Existing databases require the migration runner's explicit reviewed baseline. Migration `0005` is not a manual schema patch.
 
 ## Verification
 
-The domain tests cover envelope-only input, tenant/context binding, stable fact keys, bounded provenance, and contributor-only review. PostgreSQL migration/RLS integration remains a required CI gate before merge.
+The domain and API tests cover envelope-only input, tenant/context binding, stable fact keys, bounded provenance, verified-identity binding, route validation, version-lock ordering, transaction/audit atomicity, and contributor-only review. PostgreSQL migration/RLS integration remains a required CI gate before merge.

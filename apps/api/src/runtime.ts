@@ -4,6 +4,7 @@ import { createOidcIdentityVerifier } from './identity';
 import { PostgresCloudApiRepository, type ClosableSqlPool } from './postgres-repository';
 import { PostgresCloudRateLimiter } from './postgres-rate-limiter';
 import { createCloudApiServer } from './server';
+import { PostgresCareerGraphRepository } from './career-graph-repository';
 
 export interface CloudApiRuntime {
   server: Server;
@@ -23,6 +24,7 @@ export function createCloudApiRuntime(
       jwksUrl: environment.CAREEROPS_JWKS_URL,
     }),
     repository,
+    careerGraph: new PostgresCareerGraphRepository(pool),
     rateLimiter: new PostgresCloudRateLimiter(pool, environment.CAREEROPS_RATE_LIMIT_HASH_SECRET),
     config: {
       issuer: environment.CAREEROPS_JWT_ISSUER,

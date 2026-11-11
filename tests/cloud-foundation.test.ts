@@ -625,6 +625,15 @@ describe('M0 cloud security foundation', () => {
             hmacSecret: secret,
           }),
       },
+      careerGraph: {
+        createFact: async () => {
+          throw new Error('not exercised in this test');
+        },
+        listFacts: async () => [],
+        reviewFact: async () => {
+          throw new Error('not exercised in this test');
+        },
+      },
       rateLimiter: { consume: async () => rateLimitAllowed },
       repository: {
         findMembershipsBySubject: async () => [membership],
