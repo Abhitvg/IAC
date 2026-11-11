@@ -57,7 +57,10 @@ export const ProjectsSection: React.FC<ProjectsSectionProps> = React.memo(
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateProjects(sanitizeDraftForExport(draftRef.current), true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdateProjects(sanitizeDraftForExport(draftRef.current), true);
+      }
     }, [onUpdateProjects]);
 
     useEffect(() => {
