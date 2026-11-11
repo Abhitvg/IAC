@@ -34,7 +34,10 @@ export const SkillsSection: React.FC<SkillsSectionProps> = React.memo(
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      onUpdateSkills(draftRef.current, true);
+      if (JSON.stringify(draftRef.current) !== JSON.stringify(lastSyncedRef.current)) {
+        lastSyncedRef.current = draftRef.current;
+        onUpdateSkills(draftRef.current, true);
+      }
     }, [onUpdateSkills]);
 
     useEffect(() => {
