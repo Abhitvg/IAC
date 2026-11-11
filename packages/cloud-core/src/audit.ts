@@ -20,7 +20,7 @@ export interface AuditRepository {
 }
 
 function stableJson(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
   const entries = Object.entries(value as Record<string, unknown>)
     .sort(([left], [right]) => left.localeCompare(right));
