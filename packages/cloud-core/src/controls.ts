@@ -41,7 +41,7 @@ export function assertActionAllowed(
       ? contract.dailyCaps.emails
       : request.channel === 'linkedin_assist'
         ? contract.dailyCaps.assistQueueItems
-        : Number.MAX_SAFE_INTEGER;
+        : contract.dailyCaps.calendarEvents;
 
   if (request.dailyUsage >= cap) throw new Error('Daily action cap reached');
   if (!request.action.trim() || request.action.length > 80) throw new Error('Invalid action identifier');
