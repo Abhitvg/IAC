@@ -3,6 +3,7 @@ import {
   detectAtsPlatform,
   parseJobUrlMetadata,
   parseJobPageContent,
+  fetchJobPostingFromUrl,
 } from '../src/services/careerOps/jobScraperService';
 import { useCandidateVaultStore } from '../src/store/useCandidateVaultStore';
 import { predictInterviewLoop } from '../src/services/careerOps/jobInterviewPredictor';
@@ -42,6 +43,45 @@ describe('CareerOps Advanced Architecture & Automation Suite', () => {
       expect(result.role).toContain('Staff Distributed Systems Engineer');
       expect(result.workType).toBe('remote');
       expect(result.salaryRange).toContain('$190,000 - $230,000');
+    });
+
+    it('does not silently classify an unspecified location as remote', () => {
+      const result = parseJobPageContent(
+        '<h1>Backend Engineer</h1><p>Build reliable services.</p>',
+        'https://jobs.lever.co/acme/123'
+      );
+      expect(result.workType).toBeUndefined();
+      expect(result.location).toBe('Not specified');
+    });
+
+    it('fetches a public HTTPS job page through an injected safe fetcher', async () => {
+      const calls: unknown[] = [];
+      const result = await fetchJobPostingFromUrl(
+        'https://boards.greenhouse.io/datadog/jobs/123',
+        async (options) => {
+          calls.push(options);
+          return {
+            statusCode: 200,
+            contentType: 'text/html; charset=utf-8',
+            body: '<h1>Staff Distributed Systems Engineer</h1><p>Location: Remote, US</p><p>Build event pipelines with Kafka and Go. Own reliable services and production operations.</p>',
+          };
+        }
+      );
+      expect(result.company).toBe('Datadog');
+      expect(result.role).toBe('Staff Distributed Systems Engineer');
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({
+        allowedOrigin: 'https://boards.greenhouse.io',
+        maxByteSize: 2 * 1024 * 1024,
+      });
+    });
+
+    it('rejects insecure or credential-bearing job URLs before fetching', async () => {
+      const fetcher = async () => {
+        throw new Error('Fetcher must not be called');
+      };
+      await expect(fetchJobPostingFromUrl('http://example.com/job', fetcher)).rejects.toThrow('HTTPS');
+      await expect(fetchJobPostingFromUrl('https://user:pass@example.com/job', fetcher)).rejects.toThrow('HTTPS');
     });
   });
 
