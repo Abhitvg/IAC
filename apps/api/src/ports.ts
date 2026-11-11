@@ -5,6 +5,7 @@ import type { TenantMembershipRepository } from '../../../packages/cloud-core/sr
 import type { VerifiedIdentity } from '../../../packages/cloud-core/src/auth';
 
 export interface CloudApiRepository extends TenantMembershipRepository {
+  checkReady(): Promise<void>;
   getControlState(tenantId: string): Promise<TenantControlState>;
   acceptSprintContract(record: ConsentRecord): Promise<{ id: string; revision: number }>;
   getActiveSprintContract(
