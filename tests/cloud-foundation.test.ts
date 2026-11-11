@@ -152,7 +152,7 @@ describe('M0 cloud security foundation', () => {
 
   it('never trusts tenant IDs in JWT claims and resolves exactly one server-side membership', async () => {
     const membership: TenantMembership = {
-      tenantId: 'tenant-server-side',
+      tenantId: '10000000-0000-4000-8000-000000000001',
       subject: 'user-1',
       role: 'owner',
       status: 'active',
@@ -163,7 +163,7 @@ describe('M0 cloud security foundation', () => {
     expect(context.tenantId).toBe('tenant-server-side');
     const memberships = [
       membership,
-      { ...membership, tenantId: 'tenant-other', role: 'member' as const },
+      { ...membership, tenantId: '20000000-0000-4000-8000-000000000002', role: 'member' as const },
     ];
     await expect(
       resolveTenantContext('user-1', { findMembershipsBySubject: async () => memberships })
