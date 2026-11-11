@@ -64,6 +64,26 @@ export class SecurePersistenceStore {
     }
   }
 
+  private async assertSafeStoragePath(namespace: SecurePersistenceNamespace, allowMissing: boolean): Promise<void> {
+    try {
+      const rootStat = await fs.promises.lstat(this.rootPath);
+      if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
+        throw new Error('Secure persistence directory is not a real directory.');
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT' || !allowMissing) throw error;
+    }
+
+    try {
+      const targetStat = await fs.promises.lstat(this.getRecordPath(namespace));
+      if (targetStat.isSymbolicLink() || !targetStat.isFile()) {
+        throw new Error('Secure persistence record is not a regular file.');
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT' || !allowMissing) throw error;
+    }
+  }
+
   private getRecordPath(namespace: SecurePersistenceNamespace): string {
     return path.join(this.rootPath, namespace + '.enc');
   }
@@ -136,7 +156,8 @@ export class SecurePersistenceStore {
     await fs.promises.mkdir(this.rootPath, { recursive: true, mode: 0o700 });
     const target = this.getRecordPath(namespace);
     const temporary = path.join(this.rootPath, '.' + namespace + '.' + randomUUID() + '.tmp');
-    let handle: fs.promises.FileHandle | undefined;
+    await this.assertSafeStoragePath(namespace, true);
+    let handle: Awaited<ReturnType<typeof fs.promises.open>> | undefined;
     try {
       handle = await fs.promises.open(temporary, 'wx', 0o600);
       await handle.writeFile(envelope);
@@ -165,6 +186,7 @@ export class SecurePersistenceStore {
     this.assertNamespace(namespace);
     await this.assertSecureStorageAvailable();
     const target = this.getRecordPath(namespace);
+    await this.assertSafeStoragePath(namespace, true);
     let envelope: Buffer;
     try {
       envelope = await fs.promises.readFile(target);
@@ -216,6 +238,7 @@ export class SecurePersistenceStore {
   async remove(namespace: string): Promise<boolean> {
     this.assertNamespace(namespace);
     await this.assertSecureStorageAvailable();
+    await this.assertSafeStoragePath(namespace, true);
     await fs.promises.rm(this.getRecordPath(namespace), { force: true });
     return true;
   }
