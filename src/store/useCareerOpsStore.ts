@@ -3,6 +3,7 @@ import {
   JobApplication,
   ApplicationStatus,
   CareerOpsStats,
+  CareerOpsSource,
 } from '../services/careerOps/types';
 import {
   evaluateJobDescription,
@@ -13,9 +14,11 @@ import {
   CoverLetterExperienceLevel,
   ProviderConfig,
 } from '../services/careerOps/careerOpsService';
+import { discoverJobsFromCareerPage } from '../services/careerOps/discoveryService';
 
 const STORAGE_KEY = 'career_ops_pipeline_v2';
 const LEGACY_STORAGE_KEY = 'career_ops_pipeline_v1';
+const SOURCES_STORAGE_KEY = 'career_ops_discovery_sources_v1';
 
 export const DEMO_SAMPLE_APPLICATIONS: JobApplication[] = [
   {
@@ -73,6 +76,40 @@ export const DEMO_SAMPLE_APPLICATIONS: JobApplication[] = [
     isDemo: true,
   },
 ];
+
+function loadInitialSources(): CareerOpsSource[] {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(SOURCES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (source): source is CareerOpsSource =>
+        Boolean(
+          source &&
+          typeof source.id === 'string' &&
+          typeof source.label === 'string' &&
+          typeof source.url === 'string' &&
+          source.url.startsWith('https://') &&
+          Array.isArray(source.keywords) &&
+          typeof source.enabled === 'boolean'
+        )
+    );
+  } catch (error) {
+    console.warn('[CareerOps] Failed to read discovery sources:', error);
+    return [];
+  }
+}
+
+function persistSources(sources: CareerOpsSource[]) {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(SOURCES_STORAGE_KEY, JSON.stringify(sources));
+  } catch (error) {
+    console.warn('[CareerOps] Failed to save discovery sources:', error);
+  }
+}
 
 function calculateStats(apps: JobApplication[]): CareerOpsStats {
   // Only genuine, non-demo applications count toward production stats
@@ -141,6 +178,9 @@ function loadInitialApplications(): JobApplication[] {
 
 interface CareerOpsState {
   applications: JobApplication[];
+  sources: CareerOpsSource[];
+  isDiscovering: boolean;
+  lastDiscoveryAt: number | null;
   activeJobId: string | null;
   filterStatus: 'all' | ApplicationStatus;
   searchQuery: string;
@@ -151,6 +191,10 @@ interface CareerOpsState {
 
   // Actions
   addJob: (job: Partial<JobApplication>) => string;
+  addSource: (source: { label: string; url: string; keywords?: string[] }) => string;
+  updateSource: (id: string, updates: Partial<CareerOpsSource>) => void;
+  removeSource: (id: string) => void;
+  discoverJobsFromSources: () => Promise<{ imported: number; skipped: number; errors: string[] }>;
   updateJob: (id: string, updates: Partial<JobApplication>) => void;
   deleteJob: (id: string) => void;
   setActiveJobId: (id: string | null) => void;
@@ -188,6 +232,7 @@ interface CareerOpsState {
 
 export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
   const initialApps = loadInitialApplications();
+  const initialSources = loadInitialSources();
 
   const persist = (apps: JobApplication[]) => {
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
@@ -201,6 +246,9 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
 
   return {
     applications: initialApps,
+    sources: initialSources,
+    isDiscovering: false,
+    lastDiscoveryAt: null,
     activeJobId: initialApps[0]?.id || null,
     filterStatus: 'all',
     searchQuery: '',
@@ -244,6 +292,103 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
         stats: calculateStats(updated),
       });
       return newJob.id;
+    },
+
+    addSource: (sourceData) => {
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(sourceData.url.trim());
+      } catch {
+        throw new Error('Enter a valid career page URL.');
+      }
+      if (parsedUrl.protocol !== 'https:' || parsedUrl.username || parsedUrl.password) {
+        throw new Error('Career page sources must use public HTTPS URLs without embedded credentials.');
+      }
+      const label = sourceData.label.trim();
+      if (!label) throw new Error('Give this career page source a name.');
+      const duplicate = get().sources.find((source) => source.url === parsedUrl.toString());
+      if (duplicate) return duplicate.id;
+      const source: CareerOpsSource = {
+        id: 'source-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        label,
+        url: parsedUrl.toString(),
+        keywords: (sourceData.keywords || []).map((item) => item.trim()).filter(Boolean).slice(0, 20),
+        enabled: true,
+      };
+      const updated = [source, ...get().sources];
+      persistSources(updated);
+      set({ sources: updated });
+      return source.id;
+    },
+
+    updateSource: (id, updates) => {
+      const updated = get().sources.map((source) =>
+        source.id === id ? { ...source, ...updates } : source
+      );
+      persistSources(updated);
+      set({ sources: updated });
+    },
+
+    removeSource: (id) => {
+      const updated = get().sources.filter((source) => source.id !== id);
+      persistSources(updated);
+      set({ sources: updated });
+    },
+
+    discoverJobsFromSources: async () => {
+      if (get().isDiscovering) return { imported: 0, skipped: 0, errors: [] };
+      const activeSources = get().sources.filter((source) => source.enabled);
+      if (activeSources.length === 0) {
+        return { imported: 0, skipped: 0, errors: ['Add and enable a career page source first.'] };
+      }
+
+      set({ isDiscovering: true });
+      let imported = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+      try {
+        for (const source of activeSources) {
+          try {
+            const result = await discoverJobsFromCareerPage(source);
+            skipped += result.skipped;
+            errors.push(...result.errors.slice(0, 10));
+            for (const discovered of result.jobs) {
+              const details = discovered.details;
+              const normalizedUrl = details.url.replace(/#.*$/, '');
+              const exists = get().applications.some(
+                (application) => application.url?.replace(/#.*$/, '') === normalizedUrl
+              );
+              if (exists) {
+                skipped += 1;
+                continue;
+              }
+              get().addJob({
+                company: details.company || source.label,
+                role: details.role || 'Unknown role',
+                url: details.url,
+                salaryRange: details.salaryRange || 'Not disclosed',
+                location: details.location || 'Not specified',
+                workType: details.workType,
+                jdText: details.jdText,
+                status: 'scouted',
+                notes: `Discovered from ${source.label}. Review the source posting before evaluation.`,
+              });
+              imported += 1;
+            }
+            get().updateSource(source.id, {
+              lastCheckedAt: Date.now(),
+              lastError: result.errors.length ? result.errors.slice(0, 3).join(' | ') : undefined,
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Discovery failed.';
+            errors.push(`${source.label}: ${message}`);
+            get().updateSource(source.id, { lastCheckedAt: Date.now(), lastError: message });
+          }
+        }
+        return { imported, skipped, errors };
+      } finally {
+        set({ isDiscovering: false, lastDiscoveryAt: Date.now() });
+      }
     },
 
     updateJob: (id, updates) => {
