@@ -133,11 +133,13 @@ export class CanonicalProfileService {
     }
   }
 
-  private queuePersistenceSnapshot(snapshot: string): boolean {
+  private queuePersistenceSnapshot(): boolean {
     const api = this.getSecurePersistenceApi();
     if (!api) {
       try {
-        if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, snapshot);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentProfile));
+        }
         this.persistenceQueue = Promise.resolve(true);
         return true;
       } catch (error) {
@@ -151,6 +153,7 @@ export class CanonicalProfileService {
     this.persistenceQueue = this.persistenceQueue.then(async () => {
       if (!(await this.persistenceReady)) return false;
       try {
+        const snapshot = JSON.stringify(this.currentProfile);
         const saved = await api.securePersistenceSet('candidate-profile', snapshot);
         if (saved !== true) throw new Error('Encrypted candidate profile write was not committed.');
         const verified = await api.securePersistenceGet('candidate-profile');
@@ -230,7 +233,7 @@ export class CanonicalProfileService {
       updatedAt: Date.now(),
     };
 
-    const savedSuccessfully = this.queuePersistenceSnapshot(JSON.stringify(this.currentProfile));
+    const savedSuccessfully = this.queuePersistenceSnapshot();
 
     // Bidirectional sync with legacy stores
     this.syncToSubsystems(this.currentProfile);
@@ -962,7 +965,7 @@ export class CanonicalProfileService {
 
       if (changed) {
         this.currentProfile = updated;
-        this.queuePersistenceSnapshot(JSON.stringify(this.currentProfile));
+        this.queuePersistenceSnapshot();
         this.notify();
       }
     } finally {
