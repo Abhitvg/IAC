@@ -45,6 +45,12 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
+      const ipKey = `ip:${request.socket.remoteAddress ?? 'unknown'}`;
+      if (!(await dependencies.rateLimiter.consume(ipKey, 60, 60_000))) {
+        sendJson(response, 429, { error: 'Rate limit exceeded', requestId });
+        return;
+      }
+
       const token = readBearerToken(request.headers.authorization);
       const identity = verifyAccessToken(token, {
         issuer: dependencies.config.issuer,
@@ -52,6 +58,10 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         hmacSecret: dependencies.config.jwtHmacSecret,
       });
       const tenant = await resolveTenantContext(identity.subject, dependencies.repository);
+      if (!(await dependencies.rateLimiter.consume(`tenant:${tenant.tenantId}`, 300, 60_000))) {
+        sendJson(response, 429, { error: 'Tenant rate limit exceeded', requestId });
+        return;
+      }
 
       if (request.method === 'GET' && url.pathname === '/v1/me') {
         sendJson(response, 200, {
