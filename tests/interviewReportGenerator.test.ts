@@ -248,9 +248,7 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
     expect(competencies?.dimensions.leadership.score).toBe(4.0);
     expect(competencies?.dimensions.conflictResolution.score).toBe(4.0);
     expect(competencies?.dimensions.collaboration.score).toBe(4.0);
-    expect(competencies?.dimensions.leadership.feedback).toContain(
-      'not separately assessed'
-    );
+    expect(competencies?.dimensions.leadership.feedback).toContain('not separately assessed');
     expect(competencies?.starMethodologyNotes).toContain('not separately measured');
   });
 
