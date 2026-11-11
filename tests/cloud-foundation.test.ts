@@ -10,6 +10,7 @@ import { resolveTenantContext, type TenantMembership } from '../packages/cloud-c
 import { createCloudApiServer } from '../apps/api/src/server';
 import { loadCloudEnvironment } from '../apps/api/src/config';
 import type { CloudApiDependencies } from '../apps/api/src/ports';
+import { PostgresCloudApiRepository, type SqlPool } from '../apps/api/src/postgres-repository';
 
 const secret = 'test-only-secret-that-is-at-least-32-characters';
 const contractInput = {
@@ -152,6 +153,55 @@ describe('M0 cloud security foundation', () => {
     expect((await cipher.decrypt(envelope, 'tenant-1', 'resume:abc')).toString()).toBe('private resume');
     await expect(cipher.decrypt(envelope, 'tenant-2', 'resume:abc')).rejects.toThrow('mismatch');
     await expect(cipher.decrypt({ ...envelope, ciphertext: Buffer.from('tampered').toString('base64') }, 'tenant-1', 'resume:abc')).rejects.toThrow();
+  });
+
+  it('scopes PostgreSQL membership lookup to the verified subject in a transaction', async () => {
+    const statements: string[] = [];
+    const pool = {
+      connect: async () => ({
+        query: async (sql: string) => {
+          statements.push(sql);
+          return { rows: [{ tenant_id: 'tenant-1', subject: 'user-1', role: 'owner', status: 'active' }] };
+        },
+        release: () => statements.push('RELEASE'),
+      }),
+    } as unknown as SqlPool;
+    const repository = new PostgresCloudApiRepository(pool);
+    const memberships = await repository.findMembershipsBySubject('user-1');
+    expect(memberships[0]).toMatchObject({ tenantId: 'tenant-1', subject: 'user-1' });
+    expect(statements[0]).toBe('BEGIN');
+    expect(statements[1]).toContain("set_config('app.user_subject'");
+    expect(statements.some((sql) => sql.includes('FROM tenant_memberships'))).toBe(true);
+    expect(statements).toContain('COMMIT');
+    expect(statements.at(-1)).toBe('RELEASE');
+  });
+
+  it('commits kill-switch state and its append-only audit record in the same tenant transaction', async () => {
+    const statements: string[] = [];
+    const pool = {
+      connect: async () => ({
+        query: async (sql: string) => {
+          statements.push(sql);
+          if (sql.includes('UPDATE tenant_controls')) return { rows: [], rowCount: 1 };
+          if (sql.includes('SELECT event_hash')) return { rows: [] };
+          return { rows: [], rowCount: 1 };
+        },
+        release: () => statements.push('RELEASE'),
+      }),
+    } as unknown as SqlPool;
+    const repository = new PostgresCloudApiRepository(pool);
+    await repository.setGlobalKillSwitchWithAudit({
+      tenantId: 'tenant-1',
+      actorSubject: 'user-1',
+      enabled: true,
+      occurredAt: '2026-11-11T00:00:00.000Z',
+      metadata: { enabled: true, requestId: 'req-1' },
+    });
+    expect(statements.some((sql) => sql.includes('set_config(\'app.tenant_id\''))).toBe(true);
+    expect(statements.some((sql) => sql.includes('pg_advisory_xact_lock'))).toBe(true);
+    expect(statements.some((sql) => sql.includes('INSERT INTO audit_events'))).toBe(true);
+    expect(statements.indexOf('BEGIN')).toBe(0);
+    expect(statements.indexOf('COMMIT')).toBeGreaterThan(statements.findIndex((sql) => sql.includes('INSERT INTO audit_events')));
   });
 
   it('serves health and requires verified identity plus server-side tenant membership for private routes', async () => {
