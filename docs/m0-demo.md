@@ -17,7 +17,7 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 2. Run `npm run typecheck:cloud`.
 3. Run `npm run security:source`.
 4. Run `npx vitest run tests/cloud-foundation.test.ts`.
-5. Run `bash scripts/test-cloud-postgres-rls.sh` against a disposable PostgreSQL 16 database. The script applies both migrations using the supplied database credentials and runs the isolation/immutability assertions.
+5. Run `bash scripts/test-cloud-postgres-rls.sh` against a disposable PostgreSQL 16 database. The script applies all three migrations using the supplied database credentials and runs the isolation/immutability assertions.
 6. Ensure the API deployment login is a member of `careerops_app`; it must not own tables or have RLS bypass privileges. The separate tenant-provisioning operator login may be granted membership in `careerops_provisioner` and should be used only for the audited bootstrap script.
 7. Start the API in a harness that injects `PostgresCloudApiRepository`, a shared rate limiter, verified identity configuration and KMS adapter. The server intentionally has no insecure in-memory production fallback.
 
@@ -40,7 +40,7 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 - Kill switch/channel pause/cap enforcement.
 - Tamper-evident audit event hashing.
 - AES-256-GCM envelope integrity and tenant/context binding.
-- HTTP health, auth and server-side tenant resolution.
+- HTTP health, auth, server-side tenant resolution, and Sprint Contract accept/read/revoke lifecycle.
 
 ## Known gaps (must be closed before production)
 
@@ -49,6 +49,6 @@ M0 adds the first cloud trust boundary and security primitives. It does not enab
 - A production KMS implementation, cloud object storage and secrets manager are not selected or wired. Tests use an explicitly test-only fake key provider.
 - The API requires an injected shared rate-limiter implementation (for example Redis); the interface and fail-closed enforcement are present, but no process-local fallback is provided.
 - The consent HMAC secret must be separate from the JWT signing secret and configured as `CAREEROPS_CONSENT_SIGNING_SECRET`.
-- The PostgreSQL repository commits kill-switch/channel-pause changes and their audit events atomically; live hosted database and concurrent-write testing remain required.
+- The PostgreSQL repository commits Sprint Contract acceptance/revocation and control changes with their audit events atomically; live hosted database and concurrent-write testing remain required.
 - Database roles/grants, immutable consent evidence with one-way revocation, and append-only audit triggers are included in migration 0002. Backup encryption, key rotation, DSAR workflows, distributed rate-limiter deployment and abuse controls need deployment integration tests.
 - Existing desktop plaintext persistence and issue #72 remain unresolved; no automatic cloud import is performed.
