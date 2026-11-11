@@ -89,6 +89,7 @@ export interface CareerOpsSource {
   url: string;
   keywords: string[];
   enabled: boolean;
+  autoEvaluate: boolean;
   lastCheckedAt?: number;
   lastError?: string;
 }
