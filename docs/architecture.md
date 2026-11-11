@@ -1,6 +1,6 @@
 # CareerOps Cloud Architecture
 
-**Status:** Proposed target architecture; implementation starts at M0.  
+**Status:** Proposed target architecture; implementation starts at M0.
 **Baseline:** `main` at `6a24b0b44271658c75fff68f798c1a9f8e1e68f4`.
 
 ## Product boundary
