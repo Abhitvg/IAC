@@ -47,6 +47,9 @@ export function assertActionAllowed(
         ? contract.dailyCaps.assistQueueItems
         : contract.dailyCaps.calendarEvents;
 
+  if (!Number.isSafeInteger(request.dailyUsage) || request.dailyUsage < 0) {
+    throw new Error('Daily usage counter is invalid');
+  }
   if (request.dailyUsage >= cap) throw new Error('Daily action cap reached');
   if (!request.action.trim() || request.action.length > 80) throw new Error('Invalid action identifier');
 }
