@@ -267,17 +267,15 @@ export class InterviewReportGenerator {
       if (!topic) continue;
 
       const comp = competencyService.getTopicCompetency(topicId);
-      const topicEvidenceScores =
-        comp?.history.length
-          ? comp.history.map((evidence) => evidence.score)
-          : topicScoresById.get(topicId) || [];
+      const topicEvidenceScores = comp?.history.length
+        ? comp.history.map((evidence) => evidence.score)
+        : topicScoresById.get(topicId) || [];
       const topicAverage =
         topicEvidenceScores.length > 0
           ? topicEvidenceScores.reduce((sum, score) => sum + score, 0) / topicEvidenceScores.length
           : null;
       const isWeak =
-        comp?.revisionStatus === 'NEEDS_REVISION' ||
-        (topicAverage !== null && topicAverage < 2.5);
+        comp?.revisionStatus === 'NEEDS_REVISION' || (topicAverage !== null && topicAverage < 2.5);
 
       if (isWeak && topicAverage !== null) {
         topicLevelAnalysis.push({
