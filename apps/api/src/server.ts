@@ -305,7 +305,9 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       let status = 500;
       if (error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')) {
         status = 400;
-      } else if (/active Sprint Contract must be revoked|reviewed fact is immutable/i.test(message)) {
+      } else if (
+        /active Sprint Contract must be revoked|reviewed fact is immutable/i.test(message)
+      ) {
         status = 409;
       } else if (/Only the fact contributor/i.test(message)) {
         status = 403;
