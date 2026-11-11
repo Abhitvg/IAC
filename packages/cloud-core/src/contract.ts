@@ -80,7 +80,9 @@ function canonicalJson(value: unknown): string {
     );
     return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(',')}}`;
   }
-  return JSON.stringify(value);
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) throw new Error('Sprint Contract contains a non-JSON value');
+  return serialized;
 }
 
 export interface ConsentRecord {
