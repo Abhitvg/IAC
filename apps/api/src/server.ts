@@ -56,7 +56,9 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
 
       const token = readBearerToken(request.headers.authorization);
       const identity = await dependencies.identityVerifier.verify(token);
-      const tenant = await resolveTenantContext(identity.subject, dependencies.repository);
+      const requestedTenant = request.headers['x-tenant-id'];
+      if (Array.isArray(requestedTenant)) throw new Error('Invalid tenant selection header');
+      const tenant = await resolveTenantContext(identity.subject, dependencies.repository, requestedTenant);
       if (!(await dependencies.rateLimiter.consume(`tenant:${tenant.tenantId}`, 300, 60_000))) {
         sendJson(response, 429, { error: 'Tenant rate limit exceeded', requestId });
         return;
