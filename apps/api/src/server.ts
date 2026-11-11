@@ -2,7 +2,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { randomUUID } from 'node:crypto';
 import { readBearerToken } from '../../../packages/cloud-core/src/auth';
 import { createConsentRecord } from '../../../packages/cloud-core/src/contract';
-import { CareerGraphFactReviewSchema, validateCareerGraphFact } from '../../../packages/cloud-core/src/career-graph';
+import {
+  CareerGraphFactReviewSchema,
+  validateCareerGraphFact,
+} from '../../../packages/cloud-core/src/career-graph';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
 
@@ -92,7 +95,10 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         const rawLimit = url.searchParams.get('limit');
         const limit = rawLimit === null ? 50 : Number(rawLimit);
         if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
-          sendJson(response, 400, { error: 'limit must be an integer between 1 and 100', requestId });
+          sendJson(response, 400, {
+            error: 'limit must be an integer between 1 and 100',
+            requestId,
+          });
           return;
         }
         const facts = await dependencies.careerGraph.listFacts(
@@ -304,7 +310,9 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
                   ? 401
                   : /size limit/i.test(message)
                     ? 413
-                    : /JSON|body|Career Graph envelope|Authenticated tenant and actor/i.test(message)
+                    : /JSON|body|Career Graph envelope|Authenticated tenant and actor/i.test(
+                        message
+                      )
                       ? 400
                       : 500;
       sendJson(response, status, {
