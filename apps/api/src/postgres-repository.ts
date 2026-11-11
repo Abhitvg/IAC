@@ -18,6 +18,7 @@ interface SqlClient {
 
 export interface SqlPool {
   connect(): Promise<SqlClient>;
+  end?(): Promise<void>;
 }
 
 interface MembershipRow {
@@ -64,6 +65,15 @@ async function inTransaction<T>(
 
 export class PostgresCloudApiRepository implements CloudApiRepository, TenantMembershipRepository {
   constructor(private readonly pool: SqlPool) {}
+
+  async checkReady(): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('SELECT 1');
+    } finally {
+      client.release();
+    }
+  }
 
   async findMembershipsBySubject(subject: string): Promise<TenantMembership[]> {
     return inTransaction(this.pool, subject, null, async (client) => {
