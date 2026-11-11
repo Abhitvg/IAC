@@ -7,11 +7,14 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "apps/api/src/**/*.ts",
     "packages/cloud-core/src/**/*.ts",
-    "tests/cloud-foundation.test.ts"
+    "tests/cloud-foundation.test.ts",
+    "tests/cloud-migrations.test.ts"
   ]
 }
