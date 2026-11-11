@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import { AlertCircle, Briefcase, Clock3, Plus, Radar, RefreshCw, Trash2 } from 'lucide-react';
 import { useCareerOpsStore } from '../../store/useCareerOpsStore';
+import type { ProviderConfig } from '../../services/careerOps/careerOpsService';
 
-export function CareerDiscoveryPanel() {
+interface CareerDiscoveryPanelProps {
+  resumeText: string;
+  providerConfig?: ProviderConfig;
+}
+
+export function CareerDiscoveryPanel({ resumeText, providerConfig }: CareerDiscoveryPanelProps) {
   const {
     sources,
     applications,
@@ -17,6 +23,7 @@ export function CareerDiscoveryPanel() {
   const [label, setLabel] = useState('');
   const [url, setUrl] = useState('');
   const [keywords, setKeywords] = useState('');
+  const [autoEvaluate, setAutoEvaluate] = useState(false);
   const [message, setMessage] = useState('');
   const [lastResult, setLastResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
 
@@ -27,10 +34,12 @@ export function CareerDiscoveryPanel() {
         label,
         url,
         keywords: keywords.split(',').map((item) => item.trim()).filter(Boolean),
+        autoEvaluate,
       });
       setLabel('');
       setUrl('');
       setKeywords('');
+      setAutoEvaluate(false);
       setMessage('Career page added. It will be scanned while CareerOps is open.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not add this career page.');
@@ -40,7 +49,7 @@ export function CareerDiscoveryPanel() {
   const handleScan = async () => {
     setMessage('');
     try {
-      const result = await discoverJobsFromSources();
+      const result = await discoverJobsFromSources(resumeText, providerConfig);
       setLastResult(result);
       setMessage(
         `Scan complete: ${result.imported} new jobs imported, ${result.skipped} duplicates or keyword mismatches skipped.`
@@ -85,7 +94,7 @@ export function CareerDiscoveryPanel() {
         <div style={{ flex: 1 }}>
           <h3 style={{ margin: 0, color: '#f8fafc', fontSize: 16, fontWeight: 800 }}>Job Discovery Automation</h3>
           <p style={{ margin: '5px 0 0', color: '#94a3b8', fontSize: 12, lineHeight: 1.6 }}>
-            Add public company career pages or ATS boards. CareerOps checks enabled sources every 12 hours while CareerOps is open, imports new postings, and deduplicates by URL. It never applies automatically.
+            Add public company career pages or ATS boards. CareerOps checks enabled sources every 12 hours while CareerOps is open, imports new postings, and deduplicates by URL. You can opt into automatic evaluation; applications are never submitted automatically.
           </p>
         </div>
         <button type="button" onClick={handleScan} disabled={isDiscovering || sources.every((source) => !source.enabled)} style={{ ...buttonStyle, background: 'linear-gradient(135deg,#f97316,#ea580c)', border: 0, opacity: isDiscovering ? 0.6 : 1 }}>
@@ -107,6 +116,10 @@ export function CareerDiscoveryPanel() {
           <label htmlFor="career-source-keywords" style={{ display: 'block', color: '#94a3b8', fontSize: 10, fontWeight: 800, marginBottom: 5 }}>OPTIONAL KEYWORDS (COMMA SEPARATED)</label>
           <input id="career-source-keywords" value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="software engineer, AI, full stack, DevOps" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 10px', borderRadius: 7, background: '#0b1220', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.13)', fontSize: 12 }} />
         </div>
+        <label style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, color: '#cbd5e1', fontSize: 11 }}>
+          <input type="checkbox" checked={autoEvaluate} onChange={(event) => setAutoEvaluate(event.target.checked)} />
+          Automatically evaluate newly imported jobs against my loaded resume
+        </label>
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
           <button type="submit" style={{ ...buttonStyle, background: 'rgba(249,115,22,0.16)', color: '#fdba74', borderColor: 'rgba(249,115,22,0.35)' }}>
             <Plus size={13} /> Add career page
