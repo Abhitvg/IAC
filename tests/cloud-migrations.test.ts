@@ -8,7 +8,11 @@ import {
   type CloudMigration,
 } from '../apps/api/src/migrations';
 
-function createPool(existing: Record<string, string> = {}, legacyTables: string[] = []) {
+function createPool(
+  existing: Record<string, string> = {},
+  legacyTables: string[] = [],
+  ledgerExists = Object.keys(existing).length > 0
+) {
   const calls: Array<{ sql: string; values?: unknown[] }> = [];
   const client = {
     async query<Row = Record<string, unknown>>(sql: string, values?: unknown[]) {
@@ -16,10 +20,13 @@ function createPool(existing: Record<string, string> = {}, legacyTables: string[
       if (sql.includes('to_regclass')) {
         return {
           rows: [{
-            ledger_table: Object.keys(existing).length ? 'careerops_schema_migrations' : null,
+            ledger_table: ledgerExists ? 'careerops_schema_migrations' : null,
             existing_tables: legacyTables,
           }] as Row[],
         };
+      }
+      if (sql.includes('COUNT(*)::int AS migration_count')) {
+        return { rows: [{ migration_count: Object.keys(existing).length }] as Row[] };
       }
       if (sql.startsWith('SELECT checksum')) {
         const name = String(values?.[0]);
@@ -89,6 +96,17 @@ describe('cloud database migrations', () => {
     ).toBe(false);
     expect(calls.some((call) => call.sql.trim() === 'BEGIN')).toBe(false);
     expect(client.release).toHaveBeenCalledOnce();
+  });
+
+
+  it('refuses an empty migration ledger when CareerOps tables already exist', async () => {
+    const { pool, calls } = createPool({}, ['tenants'], true);
+
+    await expect(
+      runCloudMigrations(pool, [{ name: '0001_first.sql', sql: 'SELECT 1;' }])
+    ).rejects.toThrow(/populated migration ledger/);
+
+    expect(calls.some((call) => call.sql.trim() === 'BEGIN')).toBe(false);
   });
 
   it('skips matching migrations and rejects checksum drift', async () => {
