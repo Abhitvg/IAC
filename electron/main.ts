@@ -569,15 +569,12 @@ ipcMain.handle('pii-vault:get', async (event, namespace: string, key: string) =>
   if (!piiVault) throw new Error('PII vault is not initialized.');
   return piiVault.get(namespace, key);
 });
-ipcMain.handle(
-  'pii-vault:put',
-  async (event, namespace: string, key: string, value: unknown) => {
-    if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
-    if (!piiVault) throw new Error('PII vault is not initialized.');
-    await piiVault.put(namespace, key, value);
-    return true;
-  }
-);
+ipcMain.handle('pii-vault:put', async (event, namespace: string, key: string, value: unknown) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (!piiVault) throw new Error('PII vault is not initialized.');
+  await piiVault.put(namespace, key, value);
+  return true;
+});
 ipcMain.handle(
   'pii-vault:verify',
   async (event, namespace: string, key: string, value: unknown) => {
