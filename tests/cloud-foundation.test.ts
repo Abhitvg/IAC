@@ -446,7 +446,8 @@ describe('M0 cloud security foundation', () => {
           revokedContractId = contractId;
           acceptedContract = null;
         },
-        getControlState: async (tenantId) => ({
+        checkReady: async () => undefined,
+      getControlState: async (tenantId) => ({
           tenantId,
           globalKillSwitch: true,
           pausedChannels: [],
