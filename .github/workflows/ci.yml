@@ -74,6 +74,12 @@ jobs:
           }
           NODE
 
+      - name: Debug Prettier output for section flush handlers
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          npx prettier --write src/components/wizard/AchievementsSection.tsx src/components/wizard/CareerSection.tsx src/components/wizard/DeclarationsSection.tsx src/components/wizard/EducationSection.tsx src/components/wizard/ExperienceSection.tsx src/components/wizard/IdentitySection.tsx src/components/wizard/PreferencesSection.tsx src/components/wizard/ProjectsSection.tsx src/components/wizard/SkillsSection.tsx
+          git diff -- src/components/wizard/AchievementsSection.tsx src/components/wizard/CareerSection.tsx src/components/wizard/DeclarationsSection.tsx src/components/wizard/EducationSection.tsx src/components/wizard/ExperienceSection.tsx src/components/wizard/IdentitySection.tsx src/components/wizard/PreferencesSection.tsx src/components/wizard/ProjectsSection.tsx src/components/wizard/SkillsSection.tsx
+
       - name: Check formatting for changed files
         shell: bash
         run: |
