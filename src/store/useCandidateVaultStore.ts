@@ -41,21 +41,21 @@ export const INITIAL_CANDIDATE_VAULT: CandidateVaultProfile = {
   fullName: '',
   email: '',
   phone: '',
-  location: '',
+  location: 'unknown',
   city: '',
   state: '',
   country: '',
   linkedin: '',
   github: '',
   portfolio: '',
-  currentCompany: '',
-  currentTitle: '',
-  yearsOfExperience: '',
+  currentCompany: 'unknown',
+  currentTitle: 'unknown',
+  yearsOfExperience: 'unknown',
   authorizedToWork: false,
   requiresSponsorship: false,
   authorizedToWorkVerified: false,
   requiresSponsorshipVerified: false,
-  salaryExpectation: '',
+  salaryExpectation: 'unknown',
   earliestStartDate: '',
   noticePeriod: '',
   coreTechStack: '',
@@ -76,24 +76,10 @@ function isKnownFabricatedDemoProfile(profile: any): boolean {
   );
 }
 
-function clearUnknownPlaceholder(value: unknown): string {
-  if (typeof value !== 'string') return '';
-  const normalized = value.trim().toLowerCase();
-  return ['unknown', 'not specified', 'n/a', 'none', 'null'].includes(normalized) ? '' : value;
-}
-
 function normalizeVaultProfile(profile: Partial<CandidateVaultProfile>): CandidateVaultProfile {
   return {
     ...INITIAL_CANDIDATE_VAULT,
     ...profile,
-    location: clearUnknownPlaceholder(profile.location),
-    city: clearUnknownPlaceholder(profile.city),
-    state: clearUnknownPlaceholder(profile.state),
-    country: clearUnknownPlaceholder(profile.country),
-    currentCompany: clearUnknownPlaceholder(profile.currentCompany),
-    currentTitle: clearUnknownPlaceholder(profile.currentTitle),
-    yearsOfExperience: clearUnknownPlaceholder(profile.yearsOfExperience),
-    salaryExpectation: clearUnknownPlaceholder(profile.salaryExpectation),
     authorizedToWorkVerified: profile.authorizedToWorkVerified === true,
     requiresSponsorshipVerified: profile.requiresSponsorshipVerified === true,
   };
