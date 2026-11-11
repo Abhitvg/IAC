@@ -408,6 +408,8 @@ describe('M0 cloud security foundation', () => {
       role: 'owner',
       status: 'active',
     };
+    let acceptedContract: unknown = null;
+    let revokedContractId: string | null = null;
     const dependencies: CloudApiDependencies = {
       config: {
         issuer: authConfig.issuer,
@@ -426,9 +428,15 @@ describe('M0 cloud security foundation', () => {
       rateLimiter: { consume: async () => rateLimitAllowed },
       repository: {
         findMembershipsBySubject: async () => [membership],
-        acceptSprintContract: async () => ({ id: '40000000-0000-4000-8000-000000000004', revision: 1 }),
-        getActiveSprintContract: async () => null,
-        revokeSprintContract: async () => undefined,
+        acceptSprintContract: async (record) => {
+          acceptedContract = record;
+          return { id: '40000000-0000-4000-8000-000000000004', revision: 1 };
+        },
+        getActiveSprintContract: async () => acceptedContract as never,
+        revokeSprintContract: async ({ contractId }) => {
+          revokedContractId = contractId;
+          acceptedContract = null;
+        },
         getControlState: async (tenantId) => ({
           tenantId,
           globalKillSwitch: true,
@@ -461,6 +469,30 @@ describe('M0 cloud security foundation', () => {
       });
       expect(me.status).toBe(200);
       expect(await me.json()).toMatchObject({ tenantId: 'tenant-1', subject: 'user-1' });
+      const contractResponse = await fetch(`http://127.0.0.1:${address.port}/v1/sprint-contract`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(contractInput),
+      });
+      expect(contractResponse.status).toBe(201);
+      const accepted = await contractResponse.json();
+      expect(accepted).toMatchObject({ id: '40000000-0000-4000-8000-000000000004', revision: 1 });
+      expect(acceptedContract).toMatchObject({ tenantId: 'tenant-1', subject: 'user-1' });
+
+      const activeContract = await fetch(`http://127.0.0.1:${address.port}/v1/sprint-contract`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(activeContract.status).toBe(200);
+      expect(await activeContract.json()).toMatchObject({ contract: { subject: 'user-1' } });
+
+      const revoke = await fetch(`http://127.0.0.1:${address.port}/v1/sprint-contract/40000000-0000-4000-8000-000000000004/revoke`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: '{}',
+      });
+      expect(revoke.status).toBe(200);
+      expect(revokedContractId).toBe('40000000-0000-4000-8000-000000000004');
+
       const pause = await fetch(`http://127.0.0.1:${address.port}/v1/controls/channel-pause`, {
         method: 'POST',
         headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
