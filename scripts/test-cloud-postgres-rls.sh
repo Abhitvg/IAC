@@ -13,7 +13,8 @@ INSERT INTO tenants (id, display_name) VALUES
   ('20000000-0000-4000-8000-000000000002', 'Tenant B');
 INSERT INTO tenant_memberships (tenant_id, subject, role) VALUES
   ('10000000-0000-4000-8000-000000000001', 'user-a', 'owner'),
-  ('20000000-0000-4000-8000-000000000002', 'user-b', 'owner');
+  ('20000000-0000-4000-8000-000000000002', 'user-b', 'owner'),
+  ('20000000-0000-4000-8000-000000000002', 'user-a', 'member');
 INSERT INTO tenant_controls (tenant_id) VALUES
   ('10000000-0000-4000-8000-000000000001'),
   ('20000000-0000-4000-8000-000000000002');
@@ -27,8 +28,8 @@ DO $$
 DECLARE visible_memberships integer;
 BEGIN
   SELECT count(*) INTO visible_memberships FROM tenant_memberships;
-  IF visible_memberships <> 1 THEN
-    RAISE EXCEPTION 'Membership RLS failed: expected 1 row, got %', visible_memberships;
+  IF visible_memberships <> 2 THEN
+    RAISE EXCEPTION 'Membership RLS failed: expected 2 rows for a multi-tenant subject, got %', visible_memberships;
   END IF;
 END
 $$;
