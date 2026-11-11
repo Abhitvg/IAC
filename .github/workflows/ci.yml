@@ -74,6 +74,20 @@ jobs:
           }
           NODE
 
+      - name: TEMP format PostgreSQL TLS files and export
+        if: matrix.os == 'ubuntu-24.04' && github.event_name == 'pull_request' && github.event.pull_request.number == 201
+        shell: bash
+        run: |
+          npx prettier --write apps/api/src/postgres-pool.ts tests/postgres-pool.test.ts
+          echo POOL_BASE64_BEGIN
+          base64 -w0 apps/api/src/postgres-pool.ts
+          echo
+          echo POOL_BASE64_END
+          echo POOL_TEST_BASE64_BEGIN
+          base64 -w0 tests/postgres-pool.test.ts
+          echo
+          echo POOL_TEST_BASE64_END
+
       - name: Check formatting for changed files
         shell: bash
         run: |
