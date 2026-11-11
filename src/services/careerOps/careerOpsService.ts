@@ -549,30 +549,29 @@ export async function generateOutreachNotes(
   coldEmailSubject: string;
   coldEmailBody: string;
 }> {
-  // Always provide high-conversion deterministic drafts <= 300 chars
-  const linkedinRecruiter =
-    `Hi! I saw the ${roleTitle} opening at ${companyName} and submitted my application. With background in ${strategicAngle}, I'd love to connect and see if my background aligns with what your team needs this quarter. Thanks!`.slice(
-      0,
-      298
-    );
+  // Keep deterministic drafts factual; candidate-specific claims belong in reviewed resume evidence.
+  const linkedinRecruiter = `Hi! I saw the ${roleTitle} opening at ${companyName} and have applied. I'd appreciate the chance to connect and learn what the team is prioritizing for this role. Thanks!`.slice(
+    0,
+    298
+  );
 
-  const linkedinHiringManager =
-    `Hi! Noticed you're leading the team for the ${roleTitle} role at ${companyName}. Having built equivalent ${strategicAngle} systems, I just applied and would love to follow your team's engineering updates. Best regards!`.slice(
-      0,
-      298
-    );
+  const linkedinHiringManager = `Hi! I'm interested in the ${roleTitle} role at ${companyName}. I've applied and would welcome a chance to learn more about the team's current engineering priorities. Thanks!`.slice(
+    0,
+    298
+  );
 
   const coldEmailSubject = `Application: ${roleTitle} — High-Reliability Systems Background`;
   const coldEmailBody = `Hi ${companyName} Team,
 
-I recently applied for the ${roleTitle} position on your careers portal. Given your team's focus on high-throughput reliability and scalable engineering, I wanted to share a brief note highlighting relevant experience.
+I recently applied for the ${roleTitle} position on your careers portal. I would welcome the opportunity to discuss the role and the engineering problems your team is prioritizing.
 
-In my recent projects, I have specialized in building robust distributed backends, optimizing cloud architectures, and delivering clean, test-tested code under agile sprint cadences.
+My relevant experience and projects are described in my resume. I would be glad to explain how that verified work aligns with the role.
 
-My resume and portfolio are attached. I would welcome the opportunity to connect for a 15-minute introductory conversation.
+Resume: [Resume Link]
+Portfolio: [Portfolio Link]
 
 Best regards,
-Candidate`;
+[Candidate Name]`;
 
   return {
     linkedinRecruiter,
