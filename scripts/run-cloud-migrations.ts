@@ -9,12 +9,15 @@ async function migrate(): Promise<void> {
     throw new Error('CAREEROPS_MIGRATION_DATABASE_URL is required for schema migrations');
   }
 
-  const nodeEnvironment: CloudEnvironment['NODE_ENV'] =
-    process.env.NODE_ENV === 'production'
-      ? 'production'
-      : process.env.NODE_ENV === 'test'
-        ? 'test'
-        : 'development';
+  const configuredEnvironment = process.env.NODE_ENV;
+  if (
+    configuredEnvironment !== 'production' &&
+    configuredEnvironment !== 'development' &&
+    configuredEnvironment !== 'test'
+  ) {
+    throw new Error('NODE_ENV must be explicitly set to production, development, or test');
+  }
+  const nodeEnvironment: CloudEnvironment['NODE_ENV'] = configuredEnvironment;
   const pool = createPostgresPoolFromUrl(connectionString, nodeEnvironment, 1);
 
   try {
