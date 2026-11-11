@@ -440,7 +440,7 @@ export async function generateCoverLetter(
   const levelDescriptions: Record<CoverLetterExperienceLevel, string> = {
     senior:
       'Senior / Staff Engineer: emphasizes systems architecture, mentoring, 50k+ QPS scale, and cross-functional leadership.',
-    mid: 'Full-Stack / Backend Engineer: emphasizes end-to-end feature delivery, clean REST/gRPC API design, and automated test coverage.',
+    mid: 'Mid-level Engineer: emphasize end-to-end delivery, API design, and testing only where the resume provides concrete examples.',
     entry:
       'New Graduate / Entry-Level Engineer: emphasizes core computer science foundations, hackathon/capstone achievements, and internship impact (27% bug reduction).',
     career_switcher:
