@@ -3,13 +3,13 @@ import { MockSessionState, TopicMastery } from '../types';
 export interface SessionProgressMetric {
   sessionId: string;
   roundType: string;
-  structureScore: number;
-  concretenessScore: number;
-  deliveryScore: number;
+  structureScore: number | null;
+  concretenessScore: number | null;
+  deliveryScore: number | null;
   overallScore: number;
-  speakingPaceWpm: number;
-  fillerCount: number;
-  confidence: 'high' | 'low';
+  speakingPaceWpm: number | null;
+  fillerCount: number | null;
+  confidence: 'llm_assisted' | 'heuristic';
   isHeuristicEstimate: boolean;
   questionCount: number;
 }
@@ -70,7 +70,7 @@ export class ProgressMetricsService {
         .filter(Boolean) as NonNullable<(typeof session.questionHistory)[0]['delivery']>[];
 
       // Extract Structure score
-      let structureScore = session.overallScorecard?.structureScore;
+      let structureScore: number | null | undefined = session.overallScorecard?.structureScore;
       if (structureScore === undefined) {
         const structureDims = evals.flatMap((e) =>
           e.dimensions.filter((d) => d.name.toLowerCase().includes('structure'))
@@ -80,11 +80,11 @@ export class ProgressMetricsService {
             ? Math.round(
                 (structureDims.reduce((acc, d) => acc + d.score, 0) / structureDims.length) * 10
               ) / 10
-            : 3.0;
+            : null;
       }
 
       // Extract Concreteness score
-      let concretenessScore = session.overallScorecard?.concretenessScore;
+      let concretenessScore: number | null | undefined = session.overallScorecard?.concretenessScore;
       if (concretenessScore === undefined) {
         const concDims = evals.flatMap((e) =>
           e.dimensions.filter((d) => d.name.toLowerCase().includes('concreteness'))
@@ -93,38 +93,52 @@ export class ProgressMetricsService {
           concDims.length > 0
             ? Math.round((concDims.reduce((acc, d) => acc + d.score, 0) / concDims.length) * 10) /
               10
-            : 3.0;
+            : null;
       }
 
       // Extract Delivery score & pace
-      let deliveryScore = session.overallScorecard?.deliveryScore;
+      let deliveryScore: number | null | undefined = session.overallScorecard?.deliveryScore;
       if (deliveryScore === undefined) {
+        const measuredDeliveries = deliveries.filter(
+          (delivery) => delivery.wordCount > 0 && delivery.durationSeconds > 0
+        );
         deliveryScore =
-          deliveries.length > 0
+          measuredDeliveries.length > 0
             ? Math.round(
-                (deliveries.reduce((acc, d) => acc + d.deliveryScore, 0) / deliveries.length) * 10
+                (measuredDeliveries.reduce((acc, d) => acc + d.deliveryScore, 0) /
+                  measuredDeliveries.length) *
+                  10
               ) / 10
-            : 3.5;
+            : null;
       }
 
       const totalWords = deliveries.reduce((acc, d) => acc + (d.wordCount || 0), 0);
       const totalDuration = deliveries.reduce((acc, d) => acc + (d.durationSeconds || 0), 0);
       const speakingPaceWpm =
-        totalDuration > 0 ? Math.round((totalWords / totalDuration) * 60) : 130;
+        totalDuration > 0 && totalWords > 0
+          ? Math.round((totalWords / totalDuration) * 60)
+          : null;
 
-      const fillerCount = deliveries.reduce((acc, d) => acc + (d.fillerWordsCount || 0), 0);
+      const measuredDeliveries = deliveries.filter(
+        (delivery) => delivery.wordCount > 0 && delivery.durationSeconds > 0
+      );
+      const fillerCount =
+        measuredDeliveries.length > 0
+          ? measuredDeliveries.reduce((acc, d) => acc + (d.fillerWordsCount || 0), 0)
+          : null;
 
       // Overall score
       const overallScore =
         session.overallScorecard?.averageScore ??
-        (evals.length > 0
-          ? Math.round((evals.reduce((acc, e) => acc + e.overallScore, 0) / evals.length) * 10) / 10
-          : 3.0);
+        Math.round((evals.reduce((acc, e) => acc + e.overallScore, 0) / evals.length) * 10) /
+        10;
 
       // Confidence indicator: Low if heuristic estimate or no verbatim evidence, High otherwise
       const isHeuristic =
         evals.some((e) => e.isHeuristicEstimate) || Boolean(session.isOfflineInterviewer);
-      const confidence: 'high' | 'low' = isHeuristic ? 'low' : 'high';
+      const confidence: 'llm_assisted' | 'heuristic' = isHeuristic
+        ? 'heuristic'
+        : 'llm_assisted';
 
       return {
         sessionId: `session-${index + 1}`,
@@ -141,36 +155,18 @@ export class ProgressMetricsService {
       };
     });
 
-    const averageStructure =
-      metrics.length > 0
-        ? Math.round(
-            (metrics.reduce((acc, m) => acc + m.structureScore, 0) / metrics.length) * 10
-          ) / 10
+    const averageOfMeasured = (values: Array<number | null>): number => {
+      const measured = values.filter((value): value is number => value !== null);
+      return measured.length > 0
+        ? Math.round((measured.reduce((sum, value) => sum + value, 0) / measured.length) * 10) / 10
         : 0;
+    };
 
-    const averageConcreteness =
-      metrics.length > 0
-        ? Math.round(
-            (metrics.reduce((acc, m) => acc + m.concretenessScore, 0) / metrics.length) * 10
-          ) / 10
-        : 0;
-
-    const averageDelivery =
-      metrics.length > 0
-        ? Math.round((metrics.reduce((acc, m) => acc + m.deliveryScore, 0) / metrics.length) * 10) /
-          10
-        : 0;
-
-    const averageOverall =
-      metrics.length > 0
-        ? Math.round((metrics.reduce((acc, m) => acc + m.overallScore, 0) / metrics.length) * 10) /
-          10
-        : 0;
-
-    const averageWpm =
-      metrics.length > 0
-        ? Math.round(metrics.reduce((acc, m) => acc + m.speakingPaceWpm, 0) / metrics.length)
-        : 0;
+    const averageStructure = averageOfMeasured(metrics.map((metric) => metric.structureScore));
+    const averageConcreteness = averageOfMeasured(metrics.map((metric) => metric.concretenessScore));
+    const averageDelivery = averageOfMeasured(metrics.map((metric) => metric.deliveryScore));
+    const averageOverall = averageOfMeasured(metrics.map((metric) => metric.overallScore));
+    const averageWpm = averageOfMeasured(metrics.map((metric) => metric.speakingPaceWpm));
 
     const topicMasterySummary = (topicMasteries || []).map((t) => ({
       topicId: t.topicId,
