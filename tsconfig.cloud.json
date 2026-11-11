@@ -16,6 +16,9 @@
     "tests/cloud-migrations.test.ts",
     "tests/career-graph.test.ts",
     "tests/postgres-pool.test.ts",
-    "tests/career-graph-api.test.ts"
+    "tests/career-graph-api.test.ts",
+    "tests/m1-career-graph-importers.test.ts",
+    "tests/m1-sprint-contract-onboarding.test.ts",
+    "tests/m1-api-routes.test.ts"
   ]
 }

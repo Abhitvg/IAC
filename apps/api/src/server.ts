@@ -6,6 +6,13 @@ import {
   CareerGraphFactReviewSchema,
   validateCareerGraphFact,
 } from '../../../packages/cloud-core/src/career-graph';
+import { extractCandidateFactsFromResume } from '../../../packages/cloud-core/src/importers/resume';
+import { extractCandidateFactsFromLinkedInExport } from '../../../packages/cloud-core/src/importers/linkedin';
+import {
+  extractCandidateFactsFromGitHub,
+  type GitHubUserProfile,
+  type GitHubRepository,
+} from '../../../packages/cloud-core/src/importers/github';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
 
@@ -135,6 +142,51 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           review
         );
         sendJson(response, 200, { fact, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/career-graph/extract/resume') {
+        const body = await readJson(request, maxBytes);
+        if (typeof body.text !== 'string') {
+          sendJson(response, 400, { error: 'Expected string text field', requestId });
+          return;
+        }
+        const candidateFacts = extractCandidateFactsFromResume(
+          body.text,
+          typeof body.filename === 'string' ? { filename: body.filename } : {}
+        );
+        sendJson(response, 200, { candidateFacts, count: candidateFacts.length, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/career-graph/extract/linkedin') {
+        const body = await readJson(request, maxBytes);
+        const candidateFacts = extractCandidateFactsFromLinkedInExport({
+          positionsCsv: typeof body.positionsCsv === 'string' ? body.positionsCsv : undefined,
+          educationCsv: typeof body.educationCsv === 'string' ? body.educationCsv : undefined,
+          skillsCsv: typeof body.skillsCsv === 'string' ? body.skillsCsv : undefined,
+          certificationsCsv:
+            typeof body.certificationsCsv === 'string' ? body.certificationsCsv : undefined,
+          profileCsv: typeof body.profileCsv === 'string' ? body.profileCsv : undefined,
+        });
+        sendJson(response, 200, { candidateFacts, count: candidateFacts.length, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/career-graph/extract/github') {
+        const body = await readJson(request, maxBytes);
+        if (!body.user || typeof body.user !== 'object' || !Array.isArray(body.repositories)) {
+          sendJson(response, 400, {
+            error: 'Expected user object and repositories array',
+            requestId,
+          });
+          return;
+        }
+        const candidateFacts = extractCandidateFactsFromGitHub({
+          user: body.user as unknown as GitHubUserProfile,
+          repositories: body.repositories as unknown as GitHubRepository[],
+        });
+        sendJson(response, 200, { candidateFacts, count: candidateFacts.length, requestId });
         return;
       }
 
