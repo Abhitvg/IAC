@@ -41,10 +41,8 @@ describe('Canonical candidate profile encrypted persistence', () => {
   });
 
   it('migrates legacy plaintext only after encrypted write and read-back verification', async () => {
-    const profile = { ...createDefaultCanonicalProfile(), identity: {
-      ...createDefaultCanonicalProfile().identity,
-      fullName: 'Candidate Profile Test',
-    } };
+    const profile = createDefaultCanonicalProfile();
+    profile.identity.fullName = 'Candidate Profile Test';
     const legacy = JSON.stringify(profile);
     localStorage.setItem(STORAGE_KEY, legacy);
 
@@ -63,28 +61,27 @@ describe('Canonical candidate profile encrypted persistence', () => {
     expect(service.getProfile().identity.fullName).toBe('Candidate Profile Test');
   });
 
-  it('preserves plaintext and refuses to fall back when an encrypted record cannot be decrypted', async () => {
-    const profile = { ...createDefaultCanonicalProfile(), identity: {
-      ...createDefaultCanonicalProfile().identity,
-      fullName: 'Legacy Candidate',
-    } };
-    const legacy = JSON.stringify(profile);
-    localStorage.setItem(STORAGE_KEY, legacy);
-    secureApi.securePersistenceGet.mockRejectedValueOnce(new Error('OS keyring is locked'));
+  it(
+    'preserves plaintext and refuses to fall back when an encrypted record cannot be decrypted',
+    async () => {
+      const profile = createDefaultCanonicalProfile();
+      profile.identity.fullName = 'Legacy Candidate';
+      const legacy = JSON.stringify(profile);
+      localStorage.setItem(STORAGE_KEY, legacy);
+      secureApi.securePersistenceGet.mockRejectedValueOnce(new Error('OS keyring is locked'));
 
-    const service = CanonicalProfileService.getInstance();
-    await expect(service.ready()).resolves.toBe(false);
+      const service = CanonicalProfileService.getInstance();
+      await expect(service.ready()).resolves.toBe(false);
 
-    expect(localStorage.getItem(STORAGE_KEY)).toBe(legacy);
-    expect(service.getProfile().identity.fullName).toBe('');
-    expect(service.getPersistenceError()).toContain('OS keyring is locked');
-  });
+      expect(localStorage.getItem(STORAGE_KEY)).toBe(legacy);
+      expect(service.getProfile().identity.fullName).toBe('');
+      expect(service.getPersistenceError()).toContain('OS keyring is locked');
+    }
+  );
 
   it('does not silently fall back to plaintext when encrypted content is corrupt', async () => {
-    const profile = { ...createDefaultCanonicalProfile(), identity: {
-      ...createDefaultCanonicalProfile().identity,
-      fullName: 'Do Not Load This Plaintext',
-    } };
+    const profile = createDefaultCanonicalProfile();
+    profile.identity.fullName = 'Do Not Load This Plaintext';
     const legacy = JSON.stringify(profile);
     localStorage.setItem(STORAGE_KEY, legacy);
     encryptedValue = '{invalid-json';
