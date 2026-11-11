@@ -380,6 +380,12 @@ export class PiiVault {
   public async delete(namespace: string, key: string): Promise<boolean> {
     const target = this.recordPath(namespace, key);
     try {
+      await this.assertSafeDirectory(this.vaultPath, this.userDataPath, false);
+      await this.assertSafeDirectory(path.dirname(target), this.vaultPath, false);
+      const stat = await fs.promises.lstat(target);
+      if (!stat.isFile() || stat.isSymbolicLink()) {
+        throw new Error('PII vault record is not a regular file.');
+      }
       await fs.promises.unlink(target);
       return true;
     } catch (error) {
