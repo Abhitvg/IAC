@@ -25,6 +25,12 @@ export function createCloudApiRuntime(
     }),
     repository,
     careerGraph: new PostgresCareerGraphRepository(pool),
+    // No hosted fact writes until a real tenant-scoped cloud KMS verifier is configured.
+    careerGraphEnvelopeVerifier: {
+      verify: async () => {
+        throw new Error('Career Graph KMS provider is not configured');
+      },
+    },
     rateLimiter: new PostgresCloudRateLimiter(pool, environment.CAREEROPS_RATE_LIMIT_HASH_SECRET),
     config: {
       issuer: environment.CAREEROPS_JWT_ISSUER,
