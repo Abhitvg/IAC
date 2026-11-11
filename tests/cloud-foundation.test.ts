@@ -234,9 +234,10 @@ describe('M0 cloud security foundation', () => {
       aud: authConfig.audience,
       exp: 2_000_000_000,
     };
+    const validToken = signToken(claims);
     expect(
       verifyAccessToken(
-        signToken(claims),
+        validToken,
         {
           issuer: authConfig.issuer,
           audience: authConfig.audience,
@@ -245,6 +246,17 @@ describe('M0 cloud security foundation', () => {
         1_900_000_000
       ).subject
     ).toBe('user-1');
+    expect(() =>
+      verifyAccessToken(
+        `${validToken}!`,
+        {
+          issuer: authConfig.issuer,
+          audience: authConfig.audience,
+          hmacSecret: secret,
+        },
+        1_900_000_000
+      )
+    ).toThrow();
     expect(() =>
       verifyAccessToken(
         signToken({ ...claims, aud: 'other' }),
@@ -289,6 +301,13 @@ describe('M0 cloud security foundation', () => {
     const input = `${header}.${payload}`;
     const token = `${input}.${signJwt('RSA-SHA256', Buffer.from(input), pair.privateKey).toString('base64url')}`;
     expect((await verifier.verify(token, 1_900_000_000)).subject).toBe('user-oidc');
+    const [headerPart, payloadPart, signaturePart] = token.split('.');
+    await expect(
+      verifier.verify(`${headerPart}.${payloadPart}.${signaturePart}!`, 1_900_000_000)
+    ).rejects.toThrow();
+    await expect(
+      verifier.verify(`${headerPart}=.${payloadPart}.${signaturePart}`, 1_900_000_000)
+    ).rejects.toThrow();
 
     const signClaims = (nextClaims: Record<string, unknown>) => {
       const nextPayload = Buffer.from(JSON.stringify(nextClaims)).toString('base64url');
