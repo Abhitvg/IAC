@@ -1,6 +1,6 @@
 import { createHmac, randomBytes } from 'node:crypto';
 import { once } from 'node:events';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { verifyAccessToken } from '../packages/cloud-core/src/auth';
 import { createConsentRecord, SprintContractSchema } from '../packages/cloud-core/src/contract';
 import { assertActionAllowed, type TenantControlState } from '../packages/cloud-core/src/controls';
@@ -87,7 +87,7 @@ describe('M0 cloud security foundation', () => {
     }).success).toBe(false);
     expect(SprintContractSchema.safeParse({
       ...contractInput,
-      dailyCaps: { applications: 1000, emails: 5, assistQueueItems: 0 },
+      dailyCaps: { applications: 1000, emails: 5, assistQueueItems: 0, calendarEvents: 5 },
     }).success).toBe(false);
   });
 
