@@ -71,18 +71,6 @@ jobs:
           }
           NODE
 
-      - name: TEMP export Prettier-formatted CareerOps docs
-        if: matrix.os == 'ubuntu-24.04' && github.event_name == 'pull_request' && github.event.pull_request.number == 196
-        shell: bash
-        run: |
-          npx prettier --write docs/architecture.md docs/audit.md
-          echo ARCHITECTURE_BASE64_BEGIN
-          base64 -w0 docs/architecture.md | fold -w 400
-          echo ARCHITECTURE_BASE64_END
-          echo AUDIT_BASE64_BEGIN
-          base64 -w0 docs/audit.md | fold -w 400
-          echo AUDIT_BASE64_END
-
       - name: Check formatting for changed files
         shell: bash
         run: |
