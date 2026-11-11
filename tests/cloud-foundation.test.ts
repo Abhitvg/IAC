@@ -210,6 +210,10 @@ describe('M0 cloud security foundation', () => {
     expect(record.contractHash).toMatch(/^[a-f0-9]{64}$/);
     expect(record.revokedAt).toBeNull();
     expect(verifyConsentRecord(record, secret)).toBe(true);
+    const reorderedContract = Object.fromEntries(
+      Object.entries(record.contract).reverse()
+    ) as typeof record.contract;
+    expect(verifyConsentRecord({ ...record, contract: reorderedContract }, secret)).toBe(true);
     expect(
       verifyConsentRecord({ ...record, tenantId: '20000000-0000-4000-8000-000000000002' }, secret)
     ).toBe(false);
