@@ -120,9 +120,15 @@ export async function runCloudMigrations(
     `);
     const ledgerExists = Boolean(schemaState.rows[0]?.ledger_table);
     const preExistingTables = schemaState.rows[0]?.existing_tables ?? [];
-    if (!ledgerExists && preExistingTables.length > 0) {
+    const ledgerCountResult = ledgerExists
+      ? await client.query<{ migration_count: number | string }>(
+          'SELECT COUNT(*)::int AS migration_count FROM careerops_schema_migrations'
+        )
+      : null;
+    const ledgerEntryCount = Number(ledgerCountResult?.rows[0]?.migration_count ?? 0);
+    if (preExistingTables.length > 0 && (!ledgerExists || ledgerEntryCount === 0)) {
       throw new Error(
-        'Existing CareerOps schema detected without migration ledger; an explicit reviewed baseline is required before applying migrations'
+        'Existing CareerOps schema detected without a populated migration ledger; an explicit reviewed baseline is required before applying migrations'
       );
     }
 
