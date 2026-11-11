@@ -113,13 +113,21 @@ export const SkillsSection: React.FC<SkillsSectionProps> = React.memo(
 
     return (
       <div data-testid="wizard-section-skills">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+          }}
+        >
           <div>
             <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
               D. Skills &amp; Rigorous Experience Bounds
             </h3>
             <p style={{ fontSize: '12px', color: '#9299AA', margin: '2px 0 0 0' }}>
-              Practical production skills must resolve against registered projects demonstrating actual implementation.
+              Practical production skills must resolve against registered projects demonstrating
+              actual implementation.
             </p>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -230,10 +238,13 @@ export const SkillsSection: React.FC<SkillsSectionProps> = React.memo(
           <div className="wizard-grid-2col">
             {draft
               .filter((s) => {
-                if (skillFilterCategory !== 'all' && s.category !== skillFilterCategory) return false;
+                if (skillFilterCategory !== 'all' && s.category !== skillFilterCategory)
+                  return false;
                 if (skillSearchQuery.trim()) {
                   const q = skillSearchQuery.toLowerCase();
-                  return s.name.toLowerCase().includes(q) || (s.category || '').toLowerCase().includes(q);
+                  return (
+                    s.name.toLowerCase().includes(q) || (s.category || '').toLowerCase().includes(q)
+                  );
                 }
                 return true;
               })
@@ -250,7 +261,14 @@ export const SkillsSection: React.FC<SkillsSectionProps> = React.memo(
                     gap: '8px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
                     <input
                       type="text"
                       placeholder="Skill Name (e.g. Go, Kafka)"
@@ -302,7 +320,12 @@ export const SkillsSection: React.FC<SkillsSectionProps> = React.memo(
                     <button
                       type="button"
                       onClick={() => handleRemoveSkill(skill.id)}
-                      style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#f87171',
+                        cursor: 'pointer',
+                      }}
                       title="Delete skill (writes tombstone to ledger)"
                     >
                       <Trash2 size={14} />
@@ -356,7 +379,14 @@ export const SkillsSection: React.FC<SkillsSectionProps> = React.memo(
 
                   {skill.experienceType === 'practical' && (
                     <div>
-                      <label style={{ display: 'block', fontSize: '10px', color: '#35C991', marginBottom: '2px' }}>
+                      <label
+                        style={{
+                          display: 'block',
+                          fontSize: '10px',
+                          color: '#35C991',
+                          marginBottom: '2px',
+                        }}
+                      >
                         Referenced Projects (Required for Practical Claims):
                       </label>
                       <input
@@ -364,7 +394,10 @@ export const SkillsSection: React.FC<SkillsSectionProps> = React.memo(
                         placeholder="Comma-separated project names (e.g. TelemetryPipeline)"
                         value={skill.projectReferences.join(', ')}
                         onChange={(e) => {
-                          const refs = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
+                          const refs = e.target.value
+                            .split(',')
+                            .map((s) => s.trim())
+                            .filter(Boolean);
                           handleSkillFieldChange(skill.id, 'projectReferences', refs);
                         }}
                         onBlur={flushDraft}
