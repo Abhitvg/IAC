@@ -81,3 +81,14 @@ export interface CareerOpsStats {
   avgScore: number;
   highFitCount: number; // score >= 4.0
 }
+
+
+export interface CareerOpsSource {
+  id: string;
+  label: string;
+  url: string;
+  keywords: string[];
+  enabled: boolean;
+  lastCheckedAt?: number;
+  lastError?: string;
+}
