@@ -273,6 +273,34 @@ describe('M0 cloud security foundation', () => {
     const input = `${header}.${payload}`;
     const token = `${input}.${signJwt('RSA-SHA256', Buffer.from(input), pair.privateKey).toString('base64url')}`;
     expect((await verifier.verify(token, 1_900_000_000)).subject).toBe('user-oidc');
+
+    const signClaims = (nextClaims: Record<string, unknown>) => {
+      const nextPayload = Buffer.from(JSON.stringify(nextClaims)).toString('base64url');
+      const nextInput = `${header}.${nextPayload}`;
+      return `${nextInput}.${signJwt('RSA-SHA256', Buffer.from(nextInput), pair.privateKey).toString('base64url')}`;
+    };
+    const multiAudience = signClaims({
+      ...claims,
+      aud: [authConfig.audience, 'another-client'],
+      azp: authConfig.audience,
+    });
+    expect((await verifier.verify(multiAudience, 1_900_000_000)).audience).toHaveLength(2);
+    await expect(
+      verifier.verify(
+        signClaims({ ...claims, aud: [authConfig.audience, 'another-client'] }),
+        1_900_000_000
+      )
+    ).rejects.toThrow('authorized party');
+    await expect(
+      verifier.verify(
+        signClaims({
+          ...claims,
+          aud: [authConfig.audience, 'another-client'],
+          azp: 'another-client',
+        }),
+        1_900_000_000
+      )
+    ).rejects.toThrow('authorized party');
     const [headerPart, payloadPart, signaturePart] = token.split('.');
     const tamperedSignature = `${signaturePart[0] === 'A' ? 'B' : 'A'}${signaturePart.slice(1)}`;
     await expect(
