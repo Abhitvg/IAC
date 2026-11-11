@@ -109,7 +109,9 @@ describe('Career Graph API routes', () => {
     return dependencies;
   }
 
-  it('binds fact creation to verified tenant and actor, rejecting client-supplied identity fields', async () => {
+  it(
+    'binds fact creation to verified tenant and actor, rejecting client-supplied identity fields',
+    async () => {
     const dependencies = await startServer();
     const headers = {
       authorization: 'Bearer test-token',
@@ -166,13 +168,17 @@ describe('Career Graph API routes', () => {
 
 
 describe('Postgres Career Graph repository', () => {
-  it('locks the fact key before allocating a version and commits its audit event atomically', async () => {
+  it(
+    'locks the fact key before allocating a version and commits its audit event atomically',
+    async () => {
     const statements: string[] = [];
     const client = {
       query: async (sql: string) => {
         statements.push(sql);
         if (sql.includes('COALESCE(MAX(version)')) return { rows: [{ next_version: 1 }] };
-        if (sql.includes('INSERT INTO career_graph_facts')) return { rows: [{ id: factId }], rowCount: 1 };
+        if (sql.includes('INSERT INTO career_graph_facts')) {
+          return { rows: [{ id: factId }], rowCount: 1 };
+        }
         if (sql.includes('SELECT event_hash')) return { rows: [] };
         if (sql.includes('FROM career_graph_facts f')) {
           return {
@@ -202,10 +208,17 @@ describe('Postgres Career Graph repository', () => {
     const repository = new PostgresCareerGraphRepository(pool);
     const created = await repository.createFact(tenantId, subject, validInput);
 
-    expect(created).toMatchObject({ id: factId, tenantId, factKey: 'profile.current_role', version: 1 });
+    expect(created).toMatchObject({
+      id: factId,
+      tenantId,
+      factKey: 'profile.current_role',
+      version: 1,
+    });
     const factLock = statements.findIndex((sql) => sql.includes('pg_advisory_xact_lock'));
     const allocateVersion = statements.findIndex((sql) => sql.includes('COALESCE(MAX(version)'));
-    const insertFact = statements.findIndex((sql) => sql.includes('INSERT INTO career_graph_facts'));
+    const insertFact = statements.findIndex((sql) =>
+      sql.includes('INSERT INTO career_graph_facts')
+    );
     const insertAudit = statements.findIndex((sql) => sql.includes('INSERT INTO audit_events'));
     expect(factLock).toBeGreaterThan(-1);
     expect(factLock).toBeLessThan(allocateVersion);
