@@ -1,4 +1,4 @@
-import type { SprintContract } from './contract';
+import { verifyConsentRecord, type ConsentRecord } from './contract';
 
 export type AutomationChannel = 'ats' | 'email' | 'calendar' | 'linkedin_assist';
 
@@ -11,6 +11,7 @@ export interface TenantControlState {
 
 export interface ActionAuthorization {
   tenantId: string;
+  subject: string;
   channel: AutomationChannel;
   action: string;
   now?: Date;
@@ -18,14 +19,17 @@ export interface ActionAuthorization {
 }
 
 export function assertActionAllowed(
-  contract: SprintContract | null,
+  consent: ConsentRecord | null,
   controls: TenantControlState,
-  request: ActionAuthorization
+  request: ActionAuthorization,
+  consentSigningSecret: string
 ): void {
   if (controls.tenantId !== request.tenantId) throw new Error('Tenant control context mismatch');
   if (controls.globalKillSwitch) throw new Error('Automation is globally paused');
   if (controls.pausedChannels.includes(request.channel)) throw new Error('Automation channel is paused');
-  if (!contract) throw new Error('An active Sprint Contract is required');
+  if (!consent || !verifyConsentRecord(consent, consentSigningSecret)) throw new Error('A valid, unrevoked Sprint Contract is required');
+  if (consent.tenantId !== request.tenantId || consent.subject !== request.subject) throw new Error('Sprint Contract consent identity mismatch');
+  const contract = consent.contract;
 
   const now = request.now ?? new Date();
   if (now < new Date(contract.startsAt) || now >= new Date(contract.endsAt)) {
