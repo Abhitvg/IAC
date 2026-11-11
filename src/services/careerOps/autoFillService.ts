@@ -30,26 +30,30 @@ export interface CandidateAutoFillProfile {
   yearsOfExperience: string;
   authorizedToWork: boolean;
   requiresSponsorship: boolean;
+  authorizedToWorkVerified?: boolean;
+  requiresSponsorshipVerified?: boolean;
 }
 
 export const DEFAULT_CANDIDATE_PROFILE: CandidateAutoFillProfile = {
-  firstName: 'Abhishek',
-  lastName: 'Singh',
-  fullName: 'Abhishek Singh',
-  email: 'abhishek@example.com',
-  phone: '+1-123-456-7890',
-  location: 'San Francisco, CA, USA',
-  city: 'San Francisco',
-  state: 'CA',
-  country: 'United States',
-  linkedin: 'https://linkedin.com/in/abhisheksingh',
-  github: 'https://github.com/Abhitvg',
-  portfolio: 'https://github.com/Abhitvg',
-  currentCompany: 'Self-Employed / Independent Engineer',
-  currentTitle: 'Senior Software Engineer',
-  yearsOfExperience: '6',
-  authorizedToWork: true,
+  firstName: '',
+  lastName: '',
+  fullName: '',
+  email: '',
+  phone: '',
+  location: '',
+  city: '',
+  state: '',
+  country: '',
+  linkedin: '',
+  github: '',
+  portfolio: '',
+  currentCompany: '',
+  currentTitle: '',
+  yearsOfExperience: '',
+  authorizedToWork: false,
   requiresSponsorship: false,
+  authorizedToWorkVerified: false,
+  requiresSponsorshipVerified: false,
 };
 
 /**
@@ -79,6 +83,8 @@ export function generateBrowserAutoFillScript(
     yearsOfExperience: profile.yearsOfExperience,
     authorizedToWork: profile.authorizedToWork,
     requiresSponsorship: profile.requiresSponsorship,
+    authorizedToWorkVerified: profile.authorizedToWorkVerified === true,
+    requiresSponsorshipVerified: profile.requiresSponsorshipVerified === true,
     coverLetter: coverLetterText,
     resumeText: resumeLatex,
   };
@@ -208,7 +214,7 @@ export function generateBrowserAutoFillScript(
     const txt = parent.innerText.toLowerCase();
 
     // Work authorization
-    if (txt.includes('authorized to work') || txt.includes('legally authorized')) {
+    if (data.authorizedToWorkVerified && (txt.includes('authorized to work') || txt.includes('legally authorized'))) {
       if ((data.authorizedToWork && (txt.includes('yes') || r.value === 'yes' || r.value === '1')) ||
           (!data.authorizedToWork && (txt.includes('no') || r.value === 'no' || r.value === '0'))) {
         r.checked = true;
@@ -218,7 +224,7 @@ export function generateBrowserAutoFillScript(
     }
 
     // Sponsorship
-    if (txt.includes('require sponsorship') || txt.includes('sponsorship in the future')) {
+    if (data.requiresSponsorshipVerified && (txt.includes('require sponsorship') || txt.includes('sponsorship in the future'))) {
       if ((!data.requiresSponsorship && (txt.includes('no') || r.value === 'no' || r.value === '0')) ||
           (data.requiresSponsorship && (txt.includes('yes') || r.value === 'yes' || r.value === '1'))) {
         r.checked = true;
