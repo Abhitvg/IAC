@@ -7,6 +7,40 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0001_cloud_foundation.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0002_runtime_role_hardening.sql"
 
+DATABASE_URL="$DATABASE_URL" \
+TENANT_ID="30000000-0000-4000-8000-000000000003" \
+TENANT_NAME="Bootstrap Integration Tenant" \
+OWNER_SUBJECT="bootstrap-integration-owner" \
+  bash "$ROOT/scripts/provision-careerops-tenant.sh"
+
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+DO $
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM tenant_memberships
+     WHERE tenant_id = '30000000-0000-4000-8000-000000000003'
+       AND subject = 'bootstrap-integration-owner' AND role = 'owner'
+  ) THEN
+    RAISE EXCEPTION 'Privileged tenant bootstrap did not create the owner membership';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM tenant_controls
+     WHERE tenant_id = '30000000-0000-4000-8000-000000000003'
+       AND global_kill_switch = true
+  ) THEN
+    RAISE EXCEPTION 'New tenant did not default to global kill switch enabled';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM audit_events
+     WHERE tenant_id = '30000000-0000-4000-8000-000000000003'
+       AND action = 'tenant.provisioned' AND previous_hash IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Tenant bootstrap did not append initial audit event';
+  END IF;
+END
+$;
+SQL
+
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 INSERT INTO tenants (id, display_name) VALUES
   ('10000000-0000-4000-8000-000000000001', 'Tenant A'),
