@@ -70,9 +70,32 @@ export class PiiVault {
     return path.join(this.userDataPath, VAULT_DIRECTORY);
   }
 
+  private async assertSafeDirectory(
+    directoryPath: string,
+    parentPath: string,
+    create: boolean
+  ): Promise<void> {
+    if (create) {
+      await fs.promises.mkdir(directoryPath, { recursive: true, mode: 0o700 });
+    }
+    const stat = await fs.promises.lstat(directoryPath);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) {
+      throw new Error('PII vault directory is not a regular directory.');
+    }
+    const realParent = await fs.promises.realpath(parentPath);
+    const realDirectory = await fs.promises.realpath(directoryPath);
+    if (
+      realDirectory !== realParent &&
+      !realDirectory.startsWith(realParent + path.sep)
+    ) {
+      throw new Error('PII vault directory resolves outside its storage boundary.');
+    }
+  }
+
   private async hasExistingEncryptedRecords(): Promise<boolean> {
     let entries: fs.Dirent[];
     try {
+      await this.assertSafeDirectory(this.vaultPath, this.userDataPath, false);
       entries = await fs.promises.readdir(this.vaultPath, { withFileTypes: true });
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
@@ -270,7 +293,8 @@ export class PiiVault {
         tag: encodeBase64Url(cipher.getAuthTag()),
         ciphertext: encodeBase64Url(encrypted),
       };
-      await fs.promises.mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
+      await this.assertSafeDirectory(this.vaultPath, this.userDataPath, true);
+      await this.assertSafeDirectory(path.dirname(destination), this.vaultPath, true);
       const tempPath = `${destination}.${process.pid}.${crypto.randomUUID()}.tmp`;
       let handle: fs.promises.FileHandle | undefined;
       try {
@@ -298,8 +322,10 @@ export class PiiVault {
     const source = this.recordPath(namespace, key);
     let raw: string;
     try {
-      const stat = await fs.promises.stat(source);
-      if (!stat.isFile() || stat.size > MAX_RECORD_BYTES + 4096) {
+      await this.assertSafeDirectory(this.vaultPath, this.userDataPath, false);
+      await this.assertSafeDirectory(path.dirname(source), this.vaultPath, false);
+      const stat = await fs.promises.lstat(source);
+      if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_RECORD_BYTES + 4096) {
         throw new Error('PII vault record has an invalid size or file type.');
       }
       raw = await fs.promises.readFile(source, 'utf8');
