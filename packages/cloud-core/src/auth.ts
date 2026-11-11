@@ -153,6 +153,9 @@ export class OidcJwksVerifier {
     }
 
     const publicKey = createPublicKey({ key: jwk, format: 'jwk' });
+    if (publicKey.asymmetricKeyType !== 'rsa' || (publicKey.asymmetricKeyDetails?.modulusLength ?? 0) < 2048) {
+      throw new Error('OIDC signing key must be RSA-2048 or stronger');
+    }
     const signature = Buffer.from(segments[2], 'base64url');
     const valid = verifySignature(
       'RSA-SHA256',
@@ -170,8 +173,8 @@ export class OidcJwksVerifier {
       typeof claims.sub !== 'string' || claims.sub.length < 1 || claims.sub.length > 255 ||
       claims.iss !== this.config.issuer ||
       !Number.isInteger(exp) || (exp as number) <= nowSeconds - tolerance ||
-      (nbf !== undefined && (typeof nbf !== 'number' || nbf > nowSeconds + tolerance)) ||
-      (iat !== undefined && (typeof iat !== 'number' || iat > nowSeconds + tolerance))
+      (nbf !== undefined && (!Number.isInteger(nbf) || (nbf as number) > nowSeconds + tolerance)) ||
+      (iat !== undefined && (!Number.isInteger(iat) || (iat as number) > nowSeconds + tolerance))
     ) throw new Error('Access token claims are invalid or expired');
 
     const audience = Array.isArray(claims.aud)
@@ -204,6 +207,8 @@ export class OidcJwksVerifier {
       this.cachedKeys = { keys: keys as JsonWebKeySet['keys'] };
       this.cacheExpiresAt = Date.now() + Math.min(Math.max(this.config.cacheTtlMs ?? 300_000, 10_000), 900_000);
     }
-    return this.cachedKeys.keys.find((key) => key.kid === kid);
+    const matches = this.cachedKeys.keys.filter((key) => key.kid === kid);
+    if (matches.length > 1) throw new Error('OIDC signing key identifier is ambiguous');
+    return matches[0];
   }
 }
