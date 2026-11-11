@@ -172,9 +172,14 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Apply migrations and verify tenant RLS / audit immutability
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/careerops_test
-        run: bash scripts/test-cloud-postgres-rls.sh
+        run: |
+          POSTGRES_CONTAINER_ID="$(docker ps --filter 'ancestor=postgres:16' --format '{{.ID}}' | head -n 1)"
+          if [[ -z "$POSTGRES_CONTAINER_ID" ]]; then
+            echo "PostgreSQL service container was not found."
+            exit 1
+          fi
+          export POSTGRES_CONTAINER_ID
+          bash scripts/test-cloud-postgres-rls.sh
