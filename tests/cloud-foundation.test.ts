@@ -492,8 +492,8 @@ describe('M0 cloud security foundation', () => {
       const revoke = await fetch(
         `http://127.0.0.1:${address.port}/v1/sprint-contract/40000000-0000-4000-8000-000000000004/revoke`,
         {
-        method: 'POST',
-        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
           body: '{}',
         }
       );
