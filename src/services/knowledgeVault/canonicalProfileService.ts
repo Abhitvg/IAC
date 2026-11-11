@@ -36,6 +36,7 @@ export class CanonicalProfileService {
   private persistenceReady: Promise<boolean>;
   private persistenceQueue: Promise<boolean> = Promise.resolve(true);
   private persistenceError: string | null = null;
+  private pendingPersistenceCount = 0;
   private externalUnsubscribers: Array<() => void> = [];
 
   private constructor() {
@@ -150,9 +151,10 @@ export class CanonicalProfileService {
       }
     }
 
+    this.pendingPersistenceCount += 1;
     this.persistenceQueue = this.persistenceQueue.then(async () => {
-      if (!(await this.persistenceReady)) return false;
       try {
+        if (!(await this.persistenceReady)) return false;
         const snapshot = JSON.stringify(this.currentProfile);
         const saved = await api.securePersistenceSet('candidate-profile', snapshot);
         if (saved !== true) throw new Error('Encrypted candidate profile write was not committed.');
@@ -168,6 +170,8 @@ export class CanonicalProfileService {
             : 'Encrypted candidate profile persistence failed.';
         console.error('[CanonicalProfileService] Encrypted profile save failed:', error);
         return false;
+      } finally {
+        this.pendingPersistenceCount = Math.max(0, this.pendingPersistenceCount - 1);
       }
     });
     return true;
@@ -178,8 +182,14 @@ export class CanonicalProfileService {
   }
 
   public async flushPendingPersistence(): Promise<boolean> {
+    if (this.pendingPersistenceCount === 0) return true;
     if (!(await this.persistenceReady)) return false;
-    return this.persistenceQueue;
+
+    while (this.pendingPersistenceCount > 0) {
+      const pending = this.persistenceQueue;
+      if (!(await pending)) return false;
+    }
+    return true;
   }
 
   public getPersistenceError(): string | null {
@@ -201,6 +211,7 @@ export class CanonicalProfileService {
         if (removed !== true) throw new Error('Encrypted candidate profile was not removed.');
         if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY);
         this.persistenceQueue = Promise.resolve(true);
+        this.pendingPersistenceCount = 0;
         this.persistenceError = null;
       } catch (error) {
         console.error('[CanonicalProfileService] Secure profile reset failed:', error);
