@@ -97,6 +97,37 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
+
+      if (request.method === 'POST' && url.pathname === '/v1/controls/channel-pause') {
+        const body = await readJson(request, maxBytes);
+        const channels = ['ats', 'email', 'calendar', 'linkedin_assist'] as const;
+        if (
+          typeof body.channel !== 'string' ||
+          !channels.includes(body.channel as (typeof channels)[number]) ||
+          typeof body.paused !== 'boolean' ||
+          Object.keys(body).some((key) => key !== 'channel' && key !== 'paused')
+        ) {
+          sendJson(response, 400, { error: 'Expected a supported channel and boolean paused field', requestId });
+          return;
+        }
+        const occurredAt = new Date().toISOString();
+        await dependencies.repository.setChannelPauseWithAudit({
+          tenantId: tenant.tenantId,
+          actorSubject: tenant.subject,
+          channel: body.channel as (typeof channels)[number],
+          paused: body.paused,
+          occurredAt,
+          metadata: { requestId, channel: body.channel, paused: body.paused },
+        });
+        sendJson(response, 200, {
+          tenantId: tenant.tenantId,
+          channel: body.channel,
+          paused: body.paused,
+          updatedAt: occurredAt,
+        });
+        return;
+      }
+
       sendJson(response, 404, { error: 'Not found', requestId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
