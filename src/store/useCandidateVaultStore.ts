@@ -78,7 +78,8 @@ function isKnownFabricatedDemoProfile(profile: any): boolean {
 
 function clearUnknownPlaceholder(value: unknown): string {
   if (typeof value !== 'string') return '';
-  return /^(unknown|not specified|n\\/a|none|null)$/i.test(value.trim()) ? '' : value;
+  const normalized = value.trim().toLowerCase();
+  return ['unknown', 'not specified', 'n/a', 'none', 'null'].includes(normalized) ? '' : value;
 }
 
 function normalizeVaultProfile(profile: Partial<CandidateVaultProfile>): CandidateVaultProfile {
