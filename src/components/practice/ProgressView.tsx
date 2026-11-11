@@ -229,9 +229,10 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 points={summary.metrics
-                  .map((m, i) => {
-                    const x = (i / Math.max(1, summary.metrics.length - 1)) * 480 + 10;
-                    const y = 90 - (m.structureScore / 5) * 80;
+                  .filter((m) => m.structureScore !== null)
+                  .map((m, i, measured) => {
+                    const x = (i / Math.max(1, measured.length - 1)) * 480 + 10;
+                    const y = 90 - ((m.structureScore ?? 0) / 5) * 80;
                     return `${x},${y}`;
                   })
                   .join(" ")}
@@ -245,9 +246,10 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 points={summary.metrics
-                  .map((m, i) => {
-                    const x = (i / Math.max(1, summary.metrics.length - 1)) * 480 + 10;
-                    const y = 90 - (m.concretenessScore / 5) * 80;
+                  .filter((m) => m.concretenessScore !== null)
+                  .map((m, i, measured) => {
+                    const x = (i / Math.max(1, measured.length - 1)) * 480 + 10;
+                    const y = 90 - ((m.concretenessScore ?? 0) / 5) * 80;
                     return `${x},${y}`;
                   })
                   .join(" ")}
@@ -261,9 +263,10 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 points={summary.metrics
-                  .map((m, i) => {
-                    const x = (i / Math.max(1, summary.metrics.length - 1)) * 480 + 10;
-                    const y = 90 - (m.deliveryScore / 5) * 80;
+                  .filter((m) => m.deliveryScore !== null)
+                  .map((m, i, measured) => {
+                    const x = (i / Math.max(1, measured.length - 1)) * 480 + 10;
+                    const y = 90 - ((m.deliveryScore ?? 0) / 5) * 80;
                     return `${x},${y}`;
                   })
                   .join(" ")}
@@ -385,20 +388,20 @@ export const ProgressView: React.FC<ProgressViewProps> = (props) => {
                     <td className="py-3 px-2 capitalize text-slate-300">
                       {m.roundType.replace(/_/g, " ")}
                     </td>
-                    <td className="py-3 px-2 text-blue-400 font-bold">{m.structureScore} / 5</td>
-                    <td className="py-3 px-2 text-purple-400 font-bold">{m.concretenessScore} / 5</td>
-                    <td className="py-3 px-2 text-emerald-400 font-bold">{m.deliveryScore} / 5</td>
-                    <td className="py-3 px-2 text-slate-300 font-mono">{m.speakingPaceWpm} WPM</td>
+                    <td className="py-3 px-2 text-blue-400 font-bold">{m.structureScore === null ? "--" : `${m.structureScore} / 5`}</td>
+                    <td className="py-3 px-2 text-purple-400 font-bold">{m.concretenessScore === null ? "--" : `${m.concretenessScore} / 5`}</td>
+                    <td className="py-3 px-2 text-emerald-400 font-bold">{m.deliveryScore === null ? "--" : `${m.deliveryScore} / 5`}</td>
+                    <td className="py-3 px-2 text-slate-300 font-mono">{m.speakingPaceWpm === null ? "--" : `${m.speakingPaceWpm} WPM`}</td>
                     <td className="py-3 px-2">
-                      {m.confidence === "high" ? (
+                      {m.confidence === "llm_assisted" ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold shadow-sm">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          High Confidence (LLM Verified)
+                          LLM-assisted (not independently verified)
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 text-[10px] font-semibold shadow-sm">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                          Low Confidence (Estimated)
+                          Heuristic estimate (low confidence)
                         </span>
                       )}
                     </td>
