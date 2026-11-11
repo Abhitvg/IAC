@@ -159,6 +159,10 @@ export function CareerDiscoveryPanel({ resumeText, providerConfig }: CareerDisco
                     {source.lastError || (source.lastCheckedAt ? `Checked ${new Date(source.lastCheckedAt).toLocaleString()}` : 'Not scanned yet')}
                   </div>
                 </div>
+                <label title="Automatically score new postings from this source" style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#94a3b8', fontSize: 9, whiteSpace: 'nowrap' }}>
+                  <input type="checkbox" checked={source.autoEvaluate} onChange={(event) => updateSource(source.id, { autoEvaluate: event.target.checked })} />
+                  Auto-evaluate
+                </label>
                 <button type="button" onClick={() => updateSource(source.id, { enabled: !source.enabled })} style={{ ...buttonStyle, padding: '5px 8px', color: source.enabled ? '#86efac' : '#94a3b8' }}>
                   {source.enabled ? 'Enabled' : 'Paused'}
                 </button>
