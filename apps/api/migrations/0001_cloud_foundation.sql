@@ -93,8 +93,5 @@ CREATE POLICY audit_events_isolation ON audit_events
   USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
   WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
 
--- Audit rows are append-only for the runtime role. Migration/retention roles are separate.
-REVOKE UPDATE, DELETE, TRUNCATE ON audit_events FROM PUBLIC;
-REVOKE UPDATE, DELETE, TRUNCATE ON audit_events FROM CURRENT_USER;
 
 COMMIT;
