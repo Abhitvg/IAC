@@ -153,7 +153,7 @@ export function parseJobPageContent(htmlOrText: string, sourceUrl: string): Scra
   // Extract Location
   let location = 'Not specified';
   const locMatch = cleanText.match(
-    /(?:Location|Based in|Workplace):\s*([A-Za-z\s,]+?)(?:\.|\n|;|$)/i
+    /(?:Location|Based in|Workplace):\s*([A-Za-z0-9\s,./-]+?)(?=\s+(?:Salary|Compensation|Job Type|Work Type|Employment Type)\s*:|[.;\n]|$)/i
   );
   if (locMatch) {
     location = locMatch[1].trim();
