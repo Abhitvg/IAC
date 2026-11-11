@@ -1,7 +1,7 @@
-import { createHmac, randomBytes } from 'node:crypto';
+import { createHmac, generateKeyPairSync, randomBytes, sign as signJwt } from 'node:crypto';
 import { once } from 'node:events';
 import { describe, expect, it } from 'vitest';
-import { verifyAccessToken } from '../packages/cloud-core/src/auth';
+import { OidcJwksVerifier, verifyAccessToken } from '../packages/cloud-core/src/auth';
 import {
   createConsentRecord,
   SprintContractSchema,
@@ -57,7 +57,7 @@ function signToken(claims: Record<string, unknown>, signingSecret = secret): str
 const authConfig = {
   issuer: 'https://identity.example.test',
   audience: 'careerops-api',
-  hmacSecret: secret,
+  jwksUrl: 'https://identity.example.test/.well-known/jwks.json',
 };
 
 describe('M0 cloud security foundation', () => {
@@ -66,7 +66,7 @@ describe('M0 cloud security foundation', () => {
       loadCloudEnvironment({
         CAREEROPS_JWT_ISSUER: 'http://identity.example.test',
         CAREEROPS_JWT_AUDIENCE: 'careerops-api',
-        CAREEROPS_JWT_HMAC_SECRET: secret,
+        CAREEROPS_JWKS_URL: 'https://identity.example.test/.well-known/jwks.json',
         CAREEROPS_CONSENT_SIGNING_SECRET: secret,
       } as NodeJS.ProcessEnv)
     ).toThrow();
@@ -74,34 +74,41 @@ describe('M0 cloud security foundation', () => {
       loadCloudEnvironment({
         CAREEROPS_JWT_ISSUER: 'https://identity.example.test',
         CAREEROPS_JWT_AUDIENCE: 'careerops-api',
-        CAREEROPS_JWT_HMAC_SECRET: secret,
+        CAREEROPS_JWKS_URL: 'https://identity.example.test/.well-known/jwks.json',
         CAREEROPS_CONSENT_SIGNING_SECRET: 'short',
       } as NodeJS.ProcessEnv)
     ).toThrow();
   });
-  it('verifies signed access tokens and rejects tampering, wrong issuer, audience and expiry', () => {
-    const claims = {
-      sub: 'user-1',
-      iss: authConfig.issuer,
-      aud: authConfig.audience,
-      exp: 2_000_000_000,
-    };
-    expect(verifyAccessToken(signToken(claims), authConfig, 1_900_000_000).subject).toBe('user-1');
-    const tampered = signToken(claims).replace(/.$/, 'x');
-    expect(() => verifyAccessToken(tampered, authConfig, 1_900_000_000)).toThrow();
-    expect(() =>
-      verifyAccessToken(
-        signToken({ ...claims, iss: 'https://evil.test' }),
-        authConfig,
-        1_900_000_000
-      )
-    ).toThrow();
-    expect(() =>
-      verifyAccessToken(signToken({ ...claims, aud: 'other' }), authConfig, 1_900_000_000)
-    ).toThrow();
-    expect(() =>
-      verifyAccessToken(signToken({ ...claims, exp: 1 }), authConfig, 1_900_000_000)
-    ).toThrow();
+  it('keeps the HS256 verifier available only as a deterministic test adapter', () => {
+    const claims = { sub: 'user-1', iss: authConfig.issuer, aud: authConfig.audience, exp: 2_000_000_000 };
+    expect(verifyAccessToken(signToken(claims), {
+      issuer: authConfig.issuer, audience: authConfig.audience, hmacSecret: secret,
+    }, 1_900_000_000).subject).toBe('user-1');
+    expect(() => verifyAccessToken(signToken({ ...claims, aud: 'other' }), {
+      issuer: authConfig.issuer, audience: authConfig.audience, hmacSecret: secret,
+    }, 1_900_000_000)).toThrow();
+  });
+
+  it('verifies RS256 OIDC tokens against pinned JWKS and rejects invalid claims/signatures', async () => {
+    const pair = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const jwk = pair.publicKey.export({ format: 'jwk' });
+    const fetcher = async () => new Response(JSON.stringify({
+      keys: [{ ...jwk, kid: 'key-1', alg: 'RS256', use: 'sig' }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+    const verifier = new OidcJwksVerifier({
+      issuer: authConfig.issuer, audience: authConfig.audience, jwksUrl: authConfig.jwksUrl,
+    }, fetcher as typeof fetch);
+    const claims = { sub: 'user-oidc', iss: authConfig.issuer, aud: authConfig.audience, exp: 2_000_000_000 };
+    const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'key-1' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+    const input = `${header}.${payload}`;
+    const token = `${input}.${signJwt('RSA-SHA256', Buffer.from(input), pair.privateKey).toString('base64url')}`;
+    expect((await verifier.verify(token, 1_900_000_000)).subject).toBe('user-oidc');
+    await expect(verifier.verify(token.replace(/.$/, 'x'), 1_900_000_000)).rejects.toThrow();
+    const wrongIssuer = Buffer.from(JSON.stringify({ ...claims, iss: 'https://attacker.test' })).toString('base64url');
+    const wrongInput = `${header}.${wrongIssuer}`;
+    const wrongToken = `${wrongInput}.${signJwt('RSA-SHA256', Buffer.from(wrongInput), pair.privateKey).toString('base64url')}`;
+    await expect(verifier.verify(wrongToken, 1_900_000_000)).rejects.toThrow('claims');
   });
 
   it('never trusts tenant IDs in JWT claims and resolves exactly one server-side membership', async () => {
@@ -347,7 +354,14 @@ describe('M0 cloud security foundation', () => {
       config: {
         issuer: authConfig.issuer,
         audience: authConfig.audience,
-        jwtHmacSecret: authConfig.hmacSecret,
+        jwksUrl: authConfig.jwksUrl,
+      },
+      identityVerifier: {
+        verify: async (token) => verifyAccessToken(token, {
+          issuer: authConfig.issuer,
+          audience: authConfig.audience,
+          hmacSecret: secret,
+        }),
       },
       rateLimiter: { consume: async () => rateLimitAllowed },
       repository: {
