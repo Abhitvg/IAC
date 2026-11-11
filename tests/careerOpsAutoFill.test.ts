@@ -11,13 +11,12 @@ describe('CareerOps Application Auto-Fill Service', () => {
     const coverLetter = 'I am excited to apply for this backend engineering position.';
     const script = generateBrowserAutoFillScript(DEFAULT_CANDIDATE_PROFILE, coverLetter);
 
-    // Profile payload
-    expect(script).toContain('Abhishek');
-    expect(script).toContain('Singh');
-    expect(script).toContain('abhishek@example.com');
-    expect(script).toContain('+1-123-456-7890');
-    expect(script).toContain('https://github.com/Abhitvg');
+    // Empty defaults must never inject fabricated candidate identity or contact details.
+    expect(script).not.toContain('abhishek@example.com');
+    expect(script).not.toContain('+1-123-456-7890');
     expect(script).toContain(coverLetter);
+    expect(script).toContain('authorizedToWorkVerified');
+    expect(script).toContain('requiresSponsorshipVerified');
 
     // React / Vue controlled input event simulation
     expect(script).toContain("Object.getOwnPropertyDescriptor(proto, 'value')");
@@ -36,7 +35,7 @@ describe('CareerOps Application Auto-Fill Service', () => {
   it('generates a one-click bookmarklet string starting with javascript:', () => {
     const bookmarklet = generateAutoFillBookmarklet(DEFAULT_CANDIDATE_PROFILE, 'Cover letter text');
     expect(bookmarklet.startsWith('javascript:')).toBe(true);
-    expect(bookmarklet).toContain(encodeURIComponent('Abhishek'));
+    expect(bookmarklet).toContain(encodeURIComponent('authorizedToWorkVerified'));
   });
 
   it('generates an executable Playwright automation script with job URL and resume attachment', () => {
