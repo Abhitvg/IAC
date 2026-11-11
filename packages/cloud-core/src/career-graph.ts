@@ -16,6 +16,7 @@ function base64BytesOfLength(value: string, expectedBytes: number): boolean {
   return decoded.length === expectedBytes && decoded.toString('base64') === value;
 }
 
+// prettier-ignore
 export const EncryptedFactEnvelopeSchema = z
   .object({
     algorithm: z.literal('A256GCM'),
