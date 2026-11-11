@@ -6,7 +6,8 @@ const TLS_OVERRIDE_PARAMETERS = ['sslmode', 'sslcert', 'sslkey', 'sslrootcert'];
 
 function isLoopbackHost(hostname: string): boolean {
   if (hostname.toLowerCase() === 'localhost') return true;
-  const address = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+  const address =
+    hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
   const version = isIP(address);
   return (version === 4 && address.startsWith('127.')) || (version === 6 && address === '::1');
 }
