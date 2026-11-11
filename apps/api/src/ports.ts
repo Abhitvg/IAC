@@ -20,7 +20,12 @@ export interface CloudApiConfig {
   maxRequestBytes?: number;
 }
 
+export interface CloudRateLimiter {
+  consume(key: string, limit: number, windowMs: number): Promise<boolean>;
+}
+
 export interface CloudApiDependencies {
   repository: CloudApiRepository;
+  rateLimiter: CloudRateLimiter;
   config: CloudApiConfig;
 }
