@@ -63,10 +63,24 @@ export function extractCareerPageJobLinks(
     if (!url || seen.has(url)) continue;
 
     const parsed = new URL(url);
-    const isKnownAts =
-      /greenhouse\.io|lever\.co|myworkdayjobs\.com|ashbyhq\.com/i.test(parsed.hostname);
+    const pathParts = parsed.pathname.split('/').filter(Boolean);
+    const hostname = parsed.hostname.toLowerCase();
     const hasJobPath = /\/(jobs?|positions?|requisitions?)\//i.test(parsed.pathname);
-    if (!isKnownAts && !hasJobPath) continue;
+    const isGreenhousePosting =
+      hostname.includes('greenhouse.io') && /\/jobs?\/\d+/i.test(parsed.pathname);
+    const isLeverPosting = hostname === 'jobs.lever.co' && pathParts.length >= 2;
+    const isAshbyPosting = hostname === 'jobs.ashbyhq.com' && pathParts.length >= 2;
+    const isWorkdayPosting =
+      hostname.includes('myworkdayjobs.com') && /\/job\//i.test(parsed.pathname);
+    if (
+      !hasJobPath &&
+      !isGreenhousePosting &&
+      !isLeverPosting &&
+      !isAshbyPosting &&
+      !isWorkdayPosting
+    ) {
+      continue;
+    }
     if (/^(apply|view job|learn more|read more)$/i.test(titleHint)) continue;
 
     seen.add(url);
