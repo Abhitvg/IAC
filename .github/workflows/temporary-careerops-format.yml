@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - feat/careerops-automation-pipeline
+concurrency:
+  group: careerops-format-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
@@ -22,6 +25,8 @@ jobs:
       - name: Format changed files
         shell: bash
         run: |
+          git fetch origin feat/careerops-automation-pipeline
+          git reset --hard origin/feat/careerops-automation-pipeline
           git fetch origin main
           mapfile -t files < <(git diff --name-only --diff-filter=ACMR origin/main...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml')
           if (( ${#files[@]} > 0 )); then
