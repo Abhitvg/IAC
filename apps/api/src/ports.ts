@@ -10,7 +10,11 @@ import type { TenantMembershipRepository } from '../../../packages/cloud-core/sr
 import type { VerifiedIdentity } from '../../../packages/cloud-core/src/auth';
 
 export interface CareerGraphRepository {
-  createFact(tenantId: string, actorSubject: string, input: CareerGraphFactInput): Promise<CareerGraphFact>;
+  createFact(
+    tenantId: string,
+    actorSubject: string,
+    input: CareerGraphFactInput
+  ): Promise<CareerGraphFact>;
   listFacts(tenantId: string, actorSubject: string, limit: number): Promise<CareerGraphFact[]>;
   reviewFact(
     tenantId: string,
