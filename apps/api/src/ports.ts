@@ -12,11 +12,7 @@ import type { VerifiedIdentity } from '../../../packages/cloud-core/src/auth';
 
 // Verifies ciphertext before tenant-scoped persistence.
 export interface CareerGraphEnvelopeVerifier {
-  verify(
-    envelope: EncryptedFactEnvelope,
-    tenantId: string,
-    context: string
-  ): Promise<void>;
+  verify(envelope: EncryptedFactEnvelope, tenantId: string, context: string): Promise<void>;
 }
 
 export interface CareerGraphRepository {
