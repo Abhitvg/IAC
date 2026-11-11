@@ -95,8 +95,7 @@ function loadInitialSources(): CareerOpsSource[] {
           Array.isArray(source.keywords) &&
           typeof source.enabled === 'boolean'
         )
-    );
-  } catch (error) {
+    ).map((source) => ({ ...source, autoEvaluate: source.autoEvaluate === true }));
     console.warn('[CareerOps] Failed to read discovery sources:', error);
     return [];
   }
@@ -191,10 +190,10 @@ interface CareerOpsState {
 
   // Actions
   addJob: (job: Partial<JobApplication>) => string;
-  addSource: (source: { label: string; url: string; keywords?: string[] }) => string;
+  addSource: (source: { label: string; url: string; keywords?: string[]; autoEvaluate?: boolean }) => string;
   updateSource: (id: string, updates: Partial<CareerOpsSource>) => void;
   removeSource: (id: string) => void;
-  discoverJobsFromSources: () => Promise<{ imported: number; skipped: number; errors: string[] }>;
+  discoverJobsFromSources: (resumeText?: string, providerConfig?: ProviderConfig) => Promise<{ imported: number; skipped: number; errors: string[] }>;
   updateJob: (id: string, updates: Partial<JobApplication>) => void;
   deleteJob: (id: string) => void;
   setActiveJobId: (id: string | null) => void;
@@ -314,6 +313,7 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
         url: parsedUrl.toString(),
         keywords: (sourceData.keywords || []).map((item) => item.trim()).filter(Boolean).slice(0, 20),
         enabled: true,
+        autoEvaluate: sourceData.autoEvaluate === true,
       };
       const updated = [source, ...get().sources];
       persistSources(updated);
@@ -335,7 +335,7 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
       set({ sources: updated });
     },
 
-    discoverJobsFromSources: async () => {
+    discoverJobsFromSources: async (resumeText = '', providerConfig) => {
       if (get().isDiscovering) return { imported: 0, skipped: 0, errors: [] };
       const activeSources = get().sources.filter((source) => source.enabled);
       if (activeSources.length === 0) {
@@ -362,7 +362,7 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
                 skipped += 1;
                 continue;
               }
-              get().addJob({
+              const newJobId = get().addJob({
                 company: details.company || source.label,
                 role: details.role || 'Unknown role',
                 url: details.url,
@@ -374,6 +374,20 @@ export const useCareerOpsStore = create<CareerOpsState>((set, get) => {
                 notes: `Discovered from ${source.label}. Review the source posting before evaluation.`,
               });
               imported += 1;
+
+              if (source.autoEvaluate) {
+                if (!resumeText.trim()) {
+                  errors.push(`${source.label}: auto-evaluation skipped because no resume is loaded.`);
+                } else {
+                  try {
+                    await get().evaluateJob(newJobId, resumeText, providerConfig);
+                  } catch (error) {
+                    errors.push(
+                      `${details.company} — ${details.role}: evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+                    );
+                  }
+                }
+              }
             }
             get().updateSource(source.id, {
               lastCheckedAt: Date.now(),
