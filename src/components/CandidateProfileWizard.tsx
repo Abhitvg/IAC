@@ -149,7 +149,7 @@ export const CandidateProfileWizard: React.FC = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      flushPendingSave();
+      void flushPendingSave();
     };
   }, [flushPendingSave]);
 
