@@ -201,6 +201,57 @@ describe('Phase 7 — Structured Interview Evaluation Report', () => {
     expect(report.improvementRecommendations.recommendedNextDifficulty).toBe('easy');
   });
 
+  it('does not create a behavioral assessment without a scored behavioral answer', () => {
+    const session: MockSessionState = {
+      ...mockSession,
+      roundType: 'behavioral',
+      questionHistory: [
+        {
+          ...mockSession.questionHistory[0],
+          category: 'behavioral',
+          evaluation: undefined,
+        },
+      ],
+    };
+
+    const report = InterviewReportGenerator.generateReport(session, []);
+
+    expect(report.behavioralCompetencies).toBeUndefined();
+  });
+
+  it('does not present aggregate behavioral scores as separately measured competencies', () => {
+    const session: MockSessionState = {
+      ...mockSession,
+      roundType: 'behavioral',
+      questionHistory: [
+        {
+          ...mockSession.questionHistory[0],
+          category: 'behavioral',
+          evaluation: {
+            overallScore: 4.0,
+            percentage: 80,
+            dimensions: [],
+            topLeverageFixes: [],
+            modelAnswer: '',
+            diffMissingPoints: [],
+            assessedAt: Date.now(),
+          },
+        },
+      ],
+    };
+
+    const report = InterviewReportGenerator.generateReport(session, []);
+    const competencies = report.behavioralCompetencies;
+
+    expect(competencies?.isBehavioralAssessed).toBe(true);
+    expect(competencies?.overallBehavioralScore).toBe(4.0);
+    expect(competencies?.dimensions.leadership.score).toBe(4.0);
+    expect(competencies?.dimensions.conflictResolution.score).toBe(4.0);
+    expect(competencies?.dimensions.collaboration.score).toBe(4.0);
+    expect(competencies?.dimensions.leadership.feedback).toContain('not separately assessed');
+    expect(competencies?.starMethodologyNotes).toContain('not separately measured');
+  });
+
   it('classifies each topic from its own evidence instead of the session-wide average', () => {
     const session: MockSessionState = {
       ...mockSession,

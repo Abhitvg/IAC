@@ -141,70 +141,67 @@ export class InterviewReportGenerator {
     }
 
     // Behavioral Competency Assessment
-    const hasBehavioralTurns =
-      sessionState.roundType === 'behavioral' || history.some((h) => h.category === 'behavioral');
+    const behavioralTurns = history.filter((h) => h.category === 'behavioral');
+    const behavioralScores = behavioralTurns
+      .map((h) => h.evaluation?.overallScore)
+      .filter((score): score is number => typeof score === 'number');
+    const hasBehavioralEvidence = behavioralScores.length > 0;
 
     let behavioralCompetencies: BehavioralCompetencyModel | undefined;
-    if (hasBehavioralTurns) {
-      const behavioralTurns = history.filter((h) => h.category === 'behavioral');
-      const bScores = behavioralTurns
-        .map((h) => h.evaluation?.overallScore)
-        .filter((s): s is number => typeof s === 'number');
-      const bAvg = bScores.length > 0 ? bScores.reduce((a, b) => a + b, 0) / bScores.length : 3.5;
-      const deliveryScore = sessionState.overallScorecard?.deliveryScore || 3.5;
-      const sampleEvidence =
-        behavioralTurns
-          .find((h) => (h.candidateTranscript || '').trim().length > 15)
-          ?.candidateTranscript?.slice(0, 100) || undefined;
+    if (hasBehavioralEvidence) {
+      const behavioralAverage =
+        behavioralScores.reduce((sum, score) => sum + score, 0) / behavioralScores.length;
+      const aggregateScore = Math.min(5, Math.max(1, Math.round(behavioralAverage * 10) / 10));
+
+      // The current rubric produces an aggregate behavioral score, not six
+      // independently measured competencies. Keep each sub-dimension neutral
+      // to that aggregate and explicitly disclose the measurement limitation.
+      const aggregateOnlyFeedback =
+        'Aggregate behavioral rubric score only; this competency was not separately assessed.';
 
       behavioralCompetencies = {
         isBehavioralAssessed: true,
-        overallBehavioralScore: Math.round(bAvg * 10) / 10,
+        overallBehavioralScore: aggregateScore,
         dimensions: {
           communication: {
             name: 'Verbal Communication & Articulation',
             dimensionKey: 'communication',
-            score: Math.min(5, Math.max(1, Math.round(deliveryScore * 10) / 10)),
-            evidenceQuote: sampleEvidence,
-            feedback:
-              deliveryScore >= 4.0
-                ? 'Clear delivery, confident pacing, and structured cadence.'
-                : 'Consider structuring thoughts with fewer filler words.',
+            score: aggregateScore,
+            feedback: aggregateOnlyFeedback,
           },
           problemSolvingExplanation: {
             name: 'Problem-Solving Explanation (STAR Context)',
             dimensionKey: 'problem_solving_explanation',
-            score: Math.min(5, Math.max(1, Math.round(bAvg * 10) / 10)),
-            evidenceQuote: sampleEvidence,
-            feedback: 'Structured explanation of business situation and engineering intervention.',
+            score: aggregateScore,
+            feedback: aggregateOnlyFeedback,
           },
           leadership: {
             name: 'Technical Leadership & Initiative',
             dimensionKey: 'leadership',
-            score: Math.min(5, Math.max(1, Math.round((bAvg + 0.1) * 10) / 10)),
-            feedback: 'Demonstrates initiative in taking on technical ambiguity and mentoring.',
+            score: aggregateScore,
+            feedback: aggregateOnlyFeedback,
           },
           conflictResolution: {
             name: 'Conflict Resolution & Trade-Off Navigation',
             dimensionKey: 'conflict_resolution',
-            score: Math.min(5, Math.max(1, Math.round((bAvg - 0.1) * 10) / 10)),
-            feedback: 'Balances engineering rigor with pragmatic business constraints.',
+            score: aggregateScore,
+            feedback: aggregateOnlyFeedback,
           },
           ownershipAccountability: {
             name: 'Ownership & Accountability',
             dimensionKey: 'ownership_accountability',
-            score: Math.min(5, Math.max(1, Math.round(bAvg * 10) / 10)),
-            feedback: 'Clear ownership of outcomes, post-mortems, and lessons learned.',
+            score: aggregateScore,
+            feedback: aggregateOnlyFeedback,
           },
           collaboration: {
             name: 'Cross-Functional Collaboration',
             dimensionKey: 'collaboration',
-            score: Math.min(5, Math.max(1, Math.round((bAvg + 0.2) * 10) / 10)),
-            feedback: 'Works effectively across product, design, and infrastructure counterparts.',
+            score: aggregateScore,
+            feedback: aggregateOnlyFeedback,
           },
         },
         starMethodologyNotes:
-          'Assessed against Situation, Task, Action, and Result structured delivery framework.',
+          'Aggregate behavioral rubric score only; individual STAR components and competencies were not separately measured.',
       };
     }
 
@@ -337,7 +334,7 @@ export class InterviewReportGenerator {
             : 'weak_area',
         score: behavioralCompetencies.overallBehavioralScore,
         details:
-          'Evaluated across Communication, Leadership, Problem-Solving Explanation, Ownership, and Cross-functional Collaboration via STAR methodology.',
+          'Aggregate behavioral rubric score; individual competencies and STAR components were not separately measured.',
       });
     }
 
