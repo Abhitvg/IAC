@@ -19,9 +19,12 @@ export interface ScrapedJobDetails {
 /**
  * Detects ATS platform based on URL patterns
  */
-export function detectAtsPlatform(url: string): 'greenhouse' | 'lever' | 'workday' | 'ashby' | 'generic' {
+export function detectAtsPlatform(
+  url: string
+): 'greenhouse' | 'lever' | 'workday' | 'ashby' | 'generic' {
   const lower = url.toLowerCase();
-  if (lower.includes('boards.greenhouse.io') || lower.includes('job-boards.greenhouse.io')) return 'greenhouse';
+  if (lower.includes('boards.greenhouse.io') || lower.includes('job-boards.greenhouse.io'))
+    return 'greenhouse';
   if (lower.includes('jobs.lever.co')) return 'lever';
   if (lower.includes('myworkdayjobs.com')) return 'workday';
   if (lower.includes('jobs.ashbyhq.com')) return 'ashby';
@@ -102,7 +105,9 @@ export function parseJobPageContent(htmlOrText: string, sourceUrl: string): Scra
   }
 
   // Extract Salary
-  const salaryMatch = cleanText.match(/\$[\d,]+(?:\.\d\d)?(?:\s*-\s*\$[\d,]+(?:\.\d\d)?)?(?:\s*(?:k|per year|\/yr|\/hr|hourly|annually))?/i);
+  const salaryMatch = cleanText.match(
+    /\$[\d,]+(?:\.\d\d)?(?:\s*-\s*\$[\d,]+(?:\.\d\d)?)?(?:\s*(?:k|per year|\/yr|\/hr|hourly|annually))?/i
+  );
   const salaryRange = salaryMatch ? salaryMatch[0] : undefined;
 
   // Extract Work Type
@@ -110,7 +115,11 @@ export function parseJobPageContent(htmlOrText: string, sourceUrl: string): Scra
   const lowerText = cleanText.toLowerCase();
   if (lowerText.includes('hybrid')) {
     workType = 'hybrid';
-  } else if (lowerText.includes('onsite') || lowerText.includes('on-site') || lowerText.includes('in-office')) {
+  } else if (
+    lowerText.includes('onsite') ||
+    lowerText.includes('on-site') ||
+    lowerText.includes('in-office')
+  ) {
     workType = 'onsite';
   } else if (lowerText.includes('remote') || lowerText.includes('work from home')) {
     workType = 'remote';
@@ -134,14 +143,18 @@ export function parseJobPageContent(htmlOrText: string, sourceUrl: string): Scra
 
   // Extract Company Name if available in text
   let company = urlMeta.company;
-  const companyMatch = cleanText.match(/(?:About|Join|Working at)\s+([A-Z][a-zA-Z0-9\s&]+?)(?:\s+is|\s+we|\s+team|\.|\n)/);
+  const companyMatch = cleanText.match(
+    /(?:About|Join|Working at)\s+([A-Z][a-zA-Z0-9\s&]+?)(?:\s+is|\s+we|\s+team|\.|\n)/
+  );
   if (companyMatch && companyMatch[1].trim().length < 30) {
     company = companyMatch[1].trim();
   }
 
   // Extract Location
   let location = 'Not specified';
-  const locMatch = cleanText.match(/(?:Location|Based in|Workplace):\s*([A-Za-z\s,]+?)(?:\.|\n|;|$)/i);
+  const locMatch = cleanText.match(
+    /(?:Location|Based in|Workplace):\s*([A-Za-z\s,]+?)(?:\.|\n|;|$)/i
+  );
   if (locMatch) {
     location = locMatch[1].trim();
   } else if (workType === 'remote') {
@@ -163,7 +176,6 @@ export function parseJobPageContent(htmlOrText: string, sourceUrl: string): Scra
 function capitalizeWords(str: string): string {
   return str.replace(/\b\w/g, (char) => char.toUpperCase());
 }
-
 
 export interface JobPageFetchOptions {
   url: string;
@@ -195,7 +207,9 @@ export async function fetchJobPostingFromUrl(
   }
 
   if (parsedUrl.protocol !== 'https:' || parsedUrl.username || parsedUrl.password) {
-    throw new Error('Job posting import only accepts public HTTPS URLs without embedded credentials.');
+    throw new Error(
+      'Job posting import only accepts public HTTPS URLs without embedded credentials.'
+    );
   }
 
   const safeFetcher =
@@ -206,7 +220,9 @@ export async function fetchJobPostingFromUrl(
       : undefined);
 
   if (typeof safeFetcher !== 'function') {
-    throw new Error('Secure page fetching is unavailable in this runtime. Paste the job description instead.');
+    throw new Error(
+      'Secure page fetching is unavailable in this runtime. Paste the job description instead.'
+    );
   }
 
   const response = await safeFetcher({
@@ -227,7 +243,9 @@ export async function fetchJobPostingFromUrl(
 
   const parsed = parseJobPageContent(response.body, parsedUrl.toString());
   if (!parsed.jdText || parsed.jdText.length < 80) {
-    throw new Error('The page did not expose enough readable job text. It may require JavaScript or authentication; paste the job description manually.');
+    throw new Error(
+      'The page did not expose enough readable job text. It may require JavaScript or authentication; paste the job description manually.'
+    );
   }
 
   return parsed;

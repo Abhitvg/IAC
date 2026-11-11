@@ -80,18 +80,14 @@ export function CareerOpsView() {
     generateOutreachForJob,
   } = useCareerOpsStore();
 
-  const {
-    resumeText,
-    setJobDescriptionText,
-    setTargetRole,
-    setToast,
-    settings,
-  } = useAppStore();
+  const { resumeText, setJobDescriptionText, setTargetRole, setToast, settings } = useAppStore();
 
   const { setActiveView, createCompanyPlan } = usePracticeStore();
 
   // Internal sub-tab state
-  const [subTab, setSubTab] = useState<'pipeline' | 'evaluator' | 'tailor' | 'outreach'>('pipeline');
+  const [subTab, setSubTab] = useState<'pipeline' | 'evaluator' | 'tailor' | 'outreach'>(
+    'pipeline'
+  );
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // New Job Input Modal / Form
@@ -102,14 +98,22 @@ export function CareerOpsView() {
   const [newLocation, setNewLocation] = useState('Not specified');
   const [newJdText, setNewJdText] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
-  const [coverAngle, setCoverAngle] = useState<'problem_solver' | 'technical_depth' | 'fast_impact' | 'cultural_alignment'>('problem_solver');
-  const [coverLevel, setCoverLevel] = useState<'senior' | 'mid' | 'entry' | 'career_switcher'>('senior');
+  const [coverAngle, setCoverAngle] = useState<
+    'problem_solver' | 'technical_depth' | 'fast_impact' | 'cultural_alignment'
+  >('problem_solver');
+  const [coverLevel, setCoverLevel] = useState<'senior' | 'mid' | 'entry' | 'career_switcher'>(
+    'senior'
+  );
   const [showAutoFillModal, setShowAutoFillModal] = useState(false);
-  const [autoFillMode, setAutoFillMode] = useState<'console' | 'bookmarklet' | 'playwright'>('console');
+  const [autoFillMode, setAutoFillMode] = useState<'console' | 'bookmarklet' | 'playwright'>(
+    'console'
+  );
 
   // Candidate Vault Modal
   const [showVaultModal, setShowVaultModal] = useState(false);
-  const [vaultSubTab, setVaultSubTab] = useState<'personal' | 'work_auth' | 'preferences' | 'pitch'>('personal');
+  const [vaultSubTab, setVaultSubTab] = useState<
+    'personal' | 'work_auth' | 'preferences' | 'pitch'
+  >('personal');
   const candidateVault = useCandidateVaultStore((s) => s.profile);
   const updateCandidateVault = useCandidateVaultStore((s) => s.updateProfile);
   const resetCandidateVault = useCandidateVaultStore((s) => s.resetToDefaults);
@@ -148,7 +152,9 @@ export function CareerOpsView() {
       setNewSalary(parsed.salaryRange || '');
       setNewLocation(parsed.location || 'Not specified');
       if (parsed.jdText) setNewJdText(parsed.jdText);
-      setToast(`Imported job-page content for ${parsed.company}. Review the extracted details before saving.`);
+      setToast(
+        `Imported job-page content for ${parsed.company}. Review the extracted details before saving.`
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not import this job posting.';
       setToast(message);
@@ -168,18 +174,18 @@ export function CareerOpsView() {
 
   const handleDownloadTex = (texContent: string, company: string, role: string) => {
     try {
-      const element = document.createElement("a");
-      const file = new Blob([texContent], { type: "text/x-tex;charset=utf-8" });
+      const element = document.createElement('a');
+      const file = new Blob([texContent], { type: 'text/x-tex;charset=utf-8' });
       element.href = URL.createObjectURL(file);
-      const cleanComp = (company || "Company").replace(/[^a-zA-Z0-9]/g, "_");
-      const cleanRole = (role || "Role").replace(/[^a-zA-Z0-9]/g, "_");
+      const cleanComp = (company || 'Company').replace(/[^a-zA-Z0-9]/g, '_');
+      const cleanRole = (role || 'Role').replace(/[^a-zA-Z0-9]/g, '_');
       element.download = `${cleanComp}_${cleanRole}_Resume.tex`;
       document.body.appendChild(element);
       element.click();
       document.body.removeChild(element);
       setToast(`Downloaded ${cleanComp}_${cleanRole}_Resume.tex!`);
     } catch (e) {
-      console.error("Failed to download .tex file", e);
+      console.error('Failed to download .tex file', e);
     }
   };
 
@@ -239,11 +245,8 @@ export function CareerOpsView() {
       ? {
           type: settings.aiProvider,
           apiKey: settings.apiKey || '',
-          model: resolveOrMigrateModel(
-            settings.aiProvider as AIProviderId,
-            settings.aiModel,
-            'llm'
-          ).resolvedModel,
+          model: resolveOrMigrateModel(settings.aiProvider as AIProviderId, settings.aiModel, 'llm')
+            .resolvedModel,
         }
       : undefined;
 
@@ -260,11 +263,8 @@ export function CareerOpsView() {
       ? {
           type: settings.aiProvider,
           apiKey: settings.apiKey || '',
-          model: resolveOrMigrateModel(
-            settings.aiProvider as AIProviderId,
-            settings.aiModel,
-            'llm'
-          ).resolvedModel,
+          model: resolveOrMigrateModel(settings.aiProvider as AIProviderId, settings.aiModel, 'llm')
+            .resolvedModel,
         }
       : undefined;
 
@@ -342,7 +342,14 @@ export function CareerOpsView() {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
+              <span
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 800,
+                  letterSpacing: '-0.02em',
+                  color: '#ffffff',
+                }}
+              >
                 CareerOps Intelligence
               </span>
               <span
@@ -474,8 +481,16 @@ export function CareerOpsView() {
         <div style={{ display: 'flex', gap: '6px' }}>
           {[
             { id: 'pipeline', label: '📋 Pipeline Board', count: applications.length },
-            { id: 'evaluator', label: '⚡ A-H Job Evaluator', activeBadge: activeJob?.recommendation === 'apply' ? '🟢 4.0+' : 'Evaluator' },
-            { id: 'tailor', label: '📝 ATS Resume & Cover Letter', activeBadge: activeJob?.tailoredResume ? 'Ready' : undefined },
+            {
+              id: 'evaluator',
+              label: '⚡ A-H Job Evaluator',
+              activeBadge: activeJob?.recommendation === 'apply' ? '🟢 4.0+' : 'Evaluator',
+            },
+            {
+              id: 'tailor',
+              label: '📝 ATS Resume & Cover Letter',
+              activeBadge: activeJob?.tailoredResume ? 'Ready' : undefined,
+            },
             { id: 'outreach', label: '🤝 Outreach & Contacto (<= 300 chars)' },
           ].map((tab) => {
             const isActive = subTab === tab.id;
@@ -582,7 +597,15 @@ export function CareerOpsView() {
                 border: '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '240px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  flex: 1,
+                  minWidth: '240px',
+                }}
+              >
                 <Search size={14} color="#64748b" />
                 <input
                   type="text"
@@ -602,28 +625,38 @@ export function CareerOpsView() {
 
               {/* Status Filter Chips */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '11px', color: '#64748b', marginRight: '4px' }}>Status:</span>
-                {(['all', 'scouted', 'evaluated', 'applied', 'interviewing', 'offer', 'rejected'] as const).map(
-                  (st) => (
-                    <button
-                      key={st}
-                      onClick={() => setFilterStatus(st)}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        background: filterStatus === st ? '#4f46e5' : 'rgba(255, 255, 255, 0.05)',
-                        color: filterStatus === st ? '#ffffff' : '#94a3b8',
-                        border: 'none',
-                        textTransform: 'capitalize',
-                      }}
-                    >
-                      {st}
-                    </button>
-                  )
-                )}
+                <span style={{ fontSize: '11px', color: '#64748b', marginRight: '4px' }}>
+                  Status:
+                </span>
+                {(
+                  [
+                    'all',
+                    'scouted',
+                    'evaluated',
+                    'applied',
+                    'interviewing',
+                    'offer',
+                    'rejected',
+                  ] as const
+                ).map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => setFilterStatus(st)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      background: filterStatus === st ? '#4f46e5' : 'rgba(255, 255, 255, 0.05)',
+                      color: filterStatus === st ? '#ffffff' : '#94a3b8',
+                      border: 'none',
+                      textTransform: 'capitalize',
+                    }}
+                  >
+                    {st}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -639,9 +672,21 @@ export function CareerOpsView() {
                 }}
               >
                 <Briefcase size={36} color="#64748b" style={{ margin: '0 auto 12px' }} />
-                <h3 style={{ fontSize: '15px', color: '#f8fafc', margin: '0 0 6px' }}>No Job Applications Tracked</h3>
-                <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 16px', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
-                  Add a target role from Greenhouse, Lever, Workday or LinkedIn to start A-H job-fit evaluation.
+                <h3 style={{ fontSize: '15px', color: '#f8fafc', margin: '0 0 6px' }}>
+                  No Job Applications Tracked
+                </h3>
+                <p
+                  style={{
+                    fontSize: '13px',
+                    color: '#94a3b8',
+                    margin: '0 0 16px',
+                    maxWidth: '420px',
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                  }}
+                >
+                  Add a target role from Greenhouse, Lever, Workday or LinkedIn to start A-H job-fit
+                  evaluation.
                 </p>
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                   <button
@@ -677,7 +722,13 @@ export function CareerOpsView() {
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '14px' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+                  gap: '14px',
+                }}
+              >
                 {filteredApps.map((job) => {
                   const isSelected = job.id === activeJobId;
                   const hasScore = typeof job.score === 'number' && job.score > 0;
@@ -704,11 +755,20 @@ export function CareerOpsView() {
                       }}
                     >
                       {/* Header: Company & Fit Badge */}
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                        }}
+                      >
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Building size={14} color="#f97316" />
-                            <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>{job.company}</span>
+                            <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>
+                              {job.company}
+                            </span>
                             {job.isDemo && (
                               <span
                                 style={{
@@ -725,7 +785,14 @@ export function CareerOpsView() {
                               </span>
                             )}
                           </div>
-                          <h4 style={{ margin: '3px 0 0', fontSize: '12px', fontWeight: 600, color: '#cbd5e1' }}>
+                          <h4
+                            style={{
+                              margin: '3px 0 0',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: '#cbd5e1',
+                            }}
+                          >
                             {job.role}
                           </h4>
                         </div>
@@ -745,167 +812,189 @@ export function CareerOpsView() {
                               padding: '2px 8px',
                               borderRadius: '6px',
                               background: hasScore
-                                ? (isApply ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)')
+                                ? isApply
+                                  ? 'rgba(34, 197, 94, 0.2)'
+                                  : 'rgba(239, 68, 68, 0.2)'
                                 : 'rgba(148, 163, 184, 0.15)',
                               color: hasScore ? (isApply ? '#4ade80' : '#f87171') : '#94a3b8',
                               border: hasScore
-                                ? (isApply ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)')
+                                ? isApply
+                                  ? '1px solid rgba(34, 197, 94, 0.4)'
+                                  : '1px solid rgba(239, 68, 68, 0.4)'
                                 : '1px solid rgba(148, 163, 184, 0.3)',
                             }}
                           >
                             {hasScore ? `★ ${job.score!.toFixed(1)} / 5.0` : 'Pending Evaluation'}
                           </span>
-                        <span
-                          style={{
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            marginTop: '2px',
-                            color: isApply ? '#86efac' : '#fca5a5',
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          {isApply ? '✓ Apply' : '✗ Skip'}
-                        </span>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontWeight: 700,
+                              marginTop: '2px',
+                              color: isApply ? '#86efac' : '#fca5a5',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {isApply ? '✓ Apply' : '✗ Skip'}
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Metadata: Salary & Location */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px', color: '#94a3b8' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <DollarSign size={12} color="#34d399" />
-                        <span>{job.salaryRange || 'Market Benchmark'}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <MapPin size={12} color="#60a5fa" />
-                        <span>{job.location || 'Remote'}</span>
-                      </div>
-                    </div>
-
-                    {/* Notes / Snippet */}
-                    {job.notes && (
-                      <p
+                      {/* Metadata: Salary & Location */}
+                      <div
                         style={{
-                          margin: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
                           fontSize: '11px',
                           color: '#94a3b8',
-                          background: 'rgba(0, 0, 0, 0.25)',
-                          padding: '6px 8px',
-                          borderRadius: '6px',
-                          borderLeft: '2px solid #6366f1',
                         }}
                       >
-                        {job.notes}
-                      </p>
-                    )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <DollarSign size={12} color="#34d399" />
+                          <span>{job.salaryRange || 'Market Benchmark'}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <MapPin size={12} color="#60a5fa" />
+                          <span>{job.location || 'Remote'}</span>
+                        </div>
+                      </div>
 
-                    {/* Footer Actions: Status Dropdown & App Synergy Buttons */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginTop: 'auto',
-                        paddingTop: '8px',
-                        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-                        gap: '6px',
-                      }}
-                    >
-                      {/* Status Selector */}
-                      <select
-                        value={job.status}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => updateJob(job.id, { status: e.target.value as ApplicationStatus })}
+                      {/* Notes / Snippet */}
+                      {job.notes && (
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: '11px',
+                            color: '#94a3b8',
+                            background: 'rgba(0, 0, 0, 0.25)',
+                            padding: '6px 8px',
+                            borderRadius: '6px',
+                            borderLeft: '2px solid #6366f1',
+                          }}
+                        >
+                          {job.notes}
+                        </p>
+                      )}
+
+                      {/* Footer Actions: Status Dropdown & App Synergy Buttons */}
+                      <div
                         style={{
-                          background: 'rgba(255, 255, 255, 0.06)',
-                          border: '1px solid rgba(255, 255, 255, 0.12)',
-                          borderRadius: '6px',
-                          color: '#e2e8f0',
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          padding: '3px 6px',
-                          outline: 'none',
-                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginTop: 'auto',
+                          paddingTop: '8px',
+                          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                          gap: '6px',
                         }}
                       >
-                        <option value="scouted">Scouted</option>
-                        <option value="evaluated">Evaluated</option>
-                        <option value="applied">Applied</option>
-                        <option value="interviewing">Interviewing</option>
-                        <option value="offer">Offer</option>
-                        <option value="rejected">Rejected</option>
-                      </select>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSendToGym(job);
-                          }}
-                          title="Generate 7-Day Interview Plan in Practice Gym"
+                        {/* Status Selector */}
+                        <select
+                          value={job.status}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            updateJob(job.id, { status: e.target.value as ApplicationStatus })
+                          }
                           style={{
-                            padding: '3px 7px',
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            border: '1px solid rgba(255, 255, 255, 0.12)',
                             borderRadius: '6px',
-                            background: 'rgba(99, 102, 241, 0.15)',
-                            color: '#a5b4fc',
-                            border: '1px solid rgba(99, 102, 241, 0.3)',
+                            color: '#e2e8f0',
                             fontSize: '10px',
                             fontWeight: 700,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          🏋️ Gym
-                        </button>
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSendToCopilot(job);
-                          }}
-                          title="Load Role into Live Teleprompter Copilot"
-                          style={{
-                            padding: '3px 7px',
-                            borderRadius: '6px',
-                            background: 'rgba(16, 185, 129, 0.15)',
-                            color: '#6ee7b7',
-                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          🛡️ Copilot
-                        </button>
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteJob(job.id);
-                          }}
-                          title="Delete Application"
-                          style={{
                             padding: '3px 6px',
-                            borderRadius: '6px',
-                            background: 'transparent',
-                            color: '#64748b',
-                            border: 'none',
+                            outline: 'none',
                             cursor: 'pointer',
                           }}
                         >
-                          <Trash2 size={12} />
-                        </button>
+                          <option value="scouted">Scouted</option>
+                          <option value="evaluated">Evaluated</option>
+                          <option value="applied">Applied</option>
+                          <option value="interviewing">Interviewing</option>
+                          <option value="offer">Offer</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSendToGym(job);
+                            }}
+                            title="Generate 7-Day Interview Plan in Practice Gym"
+                            style={{
+                              padding: '3px 7px',
+                              borderRadius: '6px',
+                              background: 'rgba(99, 102, 241, 0.15)',
+                              color: '#a5b4fc',
+                              border: '1px solid rgba(99, 102, 241, 0.3)',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            🏋️ Gym
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSendToCopilot(job);
+                            }}
+                            title="Load Role into Live Teleprompter Copilot"
+                            style={{
+                              padding: '3px 7px',
+                              borderRadius: '6px',
+                              background: 'rgba(16, 185, 129, 0.15)',
+                              color: '#6ee7b7',
+                              border: '1px solid rgba(16, 185, 129, 0.3)',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            🛡️ Copilot
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteJob(job.id);
+                            }}
+                            title="Delete Application"
+                            style={{
+                              padding: '3px 6px',
+                              borderRadius: '6px',
+                              background: 'transparent',
+                              color: '#64748b',
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
 
         {/* TAB 2: A-H JOB EVALUATOR */}
         {subTab === 'evaluator' && activeJob && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '960px', margin: '0 auto' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              maxWidth: '960px',
+              margin: '0 auto',
+            }}
+          >
             {/* Top Score Banner */}
             <div
               style={{
@@ -931,31 +1020,54 @@ export function CareerOpsView() {
                     fontWeight: 800,
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
-                    color: typeof activeJob.score === 'number' && activeJob.score >= 4.0 ? '#4ade80' : '#94a3b8',
+                    color:
+                      typeof activeJob.score === 'number' && activeJob.score >= 4.0
+                        ? '#4ade80'
+                        : '#94a3b8',
                   }}
                 >
                   CAREEROPS VERDICT
                 </span>
-                <h3 style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 800, color: '#f8fafc' }}>
+                <h3
+                  style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 800, color: '#f8fafc' }}
+                >
                   {activeJob.evaluationReport?.verdictHeadline ||
                     (typeof activeJob.score === 'number'
-                      ? (activeJob.score >= 4.0
-                          ? `🟢 Recommended: Strong Fit (${activeJob.score}/5.0)`
-                          : `🔴 Do Not Apply: Low Alignment (${activeJob.score}/5.0)`)
+                      ? activeJob.score >= 4.0
+                        ? `🟢 Recommended: Strong Fit (${activeJob.score}/5.0)`
+                        : `🔴 Do Not Apply: Low Alignment (${activeJob.score}/5.0)`
                       : '⚪ Pending A-H Evaluation')}
                 </h3>
-                <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#cbd5e1', maxWidth: '640px' }}>
+                <p
+                  style={{
+                    margin: '6px 0 0',
+                    fontSize: '12px',
+                    color: '#cbd5e1',
+                    maxWidth: '640px',
+                  }}
+                >
                   {activeJob.evaluationReport?.summary ||
                     'Evaluated across core technical stack, systems complexity, and role level alignment.'}
                 </p>
               </div>
 
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '32px', fontWeight: 900, color: typeof activeJob.score === 'number' && activeJob.score >= 4.0 ? '#4ade80' : '#94a3b8' }}>
+                <div
+                  style={{
+                    fontSize: '32px',
+                    fontWeight: 900,
+                    color:
+                      typeof activeJob.score === 'number' && activeJob.score >= 4.0
+                        ? '#4ade80'
+                        : '#94a3b8',
+                  }}
+                >
                   {typeof activeJob.score === 'number' ? activeJob.score.toFixed(1) : '—'}
                   <span style={{ fontSize: '14px', color: '#94a3b8' }}> / 5.0</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}
+                >
                   <button
                     onClick={() => handleRunEvaluation(activeJob.id)}
                     disabled={isEvaluating}
@@ -977,7 +1089,9 @@ export function CareerOpsView() {
                     onClick={() => {
                       if (activeJob.url && activeJob.url.startsWith('https://')) {
                         window.open(activeJob.url, '_blank', 'noopener,noreferrer');
-                        setToast(`Opened ${activeJob.company} application portal. Confirm submission only after you actually submit.`);
+                        setToast(
+                          `Opened ${activeJob.company} application portal. Confirm submission only after you actually submit.`
+                        );
                       } else {
                         setToast('A valid HTTPS application URL is required.');
                       }
@@ -985,7 +1099,10 @@ export function CareerOpsView() {
                     style={{
                       padding: '5px 12px',
                       borderRadius: '6px',
-                      background: activeJob.status === 'applied' ? 'rgba(34, 197, 94, 0.2)' : 'linear-gradient(135deg, #10b981, #059669)',
+                      background:
+                        activeJob.status === 'applied'
+                          ? 'rgba(34, 197, 94, 0.2)'
+                          : 'linear-gradient(135deg, #10b981, #059669)',
                       color: '#ffffff',
                       border: '1px solid rgba(34, 197, 94, 0.4)',
                       fontSize: '11px',
@@ -1032,7 +1149,9 @@ export function CareerOpsView() {
                 padding: '16px',
               }}
             >
-              <h4 style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>
+              <h4
+                style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}
+              >
                 📋 Block B: Weighted Requirements Audit
               </h4>
 
@@ -1090,8 +1209,8 @@ export function CareerOpsView() {
                           background: isStrong
                             ? 'rgba(34, 197, 94, 0.15)'
                             : isPartial
-                            ? 'rgba(245, 158, 11, 0.15)'
-                            : 'rgba(239, 68, 68, 0.15)',
+                              ? 'rgba(245, 158, 11, 0.15)'
+                              : 'rgba(239, 68, 68, 0.15)',
                           color: isStrong ? '#4ade80' : isPartial ? '#fbbf24' : '#f87171',
                           whiteSpace: 'nowrap',
                         }}
@@ -1105,7 +1224,13 @@ export function CareerOpsView() {
             </div>
 
             {/* Block C & D: Strategy, Gaps & Compensation */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '14px',
+              }}
+            >
               <div
                 style={{
                   background: 'rgba(15, 23, 42, 0.65)',
@@ -1114,14 +1239,22 @@ export function CareerOpsView() {
                   padding: '14px',
                 }}
               >
-                <h4 style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
+                <h4
+                  style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}
+                >
                   🎯 Strategic Positioning Angle
                 </h4>
                 <p style={{ margin: 0, fontSize: '12px', color: '#cbd5e1', lineHeight: '1.5' }}>
                   {activeJob.evaluationReport?.strategicAngle ||
                     'Emphasize high-scale distributed reliability and clean code practices.'}
                 </p>
-                <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <div
+                  style={{
+                    marginTop: '10px',
+                    paddingTop: '10px',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                >
                   <span style={{ fontSize: '11px', color: '#94a3b8' }}>Level Strategy: </span>
                   <span style={{ fontSize: '11px', fontWeight: 700, color: '#f1f5f9' }}>
                     {activeJob.evaluationReport?.levelStrategy || 'Senior Software Engineer'}
@@ -1137,11 +1270,14 @@ export function CareerOpsView() {
                   padding: '14px',
                 }}
               >
-                <h4 style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
+                <h4
+                  style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}
+                >
                   💰 Compensation Benchmark
                 </h4>
                 <div style={{ fontSize: '16px', fontWeight: 900, color: '#34d399' }}>
-                  {activeJob.evaluationReport?.compensationEstimate?.estimatedRange || activeJob.salaryRange}
+                  {activeJob.evaluationReport?.compensationEstimate?.estimatedRange ||
+                    activeJob.salaryRange}
                 </div>
                 <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#94a3b8' }}>
                   {activeJob.evaluationReport?.compensationEstimate?.analysis ||
@@ -1152,7 +1288,11 @@ export function CareerOpsView() {
 
             {/* Predicted Interview Loop (Mock Gym Bridge) */}
             {(() => {
-              const predictedLoop = predictInterviewLoop(activeJob.company, activeJob.role, activeJob.jdText);
+              const predictedLoop = predictInterviewLoop(
+                activeJob.company,
+                activeJob.role,
+                activeJob.jdText
+              );
               return (
                 <div
                   style={{
@@ -1166,7 +1306,15 @@ export function CareerOpsView() {
                     boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '8px',
+                    }}
+                  >
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>
@@ -1183,7 +1331,8 @@ export function CareerOpsView() {
                             border: '1px solid rgba(99, 102, 241, 0.4)',
                           }}
                         >
-                          {predictedLoop.technicalQuestions.length} TECH + {predictedLoop.behavioralQuestions.length} STAR
+                          {predictedLoop.technicalQuestions.length} TECH +{' '}
+                          {predictedLoop.behavioralQuestions.length} STAR
                         </span>
                       </div>
                       <p style={{ margin: '3px 0 0', fontSize: '11px', color: '#94a3b8' }}>
@@ -1215,7 +1364,16 @@ export function CareerOpsView() {
 
                   {/* Technical Questions */}
                   <div>
-                    <h5 style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 800, color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <h5
+                      style={{
+                        margin: '0 0 8px',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        color: '#818cf8',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
                       Technical Architecture & Coding Questions
                     </h5>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1232,18 +1390,35 @@ export function CareerOpsView() {
                             gap: '4px',
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '8px',
+                            }}
+                          >
                             <span style={{ fontSize: '12px', fontWeight: 700, color: '#f1f5f9' }}>
                               {tq.prompt}
                             </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                flexShrink: 0,
+                              }}
+                            >
                               <span
                                 style={{
                                   fontSize: '9px',
                                   fontWeight: 800,
                                   padding: '1px 6px',
                                   borderRadius: '4px',
-                                  background: tq.difficulty === 'Hard' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                                  background:
+                                    tq.difficulty === 'Hard'
+                                      ? 'rgba(239, 68, 68, 0.2)'
+                                      : 'rgba(245, 158, 11, 0.2)',
                                   color: tq.difficulty === 'Hard' ? '#f87171' : '#fbbf24',
                                 }}
                               >
@@ -1275,7 +1450,16 @@ export function CareerOpsView() {
 
                   {/* Behavioral STAR Questions */}
                   <div>
-                    <h5 style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 800, color: '#f97316', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <h5
+                      style={{
+                        margin: '0 0 8px',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        color: '#f97316',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
                       Behavioral STAR Culture & Crisis Probes
                     </h5>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1292,7 +1476,14 @@ export function CareerOpsView() {
                             gap: '4px',
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '8px',
+                            }}
+                          >
                             <span style={{ fontSize: '12px', fontWeight: 700, color: '#f1f5f9' }}>
                               {bq.prompt}
                             </span>
@@ -1327,14 +1518,31 @@ export function CareerOpsView() {
 
         {/* TAB 3: ATS RESUME & COVER LETTER TAILOR */}
         {subTab === 'tailor' && activeJob && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '960px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              maxWidth: '960px',
+              margin: '0 auto',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '10px',
+              }}
+            >
               <div>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
                   ATS Resume & Cover Letter Tailoring Engine
                 </h3>
                 <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#94a3b8' }}>
-                  Sourabh Bajaj (sb2nov) LaTeX ATS standard. Single-page dense layout • 100% compilable in Overleaf/pdflatex • Zero fabrication.
+                  Sourabh Bajaj (sb2nov) LaTeX ATS standard. Single-page dense layout • 100%
+                  compilable in Overleaf/pdflatex • Zero fabrication.
                 </p>
               </div>
 
@@ -1377,7 +1585,13 @@ export function CareerOpsView() {
                         }
                       : undefined;
                     setToast('Drafting 4-paragraph cover letter...');
-                    await generateCoverLetterForJob(activeJob.id, resumeText, coverAngle, coverLevel, providerConfig);
+                    await generateCoverLetterForJob(
+                      activeJob.id,
+                      resumeText,
+                      coverAngle,
+                      coverLevel,
+                      providerConfig
+                    );
                     setToast('Cover Letter drafted!');
                   }}
                   style={{
@@ -1419,7 +1633,9 @@ export function CareerOpsView() {
                   onClick={() => {
                     if (activeJob.url && activeJob.url.startsWith('https://')) {
                       window.open(activeJob.url, '_blank', 'noopener,noreferrer');
-                      setToast(`Opened ${activeJob.company} application portal. Mark it applied only after submission.`);
+                      setToast(
+                        `Opened ${activeJob.company} application portal. Mark it applied only after submission.`
+                      );
                     } else {
                       setToast('A valid HTTPS application URL is required.');
                     }
@@ -1427,9 +1643,13 @@ export function CareerOpsView() {
                   style={{
                     padding: '6px 12px',
                     borderRadius: '8px',
-                    background: activeJob.status === 'applied' ? 'rgba(34, 197, 94, 0.2)' : 'linear-gradient(135deg, #10b981, #059669)',
+                    background:
+                      activeJob.status === 'applied'
+                        ? 'rgba(34, 197, 94, 0.2)'
+                        : 'linear-gradient(135deg, #10b981, #059669)',
                     color: '#ffffff',
-                    border: activeJob.status === 'applied' ? '1px solid rgba(34, 197, 94, 0.5)' : 'none',
+                    border:
+                      activeJob.status === 'applied' ? '1px solid rgba(34, 197, 94, 0.5)' : 'none',
                     fontSize: '11px',
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -1488,7 +1708,14 @@ export function CareerOpsView() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={{ color: '#94a3b8', fontWeight: 600 }}>Strategy Angle:</span>
-                {(['problem_solver', 'technical_depth', 'fast_impact', 'cultural_alignment'] as const).map((ang) => (
+                {(
+                  [
+                    'problem_solver',
+                    'technical_depth',
+                    'fast_impact',
+                    'cultural_alignment',
+                  ] as const
+                ).map((ang) => (
                   <button
                     key={ang}
                     onClick={() => setCoverAngle(ang)}
@@ -1524,7 +1751,15 @@ export function CareerOpsView() {
                   gap: '10px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
                       📜 Sourabh Bajaj LaTeX Resume (.tex)
@@ -1563,11 +1798,19 @@ export function CareerOpsView() {
                         }}
                       >
                         <Copy size={11} />
-                        <span>{copiedField === 'Tailored Resume' ? 'Copied LaTeX!' : 'Copy .tex'}</span>
+                        <span>
+                          {copiedField === 'Tailored Resume' ? 'Copied LaTeX!' : 'Copy .tex'}
+                        </span>
                       </button>
 
                       <button
-                        onClick={() => handleDownloadTex(activeJob.tailoredResume!, activeJob.company, activeJob.role)}
+                        onClick={() =>
+                          handleDownloadTex(
+                            activeJob.tailoredResume!,
+                            activeJob.company,
+                            activeJob.role
+                          )
+                        }
                         style={{
                           padding: '3px 8px',
                           borderRadius: '6px',
@@ -1587,7 +1830,12 @@ export function CareerOpsView() {
                       </button>
 
                       <button
-                        onClick={() => openInOverleaf(activeJob.tailoredResume!, `${activeJob.company.toLowerCase()}_resume`)}
+                        onClick={() =>
+                          openInOverleaf(
+                            activeJob.tailoredResume!,
+                            `${activeJob.company.toLowerCase()}_resume`
+                          )
+                        }
                         style={{
                           padding: '3px 8px',
                           borderRadius: '6px',
@@ -1624,7 +1872,9 @@ export function CareerOpsView() {
                     justifyContent: 'space-between',
                   }}
                 >
-                  <span>Template: <strong>sb2nov/resume</strong> (MIT License) • 1-Page ATS format</span>
+                  <span>
+                    Template: <strong>sb2nov/resume</strong> (MIT License) • 1-Page ATS format
+                  </span>
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <button
                       onClick={() => setResumeViewMode('code')}
@@ -1633,7 +1883,8 @@ export function CareerOpsView() {
                         borderRadius: '4px',
                         fontSize: '10px',
                         fontWeight: 700,
-                        background: resumeViewMode === 'code' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                        background:
+                          resumeViewMode === 'code' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
                         color: resumeViewMode === 'code' ? '#38bdf8' : '#94a3b8',
                         border: 'none',
                         cursor: 'pointer',
@@ -1648,7 +1899,8 @@ export function CareerOpsView() {
                         borderRadius: '4px',
                         fontSize: '10px',
                         fontWeight: 700,
-                        background: resumeViewMode === 'preview' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                        background:
+                          resumeViewMode === 'preview' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
                         color: resumeViewMode === 'preview' ? '#38bdf8' : '#94a3b8',
                         border: 'none',
                         cursor: 'pointer',
@@ -1697,16 +1949,42 @@ export function CareerOpsView() {
                     {(() => {
                       const parsed = parseLatexForVisualPreview(activeJob.tailoredResume || '');
                       return (
-                        <div style={{ color: '#f8fafc', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <div style={{ textAlign: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '8px' }}>
-                            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 900, color: '#ffffff' }}>{parsed.name}</h2>
+                        <div
+                          style={{
+                            color: '#f8fafc',
+                            fontSize: '11px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px',
+                          }}
+                        >
+                          <div
+                            style={{
+                              textAlign: 'center',
+                              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                              paddingBottom: '8px',
+                            }}
+                          >
+                            <h2
+                              style={{
+                                margin: 0,
+                                fontSize: '15px',
+                                fontWeight: 900,
+                                color: '#ffffff',
+                              }}
+                            >
+                              {parsed.name}
+                            </h2>
                             <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>
                               {parsed.email && <span>{parsed.email} • </span>}
                               <span>{parsed.role}</span>
                             </div>
                           </div>
                           {parsed.sections.map((sec, idx) => (
-                            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div
+                              key={idx}
+                              style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}
+                            >
                               <h4
                                 style={{
                                   margin: 0,
@@ -1722,7 +2000,14 @@ export function CareerOpsView() {
                               </h4>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                                 {sec.lines.map((line, lIdx) => (
-                                  <div key={lIdx} style={{ fontSize: '10px', color: '#cbd5e1', lineHeight: '1.4' }}>
+                                  <div
+                                    key={lIdx}
+                                    style={{
+                                      fontSize: '10px',
+                                      color: '#cbd5e1',
+                                      lineHeight: '1.4',
+                                    }}
+                                  >
                                     {line}
                                   </div>
                                 ))}
@@ -1748,7 +2033,15 @@ export function CareerOpsView() {
                   gap: '10px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
                       ✉️ Software Engineer Cover Letter
@@ -1791,7 +2084,13 @@ export function CareerOpsView() {
                       </button>
 
                       <button
-                        onClick={() => handleDownloadCoverLetter(activeJob.coverLetter!, activeJob.company, activeJob.role)}
+                        onClick={() =>
+                          handleDownloadCoverLetter(
+                            activeJob.coverLetter!,
+                            activeJob.company,
+                            activeJob.role
+                          )
+                        }
                         style={{
                           padding: '3px 8px',
                           borderRadius: '6px',
@@ -1823,7 +2122,8 @@ export function CareerOpsView() {
                     color: '#94a3b8',
                   }}
                 >
-                  Blueprint: <strong>Hook & Role Fit</strong> → <strong>Quantified Impact</strong> → <strong>Tech Stack & Craft</strong> → <strong>Why {activeJob.company}</strong>
+                  Blueprint: <strong>Hook & Role Fit</strong> → <strong>Quantified Impact</strong> →{' '}
+                  <strong>Tech Stack & Craft</strong> → <strong>Why {activeJob.company}</strong>
                 </div>
 
                 <textarea
@@ -1855,14 +2155,23 @@ export function CareerOpsView() {
 
         {/* TAB 4: OUTREACH & CONTACTO */}
         {subTab === 'outreach' && activeJob && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '860px', margin: '0 auto' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              maxWidth: '860px',
+              margin: '0 auto',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
                   Outreach & Contact Discovery (Contacto)
                 </h3>
                 <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#94a3b8' }}>
-                  Draft high-conversion DMs under the 300-character LinkedIn limit and formal application emails.
+                  Draft high-conversion DMs under the 300-character LinkedIn limit and formal
+                  application emails.
                 </p>
               </div>
 
@@ -1908,7 +2217,13 @@ export function CareerOpsView() {
                     gap: '12px',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Calendar size={15} color="#fb923c" />
                       <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>
@@ -1920,7 +2235,13 @@ export function CareerOpsView() {
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                      gap: '10px',
+                    }}
+                  >
                     {timeline.map((m) => (
                       <div
                         key={m.dayOffset}
@@ -1936,7 +2257,13 @@ export function CareerOpsView() {
                           gap: '8px',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
                           <span style={{ fontSize: '11px', fontWeight: 800, color: '#f1f5f9' }}>
                             {m.title}
                           </span>
@@ -1949,18 +2276,35 @@ export function CareerOpsView() {
                               background: m.isDue
                                 ? 'rgba(249, 115, 22, 0.25)'
                                 : m.isOverdue
-                                ? 'rgba(239, 68, 68, 0.2)'
-                                : 'rgba(255, 255, 255, 0.06)',
+                                  ? 'rgba(239, 68, 68, 0.2)'
+                                  : 'rgba(255, 255, 255, 0.06)',
                               color: m.isDue ? '#fb923c' : m.isOverdue ? '#f87171' : '#94a3b8',
                             }}
                           >
-                            {m.isDue ? '🔥 Due Now' : m.isOverdue ? '⚠️ Overdue' : `In ${m.daysRemaining}d`}
+                            {m.isDue
+                              ? '🔥 Due Now'
+                              : m.isOverdue
+                                ? '⚠️ Overdue'
+                                : `In ${m.daysRemaining}d`}
                           </span>
                         </div>
                         <div style={{ fontSize: '10px', color: '#94a3b8' }}>
-                          Channel: <strong style={{ color: '#e2e8f0' }}>{m.channel === 'linkedin' ? 'LinkedIn DM' : 'Email'}</strong> • {m.draftText.length} chars
+                          Channel:{' '}
+                          <strong style={{ color: '#e2e8f0' }}>
+                            {m.channel === 'linkedin' ? 'LinkedIn DM' : 'Email'}
+                          </strong>{' '}
+                          • {m.draftText.length} chars
                         </div>
-                        <p style={{ margin: 0, fontSize: '10px', color: '#cbd5e1', fontStyle: 'italic', maxHeight: '60px', overflowY: 'auto' }}>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: '10px',
+                            color: '#cbd5e1',
+                            fontStyle: 'italic',
+                            maxHeight: '60px',
+                            overflowY: 'auto',
+                          }}
+                        >
                           "{m.draftText}"
                         </p>
                         <button
@@ -1968,7 +2312,9 @@ export function CareerOpsView() {
                           style={{
                             padding: '4px 8px',
                             borderRadius: '6px',
-                            background: m.isDue ? 'rgba(249, 115, 22, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                            background: m.isDue
+                              ? 'rgba(249, 115, 22, 0.2)'
+                              : 'rgba(255, 255, 255, 0.05)',
                             color: m.isDue ? '#fb923c' : '#cbd5e1',
                             border: '1px solid rgba(255, 255, 255, 0.1)',
                             fontSize: '10px',
@@ -2002,7 +2348,9 @@ export function CareerOpsView() {
                 gap: '12px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
                 <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
                   📬 Ready-to-Send Outreach Drafts
                 </span>
@@ -2092,14 +2440,20 @@ export function CareerOpsView() {
               </div>
               <button
                 onClick={() => setShowNewModal(false)}
-                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer' }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                }}
               >
                 ✕
               </button>
             </div>
 
             <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>
-              Paste a job description or portal link. CareerOps scores it 1.0 to 5.0 against your active CV and tells you whether to apply.
+              Paste a job description or portal link. CareerOps scores it 1.0 to 5.0 against your
+              active CV and tells you whether to apply.
             </p>
 
             {/* 1-Click Job URL Importer */}
@@ -2114,12 +2468,33 @@ export function CareerOpsView() {
                 gap: '6px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#fb923c', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Sparkles size={13} /> 1-Click Job URL Importer (Greenhouse, Lever, Workday, Ashby)
+              <div
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: '#fb923c',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <Sparkles size={13} /> 1-Click Job URL Importer (Greenhouse, Lever, Workday,
+                  Ashby)
                 </span>
                 {detectedAtsInModal && (
-                  <span style={{ fontSize: '9px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', background: 'rgba(249, 115, 22, 0.2)', color: '#fb923c' }}>
+                  <span
+                    style={{
+                      fontSize: '9px',
+                      fontWeight: 800,
+                      padding: '1px 5px',
+                      borderRadius: '4px',
+                      background: 'rgba(249, 115, 22, 0.2)',
+                      color: '#fb923c',
+                    }}
+                  >
                     {detectedAtsInModal.toUpperCase()} DETECTED
                   </span>
                 )}
@@ -2169,7 +2544,14 @@ export function CareerOpsView() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
-                <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
+                <label
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    color: '#94a3b8',
+                    textTransform: 'uppercase',
+                  }}
+                >
                   Company Name *
                 </label>
                 <input
@@ -2192,7 +2574,14 @@ export function CareerOpsView() {
               </div>
 
               <div>
-                <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
+                <label
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    color: '#94a3b8',
+                    textTransform: 'uppercase',
+                  }}
+                >
                   Role Title *
                 </label>
                 <input
@@ -2216,7 +2605,14 @@ export function CareerOpsView() {
             </div>
 
             <div>
-              <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
+              <label
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  color: '#94a3b8',
+                  textTransform: 'uppercase',
+                }}
+              >
                 Job Description (Paste Text or URL)
               </label>
               <textarea
@@ -2240,7 +2636,9 @@ export function CareerOpsView() {
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+            <div
+              style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}
+            >
               <button
                 onClick={() => setShowNewModal(false)}
                 style={{
@@ -2315,15 +2713,31 @@ export function CareerOpsView() {
               </div>
               <button
                 onClick={() => setShowAutoFillModal(false)}
-                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '14px' }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
               >
                 ✕
               </button>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '8px',
+              }}
+            >
               <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>
-                Instantly fills out application forms on <strong>Greenhouse</strong>, <strong>Lever</strong>, <strong>Workday</strong>, and <strong>Ashby</strong>. Uses native value setter overrides so React/Vue controlled inputs never get wiped.
+                Instantly fills out application forms on <strong>Greenhouse</strong>,{' '}
+                <strong>Lever</strong>, <strong>Workday</strong>, and <strong>Ashby</strong>. Uses
+                native value setter overrides so React/Vue controlled inputs never get wiped.
               </p>
               <button
                 onClick={() => {
@@ -2346,7 +2760,14 @@ export function CareerOpsView() {
             </div>
 
             {/* Mode Selector */}
-            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                paddingBottom: '8px',
+              }}
+            >
               {(
                 [
                   { id: 'console', label: '⚡ Browser Console Script (Instant)' },
@@ -2362,7 +2783,10 @@ export function CareerOpsView() {
                     borderRadius: '6px',
                     fontSize: '11px',
                     fontWeight: 700,
-                    background: autoFillMode === m.id ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                    background:
+                      autoFillMode === m.id
+                        ? 'rgba(139, 92, 246, 0.25)'
+                        : 'rgba(255, 255, 255, 0.05)',
                     color: autoFillMode === m.id ? '#c4b5fd' : '#94a3b8',
                     border: autoFillMode === m.id ? '1px solid rgba(139, 92, 246, 0.5)' : 'none',
                     cursor: 'pointer',
@@ -2377,11 +2801,24 @@ export function CareerOpsView() {
             {autoFillMode === 'console' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ fontSize: '11px', color: '#cbd5e1' }}>
-                  <strong>How to use:</strong> Open the job portal page in Chrome/Safari/Brave, press <kbd style={{ background: '#334155', padding: '2px 4px', borderRadius: '4px' }}>Cmd+Option+J</kbd> (or <kbd style={{ background: '#334155', padding: '2px 4px', borderRadius: '4px' }}>F12</kbd> → Console), paste and hit Enter!
+                  <strong>How to use:</strong> Open the job portal page in Chrome/Safari/Brave,
+                  press{' '}
+                  <kbd style={{ background: '#334155', padding: '2px 4px', borderRadius: '4px' }}>
+                    Cmd+Option+J
+                  </kbd>{' '}
+                  (or{' '}
+                  <kbd style={{ background: '#334155', padding: '2px 4px', borderRadius: '4px' }}>
+                    F12
+                  </kbd>{' '}
+                  → Console), paste and hit Enter!
                 </div>
                 <textarea
                   readOnly
-                  value={generateBrowserAutoFillScript(candidateVault, activeJob.coverLetter || '', activeJob.tailoredResume || '')}
+                  value={generateBrowserAutoFillScript(
+                    candidateVault,
+                    activeJob.coverLetter || '',
+                    activeJob.tailoredResume || ''
+                  )}
                   style={{
                     width: '100%',
                     height: '200px',
@@ -2396,9 +2833,25 @@ export function CareerOpsView() {
                     lineHeight: '1.4',
                   }}
                 />
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: '8px',
+                  }}
+                >
                   <button
-                    onClick={() => handleCopy(generateBrowserAutoFillScript(candidateVault, activeJob.coverLetter || '', activeJob.tailoredResume || ''), 'Auto-Fill Script')}
+                    onClick={() =>
+                      handleCopy(
+                        generateBrowserAutoFillScript(
+                          candidateVault,
+                          activeJob.coverLetter || '',
+                          activeJob.tailoredResume || ''
+                        ),
+                        'Auto-Fill Script'
+                      )
+                    }
                     style={{
                       padding: '6px 12px',
                       borderRadius: '8px',
@@ -2414,15 +2867,26 @@ export function CareerOpsView() {
                     }}
                   >
                     <Copy size={12} />
-                    <span>{copiedField === 'Auto-Fill Script' ? 'Copied!' : 'Copy Console Script'}</span>
+                    <span>
+                      {copiedField === 'Auto-Fill Script' ? 'Copied!' : 'Copy Console Script'}
+                    </span>
                   </button>
 
                   {activeJob.url && activeJob.url.startsWith('http') && (
                     <button
                       onClick={() => {
-                        handleCopy(generateBrowserAutoFillScript(candidateVault, activeJob.coverLetter || '', activeJob.tailoredResume || ''), 'Auto-Fill Script');
+                        handleCopy(
+                          generateBrowserAutoFillScript(
+                            candidateVault,
+                            activeJob.coverLetter || '',
+                            activeJob.tailoredResume || ''
+                          ),
+                          'Auto-Fill Script'
+                        );
                         window.open(activeJob.url, '_blank');
-                        setToast(`Opening ${activeJob.company} portal! Script copied — paste in Console (F12) to auto-fill.`);
+                        setToast(
+                          `Opening ${activeJob.company} portal! Script copied — paste in Console (F12) to auto-fill.`
+                        );
                       }}
                       style={{
                         padding: '6px 12px',
@@ -2449,7 +2913,9 @@ export function CareerOpsView() {
             {autoFillMode === 'bookmarklet' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ fontSize: '11px', color: '#cbd5e1' }}>
-                  <strong>Bookmarklet instructions:</strong> Create a new browser bookmark named <code>CareerOps Auto-Fill</code> and paste this URI as the URL. Click it while viewing any job application form!
+                  <strong>Bookmarklet instructions:</strong> Create a new browser bookmark named{' '}
+                  <code>CareerOps Auto-Fill</code> and paste this URI as the URL. Click it while
+                  viewing any job application form!
                 </div>
                 <input
                   readOnly
@@ -2465,9 +2931,21 @@ export function CareerOpsView() {
                     padding: '8px',
                   }}
                 />
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: '8px',
+                  }}
+                >
                   <button
-                    onClick={() => handleCopy(generateAutoFillBookmarklet(candidateVault, activeJob.coverLetter || ''), 'Bookmarklet URL')}
+                    onClick={() =>
+                      handleCopy(
+                        generateAutoFillBookmarklet(candidateVault, activeJob.coverLetter || ''),
+                        'Bookmarklet URL'
+                      )
+                    }
                     style={{
                       padding: '6px 12px',
                       borderRadius: '8px',
@@ -2483,7 +2961,11 @@ export function CareerOpsView() {
                     }}
                   >
                     <Copy size={12} />
-                    <span>{copiedField === 'Bookmarklet URL' ? 'Copied Bookmarklet!' : 'Copy Bookmarklet URI'}</span>
+                    <span>
+                      {copiedField === 'Bookmarklet URL'
+                        ? 'Copied Bookmarklet!'
+                        : 'Copy Bookmarklet URI'}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -2492,11 +2974,16 @@ export function CareerOpsView() {
             {autoFillMode === 'playwright' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ fontSize: '11px', color: '#cbd5e1' }}>
-                  Run locally with Node / Playwright: <code>node apply.mjs</code>. Opens Chromium, navigates, and fills all form fields automatically.
+                  Run locally with Node / Playwright: <code>node apply.mjs</code>. Opens Chromium,
+                  navigates, and fills all form fields automatically.
                 </div>
                 <textarea
                   readOnly
-                  value={generatePlaywrightAutoFillScript(activeJob.url || 'https://boards.greenhouse.io', candidateVault, activeJob.coverLetter || '')}
+                  value={generatePlaywrightAutoFillScript(
+                    activeJob.url || 'https://boards.greenhouse.io',
+                    candidateVault,
+                    activeJob.coverLetter || ''
+                  )}
                   style={{
                     width: '100%',
                     height: '200px',
@@ -2511,9 +2998,25 @@ export function CareerOpsView() {
                     lineHeight: '1.4',
                   }}
                 />
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: '8px',
+                  }}
+                >
                   <button
-                    onClick={() => handleCopy(generatePlaywrightAutoFillScript(activeJob.url || 'https://boards.greenhouse.io', candidateVault, activeJob.coverLetter || ''), 'Playwright Script')}
+                    onClick={() =>
+                      handleCopy(
+                        generatePlaywrightAutoFillScript(
+                          activeJob.url || 'https://boards.greenhouse.io',
+                          candidateVault,
+                          activeJob.coverLetter || ''
+                        ),
+                        'Playwright Script'
+                      )
+                    }
                     style={{
                       padding: '6px 12px',
                       borderRadius: '8px',
@@ -2529,7 +3032,9 @@ export function CareerOpsView() {
                     }}
                   >
                     <Copy size={12} />
-                    <span>{copiedField === 'Playwright Script' ? 'Copied!' : 'Copy Playwright Code'}</span>
+                    <span>
+                      {copiedField === 'Playwright Script' ? 'Copied!' : 'Copy Playwright Code'}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -2578,18 +3083,32 @@ export function CareerOpsView() {
               </div>
               <button
                 onClick={() => setShowVaultModal(false)}
-                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '14px' }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
               >
                 ✕
               </button>
             </div>
 
             <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>
-              Persistent candidate profile synced directly to 1-Click ATS Auto-Fill. Changes are saved automatically to local storage.
+              Persistent candidate profile synced directly to 1-Click ATS Auto-Fill. Changes are
+              saved automatically to local storage.
             </p>
 
             {/* Vault Tabs */}
-            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                paddingBottom: '8px',
+              }}
+            >
               {[
                 { id: 'personal', label: '👤 Personal & Links' },
                 { id: 'work_auth', label: '🛂 Work Auth & Details' },
@@ -2604,7 +3123,10 @@ export function CareerOpsView() {
                     borderRadius: '6px',
                     fontSize: '11px',
                     fontWeight: 700,
-                    background: vaultSubTab === tab.id ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                    background:
+                      vaultSubTab === tab.id
+                        ? 'rgba(99, 102, 241, 0.25)'
+                        : 'rgba(255, 255, 255, 0.05)',
                     color: vaultSubTab === tab.id ? '#c7d2fe' : '#94a3b8',
                     border: vaultSubTab === tab.id ? '1px solid rgba(99, 102, 241, 0.4)' : 'none',
                     cursor: 'pointer',
@@ -2619,66 +3141,143 @@ export function CareerOpsView() {
             {vaultSubTab === 'personal' && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>FIRST NAME</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    FIRST NAME
+                  </label>
                   <input
                     type="text"
                     value={candidateVault.firstName}
                     onChange={(e) => updateCandidateVault({ firstName: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>LAST NAME</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    LAST NAME
+                  </label>
                   <input
                     type="text"
                     value={candidateVault.lastName}
                     onChange={(e) => updateCandidateVault({ lastName: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>EMAIL</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    EMAIL
+                  </label>
                   <input
                     type="email"
                     value={candidateVault.email}
                     onChange={(e) => updateCandidateVault({ email: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>PHONE</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    PHONE
+                  </label>
                   <input
                     type="tel"
                     value={candidateVault.phone}
                     onChange={(e) => updateCandidateVault({ phone: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
                 <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>LOCATION / CITY, STATE</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    LOCATION / CITY, STATE
+                  </label>
                   <input
                     type="text"
                     value={candidateVault.location}
                     onChange={(e) => updateCandidateVault({ location: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>LINKEDIN URL</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    LINKEDIN URL
+                  </label>
                   <input
                     type="url"
                     value={candidateVault.linkedin}
                     onChange={(e) => updateCandidateVault({ linkedin: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>GITHUB URL</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    GITHUB URL
+                  </label>
                   <input
                     type="url"
                     value={candidateVault.github}
                     onChange={(e) => updateCandidateVault({ github: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
               </div>
@@ -2687,18 +3286,44 @@ export function CareerOpsView() {
             {/* Tab: Work Auth */}
             {vaultSubTab === 'work_auth' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
-                  <label htmlFor="authCheck" style={{ fontSize: '11px', color: '#f8fafc', cursor: 'pointer', flex: 1 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    background: 'rgba(255,255,255,0.03)',
+                    padding: '10px',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <label
+                    htmlFor="authCheck"
+                    style={{ fontSize: '11px', color: '#f8fafc', cursor: 'pointer', flex: 1 }}
+                  >
                     Legally authorized to work in the country
                   </label>
                   <select
                     id="authCheck"
-                    value={!candidateVault.authorizedToWorkVerified ? 'unknown' : candidateVault.authorizedToWork ? 'yes' : 'no'}
-                    onChange={(e) => updateCandidateVault({
-                      authorizedToWork: e.target.value === 'yes',
-                      authorizedToWorkVerified: e.target.value !== 'unknown',
-                    })}
-                    style={{ padding: '5px 8px', borderRadius: '6px', background: '#1e293b', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.15)' }}
+                    value={
+                      !candidateVault.authorizedToWorkVerified
+                        ? 'unknown'
+                        : candidateVault.authorizedToWork
+                          ? 'yes'
+                          : 'no'
+                    }
+                    onChange={(e) =>
+                      updateCandidateVault({
+                        authorizedToWork: e.target.value === 'yes',
+                        authorizedToWorkVerified: e.target.value !== 'unknown',
+                      })
+                    }
+                    style={{
+                      padding: '5px 8px',
+                      borderRadius: '6px',
+                      background: '#1e293b',
+                      color: '#f8fafc',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                    }}
                   >
                     <option value="unknown">Not specified</option>
                     <option value="yes">Yes</option>
@@ -2706,18 +3331,44 @@ export function CareerOpsView() {
                   </select>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
-                  <label htmlFor="sponCheck" style={{ fontSize: '11px', color: '#f8fafc', cursor: 'pointer', flex: 1 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    background: 'rgba(255,255,255,0.03)',
+                    padding: '10px',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <label
+                    htmlFor="sponCheck"
+                    style={{ fontSize: '11px', color: '#f8fafc', cursor: 'pointer', flex: 1 }}
+                  >
                     Will now or in the future require visa sponsorship
                   </label>
                   <select
                     id="sponCheck"
-                    value={!candidateVault.requiresSponsorshipVerified ? 'unknown' : candidateVault.requiresSponsorship ? 'yes' : 'no'}
-                    onChange={(e) => updateCandidateVault({
-                      requiresSponsorship: e.target.value === 'yes',
-                      requiresSponsorshipVerified: e.target.value !== 'unknown',
-                    })}
-                    style={{ padding: '5px 8px', borderRadius: '6px', background: '#1e293b', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.15)' }}
+                    value={
+                      !candidateVault.requiresSponsorshipVerified
+                        ? 'unknown'
+                        : candidateVault.requiresSponsorship
+                          ? 'yes'
+                          : 'no'
+                    }
+                    onChange={(e) =>
+                      updateCandidateVault({
+                        requiresSponsorship: e.target.value === 'yes',
+                        requiresSponsorshipVerified: e.target.value !== 'unknown',
+                      })
+                    }
+                    style={{
+                      padding: '5px 8px',
+                      borderRadius: '6px',
+                      background: '#1e293b',
+                      color: '#f8fafc',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                    }}
                   >
                     <option value="unknown">Not specified</option>
                     <option value="yes">Yes</option>
@@ -2727,21 +3378,43 @@ export function CareerOpsView() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>CURRENT COMPANY</label>
+                    <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                      CURRENT COMPANY
+                    </label>
                     <input
                       type="text"
                       value={candidateVault.currentCompany}
                       onChange={(e) => updateCandidateVault({ currentCompany: e.target.value })}
-                      style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        color: '#ffffff',
+                        fontSize: '11px',
+                        marginTop: '3px',
+                      }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>CURRENT TITLE</label>
+                    <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                      CURRENT TITLE
+                    </label>
                     <input
                       type="text"
                       value={candidateVault.currentTitle}
                       onChange={(e) => updateCandidateVault({ currentTitle: e.target.value })}
-                      style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        color: '#ffffff',
+                        fontSize: '11px',
+                        marginTop: '3px',
+                      }}
                     />
                   </div>
                 </div>
@@ -2752,39 +3425,83 @@ export function CareerOpsView() {
             {vaultSubTab === 'preferences' && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>SALARY EXPECTATIONS</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    SALARY EXPECTATIONS
+                  </label>
                   <input
                     type="text"
                     value={candidateVault.salaryExpectation}
                     onChange={(e) => updateCandidateVault({ salaryExpectation: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>YEARS OF EXPERIENCE</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    YEARS OF EXPERIENCE
+                  </label>
                   <input
                     type="text"
                     value={candidateVault.yearsOfExperience}
                     onChange={(e) => updateCandidateVault({ yearsOfExperience: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>EARLIEST START DATE</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    EARLIEST START DATE
+                  </label>
                   <input
                     type="text"
                     value={candidateVault.earliestStartDate}
                     onChange={(e) => updateCandidateVault({ earliestStartDate: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>NOTICE PERIOD</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    NOTICE PERIOD
+                  </label>
                   <input
                     type="text"
                     value={candidateVault.noticePeriod}
                     onChange={(e) => updateCandidateVault({ noticePeriod: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
               </div>
@@ -2794,34 +3511,74 @@ export function CareerOpsView() {
             {vaultSubTab === 'pitch' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>CORE TECH STACK KEYWORDS</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    CORE TECH STACK KEYWORDS
+                  </label>
                   <input
                     type="text"
                     value={candidateVault.coreTechStack}
                     onChange={(e) => updateCandidateVault({ coreTechStack: e.target.value })}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px' }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                    }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>ELEVATOR PITCH / "TELL ME ABOUT YOURSELF"</label>
+                  <label style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                    ELEVATOR PITCH / "TELL ME ABOUT YOURSELF"
+                  </label>
                   <textarea
                     value={candidateVault.briefPitch}
                     onChange={(e) => updateCandidateVault({ briefPitch: e.target.value })}
-                    style={{ width: '100%', height: '100px', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '11px', marginTop: '3px', resize: 'none' }}
+                    style={{
+                      width: '100%',
+                      height: '100px',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      marginTop: '3px',
+                      resize: 'none',
+                    }}
                   />
                 </div>
               </div>
             )}
 
             {/* Bottom Actions */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: '10px',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   type="button"
                   onClick={() => {
                     handleCopy(exportCandidateVault(), 'Candidate Vault JSON');
                   }}
-                  style={{ padding: '5px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px', cursor: 'pointer' }}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    background: 'rgba(255,255,255,0.05)',
+                    color: '#94a3b8',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                  }}
                 >
                   Export JSON
                 </button>
@@ -2835,7 +3592,15 @@ export function CareerOpsView() {
                       else setToast('Invalid Vault JSON.');
                     }
                   }}
-                  style={{ padding: '5px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px', cursor: 'pointer' }}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    background: 'rgba(255,255,255,0.05)',
+                    color: '#94a3b8',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                  }}
                 >
                   Import JSON
                 </button>
@@ -2847,7 +3612,15 @@ export function CareerOpsView() {
                       setToast('Reset to defaults.');
                     }
                   }}
-                  style={{ padding: '5px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)', fontSize: '10px', cursor: 'pointer' }}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    background: 'rgba(239,68,68,0.1)',
+                    color: '#f87171',
+                    border: '1px solid rgba(239,68,68,0.2)',
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                  }}
                 >
                   Reset Defaults
                 </button>
@@ -2859,7 +3632,16 @@ export function CareerOpsView() {
                   setShowVaultModal(false);
                   setToast('Candidate Vault synced to Auto-Fill!');
                 }}
-                style={{ padding: '6px 14px', borderRadius: '6px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: '#ffffff', border: 'none', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
               >
                 Save & Close
               </button>
@@ -2867,7 +3649,6 @@ export function CareerOpsView() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

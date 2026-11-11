@@ -7,7 +7,10 @@ import {
 } from '../src/services/careerOps/jobScraperService';
 import { useCandidateVaultStore } from '../src/store/useCandidateVaultStore';
 import { predictInterviewLoop } from '../src/services/careerOps/jobInterviewPredictor';
-import { calculateFollowUpTimeline, getNextDueFollowUp } from '../src/services/careerOps/followUpService';
+import {
+  calculateFollowUpTimeline,
+  getNextDueFollowUp,
+} from '../src/services/careerOps/followUpService';
 import { parseLatexForVisualPreview } from '../src/services/careerOps/overleafPusher';
 import { SB2NOV_LATEX_TEMPLATE } from '../src/services/careerOps/careerOpsService';
 
@@ -80,8 +83,12 @@ describe('CareerOps Advanced Architecture & Automation Suite', () => {
       const fetcher = async () => {
         throw new Error('Fetcher must not be called');
       };
-      await expect(fetchJobPostingFromUrl('http://example.com/job', fetcher)).rejects.toThrow('HTTPS');
-      await expect(fetchJobPostingFromUrl('https://user:pass@example.com/job', fetcher)).rejects.toThrow('HTTPS');
+      await expect(fetchJobPostingFromUrl('http://example.com/job', fetcher)).rejects.toThrow(
+        'HTTPS'
+      );
+      await expect(
+        fetchJobPostingFromUrl('https://user:pass@example.com/job', fetcher)
+      ).rejects.toThrow('HTTPS');
     });
   });
 
@@ -96,7 +103,12 @@ describe('CareerOps Advanced Architecture & Automation Suite', () => {
       expect(store.profile.email).toBe('');
       expect(store.profile.location).toBe('unknown');
 
-      store.updateProfile({ firstName: 'Alex', lastName: 'Chen', phone: '+1-555-0199', city: 'Seattle' });
+      store.updateProfile({
+        firstName: 'Alex',
+        lastName: 'Chen',
+        phone: '+1-555-0199',
+        city: 'Seattle',
+      });
       expect(useCandidateVaultStore.getState().profile.fullName).toBe('Alex Chen');
       expect(useCandidateVaultStore.getState().profile.phone).toBe('+1-555-0199');
       expect(useCandidateVaultStore.getState().profile.city).toBe('Seattle');
@@ -115,20 +127,45 @@ describe('CareerOps Advanced Architecture & Automation Suite', () => {
 
   describe('jobInterviewPredictor — Company Loop Question Prediction', () => {
     it('generates Stripe-specific idempotency and payment consistency questions', () => {
-      const loop = predictInterviewLoop('Stripe', 'Staff Infrastructure Engineer', 'Need distributed systems and high availability');
+      const loop = predictInterviewLoop(
+        'Stripe',
+        'Staff Infrastructure Engineer',
+        'Need distributed systems and high availability'
+      );
       expect(loop.company).toBe('Stripe');
-      expect(loop.technicalQuestions.some((q) => q.prompt.toLowerCase().includes('idempotent'))).toBe(true);
+      expect(
+        loop.technicalQuestions.some((q) => q.prompt.toLowerCase().includes('idempotent'))
+      ).toBe(true);
       expect(loop.behavioralQuestions.length).toBe(3);
     });
 
     it('generates Datadog telemetry and metrics ingestion questions', () => {
-      const loop = predictInterviewLoop('Datadog', 'Backend Engineer', 'High throughput telemetry and Kafka streaming');
-      expect(loop.technicalQuestions.some((q) => q.prompt.toLowerCase().includes('telemetry') || q.prompt.toLowerCase().includes('kafka'))).toBe(true);
+      const loop = predictInterviewLoop(
+        'Datadog',
+        'Backend Engineer',
+        'High throughput telemetry and Kafka streaming'
+      );
+      expect(
+        loop.technicalQuestions.some(
+          (q) =>
+            q.prompt.toLowerCase().includes('telemetry') || q.prompt.toLowerCase().includes('kafka')
+        )
+      ).toBe(true);
     });
 
     it('generates Alignerr AI benchmark and model comparison questions', () => {
-      const loop = predictInterviewLoop('Alignerr', 'Software Developer', 'Evaluate AI coding models on git repositories');
-      expect(loop.technicalQuestions.some((q) => q.prompt.toLowerCase().includes('benchmark') || q.prompt.toLowerCase().includes('evaluate'))).toBe(true);
+      const loop = predictInterviewLoop(
+        'Alignerr',
+        'Software Developer',
+        'Evaluate AI coding models on git repositories'
+      );
+      expect(
+        loop.technicalQuestions.some(
+          (q) =>
+            q.prompt.toLowerCase().includes('benchmark') ||
+            q.prompt.toLowerCase().includes('evaluate')
+        )
+      ).toBe(true);
     });
   });
 
