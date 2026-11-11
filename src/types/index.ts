@@ -247,6 +247,10 @@ export interface ElectronAPI {
   getRecordingsDir: () => Promise<string>;
   getSessionsDir: () => Promise<string>;
   getUserDataPath: () => Promise<string>;
+  piiVaultGet: (namespace: string, key: string) => Promise<unknown | null>;
+  piiVaultPut: (namespace: string, key: string, value: unknown) => Promise<boolean>;
+  piiVaultVerify: (namespace: string, key: string, value: unknown) => Promise<boolean>;
+  piiVaultDelete: (namespace: string, key: string) => Promise<boolean>;
   openFileDialog: (options?: any) => Promise<string | null>;
   readFile: (path: string) => Promise<Buffer>;
   parsePdf: (arrayBuffer: ArrayBuffer) => Promise<string>;
