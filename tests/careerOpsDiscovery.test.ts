@@ -6,13 +6,13 @@ import {
 
 describe('CareerOps career-page discovery', () => {
   it('extracts bounded, deduplicated HTTPS ATS job links', () => {
-    const html = \`
+    const html = `
       <a href="/acme/jobs/123">Backend Engineer</a>
       <a href="/acme/jobs/123">Duplicate role</a>
       <a href="http://insecure.example/jobs/2">Insecure role</a>
       <a href="/about">About us</a>
       <a href="https://jobs.lever.co/acme/456">Platform Engineer</a>
-    \`;
+    `;
 
     const links = extractCareerPageJobLinks(html, 'https://boards.greenhouse.io', 10);
     expect(links).toHaveLength(2);
