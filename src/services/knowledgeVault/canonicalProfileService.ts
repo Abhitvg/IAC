@@ -1070,7 +1070,7 @@ export class CanonicalProfileService {
 
       if (changed) {
         this.currentProfile = updated;
-        this.queuePersistenceSnapshot(JSON.stringify(this.currentProfile));
+        this.queuePersistenceSnapshot();
         this.notify();
       }
     } finally {
