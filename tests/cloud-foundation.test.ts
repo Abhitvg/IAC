@@ -51,11 +51,13 @@ describe('M0 cloud security foundation', () => {
       CAREEROPS_JWT_ISSUER: 'http://identity.example.test',
       CAREEROPS_JWT_AUDIENCE: 'careerops-api',
       CAREEROPS_JWT_HMAC_SECRET: secret,
+      CAREEROPS_CONSENT_SIGNING_SECRET: secret,
     } as NodeJS.ProcessEnv)).toThrow();
     expect(() => loadCloudEnvironment({
       CAREEROPS_JWT_ISSUER: 'https://identity.example.test',
       CAREEROPS_JWT_AUDIENCE: 'careerops-api',
-      CAREEROPS_JWT_HMAC_SECRET: 'short',
+      CAREEROPS_JWT_HMAC_SECRET: secret,
+      CAREEROPS_CONSENT_SIGNING_SECRET: 'short',
     } as NodeJS.ProcessEnv)).toThrow();
   });
   it('verifies signed access tokens and rejects tampering, wrong issuer, audience and expiry', () => {
