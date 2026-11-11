@@ -466,7 +466,7 @@ STRICT 4-PARAGRAPH BLUEPRINT (Indeed & Intuit Standard):
 1. PARAGRAPH 1 (Hook and Role Fit):
    - Professional salutation: "Dear ${companyName} Engineering Hiring Team,"
    - State the exact role ("${roleTitle}") and company name.
-   - Lead with an immediate, compelling technical hook tied directly to ${companyName}'s engineering goals or product mission.
+   - Lead with a specific technical hook tied to responsibilities stated in the job description; do not infer company goals or product details.
    - ABSOLUTELY ZERO generic boilerplate cliches (e.g. "I am writing to express my enthusiastic interest in...", "Please find enclosed my resume").
 
 2. PARAGRAPH 2 (Skill Proof & Quantifiable Impact):
@@ -476,7 +476,7 @@ STRICT 4-PARAGRAPH BLUEPRINT (Indeed & Intuit Standard):
 
 3. PARAGRAPH 3 (Relevant Tech Stack & Team Collaboration):
    - Mirror high-value technical keywords directly from the JD (languages, frameworks, cloud infrastructure, databases).
-   - Emphasize engineering rigor: testing (unit/integration/E2E), CI/CD automation, code reviews, and cross-functional agile teamwork with Product and Design.
+   - Mention testing, CI/CD, code reviews, and cross-functional teamwork only when the candidate resume provides evidence.
 
 4. PARAGRAPH 4 (Why ${companyName} & Confident Close):
    - Mention company-specific product or mission details only when supported by the supplied job description; otherwise keep this section role-focused.
@@ -490,7 +490,7 @@ Length: 180 to 260 words max. Sharp, authentic, role-appropriate tone. Never inv
     const sourceContext = resumeText.trim()
       ? 'My relevant experience and project work are documented in the attached resume. I would welcome the opportunity to discuss the parts most closely aligned with your team’s needs.'
       : 'I would be glad to share my resume and discuss how my verified experience aligns with the role.';
-    return `Dear ${companyName} Hiring Team,
+    return `Dear ${companyName} Engineering Hiring Team,
 
 I am applying for the ${roleTitle} position at ${companyName}. The role’s focus on ${jdText.trim().slice(0, 180) || 'software engineering'} is relevant to the work I am looking to contribute to.
 
@@ -499,6 +499,8 @@ ${sourceContext}
 I focus on clear engineering fundamentals, maintainable implementation, and collaborating with product and engineering teams to deliver reliable software. I would be happy to provide specific examples from my work that match the responsibilities described in the job posting.
 
 Thank you for reviewing my application. I would welcome a conversation about the role and the problems your team is prioritizing.
+
+[Email] | [Phone] | [GitHub / Portfolio]
 
 Sincerely,
 [Candidate Name]`;
@@ -520,7 +522,7 @@ Sincerely,
       temperature: 0.3,
       maxTokens: 1000,
       systemPrompt:
-        'You write sharp, authentic, senior-level software engineering cover letters that hiring managers actually enjoy reading, adhering to Indeed and Intuit industry best practices.',
+        'You write concise, authentic, role-appropriate software engineering cover letters. Use only candidate evidence and company facts explicitly present in the supplied materials.',
     },
     'javascript',
     {
