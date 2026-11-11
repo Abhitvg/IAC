@@ -18,6 +18,13 @@ CREATE TABLE career_graph_facts (
     AND value_envelope ? 'iv'
     AND value_envelope ? 'authTag'
     AND value_envelope ? 'ciphertext'
+    AND value_envelope->>'wrappedKey' IS NOT NULL
+    AND value_envelope->>'keyVersion' IS NOT NULL
+    AND value_envelope->>'ciphertext' IS NOT NULL
+    AND value_envelope->>'iv' IS NOT NULL
+    AND value_envelope->>'authTag' IS NOT NULL
+    AND value_envelope->>'tenantId' IS NOT NULL
+    AND value_envelope->>'context' IS NOT NULL
     AND length(value_envelope->>'wrappedKey') BETWEEN 1 AND 4096
     AND length(value_envelope->>'keyVersion') BETWEEN 1 AND 128
     AND length(value_envelope->>'ciphertext') BETWEEN 1 AND 1000000
