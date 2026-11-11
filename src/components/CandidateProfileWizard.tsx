@@ -71,18 +71,32 @@ export const CandidateProfileWizard: React.FC = () => {
 
   // Subscribe to service updates (from external sources like ingestion or ledger)
   useEffect(() => {
+    let active = true;
     const unsub = profileService.subscribe((updated) => {
-      if (Date.now() - lastSelfSaveTimestampRef.current < 400) {
-        // Ignored: notification triggered by our own recent save
-        return;
-      }
+      if (Date.now() - lastSelfSaveTimestampRef.current < 400) return;
+      profileRef.current = updated;
       setProfile(updated);
     });
-    return () => unsub();
+    void profileService.ready().then((ready) => {
+      if (!active) return;
+      const loaded = profileService.getProfile();
+      profileRef.current = loaded;
+      setProfile(loaded);
+      if (!ready) {
+        setSaveStatus('error');
+        setSaveStatusText(
+          profileService.getPersistenceError() || 'Secure profile storage is unavailable'
+        );
+      }
+    });
+    return () => {
+      active = false;
+      unsub();
+    };
   }, [profileService]);
 
   // Flush pending debounced autosave immediately and report whether persistence succeeded.
-  const flushPendingSave = useCallback((): boolean => {
+  const flushPendingSave = useCallback(async (): Promise<boolean> => {
     if (sectionFlushRef.current) {
       try {
         sectionFlushRef.current();
@@ -101,7 +115,8 @@ export const CandidateProfileWizard: React.FC = () => {
 
     try {
       lastSelfSaveTimestampRef.current = Date.now();
-      const saved = profileService.saveProfile(profileRef.current);
+      profileService.saveProfile(profileRef.current);
+      const saved = await profileService.flushPendingPersistence();
       if (saved) {
         setSaveStatus('saved');
         const time = new Date().toLocaleTimeString([], {
@@ -114,7 +129,9 @@ export const CandidateProfileWizard: React.FC = () => {
       }
 
       setSaveStatus('error');
-      setSaveStatusText('Storage quota exceeded or save error');
+      setSaveStatusText(
+        profileService.getPersistenceError() || 'Secure storage unavailable; profile was not saved'
+      );
       return false;
     } catch (err) {
       console.error('[CandidateProfileWizard] Immediate flush failed:', err);
@@ -127,7 +144,7 @@ export const CandidateProfileWizard: React.FC = () => {
   // Handle application close / beforeunload to safely flush pending changes
   useEffect(() => {
     const handleBeforeUnload = () => {
-      flushPendingSave();
+      void flushPendingSave();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
@@ -161,10 +178,10 @@ export const CandidateProfileWizard: React.FC = () => {
   // Keyboard navigation, accessibility, and focus trapping (Tab & Escape)
   useEffect(() => {
     if (!profileWizardOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (!flushPendingSave()) {
+        if (!(await flushPendingSave())) {
           setToast?.(
             'Your profile could not be saved. Fix the storage issue before closing this wizard.'
           );
