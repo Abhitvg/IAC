@@ -2,7 +2,7 @@ import { createHmac, randomBytes } from 'node:crypto';
 import { once } from 'node:events';
 import { describe, expect, it } from 'vitest';
 import { verifyAccessToken } from '../packages/cloud-core/src/auth';
-import { createConsentRecord, SprintContractSchema } from '../packages/cloud-core/src/contract';
+import { createConsentRecord, SprintContractSchema, verifyConsentRecord } from '../packages/cloud-core/src/contract';
 import { assertActionAllowed, type TenantControlState } from '../packages/cloud-core/src/controls';
 import { appendAuditEvent, hashAuditEvent, type AuditRecord } from '../packages/cloud-core/src/audit';
 import { TenantEnvelopeCipher, type TenantKeyManagementService } from '../packages/cloud-core/src/encryption';
@@ -22,7 +22,7 @@ const contractInput = {
   salaryFloor: { amount: 0, currency: 'INR' },
   workAuthorization: { countries: ['IN'], requiresSponsorship: false, confirmed: true as const },
   blocklist: { companies: [], industries: [] },
-  enabledChannels: ['ats', 'email'] as const,
+  enabledChannels: ['ats', 'email', 'calendar'] as const,
   dailyCaps: { applications: 10, emails: 5, assistQueueItems: 0, calendarEvents: 5 },
   defaultAnswers: {},
   allowedFactIds: [],
@@ -96,6 +96,8 @@ describe('M0 cloud security foundation', () => {
     expect(record.signature).toMatch(/^[a-f0-9]{64}$/);
     expect(record.contractHash).toMatch(/^[a-f0-9]{64}$/);
     expect(record.revokedAt).toBeNull();
+    expect(verifyConsentRecord(record, secret)).toBe(true);
+    expect(verifyConsentRecord({ ...record, tenantId: 'tenant-other' }, secret)).toBe(false);
   });
 
   it('fails closed on global kill switch, channel pause, missing consent and expired contract', () => {
@@ -107,11 +109,14 @@ describe('M0 cloud security foundation', () => {
       updatedAt: new Date().toISOString(),
     };
     const request = { tenantId: 'tenant-1', channel: 'email' as const, action: 'send', dailyUsage: 0, now: new Date('2026-11-12T00:00:00Z') };
-    expect(() => assertActionAllowed(record.contract, base, request)).not.toThrow();
-    expect(() => assertActionAllowed(record.contract, { ...base, globalKillSwitch: true }, request)).toThrow('globally paused');
-    expect(() => assertActionAllowed(record.contract, { ...base, pausedChannels: ['email'] }, request)).toThrow('channel is paused');
-    expect(() => assertActionAllowed(null, base, request)).toThrow('Sprint Contract');
-    expect(() => assertActionAllowed(record.contract, base, { ...request, dailyUsage: 5 })).toThrow('Daily action cap');
+    expect(() => assertActionAllowed(record, base, { ...request, subject: 'user-1' }, secret)).not.toThrow();
+    expect(() => assertActionAllowed(record, { ...base, globalKillSwitch: true }, { ...request, subject: 'user-1' }, secret)).toThrow('globally paused');
+    expect(() => assertActionAllowed(record, { ...base, pausedChannels: ['email'] }, { ...request, subject: 'user-1' }, secret)).toThrow('channel is paused');
+    expect(() => assertActionAllowed(null, base, { ...request, subject: 'user-1' }, secret)).toThrow('Sprint Contract');
+    expect(() => assertActionAllowed(record, base, { ...request, subject: 'user-1', dailyUsage: 5 }, secret)).toThrow('Daily action cap');
+    expect(() => assertActionAllowed({ ...record, revokedAt: new Date().toISOString() }, base, { ...request, subject: 'user-1' }, secret)).toThrow('valid, unrevoked');
+    expect(() => assertActionAllowed(record, base, { ...request, subject: 'other-user' }, secret)).toThrow('identity mismatch');
+    expect(() => assertActionAllowed(record, base, { ...request, channel: 'calendar', subject: 'user-1', dailyUsage: 5 }, secret)).toThrow('Daily action cap');
   });
 
   it('creates a tamper-evident audit hash chain and appends records', async () => {
