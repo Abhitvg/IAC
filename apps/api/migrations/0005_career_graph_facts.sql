@@ -4,7 +4,7 @@ BEGIN;
 
 CREATE TABLE career_graph_facts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  tenant_id uuid NOT NULL REFERENCES tenants(id),
   fact_key text NOT NULL CHECK (length(fact_key) BETWEEN 1 AND 120),
   version integer NOT NULL CHECK (version > 0),
   value_envelope jsonb NOT NULL CHECK (
@@ -36,7 +36,7 @@ CREATE TABLE career_graph_fact_reviews (
   reviewed_by text NOT NULL CHECK (length(reviewed_by) BETWEEN 1 AND 255),
   reviewed_at timestamptz NOT NULL DEFAULT now(),
   reason text CHECK (reason IS NULL OR length(reason) <= 512),
-  FOREIGN KEY (tenant_id, fact_id) REFERENCES career_graph_facts(tenant_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, fact_id) REFERENCES career_graph_facts(tenant_id, id),
   UNIQUE (tenant_id, fact_id)
 );
 
@@ -60,6 +60,59 @@ CREATE POLICY career_graph_fact_reviews_tenant_isolation ON career_graph_fact_re
     tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
     AND reviewed_by = NULLIF(current_setting('app.user_subject', true), '')
   );
+
+-- Serialize inserts per tenant/fact key and require contiguous immutable versions.
+CREATE OR REPLACE FUNCTION enforce_career_graph_fact_version()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  expected_version integer;
+BEGIN
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended(NEW.tenant_id::text || ':' || NEW.fact_key, 0)
+  );
+  SELECT COALESCE(MAX(version), 0) + 1
+    INTO expected_version
+    FROM career_graph_facts
+   WHERE tenant_id = NEW.tenant_id AND fact_key = NEW.fact_key;
+  IF NEW.version <> expected_version THEN
+    RAISE EXCEPTION 'Career Graph fact version must be %, received %',
+      expected_version, NEW.version;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER career_graph_facts_version_sequence
+BEFORE INSERT ON career_graph_facts
+FOR EACH ROW EXECUTE FUNCTION enforce_career_graph_fact_version();
+
+-- A fact can only be confirmed/rejected by the contributor recorded on that version.
+CREATE OR REPLACE FUNCTION enforce_career_graph_fact_reviewer()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  fact_creator text;
+BEGIN
+  SELECT created_by
+    INTO fact_creator
+    FROM career_graph_facts
+   WHERE tenant_id = NEW.tenant_id AND id = NEW.fact_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Career Graph fact does not exist in this tenant';
+  END IF;
+  IF NEW.reviewed_by IS DISTINCT FROM fact_creator THEN
+    RAISE EXCEPTION 'Only the fact contributor may review this Career Graph fact';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER career_graph_fact_reviews_contributor_only
+BEFORE INSERT ON career_graph_fact_reviews
+FOR EACH ROW EXECUTE FUNCTION enforce_career_graph_fact_reviewer();
 
 -- Both tables are append-only: corrections create a new fact version/review event.
 CREATE OR REPLACE FUNCTION reject_career_graph_mutation()
