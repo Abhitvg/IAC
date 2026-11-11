@@ -151,8 +151,8 @@ export class PiiVault {
 
     if (fs.existsSync(this.keyPath)) {
       const keyStat = await fs.promises.lstat(this.keyPath);
-      if (!keyStat.isFile() || keyStat.isSymbolicLink()) {
-        throw new Error('PII vault key metadata is not a regular file. Data was not overwritten.');
+      if (!keyStat.isFile() || keyStat.isSymbolicLink() || keyStat.size > 4096) {
+        throw new Error('PII vault key metadata is not a valid regular file. Data was not overwritten.');
       }
       const raw = await fs.promises.readFile(this.keyPath, 'utf8');
       let record: { version?: unknown; data?: unknown };
