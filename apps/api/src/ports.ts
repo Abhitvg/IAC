@@ -4,6 +4,14 @@ import type { TenantMembershipRepository } from '../../../packages/cloud-core/sr
 
 export interface CloudApiRepository extends TenantMembershipRepository {
   getControlState(tenantId: string): Promise<TenantControlState>;
+  setChannelPauseWithAudit(input: {
+    tenantId: string;
+    actorSubject: string;
+    channel: 'ats' | 'email' | 'calendar' | 'linkedin_assist';
+    paused: boolean;
+    occurredAt: string;
+    metadata: Record<string, string | boolean>;
+  }): Promise<void>;
   setGlobalKillSwitchWithAudit(input: {
     tenantId: string;
     actorSubject: string;
