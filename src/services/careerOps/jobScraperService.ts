@@ -19,9 +19,12 @@ export interface ScrapedJobDetails {
 /**
  * Detects ATS platform based on URL patterns
  */
-export function detectAtsPlatform(url: string): 'greenhouse' | 'lever' | 'workday' | 'ashby' | 'generic' {
+export function detectAtsPlatform(
+  url: string
+): 'greenhouse' | 'lever' | 'workday' | 'ashby' | 'generic' {
   const lower = url.toLowerCase();
-  if (lower.includes('boards.greenhouse.io') || lower.includes('job-boards.greenhouse.io')) return 'greenhouse';
+  if (lower.includes('boards.greenhouse.io') || lower.includes('job-boards.greenhouse.io'))
+    return 'greenhouse';
   if (lower.includes('jobs.lever.co')) return 'lever';
   if (lower.includes('myworkdayjobs.com')) return 'workday';
   if (lower.includes('jobs.ashbyhq.com')) return 'ashby';
@@ -40,19 +43,19 @@ export function parseJobUrlMetadata(url: string): { company: string; role: strin
     // Greenhouse: boards.greenhouse.io/{company}/jobs/{jobId}
     if (host.includes('greenhouse.io') && pathParts.length >= 1) {
       const company = pathParts[0].replace(/[-_]/g, ' ');
-      return { company: capitalizeWords(company), role: 'Software Engineer' };
+      return { company: capitalizeWords(company), role: 'Unknown role' };
     }
 
     // Lever: jobs.lever.co/{company}/{jobId}
     if (host.includes('lever.co') && pathParts.length >= 1) {
       const company = pathParts[0].replace(/[-_]/g, ' ');
-      return { company: capitalizeWords(company), role: 'Software Engineer' };
+      return { company: capitalizeWords(company), role: 'Unknown role' };
     }
 
     // Ashby: jobs.ashbyhq.com/{company}/{jobId}
     if (host.includes('ashbyhq.com') && pathParts.length >= 1) {
       const company = pathParts[0].replace(/[-_]/g, ' ');
-      return { company: capitalizeWords(company), role: 'Software Engineer' };
+      return { company: capitalizeWords(company), role: 'Unknown role' };
     }
 
     // Workday: {company}.myworkdayjobs.com/en-US/{careerSite}/job/...
@@ -64,9 +67,9 @@ export function parseJobUrlMetadata(url: string): { company: string; role: strin
     // Default heuristic from hostname
     const domainParts = host.replace('www.', '').split('.');
     const companyGuess = domainParts[0].replace(/[-_]/g, ' ');
-    return { company: capitalizeWords(companyGuess), role: 'Software Engineer' };
+    return { company: capitalizeWords(companyGuess), role: 'Unknown role' };
   } catch {
-    return { company: 'Unknown Company', role: 'Software Engineer' };
+    return { company: 'Unknown Company', role: 'Unknown role' };
   }
 }
 
@@ -102,15 +105,21 @@ export function parseJobPageContent(htmlOrText: string, sourceUrl: string): Scra
   }
 
   // Extract Salary
-  const salaryMatch = cleanText.match(/\$[\d,]+(?:\.\d\d)?(?:\s*-\s*\$[\d,]+(?:\.\d\d)?)?(?:\s*(?:k|per year|\/yr|\/hr|hourly|annually))?/i);
+  const salaryMatch = cleanText.match(
+    /\$[\d,]+(?:\.\d\d)?(?:\s*-\s*\$[\d,]+(?:\.\d\d)?)?(?:\s*(?:k|per year|\/yr|\/hr|hourly|annually))?/i
+  );
   const salaryRange = salaryMatch ? salaryMatch[0] : undefined;
 
   // Extract Work Type
-  let workType: 'remote' | 'hybrid' | 'onsite' = 'remote';
+  let workType: 'remote' | 'hybrid' | 'onsite' | undefined;
   const lowerText = cleanText.toLowerCase();
   if (lowerText.includes('hybrid')) {
     workType = 'hybrid';
-  } else if (lowerText.includes('onsite') || lowerText.includes('on-site') || lowerText.includes('in-office')) {
+  } else if (
+    lowerText.includes('onsite') ||
+    lowerText.includes('on-site') ||
+    lowerText.includes('in-office')
+  ) {
     workType = 'onsite';
   } else if (lowerText.includes('remote') || lowerText.includes('work from home')) {
     workType = 'remote';
@@ -134,18 +143,22 @@ export function parseJobPageContent(htmlOrText: string, sourceUrl: string): Scra
 
   // Extract Company Name if available in text
   let company = urlMeta.company;
-  const companyMatch = cleanText.match(/(?:About|Join|Working at)\s+([A-Z][a-zA-Z0-9\s&]+?)(?:\s+is|\s+we|\s+team|\.|\n)/);
+  const companyMatch = cleanText.match(
+    /(?:About|Join|Working at)\s+([A-Z][a-zA-Z0-9\s&]+?)(?:\s+is|\s+we|\s+team|\.|\n)/
+  );
   if (companyMatch && companyMatch[1].trim().length < 30) {
     company = companyMatch[1].trim();
   }
 
   // Extract Location
-  let location = 'Remote, US';
-  const locMatch = cleanText.match(/(?:Location|Based in|Workplace):\s*([A-Za-z\s,]+?)(?:\.|\n|;|$)/i);
+  let location = 'Not specified';
+  const locMatch = cleanText.match(
+    /(?:Location|Based in|Workplace):\s*([A-Za-z0-9\s,./-]+?)(?=\s+(?:Salary|Compensation|Job Type|Work Type|Employment Type)\s*:|[.;\n]|$)/i
+  );
   if (locMatch) {
     location = locMatch[1].trim();
   } else if (workType === 'remote') {
-    location = 'Remote / Anywhere';
+    location = 'Remote (scope not specified)';
   }
 
   return {
@@ -162,4 +175,78 @@ export function parseJobPageContent(htmlOrText: string, sourceUrl: string): Scra
 
 function capitalizeWords(str: string): string {
   return str.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+export interface JobPageFetchOptions {
+  url: string;
+  allowedOrigin: string;
+  timeoutMs: number;
+  maxByteSize: number;
+  maxRedirects: number;
+}
+
+export type JobPageFetcher = (options: JobPageFetchOptions) => Promise<{
+  statusCode: number;
+  contentType: string;
+  body: string;
+}>;
+
+/**
+ * Fetches a public job page through the Electron main-process SSRF-protected
+ * fetcher. The page origin is pinned; cross-origin redirects are rejected.
+ */
+export async function fetchJobPostingFromUrl(
+  sourceUrl: string,
+  fetcher?: JobPageFetcher
+): Promise<ScrapedJobDetails> {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(sourceUrl.trim());
+  } catch {
+    throw new Error('Enter a valid job posting URL.');
+  }
+
+  if (parsedUrl.protocol !== 'https:' || parsedUrl.username || parsedUrl.password) {
+    throw new Error(
+      'Job posting import only accepts public HTTPS URLs without embedded credentials.'
+    );
+  }
+
+  const safeFetcher =
+    fetcher ??
+    (typeof window !== 'undefined'
+      ? (window as unknown as { electronAPI?: { safeFetchPinned?: JobPageFetcher } }).electronAPI
+          ?.safeFetchPinned
+      : undefined);
+
+  if (typeof safeFetcher !== 'function') {
+    throw new Error(
+      'Secure page fetching is unavailable in this runtime. Paste the job description instead.'
+    );
+  }
+
+  const response = await safeFetcher({
+    url: parsedUrl.toString(),
+    allowedOrigin: parsedUrl.origin,
+    timeoutMs: 12000,
+    maxByteSize: 2 * 1024 * 1024,
+    maxRedirects: 3,
+  });
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw new Error(`Job page returned HTTP ${response.statusCode}.`);
+  }
+
+  if (!/text\/html|application\/xhtml\+xml/i.test(response.contentType)) {
+    throw new Error('The job page did not return HTML. Paste the job description manually.');
+  }
+
+  const parsed = parseJobPageContent(response.body, parsedUrl.toString());
+  if (!parsed.jdText || parsed.jdText.length < 80) {
+    throw new Error(
+      'The page did not expose enough readable job text. It may require JavaScript or authentication; paste the job description manually.'
+    );
+  }
+
+  return parsed;
 }

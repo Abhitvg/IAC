@@ -3,10 +3,14 @@ import {
   detectAtsPlatform,
   parseJobUrlMetadata,
   parseJobPageContent,
+  fetchJobPostingFromUrl,
 } from '../src/services/careerOps/jobScraperService';
 import { useCandidateVaultStore } from '../src/store/useCandidateVaultStore';
 import { predictInterviewLoop } from '../src/services/careerOps/jobInterviewPredictor';
-import { calculateFollowUpTimeline, getNextDueFollowUp } from '../src/services/careerOps/followUpService';
+import {
+  calculateFollowUpTimeline,
+  getNextDueFollowUp,
+} from '../src/services/careerOps/followUpService';
 import { parseLatexForVisualPreview } from '../src/services/careerOps/overleafPusher';
 import { SB2NOV_LATEX_TEMPLATE } from '../src/services/careerOps/careerOpsService';
 
@@ -41,7 +45,51 @@ describe('CareerOps Advanced Architecture & Automation Suite', () => {
       expect(result.company).toBe('Datadog');
       expect(result.role).toContain('Staff Distributed Systems Engineer');
       expect(result.workType).toBe('remote');
+      expect(result.location).toBe('Remote, US');
       expect(result.salaryRange).toContain('$190,000 - $230,000');
+    });
+
+    it('does not silently classify an unspecified location as remote', () => {
+      const result = parseJobPageContent(
+        '<h1>Backend Engineer</h1><p>Build reliable services.</p>',
+        'https://jobs.lever.co/acme/123'
+      );
+      expect(result.workType).toBeUndefined();
+      expect(result.location).toBe('Not specified');
+    });
+
+    it('fetches a public HTTPS job page through an injected safe fetcher', async () => {
+      const calls: unknown[] = [];
+      const result = await fetchJobPostingFromUrl(
+        'https://boards.greenhouse.io/datadog/jobs/123',
+        async (options) => {
+          calls.push(options);
+          return {
+            statusCode: 200,
+            contentType: 'text/html; charset=utf-8',
+            body: '<h1>Staff Distributed Systems Engineer</h1><p>Location: Remote, US</p><p>Build event pipelines with Kafka and Go. Own reliable services and production operations.</p>',
+          };
+        }
+      );
+      expect(result.company).toBe('Datadog');
+      expect(result.role).toBe('Staff Distributed Systems Engineer');
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({
+        allowedOrigin: 'https://boards.greenhouse.io',
+        maxByteSize: 2 * 1024 * 1024,
+      });
+    });
+
+    it('rejects insecure or credential-bearing job URLs before fetching', async () => {
+      const fetcher = async () => {
+        throw new Error('Fetcher must not be called');
+      };
+      await expect(fetchJobPostingFromUrl('http://example.com/job', fetcher)).rejects.toThrow(
+        'HTTPS'
+      );
+      await expect(
+        fetchJobPostingFromUrl('https://user:pass@example.com/job', fetcher)
+      ).rejects.toThrow('HTTPS');
     });
   });
 
@@ -56,7 +104,12 @@ describe('CareerOps Advanced Architecture & Automation Suite', () => {
       expect(store.profile.email).toBe('');
       expect(store.profile.location).toBe('unknown');
 
-      store.updateProfile({ firstName: 'Alex', lastName: 'Chen', phone: '+1-555-0199', city: 'Seattle' });
+      store.updateProfile({
+        firstName: 'Alex',
+        lastName: 'Chen',
+        phone: '+1-555-0199',
+        city: 'Seattle',
+      });
       expect(useCandidateVaultStore.getState().profile.fullName).toBe('Alex Chen');
       expect(useCandidateVaultStore.getState().profile.phone).toBe('+1-555-0199');
       expect(useCandidateVaultStore.getState().profile.city).toBe('Seattle');
@@ -75,20 +128,45 @@ describe('CareerOps Advanced Architecture & Automation Suite', () => {
 
   describe('jobInterviewPredictor — Company Loop Question Prediction', () => {
     it('generates Stripe-specific idempotency and payment consistency questions', () => {
-      const loop = predictInterviewLoop('Stripe', 'Staff Infrastructure Engineer', 'Need distributed systems and high availability');
+      const loop = predictInterviewLoop(
+        'Stripe',
+        'Staff Infrastructure Engineer',
+        'Need distributed systems and high availability'
+      );
       expect(loop.company).toBe('Stripe');
-      expect(loop.technicalQuestions.some((q) => q.prompt.toLowerCase().includes('idempotent'))).toBe(true);
+      expect(
+        loop.technicalQuestions.some((q) => q.prompt.toLowerCase().includes('idempotent'))
+      ).toBe(true);
       expect(loop.behavioralQuestions.length).toBe(3);
     });
 
     it('generates Datadog telemetry and metrics ingestion questions', () => {
-      const loop = predictInterviewLoop('Datadog', 'Backend Engineer', 'High throughput telemetry and Kafka streaming');
-      expect(loop.technicalQuestions.some((q) => q.prompt.toLowerCase().includes('telemetry') || q.prompt.toLowerCase().includes('kafka'))).toBe(true);
+      const loop = predictInterviewLoop(
+        'Datadog',
+        'Backend Engineer',
+        'High throughput telemetry and Kafka streaming'
+      );
+      expect(
+        loop.technicalQuestions.some(
+          (q) =>
+            q.prompt.toLowerCase().includes('telemetry') || q.prompt.toLowerCase().includes('kafka')
+        )
+      ).toBe(true);
     });
 
     it('generates Alignerr AI benchmark and model comparison questions', () => {
-      const loop = predictInterviewLoop('Alignerr', 'Software Developer', 'Evaluate AI coding models on git repositories');
-      expect(loop.technicalQuestions.some((q) => q.prompt.toLowerCase().includes('benchmark') || q.prompt.toLowerCase().includes('evaluate'))).toBe(true);
+      const loop = predictInterviewLoop(
+        'Alignerr',
+        'Software Developer',
+        'Evaluate AI coding models on git repositories'
+      );
+      expect(
+        loop.technicalQuestions.some(
+          (q) =>
+            q.prompt.toLowerCase().includes('benchmark') ||
+            q.prompt.toLowerCase().includes('evaluate')
+        )
+      ).toBe(true);
     });
   });
 
@@ -118,7 +196,7 @@ describe('CareerOps Advanced Architecture & Automation Suite', () => {
   describe('overleafPusher — LaTeX Source Parser for Visual Preview', () => {
     it('parses Sourabh Bajaj LaTeX document into clean previewable sections', () => {
       const parsed = parseLatexForVisualPreview(SB2NOV_LATEX_TEMPLATE);
-      expect(parsed.name).toContain('Abhishek Singh');
+      expect(parsed.name).toContain('Candidate');
       expect(parsed.sections.length).toBeGreaterThanOrEqual(3);
       expect(parsed.sections.some((s) => s.title === 'Experience')).toBe(true);
       expect(parsed.sections.some((s) => s.title === 'Projects')).toBe(true);

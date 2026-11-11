@@ -23,16 +23,40 @@ export function evaluateJobHeuristically(
 
   // Common high-frequency tech terms
   const techKeywords = [
-    'java', 'spring', 'python', 'typescript', 'javascript', 'react', 'node', 'aws',
-    'docker', 'kubernetes', 'kafka', 'sql', 'nosql', 'postgresql', 'mongodb', 'microservices',
-    'system design', 'distributed systems', 'ci/cd', 'linux', 'git', 'testing', 'graphql', 'rest'
+    'java',
+    'spring',
+    'python',
+    'typescript',
+    'javascript',
+    'react',
+    'node',
+    'aws',
+    'docker',
+    'kubernetes',
+    'kafka',
+    'sql',
+    'nosql',
+    'postgresql',
+    'mongodb',
+    'microservices',
+    'system design',
+    'distributed systems',
+    'ci/cd',
+    'linux',
+    'git',
+    'testing',
+    'graphql',
+    'rest',
   ];
 
   const jdTechMatches = techKeywords.filter((k) => jdLower.includes(k));
   const matchedInResume = jdTechMatches.filter((k) => resumeLower.includes(k));
   const missingTech = jdTechMatches.filter((k) => !resumeLower.includes(k));
 
-  const roleTokens = roleTitle.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+  const roleTokens = roleTitle
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 3);
   const roleMatches = roleTokens.filter((token) => resumeLower.includes(token));
   const roleRatio = roleTokens.length > 0 ? roleMatches.length / roleTokens.length : 0.4;
 
@@ -50,10 +74,10 @@ export function evaluateJobHeuristically(
   weightedRequirements.push({
     requirement: `Core competency in ${roleTitle} domain`,
     weight: 'critical',
-    fit: resumeLower.includes(roleTitle.toLowerCase().split(' ')[0]) ? 'strong' : 'partial',
+    fit: resumeLower.includes(roleTitle.toLowerCase().split(' ')[0]) ? 'partial' : 'gap',
     evidence: resumeLower.includes(roleTitle.toLowerCase().split(' ')[0])
-      ? 'Verified domain experience present in resume.'
-      : 'Transferable engineering background demonstrated across past production systems.',
+      ? 'The role keyword appears in the supplied resume text; verify the surrounding context.'
+      : 'No role-token match found in the supplied resume text; assess transferable evidence manually.',
   });
 
   // Top tech requirements
@@ -62,9 +86,9 @@ export function evaluateJobHeuristically(
     weightedRequirements.push({
       requirement: `Production proficiency with ${tech.toUpperCase()}`,
       weight: idx < 2 ? 'critical' : 'high',
-      fit: has ? 'strong' : 'gap',
+      fit: has ? 'partial' : 'gap',
       evidence: has
-        ? `Explicit mentions and project usage of ${tech} identified in candidate experience.`
+        ? `The keyword ${tech} appears in the supplied resume text; this does not by itself verify proficiency or production use.`
         : `No explicit keyword match for ${tech} in current CV digest.`,
     });
   });
@@ -72,12 +96,15 @@ export function evaluateJobHeuristically(
   // Check work authorization signals
   let workAuthAlert: string | undefined;
   if (/no sponsorship|must be us citizen|security clearance required|no c2c/i.test(jdLower)) {
-    workAuthAlert = '⚠️ Strict Work-Authorization Alert: Posting specifies no visa sponsorship or clearance required.';
+    workAuthAlert =
+      '⚠️ Strict Work-Authorization Alert: Posting specifies no visa sponsorship or clearance required.';
   }
 
   // Estimate compensation from text if numbers present
-  let estimatedRange = '$130,000 - $175,000 / yr (Market Benchmark)';
-  const salaryMatch = jdText.match(/\$[0-9]{2,3}(?:,[0-9]{3})*(?:\s*-\s*\$[0-9]{2,3}(?:,[0-9]{3})*)?/);
+  let estimatedRange = 'Not disclosed in the job description';
+  const salaryMatch = jdText.match(
+    /\$[0-9]{2,3}(?:,[0-9]{3})*(?:\s*-\s*\$[0-9]{2,3}(?:,[0-9]{3})*)?/
+  );
   if (salaryMatch) {
     estimatedRange = `${salaryMatch[0]} (Extracted from JD)`;
   }
@@ -87,28 +114,30 @@ export function evaluateJobHeuristically(
     recommendation,
     verdictHeadline:
       recommendation === 'apply'
-        ? `🟢 Recommended to Apply (${score}/5.0) — Strong alignment across ${matchedInResume.length} core competencies`
-        : `🔴 Do Not Apply (${score}/5.0) — Significant tech stack gaps (${missingTech.slice(0, 3).join(', ') || 'Domain misalignment'})`,
+        ? `🟡 Preliminary Keyword Match (${score}/5.0) — ${matchedInResume.length} matching terms found; verify evidence`
+        : `🟡 Preliminary Keyword Match (${score}/5.0) — Missing terms: ${missingTech.slice(0, 3).join(', ') || 'limited role overlap'}`,
     summary:
       recommendation === 'apply'
-        ? `This role at ${companyName} exhibits high mutual alignment with your production background. You meet ${Math.round(matchRatio * 100)}% of explicitly stated technical prerequisites.`
-        : `This role requires substantial unverified capabilities (${missingTech.slice(0, 4).join(', ')}). The career-ops heuristic recommends preserving energy for roles with >= 4.0 alignment.`,
+        ? `A lightweight keyword scan found overlap with ${matchedInResume.length} listed technical terms. This is not proof of proficiency or eligibility; inspect each requirement against your actual experience before applying.`
+        : `A lightweight keyword scan found gaps in ${missingTech.slice(0, 4).join(', ') || 'role terminology'}. This is not a definitive rejection; review transferable experience and non-keyword requirements before deciding.`,
     weightedRequirements,
     levelStrategy:
-      score >= 4.5
-        ? 'Position as Senior/Lead. Anchor negotiations on your end-to-end architecture ownership.'
-        : 'Position as a strong mid-to-senior contributor emphasizing rapid onboarding and adjacent skills.',
-    identifiedGaps: missingTech.length > 0 ? missingTech.map((t) => `Missing direct reference to ${t.toUpperCase()}`) : ['No critical architectural gaps identified.'],
-    strategicAngle: `Emphasize high-scale distributed reliability and clean code practices demonstrated across past production roles at ${companyName}.`,
+      'Use only the seniority, ownership, and delivery evidence explicitly supported by the source resume; do not infer level from keyword overlap.',
+    identifiedGaps:
+      missingTech.length > 0
+        ? missingTech.map((t) => `Missing direct reference to ${t.toUpperCase()}`)
+        : ['No tracked keyword gaps found; this does not establish full qualification.'],
+    strategicAngle:
+      'Choose a verified resume example that directly addresses the highest-priority requirement in this job description.',
     compensationEstimate: {
       estimatedRange,
-      analysis: 'Benchmark based on role level, tech stack rarity, and market percentiles.',
+      analysis: 'No independent market benchmark is calculated in offline heuristic mode.',
     },
     workAuthAlert,
     topInterviewStories: [
-      `How I optimized production latency and throughput in high-concurrency systems.`,
-      `How I led cross-functional debugging under pressure when critical services degraded.`,
-      `Designing maintainable, test-driven microservices that scale horizontally.`,
+      'Prepare a STAR example from verified experience that demonstrates the most relevant technical requirement.',
+      'Prepare a real example of diagnosing a difficult engineering issue; do not invent incident details or outcomes.',
+      'Prepare a project example that demonstrates maintainability, testing, and collaboration where supported by your resume.',
     ],
   };
 }
@@ -144,9 +173,9 @@ CORE EVALUATION DIRECTIVES (CareerOps A-H Protocol):
 1. Score the match honestly on a 1.0 to 5.0 scale (1 decimal point).
    - If score >= 4.0: recommendation MUST be 'apply'.
    - If score < 4.0: recommendation MUST be 'skip' (tell the candidate not to waste time on low fit).
-2. Weight requirements: critical, high, or medium. Assess candidate fit (strong, partial, gap) with evidence from resume.
+2. Weight requirements: critical, high, or medium. A keyword match alone is not proof of proficiency; mark it partial unless the resume contains concrete, relevant evidence. Mark unsupported claims as gaps or unknown.
 3. Identify genuine gaps without sugarcoating.
-4. Provide compensation benchmark and level strategy.
+4. Extract compensation only when stated in the job description. If absent, return 'Not disclosed'; do not invent a market range. Do not infer seniority or eligibility.
 5. Provide top 3 tailored STAR interview story prompts.
 
 OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or preamble, matching this exact schema:
@@ -156,15 +185,15 @@ OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or preamble,
   "verdictHeadline": "🟢 High Fit: Strong systems background matches core JD needs",
   "summary": "Concise 2-sentence summary of mutual fit and leverage points.",
   "weightedRequirements": [
-    { "requirement": "5+ years Java / Distributed Systems", "weight": "critical", "fit": "strong", "evidence": "Verified 5 yrs experience on resume" },
-    { "requirement": "Kafka event streams", "weight": "high", "fit": "partial", "evidence": "Used Kafka for logging, not primary bus" }
+    { "requirement": "Java", "weight": "critical", "fit": "partial", "evidence": "The source resume mentions Java; verify depth and context before scoring proficiency." },
+    { "requirement": "Kafka", "weight": "high", "fit": "gap", "evidence": "No concrete Kafka evidence was supplied." }
   ],
-  "levelStrategy": "Senior Engineer pitch emphasizing scale and architectural independence",
-  "identifiedGaps": ["No direct Kubernetes operator experience mentioned"],
-  "strategicAngle": "Frame your background around fault tolerance and observability",
+  "levelStrategy": "Use only seniority and ownership evidence explicitly present in the source resume.",
+  "identifiedGaps": ["List only requirements that are absent or unsupported in the source resume."],
+  "strategicAngle": "Connect one verified candidate example to a stated job requirement.",
   "compensationEstimate": {
-    "estimatedRange": "$140,000 - $180,000 / yr",
-    "analysis": "Based on US Senior remote market percentiles"
+    "estimatedRange": "Not disclosed in the job description",
+    "analysis": "No salary range was supplied in the posting."
   },
   "workAuthAlert": null,
   "topInterviewStories": [
@@ -189,11 +218,14 @@ OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or preamble,
         model: targetModel,
         temperature: 0.1,
         maxTokens: 2000,
-        systemPrompt: 'You are an expert technical recruiter and career strategist. You return only valid, well-formed JSON.',
+        systemPrompt:
+          'You are an expert technical recruiter and career strategist. You return only valid, well-formed JSON.',
       },
       'javascript',
       {
-        onToken: (tok) => { fullResponse += tok; },
+        onToken: (tok) => {
+          fullResponse += tok;
+        },
         onSentence: () => {},
         onComplete: () => {},
         onError: () => {},
@@ -218,135 +250,79 @@ OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or preamble,
 /**
  * Generates ATS-Tailored Resume content
  */
-export const SB2NOV_LATEX_TEMPLATE = `%-------------------------
-% Resume in Latex
-% Author : Sourabh Bajaj
-% Website: https://github.com/sb2nov/resume
-% License : MIT
-%------------------------
+export const SB2NOV_LATEX_TEMPLATE = `% Source-preserving sb2nov-compatible template.
+% Offline mode does not invent candidate identity, employers, achievements, metrics, or education.
 
 \\documentclass[letterpaper,11pt]{article}
-
-\\usepackage{latexsym}
 \\usepackage[empty]{fullpage}
 \\usepackage{titlesec}
-\\usepackage{marvosym}
-\\usepackage[usenames,dvipsnames]{color}
-\\usepackage{verbatim}
 \\usepackage{enumitem}
-\\usepackage[pdftex]{hyperref}
+\\usepackage[hidelinks]{hyperref}
 \\usepackage{fancyhdr}
-
-
 \\pagestyle{fancy}
-\\fancyhf{} % clear all header and footer fields
-\\fancyfoot{}
+\\fancyhf{}
 \\renewcommand{\\headrulewidth}{0pt}
 \\renewcommand{\\footrulewidth}{0pt}
-
-% Adjust margins
 \\addtolength{\\oddsidemargin}{-0.375in}
 \\addtolength{\\evensidemargin}{-0.375in}
 \\addtolength{\\textwidth}{1in}
 \\addtolength{\\topmargin}{-.5in}
 \\addtolength{\\textheight}{1.0in}
-
-\\urlstyle{same}
-
 \\raggedbottom
 \\raggedright
 \\setlength{\\tabcolsep}{0in}
-
-% Sections formatting
-\\titleformat{\\section}{
-  \\vspace{-4pt}\\scshape\\raggedright\\large
-}{}{0em}{}[\\color{black}\\titlerule \\vspace{-5pt}]
-
-%-------------------------
-% Custom commands
-\\newcommand{\\resumeItem}[2]{
-  \\item\\small{
-    \\textbf{#1}{: #2 \\vspace{-2pt}}
-  }
-}
-
-\\newcommand{\\resumeSubheading}[4]{
-  \\vspace{-1pt}\\item
-    \\begin{tabular*}{0.97\\textwidth}{l@{\\extracolsep{\\fill}}r}
-      \\textbf{#1} & #2 \\\\
-      \\textit{\\small#3} & \\textit{\\small #4} \\\\
-    \\end{tabular*}\\vspace{-5pt}
-}
-
-\\newcommand{\\resumeSubItem}[2]{\\resumeItem{#1}{#2}\\vspace{-4pt}}
-
-\\renewcommand{\\labelitemii}{$\\circ$}
-
-\\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}[leftmargin=*]}
-\\newcommand{\\resumeSubHeadingListEnd}{\\end{itemize}}
-\\newcommand{\\resumeItemListStart}{\\begin{itemize}}
-\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-5pt}}
-
-%-------------------------------------------
-%%%%%%  CV STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
+\\newcommand{\\resumeItem}[2]{\\item\\small{\\textbf{#1}: #2}}
 \\begin{document}
+\\begin{center}
+  {\\Large \\textbf{[Candidate Name]}}\\\\
+  [Email] \\quad [Phone] \\quad [Portfolio / GitHub]\\\\
+  Target Role: {{TARGET_ROLE}} at {{COMPANY_NAME}}
+\\end{center}
 
-%----------HEADING-----------------
-\\begin{tabular*}{\\textwidth}{l@{\\extracolsep{\\fill}}r}
-  \\textbf{\\href{https://github.com/Abhitvg}{\\Large Abhishek Singh}} & Email : \\href{mailto:abhishek@example.com}{abhishek@example.com}\\\\
-  \\href{https://github.com/Abhitvg}{https://github.com/Abhitvg} & Target Role : {{TARGET_ROLE}} \\\\
-\\end{tabular*}
-
-%-----------EXPERIENCE-----------------
 \\section{Experience}
-  \\resumeSubHeadingListStart
+\\begin{itemize}[leftmargin=*]
+  \\item {{SOURCE_RESUME}}
+\\end{itemize}
 
-    \\resumeSubheading
-      {Senior Software Engineer}{Remote}
-      {Distributed Systems \\& High-Throughput Engineering}{2022 - Present}
-      \\resumeItemListStart
-        \\resumeItem{Distributed Architecture}
-          {Architected and scaled event-driven microservices handling 50k+ QPS with sub-50ms P99 latency. Implemented asynchronous message routing and horizontal autoscaling tailored for {{COMPANY_NAME}}.}
-        \\resumeItem{Performance Optimization}
-          {Optimized database query execution and Redis caching strategies, reducing CPU utilization by 35\\% and eliminating cold-start latency spikes.}
-        \\resumeItem{Reliability \\& Observability}
-          {Engineered structured telemetry pipelines and distributed tracing, cutting mean time to resolution (MTTR) by 45\\% during production incidents.}
-      \\resumeItemListEnd
-
-  \\resumeSubHeadingListEnd
-
-%-----------PROJECTS-----------------
 \\section{Projects}
-  \\resumeSubHeadingListStart
-    \\resumeSubItem{Collaborative Document Engine}
-      {Real-time collaborative document platform with document synchronization, conflict resolution, and WebSocket transport.}
-    \\resumeSubItem{Quorum Enterprise Monorepo}
-      {High-reliability full-stack platform featuring end-to-end type safety, automated CI/CD deployment pipelines, and zero-downtime database migrations.}
-  \\resumeSubHeadingListEnd
+\\textit{No projects are added in offline mode unless they are explicitly present in the source resume.}
 
-%--------PROGRAMMING SKILLS------------
 \\section{Programming Skills}
- \\resumeSubHeadingListStart
-   \\item{
-     \\textbf{Languages}{: Java, TypeScript, JavaScript, Python, SQL, C++}
-     \\hfill
-     \\textbf{Technologies}{: AWS, Docker, Kubernetes, Kafka, Spring Boot, React, Node.js}
-   }
- \\resumeSubHeadingListEnd
+\\textit{Use only skills explicitly listed in the source resume.}
 
-%-----------EDUCATION-----------------
 \\section{Education}
-  \\resumeSubHeadingListStart
-    \\resumeSubheading
-      {Bachelor of Technology in Computer Science}{India}
-      {First Class with Distinction; GPA: 3.8/4.0}{Graduated}
-  \\resumeSubHeadingListEnd
-
-%-------------------------------------------
+\\textit{Use only education details explicitly listed in the source resume.}
 \\end{document}
 `;
+
+function escapeLatexText(value: string): string {
+  const replacements: Record<string, string> = {
+    '\\': '\\textbackslash{}',
+    '{': '\\{',
+    '}': '\\}',
+    '%': '\\%',
+    $: '\\$',
+    '&': '\\&',
+    '#': '\\#',
+    _: '\\_',
+    '~': '\\textasciitilde{}',
+    '^': '\\textasciicircum{}',
+  };
+  return Array.from(value, (character) => replacements[character] ?? character).join('');
+}
+
+function buildSourceResumeLatex(
+  resumeText: string,
+  roleTitle: string,
+  companyName: string
+): string {
+  const source = resumeText.trim()
+    ? escapeLatexText(resumeText.trim()).split(/\r?\n/).join('\\\\\n')
+    : 'No source resume supplied. Add a verified resume before generating a tailored version.';
+  return SB2NOV_LATEX_TEMPLATE.replace(/{{TARGET_ROLE}}/g, escapeLatexText(roleTitle))
+    .replace(/{{COMPANY_NAME}}/g, escapeLatexText(companyName))
+    .replace('{{SOURCE_RESUME}}', source);
+}
 
 /**
  * Generates ATS-Tailored Resume strictly using the Sourabh Bajaj (sb2nov) LaTeX standard
@@ -387,9 +363,7 @@ STRICT LATEX REQUIREMENTS (sb2nov/resume standard):
 6. ABSOLUTELY ZERO FABRICATION: Only re-frame, highlight, and mirror real experience from the candidate's resume.`;
 
   if (!providerConfig || !providerConfig.apiKey) {
-    return SB2NOV_LATEX_TEMPLATE
-      .replace(/{{TARGET_ROLE}}/g, roleTitle)
-      .replace(/{{COMPANY_NAME}}/g, companyName);
+    return buildSourceResumeLatex(resumeText, roleTitle, companyName);
   }
 
   const targetModel = resolveOrMigrateModel(
@@ -407,31 +381,33 @@ STRICT LATEX REQUIREMENTS (sb2nov/resume standard):
       model: targetModel,
       temperature: 0.2,
       maxTokens: 2500,
-      systemPrompt: 'You are an elite LaTeX resume architect who outputs 100% valid compilable sb2nov LaTeX resumes with zero preamble or markdown wrapping.',
+      systemPrompt:
+        'You are an elite LaTeX resume architect who outputs 100% valid compilable sb2nov LaTeX resumes with zero preamble or markdown wrapping.',
     },
     'javascript',
     {
-      onToken: (tok) => { full += tok; },
+      onToken: (tok) => {
+        full += tok;
+      },
       onSentence: () => {},
       onComplete: () => {},
       onError: () => {},
     }
   );
 
-  return full || SB2NOV_LATEX_TEMPLATE.replace(/{{TARGET_ROLE}}/g, roleTitle).replace(/{{COMPANY_NAME}}/g, companyName);
+  return (
+    full ||
+    SB2NOV_LATEX_TEMPLATE.replace(/{{TARGET_ROLE}}/g, roleTitle).replace(
+      /{{COMPANY_NAME}}/g,
+      companyName
+    )
+  );
 }
 
 export type CoverLetterAngle =
-  | 'problem_solver'
-  | 'technical_depth'
-  | 'fast_impact'
-  | 'cultural_alignment';
+  'problem_solver' | 'technical_depth' | 'fast_impact' | 'cultural_alignment';
 
-export type CoverLetterExperienceLevel =
-  | 'senior'
-  | 'mid'
-  | 'entry'
-  | 'career_switcher';
+export type CoverLetterExperienceLevel = 'senior' | 'mid' | 'entry' | 'career_switcher';
 
 /**
  * Generates high-impact Software Engineer Cover Letters adhering to the
@@ -452,17 +428,24 @@ export async function generateCoverLetter(
   providerConfig?: ProviderConfig
 ): Promise<string> {
   const angleDescriptions: Record<CoverLetterAngle, string> = {
-    problem_solver: 'Focuses directly on a critical high-stakes engineering challenge the company faces and how candidate solves it.',
-    technical_depth: 'Focuses deeply on architectural mastery, code quality, and distributed systems design.',
-    fast_impact: 'Focuses on rapid 30-60-90 day value acceleration and immediate team velocity.',
-    cultural_alignment: 'Focuses on passion for the mission, product excellence, and collaborative ownership.',
+    problem_solver:
+      'Connect one verified candidate example to a problem explicitly described in the job description.',
+    technical_depth:
+      'Explain technical depth only where the source resume provides concrete evidence.',
+    fast_impact:
+      'Describe realistic early contributions based on verified skills; do not invent outcomes or metrics.',
+    cultural_alignment:
+      'Reference company mission or culture only when supported by the supplied job description.',
   };
 
   const levelDescriptions: Record<CoverLetterExperienceLevel, string> = {
-    senior: 'Senior / Staff Engineer: emphasizes systems architecture, mentoring, 50k+ QPS scale, and cross-functional leadership.',
-    mid: 'Full-Stack / Backend Engineer: emphasizes end-to-end feature delivery, clean REST/gRPC API design, and automated test coverage.',
-    entry: 'New Graduate / Entry-Level Engineer: emphasizes core computer science foundations, hackathon/capstone achievements, and internship impact (27% bug reduction).',
-    career_switcher: 'Career Switcher / Bootcamp Graduate: emphasizes rapid technical immersion, shipped full-stack applications, and translating domain problem-solving into software engineering.',
+    senior:
+      'Emphasize architecture ownership, mentoring, and cross-functional leadership only when directly supported by the resume.',
+    mid: 'Emphasize end-to-end delivery, API design, and testing only where the resume provides concrete examples.',
+    entry:
+      'Emphasize verified education, projects, internships, and fundamentals without inventing outcomes or metrics.',
+    career_switcher:
+      'Emphasize verified transferable experience and shipped projects; do not assume prior career duration or business outcomes.',
   };
 
   const prompt = `Write an exceptional, compelling 4-paragraph Software Engineering Cover Letter for the role of "${roleTitle}" at "${companyName}".
@@ -483,93 +466,44 @@ STRICT 4-PARAGRAPH BLUEPRINT (Indeed & Intuit Standard):
 1. PARAGRAPH 1 (Hook and Role Fit):
    - Professional salutation: "Dear ${companyName} Engineering Hiring Team,"
    - State the exact role ("${roleTitle}") and company name.
-   - Lead with an immediate, compelling technical hook tied directly to ${companyName}'s engineering goals or product mission.
+   - Lead with a specific technical hook tied to responsibilities stated in the job description; do not infer company goals or product details.
    - ABSOLUTELY ZERO generic boilerplate cliches (e.g. "I am writing to express my enthusiastic interest in...", "Please find enclosed my resume").
 
 2. PARAGRAPH 2 (Skill Proof & Quantifiable Impact):
-   - Highlight 1-2 real-world engineering accomplishments from candidate experience.
-   - Include specific, measurable outcomes (e.g. percentage improvements in latency, uptime metrics, QPS throughput, or bug reduction).
+   - Highlight only accomplishments explicitly supported by the candidate resume.
+   - Use a metric only when the exact metric is present in the resume; otherwise do not invent one.
    - Directly connect technical decisions to user and business value.
 
 3. PARAGRAPH 3 (Relevant Tech Stack & Team Collaboration):
    - Mirror high-value technical keywords directly from the JD (languages, frameworks, cloud infrastructure, databases).
-   - Emphasize engineering rigor: testing (unit/integration/E2E), CI/CD automation, code reviews, and cross-functional agile teamwork with Product and Design.
+   - Mention testing, CI/CD, code reviews, and cross-functional teamwork only when the candidate resume provides evidence.
 
 4. PARAGRAPH 4 (Why ${companyName} & Confident Close):
-   - Express genuine, informed enthusiasm for ${companyName}'s specific product challenges or engineering mission.
+   - Mention company-specific product or mission details only when supported by the supplied job description; otherwise keep this section role-focused.
    - Confident, professional call to action to discuss team needs.
    - Include actionable contact placeholders: [Phone Number] | [Email] | [GitHub / Portfolio].
    - Professional sign-off: "Sincerely,\nCandidate Name".
 
-Length: 240 to 320 words max. Sharp, authentic, senior engineering tone.`;
+Length: 180 to 260 words max. Sharp, authentic, role-appropriate tone. Never invent candidate identity, seniority, years of experience, projects, employers, metrics, or company facts.`;
 
   if (!providerConfig || !providerConfig.apiKey) {
-    if (level === 'entry') {
-      return `Dear ${companyName} Engineering Hiring Team,
-
-I am writing to apply for the ${roleTitle} position at ${companyName}. As a Computer Science graduate with hands-on experience building full-stack applications and participating in competitive hackathons, I have long admired ${companyName}'s technological innovation and look forward to contributing to your engineering mission.
-
-During my recent software engineering internship, I collaborated with cross-functional engineers and product teams to test and optimize internal data services, driving a 27% reduction in late-cycle software bugs through automated integration testing. Additionally, I built an open-source real-time collaborative document engine utilizing WebSockets and conflict-free data types, demonstrating my grasp of distributed state and asynchronous networking.
-
-My foundational skills span Java, Python, JavaScript/TypeScript, SQL, and Git version control, along with practical experience in Docker and cloud deployment basics. I thrive in agile environments where rapid feedback, continuous learning, and clean algorithmic problem-solving drive daily progress.
-
-Joining ${companyName} would be an extraordinary opportunity to work alongside talented engineers and solve challenging problems at scale. I am confident my strong fundamentals, curiosity, and work ethic make me an immediate contributor to your team.
-
-You can reach me at [Phone] or [Email]. My portfolio and GitHub repositories are located at [GitHub / Portfolio]. Thank you for your time and consideration.
-
-Sincerely,
-Candidate`;
-    }
-
-    if (level === 'career_switcher') {
-      return `Dear ${companyName} Engineering Hiring Team,
-
-I am excited to submit my application for the ${roleTitle} role at ${companyName}. Bringing a decade of professional problem-solving and domain expertise combined with rigorous software engineering immersion, I am eager to contribute to ${companyName}'s impactful technology initiatives.
-
-During my intensive software engineering training and subsequent freelance development, I built and deployed multiple production-ready applications, including a custom full-stack analytics tool that boosted user engagement by 33% and reduced workflow errors by 78%. I have engineered responsive web frontends and reliable backend APIs with rigorous input validation and secure database interactions.
-
-My technical toolkit includes JavaScript, TypeScript, React, Node.js, SQL, and cloud deployment on AWS. Having navigated complex stakeholder demands and operational constraints in my previous career, I bring unique strengths in cross-functional communication, adaptability, and high-pressure problem solving alongside my coding capabilities.
-
-${companyName}'s mission of empowering users through innovative software resonates deeply with my own values. I would welcome the opportunity to discuss how my unique blend of domain perspective and modern engineering skills can support your team's objectives.
-
-You can reach me at [Phone] or [Email]. My engineering portfolio and projects are available at [GitHub / Portfolio]. Thank you for your time and consideration.
-
-Sincerely,
-Candidate`;
-    }
-
-    if (level === 'mid') {
-      return `Dear ${companyName} Engineering Hiring Team,
-
-I am excited to apply for the ${roleTitle} role at ${companyName}. As a software engineer with extensive experience building scalable web applications and RESTful microservices, I admire ${companyName}'s commitment to engineering craft and seamless user experiences. I am eager to contribute to your team's feature velocity and platform reliability.
-
-In my current work, I built and deployed full-stack features that improved core transaction throughput by 30% and cut API response latency by 40%. Collaborating closely with product managers and designers, I led the development of a real-time collaborative synchronization module that eliminated data contention for over 100,000 active users.
-
-My daily stack includes TypeScript, Python, Node.js, SQL, Docker, and AWS. I take pride in writing clean, well-tested code backed by comprehensive unit and integration test suites, automated CI/CD pipelines, and thorough peer code reviews that prevent regressions before reaching production.
-
-I would love to bring my technical drive and collaborative mindset to ${companyName}'s engineering organization. I look forward to the possibility of discussing how my experience can support your upcoming product launches.
-
-You can reach me at [Phone] or [Email]. You can also review my work at [GitHub / Portfolio]. Thank you for your consideration.
-
-Sincerely,
-Candidate`;
-    }
-
-    // Default: 'senior'
+    const sourceContext = resumeText.trim()
+      ? 'My relevant experience and project work are documented in the attached resume. I would welcome the opportunity to discuss the parts most closely aligned with your team’s needs.'
+      : 'I would be glad to share my resume and discuss how my verified experience aligns with the role.';
     return `Dear ${companyName} Engineering Hiring Team,
 
-Please consider my application for the ${roleTitle} position at ${companyName}. Having architected distributed microservices and scaled real-time data pipelines, I have followed ${companyName}'s technical growth with keen interest. Given your focus on building resilient, high-throughput systems, I am eager to apply my experience in distributed reliability and performance optimization to support your team's upcoming roadmap.
+I am applying for the ${roleTitle} position at ${companyName}. The role’s focus on ${jdText.trim().slice(0, 180) || 'software engineering'} is relevant to the work I am looking to contribute to.
 
-In my recent engineering roles, I designed and scaled event-driven backend architectures processing over 50,000 QPS with sub-50ms P99 latency. By refactoring asynchronous messaging pipelines and optimizing database indexing strategies, my team reduced server CPU utilization by 35% and eliminated critical cold-start latency spikes. I also established structured distributed tracing that decreased our mean time to resolution (MTTR) by 45% during production incidents, ensuring 99.99% system availability.
+${sourceContext}
 
-My technical toolkit centers on production-grade backend engineering with Java, TypeScript, Kafka, Docker, Kubernetes, and AWS, complemented by modern frontend workflows in React. Beyond systems architecture, I prioritize engineering excellence through rigorous automated integration testing, trunk-based CI/CD workflows, and active mentorship of junior engineers across the full software development lifecycle.
+I focus on clear engineering fundamentals, maintainable implementation, and collaborating with product and engineering teams to deliver reliable software. I would be happy to provide specific examples from my work that match the responsibilities described in the job posting.
 
-What excites me most about ${companyName} is your dedication to solving complex engineering problems while keeping customer experience at the center. I would welcome the opportunity to discuss how my architectural background and delivery track record can help accelerate your team's milestones this quarter.
+Thank you for reviewing my application. I would welcome a conversation about the role and the problems your team is prioritizing.
 
-You can reach me directly at [Phone] or [Email]. My open-source projects and code are available at [GitHub / Portfolio]. Thank you for your time and consideration.
+[Email] | [Phone] | [GitHub / Portfolio]
 
 Sincerely,
-Candidate`;
+[Candidate Name]`;
   }
 
   const coverLetterModel = resolveOrMigrateModel(
@@ -587,11 +521,14 @@ Candidate`;
       model: coverLetterModel,
       temperature: 0.3,
       maxTokens: 1000,
-      systemPrompt: 'You write sharp, authentic, senior-level software engineering cover letters that hiring managers actually enjoy reading, adhering to Indeed and Intuit industry best practices.',
+      systemPrompt:
+        'You write concise, authentic, role-appropriate software engineering cover letters. Use only candidate evidence and company facts explicitly present in the supplied materials.',
     },
     'javascript',
     {
-      onToken: (tok) => { full += tok; },
+      onToken: (tok) => {
+        full += tok;
+      },
       onSentence: () => {},
       onComplete: () => {},
       onError: () => {},
@@ -615,22 +552,31 @@ export async function generateOutreachNotes(
   coldEmailSubject: string;
   coldEmailBody: string;
 }> {
-  // Always provide high-conversion deterministic drafts <= 300 chars
-  const linkedinRecruiter = `Hi! I saw the ${roleTitle} opening at ${companyName} and submitted my application. With background in ${strategicAngle}, I'd love to connect and see if my background aligns with what your team needs this quarter. Thanks!`.slice(0, 298);
+  // Keep deterministic drafts factual; candidate-specific claims belong in reviewed resume evidence.
+  const linkedinRecruiter =
+    `Hi! I'm interested in the ${roleTitle} opening at ${companyName} and would appreciate the chance to connect and learn what the team is prioritizing. Thanks!`.slice(
+      0,
+      298
+    );
 
-  const linkedinHiringManager = `Hi! Noticed you're leading the team for the ${roleTitle} role at ${companyName}. Having built equivalent ${strategicAngle} systems, I just applied and would love to follow your team's engineering updates. Best regards!`.slice(0, 298);
+  const linkedinHiringManager =
+    `Hi! I'm interested in the ${roleTitle} role at ${companyName} and would welcome a chance to learn more about the team's current engineering priorities. Thanks!`.slice(
+      0,
+      298
+    );
 
-  const coldEmailSubject = `Application: ${roleTitle} — High-Reliability Systems Background`;
+  const coldEmailSubject = `Regarding the ${roleTitle} role at ${companyName}`;
   const coldEmailBody = `Hi ${companyName} Team,
 
-I recently applied for the ${roleTitle} position on your careers portal. Given your team's focus on high-throughput reliability and scalable engineering, I wanted to share a brief note highlighting relevant experience.
+I'm reaching out regarding the ${roleTitle} position at ${companyName}. I would welcome the opportunity to discuss the role and the engineering problems your team is prioritizing.
 
-In my recent projects, I have specialized in building robust distributed backends, optimizing cloud architectures, and delivering clean, test-tested code under agile sprint cadences.
+My relevant experience and projects are described in my resume. I would be glad to explain how that verified work aligns with the role.
 
-My resume and portfolio are attached. I would welcome the opportunity to connect for a 15-minute introductory conversation.
+Resume: [Resume Link]
+Portfolio: [Portfolio Link]
 
 Best regards,
-Candidate`;
+[Candidate Name]`;
 
   return {
     linkedinRecruiter,

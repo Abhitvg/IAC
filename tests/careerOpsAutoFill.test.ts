@@ -11,13 +11,12 @@ describe('CareerOps Application Auto-Fill Service', () => {
     const coverLetter = 'I am excited to apply for this backend engineering position.';
     const script = generateBrowserAutoFillScript(DEFAULT_CANDIDATE_PROFILE, coverLetter);
 
-    // Profile payload
-    expect(script).toContain('Abhishek');
-    expect(script).toContain('Singh');
-    expect(script).toContain('abhishek@example.com');
-    expect(script).toContain('+1-123-456-7890');
-    expect(script).toContain('https://github.com/Abhitvg');
+    // Empty defaults must never inject fabricated candidate identity or contact details.
+    expect(script).not.toContain('abhishek@example.com');
+    expect(script).not.toContain('+1-123-456-7890');
     expect(script).toContain(coverLetter);
+    expect(script).toContain('authorizedToWorkVerified');
+    expect(script).toContain('requiresSponsorshipVerified');
 
     // React / Vue controlled input event simulation
     expect(script).toContain("Object.getOwnPropertyDescriptor(proto, 'value')");
@@ -36,7 +35,7 @@ describe('CareerOps Application Auto-Fill Service', () => {
   it('generates a one-click bookmarklet string starting with javascript:', () => {
     const bookmarklet = generateAutoFillBookmarklet(DEFAULT_CANDIDATE_PROFILE, 'Cover letter text');
     expect(bookmarklet.startsWith('javascript:')).toBe(true);
-    expect(bookmarklet).toContain(encodeURIComponent('Abhishek'));
+    expect(bookmarklet).toContain(encodeURIComponent('authorizedToWorkVerified'));
   });
 
   it('generates an executable Playwright automation script with job URL and resume attachment', () => {
@@ -52,5 +51,24 @@ describe('CareerOps Application Auto-Fill Service', () => {
     expect(pwScript).toContain(jobUrl);
     expect(pwScript).toContain('resumes/Abhishek_Singh_Resume.pdf');
     expect(pwScript).toContain('page.evaluate');
+  });
+
+  it('serializes untrusted URL and file path values instead of interpolating executable source', () => {
+    const maliciousUrl = "https://jobs.example/apply'); console.log('injected";
+    const maliciousPath = "resume.pdf'); console.log('injected";
+    const script = generatePlaywrightAutoFillScript(
+      'https://jobs.example/apply',
+      DEFAULT_CANDIDATE_PROFILE,
+      '',
+      maliciousPath
+    );
+    expect(script).toContain(JSON.stringify(maliciousPath));
+    expect(script).not.toContain("setInputFiles('resume.pdf'); console.log");
+    expect(() =>
+      generatePlaywrightAutoFillScript('http://jobs.example/apply', DEFAULT_CANDIDATE_PROFILE)
+    ).toThrow('HTTPS');
+    expect(() =>
+      generatePlaywrightAutoFillScript(maliciousUrl, DEFAULT_CANDIDATE_PROFILE)
+    ).not.toThrow();
   });
 });

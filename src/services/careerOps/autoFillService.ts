@@ -30,26 +30,30 @@ export interface CandidateAutoFillProfile {
   yearsOfExperience: string;
   authorizedToWork: boolean;
   requiresSponsorship: boolean;
+  authorizedToWorkVerified?: boolean;
+  requiresSponsorshipVerified?: boolean;
 }
 
 export const DEFAULT_CANDIDATE_PROFILE: CandidateAutoFillProfile = {
-  firstName: 'Abhishek',
-  lastName: 'Singh',
-  fullName: 'Abhishek Singh',
-  email: 'abhishek@example.com',
-  phone: '+1-123-456-7890',
-  location: 'San Francisco, CA, USA',
-  city: 'San Francisco',
-  state: 'CA',
-  country: 'United States',
-  linkedin: 'https://linkedin.com/in/abhisheksingh',
-  github: 'https://github.com/Abhitvg',
-  portfolio: 'https://github.com/Abhitvg',
-  currentCompany: 'Self-Employed / Independent Engineer',
-  currentTitle: 'Senior Software Engineer',
-  yearsOfExperience: '6',
-  authorizedToWork: true,
+  firstName: '',
+  lastName: '',
+  fullName: '',
+  email: '',
+  phone: '',
+  location: '',
+  city: '',
+  state: '',
+  country: '',
+  linkedin: '',
+  github: '',
+  portfolio: '',
+  currentCompany: '',
+  currentTitle: '',
+  yearsOfExperience: '',
+  authorizedToWork: false,
   requiresSponsorship: false,
+  authorizedToWorkVerified: false,
+  requiresSponsorshipVerified: false,
 };
 
 /**
@@ -79,6 +83,8 @@ export function generateBrowserAutoFillScript(
     yearsOfExperience: profile.yearsOfExperience,
     authorizedToWork: profile.authorizedToWork,
     requiresSponsorship: profile.requiresSponsorship,
+    authorizedToWorkVerified: profile.authorizedToWorkVerified === true,
+    requiresSponsorshipVerified: profile.requiresSponsorshipVerified === true,
     coverLetter: coverLetterText,
     resumeText: resumeLatex,
   };
@@ -107,8 +113,14 @@ export function generateBrowserAutoFillScript(
 
   let filledCount = 0;
 
+  function isKnownValue(value) {
+    if (typeof value !== 'string') return false;
+    const normalized = value.trim().toLowerCase();
+    return normalized.length > 0 && !['unknown', 'not specified', 'n/a', 'none', 'null'].includes(normalized);
+  }
+
   function tryFill(selector, val, label) {
-    if (!val) return;
+    if (!isKnownValue(val)) return;
     const el = document.querySelector(selector);
     if (el && !el.disabled && el.offsetParent !== null) {
       if (setNativeValue(el, val)) {
@@ -119,7 +131,7 @@ export function generateBrowserAutoFillScript(
   }
 
   function matchByLabelOrAttr(val, keywords, label) {
-    if (!val) return;
+    if (!isKnownValue(val)) return;
     const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="file"]):not([type="submit"]), textarea'));
     for (const input of inputs) {
       if (input.value && input.value.trim().length > 0) continue;
@@ -200,31 +212,52 @@ export function generateBrowserAutoFillScript(
   matchByLabelOrAttr(data.portfolio, ['portfolio', 'website', 'personal site', 'url'], 'Portfolio (Fuzzy)');
   matchByLabelOrAttr(data.coverLetter, ['cover_letter', 'cover letter', 'note to hiring', 'additional info', 'comments'], 'Cover Letter (Fuzzy)');
 
-  // --- RADIO / CHECKBOX HEURISTICS FOR WORK AUTHORIZATION ---
-  const radios = Array.from(document.querySelectorAll('input[type="radio"], input[type="checkbox"]'));
-  radios.forEach(r => {
-    const parent = r.closest('div, fieldset, tr, li') || r.parentElement;
-    if (!parent) return;
-    const txt = parent.innerText.toLowerCase();
+  // --- VERIFIED WORK-AUTHORIZATION RADIO ANSWERS ONLY ---
+  // Do not infer answers from a whole form's text or from unchecked checkboxes.
+  // A fieldset/radiogroup and a per-option label must both be identifiable.
+  function optionLabel(input) {
+    const associated = input.id
+      ? document.querySelector('label[for="' + CSS.escape(input.id) + '"]')
+      : null;
+    const wrapped = input.closest('label');
+    return [
+      associated ? associated.innerText : '',
+      wrapped ? wrapped.innerText : '',
+      input.value || '',
+      input.getAttribute('aria-label') || ''
+    ].join(' ').toLowerCase();
+  }
 
-    // Work authorization
-    if (txt.includes('authorized to work') || txt.includes('legally authorized')) {
-      if ((data.authorizedToWork && (txt.includes('yes') || r.value === 'yes' || r.value === '1')) ||
-          (!data.authorizedToWork && (txt.includes('no') || r.value === 'no' || r.value === '0'))) {
-        r.checked = true;
-        r.dispatchEvent(new Event('change', { bubbles: true }));
-        filledCount++;
-      }
+  const radios = Array.from(document.querySelectorAll('input[type="radio"]'));
+  radios.forEach(r => {
+    const group = r.closest('fieldset, [role="radiogroup"]');
+    if (!group) return;
+    const question = (group.innerText || '').toLowerCase();
+    const option = optionLabel(r);
+    const isYes = /\b(yes|i am|authorized|eligible|true|1)\b/.test(option) ||
+      ['yes', 'true', '1'].includes(String(r.value).toLowerCase());
+    const isNo = /\b(no|not authorized|not eligible|false|0)\b/.test(option) ||
+      ['no', 'false', '0'].includes(String(r.value).toLowerCase());
+
+    if (
+      data.authorizedToWorkVerified &&
+      (question.includes('authorized to work') || question.includes('legally authorized')) &&
+      ((data.authorizedToWork && isYes) || (!data.authorizedToWork && isNo))
+    ) {
+      r.checked = true;
+      r.dispatchEvent(new Event('change', { bubbles: true }));
+      filledCount++;
+      return;
     }
 
-    // Sponsorship
-    if (txt.includes('require sponsorship') || txt.includes('sponsorship in the future')) {
-      if ((!data.requiresSponsorship && (txt.includes('no') || r.value === 'no' || r.value === '0')) ||
-          (data.requiresSponsorship && (txt.includes('yes') || r.value === 'yes' || r.value === '1'))) {
-        r.checked = true;
-        r.dispatchEvent(new Event('change', { bubbles: true }));
-        filledCount++;
-      }
+    if (
+      data.requiresSponsorshipVerified &&
+      (question.includes('require sponsorship') || question.includes('sponsorship in the future')) &&
+      ((data.requiresSponsorship && isYes) || (!data.requiresSponsorship && isNo))
+    ) {
+      r.checked = true;
+      r.dispatchEvent(new Event('change', { bubbles: true }));
+      filledCount++;
     }
   });
 
@@ -257,8 +290,20 @@ export function generatePlaywrightAutoFillScript(
   jobUrl: string,
   profile: CandidateAutoFillProfile,
   coverLetterText: string = '',
-  resumeFilePath: string = 'Abhishek_Singh_Resume.pdf'
+  resumeFilePath: string = ''
 ): string {
+  let parsedJobUrl: URL;
+  try {
+    parsedJobUrl = new URL(jobUrl);
+  } catch {
+    throw new Error('A valid HTTPS job posting URL is required.');
+  }
+  if (parsedJobUrl.protocol !== 'https:' || parsedJobUrl.username || parsedJobUrl.password) {
+    throw new Error('Playwright auto-fill only accepts public HTTPS job URLs.');
+  }
+  const serializedJobUrl = JSON.stringify(parsedJobUrl.toString());
+  const serializedResumePath = JSON.stringify(resumeFilePath);
+
   return `import { chromium } from 'playwright';
 
 /**
@@ -270,18 +315,18 @@ async function autoApply() {
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  console.log('Navigating to job portal: ${jobUrl}...');
-  await page.goto('${jobUrl}', { waitUntil: 'networkidle' });
+  console.log('Navigating to job portal:', ${serializedJobUrl});
+  await page.goto(${serializedJobUrl}, { waitUntil: 'networkidle' });
 
   // Inject CareerOps Auto-Fill logic into page
   await page.evaluate(${generateBrowserAutoFillScript(profile, coverLetterText)});
 
   // Attempt resume file upload if input[type="file"] exists
   const fileInput = await page.$('input[type="file"]');
-  if (fileInput) {
+  if (fileInput && ${serializedResumePath}) {
     try {
-      console.log('Attaching resume file: ${resumeFilePath}...');
-      await fileInput.setInputFiles('${resumeFilePath}');
+      console.log('Attaching resume file:', ${serializedResumePath});
+      await fileInput.setInputFiles(${serializedResumePath});
     } catch (e) {
       console.log('Note: Resume file input requires manual drop if path not found locally.');
     }

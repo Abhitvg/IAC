@@ -36,7 +36,7 @@ Requirements:
 
       expect(report.score).toBeGreaterThanOrEqual(4.0);
       expect(report.recommendation).toBe('apply');
-      expect(report.verdictHeadline).toContain('Recommended to Apply');
+      expect(report.verdictHeadline).toContain('Preliminary Keyword Match');
       expect(report.weightedRequirements.length).toBeGreaterThan(0);
 
       // Verify critical requirements check
@@ -44,7 +44,7 @@ Requirements:
         r.requirement.toLowerCase().includes('java')
       );
       expect(javaReq).toBeDefined();
-      expect(javaReq?.fit).toBe('strong');
+      expect(javaReq?.fit).toBe('partial');
     });
 
     it('scores low fit (< 4.0) and recommends "skip" when JD requires unmatched legacy stack', () => {
@@ -64,7 +64,7 @@ Requirements:
 
       expect(report.score).toBeLessThan(4.0);
       expect(report.recommendation).toBe('skip');
-      expect(report.verdictHeadline).toContain('Do Not Apply');
+      expect(report.verdictHeadline).toContain('Preliminary Keyword Match');
     });
 
     it('detects work authorization alerts when JD specifies no sponsorship', () => {
@@ -88,15 +88,20 @@ Systems Engineer. No sponsorship available. Must be US Citizen with active Secre
 Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 `;
 
-      const report = evaluateJobHeuristically(
-        compJd,
-        sampleResume,
-        'Staff Engineer',
-        'FintechCo'
-      );
+      const report = evaluateJobHeuristically(compJd, sampleResume, 'Staff Engineer', 'FintechCo');
 
       expect(report.compensationEstimate.estimatedRange).toContain('$180,000');
     });
+  });
+
+  it('does not invent a compensation benchmark when the job description omits salary', () => {
+    const report = evaluateJobHeuristically(
+      'Backend Engineer. Build reliable APIs with TypeScript.',
+      sampleResume,
+      'Backend Engineer',
+      'ExampleCo'
+    );
+    expect(report.compensationEstimate.estimatedRange).toBe('Not disclosed in the job description');
   });
 
   describe('generateOutreachNotes() — Contacto DMs & Email Drafts', () => {
@@ -131,7 +136,7 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       expect(letter).toContain('Alignerr');
       expect(letter).toContain('Senior Software Developer');
-      expect(letter).toContain('50,000 QPS');
+      expect(letter).not.toContain('50,000 QPS');
       expect(letter).toContain('latency');
       expect(letter).toContain('Dear Alignerr Engineering Hiring Team');
       expect(letter).toContain('[GitHub / Portfolio]');
@@ -151,8 +156,8 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       expect(letter).toContain('Datadog');
       expect(letter).toContain('Associate Software Engineer');
-      expect(letter).toContain('27% reduction in late-cycle software bugs');
-      expect(letter).toContain('Computer Science graduate');
+      expect(letter).not.toContain('27% reduction in late-cycle software bugs');
+      expect(letter).not.toContain('Computer Science graduate');
     });
 
     it('generates Mid-Level cover letters emphasizing API throughput and collaboration', async () => {
@@ -167,8 +172,8 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       expect(letter).toContain('Stripe');
       expect(letter).toContain('Software Engineer');
-      expect(letter).toContain('transaction throughput by 30%');
-      expect(letter).toContain('100,000 active users');
+      expect(letter).not.toContain('transaction throughput by 30%');
+      expect(letter).not.toContain('100,000 active users');
     });
 
     it('generates Career Switcher cover letters translating domain depth into software impact', async () => {
@@ -183,8 +188,8 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       expect(letter).toContain('Intuit');
       expect(letter).toContain('Junior Software Engineer');
-      expect(letter).toContain('boosted user engagement by 33%');
-      expect(letter).toContain('reduced workflow errors by 78%');
+      expect(letter).not.toContain('boosted user engagement by 33%');
+      expect(letter).not.toContain('reduced workflow errors by 78%');
     });
   });
 
@@ -198,7 +203,7 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
       );
 
       expect(resume).toContain('\\documentclass[letterpaper,11pt]{article}');
-      expect(resume).toContain('sb2nov/resume');
+      expect(resume).toContain('[Candidate Name]');
       expect(resume).toContain('\\section{Programming Skills}');
       expect(resume).toContain('Lead Backend Engineer');
       expect(resume).toContain('Java');
@@ -226,7 +231,9 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       // Test status update
       store.updateJob(newId, { status: 'interviewing' });
-      expect(useCareerOpsStore.getState().applications.find((a) => a.id === newId)?.status).toBe('interviewing');
+      expect(useCareerOpsStore.getState().applications.find((a) => a.id === newId)?.status).toBe(
+        'interviewing'
+      );
 
       // Test stats calculation
       const stats = useCareerOpsStore.getState().stats;
@@ -246,6 +253,35 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
 
       const success = store.importPipelineJson(json);
       expect(success).toBe(true);
+    });
+
+    it('adds, pauses, and removes configured career discovery sources', () => {
+      const store = useCareerOpsStore.getState();
+      const id = store.addSource({
+        label: 'Example Careers',
+        url: 'https://jobs.example.com/careers',
+        keywords: ['backend', 'AI'],
+      });
+      expect(useCareerOpsStore.getState().sources.find((source) => source.id === id)?.enabled).toBe(
+        true
+      );
+
+      store.updateSource(id, { enabled: false });
+      expect(useCareerOpsStore.getState().sources.find((source) => source.id === id)?.enabled).toBe(
+        false
+      );
+
+      store.removeSource(id);
+      expect(
+        useCareerOpsStore.getState().sources.find((source) => source.id === id)
+      ).toBeUndefined();
+    });
+
+    it('rejects insecure career discovery sources', () => {
+      const store = useCareerOpsStore.getState();
+      expect(() => store.addSource({ label: 'Unsafe', url: 'http://example.com/careers' })).toThrow(
+        'HTTPS'
+      );
     });
   });
 });

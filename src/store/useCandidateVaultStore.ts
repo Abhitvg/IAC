@@ -18,6 +18,8 @@ export interface CandidateVaultProfile {
   yearsOfExperience: string;
   authorizedToWork: boolean;
   requiresSponsorship: boolean;
+  authorizedToWorkVerified: boolean;
+  requiresSponsorshipVerified: boolean;
   salaryExpectation: string;
   earliestStartDate: string;
   noticePeriod: string;
@@ -51,6 +53,8 @@ export const INITIAL_CANDIDATE_VAULT: CandidateVaultProfile = {
   yearsOfExperience: 'unknown',
   authorizedToWork: false,
   requiresSponsorship: false,
+  authorizedToWorkVerified: false,
+  requiresSponsorshipVerified: false,
   salaryExpectation: 'unknown',
   earliestStartDate: '',
   noticePeriod: '',
@@ -72,6 +76,15 @@ function isKnownFabricatedDemoProfile(profile: any): boolean {
   );
 }
 
+function normalizeVaultProfile(profile: Partial<CandidateVaultProfile>): CandidateVaultProfile {
+  return {
+    ...INITIAL_CANDIDATE_VAULT,
+    ...profile,
+    authorizedToWorkVerified: profile.authorizedToWorkVerified === true,
+    requiresSponsorshipVerified: profile.requiresSponsorshipVerified === true,
+  };
+}
+
 function loadVaultFromStorage(): CandidateVaultProfile {
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     try {
@@ -80,7 +93,7 @@ function loadVaultFromStorage(): CandidateVaultProfile {
       if (rawV2) {
         const parsed = JSON.parse(rawV2);
         if (!isKnownFabricatedDemoProfile(parsed)) {
-          return { ...INITIAL_CANDIDATE_VAULT, ...parsed };
+          return normalizeVaultProfile(parsed);
         }
       }
 
@@ -97,7 +110,7 @@ function loadVaultFromStorage(): CandidateVaultProfile {
           return INITIAL_CANDIDATE_VAULT;
         } else {
           // Genuine user-supplied data from v1: migrate to v2
-          const migrated = { ...INITIAL_CANDIDATE_VAULT, ...legacyParsed, isUserSupplied: true };
+          const migrated = normalizeVaultProfile({ ...legacyParsed, isUserSupplied: true });
           localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
           localStorage.removeItem(LEGACY_STORAGE_KEY);
           return migrated;
