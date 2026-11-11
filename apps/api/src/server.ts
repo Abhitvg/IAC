@@ -80,6 +80,10 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       }
 
       if (request.method === 'POST' && url.pathname === '/v1/controls/kill-switch') {
+        if (tenant.role !== 'owner') {
+          sendJson(response, 403, { error: 'Tenant owner role required', requestId });
+          return;
+        }
         const body = await readJson(request, maxBytes);
         if (typeof body.enabled !== 'boolean' || Object.keys(body).some((key) => key !== 'enabled')) {
           sendJson(response, 400, { error: 'Expected exactly one boolean field: enabled', requestId });
@@ -99,6 +103,10 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
 
 
       if (request.method === 'POST' && url.pathname === '/v1/controls/channel-pause') {
+        if (tenant.role !== 'owner') {
+          sendJson(response, 403, { error: 'Tenant owner role required', requestId });
+          return;
+        }
         const body = await readJson(request, maxBytes);
         const channels = ['ats', 'email', 'calendar', 'linkedin_assist'] as const;
         if (
