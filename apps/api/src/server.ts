@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { readBearerToken } from '../../../packages/cloud-core/src/auth';
+import { createConsentRecord } from '../../../packages/cloud-core/src/contract';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
 
@@ -74,6 +75,59 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           tenantId: tenant.tenantId,
           role: tenant.role,
         });
+        return;
+      }
+
+
+      if (request.method === 'GET' && url.pathname === '/v1/sprint-contract') {
+        const record = await dependencies.repository.getActiveSprintContract(tenant.tenantId);
+        sendJson(response, 200, { contract: record });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/sprint-contract') {
+        if (tenant.role !== 'owner') {
+          sendJson(response, 403, { error: 'Tenant owner role required', requestId });
+          return;
+        }
+        const body = await readJson(request, maxBytes);
+        const record = createConsentRecord(
+          tenant.tenantId,
+          tenant.subject,
+          body,
+          dependencies.config.consentSigningSecret
+        );
+        const persisted = await dependencies.repository.acceptSprintContract(record);
+        sendJson(response, 201, {
+          id: persisted.id,
+          revision: persisted.revision,
+          contractHash: record.contractHash,
+          acceptedAt: record.acceptedAt,
+          revokedAt: null,
+        });
+        return;
+      }
+
+      const revokeMatch = url.pathname.match(/^\\/v1\\/sprint-contract\\/([0-9a-f-]{36})\\/revoke$/i);
+      if (request.method === 'POST' && revokeMatch) {
+        if (tenant.role !== 'owner') {
+          sendJson(response, 403, { error: 'Tenant owner role required', requestId });
+          return;
+        }
+        const body = await readJson(request, maxBytes);
+        if (Object.keys(body).length !== 0) {
+          sendJson(response, 400, { error: 'Revocation request body must be empty', requestId });
+          return;
+        }
+        const revokedAt = new Date().toISOString();
+        await dependencies.repository.revokeSprintContract({
+          tenantId: tenant.tenantId,
+          subject: tenant.subject,
+          contractId: revokeMatch[1],
+          revokedAt,
+          metadata: { requestId },
+        });
+        sendJson(response, 200, { revoked: true, revokedAt });
         return;
       }
 
@@ -158,7 +212,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
       const status =
-        error instanceof SyntaxError
+        error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')
           ? 400
           : /token|identity|membership|bearer|authorization/i.test(message)
             ? 401
