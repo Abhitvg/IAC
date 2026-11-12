@@ -89,3 +89,4 @@ describe('CareerOps Pipeline Dual-View & Query Layer', () => {
     expect(sorted[0].company).toBe('Ghost Corp');
   });
 });
+

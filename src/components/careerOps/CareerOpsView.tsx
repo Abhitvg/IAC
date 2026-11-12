@@ -63,6 +63,7 @@ import {
 } from '../../services/careerOps/autoFillService';
 import { TodayView } from './TodayView';
 import { PipelineView } from './PipelineView';
+import { JobDrawerModal } from './JobDrawerModal';
 
 interface CareerOpsEmptyTabProps {
   tabName: string;
@@ -334,6 +335,14 @@ export function CareerOpsView() {
     'today' | 'pipeline' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
   >('today');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Job Drawer State
+  const [drawerJob, setDrawerJob] = useState<JobApplication | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const selectedJobForDrawer = useMemo(() => {
+    if (!drawerJob) return null;
+    return applications.find((a) => a.id === drawerJob.id) || drawerJob;
+  }, [applications, drawerJob]);
 
   // New Job Input Modal / Form
   const [newCompany, setNewCompany] = useState('');
@@ -953,7 +962,8 @@ export function CareerOpsView() {
             onNavigateToTab={(tab) => setSubTab(tab as any)}
             onSelectJob={(job) => {
               setActiveJobId(job.id);
-              setSubTab('evaluator');
+              setDrawerJob(job);
+              setIsDrawerOpen(true);
             }}
             onOpenAssistQueue={() => setSubTab('outreach')}
           />
@@ -966,18 +976,25 @@ export function CareerOpsView() {
         {/* TAB 1: PIPELINE BOARD */}
         {subTab === 'pipeline' && (
           <PipelineView
-            onSelectJob={(job) => setActiveJobId(job.id)}
+            onSelectJob={(job) => {
+              setActiveJobId(job.id);
+              setDrawerJob(job);
+              setIsDrawerOpen(true);
+            }}
             onOpenEvaluator={(job) => {
               setActiveJobId(job.id);
-              setSubTab('evaluator');
+              setDrawerJob(job);
+              setIsDrawerOpen(true);
             }}
             onOpenTailor={(job) => {
               setActiveJobId(job.id);
-              setSubTab('tailor');
+              setDrawerJob(job);
+              setIsDrawerOpen(true);
             }}
             onOpenOutreach={(job) => {
               setActiveJobId(job.id);
-              setSubTab('outreach');
+              setDrawerJob(job);
+              setIsDrawerOpen(true);
             }}
             onAddNewJob={() => setShowNewModal(true)}
           />
@@ -3821,6 +3838,24 @@ export function CareerOpsView() {
           </div>
         </div>
       )}
+
+      {/* Global Slide-In Job Drawer */}
+      <JobDrawerModal
+        job={selectedJobForDrawer}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onNavigateToGym={(j) => {
+          if (j.company) {
+            createCompanyPlan(j.company, j.role || 'Software Engineer', j.jdText || '', resumeText);
+            setActiveView('mock_gym');
+          }
+        }}
+        onOpenOverleaf={(j) => {
+          if (j.tailoredResume) {
+            openInOverleaf(j.tailoredResume);
+          }
+        }}
+      />
     </div>
   );
 }
