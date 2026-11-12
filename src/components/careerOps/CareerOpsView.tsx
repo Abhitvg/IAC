@@ -66,6 +66,7 @@ import { PipelineView } from './PipelineView';
 import { JobDrawerModal } from './JobDrawerModal';
 import { NetworkView } from './NetworkView';
 import { InboxView } from './InboxView';
+import { InterviewsView } from './InterviewsView';
 
 interface CareerOpsEmptyTabProps {
   tabName: string;
@@ -334,7 +335,7 @@ export function CareerOpsView() {
 
   // Internal sub-tab state
   const [subTab, setSubTab] = useState<
-    'today' | 'pipeline' | 'network' | 'inbox' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
+    'today' | 'pipeline' | 'network' | 'inbox' | 'interviews' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
   >('today');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -861,6 +862,7 @@ export function CareerOpsView() {
             { id: 'pipeline', label: '📋 Pipeline Board', count: applications.length },
             { id: 'network', label: '👥 Network & Assist Queue' },
             { id: 'inbox', label: '📬 Inbox' },
+            { id: 'interviews', label: '🎙️ Interviews' },
             { id: 'discovery', label: '🔎 Job Discovery' },
             {
               id: 'evaluator',
@@ -990,6 +992,17 @@ export function CareerOpsView() {
           <InboxView
             applications={applications}
             onSelectJob={(job) => {
+              setDrawerJob(job);
+              setIsDrawerOpen(true);
+            }}
+          />
+        )}
+
+        {subTab === 'interviews' && (
+          <InterviewsView
+            applications={applications}
+            resumeText={resumeText}
+            onOpenJobDrawer={(job) => {
               setDrawerJob(job);
               setIsDrawerOpen(true);
             }}

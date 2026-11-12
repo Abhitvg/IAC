@@ -960,3 +960,4 @@ export const InboxView: React.FC<InboxViewProps> = ({ applications = [], onSelec
     </div>
   );
 };
+
