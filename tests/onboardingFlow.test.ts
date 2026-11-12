@@ -90,3 +90,4 @@ describe('CareerOps Screen 9: 60-Second Onboarding Flow (< 60s to First Value)',
     expect(useCareerOpsOnboardingStore.getState().isOpen).toBe(false);
   });
 });
+
