@@ -1,4 +1,9 @@
-import { VerificationSourceEnum, type VerificationSource } from '../person-graph/person-types';
+import {
+  VerificationSourceEnum,
+  type VerificationSource,
+  ContactProvenanceEvidenceSchema,
+  type ContactProvenanceEvidence,
+} from '../person-graph/person-types';
 
 export class HardLineH4ViolationError extends Error {
   constructor(message = 'Hard Line H4: Outreach permitted only to verified business channels from licensed providers, public pages, or confirmed connections. Guessed or SMTP-probed emails are strictly prohibited.') {
@@ -33,6 +38,72 @@ export class OutreachComplianceEngine {
         `Hard Line H4: Contact ${email} has unauthorized verification source "${source}". Only licensed providers, public pages, or user connections are allowed.`
       );
     }
+  }
+
+  /**
+   * Asserts contact has genuine, validated provenance evidence records (Hard Line H4 & M11 Hardening).
+   * Rejects self-asserted labels without cryptographic content hash, retrieval date, and source proof.
+   */
+  public assertProvenanceEvidence(email: string, evidence?: unknown): ContactProvenanceEvidence {
+    if (!evidence || typeof evidence !== 'object') {
+      throw new HardLineH4ViolationError(
+        `Hard Line H4 Provenance Violation: Contact ${email} lacks provenance evidence. Self-asserted labels without evidence records are strictly prohibited.`
+      );
+    }
+
+    const parsed = ContactProvenanceEvidenceSchema.safeParse(evidence);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0]?.message || 'Invalid provenance evidence schema';
+      throw new HardLineH4ViolationError(
+        `Hard Line H4 Provenance Violation: Contact ${email} evidence is invalid: ${issue}`
+      );
+    }
+
+    const ev = parsed.data;
+
+    // Check retrieval timestamp is not in the future
+    const retrievedTime = new Date(ev.retrievedAt).getTime();
+    if (isNaN(retrievedTime) || retrievedTime > Date.now() + 60000) {
+      throw new HardLineH4ViolationError(
+        `Hard Line H4 Provenance Violation: Contact ${email} retrievedAt timestamp cannot be in the future.`
+      );
+    }
+
+    // Specific rules per source:
+    if (ev.verificationSource === 'public_company_page') {
+      if (!ev.sourceUrl || !ev.sourceUrl.startsWith('https://')) {
+        throw new HardLineH4ViolationError(
+          `Hard Line H4 Provenance Violation: public_company_page evidence requires a valid HTTPS sourceUrl.`
+        );
+      }
+      let u: URL;
+      try {
+        u = new URL(ev.sourceUrl);
+      } catch {
+        throw new HardLineH4ViolationError(
+          `Hard Line H4 Provenance Violation: Malformed sourceUrl.`
+        );
+      }
+      if (
+        ['localhost', '127.0.0.1', '0.0.0.0'].includes(u.hostname) ||
+        u.hostname.endsWith('.internal') ||
+        u.hostname.endsWith('.local')
+      ) {
+        throw new HardLineH4ViolationError(
+          `Hard Line H4 Provenance Violation: sourceUrl cannot be a private or local address.`
+        );
+      }
+    }
+
+    if (ev.verificationSource === 'licensed_provider') {
+      if (!ev.providerRecordId || ev.providerRecordId.trim().length === 0) {
+        throw new HardLineH4ViolationError(
+          `Hard Line H4 Provenance Violation: licensed_provider evidence requires a verified providerRecordId.`
+        );
+      }
+    }
+
+    return ev;
   }
 
   /**

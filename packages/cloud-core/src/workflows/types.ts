@@ -31,3 +31,4 @@ export interface SprintWorkflowState {
   lastAutoPauseCheck?: string;
   report?: SprintReport;
 }
+

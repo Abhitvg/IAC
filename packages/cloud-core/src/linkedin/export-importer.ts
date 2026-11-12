@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type { Person, RoleDomain } from '../person-graph/person-types';
 
 export interface LinkedInConnectionRow {
@@ -134,6 +135,10 @@ export class LinkedInExportParser {
       const name = `${conn.firstName} ${conn.lastName}`.trim();
       const syntheticEmail = conn.emailAddress || `${conn.firstName.toLowerCase()}.${conn.lastName.toLowerCase()}@imported.linkedin.local`;
 
+      const contentHash = createHash('sha256')
+        .update(`${conn.firstName}:${conn.lastName}:${conn.company}:${conn.position}:${conn.url || ''}:${conn.connectedOn || ''}`)
+        .digest('hex');
+
       return {
         email: syntheticEmail,
         name,
@@ -142,6 +147,12 @@ export class LinkedInExportParser {
         roleDomain: inferRoleDomain(conn.position || ''),
         relationship: '1st_degree',
         verificationSource: 'user_imported_connection',
+        provenanceEvidence: {
+          verificationSource: 'user_imported_connection',
+          contentHash,
+          retrievedAt: new Date().toISOString(),
+          sourceUrl: conn.url || undefined,
+        },
         timeZone: 'America/New_York',
         linkedinUrl: conn.url,
         crmStage: 'lead',

@@ -116,6 +116,9 @@ export class SqlOutreachRepository implements OutreachRepository {
       crmStage: row.crm_stage as CrmStage,
       notes: row.notes ? String(row.notes) : undefined,
       howICanHelp: row.how_i_can_help ? String(row.how_i_can_help) : undefined,
+      provenanceEvidence: typeof row.provenance_evidence === 'string'
+        ? JSON.parse(row.provenance_evidence)
+        : (row.provenance_evidence as any) || undefined,
       createdAt: new Date(row.created_at as string).toISOString(),
       updatedAt: new Date(row.updated_at as string).toISOString(),
     };
@@ -132,9 +135,9 @@ export class SqlOutreachRepository implements OutreachRepository {
         INSERT INTO people (
           tenant_id, email, name, company, title, role_domain, relationship,
           verification_source, time_zone, linkedin_url, last_contacted_at,
-          crm_stage, notes, how_i_can_help
+          crm_stage, notes, how_i_can_help, provenance_evidence
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
         ON CONFLICT (tenant_id, email) DO UPDATE
         SET name = EXCLUDED.name,
             company = EXCLUDED.company,
@@ -145,6 +148,7 @@ export class SqlOutreachRepository implements OutreachRepository {
             time_zone = EXCLUDED.time_zone,
             notes = COALESCE(EXCLUDED.notes, people.notes),
             how_i_can_help = COALESCE(EXCLUDED.how_i_can_help, people.how_i_can_help),
+            provenance_evidence = COALESCE(EXCLUDED.provenance_evidence, people.provenance_evidence),
             updated_at = now()
         RETURNING *
       `,
@@ -163,6 +167,7 @@ export class SqlOutreachRepository implements OutreachRepository {
           person.crmStage || 'lead',
           person.notes ?? null,
           person.howICanHelp ?? null,
+          person.provenanceEvidence ? JSON.stringify(person.provenanceEvidence) : null,
         ]
       );
       return this.mapPerson(res.rows[0]);

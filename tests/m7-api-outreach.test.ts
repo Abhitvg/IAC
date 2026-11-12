@@ -195,6 +195,12 @@ describe('Milestone M7 - API Person Graph & Outreach Endpoints', () => {
         roleDomain: 'recruiter',
         relationship: '1st_degree',
         verificationSource: 'licensed_provider',
+        provenanceEvidence: {
+          verificationSource: 'licensed_provider',
+          providerRecordId: 'rec_datadog_123',
+          contentHash: 'a'.repeat(64),
+          retrievedAt: new Date().toISOString(),
+        },
       }),
     });
 

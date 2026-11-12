@@ -1137,13 +1137,18 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           return;
         }
 
-        // HARD LINE H4: Reject any unverified or guessed contacts
+        // HARD LINE H4 & M11 Hardening: Reject any unverified contacts or self-asserted labels lacking provenance evidence
         const compliance = new OutreachComplianceEngine();
+        let validatedEvidence: any;
         try {
           compliance.assertAuthorizedContact(body.email, body.verificationSource);
+          validatedEvidence = compliance.assertProvenanceEvidence(
+            body.email,
+            body.provenanceEvidence
+          );
         } catch (err) {
           sendJson(response, 422, {
-            error: err instanceof Error ? err.message : 'Invalid contact verification source (H4)',
+            error: err instanceof Error ? err.message : 'Invalid contact verification provenance (H4)',
             requestId,
           });
           return;
@@ -1159,6 +1164,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             roleDomain: body.roleDomain as any,
             relationship: body.relationship as any,
             verificationSource: body.verificationSource as any,
+            provenanceEvidence: validatedEvidence,
             timeZone: typeof body.timeZone === 'string' ? body.timeZone : 'America/New_York',
             linkedinUrl: typeof body.linkedinUrl === 'string' ? body.linkedinUrl : undefined,
             lastContactedAt: typeof body.lastContactedAt === 'string' ? body.lastContactedAt : undefined,

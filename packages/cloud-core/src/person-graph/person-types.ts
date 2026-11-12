@@ -27,6 +27,15 @@ export const VerificationSourceEnum = z.enum([
 ]);
 export type VerificationSource = z.infer<typeof VerificationSourceEnum>;
 
+export const ContactProvenanceEvidenceSchema = z.object({
+  verificationSource: VerificationSourceEnum,
+  sourceUrl: z.string().url().max(2000).optional(),
+  contentHash: z.string().regex(/^[a-f0-9]{64}$/i, 'contentHash must be a valid 64-character SHA-256 hex string'),
+  retrievedAt: z.string().datetime(),
+  providerRecordId: z.string().min(1).max(256).optional(),
+});
+export type ContactProvenanceEvidence = z.infer<typeof ContactProvenanceEvidenceSchema>;
+
 export const CrmStageEnum = z.enum([
   'lead',
   'contacted',
@@ -53,6 +62,7 @@ export interface Person {
   crmStage: CrmStage;
   notes?: string;
   howICanHelp?: string;
+  provenanceEvidence?: ContactProvenanceEvidence;
   createdAt: string;
   updatedAt: string;
 }
