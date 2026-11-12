@@ -85,3 +85,4 @@ CREATE POLICY tenant_isolation_dsar_requests ON dsar_requests
   FOR ALL
   USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
   WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
+

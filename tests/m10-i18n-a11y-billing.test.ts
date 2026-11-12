@@ -88,3 +88,4 @@ describe('Milestone M10 - i18n, Accessibility (a11y) & Billing Quotas', () => {
     expect(proSprintCheck.remainingQuota).toBe(2); // 3 - 1 = 2
   });
 });
+

@@ -10,6 +10,7 @@ export interface VerifiedIdentity {
   issuer: string;
   audience: string[];
   expiresAt: number;
+  tenantId?: string;
 }
 
 export interface JwtVerificationConfig {
@@ -89,11 +90,21 @@ export function verifyAccessToken(
     throw new Error('Access token audience is invalid');
   }
 
+  const tenantId =
+    typeof claims.tenant_id === 'string'
+      ? claims.tenant_id
+      : typeof claims.tid === 'string'
+        ? claims.tid
+        : typeof claims.tenantId === 'string'
+          ? claims.tenantId
+          : undefined;
+
   return {
     subject: claims.sub,
     issuer: config.issuer,
     audience,
     expiresAt: exp as number,
+    tenantId,
   };
 }
 
@@ -217,7 +228,22 @@ export class OidcJwksVerifier {
       throw new Error('Access token audience or authorized party is invalid');
     }
 
-    return { subject: claims.sub, issuer: this.config.issuer, audience, expiresAt: exp as number };
+    const tenantId =
+      typeof claims.tenant_id === 'string'
+        ? claims.tenant_id
+        : typeof claims.tid === 'string'
+          ? claims.tid
+          : typeof claims.tenantId === 'string'
+            ? claims.tenantId
+            : undefined;
+
+    return {
+      subject: claims.sub,
+      issuer: this.config.issuer,
+      audience,
+      expiresAt: exp as number,
+      tenantId,
+    };
   }
 
   private async findSigningKey(kid: string, forceRefresh = false): Promise<JsonWebKey | undefined> {

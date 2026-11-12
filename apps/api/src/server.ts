@@ -140,7 +140,8 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       const tenant = await resolveTenantContext(
         identity.subject,
         dependencies.repository,
-        requestedTenant
+        requestedTenant,
+        identity.tenantId
       );
       if (!(await dependencies.rateLimiter.consume(`tenant:${tenant.tenantId}`, 300, 60_000))) {
         sendJson(response, 429, { error: 'Tenant rate limit exceeded', requestId });
@@ -2147,7 +2148,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
                 message
               )
             ? 409
-            : /Only the fact contributor/i.test(message)
+            : /Only the fact contributor|Mismatched tenant|Cross-tenant|No active membership/i.test(message)
               ? 403
               : /Career Graph fact not found|Application not found/i.test(message)
                 ? 404

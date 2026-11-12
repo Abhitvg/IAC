@@ -44,3 +44,4 @@ describe('Milestone M10 - Data Subject Access Requests (DSAR) & GDPR Erasure', (
     expect(receipt.complianceNotice).toContain('India DPDP Section 12');
   });
 });
+

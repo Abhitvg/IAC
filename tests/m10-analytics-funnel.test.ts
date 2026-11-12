@@ -38,3 +38,4 @@ describe('Milestone M10 - Funnel Analytics & Conversion Metrics', () => {
     expect(report.channelBreakdown).toHaveLength(2);
   });
 });
+
