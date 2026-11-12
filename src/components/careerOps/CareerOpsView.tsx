@@ -65,6 +65,7 @@ import { TodayView } from './TodayView';
 import { PipelineView } from './PipelineView';
 import { JobDrawerModal } from './JobDrawerModal';
 import { NetworkView } from './NetworkView';
+import { InboxView } from './InboxView';
 
 interface CareerOpsEmptyTabProps {
   tabName: string;
@@ -333,7 +334,7 @@ export function CareerOpsView() {
 
   // Internal sub-tab state
   const [subTab, setSubTab] = useState<
-    'today' | 'pipeline' | 'network' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
+    'today' | 'pipeline' | 'network' | 'inbox' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
   >('today');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -859,6 +860,7 @@ export function CareerOpsView() {
             { id: 'today', label: '☀️ Today' },
             { id: 'pipeline', label: '📋 Pipeline Board', count: applications.length },
             { id: 'network', label: '👥 Network & Assist Queue' },
+            { id: 'inbox', label: '📬 Inbox' },
             { id: 'discovery', label: '🔎 Job Discovery' },
             {
               id: 'evaluator',
@@ -980,6 +982,16 @@ export function CareerOpsView() {
                 setDrawerJob(job);
                 setIsDrawerOpen(true);
               }
+            }}
+          />
+        )}
+
+        {subTab === 'inbox' && (
+          <InboxView
+            applications={applications}
+            onSelectJob={(job) => {
+              setDrawerJob(job);
+              setIsDrawerOpen(true);
             }}
           />
         )}

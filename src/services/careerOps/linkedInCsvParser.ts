@@ -120,3 +120,4 @@ export function parseLinkedInConnectionsCsv(csvContent: string): ParsedLinkedInC
 
   return contacts;
 }
+
