@@ -68,6 +68,7 @@ import { NetworkView } from './NetworkView';
 import { InboxView } from './InboxView';
 import { InterviewsView } from './InterviewsView';
 import { InsightsView } from './InsightsView';
+import { ControlsView } from './ControlsView';
 
 interface CareerOpsEmptyTabProps {
   tabName: string;
@@ -336,7 +337,7 @@ export function CareerOpsView() {
 
   // Internal sub-tab state
   const [subTab, setSubTab] = useState<
-    'today' | 'pipeline' | 'network' | 'inbox' | 'interviews' | 'insights' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
+    'today' | 'pipeline' | 'network' | 'inbox' | 'interviews' | 'insights' | 'controls' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
   >('today');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -865,6 +866,7 @@ export function CareerOpsView() {
             { id: 'inbox', label: '📬 Inbox' },
             { id: 'interviews', label: '🎙️ Interviews' },
             { id: 'insights', label: '📊 Insights' },
+            { id: 'controls', label: '⚙️ Controls & Privacy' },
             { id: 'discovery', label: '🔎 Job Discovery' },
             {
               id: 'evaluator',
@@ -1013,6 +1015,10 @@ export function CareerOpsView() {
 
         {subTab === 'insights' && (
           <InsightsView applications={applications} />
+        )}
+
+        {subTab === 'controls' && (
+          <ControlsView />
         )}
 
         {subTab === 'discovery' && (

@@ -722,3 +722,4 @@ export const InsightsView: React.FC<InsightsViewProps> = ({ applications = [] })
     </div>
   );
 };
+
