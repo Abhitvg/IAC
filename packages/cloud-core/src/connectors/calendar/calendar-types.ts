@@ -49,3 +49,4 @@ export interface CalendarConnector {
   createEvent(event: CalendarEventInput): Promise<CalendarEventRecord>;
   listUpcomingEvents(timeMin?: string, limit?: number): Promise<CalendarEventRecord[]>;
 }
+

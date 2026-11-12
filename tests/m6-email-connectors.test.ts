@@ -129,3 +129,4 @@ describe('Milestone M6 - Email Connectors', () => {
     expect(sendRes.messageId).toBe('smtp_ack_1');
   });
 });
+

@@ -140,3 +140,4 @@ describe('Milestone M6 - Auto Scheduler Engine', () => {
     expect(result.schedulingUrl).toBe('https://calendly.com/talent-team/30min');
   });
 });
+

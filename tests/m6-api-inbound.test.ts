@@ -234,3 +234,4 @@ describe('Milestone M6 - API Inbound Email & Scheduling Endpoints', () => {
     expect(Array.isArray(body.busySlots)).toBe(true);
   });
 });
+

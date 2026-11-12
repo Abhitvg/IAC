@@ -52,3 +52,4 @@ export interface EmailConnector {
   getThread(threadId: string): Promise<InboundEmailMessage[]>;
   sendMessage(message: OutboundEmailMessage): Promise<SendResult>;
 }
+

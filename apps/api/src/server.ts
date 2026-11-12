@@ -40,6 +40,11 @@ import { AutoScheduler } from '../../../packages/cloud-core/src/inbound/auto-sch
 import { GoogleCalendarConnector } from '../../../packages/cloud-core/src/connectors/calendar/google-calendar';
 import type { InboundEmailMessage } from '../../../packages/cloud-core/src/connectors/email/email-types';
 import type { CalendarConnector } from '../../../packages/cloud-core/src/connectors/calendar/calendar-types';
+import { PersonRanker } from '../../../packages/cloud-core/src/person-graph/ranker';
+import type { Person, CrmStage } from '../../../packages/cloud-core/src/person-graph/person-types';
+import { OutreachEngine } from '../../../packages/cloud-core/src/outreach/outreach-engine';
+import { OutreachComplianceEngine } from '../../../packages/cloud-core/src/outreach/compliance';
+import { AdaptiveCapManager } from '../../../packages/cloud-core/src/outreach/adaptive-caps';
 import { globalActivityHub } from './activity-hub';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
@@ -1080,6 +1085,298 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
 
         const busySlots = await calendarConnector.listFreeBusy(timeMin, timeMax, timeZone);
         sendJson(response, 200, { timeMin, timeMax, timeZone, busySlots, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/people') {
+        if (!dependencies.outreach) {
+          sendJson(response, 501, { error: 'Outreach repository not configured', requestId });
+          return;
+        }
+        const body = await readJson(request, maxBytes);
+        if (
+          typeof body.email !== 'string' ||
+          typeof body.name !== 'string' ||
+          typeof body.company !== 'string' ||
+          typeof body.title !== 'string' ||
+          typeof body.roleDomain !== 'string' ||
+          typeof body.relationship !== 'string' ||
+          typeof body.verificationSource !== 'string'
+        ) {
+          sendJson(response, 400, {
+            error:
+              'Expected email, name, company, title, roleDomain, relationship, and verificationSource in body',
+            requestId,
+          });
+          return;
+        }
+
+        // HARD LINE H4: Reject any unverified or guessed contacts
+        const compliance = new OutreachComplianceEngine();
+        try {
+          compliance.assertAuthorizedContact(body.email, body.verificationSource);
+        } catch (err) {
+          sendJson(response, 422, {
+            error: err instanceof Error ? err.message : 'Invalid contact verification source (H4)',
+            requestId,
+          });
+          return;
+        }
+
+        const person = await dependencies.outreach.addPerson(
+          tenant.tenantId,
+          {
+            email: body.email,
+            name: body.name,
+            company: body.company,
+            title: body.title,
+            roleDomain: body.roleDomain as any,
+            relationship: body.relationship as any,
+            verificationSource: body.verificationSource as any,
+            timeZone: typeof body.timeZone === 'string' ? body.timeZone : 'America/New_York',
+            linkedinUrl: typeof body.linkedinUrl === 'string' ? body.linkedinUrl : undefined,
+            lastContactedAt: typeof body.lastContactedAt === 'string' ? body.lastContactedAt : undefined,
+            crmStage: (body.crmStage as any) || 'lead',
+            notes: typeof body.notes === 'string' ? body.notes : undefined,
+            howICanHelp: typeof body.howICanHelp === 'string' ? body.howICanHelp : undefined,
+          },
+          identity.subject
+        );
+
+        sendJson(response, 201, { person, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/people') {
+        if (!dependencies.outreach) {
+          sendJson(response, 200, { people: [], requestId });
+          return;
+        }
+        const companyParam = url.searchParams.get('company') || undefined;
+        const targetRoleParam = url.searchParams.get('targetRoleTitle') || undefined;
+
+        const people = await dependencies.outreach.listPeople(tenant.tenantId, companyParam);
+
+        if (companyParam) {
+          const ranker = new PersonRanker();
+          const ranked = ranker.rankAndSort(people, {
+            targetCompany: companyParam,
+            targetRoleTitle: targetRoleParam,
+          });
+          sendJson(response, 200, { people: ranked, requestId });
+          return;
+        }
+
+        sendJson(response, 200, { people, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/outreach/send') {
+        if (!dependencies.outreach) {
+          sendJson(response, 501, { error: 'Outreach repository not configured', requestId });
+          return;
+        }
+        const body = await readJson(request, maxBytes);
+        if (
+          typeof body.personId !== 'string' ||
+          typeof body.targetRoleTitle !== 'string' ||
+          typeof body.hook !== 'string'
+        ) {
+          sendJson(response, 400, {
+            error: 'Expected personId, targetRoleTitle, and hook in body',
+            requestId,
+          });
+          return;
+        }
+
+        const activeContractRecord = await dependencies.repository.getActiveSprintContract(
+          tenant.tenantId
+        );
+        if (!activeContractRecord) {
+          sendJson(response, 400, {
+            error: 'Active Sprint Contract required for email outreach',
+            requestId,
+          });
+          return;
+        }
+
+        const controlState = await dependencies.repository.getControlState(tenant.tenantId);
+        if (controlState.globalKillSwitch) {
+          sendJson(response, 400, {
+            error: 'Tenant global kill switch is currently active',
+            requestId,
+          });
+          return;
+        }
+        if (controlState.pausedChannels.includes('email')) {
+          sendJson(response, 400, {
+            error: 'Email outreach channel is paused for tenant',
+            requestId,
+          });
+          return;
+        }
+
+        const person = await dependencies.outreach.getPerson(tenant.tenantId, body.personId);
+        if (!person) {
+          sendJson(response, 404, { error: 'Person contact not found', requestId });
+          return;
+        }
+
+        // Check Mailbox health & adaptive caps
+        const metrics = await dependencies.outreach.getMailboxMetrics(tenant.tenantId);
+        const capManager = new AdaptiveCapManager(
+          activeContractRecord.contract.dailyCaps.emails,
+          10
+        );
+        const health = capManager.evaluateHealth(metrics);
+
+        // Auto-pause trigger: bounce rate > 5% or complaint
+        if (health.shouldAutoPause) {
+          await dependencies.repository.setChannelPauseWithAudit({
+            tenantId: tenant.tenantId,
+            actorSubject: identity.subject,
+            channel: 'email',
+            paused: true,
+            occurredAt: new Date().toISOString(),
+            metadata: { autoPauseReason: health.autoPauseReason || 'Mailbox health violation' },
+          });
+
+          sendJson(response, 422, {
+            error: `Email outreach auto-paused: ${health.autoPauseReason}`,
+            health,
+            requestId,
+          });
+          return;
+        }
+
+        const suppressionList = await dependencies.outreach.listSuppression(tenant.tenantId);
+        const existingOutreach = await dependencies.outreach.listOutreachForCompany(
+          tenant.tenantId,
+          person.company
+        );
+
+        const engine = new OutreachEngine(
+          activeContractRecord.contract,
+          body.mockEmail as any,
+          capManager
+        );
+
+        const execution = await engine.executeOutreach({
+          person,
+          targetRoleTitle: body.targetRoleTitle,
+          companyName: person.company,
+          sequenceStep: (body.sequenceStep as 1 | 2 | 3) || 1,
+          confirmedHook: body.hook,
+          suppressionList,
+          existingOutreachToCompany: existingOutreach.map((o) => ({
+            personId: o.person_id,
+            roleTitle: o.person_title || body.targetRoleTitle,
+            sentAt: o.sent_at,
+            status: o.status,
+          })),
+          currentSentToday: metrics.sentCount,
+          now: typeof body.now === 'string' ? new Date(body.now) : undefined,
+        });
+
+        if (execution.status === 'sent') {
+          await dependencies.outreach.recordOutreachMessage(
+            tenant.tenantId,
+            {
+              personId: person.id,
+              applicationId: null,
+              sequenceStep: (body.sequenceStep as number) || 1,
+              subject: execution.subject || '',
+              bodyText: execution.bodyText || '',
+              sentAt: new Date().toISOString(),
+              status: 'sent',
+              metadata: {
+                wordCount: execution.wordCount,
+                messageId: execution.sendResult?.messageId,
+              },
+            },
+            identity.subject
+          );
+
+          await dependencies.outreach.updatePersonStage(
+            tenant.tenantId,
+            person.id,
+            'contacted',
+            new Date().toISOString(),
+            identity.subject
+          );
+
+          globalActivityHub.broadcast({
+            id: randomUUID(),
+            tenantId: tenant.tenantId,
+            eventType: 'outreach_sent',
+            title: `Outreach sent: ${person.name} (${person.company})`,
+            description: `Sent personalized email regarding ${body.targetRoleTitle}`,
+            severity: 'info',
+            actorSubject: identity.subject,
+            createdAt: new Date().toISOString(),
+            metadata: {
+              personId: person.id,
+              company: person.company,
+              email: person.email,
+              wordCount: execution.wordCount,
+            },
+          });
+        }
+
+        sendJson(response, 200, { execution, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/outreach/opt-out') {
+        if (!dependencies.outreach) {
+          sendJson(response, 501, { error: 'Outreach repository not configured', requestId });
+          return;
+        }
+        const body = await readJson(request, maxBytes);
+        if (typeof body.email !== 'string') {
+          sendJson(response, 400, { error: 'Expected email in body', requestId });
+          return;
+        }
+
+        const optOutEmail = String(body.email).toLowerCase().trim();
+        const reason = (body.reason as any) || 'opt_out';
+        await dependencies.outreach.addSuppression(
+          tenant.tenantId,
+          { email: optOutEmail, reason },
+          identity.subject
+        );
+
+        // Update person stage if exists
+        const people = await dependencies.outreach.listPeople(tenant.tenantId);
+        const match = people.find((p) => p.email.toLowerCase() === optOutEmail);
+        if (match) {
+          await dependencies.outreach.updatePersonStage(
+            tenant.tenantId,
+            match.id,
+            'opted_out',
+            undefined,
+            identity.subject
+          );
+        }
+
+        sendJson(response, 200, { success: true, email: body.email, reason, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/outreach/health') {
+        if (!dependencies.outreach) {
+          sendJson(response, 200, { health: null, requestId });
+          return;
+        }
+        const metrics = await dependencies.outreach.getMailboxMetrics(tenant.tenantId);
+        const activeContractRecord = await dependencies.repository.getActiveSprintContract(
+          tenant.tenantId
+        );
+        const maxCap = activeContractRecord?.contract.dailyCaps.emails || 30;
+        const capManager = new AdaptiveCapManager(maxCap, 10);
+        const health = capManager.evaluateHealth(metrics);
+
+        sendJson(response, 200, { metrics, health, currentCap: capManager.getCurrentCap(), requestId });
         return;
       }
 
