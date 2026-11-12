@@ -36,3 +36,4 @@ export class SmartRecruitersApplyAdapter extends BaseAtsApplyAdapter {
     };
   }
 }
+

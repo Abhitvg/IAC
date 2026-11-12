@@ -221,3 +221,4 @@ export class SqlAssistQueueRepository implements AssistQueueRepository {
     });
   }
 }
+

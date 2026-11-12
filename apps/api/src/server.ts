@@ -35,6 +35,11 @@ import type {
   FormField,
 } from '../../../packages/cloud-core/src/apply/answer-bank';
 import type { AssistQueueStatus } from '../../../packages/cloud-core/src/apply/assist-queue';
+import { EmailReplyClassifier } from '../../../packages/cloud-core/src/inbound/classifier';
+import { AutoScheduler } from '../../../packages/cloud-core/src/inbound/auto-scheduler';
+import { GoogleCalendarConnector } from '../../../packages/cloud-core/src/connectors/calendar/google-calendar';
+import type { InboundEmailMessage } from '../../../packages/cloud-core/src/connectors/email/email-types';
+import type { CalendarConnector } from '../../../packages/cloud-core/src/connectors/calendar/calendar-types';
 import { globalActivityHub } from './activity-hub';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
@@ -860,6 +865,221 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           );
         }
         sendJson(response, 200, { item, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/inbound/classify-email') {
+        const body = await readJson(request, maxBytes);
+        if (typeof body.senderEmail !== 'string' || typeof body.subject !== 'string' || typeof body.bodyText !== 'string') {
+          sendJson(response, 400, {
+            error: 'Expected senderEmail, subject, and bodyText strings in body',
+            requestId,
+          });
+          return;
+        }
+
+        const classifier = new EmailReplyClassifier();
+        const classification = classifier.classify({
+          senderEmail: body.senderEmail,
+          senderName: typeof body.senderName === 'string' ? body.senderName : undefined,
+          subject: body.subject,
+          bodyText: body.bodyText,
+        });
+
+        sendJson(response, 200, { classification, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/inbound/process-message') {
+        const body = await readJson(request, maxBytes);
+        if (!body.message || typeof body.message !== 'object') {
+          sendJson(response, 400, { error: 'Expected message object in body', requestId });
+          return;
+        }
+
+        const msg = body.message as unknown as InboundEmailMessage;
+        const classifier = new EmailReplyClassifier();
+        const classification = classifier.classify({
+          senderEmail: msg.sender?.email || (msg as any).senderEmail || '',
+          senderName: msg.sender?.name || (msg as any).senderName,
+          subject: msg.subject || '',
+          bodyText: msg.bodyText || '',
+        });
+
+        // Record inbound message if repository configured
+        let recordedRecord;
+        if (dependencies.inbound) {
+          recordedRecord = await dependencies.inbound.recordMessage(
+            tenant.tenantId,
+            {
+              provider: msg.provider || 'webhook',
+              externalMessageId: msg.id || randomUUID(),
+              threadId: msg.threadId,
+              senderEmail: classification.senderInfo.email,
+              senderName: classification.senderInfo.name,
+              subject: classification.sanitizedSubject,
+              snippet: classification.sanitizedBody.slice(0, 200),
+              classification: classification.category,
+              requiresAction: classification.requiresScheduling,
+              handled: false,
+              metadata: {
+                confidence: classification.confidence,
+                schedulingUrl: classification.schedulingUrl,
+              },
+              receivedAt: msg.receivedAt || new Date().toISOString(),
+            },
+            identity.subject
+          );
+        }
+
+        // Auto-scheduler execution
+        const calendarConnector: CalendarConnector = (body.mockCalendar as CalendarConnector) || new GoogleCalendarConnector({
+          accessToken: 'default_token',
+        });
+
+        const activeContract = await dependencies.repository.getActiveSprintContract(tenant.tenantId);
+        const candidateName = typeof body.candidateName === 'string'
+          ? body.candidateName
+          : activeContract?.contract.senderIdentity.name || 'Candidate';
+
+        const scheduler = new AutoScheduler(
+          calendarConnector,
+          {
+            timeZone: typeof body.timeZone === 'string' ? body.timeZone : 'UTC',
+            startHour: 9,
+            endHour: 17,
+            meetingDurationMinutes: 30,
+            bufferMinutes: 15,
+            candidateName,
+          },
+          body.mockEmail as any
+        );
+
+        const schedulingResult = await scheduler.processInbound(
+          classification,
+          msg.id,
+          msg.threadId
+        );
+
+        // Update application tracker & broadcast activity
+        if (schedulingResult.action === 'interview_booked') {
+          globalActivityHub.broadcast({
+            id: randomUUID(),
+            tenantId: tenant.tenantId,
+            eventType: 'interview_scheduled',
+            title: `Interview scheduled: ${classification.senderInfo.company || 'Recruiter'}`,
+            description: `Auto-booked interview slot: ${schedulingResult.calendarEvent?.start}`,
+            severity: 'success',
+            actorSubject: identity.subject,
+            createdAt: new Date().toISOString(),
+            metadata: {
+              eventId: schedulingResult.calendarEvent?.id,
+              meetUrl: schedulingResult.calendarEvent?.meetUrl,
+              company: classification.senderInfo.company,
+            },
+          });
+
+          if (dependencies.applicationTracker && classification.senderInfo.company) {
+            const apps = await dependencies.applicationTracker.listApplications(tenant.tenantId);
+            const matchedApp = apps.find(
+              (a) => a.company.toLowerCase() === classification.senderInfo.company?.toLowerCase()
+            );
+            if (matchedApp && (matchedApp.status === 'applied' || matchedApp.status === 'replied')) {
+              try {
+                await dependencies.applicationTracker.transitionApplication(
+                  tenant.tenantId,
+                  matchedApp.id,
+                  identity.subject,
+                  {
+                    toStatus: 'interviewing',
+                    reason: `Auto-scheduled interview from recruiter email reply`,
+                    metadata: {
+                      calendarEventId: schedulingResult.calendarEvent?.id,
+                      meetUrl: schedulingResult.calendarEvent?.meetUrl,
+                    },
+                  }
+                );
+              } catch {
+                // Ignore if transition disallowed
+              }
+            }
+          }
+        } else if (classification.category === 'rejection') {
+          globalActivityHub.broadcast({
+            id: randomUUID(),
+            tenantId: tenant.tenantId,
+            eventType: 'rejection_received',
+            title: `Update received: ${classification.senderInfo.company || 'Application'}`,
+            description: `Recruiter indicated position is filled or not moving forward`,
+            severity: 'info',
+            actorSubject: identity.subject,
+            createdAt: new Date().toISOString(),
+            metadata: {
+              company: classification.senderInfo.company,
+            },
+          });
+
+          if (dependencies.applicationTracker && classification.senderInfo.company) {
+            const apps = await dependencies.applicationTracker.listApplications(tenant.tenantId);
+            const matchedApp = apps.find(
+              (a) => a.company.toLowerCase() === classification.senderInfo.company?.toLowerCase()
+            );
+            if (matchedApp && matchedApp.status !== 'rejected' && matchedApp.status !== 'withdrawn') {
+              try {
+                await dependencies.applicationTracker.transitionApplication(
+                  tenant.tenantId,
+                  matchedApp.id,
+                  identity.subject,
+                  {
+                    toStatus: 'rejected',
+                    reason: `Automated detection from company email rejection notice`,
+                  }
+                );
+              } catch {
+                // Ignore
+              }
+            }
+          }
+        }
+
+        sendJson(response, 200, {
+          classification,
+          schedulingResult,
+          inboundRecord: recordedRecord,
+          requestId,
+        });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/inbound/messages') {
+        if (!dependencies.inbound) {
+          sendJson(response, 200, { messages: [], requestId });
+          return;
+        }
+        const limitParam = parseInt(url.searchParams.get('limit') || '50', 10);
+        const messages = await dependencies.inbound.listMessages(
+          tenant.tenantId,
+          isNaN(limitParam) ? 50 : limitParam
+        );
+        sendJson(response, 200, { messages, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/calendar/free-busy') {
+        const body = await readJson(request, maxBytes);
+        const timeMin = typeof body.timeMin === 'string' ? body.timeMin : new Date().toISOString();
+        const timeMax =
+          typeof body.timeMax === 'string'
+            ? body.timeMax
+            : new Date(Date.now() + 7 * 86400000).toISOString();
+        const timeZone = typeof body.timeZone === 'string' ? body.timeZone : 'UTC';
+
+        const calendarConnector: CalendarConnector =
+          (body.mockCalendar as CalendarConnector) ||
+          new GoogleCalendarConnector({ accessToken: 'default_token' });
+
+        const busySlots = await calendarConnector.listFreeBusy(timeMin, timeMax, timeZone);
+        sendJson(response, 200, { timeMin, timeMax, timeZone, busySlots, requestId });
         return;
       }
 

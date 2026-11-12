@@ -236,3 +236,4 @@ describe('Milestone M5 - ATS Apply Runner Orchestration', () => {
     expect(result.proof?.proofUrl).toBe('https://s3.local/proofs/vercel.png');
   });
 });
+

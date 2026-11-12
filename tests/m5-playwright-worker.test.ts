@@ -115,3 +115,4 @@ describe('Milestone M5 - Playwright Worker, Egress & Bot Detection', () => {
     expect(result.proofUrl).toBe('https://s3.amazonaws.com/proofs/12345.png');
   });
 });
+

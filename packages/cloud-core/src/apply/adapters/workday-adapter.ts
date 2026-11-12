@@ -39,3 +39,4 @@ export class WorkdayApplyAdapter extends BaseAtsApplyAdapter {
     };
   }
 }
+

@@ -47,3 +47,4 @@ export function buildSubmissionProof(input: ProofCaptureInput): SubmissionProof 
 
   return SubmissionProofSchema.parse(proof);
 }
+

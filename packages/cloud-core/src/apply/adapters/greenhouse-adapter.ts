@@ -52,3 +52,4 @@ export class GreenhouseApplyAdapter extends BaseAtsApplyAdapter {
     return payload;
   }
 }
+

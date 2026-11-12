@@ -316,3 +316,4 @@ describe('Milestone M5 - API ATS Apply & Assist Queue Endpoints', () => {
     expect(completeBody.item.assistNotes).toContain('Solved captcha manually');
   });
 });
+

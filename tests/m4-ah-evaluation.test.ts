@@ -123,3 +123,4 @@ describe('M4: A-H 1-5 Job Evaluation Engine', () => {
     expect(report.identifiedGaps.some((g) => g.includes('Onsite location conflicts'))).toBe(true);
   });
 });
+

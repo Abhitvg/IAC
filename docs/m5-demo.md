@@ -163,3 +163,4 @@ curl http://localhost:3000/v1/assist-queue?status=pending \
   -H "Authorization: Bearer <TOKEN>" \
   -H "x-tenant-id: <TENANT_ID>"
 ```
+

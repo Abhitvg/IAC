@@ -22,3 +22,4 @@ export abstract class BaseAtsApplyAdapter implements ApplyAdapter {
     attachments?: { resumeUrl?: string; coverLetterText?: string }
   ): Record<string, unknown>;
 }
+
