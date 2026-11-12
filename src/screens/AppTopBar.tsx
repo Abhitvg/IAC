@@ -18,9 +18,10 @@ import { isSoundMuted, toggleSoundMuted } from '../utils/soundEffects';
 
 interface AppTopBarProps {
   currentTitle: string;
+  onOpenSpotlight?: () => void;
 }
 
-export const AppTopBar: React.FC<AppTopBarProps> = ({ currentTitle }) => {
+export const AppTopBar: React.FC<AppTopBarProps> = ({ currentTitle, onOpenSpotlight }) => {
   const {
     isRecording,
     toggleRecording,
@@ -74,6 +75,46 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({ currentTitle }) => {
 
       {/* Right Controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Universal Command Spotlight HUD (Cmd + K) */}
+        {onOpenSpotlight && (
+          <button
+            type="button"
+            onClick={onOpenSpotlight}
+            aria-label="Open Universal Command Palette (⌘K)"
+            title="Search screens, jobs, commands (⌘K)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              background: 'rgba(255, 255, 255, 0.05)',
+              color: '#94a3b8',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Search size={12} color="#fb923c" />
+            <span style={{ color: '#cbd5e1' }}>Search...</span>
+            <kbd
+              style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                background: 'rgba(255, 255, 255, 0.08)',
+                padding: '1px 5px',
+                borderRadius: '4px',
+                color: '#94a3b8',
+                fontFamily: 'inherit',
+              }}
+            >
+              ⌘K
+            </kbd>
+          </button>
+        )}
+
         {/* Audio Recording Toggle */}
         <button
           type="button"

@@ -7,6 +7,11 @@ import { InterviewEngine } from '../../services/InterviewEngine';
 import { DiagnosticLoggerService } from '../../services/diagnosticLogger';
 import { ApplicationAssistanceView } from './ApplicationAssistanceView';
 import {
+  extractGlanceableGazeBullets,
+  formatBionicWord,
+  BionicGazeBullet,
+} from '../../services/teleprompter/bionicPrompterService';
+import {
   Play,
   Pause,
   RotateCcw,
@@ -33,6 +38,7 @@ import {
   ScanText,
   Check,
   Terminal,
+  Eye,
   EyeOff,
   Keyboard,
   SlidersHorizontal,
@@ -168,6 +174,132 @@ function QuizAnswerCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Bionic Glanceable Prompter & Eye-Contact HUD
+function BionicGazeHUD({
+  bullets,
+}: {
+  bullets: BionicGazeBullet[];
+}) {
+  return (
+    <div
+      style={{
+        margin: '8px 0 16px 0',
+        padding: '16px',
+        background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(10, 15, 30, 0.98))',
+        border: '1.5px solid rgba(16, 185, 129, 0.5)',
+        borderRadius: '12px',
+        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.2)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '12px',
+      }}
+    >
+      {/* Webcam Eye-Line Reticle */}
+      <div
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          paddingBottom: '8px',
+          borderBottom: '1px dashed rgba(16, 185, 129, 0.35)',
+        }}
+      >
+        <span
+          style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: '#10b981',
+            boxShadow: '0 0 8px #10b981',
+            display: 'inline-block',
+          }}
+        />
+        <span
+          style={{
+            fontSize: '11px',
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: '#6ee7b7',
+          }}
+        >
+          Optimal Webcam Eye-Contact Zone · Glance Naturally
+        </span>
+      </div>
+
+      {/* Glanceable Centered Bullets */}
+      <div
+        style={{
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px',
+        }}
+      >
+        {bullets.map((b, i) => (
+          <div
+            key={b.id || i}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              gap: '8px',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              maxWidth: '90%',
+              textAlign: 'center',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#34d399', opacity: 0.85 }}>
+              {i + 1}.
+            </span>
+
+            {/* Bionic Formatted Text */}
+            <span style={{ fontSize: '16px', lineHeight: 1.4, color: '#f8fafc', letterSpacing: '0.01em' }}>
+              {b.text.split(' ').map((word, wIdx) => {
+                const { bold, normal } = formatBionicWord(word);
+                return (
+                  <span key={wIdx} style={{ marginRight: '4px' }}>
+                    <strong style={{ fontWeight: 800, color: '#ffffff' }}>{bold}</strong>
+                    <span style={{ color: '#cbd5e1', fontWeight: 400 }}>{normal}</span>
+                  </span>
+                );
+              })}
+            </span>
+
+            {/* Metric / Complexity Pill */}
+            {b.metricChip && (
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  fontFamily: 'monospace',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  background: 'rgba(16, 185, 129, 0.25)',
+                  color: '#a7f3d0',
+                  border: '1px solid rgba(52, 211, 153, 0.5)',
+                  boxShadow: '0 0 10px rgba(16, 185, 129, 0.2)',
+                }}
+              >
+                ⚡ {b.metricChip}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -873,6 +1005,7 @@ export default function TeleprompterView() {
   };
 
   const [isScreenReading, setIsScreenReading] = useState(false);
+  const [isBionicGazeMode, setIsBionicGazeMode] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showControlsPopover, setShowControlsPopover] = useState(false);
   const [windowWidth, setWindowWidth] = useState(
@@ -1388,6 +1521,10 @@ export default function TeleprompterView() {
     return segments;
   }, [currentAnswer, settings?.preferredLanguage]);
 
+  const bionicGazeBullets = useMemo(() => {
+    return extractGlanceableGazeBullets(currentAnswer || '');
+  }, [currentAnswer]);
+
   const hasCodeBlock = useMemo(() => {
     return parsedSegments.some((s) => s.type === 'code' && s.code && s.code.trim().length > 0);
   }, [parsedSegments]);
@@ -1624,6 +1761,42 @@ export default function TeleprompterView() {
               <option value="SQL" style={{ background: "#0f172a", color: "#fff" }}>🗄️ SQL</option>
             </select>
           )}
+
+          {/* Bionic Prompter Gaze HUD Toggle */}
+          <button
+            onClick={() => {
+              const next = !isBionicGazeMode;
+              setIsBionicGazeMode(next);
+              setToast(
+                next
+                  ? '👁️ Bionic Gaze HUD Activated: Centered triggers & metrics anchored near webcam.'
+                  : '👁️ Bionic Gaze HUD Deactivated: Returned to full script view.'
+              );
+            }}
+            title="Toggle Bionic Gaze HUD: Glanceable 3-6 word centered anchors to maintain natural camera eye-contact"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              background: isBionicGazeMode
+                ? "linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.45))"
+                : "rgba(255, 255, 255, 0.06)",
+              color: isBionicGazeMode ? "#6ee7b7" : "#94a3b8",
+              border: isBionicGazeMode
+                ? "1px solid #10b981"
+                : "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "4px",
+              padding: isUltraCompact ? "3px 6px" : "3px 8px",
+              fontSize: "11px",
+              fontWeight: isBionicGazeMode ? 700 : 500,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <Eye size={12} />
+            <span>{isUltraCompact ? 'Bionic' : isBionicGazeMode ? '👁️ Bionic HUD' : '👁️ Bionic Gaze'}</span>
+          </button>
         </div>
 
         {/* Center: Essential Session Controls */}
@@ -3208,6 +3381,11 @@ export default function TeleprompterView() {
                 </div>
               )}
 
+              {/* Bionic Prompter Gaze HUD */}
+              {isBionicGazeMode && bionicGazeBullets.length > 0 && (
+                <BionicGazeHUD bullets={bionicGazeBullets} />
+              )}
+
               {parsedSegments.map((segment, idx) => {
                 if (segment.type === 'code' && segment.code) {
                   return (
@@ -3220,6 +3398,11 @@ export default function TeleprompterView() {
                       isCopied={!!copiedCodeIndices[idx]}
                     />
                   );
+                }
+
+                // If Bionic Mode is active, textual prose is already rendered in the Bionic HUD above
+                if (isBionicGazeMode) {
+                  return null;
                 }
 
                 const text = segment.content || '';

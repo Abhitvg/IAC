@@ -20,6 +20,7 @@ import { KnowledgeBaseScreen } from './screens/KnowledgeBaseScreen';
 import { InterviewHistoryScreen } from './screens/InterviewHistoryScreen';
 import { AnalyticsScreen } from './screens/AnalyticsScreen';
 import { InterviewPreparationScreen } from './screens/InterviewPreparationScreen';
+import { CommandSpotlightModal } from './components/spotlight/CommandSpotlightModal';
 import './styles/index.css';
 
 export default function App() {
@@ -34,6 +35,9 @@ export default function App() {
     settingsOpen,
     sessionsOpen,
     resumeModalOpen,
+    setSettingsOpen,
+    setSessionsOpen,
+    setProfileWizardOpen,
     isRecording,
     isGenerating,
     windowOpacity,
@@ -43,6 +47,7 @@ export default function App() {
 
   const [currentNav, setCurrentNav] = useState<AppNavId>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
 
   // Synchronize native Electron window opacity between translucent teleprompter overlay and solid
   // application shell
@@ -113,7 +118,7 @@ export default function App() {
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        clearAndResetToListen();
+        setSpotlightOpen((prev) => !prev);
         return;
       }
 
@@ -206,7 +211,10 @@ export default function App() {
       >
         {/* Top Header Bar */}
         {!isDistractionFreeTeleprompter && (
-          <AppTopBar currentTitle={navTitles[currentNav] || 'Interview Assistant'} />
+          <AppTopBar
+            currentTitle={navTitles[currentNav] || 'Interview Assistant'}
+            onOpenSpotlight={() => setSpotlightOpen(true)}
+          />
         )}
 
         {/* View Routing Region */}
@@ -243,6 +251,14 @@ export default function App() {
       <CandidateProfileWizard />
       {settingsOpen && <SettingsPanel />}
       {sessionsOpen && <SessionsPanel />}
+      <CommandSpotlightModal
+        isOpen={spotlightOpen}
+        onClose={() => setSpotlightOpen(false)}
+        onNavigate={(v) => setCurrentNav(v)}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenProfileWizard={() => setProfileWizardOpen(true)}
+        onOpenSessions={() => setSessionsOpen(true)}
+      />
       <Toast />
     </div>
   );

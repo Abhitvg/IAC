@@ -32,6 +32,7 @@ import {
   Code,
   Eye,
   Upload,
+  Radar,
 } from 'lucide-react';
 import {
   parseJobPageContent,
@@ -49,6 +50,7 @@ import {
   parseLatexForVisualPreview,
 } from '../../services/careerOps/overleafPusher';
 import { useCareerOpsStore } from '../../store/useCareerOpsStore';
+import { detectGhostJobRisk } from '../../services/careerOps/ghostJobDetector';
 import { CareerDiscoveryPanel } from './CareerDiscoveryPanel';
 import { useAppStore } from '../../store/useAppStore';
 import { usePracticeStore } from '../../store/usePracticeStore';
@@ -1216,24 +1218,54 @@ export function CareerOpsView() {
                         </div>
                       </div>
 
-                      {/* Metadata: Salary & Location */}
+                      {/* Metadata: Salary, Location & Ghost Freshness Radar */}
                       <div
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '12px',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '8px',
                           fontSize: '11px',
                           color: '#94a3b8',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <DollarSign size={12} color="#34d399" />
-                          <span>{job.salaryRange || 'Not disclosed'}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <DollarSign size={12} color="#34d399" />
+                            <span>{job.salaryRange || 'Not disclosed'}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <MapPin size={12} color="#60a5fa" />
+                            <span>{job.location || 'Not specified'}</span>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <MapPin size={12} color="#60a5fa" />
-                          <span>{job.location || 'Not specified'}</span>
-                        </div>
+
+                        {/* Ghost Job & Freshness Radar Badge */}
+                        {(() => {
+                          const ghost = detectGhostJobRisk(
+                            job.jdText,
+                            job.createdAt,
+                            job.location,
+                            job.salaryRange
+                          );
+                          return (
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 800,
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: `${ghost.badgeColor}18`,
+                                color: ghost.badgeColor,
+                                border: `1px solid ${ghost.badgeColor}40`,
+                              }}
+                              title={`${ghost.headline}\n${ghost.signals.join(' • ')}`}
+                            >
+                              {ghost.badgeLabel}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Notes / Snippet */}
@@ -1517,6 +1549,79 @@ export function CareerOpsView() {
               </div>
             )}
 
+            {/* Ghost Job & Freshness Radar Card */}
+            {(() => {
+              const ghost = detectGhostJobRisk(
+                activeJob.jdText,
+                activeJob.createdAt,
+                activeJob.location,
+                activeJob.salaryRange
+              );
+              return (
+                <div
+                  style={{
+                    padding: '12px 18px',
+                    borderRadius: '12px',
+                    background: 'rgba(15, 23, 42, 0.65)',
+                    border: `1px solid ${ghost.badgeColor}35`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div
+                      style={{
+                        padding: '8px',
+                        borderRadius: '10px',
+                        background: `${ghost.badgeColor}20`,
+                        color: ghost.badgeColor,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Radar size={18} />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>
+                          Ghost Job & Requisition Freshness Radar
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            padding: '2px 7px',
+                            borderRadius: '5px',
+                            background: `${ghost.badgeColor}22`,
+                            color: ghost.badgeColor,
+                            border: `1px solid ${ghost.badgeColor}44`,
+                          }}
+                        >
+                          {ghost.badgeLabel}
+                        </span>
+                      </div>
+                      <p style={{ margin: '3px 0 0', fontSize: '11px', color: '#94a3b8' }}>
+                        {ghost.signals.join(' • ')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 800, letterSpacing: '0.05em' }}>
+                      GHOST RISK
+                    </div>
+                    <div style={{ fontSize: '16px', fontWeight: 900, color: ghost.badgeColor }}>
+                      {ghost.ghostRiskScore}%
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Block B: Weighted Requirements Audit */}
             <div
               style={{
@@ -1738,6 +1843,52 @@ export function CareerOpsView() {
                       <span>🏋️ Launch Practice in Mock Gym</span>
                     </button>
                   </div>
+
+                  {/* Stage Timeline */}
+                  {predictedLoop.stages && predictedLoop.stages.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Predicted Multi-Round Interview Pipeline
+                      </span>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: `repeat(auto-fit, minmax(160px, 1fr))`,
+                          gap: '8px',
+                        }}
+                      >
+                        {predictedLoop.stages.map((stage) => (
+                          <div
+                            key={stage.stageNumber}
+                            style={{
+                              padding: '10px',
+                              borderRadius: '8px',
+                              background: 'rgba(30, 41, 59, 0.6)',
+                              border: '1px solid rgba(99, 102, 241, 0.25)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '4px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '10px', fontWeight: 800, color: '#818cf8' }}>
+                                Round {stage.stageNumber}
+                              </span>
+                              <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.08)', color: '#cbd5e1' }}>
+                                {stage.duration}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#f1f5f9' }}>
+                              {stage.name}
+                            </span>
+                            <span style={{ fontSize: '10px', color: '#94a3b8', lineHeight: 1.3 }}>
+                              {stage.focus}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Technical Questions */}
                   <div>

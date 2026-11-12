@@ -1,8 +1,9 @@
 /**
- * CareerOps Company-Specific Interview Question Predictor
+ * CareerOps Company-Specific Interview Question & Loop Predictor
  *
  * Predicts the exact technical loops, system design bottlenecks, and behavioral STAR
- * questions asked in real interviews for this specific company and role.
+ * questions asked in real interviews for top tech companies (Anthropic, OpenAI, Stripe,
+ * Datadog, Google, Meta, Amazon, Netflix, etc.) and arbitrary tech stacks.
  */
 
 export interface PredictedInterviewQuestion {
@@ -15,10 +16,20 @@ export interface PredictedInterviewQuestion {
   keyEvaluationPoints: string[];
 }
 
+export interface InterviewStageBlueprint {
+  stageNumber: number;
+  name: string;
+  duration: string;
+  interviewerRole: string;
+  focus: string;
+  format: 'Recruiter Call' | 'Technical Screen' | 'Onsite System Design' | 'Onsite Coding' | 'Bar Raiser / Culture';
+}
+
 export interface PredictedInterviewLoop {
   company: string;
   role: string;
   overview: string;
+  stages: InterviewStageBlueprint[];
   technicalQuestions: PredictedInterviewQuestion[];
   behavioralQuestions: PredictedInterviewQuestion[];
 }
@@ -29,11 +40,11 @@ export function predictInterviewLoop(
   jdText: string
 ): PredictedInterviewLoop {
   const lowerJd = jdText.toLowerCase();
-  const lowerRole = role.toLowerCase();
   const lowerCompany = company.toLowerCase();
 
   const technicalQuestions: PredictedInterviewQuestion[] = [];
   const behavioralQuestions: PredictedInterviewQuestion[] = [];
+  let stages: InterviewStageBlueprint[] = [];
 
   // Detect Core Stacks
   const hasKafka = lowerJd.includes('kafka') || lowerJd.includes('event-driven') || lowerJd.includes('streaming');
@@ -42,22 +53,57 @@ export function predictInterviewLoop(
   const hasAi = lowerJd.includes('ai') || lowerJd.includes('llm') || lowerJd.includes('machine learning') || lowerJd.includes('eval');
   const hasFrontend = lowerJd.includes('react') || lowerJd.includes('typescript') || lowerJd.includes('frontend') || lowerJd.includes('ui');
 
-  // Company-specific tailored questions
-  if (lowerCompany.includes('alignerr')) {
+  // Company-specific blueprints
+  if (lowerCompany.includes('anthropic')) {
+    stages = [
+      { stageNumber: 1, name: 'Recruiter Alignment', duration: '30 min', interviewerRole: 'Talent Lead', focus: 'AI alignment passion, compensation, and mission fit', format: 'Recruiter Call' },
+      { stageNumber: 2, name: 'Technical Systems Screen', duration: '60 min', interviewerRole: 'Member of Technical Staff', focus: 'Scalable distributed systems or Python/Rust systems debugging', format: 'Technical Screen' },
+      { stageNumber: 3, name: 'AI Infrastructure & Architecture', duration: '60 min', interviewerRole: 'Infra Lead', focus: 'GPU cluster orchestration, checkpointing, and high-throughput training', format: 'Onsite System Design' },
+      { stageNumber: 4, name: 'Safety & Evaluation Engineering', duration: '60 min', interviewerRole: 'Safety Research Engineer', focus: 'Model evaluations, red-teaming harnesses, and determinism', format: 'Onsite Coding' },
+      { stageNumber: 5, name: 'Core Culture & Alignment', duration: '45 min', interviewerRole: 'Founding Member / MTS', focus: 'Long-term AI safety, intellectual honesty, and high-agency execution', format: 'Bar Raiser / Culture' },
+    ];
     technicalQuestions.push({
-      id: 'pred-alignerr-1',
+      id: 'pred-anthropic-1',
       type: 'architecture',
-      prompt: 'How do you structure an automated, reproducible benchmark suite to evaluate two LLM coding models side-by-side on real Git repositories?',
-      category: 'AI Evaluation & Code Reasoning',
+      prompt: 'Design a distributed evaluation and safety benchmarking pipeline that runs thousands of multimodal model checkpoints against dynamic test suites with deterministic replayability.',
+      category: 'AI Infrastructure & Safety Systems',
       difficulty: 'Hard',
-      companyContext: 'Alignerr prioritizes precise technical justifications, Big-O analysis, and spotting subtle edge-case hallucinations in AI code outputs.',
+      companyContext: 'Anthropic emphasizes scalable oversight, deterministic harness execution, and zero silent data corruption during evaluations.',
       keyEvaluationPoints: [
-        'Deterministic test harnesses and sandbox isolation',
-        'Distinguishing syntactically correct code from semantically flawed edge cases',
-        'Quantifying time & space complexity trade-offs objectively',
+        'Deterministic sandbox isolation for untrusted AI-generated code',
+        'Efficient test batching and GPU/CPU resource scheduling',
+        'Transparent anomaly scoring and automated regression detection',
+      ],
+    });
+  } else if (lowerCompany.includes('openai')) {
+    stages = [
+      { stageNumber: 1, name: 'Recruiter Phone Screen', duration: '30 min', interviewerRole: 'Technical Recruiter', focus: 'Background, AI projects, and role expectations', format: 'Recruiter Call' },
+      { stageNumber: 2, name: 'Coding & Algorithms Screen', duration: '60 min', interviewerRole: 'Software Engineer', focus: 'High-performance algorithms, concurrency, and clean code', format: 'Technical Screen' },
+      { stageNumber: 3, name: 'Distributed Systems & Inference Scale', duration: '60 min', interviewerRole: 'Platform MTS', focus: 'Serving high-throughput LLM requests with dynamic batching', format: 'Onsite System Design' },
+      { stageNumber: 4, name: 'Practical Systems Debugging', duration: '60 min', interviewerRole: 'Systems MTS', focus: 'Real-time bug diagnosis in an unfamiliar distributed codebase', format: 'Onsite Coding' },
+      { stageNumber: 5, name: 'Mission & Values Interview', duration: '45 min', interviewerRole: 'Engineering Manager', focus: 'Safe AGI development, cross-functional collaboration, and ownership', format: 'Bar Raiser / Culture' },
+    ];
+    technicalQuestions.push({
+      id: 'pred-openai-1',
+      type: 'system_design',
+      prompt: 'Architect an inference routing layer that distributes incoming token-generation requests across multiple GPU clusters with continuous batching and KV-cache persistence.',
+      category: 'LLM Inference Architecture',
+      difficulty: 'Hard',
+      companyContext: 'OpenAI focuses heavily on P99 latency containment, KV-cache memory management, and gracefully handling model worker failures.',
+      keyEvaluationPoints: [
+        'Prefix-caching and KV cache locality routing',
+        'Pipelined continuous batching and latency SLAs',
+        'Fallback routing and graceful degradation on GPU OOM errors',
       ],
     });
   } else if (lowerCompany.includes('stripe')) {
+    stages = [
+      { stageNumber: 1, name: 'Recruiter Conversation', duration: '30 min', interviewerRole: 'Recruiter', focus: 'Candidate journey, motivations, and Stripe culture fit', format: 'Recruiter Call' },
+      { stageNumber: 2, name: 'Technical Phone Screen (Coding)', duration: '60 min', interviewerRole: 'Senior Engineer', focus: 'Practical API design, test-driven development, and edge cases', format: 'Technical Screen' },
+      { stageNumber: 3, name: 'System Design: Distributed Ledger', duration: '60 min', interviewerRole: 'Staff Engineer', focus: 'Idempotency, distributed locking, and ledger consistency', format: 'Onsite System Design' },
+      { stageNumber: 4, name: 'Bug Hunt & Code Integration', duration: '60 min', interviewerRole: 'Senior Engineer', focus: 'Navigating a real open-source codebase to diagnose and fix a subtle race condition', format: 'Onsite Coding' },
+      { stageNumber: 5, name: 'Hiring Manager & Operating Principles', duration: '45 min', interviewerRole: 'Engineering Manager', focus: 'Customer obsession, macro thinking, and user friction elimination', format: 'Bar Raiser / Culture' },
+    ];
     technicalQuestions.push({
       id: 'pred-stripe-1',
       type: 'system_design',
@@ -72,6 +118,13 @@ export function predictInterviewLoop(
       ],
     });
   } else if (lowerCompany.includes('datadog')) {
+    stages = [
+      { stageNumber: 1, name: 'Recruiter Chat', duration: '30 min', interviewerRole: 'Recruiter', focus: 'Experience and alignment with Datadog high-scale culture', format: 'Recruiter Call' },
+      { stageNumber: 2, name: 'Technical Phone Screen', duration: '60 min', interviewerRole: 'Software Engineer', focus: 'Concurrency, multithreading, and algorithmic efficiency', format: 'Technical Screen' },
+      { stageNumber: 3, name: 'High-Throughput Streaming System Design', duration: '60 min', interviewerRole: 'Staff Engineer', focus: 'Time-series ingestion at 1M+ metrics/sec and retention architectures', format: 'Onsite System Design' },
+      { stageNumber: 4, name: 'Real-time Coding & Concurrency', duration: '60 min', interviewerRole: 'Senior Engineer', focus: 'Ring buffers, memory-efficient data structures, and GC pressure avoidance', format: 'Onsite Coding' },
+      { stageNumber: 5, name: 'Team Lead & Culture Interview', duration: '45 min', interviewerRole: 'Engineering Manager', focus: 'On-call culture, observability passion, and cross-team communication', format: 'Bar Raiser / Culture' },
+    ];
     technicalQuestions.push({
       id: 'pred-datadog-1',
       type: 'system_design',
@@ -85,6 +138,33 @@ export function predictInterviewLoop(
         'P99 tail latency containment under sudden metric bursts',
       ],
     });
+  } else if (lowerCompany.includes('alignerr')) {
+    stages = [
+      { stageNumber: 1, name: 'Technical Assessment', duration: '60 min', interviewerRole: 'Automated Platform', focus: 'Code reasoning, Big-O evaluation, and edge-case spotting', format: 'Technical Screen' },
+      { stageNumber: 2, name: 'Architecture & Benchmark Interview', duration: '45 min', interviewerRole: 'AI Lead', focus: 'Designing deterministic evaluation harnesses for coding LLMs', format: 'Onsite System Design' },
+    ];
+    technicalQuestions.push({
+      id: 'pred-alignerr-1',
+      type: 'architecture',
+      prompt: 'How do you structure an automated, reproducible benchmark suite to evaluate two LLM coding models side-by-side on real Git repositories?',
+      category: 'AI Evaluation & Code Reasoning',
+      difficulty: 'Hard',
+      companyContext: 'Alignerr prioritizes precise technical justifications, Big-O analysis, and spotting subtle edge-case hallucinations in AI code outputs.',
+      keyEvaluationPoints: [
+        'Deterministic test harnesses and sandbox isolation',
+        'Distinguishing syntactically correct code from semantically flawed edge cases',
+        'Quantifying time & space complexity trade-offs objectively',
+      ],
+    });
+  } else {
+    // Standard Tier-1 Engineering Loop
+    stages = [
+      { stageNumber: 1, name: 'Recruiter Introductory Call', duration: '30 min', interviewerRole: 'Recruiter', focus: 'Role overview, candidate background, and compensation expectations', format: 'Recruiter Call' },
+      { stageNumber: 2, name: 'Technical Screen (Coding/DS)', duration: '60 min', interviewerRole: 'Senior Engineer', focus: 'Data structures, algorithms, problem decomposition, and runtime complexity', format: 'Technical Screen' },
+      { stageNumber: 3, name: 'System Architecture & Scale', duration: '60 min', interviewerRole: 'Principal / Staff Engineer', focus: 'High-availability architecture, data partitioning, trade-offs, and failure modes', format: 'Onsite System Design' },
+      { stageNumber: 4, name: 'Deep-Dive Domain Coding', duration: '60 min', interviewerRole: 'Senior Team Member', focus: 'Production-quality code, concurrency, modularity, and error handling', format: 'Onsite Coding' },
+      { stageNumber: 5, name: 'Leadership & Behavioral (STAR)', duration: '45 min', interviewerRole: 'Engineering Manager', focus: 'Cross-functional collaboration, ownership, handling setbacks, and culture fit', format: 'Bar Raiser / Culture' },
+    ];
   }
 
   // General Technical Questions matching stack
@@ -198,7 +278,8 @@ export function predictInterviewLoop(
   return {
     company,
     role,
-    overview: `Predicted ${technicalQuestions.length} technical loops and ${behavioralQuestions.length} behavioral STAR probes based on ${company}'s published architecture and interview rubrics.`,
+    overview: `Predicted ${stages.length}-round interview loop (${technicalQuestions.length} technical loops, ${behavioralQuestions.length} behavioral STAR probes) based on ${company}'s published rubrics.`,
+    stages,
     technicalQuestions,
     behavioralQuestions,
   };
