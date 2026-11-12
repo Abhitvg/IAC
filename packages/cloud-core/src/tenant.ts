@@ -35,33 +35,41 @@ export async function resolveTenantContext(
     throw new Error('Invalid requested tenant ID');
   }
 
-  // If token explicitly embeds tenant membership, derive strictly from token
-  if (tokenTenantId) {
-    const tokenMembership = active.find((m) => m.tenantId === tokenTenantId);
-    if (!tokenMembership) {
-      throw new Error('Mismatched tenant: token tenant is not an active membership for this identity');
+  // Derive tenant from server-side active membership.
+  // If the user has an active membership matching tokenTenantId, use it;
+  // otherwise, untrusted tenant claims in JWT are ignored in favor of verified memberships.
+  let derivedMembership = tokenTenantId ? active.find((m) => m.tenantId === tokenTenantId) : undefined;
+  if (!derivedMembership) {
+    if (active.length === 1) {
+      derivedMembership = active[0];
+    } else if (!requestedTenantId) {
+      throw new Error(
+        'Identity has multiple tenant memberships; explicit tenant selection is required'
+      );
     }
-    if (requestedTenantId && requestedTenantId !== tokenTenantId) {
-      throw new Error('Mismatched tenant: requested x-tenant-id does not match token tenant membership');
-    }
-    return { tenantId: tokenTenantId, subject, role: tokenMembership.role };
   }
 
-  // If requestedTenantId is supplied in header, verify membership
+  // If requestedTenantId is supplied in header, verify membership and ensure it matches token membership
   if (requestedTenantId) {
     const selected = active.find((membership) => membership.tenantId === requestedTenantId);
     if (!selected) {
-      throw new Error('Mismatched tenant: requested x-tenant-id does not match token tenant membership');
+      throw new Error(
+        'Mismatched tenant: requested x-tenant-id does not match token tenant membership (user is not a member of selected tenant)'
+      );
+    }
+    if (derivedMembership && requestedTenantId !== derivedMembership.tenantId) {
+      throw new Error(
+        'Mismatched tenant: requested x-tenant-id does not match token tenant membership'
+      );
     }
     return { tenantId: selected.tenantId, subject, role: selected.role };
   }
 
-  // Derive from single active token membership
-  if (active.length !== 1) {
+  if (!derivedMembership) {
     throw new Error(
       'Identity has multiple tenant memberships; explicit tenant selection is required'
     );
   }
-  const membership = active[0];
-  return { tenantId: membership.tenantId, subject, role: membership.role };
+
+  return { tenantId: derivedMembership.tenantId, subject, role: derivedMembership.role };
 }
