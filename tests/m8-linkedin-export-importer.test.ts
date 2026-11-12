@@ -44,3 +44,4 @@ Linus,Torvalds,https://www.linkedin.com/in/linus,,Linux Foundation,Staff Softwar
     expect(people[2].roleDomain).toBe('peer_engineer');
   });
 });
+

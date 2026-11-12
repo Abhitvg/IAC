@@ -71,3 +71,4 @@ export class LinkedInSecurityGate {
     return LinkedInOAuthTokenResponseSchema.parse(raw);
   }
 }
+

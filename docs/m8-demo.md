@@ -147,3 +147,4 @@ Response:
 }
 ```
 Each action in the queue requires explicit user interaction in their personal browser. The browser extension acts only when the user clicks the corresponding action button.
+

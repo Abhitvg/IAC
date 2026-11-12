@@ -6,6 +6,11 @@ import { PostgresCloudRateLimiter } from './postgres-rate-limiter';
 import { createCloudApiServer } from './server';
 import { PostgresCareerGraphRepository } from './career-graph-repository';
 import { PostgresApplicationTrackerRepository } from './application-repository';
+import { SqlAssistQueueRepository } from './assist-queue-repository';
+import { SqlInboundRepository } from './inbound-repository';
+import { SqlOutreachRepository } from './outreach-repository';
+import { SqlLinkedInAuditRepository } from './linkedin-audit-repository';
+import { SqlSprintRepository } from './sprint-repository';
 
 export interface CloudApiRuntime {
   server: Server;
@@ -27,6 +32,11 @@ export function createCloudApiRuntime(
     repository,
     careerGraph: new PostgresCareerGraphRepository(pool),
     applicationTracker: new PostgresApplicationTrackerRepository(pool),
+    assistQueue: new SqlAssistQueueRepository(pool),
+    inbound: new SqlInboundRepository(pool),
+    outreach: new SqlOutreachRepository(pool),
+    linkedinAudit: new SqlLinkedInAuditRepository(pool),
+    sprint: new SqlSprintRepository(pool),
     rateLimiter: new PostgresCloudRateLimiter(pool, environment.CAREEROPS_RATE_LIMIT_HASH_SECRET),
     config: {
       issuer: environment.CAREEROPS_JWT_ISSUER,

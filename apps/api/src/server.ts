@@ -52,6 +52,16 @@ import {
   LinkedInRestrictionManager,
   type LinkedInRestrictionReport,
 } from '../../../packages/cloud-core/src/linkedin/restrictions';
+import { SprintOrchestrator } from '../../../packages/cloud-core/src/sprint/sprint-orchestrator';
+import { OutcomeForecaster } from '../../../packages/cloud-core/src/sprint/forecaster';
+import { AdaptiveAllocator } from '../../../packages/cloud-core/src/sprint/allocator';
+import { AutoPauseCoordinator } from '../../../packages/cloud-core/src/sprint/auto-pause';
+import type {
+  SprintConfig,
+  SprintMetrics,
+  SprintRun,
+  AllocationArm,
+} from '../../../packages/cloud-core/src/sprint/types';
 import { globalActivityHub } from './activity-hub';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
@@ -1539,14 +1549,312 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
+      if (request.method === 'POST' && url.pathname === '/v1/sprint/start') {
+        const body = await readJson(request, maxBytes);
+        const activeContractRecord = await dependencies.repository.getActiveSprintContract(
+          tenant.tenantId
+        );
+
+        // HARD LINE H6: Check any input descriptions or notes for prohibited guarantees
+        if (typeof body.marketingNote === 'string') {
+          OutcomeForecaster.validateNoOutcomeGuarantees(body.marketingNote);
+        }
+        if (typeof body.goalDescription === 'string') {
+          OutcomeForecaster.validateNoOutcomeGuarantees(body.goalDescription);
+        }
+
+        const targetRoles =
+          Array.isArray(body.targetRoles) && body.targetRoles.length > 0
+            ? (body.targetRoles as string[])
+            : activeContractRecord?.contract.roles || ['Software Engineer'];
+
+        const enabledChannels =
+          Array.isArray(body.enabledChannels) && body.enabledChannels.length > 0
+            ? (body.enabledChannels as any)
+            : activeContractRecord?.contract.enabledChannels || ['ats', 'email', 'referral', 'linkedin_assist'];
+
+        const targetDurationHours =
+          typeof body.targetDurationHours === 'number'
+            ? body.targetDurationHours
+            : 72;
+
+        const orchestrator = new SprintOrchestrator();
+        const { sprint, initialArms } = orchestrator.initializeSprint(
+          tenant.tenantId,
+          {
+            targetRoles,
+            enabledChannels,
+            targetDurationHours,
+            dailyAtsCap: activeContractRecord?.contract.dailyCaps.applications || 15,
+            dailyEmailCap: activeContractRecord?.contract.dailyCaps.emails || 20,
+          },
+          activeContractRecord?.id
+        );
+
+        let createdSprint = sprint;
+        if (dependencies.sprint) {
+          createdSprint = await dependencies.sprint.createSprint(
+            tenant.tenantId,
+            sprint,
+            initialArms,
+            identity.subject
+          );
+        }
+
+        const forecast = orchestrator.getForecast(createdSprint);
+
+        globalActivityHub.broadcast({
+          id: randomUUID(),
+          tenantId: tenant.tenantId,
+          eventType: 'sprint_started',
+          title: `Sprint Mode Started: ${targetDurationHours}h`,
+          description: `Sprint initiated for ${targetRoles.join(', ')} across ${enabledChannels.join(', ')}`,
+          severity: 'info',
+          actorSubject: identity.subject,
+          createdAt: new Date().toISOString(),
+          metadata: {
+            sprintId: createdSprint.id,
+            duration: targetDurationHours,
+            expectedInterviewsMin: forecast.expectedInterviewsMin,
+            expectedInterviewsMax: forecast.expectedInterviewsMax,
+          },
+        });
+
+        sendJson(response, 201, {
+          sprint: createdSprint,
+          initialArms,
+          forecast,
+          phase: 'T0_INITIALIZING',
+          requestId,
+        });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/sprint/current') {
+        if (!dependencies.sprint) {
+          sendJson(response, 200, { sprint: null, requestId });
+          return;
+        }
+
+        const active = await dependencies.sprint.getActiveSprint(tenant.tenantId);
+        if (!active) {
+          sendJson(response, 200, { sprint: null, requestId });
+          return;
+        }
+
+        const orchestrator = new SprintOrchestrator();
+        const phase = orchestrator.getSprintPhase(active.sprint);
+        const autoPause = orchestrator.checkAutoPause(active.sprint);
+        const forecast = orchestrator.getForecast(active.sprint);
+
+        sendJson(response, 200, {
+          sprint: active.sprint,
+          arms: active.arms,
+          phase,
+          autoPause,
+          forecast,
+          requestId,
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/sprint/pause') {
+        if (!dependencies.sprint) {
+          sendJson(response, 501, { error: 'Sprint repository not configured', requestId });
+          return;
+        }
+
+        const active = await dependencies.sprint.getActiveSprint(tenant.tenantId);
+        if (!active) {
+          sendJson(response, 404, { error: 'No active sprint found', requestId });
+          return;
+        }
+
+        const updated = await dependencies.sprint.updateSprintStatus(
+          tenant.tenantId,
+          active.sprint.id,
+          'paused',
+          identity.subject
+        );
+
+        globalActivityHub.broadcast({
+          id: randomUUID(),
+          tenantId: tenant.tenantId,
+          eventType: 'sprint_paused',
+          title: 'Sprint Mode Paused',
+          description: 'Candidate or auto-pause trigger paused active sprint waves.',
+          severity: 'warn',
+          actorSubject: identity.subject,
+          createdAt: new Date().toISOString(),
+          metadata: { sprintId: active.sprint.id },
+        });
+
+        sendJson(response, 200, { sprint: updated, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/sprint/resume') {
+        if (!dependencies.sprint) {
+          sendJson(response, 501, { error: 'Sprint repository not configured', requestId });
+          return;
+        }
+
+        const active = await dependencies.sprint.getActiveSprint(tenant.tenantId);
+        if (!active) {
+          sendJson(response, 404, { error: 'No active or paused sprint found', requestId });
+          return;
+        }
+
+        const updated = await dependencies.sprint.updateSprintStatus(
+          tenant.tenantId,
+          active.sprint.id,
+          'active',
+          identity.subject
+        );
+
+        globalActivityHub.broadcast({
+          id: randomUUID(),
+          tenantId: tenant.tenantId,
+          eventType: 'sprint_resumed',
+          title: 'Sprint Mode Resumed',
+          description: 'Active sprint waves resumed.',
+          severity: 'info',
+          actorSubject: identity.subject,
+          createdAt: new Date().toISOString(),
+          metadata: { sprintId: active.sprint.id },
+        });
+
+        sendJson(response, 200, { sprint: updated, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/sprint/forecast') {
+        const targetRolesParam = url.searchParams.get('roles')?.split(',') || ['Software Engineer'];
+        const durationParam = parseInt(url.searchParams.get('duration') || '72', 10);
+        const forecaster = new OutcomeForecaster();
+
+        const forecast = forecaster.generateForecast({
+          config: {
+            targetRoles: targetRolesParam,
+            enabledChannels: ['ats', 'email', 'referral', 'linkedin_assist'],
+            targetDurationHours: isNaN(durationParam) ? 72 : durationParam,
+          },
+        });
+
+        sendJson(response, 200, { forecast, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/sprint/rebalance') {
+        if (!dependencies.sprint) {
+          sendJson(response, 501, { error: 'Sprint repository not configured', requestId });
+          return;
+        }
+
+        const active = await dependencies.sprint.getActiveSprint(tenant.tenantId);
+        if (!active) {
+          sendJson(response, 404, { error: 'No active sprint found', requestId });
+          return;
+        }
+
+        const orchestrator = new SprintOrchestrator();
+        const updatedAllocations = orchestrator.rebalanceAllocations(active.arms);
+
+        const armsToSave: AllocationArm[] = updatedAllocations.map((u) => ({
+          id: u.armId,
+          channel: u.channel,
+          targetRole: u.targetRole,
+          templateId: u.templateId,
+          weight: u.weight,
+          pulls: u.pulls,
+          successes: u.successes,
+          status: u.status,
+        }));
+
+        await dependencies.sprint.saveAllocations(
+          tenant.tenantId,
+          active.sprint.id,
+          armsToSave,
+          identity.subject
+        );
+
+        sendJson(response, 200, { updatedAllocations, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/sprint/report') {
+        if (!dependencies.sprint) {
+          sendJson(response, 501, { error: 'Sprint repository not configured', requestId });
+          return;
+        }
+
+        const active = await dependencies.sprint.getActiveSprint(tenant.tenantId);
+        if (!active) {
+          sendJson(response, 404, { error: 'No sprint found for report generation', requestId });
+          return;
+        }
+
+        const orchestrator = new SprintOrchestrator();
+        const report = orchestrator.generateReport(active.sprint, active.arms);
+
+        sendJson(response, 200, { report, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/sprint/trigger-event') {
+        const body = await readJson(request, maxBytes);
+        const coordinator = new AutoPauseCoordinator();
+        const sprintId = typeof body.sprintId === 'string' ? body.sprintId : 'default_sprint';
+
+        let result: any;
+        if (body.alertType === 'linkedin_restriction' || body.alertType === 'mailbox_warning') {
+          result = coordinator.evaluateExternalAlert(
+            sprintId,
+            body.alertType,
+            typeof body.details === 'string' ? body.details : 'External safety threshold alert'
+          );
+        } else if (body.metrics) {
+          const evalResults = coordinator.evaluateMetrics(sprintId, body.metrics as any);
+          result = evalResults[0] || { shouldPause: false, affectedChannels: [] };
+        } else {
+          sendJson(response, 400, { error: 'Expected alertType or metrics in body', requestId });
+          return;
+        }
+
+        if (result.shouldPause && result.event && dependencies.sprint) {
+          await dependencies.sprint.recordAutoPauseEvent(
+            tenant.tenantId,
+            result.event,
+            identity.subject
+          );
+
+          for (const ch of result.affectedChannels) {
+            await dependencies.repository.setChannelPauseWithAudit({
+              tenantId: tenant.tenantId,
+              actorSubject: identity.subject,
+              channel: ch,
+              paused: true,
+              occurredAt: new Date().toISOString(),
+              metadata: {
+                triggerType: result.event.triggerType,
+                details: result.event.details,
+              },
+            });
+          }
+        }
+
+        sendJson(response, 200, { result, requestId });
+        return;
+      }
+
       sendJson(response, 404, { error: 'Not found', requestId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
       const status =
         error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')
           ? 400
-          : /Hard Line H1/i.test(message)
-            ? 403
+          : /Hard Line H[1-6]|Hard Line H1/i.test(message)
+            ? (/Hard Line H6/i.test(message) ? 400 : 403)
           : /active Sprint Contract must be revoked|reviewed fact is immutable|already tracking/i.test(
                 message
               )

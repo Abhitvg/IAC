@@ -32,3 +32,4 @@ REVOKE ALL ON TABLE linkedin_profile_audits FROM PUBLIC;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE linkedin_profile_audits TO CURRENT_USER;
 
 COMMIT;
+
