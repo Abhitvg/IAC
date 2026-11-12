@@ -35,6 +35,7 @@ interface ControlRow {
   tenant_id: string;
   global_kill_switch: boolean;
   paused_channels: string[];
+  shadow_mode?: boolean;
   updated_at: Date | string;
 }
 
@@ -99,7 +100,7 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
     // RLS context is set in a transaction and never carried over a pooled connection.
     return inTransaction(this.pool, 'system:api', tenantId, async (client) => {
       const result = await client.query<ControlRow>(
-        `SELECT tenant_id, global_kill_switch, paused_channels, updated_at
+        `SELECT tenant_id, global_kill_switch, paused_channels, shadow_mode, updated_at
            FROM tenant_controls
           WHERE tenant_id = $1`,
         [tenantId]
@@ -110,6 +111,7 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
         tenantId: row.tenant_id,
         globalKillSwitch: row.global_kill_switch,
         pausedChannels: row.paused_channels as ('ats' | 'email' | 'calendar' | 'linkedin_assist')[],
+        shadowMode: row.shadow_mode ?? false,
         updatedAt: new Date(row.updated_at).toISOString(),
       };
     });
@@ -413,6 +415,91 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
         },
         previous.rows[0]?.event_hash ?? null
       );
+    });
+  }
+
+  async setShadowMode(tenantId: string, enabled: boolean): Promise<void> {
+    await inTransaction(this.pool, 'system:api', tenantId, async (client) => {
+      await client.query(
+        `UPDATE tenant_controls
+            SET shadow_mode = $2,
+                updated_at = now()
+          WHERE tenant_id = $1`,
+        [tenantId, enabled]
+      );
+    });
+  }
+
+  async saveShadowReport(report: any): Promise<void> {
+    await inTransaction(this.pool, 'system:api', report.tenantId, async (client) => {
+      await client.query(
+        `INSERT INTO shadow_execution_reports
+          (id, tenant_id, sprint_id, run_at, simulated_submits, simulated_outreach, truthfulness_blocks, cap_suppression_decisions, summary)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          report.id,
+          report.tenantId,
+          report.sprintId ?? null,
+          report.executedAt,
+          JSON.stringify(report.wouldHaveSubmitted),
+          JSON.stringify(report.wouldHaveSentOutreach),
+          JSON.stringify(report.truthfulnessBlocks),
+          JSON.stringify(report.capSuppressionDecisions),
+          JSON.stringify(report.summary),
+        ]
+      );
+    });
+  }
+
+  async getShadowReport(tenantId: string, reportId: string): Promise<any | null> {
+    return inTransaction(this.pool, 'system:api', tenantId, async (client) => {
+      const res = await client.query(
+        `SELECT id, tenant_id, sprint_id, run_at, simulated_submits, simulated_outreach,
+                truthfulness_blocks, cap_suppression_decisions, summary, created_at
+           FROM shadow_execution_reports
+          WHERE tenant_id = $1 AND id = $2`,
+        [tenantId, reportId]
+      );
+      const row = res.rows[0];
+      if (!row) return null;
+      return {
+        id: row.id,
+        tenantId: row.tenant_id,
+        sprintId: row.sprint_id,
+        executedAt: new Date(row.run_at as any).toISOString(),
+        shadowMode: true,
+        summary: row.summary,
+        wouldHaveSubmitted: row.simulated_submits,
+        wouldHaveSentOutreach: row.simulated_outreach,
+        truthfulnessBlocks: row.truthfulness_blocks,
+        capSuppressionDecisions: row.cap_suppression_decisions,
+      };
+    });
+  }
+
+  async listShadowReports(tenantId: string, limit = 20): Promise<any[]> {
+    return inTransaction(this.pool, 'system:api', tenantId, async (client) => {
+      const res = await client.query(
+        `SELECT id, tenant_id, sprint_id, run_at, simulated_submits, simulated_outreach,
+                truthfulness_blocks, cap_suppression_decisions, summary, created_at
+           FROM shadow_execution_reports
+          WHERE tenant_id = $1
+          ORDER BY run_at DESC
+          LIMIT $2`,
+        [tenantId, limit]
+      );
+      return res.rows.map((row: any) => ({
+        id: row.id,
+        tenantId: row.tenant_id,
+        sprintId: row.sprint_id,
+        executedAt: new Date(row.run_at as any).toISOString(),
+        shadowMode: true,
+        summary: row.summary,
+        wouldHaveSubmitted: row.simulated_submits,
+        wouldHaveSentOutreach: row.simulated_outreach,
+        truthfulnessBlocks: row.truthfulness_blocks,
+        capSuppressionDecisions: row.cap_suppression_decisions,
+      }));
     });
   }
 }

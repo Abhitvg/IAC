@@ -69,7 +69,7 @@ export class SprintWorkflowActivities {
     sprintId: string,
     batchSize = 3
   ): Promise<WaveExecutionResult> {
-    // Check if channel is paused
+    // Check if channel is paused or in shadow mode
     if (this.deps.controlsRepository) {
       const controls = await this.deps.controlsRepository.getControlState(tenantId);
       if (controls.globalKillSwitch || controls.pausedChannels.includes('ats')) {
@@ -80,6 +80,16 @@ export class SprintWorkflowActivities {
           itemsFailed: 0,
           timestamp: new Date().toISOString(),
           details: { skippedReason: 'ats_channel_paused' },
+        };
+      }
+      if (controls.shadowMode) {
+        return {
+          waveType: 'apply',
+          success: true,
+          itemsProcessed: batchSize,
+          itemsFailed: 0,
+          timestamp: new Date().toISOString(),
+          details: { shadowMode: true, wouldHaveSubmitted: batchSize, networkSubmitted: 0 },
         };
       }
     }
@@ -129,6 +139,16 @@ export class SprintWorkflowActivities {
           itemsFailed: 0,
           timestamp: new Date().toISOString(),
           details: { skippedReason: 'email_channel_paused' },
+        };
+      }
+      if (controls.shadowMode) {
+        return {
+          waveType: 'outreach',
+          success: true,
+          itemsProcessed: batchSize,
+          itemsFailed: 0,
+          timestamp: new Date().toISOString(),
+          details: { shadowMode: true, wouldHaveSent: batchSize, networkDispatched: 0 },
         };
       }
     }

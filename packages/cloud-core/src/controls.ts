@@ -6,6 +6,7 @@ export interface TenantControlState {
   tenantId: string;
   globalKillSwitch: boolean;
   pausedChannels: AutomationChannel[];
+  shadowMode?: boolean;
   updatedAt: string;
 }
 

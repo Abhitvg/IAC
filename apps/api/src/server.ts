@@ -56,6 +56,7 @@ import { SprintOrchestrator } from '../../../packages/cloud-core/src/sprint/spri
 import { OutcomeForecaster } from '../../../packages/cloud-core/src/sprint/forecaster';
 import { AdaptiveAllocator } from '../../../packages/cloud-core/src/sprint/allocator';
 import { AutoPauseCoordinator } from '../../../packages/cloud-core/src/sprint/auto-pause';
+import { ShadowPipelineEngine } from '../../../packages/cloud-core/src/sprint/shadow-mode';
 import type {
   SprintConfig,
   SprintMetrics,
@@ -1813,6 +1814,92 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         const report = orchestrator.generateReport(active.sprint, active.arms);
 
         sendJson(response, 200, { report, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/sprint/shadow-run') {
+        const body = await readJson(request, maxBytes);
+        const engine = new ShadowPipelineEngine();
+
+        // Retrieve active sprint contract if available or use provided
+        const activeConsent = await dependencies.repository.getActiveSprintContract(tenant.tenantId);
+        const sprintContract = activeConsent ? activeConsent.contract : (body.contract as any);
+        if (!sprintContract) {
+          sendJson(response, 400, {
+            error: 'Active Sprint Contract or contract payload is required for shadow run',
+            requestId,
+          });
+          return;
+        }
+
+        // Retrieve confirmed facts for truthfulness gate verification
+        let confirmedFacts: CandidateFact[] = [];
+        if (dependencies.careerGraph) {
+          const rawFacts = await dependencies.careerGraph.listFacts(tenant.tenantId, tenant.subject, 100);
+          confirmedFacts = rawFacts.filter((f) => f.review?.decision === 'confirmed') as unknown as CandidateFact[];
+        }
+        if (Array.isArray(body.confirmedFacts)) {
+          confirmedFacts = body.confirmedFacts as CandidateFact[];
+        }
+
+        const report = engine.executeShadowRun({
+          tenantId: tenant.tenantId,
+          sprintContract,
+          confirmedFacts,
+          targetJobs: (body.targetJobs as any[]) ?? [],
+          targetContacts: (body.targetContacts as any[]) ?? [],
+          suppressionList: (body.suppressionList as any[]) ?? [],
+          existingOutreachHistory: (body.existingOutreachHistory as any[]) ?? [],
+          currentDailyUsage: body.currentDailyUsage as any,
+          now: body.now ? new Date(body.now as string) : undefined,
+        });
+
+        if (dependencies.repository.saveShadowReport) {
+          await dependencies.repository.saveShadowReport(report);
+        }
+
+        sendJson(response, 200, { report, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/sprint/shadow-reports') {
+        if (!dependencies.repository.listShadowReports) {
+          sendJson(response, 200, { reports: [], requestId });
+          return;
+        }
+        const reports = await dependencies.repository.listShadowReports(tenant.tenantId);
+        sendJson(response, 200, { reports, requestId });
+        return;
+      }
+
+      const shadowMatch = url.pathname.match(/^\/v1\/sprint\/shadow-reports\/([0-9a-f-]{36})$/i);
+      if (request.method === 'GET' && shadowMatch) {
+        if (!dependencies.repository.getShadowReport) {
+          sendJson(response, 404, { error: 'Shadow report not found', requestId });
+          return;
+        }
+        const report = await dependencies.repository.getShadowReport(tenant.tenantId, shadowMatch[1]);
+        if (!report) {
+          sendJson(response, 404, { error: 'Shadow report not found', requestId });
+          return;
+        }
+        sendJson(response, 200, { report, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/tenant/controls/shadow-mode') {
+        const body = await readJson(request, maxBytes);
+        const enabled = Boolean(body.enabled);
+        if (dependencies.repository.setShadowMode) {
+          await dependencies.repository.setShadowMode(tenant.tenantId, enabled);
+        }
+        sendJson(response, 200, { tenantId: tenant.tenantId, shadowMode: enabled, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/tenant/controls') {
+        const controls = await dependencies.repository.getControlState(tenant.tenantId);
+        sendJson(response, 200, { controls, requestId });
         return;
       }
 

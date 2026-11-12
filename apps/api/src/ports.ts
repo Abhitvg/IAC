@@ -53,6 +53,10 @@ export interface CloudApiRepository extends TenantMembershipRepository {
     occurredAt: string;
     metadata: Record<string, string | boolean>;
   }): Promise<void>;
+  setShadowMode?(tenantId: string, enabled: boolean): Promise<void>;
+  saveShadowReport?(report: any): Promise<void>;
+  getShadowReport?(tenantId: string, reportId: string): Promise<any | null>;
+  listShadowReports?(tenantId: string, limit?: number): Promise<any[]>;
 }
 
 export interface CloudApiConfig {
