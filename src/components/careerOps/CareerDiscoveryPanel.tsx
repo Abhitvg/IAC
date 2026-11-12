@@ -8,6 +8,29 @@ interface CareerDiscoveryPanelProps {
   providerConfig?: ProviderConfig;
 }
 
+const POPULAR_CAREER_PRESETS = [
+  {
+    label: 'Anthropic Careers',
+    url: 'https://jobs.ashbyhq.com/anthropic',
+    keywords: ['AI', 'Engineer', 'Systems', 'Research'],
+  },
+  {
+    label: 'OpenAI Careers',
+    url: 'https://jobs.ashbyhq.com/openai',
+    keywords: ['Software', 'Full Stack', 'Platform', 'Security'],
+  },
+  {
+    label: 'Datadog Careers',
+    url: 'https://boards.greenhouse.io/datadog',
+    keywords: ['Distributed', 'Go', 'Infrastructure', 'Software'],
+  },
+  {
+    label: 'Stripe Careers',
+    url: 'https://stripe.com/jobs',
+    keywords: ['Backend', 'Security', 'Infrastructure', 'Full Stack'],
+  },
+];
+
 export function CareerDiscoveryPanel({ resumeText, providerConfig }: CareerDiscoveryPanelProps) {
   const {
     sources,
@@ -33,10 +56,18 @@ export function CareerDiscoveryPanel({ resumeText, providerConfig }: CareerDisco
 
   const handleAddSource = (event: React.FormEvent) => {
     event.preventDefault();
+    if (!label.trim() || !url.trim()) {
+      setMessage('Please provide both a Source Name and a valid HTTPS URL (or click a quick preset below).');
+      return;
+    }
+    if (!url.trim().startsWith('https://')) {
+      setMessage('Career page URL must begin with https://');
+      return;
+    }
     try {
       addSource({
-        label,
-        url,
+        label: label.trim(),
+        url: url.trim(),
         keywords: keywords
           .split(',')
           .map((item) => item.trim())
@@ -47,7 +78,7 @@ export function CareerDiscoveryPanel({ resumeText, providerConfig }: CareerDisco
       setUrl('');
       setKeywords('');
       setAutoEvaluate(false);
-      setMessage('Career page added. It will be scanned while CareerOps is open.');
+      setMessage(`Added "${label.trim()}". CareerOps will index it during discovery scans.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not add this career page.');
     }
@@ -56,6 +87,18 @@ export function CareerDiscoveryPanel({ resumeText, providerConfig }: CareerDisco
   const handleScan = async () => {
     setMessage('');
     try {
+      if (sources.length === 0) {
+        // Automatically seed presets so scanning is immediately functional
+        POPULAR_CAREER_PRESETS.forEach((preset) => {
+          addSource({
+            label: preset.label,
+            url: preset.url,
+            keywords: preset.keywords,
+            autoEvaluate: false,
+          });
+        });
+        setMessage('Seeded verified career boards and scanning for matching roles...');
+      }
       const result = await discoverJobsFromSources(resumeText, providerConfig);
       setLastResult(result);
       setMessage(
@@ -126,7 +169,7 @@ export function CareerDiscoveryPanel({ resumeText, providerConfig }: CareerDisco
         <button
           type="button"
           onClick={handleScan}
-          disabled={isDiscovering || sources.every((source) => !source.enabled)}
+          disabled={isDiscovering}
           style={{
             ...buttonStyle,
             background: 'linear-gradient(135deg,#f97316,#ea580c)',
@@ -271,6 +314,78 @@ export function CareerDiscoveryPanel({ resumeText, providerConfig }: CareerDisco
           configured AI provider. Review every result; keyword-only scores are marked as
           preliminary.
         </p>
+        {/* Quick Presets & 1-Click Sample Ingestion */}
+        <div
+          style={{
+            gridColumn: '1 / -1',
+            padding: '10px 12px',
+            borderRadius: 8,
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 8,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700 }}>Quick Presets:</span>
+            {POPULAR_CAREER_PRESETS.map((preset) => (
+              <button
+                key={preset.url}
+                type="button"
+                onClick={() => {
+                  setLabel(preset.label);
+                  setUrl(preset.url);
+                  setKeywords(preset.keywords.join(', '));
+                }}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: 6,
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  color: '#e2e8f0',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                + {preset.label.replace(' Careers', '')}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              POPULAR_CAREER_PRESETS.forEach((preset) => {
+                if (!sources.some((s) => s.url === preset.url)) {
+                  addSource({
+                    label: preset.label,
+                    url: preset.url,
+                    keywords: preset.keywords,
+                    autoEvaluate: false,
+                  });
+                }
+              });
+              setMessage('Added all 4 sample career board presets! Click "Scan now" above to index.');
+            }}
+            style={{
+              padding: '4px 10px',
+              borderRadius: 6,
+              background: 'rgba(249, 115, 22, 0.15)',
+              border: '1px solid rgba(249, 115, 22, 0.4)',
+              color: '#fb923c',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            ⚡ Add All Sample Presets
+          </button>
+        </div>
+
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
           <button
             type="submit"

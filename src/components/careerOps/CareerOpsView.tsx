@@ -60,6 +60,207 @@ import {
   generatePlaywrightAutoFillScript,
 } from '../../services/careerOps/autoFillService';
 
+interface CareerOpsEmptyTabProps {
+  tabName: string;
+  tagline: string;
+  description: string;
+  icon: React.ComponentType<{ size?: number | string; color?: string; style?: React.CSSProperties; className?: string }>;
+  applications: JobApplication[];
+  onSelectJob: (id: string) => void;
+  onEvaluateNew: () => void;
+  onLoadDemo: () => void;
+}
+
+function CareerOpsEmptyTab({
+  tabName,
+  tagline,
+  description,
+  icon: Icon,
+  applications,
+  onSelectJob,
+  onEvaluateNew,
+  onLoadDemo,
+}: CareerOpsEmptyTabProps) {
+  return (
+    <div
+      style={{
+        maxWidth: '860px',
+        margin: '24px auto',
+        padding: '36px 24px',
+        background: 'rgba(15, 23, 42, 0.65)',
+        borderRadius: '16px',
+        border: '1px dashed rgba(249, 115, 22, 0.35)',
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '16px',
+      }}
+    >
+      <div
+        style={{
+          width: 54,
+          height: 54,
+          borderRadius: 14,
+          background: 'rgba(249, 115, 22, 0.15)',
+          border: '1px solid rgba(249, 115, 22, 0.35)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fb923c',
+        }}
+      >
+        <Icon size={26} />
+      </div>
+
+      <div>
+        <h3 style={{ margin: '0 0 6px', fontSize: '18px', fontWeight: 800, color: '#f8fafc' }}>
+          {tabName}
+        </h3>
+        <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 600, color: '#fb923c' }}>
+          {tagline}
+        </p>
+        <p
+          style={{
+            margin: 0,
+            fontSize: '12px',
+            color: '#94a3b8',
+            maxWidth: '520px',
+            lineHeight: 1.6,
+          }}
+        >
+          {description}
+        </p>
+      </div>
+
+      {applications.length > 0 ? (
+        <div style={{ width: '100%', maxWidth: '640px', marginTop: '8px' }}>
+          <p
+            style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#cbd5e1',
+              marginBottom: '10px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            Select a target role from your pipeline:
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {applications.map((app) => (
+              <div
+                key={app.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  textAlign: 'left',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
+                    {app.role}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                    {app.company} • {app.location || 'Remote'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {typeof app.score === 'number' && (
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        background:
+                          app.score >= 4.0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                        color: app.score >= 4.0 ? '#4ade80' : '#f87171',
+                      }}
+                    >
+                      ★ {app.score.toFixed(1)} / 5.0
+                    </span>
+                  )}
+                  <button
+                    onClick={() => onSelectJob(app.id)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Select Target →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            gap: '12px',
+            marginTop: '8px',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+          }}
+        >
+          <button
+            onClick={onLoadDemo}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, #f97316, #ea580c)',
+              color: '#ffffff',
+              border: 'none',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(249, 115, 22, 0.35)',
+            }}
+          >
+            <Zap size={14} />
+            <span>Load Sample Applications</span>
+          </button>
+          <button
+            onClick={onEvaluateNew}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              background: 'rgba(255, 255, 255, 0.08)',
+              color: '#e2e8f0',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <Plus size={14} />
+            <span>+ Evaluate New Job</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CareerOpsView() {
   const {
     applications,
@@ -71,6 +272,9 @@ export function CareerOpsView() {
     searchQuery,
     isEvaluating,
     isTailoring,
+    isDemoMode,
+    enableDemoMode,
+    clearDemoData,
     stats,
     addJob,
     updateJob,
@@ -479,6 +683,49 @@ export function CareerOpsView() {
             <span style={{ fontWeight: 800, color: '#c7d2fe' }}>{stats.avgScore} / 5.0</span>
           </div>
 
+          {applications.length === 0 ? (
+            <button
+              onClick={() => enableDemoMode()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 12px',
+                borderRadius: '8px',
+                background: 'rgba(249, 115, 22, 0.15)',
+                color: '#fb923c',
+                border: '1px solid rgba(249, 115, 22, 0.35)',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              <Zap size={14} />
+              <span>Load Demo Data</span>
+            </button>
+          ) : isDemoMode ? (
+            <button
+              onClick={() => clearDemoData()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: '#94a3b8',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                fontSize: '10px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              title="Clear demo data to work with your own clean pipeline"
+            >
+              <span style={{ color: '#fb923c' }}>Demo Mode</span>
+              <span style={{ color: '#f87171' }}>✕ Clear</span>
+            </button>
+          ) : null}
+
           <button
             onClick={() => setShowVaultModal(true)}
             style={{
@@ -521,6 +768,66 @@ export function CareerOpsView() {
           </button>
         </div>
       </div>
+
+      {/* Quick Start Welcome Banner if No Applications */}
+      {applications.length === 0 && (
+        <div
+          style={{
+            margin: '10px 16px 0',
+            padding: '10px 16px',
+            borderRadius: '10px',
+            background: 'linear-gradient(90deg, rgba(249, 115, 22, 0.12), rgba(79, 70, 229, 0.12))',
+            border: '1px solid rgba(249, 115, 22, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '10px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sparkles size={16} color="#fb923c" />
+            <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: 700 }}>
+              Quick Start:
+            </span>
+            <span style={{ fontSize: '12px', color: '#cbd5e1' }}>
+              Load sample applications to test A-H fit scoring, ATS LaTeX resume tailoring, and LinkedIn outreach out of the box.
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => enableDemoMode()}
+              style={{
+                padding: '5px 12px',
+                borderRadius: '6px',
+                background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                color: '#ffffff',
+                border: 'none',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              ⚡ Load Demo Applications
+            </button>
+            <button
+              onClick={() => setShowNewModal(true)}
+              style={{
+                padding: '5px 12px',
+                borderRadius: '6px',
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: '#cbd5e1',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              + Evaluate a Job
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Workspace Navigation Tabs */}
       <div
@@ -1054,16 +1361,17 @@ export function CareerOpsView() {
         )}
 
         {/* TAB 2: A-H JOB EVALUATOR */}
-        {subTab === 'evaluator' && activeJob && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              maxWidth: '960px',
-              margin: '0 auto',
-            }}
-          >
+        {subTab === 'evaluator' &&
+          (activeJob ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                maxWidth: '960px',
+                margin: '0 auto',
+              }}
+            >
             {/* Top Score Banner */}
             <div
               style={{
@@ -1583,19 +1891,31 @@ export function CareerOpsView() {
               );
             })()}
           </div>
-        )}
+        ) : (
+          <CareerOpsEmptyTab
+            tabName="⚡ A-H Job Evaluator"
+            tagline="1.0 to 5.0 Precision Fit Scoring & Gap Analysis"
+            description="The A-H Evaluator audits candidate match against required tech stacks, compensation thresholds, work authorization, and seniority alignment before you apply."
+            icon={Zap}
+            applications={applications}
+            onSelectJob={(id) => setActiveJobId(id)}
+            onEvaluateNew={() => setShowNewModal(true)}
+            onLoadDemo={enableDemoMode}
+          />
+        ))}
 
         {/* TAB 3: ATS RESUME & COVER LETTER TAILOR */}
-        {subTab === 'tailor' && activeJob && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              maxWidth: '960px',
-              margin: '0 auto',
-            }}
-          >
+        {subTab === 'tailor' &&
+          (activeJob ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                maxWidth: '960px',
+                margin: '0 auto',
+              }}
+            >
             <div
               style={{
                 display: 'flex',
@@ -2220,19 +2540,31 @@ export function CareerOpsView() {
               </div>
             </div>
           </div>
-        )}
+        ) : (
+          <CareerOpsEmptyTab
+            tabName="📝 ATS Resume & Cover Letter Engine"
+            tagline="LaTeX (sb2nov) ATS-Compliant Tailoring • Zero Fabrication"
+            description="Generates a customized, high-density single-page resume and targeted cover letter mathematically aligned with the target role."
+            icon={FileText}
+            applications={applications}
+            onSelectJob={(id) => setActiveJobId(id)}
+            onEvaluateNew={() => setShowNewModal(true)}
+            onLoadDemo={enableDemoMode}
+          />
+        ))}
 
         {/* TAB 4: OUTREACH & CONTACTO */}
-        {subTab === 'outreach' && activeJob && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              maxWidth: '860px',
-              margin: '0 auto',
-            }}
-          >
+        {subTab === 'outreach' &&
+          (activeJob ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                maxWidth: '860px',
+                margin: '0 auto',
+              }}
+            >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
@@ -2486,7 +2818,18 @@ export function CareerOpsView() {
               />
             </div>
           </div>
-        )}
+        ) : (
+          <CareerOpsEmptyTab
+            tabName="🤝 Outreach & Contact Discovery (Contacto)"
+            tagline="Compliant <=300 Character Cold Messages & Email Drafts"
+            description="Identifies engineering managers and recruiters for your target role and drafts high-conversion, strictly grounded introductory notes."
+            icon={Mail}
+            applications={applications}
+            onSelectJob={(id) => setActiveJobId(id)}
+            onEvaluateNew={() => setShowNewModal(true)}
+            onLoadDemo={enableDemoMode}
+          />
+        ))}
       </div>
 
       {/* New Job Evaluation Modal */}
