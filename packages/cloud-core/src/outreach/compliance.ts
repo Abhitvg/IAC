@@ -25,7 +25,7 @@ export interface SenderIdentity {
   organization?: string;
 }
 
-export type Jurisdiction = 'US' | 'EU' | 'UK' | 'IN' | 'OTHER';
+export type Jurisdiction = 'US' | 'EU' | 'UK' | 'CA' | 'IN' | 'OTHER';
 
 export class OutreachComplianceEngine {
   /**
@@ -179,6 +179,10 @@ export class OutreachComplianceEngine {
       case 'UK':
         // GDPR / PECR B2B Legitimate Interest compliant
         return `\n\n---\nCommunication sent by ${addressText} based on legitimate professional interest. We process your contact details solely for direct professional correspondence.\n${optOutText}`;
+
+      case 'CA':
+        // Canada Anti-Spam Legislation (CASL s. 6(5)(b) business inquiry exemption)
+        return `\n\n---\nCommunication sent by ${addressText} as a direct business inquiry under CASL s. 6(5)(b).\n${optOutText}`;
 
       case 'IN':
         // India DPDP compliant
