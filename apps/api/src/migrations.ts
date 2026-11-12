@@ -124,7 +124,8 @@ export async function runCloudMigrations(
           to_regclass('public.inbound_messages')::text,
           to_regclass('public.people')::text,
           to_regclass('public.suppression_list')::text,
-          to_regclass('public.outreach_messages')::text
+          to_regclass('public.outreach_messages')::text,
+          to_regclass('public.linkedin_profile_audits')::text
         ], NULL) AS existing_tables
     `);
     const ledgerExists = Boolean(schemaState.rows[0]?.ledger_table);

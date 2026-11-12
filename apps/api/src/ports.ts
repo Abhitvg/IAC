@@ -67,6 +67,7 @@ import type { ApplicationTrackerRepository } from './application-repository';
 import type { AssistQueueRepository } from './assist-queue-repository';
 import type { InboundRepository } from './inbound-repository';
 import type { OutreachRepository } from './outreach-repository';
+import type { LinkedInAuditRepository } from './linkedin-audit-repository';
 
 export interface CloudRateLimiter {
   consume(key: string, limit: number, windowMs: number): Promise<boolean>;
@@ -84,6 +85,7 @@ export interface CloudApiDependencies {
   assistQueue?: AssistQueueRepository;
   inbound?: InboundRepository;
   outreach?: OutreachRepository;
+  linkedinAudit?: LinkedInAuditRepository;
   rateLimiter: CloudRateLimiter;
   config: CloudApiConfig;
 }

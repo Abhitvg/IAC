@@ -125,3 +125,4 @@ export class PersonRanker {
       .sort((a, b) => b.score.compositeScore - a.score.compositeScore);
   }
 }
+

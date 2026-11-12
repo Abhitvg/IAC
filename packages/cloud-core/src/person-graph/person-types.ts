@@ -67,3 +67,4 @@ export interface PersonRankingScore {
   compositeScore: number;     // 0-100
   explainableReason: string;
 }
+

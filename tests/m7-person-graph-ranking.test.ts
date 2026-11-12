@@ -107,3 +107,4 @@ describe('Milestone M7 - Person Graph & Explainable Ranking', () => {
     expect(ranked[2].person.id).toBe('p3'); // Cold contact last
   });
 });
+

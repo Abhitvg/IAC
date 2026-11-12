@@ -45,6 +45,13 @@ import type { Person, CrmStage } from '../../../packages/cloud-core/src/person-g
 import { OutreachEngine } from '../../../packages/cloud-core/src/outreach/outreach-engine';
 import { OutreachComplianceEngine } from '../../../packages/cloud-core/src/outreach/compliance';
 import { AdaptiveCapManager } from '../../../packages/cloud-core/src/outreach/adaptive-caps';
+import { LinkedInSecurityGate } from '../../../packages/cloud-core/src/linkedin/oauth';
+import { LinkedInExportParser } from '../../../packages/cloud-core/src/linkedin/export-importer';
+import { LinkedInProfileAuditor } from '../../../packages/cloud-core/src/linkedin/profile-audit';
+import {
+  LinkedInRestrictionManager,
+  type LinkedInRestrictionReport,
+} from '../../../packages/cloud-core/src/linkedin/restrictions';
 import { globalActivityHub } from './activity-hub';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
@@ -1380,12 +1387,166 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
+      if (request.method === 'POST' && url.pathname === '/v1/linkedin/oauth/token') {
+        const body = await readJson(request, maxBytes);
+        // Hard Line H1 Security Gate: Rejects any passwords or cookies
+        const token = LinkedInSecurityGate.validateOAuthResponse(body);
+        sendJson(response, 200, {
+          status: 'valid_oauth_token',
+          tokenType: token.token_type,
+          scope: token.scope,
+          requestId,
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/linkedin/import-export') {
+        const body = await readJson(request, maxBytes);
+        if (typeof body.csvContent !== 'string') {
+          sendJson(response, 400, { error: 'Expected csvContent string in body', requestId });
+          return;
+        }
+
+        const parser = new LinkedInExportParser();
+        const connections = parser.parseConnectionsCsv(body.csvContent);
+        const peopleToImport = parser.toPeople(tenant.tenantId, connections);
+
+        let importedCount = 0;
+        if (dependencies.outreach) {
+          for (const p of peopleToImport) {
+            try {
+              await dependencies.outreach.addPerson(tenant.tenantId, p, identity.subject);
+              importedCount++;
+            } catch {
+              // Skip individual invalid rows
+            }
+          }
+        } else {
+          importedCount = peopleToImport.length;
+        }
+
+        globalActivityHub.broadcast({
+          id: randomUUID(),
+          tenantId: tenant.tenantId,
+          eventType: 'linkedin_export_imported',
+          title: `LinkedIn Export Imported: ${importedCount} contacts`,
+          description: `Ingested ${importedCount} warm 1st-degree connections into Person Graph`,
+          severity: 'success',
+          actorSubject: identity.subject,
+          createdAt: new Date().toISOString(),
+          metadata: {
+            importedCount,
+          },
+        });
+
+        sendJson(response, 200, {
+          importedCount,
+          sampleContacts: peopleToImport.slice(0, 5),
+          requestId,
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/linkedin/profile-audit') {
+        const body = await readJson(request, maxBytes);
+        const activeContractRecord = await dependencies.repository.getActiveSprintContract(
+          tenant.tenantId
+        );
+        const targetRoles =
+          Array.isArray(body.targetRoles) && body.targetRoles.length > 0
+            ? (body.targetRoles as string[])
+            : activeContractRecord?.contract.roles || ['Software Engineer'];
+
+        const auditor = new LinkedInProfileAuditor();
+        const audit = auditor.auditProfile(
+          {
+            currentHeadline: typeof body.currentHeadline === 'string' ? body.currentHeadline : undefined,
+            currentAbout: typeof body.currentAbout === 'string' ? body.currentAbout : undefined,
+            currentSkills: Array.isArray(body.currentSkills) ? (body.currentSkills as string[]) : undefined,
+            targetRoles,
+          },
+          activeContractRecord?.contract
+        );
+
+        if (dependencies.linkedinAudit) {
+          await dependencies.linkedinAudit.saveAudit(tenant.tenantId, audit, identity.subject);
+        }
+
+        sendJson(response, 200, { audit, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/assist-queue/linkedin') {
+        if (!dependencies.assistQueue) {
+          sendJson(response, 200, { items: [], count: 0, requestId });
+          return;
+        }
+        const allPending = await dependencies.assistQueue.list(tenant.tenantId, 'pending');
+        const linkedinItems = allPending.filter((i) => i.platform === 'linkedin_assist');
+
+        sendJson(response, 200, {
+          items: linkedinItems,
+          count: linkedinItems.length,
+          userGestureRequired: true,
+          requestId,
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/linkedin/report-restriction') {
+        const body = await readJson(request, maxBytes);
+        if (typeof body.noticeType !== 'string') {
+          sendJson(response, 400, { error: 'Expected noticeType string in body', requestId });
+          return;
+        }
+
+        const manager = new LinkedInRestrictionManager();
+        const result = manager.handleRestrictionReport({
+          noticeType: body.noticeType as any,
+          details: typeof body.details === 'string' ? body.details : undefined,
+          reportedAt: new Date().toISOString(),
+        });
+
+        // Standing consent invariant: Auto-pause channel immediately
+        await dependencies.repository.setChannelPauseWithAudit({
+          tenantId: tenant.tenantId,
+          actorSubject: identity.subject,
+          channel: 'linkedin_assist',
+          paused: true,
+          occurredAt: new Date().toISOString(),
+          metadata: {
+            reason: result.auditReason,
+            reportedNotice: body.noticeType,
+          },
+        });
+
+        globalActivityHub.broadcast({
+          id: randomUUID(),
+          tenantId: tenant.tenantId,
+          eventType: 'linkedin_restriction_reported',
+          title: `LinkedIn Assist Auto-Paused: ${body.noticeType}`,
+          description: result.recommendedUserAction,
+          severity: 'warn',
+          actorSubject: identity.subject,
+          createdAt: new Date().toISOString(),
+          metadata: {
+            noticeType: body.noticeType,
+            auditReason: result.auditReason,
+          },
+        });
+
+        sendJson(response, 200, { result, channelPaused: true, requestId });
+        return;
+      }
+
       sendJson(response, 404, { error: 'Not found', requestId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
       const status =
         error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')
           ? 400
+          : /Hard Line H1/i.test(message)
+            ? 403
           : /active Sprint Contract must be revoked|reviewed fact is immutable|already tracking/i.test(
                 message
               )

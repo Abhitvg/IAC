@@ -74,3 +74,4 @@ describe('Milestone M7 - Adaptive Caps & Mailbox Health Monitoring', () => {
     expect(health.recommendedDailyCap).toBe(12); // Scaled from 10 to 12
   });
 });
+
