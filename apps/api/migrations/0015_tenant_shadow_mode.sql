@@ -41,3 +41,4 @@ BEGIN
     GRANT SELECT, INSERT, UPDATE, DELETE ON shadow_execution_reports TO careerops_app;
   END IF;
 END $$;
+

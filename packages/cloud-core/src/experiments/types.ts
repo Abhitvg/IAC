@@ -1,6 +1,7 @@
 /**
- * Experimentation Domain Types
- * Minimum-sample guardrails and significance testing for A/B tests on CV headlines and outreach hooks.
+ * Experimentation Domain Types (Milestone M11 Item 5 Hardened)
+ * Minimum-sample guardrails, Fisher Exact Test, Bayesian comparison,
+ * and cross-tenant pooled experiments.
  */
 
 export type ExperimentDimension = 'cv_headline' | 'outreach_hook';
@@ -15,6 +16,12 @@ export interface ExperimentVariant {
   conversions: number;
 }
 
+export interface ExperimentPrior {
+  alpha: number;
+  beta: number;
+  source: string; // e.g. "cross_tenant_pooled_benchmark" or "unvalidated"
+}
+
 export interface ExperimentDefinition {
   id: string;
   tenantId: string;
@@ -22,6 +29,10 @@ export interface ExperimentDefinition {
   targetDimension: ExperimentDimension;
   status: ExperimentStatus;
   minSampleSize: number; // default 30 per variant
+  minSuccesses?: number; // default 5 per variant
+  isPooled?: boolean;
+  participatingTenantsCount?: number;
+  prior?: ExperimentPrior;
   variants: ExperimentVariant[];
   winnerVariantId?: string;
   metadata?: Record<string, unknown>;
@@ -33,8 +44,12 @@ export interface StatisticalEvaluation {
   experimentId: string;
   status: ExperimentStatus;
   hasMinimumSample: boolean;
+  hasMinimumSuccesses?: boolean;
   totalImpressions: number;
-  pVal?: number;
+  pVal?: number; // Fisher's exact two-tailed p-value (or Z-test p-value)
+  fisherPValue?: number;
+  bayesianProbabilityWinner?: number; // P(p_winner > p_loser | data)
+  priorSource?: string;
   isStatisticallySignificant: boolean;
   winnerVariantId?: string;
   rationale: string;
@@ -45,4 +60,3 @@ export interface StatisticalEvaluation {
     conversionRate: number;
   }[];
 }
-

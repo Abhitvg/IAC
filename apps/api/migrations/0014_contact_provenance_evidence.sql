@@ -3,3 +3,4 @@
 -- (source URL, content hash, retrieved_at, provider record ID)
 
 ALTER TABLE people ADD COLUMN IF NOT EXISTS provenance_evidence jsonb;
+

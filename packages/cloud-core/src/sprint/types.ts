@@ -58,6 +58,7 @@ export interface AllocationArm {
   pulls: number;
   successes: number;
   status: 'active' | 'throttled' | 'halted';
+  priorSource?: string;
 }
 
 export type AutoPauseTriggerType =
