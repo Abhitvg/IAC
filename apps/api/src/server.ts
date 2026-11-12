@@ -52,6 +52,7 @@ import {
   LinkedInRestrictionManager,
   type LinkedInRestrictionReport,
 } from '../../../packages/cloud-core/src/linkedin/restrictions';
+import { LinkedInExtensionPolicyGate } from '../../../packages/cloud-core/src/linkedin/extension-policy';
 import { SprintOrchestrator } from '../../../packages/cloud-core/src/sprint/sprint-orchestrator';
 import { OutcomeForecaster } from '../../../packages/cloud-core/src/sprint/forecaster';
 import { AdaptiveAllocator } from '../../../packages/cloud-core/src/sprint/allocator';
@@ -110,6 +111,7 @@ async function readJson(
 
 export function createCloudApiServer(dependencies: CloudApiDependencies) {
   const maxBytes = dependencies.config.maxRequestBytes ?? 16 * 1024;
+  const linkedInPolicyGate = new LinkedInExtensionPolicyGate();
 
   return createServer(async (request, response) => {
     const requestId = randomUUID();
@@ -1565,6 +1567,35 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         });
 
         sendJson(response, 200, { result, channelPaused: true, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/linkedin/extension-policy') {
+        const policy = linkedInPolicyGate.getOptInState(tenant.tenantId);
+        sendJson(response, 200, { policy, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/linkedin/extension-policy/opt-in') {
+        const body = await readJson(request, maxBytes);
+        const policy = linkedInPolicyGate.setOptInState(
+          tenant.tenantId,
+          Boolean(body.enabled),
+          Boolean(body.acknowledgedPolicyRisk)
+        );
+        sendJson(response, 200, { policy, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/linkedin/extension/read-profile') {
+        const body = await readJson(request, maxBytes);
+        const profile = linkedInPolicyGate.processPageRead({
+          tenantId: tenant.tenantId,
+          url: typeof body.url === 'string' ? body.url : '',
+          rawDomExcerpt: typeof body.rawDomExcerpt === 'string' ? body.rawDomExcerpt : '',
+          userGesture: (body.userGesture as any) ?? { hasUserGesture: false },
+        });
+        sendJson(response, 200, { profile, requestId });
         return;
       }
 

@@ -167,3 +167,4 @@ export class TenantCryptoShredder {
     return keyRecord?.status === 'shredded';
   }
 }
+

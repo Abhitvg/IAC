@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type { Person } from '../person-graph/person-types';
 import { createAssistQueueItem, type AssistQueueItem } from '../apply/assist-queue';
 
@@ -10,7 +9,9 @@ export interface LinkedInAssistAction {
   title: string;
   profileUrl: string;
   actionType: 'connect_with_note' | 'send_message';
+  workflowMode: 'copy_text_and_open_profile';
   prefilledText: string;
+  copyText: string;
   characterCount: number;
   warmth: number;
   userGestureRequired: true;
@@ -34,7 +35,7 @@ export class LinkedInAssistProtocol {
 
   /**
    * Enqueues prepared LinkedIn actions into the Assist Queue.
-   * Strictly enforces userGestureRequired: true (Hard Line H1).
+   * Hard Line H1: Defaults strictly to "copy-text + open-profile-link" with userGestureRequired: true.
    */
   public createAssistActionItem(
     tenantId: string,
@@ -44,7 +45,11 @@ export class LinkedInAssistProtocol {
     hook: string
   ): AssistQueueItem {
     const prefilledText = this.generateAssistNote(person, targetRoleTitle, candidateName, hook);
-    const profileUrl = person.linkedinUrl || `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(person.name + ' ' + person.company)}`;
+    const profileUrl =
+      person.linkedinUrl ||
+      `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(
+        person.name + ' ' + person.company
+      )}`;
 
     return createAssistQueueItem({
       tenantId,
@@ -58,11 +63,15 @@ export class LinkedInAssistProtocol {
         personId: person.id,
         recipientName: person.name,
         actionType: person.relationship === '1st_degree' ? 'send_message' : 'connect_with_note',
+        workflowMode: 'copy_text_and_open_profile', // Default mode (Milestone M11 Item 7)
+        copyText: prefilledText,
+        profileUrl,
         prefilledText,
         characterCount: prefilledText.length,
+        userInstructions:
+          '1. Click "Copy & Open Profile" -> 2. Note copied to clipboard -> 3. Official profile opens in your browser -> 4. Paste and send manually.',
       },
-      assistNotes: `Warmest 1st-degree contact at ${person.company}. Click to open profile and prefill personalized note.`,
+      assistNotes: `Default action: Copy text and open profile link for ${person.name} at ${person.company}. Manual user gesture strictly required.`,
     });
   }
 }
-
