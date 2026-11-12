@@ -61,6 +61,7 @@ import {
   generateAutoFillBookmarklet,
   generatePlaywrightAutoFillScript,
 } from '../../services/careerOps/autoFillService';
+import { TodayView } from './TodayView';
 
 interface CareerOpsEmptyTabProps {
   tabName: string;
@@ -329,8 +330,8 @@ export function CareerOpsView() {
 
   // Internal sub-tab state
   const [subTab, setSubTab] = useState<
-    'pipeline' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
-  >('pipeline');
+    'today' | 'pipeline' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
+  >('today');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // New Job Input Modal / Form
@@ -844,6 +845,7 @@ export function CareerOpsView() {
       >
         <div style={{ display: 'flex', gap: '6px' }}>
           {[
+            { id: 'today', label: '☀️ Today' },
             { id: 'pipeline', label: '📋 Pipeline Board', count: applications.length },
             { id: 'discovery', label: '🔎 Job Discovery' },
             {
@@ -945,6 +947,17 @@ export function CareerOpsView() {
 
       {/* Main Workspace Content Area */}
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+        {subTab === 'today' && (
+          <TodayView
+            onNavigateToTab={(tab) => setSubTab(tab as any)}
+            onSelectJob={(job) => {
+              setActiveJobId(job.id);
+              setSubTab('evaluator');
+            }}
+            onOpenAssistQueue={() => setSubTab('outreach')}
+          />
+        )}
+
         {subTab === 'discovery' && (
           <CareerDiscoveryPanel resumeText={resumeText} providerConfig={careerOpsProviderConfig} />
         )}

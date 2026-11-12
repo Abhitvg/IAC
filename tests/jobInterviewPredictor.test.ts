@@ -22,3 +22,4 @@ describe('Digital Twin Company Interview Loop Predictor', () => {
     expect(loop.technicalQuestions.some((q) => q.prompt.includes('continuous batching'))).toBe(true);
   });
 });
+

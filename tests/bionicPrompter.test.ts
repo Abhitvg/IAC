@@ -28,3 +28,4 @@ describe('Bionic Prompter & Gaze Service', () => {
     expect(formatted.bold + formatted.normal).toBe('Architecture');
   });
 });
+

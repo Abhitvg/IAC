@@ -41,3 +41,4 @@ describe('Ghost Job & Freshness Radar (detectGhostJobRisk)', () => {
     expect(result.badgeLabel).toContain('Fresh');
   });
 });
+

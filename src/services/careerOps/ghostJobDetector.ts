@@ -99,3 +99,4 @@ export function detectGhostJobRisk(
     badgeColor: '#22c55e',
   };
 }
+
