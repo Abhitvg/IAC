@@ -94,3 +94,4 @@ describe('M2: Real-time Activity Feed SSE Hub', () => {
     expect(received).toHaveLength(1); // No new events delivered
   });
 });
+

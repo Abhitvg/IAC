@@ -18,6 +18,9 @@ import {
   ApplicationStatusEnum,
   type TransitionRequest,
 } from '../../../packages/cloud-core/src/tracker';
+import { evaluateJobCredibility } from '../../../packages/cloud-core/src/discovery/ghost-scam-filter';
+import { runDiscoveryWave } from '../../../packages/cloud-core/src/discovery/scheduler';
+import type { JobPosting } from '../../../packages/cloud-core/src/plugins';
 import { globalActivityHub } from './activity-hub';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
@@ -497,6 +500,52 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         request.on('close', () => {
           unsubscribe();
         });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/discovery/evaluate-job') {
+        const body = await readJson(request, maxBytes);
+        const report = evaluateJobCredibility(body as unknown as JobPosting);
+        sendJson(response, 200, { report, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/discovery/wave') {
+        const activeContractRecord = await dependencies.repository.getActiveSprintContract(
+          tenant.tenantId
+        );
+        if (!activeContractRecord) {
+          sendJson(response, 400, {
+            error: 'Active Sprint Contract required to run discovery waves',
+            requestId,
+          });
+          return;
+        }
+
+        const summary = await runDiscoveryWave([], activeContractRecord.contract, {
+          trackJob: async (job) => {
+            if (!dependencies.applicationTracker) return false;
+            try {
+              await dependencies.applicationTracker.createApplication(
+                tenant.tenantId,
+                tenant.subject,
+                {
+                  company: job.company,
+                  role: job.title,
+                  sourceUrl: job.url,
+                  externalJobId: job.externalId,
+                  channel: 'ats',
+                  metadata: { source: job.platform },
+                }
+              );
+              return true;
+            } catch {
+              return false;
+            }
+          },
+        });
+
+        sendJson(response, 200, { summary, requestId });
         return;
       }
 

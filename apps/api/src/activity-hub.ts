@@ -50,3 +50,4 @@ export class TenantActivityHub {
 }
 
 export const globalActivityHub = new TenantActivityHub();
+

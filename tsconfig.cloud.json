@@ -22,6 +22,10 @@
     "tests/m1-api-routes.test.ts",
     "tests/m2-tracker-state-machine.test.ts",
     "tests/m2-activity-feed-sse.test.ts",
-    "tests/m2-api-applications.test.ts"
+    "tests/m2-api-applications.test.ts",
+    "tests/m3-ats-connectors.test.ts",
+    "tests/m3-ghost-scam-filter.test.ts",
+    "tests/m3-discovery-scheduler.test.ts",
+    "tests/m3-api-discovery.test.ts"
   ]
 }

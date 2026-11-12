@@ -152,3 +152,4 @@ GRANT SELECT, INSERT, UPDATE ON applications TO careerops_app;
 GRANT SELECT, INSERT ON application_timeline_events, activity_feed_events TO careerops_app;
 
 COMMIT;
+
