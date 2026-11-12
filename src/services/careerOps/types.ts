@@ -29,7 +29,27 @@ export interface JobEvaluationReport {
 }
 
 export type ApplicationStatus =
-  'scouted' | 'evaluated' | 'applied' | 'interviewing' | 'offer' | 'rejected' | 'archived';
+  | 'scouted'
+  | 'evaluated'
+  | 'tailored'
+  | 'queued'
+  | 'applied'
+  | 'outreach_sent'
+  | 'replied'
+  | 'interviewing'
+  | 'offer'
+  | 'rejected'
+  | 'withdrawn'
+  | 'archived';
+
+export type JobStrategyType = 'referral_first' | 'apply_now' | 'both';
+export type ReferralStateType =
+  | 'waiting'
+  | 'outreach_sent'
+  | 'thread_active'
+  | 'referral_received'
+  | 'expired'
+  | 'overridden';
 
 export interface FormQuestionRecord {
   questionId: string;
@@ -62,6 +82,9 @@ export interface JobApplication {
   appliedAt?: number;
   notes?: string;
   isDemo?: boolean;
+  strategy?: JobStrategyType;
+  referralState?: ReferralStateType;
+  holdDays?: number;
 }
 
 export interface CareerOpsStats {

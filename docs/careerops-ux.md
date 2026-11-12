@@ -203,3 +203,4 @@ Every action log entry provides an explicit `reason` string grounded in user pre
 2. **Step 2:** Screen 1: **Today Screen** (Backend endpoints `GET /v1/today`, Job strategy hold logic, Frontend view with loading, error, empty, offline states, optimistic updates, and tests).
 3. **Step 3:** Report changes, tests, and gaps, then wait for user "continue".
 4. **Subsequent Steps:** Pipeline → Job Drawer → Network → Inbox → Interviews → Insights → Controls → Onboarding.
+
