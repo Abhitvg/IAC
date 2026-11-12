@@ -12,14 +12,20 @@
  */
 
 const PROMPT_INJECTION_PATTERNS = [
-  /system\s*:\s*/gi,
-  /<\|(?:im_start|im_end|endoftext|system|user|assistant)\|>/gi,
-  /\[\/?(?:INST|SYS)\]/gi,
-  /<\/?(?:system|instruction|prompt|context)>/gi,
-  /ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions?/gi,
-  /disregard\s+(?:all\s+)?(?:previous|prior|above)\s+instructions?/gi,
-  /you\s+are\s+now\s+(?:a|an)\s+/gi,
-  /\boutput\s+the\s+following\s+phrase\b/gi,
+  /(?:system|developer|admin|root)\s*:\s*/gi,
+  /<\|(?:im_start|im_end|endoftext|system|user|assistant|startoftext)\|>/gi,
+  /\[\/?(?:INST|SYS|SYSTEM|HUMAN|ASSISTANT)\]/gi,
+  /<<\/?SYS>>/gi,
+  /<\/?(?:system|instruction|prompt|context|directive|admin)>/gi,
+  /\{\{(?:system|user|assistant)\}\}/gi,
+  /\b(?:ignore|disregard|forget|override)\s+(?:all\s+)?(?:previous|prior|above|system|existing)\s+(?:instructions?|directives?|rules?|prompts?)\b/gi,
+  /\b(?:you\s+are\s+now|act\s+as|pretend\s+to\s+be|roleplay\s+as)\s+(?:a|an)?\s*/gi,
+  /\b(?:admin|developer|maintenance)\s+mode\s+(?:activated|enabled|on)\b/gi,
+  /\boutput\s+(?:the\s+following\s+phrase|exactly|verbatim)\b/gi,
+  /\b(?:repeat|print|leak|reveal|dump)\s+(?:the\s+)?(?:system\s+prompt|initial\s+prompt|instructions?|api\s*key|secret)\b/gi,
+  /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+  /javascript:\s*/gi,
+  /\bon(?:error|load|click|mouseover)\s*=/gi,
 ];
 
 /**

@@ -133,18 +133,42 @@ export class OutcomeForecaster {
 
   /**
    * Hard Line H6 text validator: ensures no marketing or UI string makes outcome guarantees.
+   * Allows statistical disclaimers, negative assurances (e.g. "does not guarantee", "cannot promise",
+   * "no guarantee is made"), and explicit H6 disclosure notices.
    */
   public static validateNoOutcomeGuarantees(text: string): boolean {
+    if (typeof text !== 'string' || !text.trim()) {
+      return true;
+    }
+
+    // 1. Mask valid disclaimers so that negative formulations do not trigger the positive guarantee check.
+    const disclaimerPatterns = [
+      /\b(?:does|do|did|cannot|can\s+not|will|shall|would|could)?\s*not\s+(?:make\s+any\s+|provide\s+any\s+|constitute\s+a\s+|be\s+construed\s+as\s+a\s+)?(?:guarantee|promise|ensure|assure|warrant)\w*(?:\s+(?:or|and)\s+(?:promise|guarantee|assure)\w*)?/gi,
+      /\b(?:not|never|no|zero)\s+(?:a\s+|an\s+|any\s+)?(?:guarantee|promise|assurance|warranty)\b/gi,
+      /\b(?:is|are|was|were)\s+not\s+(?:guaranteed|promised|assured)\b/gi,
+      /\bno\s+(?:outcome\s+|specific\s+|interview\s+|placement\s+|employment\s+|job\s+)?(?:guarantees?|promises?|assurances?)\b/gi,
+      /\bpast\s+performance\s+is\s+no\s+guarantee\b/gi,
+      /\bdisclaimer(?:\s*:|\s+-|\s+notice)?\s*[^.\n;!]+/gi,
+      /\bwithout\s+(?:any\s+)?(?:guarantee|promise|assurance)\b/gi,
+    ];
+
+    let masked = text;
+    for (const pattern of disclaimerPatterns) {
+      masked = masked.replace(pattern, ' [compliant-h6-disclaimer] ');
+    }
+
+    // 2. Check for surviving positive outcome guarantees or promises
     const forbiddenPhrases = [
-      /guarantee(d|s)?/i,
-      /promise(d|s)?/i,
-      /ensure(s)? (you get|you will receive|an interview|a job)/i,
-      /100%\s*(chance|success|placement)/i,
-      /assured (interview|job|placement)/i,
+      /\bguarantee(d|s)?\b/i,
+      /\bpromise(d|s)?\b/i,
+      /\bensure(s)?\s+(?:you\s+get|you\s+will\s+receive|an\s+interview|a\s+job|employment|placement)/i,
+      /\b100%\s*(?:chance|success|placement|interviews?|offers?)/i,
+      /\bassured\s+(?:interview|job|placement|offer)/i,
+      /\bguaranteed\s+(?:interview|job|placement|offer|result)/i,
     ];
 
     for (const pattern of forbiddenPhrases) {
-      if (pattern.test(text)) {
+      if (pattern.test(masked)) {
         throw new Error(
           `Hard Line H6 Violation: Prohibited outcome guarantee phrase detected matching pattern "${pattern.source}".`
         );
