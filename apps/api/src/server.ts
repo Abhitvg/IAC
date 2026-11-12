@@ -70,6 +70,9 @@ import type {
 } from '../../../packages/cloud-core/src/experiments/types';
 import { FunnelAnalyticsEngine } from '../../../packages/cloud-core/src/analytics/funnel';
 import { DsarManager } from '../../../packages/cloud-core/src/privacy/dsar';
+import { TenantCryptoShredder } from '../../../packages/cloud-core/src/privacy/crypto-shredder';
+import { RetentionRunner } from '../../../packages/cloud-core/src/privacy/retention-runner';
+import { SuppressionPropagator } from '../../../packages/cloud-core/src/privacy/suppression-propagator';
 import { TierEnforcer, type SubscriptionTier } from '../../../packages/cloud-core/src/billing/tier-enforcer';
 import { globalActivityHub } from './activity-hub';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
@@ -2413,6 +2416,59 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         });
 
         sendJson(response, 200, { receipt, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/privacy/crypto-shred') {
+        const shredder = new TenantCryptoShredder();
+        const shredReceipt = shredder.shredTenantKey(tenant.tenantId);
+
+        globalActivityHub.broadcast({
+          id: randomUUID(),
+          tenantId: tenant.tenantId,
+          eventType: 'tenant_key_shredded',
+          title: 'Tenant Cryptographic Key Destroyed',
+          description: 'Tenant Data Encryption Key (DEK) has been zeroed. All historical artifacts are permanently unrecoverable.',
+          severity: 'warn',
+          actorSubject: identity.subject,
+          createdAt: new Date().toISOString(),
+          metadata: {
+            keyId: shredReceipt.keyId,
+            zeroedChecksum: shredReceipt.zeroedChecksum,
+          },
+        });
+
+        sendJson(response, 200, { shredReceipt, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/privacy/retention/run') {
+        const body = await readJson(request, maxBytes);
+        const runner = new RetentionRunner();
+        const purgeReport = await runner.runRetentionPurge(tenant.tenantId, {
+          dryRun: Boolean(body.dryRun),
+        });
+
+        sendJson(response, 200, { purgeReport, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/privacy/suppression/propagate') {
+        const body = await readJson(request, maxBytes);
+        if (!body.contactEmail || typeof body.contactEmail !== 'string') {
+          sendJson(response, 400, { error: 'contactEmail is required', requestId });
+          return;
+        }
+
+        const propagator = new SuppressionPropagator();
+        const propagationReceipt = await propagator.propagateNotice({
+          tenantId: tenant.tenantId,
+          contactEmail: body.contactEmail,
+          reason: typeof body.reason === 'string' ? body.reason : 'unsubscribed',
+          scope: body.scope === 'company_domain' ? 'company_domain' : 'recipient_only',
+        });
+
+        sendJson(response, 200, { propagationReceipt, requestId });
         return;
       }
 
