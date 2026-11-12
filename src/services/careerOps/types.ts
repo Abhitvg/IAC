@@ -109,3 +109,30 @@ export interface CareerOpsSource {
   lastCheckedAt?: number;
   lastError?: string;
 }
+
+export type RelationshipStage =
+  | 'discovered'
+  | 'outreach_queued'
+  | 'sent'
+  | 'replied'
+  | 'referral_offered';
+
+export interface NetworkContact {
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  linkedinUrl?: string;
+  email?: string;
+  stage: RelationshipStage;
+  isSuppressed: boolean; // Do-not-contact rule
+  suppressionReason?: string;
+  jobId?: string; // Anchor to target job
+  lastContactedAt?: number;
+  outreachDraft?: string;
+  notes?: string;
+  connectedOn?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
