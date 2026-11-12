@@ -69,6 +69,8 @@ import { InboxView } from './InboxView';
 import { InterviewsView } from './InterviewsView';
 import { InsightsView } from './InsightsView';
 import { ControlsView } from './ControlsView';
+import { OnboardingFlowModal } from './OnboardingFlowModal';
+import { useCareerOpsOnboardingStore } from '../../store/useCareerOpsOnboardingStore';
 
 interface CareerOpsEmptyTabProps {
   tabName: string;
@@ -336,6 +338,7 @@ export function CareerOpsView() {
   }, [sources, isDiscovering, discoverJobsFromSources, resumeText, careerOpsProviderConfig]);
 
   // Internal sub-tab state
+  const { openOnboarding } = useCareerOpsOnboardingStore();
   const [subTab, setSubTab] = useState<
     'today' | 'pipeline' | 'network' | 'inbox' | 'interviews' | 'insights' | 'controls' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
   >('today');
@@ -813,6 +816,21 @@ export function CareerOpsView() {
             </span>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => openOnboarding()}
+              style={{
+                padding: '5px 12px',
+                borderRadius: '6px',
+                background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
+                color: '#ffffff',
+                border: 'none',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              🚀 60s Onboarding
+            </button>
             <button
               onClick={() => enableDemoMode()}
               style={{
@@ -3908,6 +3926,9 @@ export function CareerOpsView() {
           }
         }}
       />
+
+      {/* 60-Second Onboarding Flow Modal */}
+      <OnboardingFlowModal />
     </div>
   );
 }

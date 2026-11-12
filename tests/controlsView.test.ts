@@ -98,3 +98,4 @@ describe('CareerOps Screen 8: Controls, Safety Caps & Privacy Store', () => {
     expect(useControlsStore.getState().pausedChannels.length).toBe(4);
   });
 });
+
