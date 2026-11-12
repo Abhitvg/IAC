@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build && tsc -p tsconfig.electron.json && npm run build:api",
     "preview": "vite preview",
-    "electron:dev": "tsc -p tsconfig.electron.json && vite",
+    "electron:dev": "env -u ELECTRON_RUN_AS_NODE tsc -p tsconfig.electron.json && env -u ELECTRON_RUN_AS_NODE vite",
     "electron:build": "npm run build && electron-builder",
     "lint": "eslint electron/ src/",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",

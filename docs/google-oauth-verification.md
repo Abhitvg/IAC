@@ -43,3 +43,4 @@ CareerOps undergoes Cloud Application Security Assessment (CASA) Tier 2 complian
 3. **Google Sign-In Trigger**: User clicks "Connect Google Account". Redirects to Google OAuth consent screen displaying app name and requested scopes (`gmail.send`, `gmail.readonly`).
 4. **Token Storage**: OAuth access and refresh tokens returned over HTTPS, encrypted via envelope DEK, and stored in PostgreSQL.
 5. **Revocation**: Candidate can revoke Gmail access at any time with one click or by terminating their Sprint Contract.
+

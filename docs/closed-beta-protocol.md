@@ -61,3 +61,4 @@ If any of the following health signals are triggered during the ramp, the system
 2. **Spam Complaint**: Any spam complaint reported by mail provider webhook -> Channel paused instantly.
 3. **Truthfulness Gate Block**: Block rate exceeds 10% over 5 consecutive evaluations -> Tenant reverted to shadow mode.
 4. **ATS Submission Error**: Failure rate exceeds 15% -> ATS channel paused.
+

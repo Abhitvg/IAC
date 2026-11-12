@@ -82,3 +82,4 @@ Before any outreach email is dispatched:
 3. `isSuppressed(email, suppressionList)`: Checks local tenant and global suppression databases.
 4. `checkQuietHours(recipientTimeZone, now)`: Blocks dispatch between 8:00 PM and 8:00 AM recipient local time.
 5. `adaptiveCapManager.canSend(tenantId)`: Evaluates daily volume limits and health metrics.
+

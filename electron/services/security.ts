@@ -371,7 +371,7 @@ export function buildCspHeader(isDev: boolean): string {
 
   return [
     "default-src 'self'",
-    `script-src 'self'${isDev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self'${isDev ? " 'unsafe-eval' 'sha256-Z2/iFzh9VMlVkEOar1f/oSHWwQk3ve1qk/C2WdsC4Xk='" : ''}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob:",
     "media-src 'self' blob:",

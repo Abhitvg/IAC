@@ -53,3 +53,4 @@ CareerOps implements industry-grade technical and organizational safeguards:
 * CareerOps provides automated self-service Data Subject Access Request (DSAR) export and deletion endpoints:
   * `GET /v1/privacy/dsar/export`: Full structured JSON export across DB, S3 object storage keys, workflow history, and tokens.
   * `POST /v1/privacy/crypto-shred`: Destroys the tenant Data Encryption Key with zero-buffer overwrites, cryptographically shredding all tenant ciphertext.
+

@@ -64,3 +64,4 @@ Within 48 hours of resolving any P0 or P1 incident, the team must complete a bla
 2. Timeline of events (Detection, Escalation, Containment, Recovery).
 3. Impact Assessment (Number of affected tenants, emails sent, data exposure).
 4. Corrective Action Items (Assigned owner, target deployment date).
+

@@ -64,7 +64,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 let mainWindow: BrowserWindow | null = null;
-let isContentProtected = true;
+let isContentProtected = !process.env.VITE_DEV_SERVER_URL;
 let tray: Tray | null = null;
 let lastCapturedOcrText = '';
 
@@ -346,8 +346,8 @@ function setupNativeApplicationMenu() {
 }
 
 // Enforce single-instance lock to prevent multiple application instances/windows from opening in production
-const isDev = !app.isPackaged && Boolean(process.env.VITE_DEV_SERVER_URL);
-const gotTheLock = isDev ? true : app.requestSingleInstanceLock();
+const isDev = Boolean(process.env.VITE_DEV_SERVER_URL) || Boolean(app && !app.isPackaged);
+const gotTheLock = isDev ? true : (app ? app.requestSingleInstanceLock() : true);
 
 if (!gotTheLock) {
   console.log(
