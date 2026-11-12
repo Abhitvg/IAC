@@ -10,7 +10,6 @@
  * - Every prior explicitly labeled with its source or "unvalidated".
  */
 
-import { createHash } from 'node:crypto';
 import {
   ExperimentDefinition,
   ExperimentDimension,
@@ -18,6 +17,19 @@ import {
   ExperimentVariant,
   StatisticalEvaluation,
 } from './types';
+
+/**
+ * Deterministic isomorphic hash function (FNV-1a 32-bit).
+ * Avoids node:crypto dependencies so this runs identically in Node, Electron renderer, and browser.
+ */
+function deterministicBucket(str: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 10000; // 0 to 9999
+}
 
 /**
  * Computes ln(n!) using summation
@@ -188,8 +200,7 @@ export class ExperimentEngine {
       return activeVariants[0];
     }
 
-    const hash = createHash('sha256').update(`${experiment.id}:${subjectKey}`).digest('hex');
-    const bucket = parseInt(hash.slice(0, 8), 16) % 10000; // 0 to 9999
+    const bucket = deterministicBucket(`${experiment.id}:${subjectKey}`);
 
     const totalWeight = activeVariants.reduce((sum, v) => sum + v.allocationWeight, 0);
     let cumulative = 0;

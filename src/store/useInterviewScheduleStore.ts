@@ -215,3 +215,4 @@ export const useInterviewScheduleStore = create<InterviewScheduleState>((set, ge
     set({ interviews: [], selectedInterviewId: null });
   },
 }));
+
