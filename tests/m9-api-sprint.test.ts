@@ -281,8 +281,8 @@ describe('Milestone M9 - Sprint Mode Orchestrator & Forecast API', () => {
       body: JSON.stringify({ targetDurationHours: 72 }),
     });
 
-    // Trigger bounce spike alert
-    const triggerRes = await fetch(`${baseUrl}/v1/sprint/trigger-event`, {
+    // Reject client-supplied metrics (M11 Hardening)
+    const badMetricsRes = await fetch(`${baseUrl}/v1/sprint/trigger-event`, {
       method: 'POST',
       headers: {
         authorization: 'Bearer valid-token',
@@ -292,8 +292,25 @@ describe('Milestone M9 - Sprint Mode Orchestrator & Forecast API', () => {
       body: JSON.stringify({
         metrics: {
           emailOutreachSent: 20,
-          emailBounces: 2, // 10% > 5%
+          emailBounces: 2,
         },
+      }),
+    });
+    expect(badMetricsRes.status).toBe(400);
+    const badMetricsJson = await badMetricsRes.json();
+    expect(badMetricsJson.error).toContain('Client-supplied metrics are prohibited');
+
+    // Valid external safety alert
+    const triggerRes = await fetch(`${baseUrl}/v1/sprint/trigger-event`, {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer valid-token',
+        'x-tenant-id': tenantId,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        alertType: 'mailbox_warning',
+        details: 'Provider delivery warning: quota reduction',
       }),
     });
 

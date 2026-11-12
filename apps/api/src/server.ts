@@ -1812,6 +1812,16 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
 
       if (request.method === 'POST' && url.pathname === '/v1/sprint/trigger-event') {
         const body = await readJson(request, maxBytes);
+
+        // HARDENING (M11 Item 2): Client-supplied metrics are strictly prohibited
+        if (body.metrics) {
+          sendJson(response, 400, {
+            error: 'Client-supplied metrics are prohibited; auto-pause thresholds must be evaluated from verified server state and provider webhooks',
+            requestId,
+          });
+          return;
+        }
+
         const coordinator = new AutoPauseCoordinator();
         const sprintId = typeof body.sprintId === 'string' ? body.sprintId : 'default_sprint';
 
@@ -1822,12 +1832,20 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             body.alertType,
             typeof body.details === 'string' ? body.details : 'External safety threshold alert'
           );
-        } else if (body.metrics) {
-          const evalResults = coordinator.evaluateMetrics(sprintId, body.metrics as any);
-          result = evalResults[0] || { shouldPause: false, affectedChannels: [] };
         } else {
-          sendJson(response, 400, { error: 'Expected alertType or metrics in body', requestId });
-          return;
+          // Evaluate directly from real database metrics
+          let realMetrics: SprintMetrics | null = null;
+          if (dependencies.sprint) {
+            const active = await dependencies.sprint.getSprint(tenant.tenantId, sprintId);
+            if (active) realMetrics = active.sprint.metrics;
+          }
+          if (!realMetrics) {
+            sendJson(response, 404, { error: 'Sprint not found for server-side auto-pause evaluation', requestId });
+            return;
+          }
+
+          const evalResults = coordinator.evaluateMetrics(sprintId, realMetrics);
+          result = evalResults[0] || { shouldPause: false, affectedChannels: [] };
         }
 
         if (result.shouldPause && result.event && dependencies.sprint) {
@@ -1853,6 +1871,219 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         }
 
         sendJson(response, 200, { result, requestId });
+        return;
+      }
+
+      // M11 Item 2: Verified Provider Webhook - Email Bounce
+      if (request.method === 'POST' && url.pathname === '/v1/webhooks/email/bounce') {
+        const body = await readJson(request, maxBytes);
+        if (typeof body.email !== 'string') {
+          sendJson(response, 400, { error: 'Expected email in body', requestId });
+          return;
+        }
+
+        const bouncedEmail = String(body.email).toLowerCase().trim();
+
+        // 1. Immediately record in suppression list
+        if (dependencies.outreach) {
+          await dependencies.outreach.addSuppression(
+            tenant.tenantId,
+            { email: bouncedEmail, reason: 'bounce' },
+            'webhook:provider'
+          );
+        }
+
+        // 2. Fetch real mailbox metrics directly from DB
+        let autoPaused = false;
+        let currentBounceRate = 0;
+        if (dependencies.outreach && dependencies.sprint) {
+          const metrics = await dependencies.outreach.getMailboxMetrics(tenant.tenantId);
+          // Increment bounce count in DB metrics
+          const newBounceCount = metrics.bounceCount + 1;
+          const sent = Math.max(metrics.sentCount, 1);
+          currentBounceRate = Number((newBounceCount / sent).toFixed(4));
+
+          // If bounce rate exceeds 5% and sent >= 5, auto-pause email channel
+          if (sent >= 5 && currentBounceRate > 0.05) {
+            autoPaused = true;
+            await dependencies.repository.setChannelPauseWithAudit({
+              tenantId: tenant.tenantId,
+              actorSubject: 'webhook:provider',
+              channel: 'email',
+              paused: true,
+              occurredAt: new Date().toISOString(),
+              metadata: {
+                triggerType: 'bounce_rate_spike',
+                bounceRate: String(currentBounceRate),
+                bouncedEmail,
+              },
+            });
+
+            const activeSprint = await dependencies.sprint.getActiveSprint(tenant.tenantId);
+            if (activeSprint) {
+              await dependencies.sprint.recordAutoPauseEvent(
+                tenant.tenantId,
+                {
+                  sprintId: activeSprint.sprint.id,
+                  channel: 'email',
+                  triggerType: 'bounce_rate_spike',
+                  metricValue: currentBounceRate,
+                  threshold: 0.05,
+                  details: `Webhook reported bounce for ${bouncedEmail}. Real bounce rate (${(currentBounceRate * 100).toFixed(1)}%) exceeded 5% limit. Auto-paused.`,
+                  createdAt: new Date().toISOString(),
+                },
+                'webhook:provider'
+              );
+            }
+          }
+        }
+
+        sendJson(response, 200, {
+          status: 'processed',
+          bouncedEmail,
+          currentBounceRate,
+          autoPaused,
+          requestId,
+        });
+        return;
+      }
+
+      // M11 Item 2: Verified Provider Webhook - Spam Complaint (0 tolerance)
+      if (request.method === 'POST' && url.pathname === '/v1/webhooks/email/complaint') {
+        const body = await readJson(request, maxBytes);
+        if (typeof body.email !== 'string') {
+          sendJson(response, 400, { error: 'Expected email in body', requestId });
+          return;
+        }
+
+        const complaintEmail = String(body.email).toLowerCase().trim();
+
+        if (dependencies.outreach) {
+          await dependencies.outreach.addSuppression(
+            tenant.tenantId,
+            { email: complaintEmail, reason: 'spam_complaint' },
+            'webhook:provider'
+          );
+        }
+
+        // Standing consent invariant: 0-tolerance immediate auto-pause on complaint
+        await dependencies.repository.setChannelPauseWithAudit({
+          tenantId: tenant.tenantId,
+          actorSubject: 'webhook:provider',
+          channel: 'email',
+          paused: true,
+          occurredAt: new Date().toISOString(),
+          metadata: {
+            triggerType: 'spam_complaint',
+            complaintEmail,
+          },
+        });
+
+        if (dependencies.sprint) {
+          const activeSprint = await dependencies.sprint.getActiveSprint(tenant.tenantId);
+          if (activeSprint) {
+            await dependencies.sprint.recordAutoPauseEvent(
+              tenant.tenantId,
+              {
+                sprintId: activeSprint.sprint.id,
+                channel: 'email',
+                triggerType: 'spam_complaint',
+                metricValue: 1,
+                threshold: 0,
+                details: `Spam complaint received via webhook for ${complaintEmail}. Email channel auto-paused immediately to preserve domain reputation.`,
+                createdAt: new Date().toISOString(),
+              },
+              'webhook:provider'
+            );
+          }
+        }
+
+        sendJson(response, 200, {
+          status: 'processed',
+          complaintEmail,
+          autoPaused: true,
+          requestId,
+        });
+        return;
+      }
+
+      // M11 Item 2: Verified ATS Result Ingestion & Error Spike Auto-Pause
+      if (request.method === 'POST' && url.pathname === '/v1/webhooks/ats/result') {
+        const body = await readJson(request, maxBytes);
+        if (
+          typeof body.applicationId !== 'string' ||
+          (body.status !== 'submitted' && body.status !== 'failed')
+        ) {
+          sendJson(response, 400, {
+            error: 'Expected applicationId and status (submitted | failed) in body',
+            requestId,
+          });
+          return;
+        }
+
+        let autoPaused = false;
+        let atsErrorRate = 0;
+
+        if (dependencies.sprint) {
+          const activeSprint = await dependencies.sprint.getActiveSprint(tenant.tenantId);
+          if (activeSprint) {
+            const metrics = activeSprint.sprint.metrics;
+            const submitted = metrics.atsApplicationsSubmitted + (body.status === 'submitted' ? 1 : 0);
+            const failed = metrics.atsApplicationsFailed + (body.status === 'failed' ? 1 : 0);
+            const total = submitted + failed;
+            atsErrorRate = total > 0 ? Number((failed / total).toFixed(4)) : 0;
+
+            await dependencies.sprint.updateSprintMetrics(
+              tenant.tenantId,
+              activeSprint.sprint.id,
+              {
+                atsApplicationsSubmitted: submitted,
+                atsApplicationsFailed: failed,
+              },
+              'webhook:ats'
+            );
+
+            // Auto-pause if error rate > 15% on >= 5 submissions
+            if (total >= 5 && atsErrorRate > 0.15) {
+              autoPaused = true;
+              await dependencies.repository.setChannelPauseWithAudit({
+                tenantId: tenant.tenantId,
+                actorSubject: 'webhook:ats',
+                channel: 'ats',
+                paused: true,
+                occurredAt: new Date().toISOString(),
+                metadata: {
+                  triggerType: 'ats_error_spike',
+                  errorRate: String(atsErrorRate),
+                  failedApplicationId: body.applicationId,
+                },
+              });
+
+              await dependencies.sprint.recordAutoPauseEvent(
+                tenant.tenantId,
+                {
+                  sprintId: activeSprint.sprint.id,
+                  channel: 'ats',
+                  triggerType: 'ats_error_spike',
+                  metricValue: atsErrorRate,
+                  threshold: 0.15,
+                  details: `ATS application failure rate (${(atsErrorRate * 100).toFixed(1)}%) exceeded 15%. Automated submissions auto-paused.`,
+                  createdAt: new Date().toISOString(),
+                },
+                'webhook:ats'
+              );
+            }
+          }
+        }
+
+        sendJson(response, 200, {
+          status: 'processed',
+          applicationId: body.applicationId,
+          applicationStatus: body.status,
+          atsErrorRate,
+          autoPaused,
+          requestId,
+        });
         return;
       }
 

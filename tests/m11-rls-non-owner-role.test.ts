@@ -90,3 +90,4 @@ describe('Milestone M11 Item 1: FORCE RLS & Non-Owner Role Hardening', () => {
     expect(evaluateRlsPolicy(tenantA, '')).toBe(false);
   });
 });
+
