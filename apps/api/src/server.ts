@@ -21,6 +21,10 @@ import {
 import { evaluateJobCredibility } from '../../../packages/cloud-core/src/discovery/ghost-scam-filter';
 import { runDiscoveryWave } from '../../../packages/cloud-core/src/discovery/scheduler';
 import type { JobPosting } from '../../../packages/cloud-core/src/plugins';
+import { evaluateJobFit } from '../../../packages/cloud-core/src/evaluation/ah-evaluation';
+import { generateTailoredArtifacts } from '../../../packages/cloud-core/src/evaluation/tailoring-engine';
+import { verifyTruthfulness } from '../../../packages/cloud-core/src/evaluation/truthfulness-gate';
+import type { CandidateFact } from '../../../packages/cloud-core/src/career-graph-types';
 import { globalActivityHub } from './activity-hub';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
@@ -546,6 +550,89 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         });
 
         sendJson(response, 200, { summary, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/evaluation/evaluate') {
+        const body = await readJson(request, maxBytes);
+        if (!body.job || typeof body.job !== 'object') {
+          sendJson(response, 400, { error: 'Expected job object in body', requestId });
+          return;
+        }
+        const activeContractRecord = await dependencies.repository.getActiveSprintContract(
+          tenant.tenantId
+        );
+        const confirmedFacts = Array.isArray(body.confirmedFacts)
+          ? (body.confirmedFacts as CandidateFact[])
+          : [];
+        const report = evaluateJobFit(
+          body.job as unknown as JobPosting,
+          confirmedFacts,
+          activeContractRecord?.contract
+        );
+        sendJson(response, 200, { report, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/evaluation/tailor') {
+        const body = await readJson(request, maxBytes);
+        if (!body.job || typeof body.job !== 'object') {
+          sendJson(response, 400, { error: 'Expected job object in body', requestId });
+          return;
+        }
+        const activeContractRecord = await dependencies.repository.getActiveSprintContract(
+          tenant.tenantId
+        );
+        if (!activeContractRecord) {
+          sendJson(response, 400, {
+            error: 'Active Sprint Contract required for tailoring',
+            requestId,
+          });
+          return;
+        }
+        const confirmedFacts = Array.isArray(body.confirmedFacts)
+          ? (body.confirmedFacts as CandidateFact[])
+          : [];
+        const artifacts = generateTailoredArtifacts(
+          body.job as unknown as JobPosting,
+          confirmedFacts,
+          activeContractRecord.contract
+        );
+
+        const truthfulness = verifyTruthfulness(
+          `${artifacts.tailoredResumeLatex} ${artifacts.tailoredCoverLetterText}`,
+          confirmedFacts,
+          (body.job as unknown as JobPosting).company
+        );
+
+        if (!truthfulness.passed) {
+          sendJson(response, 422, {
+            error: 'Truthfulness gate violation (H3): generated content contains unverified claims',
+            truthfulness,
+            requestId,
+          });
+          return;
+        }
+
+        sendJson(response, 200, { artifacts, truthfulness, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/evaluation/verify-truthfulness') {
+        const body = await readJson(request, maxBytes);
+        if (typeof body.text !== 'string') {
+          sendJson(response, 400, { error: 'Expected string text field in body', requestId });
+          return;
+        }
+        const confirmedFacts = Array.isArray(body.confirmedFacts)
+          ? (body.confirmedFacts as CandidateFact[])
+          : [];
+        const result = verifyTruthfulness(
+          body.text,
+          confirmedFacts,
+          typeof body.targetCompany === 'string' ? body.targetCompany : undefined
+        );
+        sendJson(response, 200, { result, requestId });
         return;
       }
 

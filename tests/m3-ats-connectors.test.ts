@@ -186,3 +186,4 @@ describe('M3: ATS Connectors (Greenhouse, Lever, Ashby, Workable, SmartRecruiter
     expect(postings[0].externalId).toBe('R102030');
   });
 });
+

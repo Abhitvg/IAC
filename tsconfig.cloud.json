@@ -26,6 +26,10 @@
     "tests/m3-ats-connectors.test.ts",
     "tests/m3-ghost-scam-filter.test.ts",
     "tests/m3-discovery-scheduler.test.ts",
-    "tests/m3-api-discovery.test.ts"
+    "tests/m3-api-discovery.test.ts",
+    "tests/m4-ah-evaluation.test.ts",
+    "tests/m4-tailoring-engine.test.ts",
+    "tests/m4-truthfulness-gate.test.ts",
+    "tests/m4-api-evaluation.test.ts"
   ]
 }

@@ -125,3 +125,4 @@ export function evaluateJobCredibility(job: JobPosting): JobCredibilityReport {
     redFlags,
   };
 }
+

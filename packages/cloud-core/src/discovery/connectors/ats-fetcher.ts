@@ -41,3 +41,4 @@ export const defaultAtsFetcher: AtsHttpFetcher = async (url: string): Promise<At
     clearTimeout(timeout);
   }
 };
+

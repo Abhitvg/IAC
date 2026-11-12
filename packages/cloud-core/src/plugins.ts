@@ -75,3 +75,4 @@ export interface ContactSource {
   readonly id: string;
   findCompanyContacts(companyName: string, roleDomain?: string): Promise<unknown[]>;
 }
+
