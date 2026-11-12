@@ -83,3 +83,4 @@ describe('Milestone M9 - Outcome Forecaster & Hard Line H6 Enforcement', () => {
     expect(posteriorForecast.expectedInterviewsMin).toBeGreaterThanOrEqual(3);
   });
 });
+

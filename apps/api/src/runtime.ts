@@ -11,6 +11,7 @@ import { SqlInboundRepository } from './inbound-repository';
 import { SqlOutreachRepository } from './outreach-repository';
 import { SqlLinkedInAuditRepository } from './linkedin-audit-repository';
 import { SqlSprintRepository } from './sprint-repository';
+import { SqlExperimentRepository } from './experiment-repository';
 
 export interface CloudApiRuntime {
   server: Server;
@@ -37,6 +38,7 @@ export function createCloudApiRuntime(
     outreach: new SqlOutreachRepository(pool),
     linkedinAudit: new SqlLinkedInAuditRepository(pool),
     sprint: new SqlSprintRepository(pool),
+    experiments: new SqlExperimentRepository(pool),
     rateLimiter: new PostgresCloudRateLimiter(pool, environment.CAREEROPS_RATE_LIMIT_HASH_SECRET),
     config: {
       issuer: environment.CAREEROPS_JWT_ISSUER,

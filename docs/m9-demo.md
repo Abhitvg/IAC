@@ -170,3 +170,4 @@ Response:
 }
 ```
 The email channel is paused immediately in tenant control state without requiring manual human intervention.
+

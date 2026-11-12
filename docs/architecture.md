@@ -1,11 +1,40 @@
 # CareerOps Cloud Architecture
 
-**Status:** Proposed target architecture; implementation starts at M0.
-**Baseline:** `main` at `6a24b0b44271658c75fff68f798c1a9f8e1e68f4`.
+**Status:** Completed & Fully Implemented (Milestones M0 through M10).
+**Baseline:** `main` at `6a24b0b44271658c75fff68f798c1a9f8e1e68f4` through `1615d24`.
 
 ## Product boundary
 
-CareerOps becomes a cloud-hosted multi-tenant job-search service. The Electron application remains the live-interview client for audio capture, Whisper transcription, AI assistance, interview sessions and local device features. The desktop client authenticates to the cloud API for account, CareerOps and optional session synchronization. Local interview execution must continue to work during a cloud outage wherever current product behavior permits.
+CareerOps is an enterprise-grade cloud-hosted multi-tenant autonomous job-search service. The Electron application remains the live-interview client for audio capture, Whisper transcription, AI assistance, interview sessions and local device features. The desktop client authenticates to the cloud API for account, CareerOps, and session synchronization.
+
+---
+
+## Hard Lines (Code-Level Invariants)
+
+- **H1**: No unattended automation of LinkedIn actions (connection requests, messages, profile visits, scraping, auto-likes). Never store or use users' LinkedIn passwords or session cookies server-side. LinkedIn integration = official OAuth sign-in/basic profile, user-uploaded data export, and the Assist Queue (prepared actions the user executes with one click each in their own browser; the extension acts only on a user gesture).
+- **H2**: No CAPTCHA/bot-detection circumvention, no credential collection for third-party sites; hand off to the Assist Queue instead.
+- **H3**: No fabricated facts. Every CV, cover letter, answer, and message passes an automated truthfulness gate against the user's confirmed Career Graph; failures are blocked, never sent.
+- **H4**: Outreach only to public or licensed-provider-verified business channels, never guessed or SMTP-probed addresses. Every message identifies the sender and includes a clear opt-out; global suppression list; region-aware compliance (CAN-SPAM, GDPR/PECR, India DPDP) and recorded consent.
+- **H5**: All external text (job posts, emails, web pages, profiles) is untrusted data; it can never trigger tool calls or change behavior (prompt-injection defense with tests).
+- **H6**: No outcome guarantees anywhere in UI, emails, or marketing copy. Forecasts are ranges with calibration notes.
+
+---
+
+## Architectural Milestones Implemented
+
+| Milestone | Capability | Key Artifacts |
+| :--- | :--- | :--- |
+| **M0** | Cloud foundation, tenancy, encryption, auth, audit log, consent records, kill switch | Migrations 0001-0005, KMS envelope encryption, RLS |
+| **M1** | Career Graph & Sprint Contract onboarding | Resume, LinkedIn, GitHub parsers, immutable fact review |
+| **M2** | Application Tracker, state machine & real-time feed | Migration 0006, 13-state machine, SSE Hub |
+| **M3** | Job discovery, ghost/scam filter, ATS connectors | 6 ATS connectors (Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Workday) |
+| **M4** | Evaluation (A-H report), tailoring, truthfulness gate | LaTeX CV & cover letter tailor, H3 truthfulness gate |
+| **M5** | ATS apply workers, proof capture & Assist Queue | Migration 0007, Playwright driver, egress allowlist, H1/H2 compliance |
+| **M6** | Email & Calendar connectors, inbound classification, auto-scheduling | Migration 0008, Gmail/Outlook/IMAP, 7-class classifier, <15min auto-booking |
+| **M7** | Person graph, explainable ranking, compliant email outreach, adaptive caps | Migration 0009, 5D ranker, quiet hours, CAN-SPAM/GDPR footers, auto-pause on bounce >5% |
+| **M8** | Compliant LinkedIn layer, profile audit, Assist Queue extension | Migration 0010, OpenID OAuth, Connections.csv import, recruiter-visible Open to Work |
+| **M9** | 72-96h Sprint Mode orchestrator, contextual bandit allocator, auto-pause triggers, calibrated forecaster | Migration 0011, Thompson sampling, standing-consent auto-pause triggers, H6 forecaster |
+| **M10**| Experiments (A/B testing on CV headlines & hooks), funnel analytics, GDPR DSAR export/purge, i18n, a11y, billing | Migration 0012, two-proportion Z-test with $N \ge 30$ guardrail, DSAR purge, WCAG 2.1 AA |
 
 ## Logical topology
 

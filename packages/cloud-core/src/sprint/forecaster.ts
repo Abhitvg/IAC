@@ -139,3 +139,4 @@ export class OutcomeForecaster {
     return true;
   }
 }
+

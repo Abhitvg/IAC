@@ -124,3 +124,4 @@ describe('Milestone M9 - Standing-Consent Auto-Pause Triggers Coordinator', () =
     expect(mailboxAlert.event?.triggerType).toBe('mailbox_warning');
   });
 });
+

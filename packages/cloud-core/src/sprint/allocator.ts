@@ -139,3 +139,4 @@ export class AdaptiveAllocator {
     return active[active.length - 1];
   }
 }
+
