@@ -64,6 +64,7 @@ export interface CloudApiConfig {
 }
 
 import type { ApplicationTrackerRepository } from './application-repository';
+import type { AssistQueueRepository } from './assist-queue-repository';
 
 export interface CloudRateLimiter {
   consume(key: string, limit: number, windowMs: number): Promise<boolean>;
@@ -78,6 +79,7 @@ export interface CloudApiDependencies {
   repository: CloudApiRepository;
   careerGraph: CareerGraphRepository;
   applicationTracker?: ApplicationTrackerRepository;
+  assistQueue?: AssistQueueRepository;
   rateLimiter: CloudRateLimiter;
   config: CloudApiConfig;
 }

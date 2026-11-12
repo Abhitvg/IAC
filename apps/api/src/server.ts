@@ -25,6 +25,16 @@ import { evaluateJobFit } from '../../../packages/cloud-core/src/evaluation/ah-e
 import { generateTailoredArtifacts } from '../../../packages/cloud-core/src/evaluation/tailoring-engine';
 import { verifyTruthfulness } from '../../../packages/cloud-core/src/evaluation/truthfulness-gate';
 import type { CandidateFact } from '../../../packages/cloud-core/src/career-graph-types';
+import { AtsApplyRunner } from '../../../packages/cloud-core/src/apply/apply-runner';
+import {
+  AtsApplyWorker,
+  type PlaywrightApplyDriver,
+} from '../../../packages/cloud-core/src/apply/playwright-worker';
+import type {
+  CandidateConfirmedProfile,
+  FormField,
+} from '../../../packages/cloud-core/src/apply/answer-bank';
+import type { AssistQueueStatus } from '../../../packages/cloud-core/src/apply/assist-queue';
 import { globalActivityHub } from './activity-hub';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
@@ -633,6 +643,223 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           typeof body.targetCompany === 'string' ? body.targetCompany : undefined
         );
         sendJson(response, 200, { result, requestId });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/apply/submit') {
+        const body = await readJson(request, maxBytes);
+        if (!body.job || typeof body.job !== 'object') {
+          sendJson(response, 400, { error: 'Expected job object in body', requestId });
+          return;
+        }
+
+        const activeContractRecord = await dependencies.repository.getActiveSprintContract(
+          tenant.tenantId
+        );
+        if (!activeContractRecord) {
+          sendJson(response, 400, {
+            error: 'Active Sprint Contract required for ATS application',
+            requestId,
+          });
+          return;
+        }
+
+        const controlState = await dependencies.repository.getControlState(tenant.tenantId);
+
+        // Build candidate profile from request or default to contract sender identity
+        const candidateProfile: CandidateConfirmedProfile = (body.profile as CandidateConfirmedProfile) || {
+          firstName: activeContractRecord.contract.senderIdentity.name.split(' ')[0] || 'Applicant',
+          lastName: activeContractRecord.contract.senderIdentity.name.split(' ').slice(1).join(' ') || '',
+          email: activeContractRecord.contract.senderIdentity.email,
+          location: activeContractRecord.contract.locations[0],
+        };
+
+        // Driver setup: allows mock injection for testing and simulated execution
+        const mockDriverConfig = body.mockDriver as
+          | {
+              fields?: FormField[];
+              html?: string;
+              submitResult?: {
+                success?: boolean;
+                confirmationNumber?: string;
+                screenshotUrl?: string;
+                htmlAfterSubmit?: string;
+                error?: string;
+              };
+            }
+          | undefined;
+
+        const driver: PlaywrightApplyDriver = {
+          extractFields: async (_url: string) => ({
+            html: mockDriverConfig?.html || '<html><body><form></form></body></html>',
+            fields: mockDriverConfig?.fields || [
+              { id: 'first_name', name: 'first_name', label: 'First Name', type: 'text', required: true },
+              { id: 'last_name', name: 'last_name', label: 'Last Name', type: 'text', required: true },
+              { id: 'email', name: 'email', label: 'Email', type: 'email', required: true },
+            ],
+          }),
+          submitForm: async (_url: string, answers: Record<string, string | boolean | number>) => ({
+            success: mockDriverConfig?.submitResult?.success ?? true,
+            confirmationNumber: mockDriverConfig?.submitResult?.confirmationNumber || `CONF-${Date.now()}`,
+            screenshotUrl: mockDriverConfig?.submitResult?.screenshotUrl || 'https://storage.careerops.local/proofs/proof.png',
+            submittedPayload: answers,
+            htmlAfterSubmit: mockDriverConfig?.submitResult?.htmlAfterSubmit || '<html><body>Application submitted successfully!</body></html>',
+            error: mockDriverConfig?.submitResult?.error,
+          }),
+        };
+
+        const worker = new AtsApplyWorker(driver);
+        const runner = new AtsApplyRunner(worker);
+
+        // Fetch existing applications if tracker is available
+        const existingApps = dependencies.applicationTracker
+          ? (await dependencies.applicationTracker.listApplications(tenant.tenantId)).map((a) => ({
+              company: a.company,
+              role: a.role,
+              externalJobId: a.externalJobId,
+              createdAt: a.createdAt,
+            }))
+          : [];
+
+        const job = body.job as unknown as JobPosting;
+        const evaluationScore = typeof body.evaluationScore === 'number' ? body.evaluationScore : 4.0;
+
+        const runnerResult = await runner.execute({
+          tenantId: tenant.tenantId,
+          contract: activeContractRecord.contract,
+          profile: candidateProfile,
+          job,
+          evaluationScore,
+          tailoredCvText: typeof body.tailoredCvText === 'string' ? body.tailoredCvText : undefined,
+          tailoredCoverLetterText:
+            typeof body.tailoredCoverLetterText === 'string'
+              ? body.tailoredCoverLetterText
+              : undefined,
+          resumeUrl: typeof body.resumeUrl === 'string' ? body.resumeUrl : undefined,
+          scoreThreshold: typeof body.scoreThreshold === 'number' ? body.scoreThreshold : 3.5,
+          existingApplications: existingApps,
+          isKillSwitchActive: () => controlState.globalKillSwitch,
+          isChannelPaused: (ch: string) => controlState.pausedChannels.includes(ch as any),
+        });
+
+        if (runnerResult.status === 'applied') {
+          if (dependencies.applicationTracker) {
+            try {
+              await dependencies.applicationTracker.createApplication(
+                tenant.tenantId,
+                identity.subject,
+                {
+                  company: job.company,
+                  role: job.title,
+                  sourceUrl: job.url,
+                  externalJobId: job.externalId || job.sourceId,
+                  channel: 'ats',
+                  score: evaluationScore,
+                  metadata: {
+                    autoSubmitted: true,
+                    submissionId: runnerResult.proof?.submissionId,
+                  },
+                }
+              );
+            } catch {
+              // Ignore if already tracking
+            }
+          }
+
+          globalActivityHub.broadcast({
+            id: randomUUID(),
+            tenantId: tenant.tenantId,
+            eventType: 'application_submitted',
+            title: `Application submitted: ${job.company}`,
+            description: `Autonomous ATS application submitted for ${job.company} - ${job.title}`,
+            severity: 'info',
+            actorSubject: identity.subject,
+            createdAt: new Date().toISOString(),
+            metadata: {
+              jobId: job.sourceId || job.externalId,
+              company: job.company,
+              role: job.title,
+              proofSha256: runnerResult.proof?.payloadSha256,
+              confirmationNumber: runnerResult.proof?.confirmationNumber,
+            },
+          });
+        } else if (runnerResult.status === 'assist_required') {
+          if (dependencies.assistQueue && runnerResult.assistQueueItem) {
+            await dependencies.assistQueue.enqueue(
+              tenant.tenantId,
+              runnerResult.assistQueueItem,
+              identity.subject
+            );
+          }
+
+          globalActivityHub.broadcast({
+            id: randomUUID(),
+            tenantId: tenant.tenantId,
+            eventType: 'assist_action_required',
+            title: `Assist required: ${job.company}`,
+            description: `Assist Queue handoff: ${runnerResult.reason} for ${job.company} - ${job.title}`,
+            severity: 'warn',
+            actorSubject: identity.subject,
+            createdAt: new Date().toISOString(),
+            metadata: {
+              jobId: job.sourceId || job.externalId,
+              company: job.company,
+              role: job.title,
+              reason: runnerResult.reason,
+            },
+          });
+        }
+
+        sendJson(response, 200, { result: runnerResult, requestId });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/assist-queue') {
+        if (!dependencies.assistQueue) {
+          sendJson(response, 200, { items: [], requestId });
+          return;
+        }
+        const statusParam = url.searchParams.get('status') as AssistQueueStatus | null;
+        const items = await dependencies.assistQueue.list(
+          tenant.tenantId,
+          statusParam || undefined
+        );
+        sendJson(response, 200, { items, requestId });
+        return;
+      }
+
+      const assistMatch = url.pathname.match(
+        /^\/v1\/assist-queue\/([0-9a-fA-F-]{36})\/(open|complete|dismiss)$/
+      );
+      if (request.method === 'POST' && assistMatch) {
+        if (!dependencies.assistQueue) {
+          sendJson(response, 501, { error: 'Assist queue repository not configured', requestId });
+          return;
+        }
+        const [, assistId, action] = assistMatch;
+        let item;
+        if (action === 'open') {
+          item = await dependencies.assistQueue.markOpened(
+            tenant.tenantId,
+            assistId,
+            identity.subject
+          );
+        } else if (action === 'complete') {
+          const body = await readJson(request, maxBytes);
+          item = await dependencies.assistQueue.complete(
+            tenant.tenantId,
+            assistId,
+            typeof body.assistNotes === 'string' ? body.assistNotes : undefined,
+            identity.subject
+          );
+        } else if (action === 'dismiss') {
+          item = await dependencies.assistQueue.dismiss(
+            tenant.tenantId,
+            assistId,
+            identity.subject
+          );
+        }
+        sendJson(response, 200, { item, requestId });
         return;
       }
 
