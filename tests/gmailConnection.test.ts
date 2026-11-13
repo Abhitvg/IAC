@@ -78,3 +78,4 @@ describe('CareerOps Gmail Connection & Authentication Engine', () => {
     expect(useControlsStore.getState().isGmailModalOpen).toBe(false);
   });
 });
+
