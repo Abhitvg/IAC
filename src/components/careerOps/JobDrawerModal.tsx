@@ -37,7 +37,11 @@ import {
   REFERRAL_DISCLAIMER_COPY,
 } from '../../../packages/cloud-core/src/apply/job-strategy';
 import { copyToClipboard } from '../../utils/clipboard';
-import { exportTailoredResumeToPdf, exportCoverLetterToPdf } from '../../services/careerOps/resumePdfExporter';
+import {
+  exportTailoredResumeToPdf,
+  exportCoverLetterToPdf,
+  exportApplicationBundleToPdf,
+} from '../../services/careerOps/resumePdfExporter';
 import { parseLatexForVisualPreview } from '../../services/careerOps/overleafPusher';
 import { useCandidateVaultStore } from '../../store/useCandidateVaultStore';
 
@@ -595,6 +599,41 @@ export const JobDrawerModal: React.FC<JobDrawerModalProps> = ({
 
               {/* Actions: Download PDF, Copy Clean Text, & Cover Letter */}
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '6px', flexWrap: 'wrap' }}>
+                {job.tailoredResume && job.coverLetter && (
+                  <button
+                    onClick={() => {
+                      const vault = useCandidateVaultStore.getState().profile;
+                      exportApplicationBundleToPdf(
+                        job.tailoredResume!,
+                        job.coverLetter!,
+                        job.role,
+                        job.company,
+                        vault,
+                        'modern_sans'
+                      );
+                      showToast('📦 Downloading both Resume & Cover Letter PDFs...');
+                    }}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.35)',
+                    }}
+                    title="Download both Resume and Cover Letter PDFs in sequence"
+                  >
+                    <Download size={12} />
+                    <span>📦 Download Both (Bundle)</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
                     const vault = useCandidateVaultStore.getState().profile;

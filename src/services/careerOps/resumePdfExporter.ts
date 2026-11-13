@@ -676,3 +676,31 @@ export function exportCoverLetterToPdf(
   const safeFilename = `${candidateName.replace(/\s+/g, '_')}_${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_Cover_Letter`;
   printHtmlToPdf(html, safeFilename);
 }
+
+/**
+ * 1-Click Complete Application Bundle Export:
+ * Downloads both Tailored Resume PDF and Cover Letter PDF in sequence
+ */
+export function exportApplicationBundleToPdf(
+  rawResumeOrLatex: string,
+  letterText: string,
+  targetRole: string,
+  companyName: string,
+  candidateDetails?: {
+    name?: string;
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    linkedin?: string;
+    github?: string;
+    portfolio?: string;
+  },
+  theme: ResumeTheme = 'modern_sans'
+): void {
+  exportTailoredResumeToPdf(rawResumeOrLatex, targetRole, companyName, candidateDetails, theme);
+  setTimeout(() => {
+    exportCoverLetterToPdf(letterText, companyName, targetRole, candidateDetails);
+  }, 1200);
+}
+

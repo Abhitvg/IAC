@@ -52,6 +52,7 @@ import {
 import {
   exportTailoredResumeToPdf,
   exportCoverLetterToPdf,
+  exportApplicationBundleToPdf,
 } from '../../services/careerOps/resumePdfExporter';
 import { useCareerOpsStore } from '../../store/useCareerOpsStore';
 import { detectGhostJobRisk } from '../../services/careerOps/ghostJobDetector';
@@ -389,6 +390,9 @@ export function CareerOpsView() {
 
   // Resume View Mode (Modern Executive Sans as default - No raw LaTeX shown by default)
   const [resumeViewMode, setResumeViewMode] = useState<'modern_sans' | 'classic_serif' | 'code'>('modern_sans');
+  const [coverLetterViewMode, setCoverLetterViewMode] = useState<'document' | 'edit'>('document');
+  const [activeDocTab, setActiveDocTab] = useState<'resume' | 'cover_letter'>('resume');
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false);
 
   // Job Scraper URL state in Evaluator Modal
   const [scrapeUrlInput, setScrapeUrlInput] = useState('');
@@ -1772,6 +1776,85 @@ export function CareerOpsView() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   onClick={async () => {
+                    setIsGeneratingAll(true);
+                    const providerConfig = settings?.aiProvider
+                      ? {
+                          type: settings.aiProvider,
+                          apiKey: settings.apiKey || '',
+                          model: settings.model,
+                        }
+                      : undefined;
+                    setToast(`🚀 Generating complete application pack for ${activeJob.company}...`);
+                    try {
+                      await Promise.all([
+                        tailorResumeForJob(activeJob.id, resumeText, providerConfig),
+                        generateCoverLetterForJob(activeJob.id, resumeText, coverAngle, coverLevel, providerConfig),
+                        generateOutreachForJob(activeJob.id, providerConfig),
+                      ]);
+                      setToast(`🎉 Complete application pack ready for ${activeJob.company}!`);
+                    } catch (err) {
+                      setToast('Application pack generation completed.');
+                    } finally {
+                      setIsGeneratingAll(false);
+                    }
+                  }}
+                  disabled={isGeneratingAll || isTailoring}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 3px 10px rgba(37, 99, 235, 0.4)',
+                  }}
+                  title="Generate Tailored Resume, Cover Letter, and Outreach notes in 1 click"
+                >
+                  <Sparkles size={13} />
+                  <span>{isGeneratingAll ? 'Generating Pack...' : '🚀 1-Click Application Pack'}</span>
+                </button>
+
+                {activeJob.tailoredResume && activeJob.coverLetter && (
+                  <button
+                    onClick={() => {
+                      exportApplicationBundleToPdf(
+                        activeJob.tailoredResume!,
+                        activeJob.coverLetter!,
+                        activeJob.role,
+                        activeJob.company,
+                        candidateVault,
+                        resumeViewMode === 'classic_serif' ? 'classic_serif' : 'modern_sans'
+                      );
+                      setToast('📦 Downloading complete application bundle (Resume + Cover Letter)...');
+                    }}
+                    style={{
+                      padding: '6px 13px',
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      boxShadow: '0 3px 10px rgba(16, 185, 129, 0.35)',
+                    }}
+                    title="Download both Tailored Resume and Cover Letter PDFs in sequence"
+                  >
+                    <Download size={13} />
+                    <span>📦 Download Bundle (Both PDFs)</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={async () => {
                     const providerConfig = settings?.aiProvider
                       ? {
                           type: settings.aiProvider,
@@ -1783,19 +1866,19 @@ export function CareerOpsView() {
                     await tailorResumeForJob(activeJob.id, resumeText, providerConfig);
                     setToast('ATS Resume ready!');
                   }}
-                  disabled={isTailoring}
+                  disabled={isTailoring || isGeneratingAll}
                   style={{
                     padding: '6px 12px',
                     borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
-                    color: '#ffffff',
-                    border: 'none',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    color: '#f8fafc',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
                     fontSize: '11px',
                     fontWeight: 700,
                     cursor: 'pointer',
                   }}
                 >
-                  {isTailoring ? 'Tailoring...' : '⚡ Generate Tailored Resume'}
+                  {isTailoring ? 'Tailoring...' : '⚡ Tailor Resume'}
                 </button>
 
                 <button
@@ -1817,6 +1900,7 @@ export function CareerOpsView() {
                     );
                     setToast('Cover Letter drafted!');
                   }}
+                  disabled={isGeneratingAll}
                   style={{
                     padding: '6px 12px',
                     borderRadius: '8px',
@@ -1886,6 +1970,49 @@ export function CareerOpsView() {
                 </button>
               </div>
             </div>
+
+            {/* Quick-Fill Banner if Abhishek profile not yet loaded */}
+            {!candidateVault.fullName && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, rgba(37,99,235,0.15), rgba(6,182,212,0.15))',
+                  border: '1px solid rgba(6,182,212,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={16} color="#38bdf8" />
+                  <span style={{ fontSize: '11px', color: '#e0f2fe' }}>
+                    <strong>1-Click Quick-Fill:</strong> Load Abhishek Singh&apos;s verified engineering profile (Sheetal Electrotech, ATMA, Virasat, Porcupine, JNU).
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    loadAbhishekProfile();
+                    setToast("⚡ Loaded Abhishek Singh's verified engineering profile!");
+                  }}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '6px',
+                    background: '#0284c7',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  ⚡ Load Verified Profile
+                </button>
+              </div>
+            )}
 
             {/* Cover Letter Blueprint Selectors (Indeed & Intuit Standard) */}
             <div
@@ -2188,97 +2315,155 @@ export function CareerOpsView() {
                   <div
                     style={{
                       width: '100%',
-                      height: '350px',
+                      maxHeight: '520px',
                       overflowY: 'auto',
-                      background: resumeViewMode === 'classic_serif' ? 'rgba(15, 23, 42, 0.6)' : 'rgba(0, 0, 0, 0.45)',
+                      background: 'rgba(15, 23, 42, 0.4)',
                       border: '1px solid rgba(255, 255, 255, 0.08)',
                       borderRadius: '8px',
                       padding: '16px',
-                      fontFamily: resumeViewMode === 'classic_serif' ? '"Times New Roman", Times, Georgia, serif' : 'inherit',
                     }}
                   >
                     {(() => {
                       const parsed = parseLatexForVisualPreview(activeJob.tailoredResume || '');
                       const displayName = candidateVault.fullName || parsed.name;
                       const displayRole = activeJob.role || parsed.role;
+                      const isModern = resumeViewMode === 'modern_sans';
                       return (
                         <div
                           style={{
-                            color: '#f8fafc',
-                            fontSize: '11px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '12px',
+                            background: '#ffffff',
+                            color: '#0f172a',
+                            borderRadius: '4px',
+                            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)',
+                            padding: '24px 28px',
+                            maxWidth: '680px',
+                            margin: '0 auto',
+                            fontSize: '9pt',
+                            lineHeight: 1.35,
+                            fontFamily: isModern
+                              ? '-apple-system, "Inter", "Segoe UI", Roboto, sans-serif'
+                              : '"Times New Roman", Times, Georgia, serif',
                           }}
                         >
                           <div
                             style={{
                               textAlign: 'center',
-                              borderBottom: resumeViewMode === 'classic_serif' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.1)',
-                              paddingBottom: '8px',
+                              borderBottom: isModern ? 'none' : '1px solid #111111',
+                              paddingBottom: '6px',
+                              marginBottom: '8px',
                             }}
                           >
                             <h2
                               style={{
                                 margin: 0,
-                                fontSize: '16px',
-                                fontWeight: 900,
-                                color: '#ffffff',
-                                letterSpacing: resumeViewMode === 'modern_sans' ? '-0.2px' : '0.3px',
-                                textTransform: resumeViewMode === 'modern_sans' ? 'uppercase' : 'none',
+                                fontSize: isModern ? '18pt' : '19pt',
+                                fontWeight: 800,
+                                color: '#0f172a',
+                                letterSpacing: isModern ? '-0.2px' : '0.2px',
+                                textTransform: isModern ? 'uppercase' : 'none',
                               }}
                             >
                               {displayName}
                             </h2>
                             <div
                               style={{
-                                fontSize: '10px',
-                                color: resumeViewMode === 'modern_sans' ? '#38bdf8' : '#cbd5e1',
+                                fontSize: '9pt',
+                                color: isModern ? '#1e40af' : '#334155',
                                 fontWeight: 700,
                                 marginTop: '2px',
-                                textTransform: 'uppercase',
+                                textTransform: isModern ? 'uppercase' : 'none',
+                                fontStyle: isModern ? 'normal' : 'italic',
                               }}
                             >
                               {displayRole}
                             </div>
-                            <div style={{ fontSize: '9.5pt', color: '#94a3b8', marginTop: '2px' }}>
-                              {[candidateVault.email || parsed.email, candidateVault.phone, candidateVault.location && candidateVault.location !== 'unknown' ? candidateVault.location : null, candidateVault.github ? `GitHub: ${candidateVault.github.replace(/^https?:\/\//, '')}` : null, candidateVault.portfolio ? `Portfolio: ${candidateVault.portfolio.replace(/^https?:\/\//, '')}` : null].filter(Boolean).join(' | ')}
+                            <div style={{ fontSize: '8pt', color: '#475569', marginTop: '3px' }}>
+                              {[
+                                candidateVault.email || parsed.email,
+                                candidateVault.phone,
+                                candidateVault.location && candidateVault.location !== 'unknown' ? candidateVault.location : null,
+                                candidateVault.github ? `GitHub: ${candidateVault.github.replace(/^https?:\/\//, '')}` : null,
+                                candidateVault.portfolio ? `Portfolio: ${candidateVault.portfolio.replace(/^https?:\/\//, '')}` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' | ')}
                             </div>
                           </div>
-                          {parsed.sections.map((sec, idx) => (
-                            <div
-                              key={idx}
-                              style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}
-                            >
-                              <h4
-                                style={{
-                                  margin: 0,
-                                  fontSize: '11px',
-                                  fontWeight: 800,
-                                  color: resumeViewMode === 'modern_sans' ? '#38bdf8' : '#f8fafc',
-                                  textTransform: 'uppercase',
-                                  borderBottom: resumeViewMode === 'modern_sans' ? '1.5px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(255, 255, 255, 0.2)',
-                                  paddingBottom: '2px',
-                                }}
+                          {parsed.sections.map((sec, idx) => {
+                            const isSkills = /skills|technologies|proficiencies/i.test(sec.title);
+                            return (
+                              <div
+                                key={idx}
+                                style={{ marginBottom: '8px' }}
                               >
-                                {sec.title}
-                              </h4>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                {sec.lines.map((line, lIdx) => (
-                                  <div
-                                    key={lIdx}
-                                    style={{
-                                      fontSize: '10px',
-                                      color: '#cbd5e1',
-                                      lineHeight: '1.4',
-                                    }}
-                                  >
-                                    {line}
-                                  </div>
-                                ))}
+                                <div
+                                  style={{
+                                    fontSize: '8.5pt',
+                                    fontWeight: 800,
+                                    letterSpacing: '0.6px',
+                                    color: '#0f172a',
+                                    borderBottom: isModern ? '1.5px solid #0f172a' : '1px solid #111111',
+                                    paddingBottom: '1px',
+                                    marginBottom: '4px',
+                                    textTransform: 'uppercase',
+                                  }}
+                                >
+                                  {sec.title}
+                                </div>
+                                <div>
+                                  {sec.lines.map((line, lIdx) => {
+                                    if (line.startsWith('•') || line.startsWith('-')) {
+                                      const cleanLine = line.replace(/^[•\-]\s*/, '');
+                                      return (
+                                        <div
+                                          key={lIdx}
+                                          style={{
+                                            fontSize: '8.5pt',
+                                            lineHeight: 1.34,
+                                            color: '#1e293b',
+                                            marginBottom: '2px',
+                                            paddingLeft: '14px',
+                                            position: 'relative',
+                                          }}
+                                        >
+                                          <span style={{ position: 'absolute', left: 4 }}>•</span>
+                                          <span>{cleanLine}</span>
+                                        </div>
+                                      );
+                                    }
+                                    if (isSkills && line.includes(':')) {
+                                      const [cat, ...rest] = line.split(':');
+                                      return (
+                                        <div key={lIdx} style={{ fontSize: '8.5pt', marginBottom: '2px' }}>
+                                          <strong style={{ color: '#0f172a' }}>{cat.trim()}:</strong>{' '}
+                                          <span style={{ color: '#334155' }}>{rest.join(':').trim()}</span>
+                                        </div>
+                                      );
+                                    }
+                                    if (line.includes('·') && !line.includes('Present') && !line.includes('202')) {
+                                      return (
+                                        <div key={lIdx} style={{ fontSize: '8pt', color: '#0284c7', fontWeight: 600, marginBottom: '2px' }}>
+                                          {line}
+                                        </div>
+                                      );
+                                    }
+                                    if (line.includes('—') || line.includes('|')) {
+                                      return (
+                                        <div key={lIdx} style={{ fontSize: '8.5pt', fontWeight: 700, color: '#0f172a', marginTop: '3px', marginBottom: '1px' }}>
+                                          {line}
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <div key={lIdx} style={{ fontSize: '8.5pt', color: '#334155', marginBottom: '2px' }}>
+                                        {line}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       );
                     })()}
@@ -2411,34 +2596,143 @@ export function CareerOpsView() {
                     border: '1px solid rgba(255, 255, 255, 0.05)',
                     fontSize: '10px',
                     color: '#94a3b8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
                   }}
                 >
-                  Blueprint: <strong>Hook & Role Fit</strong> → <strong>Quantified Impact</strong> →{' '}
-                  <strong>Tech Stack & Craft</strong> → <strong>Why {activeJob.company}</strong>
+                  <span>
+                    Standard: <strong>Indeed & Intuit Blueprint</strong> • 4-Paragraph Peer Voice
+                  </span>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      onClick={() => setCoverLetterViewMode('document')}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        background:
+                          coverLetterViewMode === 'document' ? 'rgba(6, 182, 212, 0.25)' : 'transparent',
+                        color: coverLetterViewMode === 'document' ? '#67e8f9' : '#94a3b8',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      📄 Letterhead View
+                    </button>
+                    <button
+                      onClick={() => setCoverLetterViewMode('edit')}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        background:
+                          coverLetterViewMode === 'edit' ? 'rgba(6, 182, 212, 0.25)' : 'transparent',
+                        color: coverLetterViewMode === 'edit' ? '#67e8f9' : '#94a3b8',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      📝 Edit Text
+                    </button>
+                  </div>
                 </div>
 
-                <textarea
-                  readOnly
-                  value={
-                    activeJob.coverLetter ||
-                    'Click "Draft Cover Letter" to generate a 4-paragraph software engineering cover letter tailored for ' +
-                      activeJob.company +
-                      ' adhering to the Indeed & Intuit playbooks.'
-                  }
-                  style={{
-                    width: '100%',
-                    height: '350px',
-                    background: 'rgba(0, 0, 0, 0.35)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: '8px',
-                    color: '#e2e8f0',
-                    fontFamily: 'Inter, system-ui, sans-serif',
-                    fontSize: '11px',
-                    padding: '10px',
-                    resize: 'none',
-                    lineHeight: '1.6',
-                  }}
-                />
+                {coverLetterViewMode === 'edit' ? (
+                  <textarea
+                    value={activeJob.coverLetter || ''}
+                    onChange={(e) => {
+                      updateJob(activeJob.id, { coverLetter: e.target.value });
+                    }}
+                    placeholder="Click 'Draft Cover Letter' to generate a 4-paragraph software engineering cover letter tailored for this company."
+                    style={{
+                      width: '100%',
+                      height: '520px',
+                      background: 'rgba(0, 0, 0, 0.35)',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      borderRadius: '8px',
+                      color: '#e2e8f0',
+                      fontFamily: 'Inter, system-ui, sans-serif',
+                      fontSize: '11px',
+                      padding: '12px',
+                      resize: 'none',
+                      lineHeight: '1.6',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: '100%',
+                      maxHeight: '520px',
+                      overflowY: 'auto',
+                      background: 'rgba(15, 23, 42, 0.4)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '8px',
+                      padding: '16px',
+                    }}
+                  >
+                    {activeJob.coverLetter ? (
+                      <div
+                        style={{
+                          background: '#ffffff',
+                          color: '#1e293b',
+                          borderRadius: '4px',
+                          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)',
+                          padding: '24px 28px',
+                          maxWidth: '680px',
+                          margin: '0 auto',
+                          fontSize: '9.5pt',
+                          lineHeight: 1.5,
+                          fontFamily: '-apple-system, "Inter", "Segoe UI", Roboto, sans-serif',
+                        }}
+                      >
+                        <div style={{ borderBottom: '1.5px solid #cbd5e1', paddingBottom: '10px', marginBottom: '14px' }}>
+                          <div style={{ fontSize: '17pt', fontWeight: 800, color: '#0f172a' }}>
+                            {candidateVault.fullName || 'Abhishek Singh'}
+                          </div>
+                          <div style={{ fontSize: '8.5pt', fontWeight: 700, color: '#1e40af', marginTop: '2px', textTransform: 'uppercase' }}>
+                            APPLICATION — {activeJob.role.toUpperCase()}, {activeJob.company.toUpperCase()}
+                          </div>
+                          <div style={{ fontSize: '8pt', color: '#64748b', marginTop: '4px' }}>
+                            {[candidateVault.email, candidateVault.phone, candidateVault.location && candidateVault.location !== 'unknown' ? candidateVault.location : null].filter(Boolean).join(' | ')}
+                          </div>
+                        </div>
+
+                        <div style={{ fontSize: '8.5pt', color: '#64748b', marginBottom: '10px' }}>
+                          {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </div>
+
+                        <div style={{ fontSize: '9pt', color: '#334155', lineHeight: 1.4, marginBottom: '12px' }}>
+                          <strong style={{ color: '#0f172a' }}>Engineering Hiring Team</strong><br />
+                          {activeJob.company}<br />
+                        </div>
+
+                        <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: '10px', fontSize: '9.5pt' }}>
+                          RE: Application for {activeJob.role}
+                        </div>
+
+                        {activeJob.coverLetter
+                          .split(/\n\s*\n/)
+                          .map((p, pIdx) => (
+                            <p key={pIdx} style={{ marginBottom: '10px', textAlign: 'justify', color: '#1e293b' }}>
+                              {p}
+                            </p>
+                          ))}
+
+                        <div style={{ marginTop: '16px', fontSize: '9.5pt', color: '#1e293b' }}>
+                          Sincerely,<br />
+                          <strong style={{ color: '#0f172a' }}>{candidateVault.fullName || 'Abhishek Singh'}</strong>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8', fontSize: '11px' }}>
+                        Click &quot;Draft Cover Letter&quot; or &quot;🚀 1-Click Application Pack&quot; to generate an executive letterhead cover letter.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

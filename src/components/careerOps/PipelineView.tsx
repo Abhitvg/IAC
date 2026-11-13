@@ -21,6 +21,7 @@ import {
   Trash2,
   ExternalLink,
   ChevronDown,
+  Download,
 } from 'lucide-react';
 import {
   JobApplication,
@@ -33,6 +34,8 @@ import {
   checkStrategyHold,
   REFERRAL_DISCLAIMER_COPY,
 } from '../../../packages/cloud-core/src/apply/job-strategy';
+import { exportTailoredResumeToPdf } from '../../services/careerOps/resumePdfExporter';
+import { useCandidateVaultStore } from '../../store/useCandidateVaultStore';
 
 interface PipelineViewProps {
   onSelectJob: (job: JobApplication) => void;
@@ -707,6 +710,39 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                           <span style={{ fontSize: '9px', color: '#64748b' }}>
                             {job.strategy === 'apply_now' ? 'ATS Now' : job.strategy === 'both' ? 'Both' : 'Ref First'}
                           </span>
+
+                          {job.tailoredResume && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                exportTailoredResumeToPdf(
+                                  job.tailoredResume!,
+                                  job.role,
+                                  job.company,
+                                  useCandidateVaultStore.getState().profile,
+                                  'modern_sans'
+                                );
+                              }}
+                              style={{
+                                marginLeft: 'auto',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                background: 'rgba(37, 99, 235, 0.25)',
+                                color: '#60a5fa',
+                                border: '1px solid rgba(37, 99, 235, 0.4)',
+                                fontSize: '9px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                              }}
+                              title="1-Click Download Tailored Resume PDF"
+                            >
+                              <Download size={9} />
+                              <span>PDF</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -862,6 +898,36 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                         >
                           Eval
                         </button>
+                        {job.tailoredResume && (
+                          <button
+                            onClick={() => {
+                              exportTailoredResumeToPdf(
+                                job.tailoredResume!,
+                                job.role,
+                                job.company,
+                                useCandidateVaultStore.getState().profile,
+                                'modern_sans'
+                              );
+                            }}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '5px',
+                              background: 'rgba(37, 99, 235, 0.25)',
+                              color: '#60a5fa',
+                              border: '1px solid rgba(37, 99, 235, 0.4)',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                            }}
+                            title="1-Click Download Tailored Resume PDF"
+                          >
+                            <Download size={10} />
+                            <span>PDF</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setActiveJobId(job.id);
