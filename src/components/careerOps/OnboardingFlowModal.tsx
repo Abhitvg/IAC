@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useCareerOpsOnboardingStore } from '../../store/useCareerOpsOnboardingStore';
 import { useControlsStore } from '../../store/useControlsStore';
+import { GmailConnectModal } from './GmailConnectModal';
 
 interface OnboardingFlowModalProps {
   onComplete?: () => void;
@@ -42,9 +43,11 @@ export const OnboardingFlowModal: React.FC<OnboardingFlowModalProps> = ({ onComp
     finishOnboarding,
   } = useCareerOpsOnboardingStore();
 
-  const { updateSalaryFloor, setRequiresSponsorship, updateDailyCaps } = useControlsStore();
+  const { updateSalaryFloor, setRequiresSponsorship, updateDailyCaps, connectors } = useControlsStore();
 
   const [newRoleInput, setNewRoleInput] = useState('');
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const connectedGmail = connectors.find((c) => c.id === 'gmail');
 
   if (!isOpen) return null;
 
@@ -769,10 +772,10 @@ export const OnboardingFlowModal: React.FC<OnboardingFlowModalProps> = ({ onComp
               </div>
 
               {/* Gmail Action Status */}
-              {gmailConnected ? (
+              {gmailConnected || (connectedGmail && connectedGmail.status === 'connected') ? (
                 <div
                   style={{
-                    padding: '12px',
+                    padding: '12px 16px',
                     borderRadius: '8px',
                     background: 'rgba(16, 185, 129, 0.15)',
                     border: '1px solid rgba(16, 185, 129, 0.4)',
@@ -780,10 +783,28 @@ export const OnboardingFlowModal: React.FC<OnboardingFlowModalProps> = ({ onComp
                     fontSize: '13px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px',
+                    justifyContent: 'space-between',
                   }}
                 >
-                  <CheckCircle2 size={16} /> Gmail account successfully linked and ready for automated sync!
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <CheckCircle2 size={16} />
+                    <span>
+                      Connected to <strong>{connectedGmail?.accountEmail || preferences.email}</strong>
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowConnectModal(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#6ee7b7',
+                      fontSize: '11px',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Change
+                  </button>
                 </div>
               ) : null}
 
@@ -808,10 +829,9 @@ export const OnboardingFlowModal: React.FC<OnboardingFlowModalProps> = ({ onComp
                 </button>
 
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {!gmailConnected && (
+                  {!gmailConnected && (!connectedGmail || connectedGmail.status !== 'connected') && (
                     <button
-                      onClick={() => connectGmail()}
-                      disabled={isSubmitting}
+                      onClick={() => setShowConnectModal(true)}
                       style={{
                         padding: '9px 18px',
                         background: 'rgba(56, 189, 248, 0.2)',
@@ -820,10 +840,13 @@ export const OnboardingFlowModal: React.FC<OnboardingFlowModalProps> = ({ onComp
                         borderRadius: '6px',
                         fontSize: '13px',
                         fontWeight: 600,
-                        cursor: isSubmitting ? 'wait' : 'pointer',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
                       }}
                     >
-                      {isSubmitting ? 'Authorizing...' : 'Connect Gmail Account'}
+                      <Mail size={14} /> Connect Gmail Account
                     </button>
                   )}
 
@@ -851,6 +874,17 @@ export const OnboardingFlowModal: React.FC<OnboardingFlowModalProps> = ({ onComp
           )}
         </div>
       </div>
+
+      {/* Gmail Connect Sub-Modal */}
+      <GmailConnectModal
+        isOpen={showConnectModal}
+        onClose={() => setShowConnectModal(false)}
+        onSuccess={(email) => {
+          connectGmail();
+          updatePreferences({ email });
+          setShowConnectModal(false);
+        }}
+      />
     </div>
   );
 };

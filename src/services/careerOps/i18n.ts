@@ -81,3 +81,4 @@ export function t(path: string, params?: Record<string, string | number>): strin
 
   return current;
 }
+

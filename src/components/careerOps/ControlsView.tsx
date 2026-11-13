@@ -24,9 +24,13 @@ import {
   Key,
 } from 'lucide-react';
 import { useControlsStore, DailyCaps } from '../../store/useControlsStore';
+import { GmailConnectModal } from './GmailConnectModal';
 
 export const ControlsView: React.FC = () => {
   const {
+    isGmailModalOpen,
+    openGmailModal,
+    closeGmailModal,
     globalKillSwitch,
     shadowMode,
     killSwitchReason,
@@ -807,7 +811,56 @@ export const ControlsView: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {connector.status === 'connected' ? (
+                  {connector.id === 'gmail' ? (
+                    connector.status === 'connected' ? (
+                      <>
+                        <button
+                          onClick={openGmailModal}
+                          style={{
+                            padding: '6px 12px',
+                            background: 'rgba(99, 102, 241, 0.15)',
+                            border: '1px solid rgba(99, 102, 241, 0.4)',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            color: '#c7d2fe',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Manage Account
+                        </button>
+                        <button
+                          onClick={() => disconnectConnector('gmail')}
+                          style={{
+                            padding: '6px 12px',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            color: '#fca5a5',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Disconnect
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={openGmailModal}
+                        style={{
+                          padding: '6px 14px',
+                          background: '#6366f1',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Connect Gmail
+                      </button>
+                    )
+                  ) : connector.status === 'connected' ? (
                     <button
                       onClick={() => disconnectConnector(connector.id)}
                       style={{
@@ -1060,6 +1113,9 @@ export const ControlsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Gmail Connect & Re-authorization Modal */}
+      <GmailConnectModal isOpen={isGmailModalOpen} onClose={closeGmailModal} />
     </div>
   );
 };

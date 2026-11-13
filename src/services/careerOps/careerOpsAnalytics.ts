@@ -96,3 +96,4 @@ class CareerOpsAnalyticsTracker {
 }
 
 export const careerOpsAnalytics = new CareerOpsAnalyticsTracker();
+

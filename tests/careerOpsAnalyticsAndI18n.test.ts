@@ -65,3 +65,4 @@ describe('CareerOps Analytics & i18n Quality Guarantees', () => {
     expect(fallback).toBe('nonexistent.path.value');
   });
 });
+

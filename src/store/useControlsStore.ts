@@ -92,6 +92,17 @@ export interface ControlsState {
   saveStatus: 'idle' | 'saving' | 'saved' | 'error';
   errorMessage: string | null;
 
+  // Gmail Modal & Connection Actions
+  isGmailModalOpen: boolean;
+  openGmailModal: () => void;
+  closeGmailModal: () => void;
+  connectGmailAccount: (
+    email: string,
+    method: 'app_password' | 'oauth' | 'sandbox',
+    secret?: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  disconnectGmailAccount: () => void;
+
   // Actions
   toggleKillSwitch: (enabled: boolean, reason?: string) => Promise<void>;
   toggleShadowMode: (enabled: boolean) => void;
@@ -111,14 +122,59 @@ export interface ControlsState {
   resetToDefaults: () => void;
 }
 
+const GMAIL_STORAGE_KEY = 'careerops_gmail_connection_v1';
+const inMemoryFallbackStore: Record<string, string> = {};
+
+function getStorage() {
+  if (typeof localStorage !== 'undefined') {
+    return localStorage;
+  }
+  return {
+    getItem: (key: string) => inMemoryFallbackStore[key] ?? null,
+    setItem: (key: string, val: string) => {
+      inMemoryFallbackStore[key] = val;
+    },
+    removeItem: (key: string) => {
+      delete inMemoryFallbackStore[key];
+    },
+  };
+}
+
+export interface SavedGmailConnection {
+  email: string;
+  method: 'app_password' | 'oauth' | 'sandbox';
+  connectedAt: string;
+}
+
+export function getSavedGmailConnection(): SavedGmailConnection | null {
+  try {
+    const raw = getStorage().getItem(GMAIL_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function persistGmailConnection(data: SavedGmailConnection | null): void {
+  try {
+    if (data) {
+      getStorage().setItem(GMAIL_STORAGE_KEY, JSON.stringify(data));
+    } else {
+      getStorage().removeItem(GMAIL_STORAGE_KEY);
+    }
+  } catch {}
+}
+
+const initialSavedGmail = getSavedGmailConnection();
+
 const DEFAULT_CONNECTORS: ConnectorInfo[] = [
   {
     id: 'gmail',
     name: 'Gmail Workspace',
     icon: 'mail',
-    accountEmail: 'candidate@domain.com',
-    status: 'connected',
-    lastSyncedAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+    accountEmail: initialSavedGmail?.email || undefined,
+    status: initialSavedGmail ? 'connected' : 'disconnected',
+    lastSyncedAt: initialSavedGmail?.connectedAt || new Date().toISOString(),
     scopes: [
       {
         scope: 'https://www.googleapis.com/auth/gmail.send',
@@ -204,6 +260,53 @@ export const useControlsStore = create<ControlsState>((set, get) => ({
   deletionReceipt: null,
   saveStatus: 'idle',
   errorMessage: null,
+
+  isGmailModalOpen: false,
+  openGmailModal: () => set({ isGmailModalOpen: true }),
+  closeGmailModal: () => set({ isGmailModalOpen: false }),
+
+  connectGmailAccount: async (email, method, secret) => {
+    const trimmed = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      return { success: false, error: 'Please enter a valid email address.' };
+    }
+
+    // Simulate verification
+    await new Promise((r) => setTimeout(r, 200));
+
+    const connectedAt = new Date().toISOString();
+    persistGmailConnection({ email: trimmed, method, connectedAt });
+
+    set((state) => ({
+      connectors: state.connectors.map((c) =>
+        c.id === 'gmail'
+          ? {
+              ...c,
+              accountEmail: trimmed,
+              status: 'connected',
+              lastSyncedAt: connectedAt,
+            }
+          : c
+      ),
+    }));
+
+    return { success: true };
+  },
+
+  disconnectGmailAccount: () => {
+    persistGmailConnection(null);
+    set((state) => ({
+      connectors: state.connectors.map((c) =>
+        c.id === 'gmail'
+          ? {
+              ...c,
+              accountEmail: undefined,
+              status: 'disconnected',
+            }
+          : c
+      ),
+    }));
+  },
 
   toggleKillSwitch: async (enabled: boolean, reason?: string) => {
     set({
@@ -356,9 +459,12 @@ export const useControlsStore = create<ControlsState>((set, get) => ({
   },
 
   disconnectConnector: async (connectorId: string) => {
+    if (connectorId === 'gmail') {
+      persistGmailConnection(null);
+    }
     set((state) => ({
       connectors: state.connectors.map((c) =>
-        c.id === connectorId ? { ...c, status: 'disconnected' } : c
+        c.id === connectorId ? { ...c, status: 'disconnected', accountEmail: undefined } : c
       ),
     }));
   },

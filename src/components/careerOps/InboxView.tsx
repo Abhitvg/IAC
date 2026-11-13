@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { useInboxStore, InboxThread } from '../../store/useInboxStore';
 import { useCandidateVaultStore } from '../../store/useCandidateVaultStore';
+import { useControlsStore } from '../../store/useControlsStore';
+import { GmailConnectModal } from './GmailConnectModal';
 import { JobApplication } from '../../services/careerOps/types';
 import { copyToClipboard } from '../../utils/clipboard';
 
@@ -206,6 +208,11 @@ export const InboxView: React.FC<InboxViewProps> = ({ applications = [], onSelec
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedThreadId, filteredThreads, activeThread, replyText]);
 
+  const { connectors } = useControlsStore();
+  const gmailConnector = connectors.find((c) => c.id === 'gmail');
+  const isGmailConnected = gmailConnector?.status === 'connected';
+  const [isGmailModalOpen, setIsGmailModalOpen] = useState(false);
+
   // Metrics counts
   const counts = useMemo(() => {
     return {
@@ -362,6 +369,32 @@ export const InboxView: React.FC<InboxViewProps> = ({ applications = [], onSelec
 
         {/* Search input & Demo reload */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Gmail Connection Status Button */}
+          <button
+            onClick={() => setIsGmailModalOpen(true)}
+            title={isGmailConnected ? 'Manage connected Gmail account' : 'Connect your Gmail account'}
+            style={{
+              padding: '5px 12px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: isGmailConnected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+              border: `1px solid ${isGmailConnected ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
+              color: isGmailConnected ? '#86efac' : '#fde047',
+            }}
+          >
+            <Mail size={12} />
+            <span>
+              {isGmailConnected
+                ? `Gmail: ${gmailConnector?.accountEmail || 'Connected'}`
+                : 'Connect Gmail'}
+            </span>
+          </button>
+
           <div style={{ position: 'relative', width: '240px' }}>
             <Search size={13} color="#64748b" style={{ position: 'absolute', left: '10px', top: '9px' }} />
             <input
@@ -957,6 +990,9 @@ export const InboxView: React.FC<InboxViewProps> = ({ applications = [], onSelec
           </div>
         )}
       </div>
+
+      {/* Gmail Connect & Reconnect Modal */}
+      <GmailConnectModal isOpen={isGmailModalOpen} onClose={() => setIsGmailModalOpen(false)} />
     </div>
   );
 };
