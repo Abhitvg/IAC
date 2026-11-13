@@ -190,6 +190,37 @@ describe('Crawler DNS Rebinding, Lifecycle Timeout & Security Tests (P0)', () =>
     expect(crossOriginHopAttempted).toBe(false);
   });
 
+  it('permits canonical Greenhouse domain alias redirects (boards.greenhouse.io to job-boards.greenhouse.io)', async () => {
+    const aliasRequester: PinnedRequester = async (params) => {
+      if (params.targetUrl.hostname === 'boards.greenhouse.io') {
+        return {
+          statusCode: 301,
+          contentType: 'text/html',
+          location: 'https://job-boards.greenhouse.io/anthropic',
+          body: '',
+          byteSize: 0,
+        };
+      }
+      return {
+        statusCode: 200,
+        contentType: 'text/html',
+        body: '<h1>Anthropic Careers</h1>',
+        byteSize: 26,
+      };
+    };
+
+    const result = await SafeConnectionFetcher.fetch({
+      url: 'https://boards.greenhouse.io/anthropic',
+      allowedOrigin: 'https://boards.greenhouse.io',
+      customResolver: validResolver,
+      customRequester: aliasRequester,
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.finalUrl).toBe('https://job-boards.greenhouse.io/anthropic');
+    expect(result.body).toContain('Anthropic Careers');
+  });
+
   it('strictly rejects HTTPS to HTTP protocol downgrade on redirects', async () => {
     const downgradeRequester: PinnedRequester = async () => ({
       statusCode: 302,

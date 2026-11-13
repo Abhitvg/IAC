@@ -24,7 +24,7 @@ export const DEFAULT_DISCOVERY_SOURCES: CareerOpsSource[] = [
   {
     id: 'source-anthropic',
     label: 'Anthropic Careers',
-    url: 'https://jobs.ashbyhq.com/anthropic',
+    url: 'https://job-boards.greenhouse.io/anthropic',
     keywords: ['AI', 'Engineer', 'Systems', 'Research'],
     enabled: true,
     autoEvaluate: false,
@@ -32,7 +32,7 @@ export const DEFAULT_DISCOVERY_SOURCES: CareerOpsSource[] = [
   {
     id: 'source-datadog',
     label: 'Datadog Careers',
-    url: 'https://boards.greenhouse.io/datadog',
+    url: 'https://job-boards.greenhouse.io/datadog',
     keywords: ['Distributed', 'Go', 'Infrastructure', 'Software'],
     enabled: true,
     autoEvaluate: false,
@@ -272,7 +272,8 @@ function loadInitialSources(): CareerOpsSource[] {
     if (!raw) return DEFAULT_DISCOVERY_SOURCES;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_DISCOVERY_SOURCES;
-    return parsed
+    let modified = false;
+    const validated = parsed
       .filter((source): source is CareerOpsSource =>
         Boolean(
           source &&
@@ -284,7 +285,25 @@ function loadInitialSources(): CareerOpsSource[] {
           typeof source.enabled === 'boolean'
         )
       )
-      .map((source) => ({ ...source, autoEvaluate: source.autoEvaluate === true }));
+      .map((source) => {
+        let updatedUrl = source.url;
+        if (source.url === 'https://jobs.ashbyhq.com/anthropic') {
+          updatedUrl = 'https://job-boards.greenhouse.io/anthropic';
+          modified = true;
+        } else if (source.url === 'https://boards.greenhouse.io/datadog') {
+          updatedUrl = 'https://job-boards.greenhouse.io/datadog';
+          modified = true;
+        }
+        return {
+          ...source,
+          url: updatedUrl,
+          autoEvaluate: source.autoEvaluate === true,
+        };
+      });
+    if (modified) {
+      persistSources(validated);
+    }
+    return validated;
   } catch (error) {
     console.warn('[CareerOps] Failed to read discovery sources:', error);
     return DEFAULT_DISCOVERY_SOURCES;

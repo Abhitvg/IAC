@@ -1,5 +1,6 @@
 import {
   fetchJobPostingFromUrl,
+  parseJobPageContent,
   type JobPageFetcher,
   type ScrapedJobDetails,
 } from './jobScraperService';
@@ -109,6 +110,144 @@ function resolveSafeFetcher(fetcher?: JobPageFetcher): JobPageFetcher {
 }
 
 /**
+ * Extracts a Greenhouse board token if the URL points to a Greenhouse board
+ * (e.g. boards.greenhouse.io/{token}, job-boards.greenhouse.io/{token}, or boards-api.greenhouse.io).
+ */
+export function extractGreenhouseBoardToken(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (!host.includes('greenhouse.io')) return null;
+
+    const forParam = parsed.searchParams.get('for');
+    if (forParam) return forParam.trim().toLowerCase();
+
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    if (parts.length >= 3 && parts[0] === 'v1' && parts[1] === 'boards') {
+      return parts[2].trim().toLowerCase();
+    }
+    if (parts.length >= 1 && parts[0] !== 'embed') {
+      return parts[0].trim().toLowerCase();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Discovers jobs directly from the official Greenhouse public JSON API.
+ * This avoids cross-origin redirects when Greenhouse boards redirect to external SPAs (e.g. Datadog),
+ * while keeping all requests connection-pinned and SSRF-protected.
+ */
+export async function discoverJobsFromGreenhouseApi(
+  boardToken: string,
+  source: CareerPageSourceInput,
+  safeFetcher: JobPageFetcher,
+  limit = 10
+): Promise<CareerPageDiscoveryResult> {
+  const listUrl = `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(boardToken)}/jobs`;
+  const listResponse = await safeFetcher({
+    url: listUrl,
+    allowedOrigin: 'https://boards-api.greenhouse.io',
+    timeoutMs: 12000,
+    maxByteSize: 2 * 1024 * 1024,
+    maxRedirects: 3,
+  });
+
+  if (listResponse.statusCode < 200 || listResponse.statusCode >= 300) {
+    throw new Error(`Greenhouse API returned HTTP ${listResponse.statusCode}.`);
+  }
+
+  let data: { jobs?: Array<any> };
+  try {
+    data = JSON.parse(listResponse.body);
+  } catch {
+    throw new Error('Failed to parse Greenhouse API JSON response.');
+  }
+
+  const rawJobs = Array.isArray(data.jobs) ? data.jobs : [];
+  const jobs: DiscoveredJob[] = [];
+  const errors: string[] = [];
+  let skipped = 0;
+
+  const keywords = (source.keywords || [])
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+
+  for (const rawJob of rawJobs) {
+    if (jobs.length >= limit) break;
+
+    const role = (rawJob.title || 'Unknown role').trim();
+    const company = (rawJob.company_name || source.label.trim() || 'Unknown Company').trim();
+    const location = rawJob.location?.name || 'Not specified';
+    const jobUrl =
+      rawJob.absolute_url ||
+      `https://job-boards.greenhouse.io/${encodeURIComponent(boardToken)}/jobs/${rawJob.id}`;
+
+    // Keyword filter on title / basic metadata first
+    if (keywords.length) {
+      const titleMatches = keywords.some((keyword) => role.toLowerCase().includes(keyword));
+      if (!titleMatches) {
+        skipped += 1;
+        continue;
+      }
+    }
+
+    try {
+      const detailUrl = `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(boardToken)}/jobs/${rawJob.id}?content=true`;
+      const detailResponse = await safeFetcher({
+        url: detailUrl,
+        allowedOrigin: 'https://boards-api.greenhouse.io',
+        timeoutMs: 12000,
+        maxByteSize: 1024 * 1024,
+        maxRedirects: 3,
+      });
+
+      let cleanJd = '';
+      if (detailResponse.statusCode >= 200 && detailResponse.statusCode < 300) {
+        try {
+          const detailData = JSON.parse(detailResponse.body);
+          const rawContent = typeof detailData.content === 'string' ? detailData.content : '';
+          cleanJd = decodeHtml(rawContent)
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        } catch {
+          cleanJd = `${role} at ${company}. Location: ${location}`;
+        }
+      } else {
+        cleanJd = `${role} at ${company}. Location: ${location}`;
+      }
+
+      const parsed = parseJobPageContent(cleanJd || role, jobUrl);
+
+      jobs.push({
+        details: {
+          company,
+          role,
+          location: location !== 'Not specified' ? location : parsed.location,
+          workType: parsed.workType,
+          salaryRange: parsed.salaryRange,
+          jdText: cleanJd.length > 5000 ? cleanJd.slice(0, 5000) + '...' : cleanJd || `${role} at ${company}`,
+          url: jobUrl,
+          detectedAts: 'greenhouse',
+        },
+        sourceLabel: source.label,
+      });
+    } catch (err) {
+      errors.push(
+        `${jobUrl}: ${err instanceof Error ? err.message : 'Could not fetch job detail'}`
+      );
+    }
+  }
+
+  return { jobs, skipped, errors };
+}
+
+/**
  * Scans one explicitly configured public careers page, then imports a bounded
  * number of job-detail pages. It never submits applications or bypasses login.
  */
@@ -120,23 +259,43 @@ export async function discoverJobsFromCareerPage(
   const sourceUrl = normalizeJobUrl(source.url, source.url);
   if (!sourceUrl) throw new Error('Career page source must be a valid public HTTPS URL.');
 
-  const origin = new URL(sourceUrl).origin;
-  const page = await safeFetcher({
-    url: sourceUrl,
-    allowedOrigin: origin,
-    timeoutMs: 12000,
-    maxByteSize: 2 * 1024 * 1024,
-    maxRedirects: 3,
-  });
+  const ghToken = extractGreenhouseBoardToken(sourceUrl);
+
+  let page: { statusCode: number; contentType: string; body: string };
+  try {
+    const origin = new URL(sourceUrl).origin;
+    page = await safeFetcher({
+      url: sourceUrl,
+      allowedOrigin: origin,
+      timeoutMs: 12000,
+      maxByteSize: 2 * 1024 * 1024,
+      maxRedirects: 3,
+    });
+  } catch (fetchErr) {
+    if (ghToken) {
+      return await discoverJobsFromGreenhouseApi(ghToken, source, safeFetcher);
+    }
+    throw fetchErr;
+  }
 
   if (page.statusCode < 200 || page.statusCode >= 300) {
+    if (ghToken) {
+      return await discoverJobsFromGreenhouseApi(ghToken, source, safeFetcher);
+    }
     throw new Error(`Career page returned HTTP ${page.statusCode}.`);
   }
   if (!/text\/html|application\/xhtml\+xml/i.test(page.contentType)) {
+    if (ghToken) {
+      return await discoverJobsFromGreenhouseApi(ghToken, source, safeFetcher);
+    }
     throw new Error('Career page did not return HTML.');
   }
 
   const links = extractCareerPageJobLinks(page.body, sourceUrl, 10);
+  if (links.length === 0 && ghToken) {
+    return await discoverJobsFromGreenhouseApi(ghToken, source, safeFetcher);
+  }
+
   const jobs: DiscoveredJob[] = [];
   const errors: string[] = [];
   let skipped = 0;

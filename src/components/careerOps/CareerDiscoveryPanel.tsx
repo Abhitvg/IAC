@@ -11,7 +11,7 @@ interface CareerDiscoveryPanelProps {
 const POPULAR_CAREER_PRESETS = [
   {
     label: 'Anthropic Careers',
-    url: 'https://jobs.ashbyhq.com/anthropic',
+    url: 'https://job-boards.greenhouse.io/anthropic',
     keywords: ['AI', 'Engineer', 'Systems', 'Research'],
   },
   {
@@ -21,7 +21,7 @@ const POPULAR_CAREER_PRESETS = [
   },
   {
     label: 'Datadog Careers',
-    url: 'https://boards.greenhouse.io/datadog',
+    url: 'https://job-boards.greenhouse.io/datadog',
     keywords: ['Distributed', 'Go', 'Infrastructure', 'Software'],
   },
   {

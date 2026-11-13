@@ -435,7 +435,14 @@ export class SafeConnectionFetcher {
               throw new Error(`Protocol mismatch: expected ${allowed.protocol}, got ${parsed.protocol}`);
             }
             if (parsed.hostname.toLowerCase() !== allowed.hostname.toLowerCase()) {
-              throw new Error(`Cross-origin request rejected: expected ${allowed.hostname}, got ${parsed.hostname}`);
+              const allowedHost = allowed.hostname.toLowerCase();
+              const parsedHost = parsed.hostname.toLowerCase();
+              const isGreenhouseAlias =
+                (allowedHost === 'boards.greenhouse.io' && parsedHost === 'job-boards.greenhouse.io') ||
+                (allowedHost === 'job-boards.greenhouse.io' && parsedHost === 'boards.greenhouse.io');
+              if (!isGreenhouseAlias) {
+                throw new Error(`Cross-origin request rejected: expected ${allowed.hostname}, got ${parsed.hostname}`);
+              }
             }
             const currentPort = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
             const allowedPort = allowed.port || (allowed.protocol === 'https:' ? '443' : '80');
