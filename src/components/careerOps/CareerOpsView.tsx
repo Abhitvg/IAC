@@ -49,6 +49,10 @@ import {
   openInOverleaf,
   parseLatexForVisualPreview,
 } from '../../services/careerOps/overleafPusher';
+import {
+  exportTailoredResumeToPdf,
+  exportCoverLetterToPdf,
+} from '../../services/careerOps/resumePdfExporter';
 import { useCareerOpsStore } from '../../store/useCareerOpsStore';
 import { detectGhostJobRisk } from '../../services/careerOps/ghostJobDetector';
 import { CareerDiscoveryPanel } from './CareerDiscoveryPanel';
@@ -382,8 +386,8 @@ export function CareerOpsView() {
   const exportCandidateVault = useCandidateVaultStore((s) => s.exportVaultJson);
   const importCandidateVault = useCandidateVaultStore((s) => s.importVaultJson);
 
-  // Resume View Mode (Code vs Visual Preview)
-  const [resumeViewMode, setResumeViewMode] = useState<'code' | 'preview'>('code');
+  // Resume View Mode (Visual Preview as default - No raw LaTeX shown by default)
+  const [resumeViewMode, setResumeViewMode] = useState<'preview' | 'code'>('preview');
 
   // Job Scraper URL state in Evaluator Modal
   const [scrapeUrlInput, setScrapeUrlInput] = useState('');
@@ -1980,7 +1984,7 @@ export function CareerOpsView() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
-                      📜 Sourabh Bajaj LaTeX Resume (.tex)
+                      📄 Tailored Executive ATS Resume
                     </span>
                     <span
                       style={{
@@ -1993,16 +1997,54 @@ export function CareerOpsView() {
                         fontWeight: 700,
                       }}
                     >
-                      sb2nov/resume ATS
+                      1-Page PDF • Ready to Apply
                     </span>
                   </div>
 
                   {activeJob.tailoredResume && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <button
-                        onClick={() => handleCopy(activeJob.tailoredResume!, 'Tailored Resume')}
+                        onClick={() =>
+                          exportTailoredResumeToPdf(
+                            activeJob.tailoredResume!,
+                            activeJob.role,
+                            activeJob.company,
+                            candidateVault
+                          )
+                        }
                         style={{
-                          padding: '3px 8px',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                          color: '#ffffff',
+                          border: 'none',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          boxShadow: '0 2px 6px rgba(37, 99, 235, 0.35)',
+                        }}
+                        title="Compile and download high-resolution PDF internally"
+                      >
+                        <Download size={12} />
+                        <span>Download PDF</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const parsed = parseLatexForVisualPreview(activeJob.tailoredResume!);
+                          const cleanText = [
+                            `${parsed.name} - ${parsed.role}`,
+                            parsed.email,
+                            '',
+                            ...parsed.sections.flatMap((s) => [s.title.toUpperCase(), ...s.lines, '']),
+                          ].join('\n');
+                          handleCopy(cleanText, 'Tailored Resume');
+                        }}
+                        style={{
+                          padding: '4px 8px',
                           borderRadius: '6px',
                           background: 'rgba(255, 255, 255, 0.06)',
                           color: '#94a3b8',
@@ -2014,11 +2056,10 @@ export function CareerOpsView() {
                           alignItems: 'center',
                           gap: '4px',
                         }}
+                        title="Copy clean formatted resume text (no LaTeX code)"
                       >
                         <Copy size={11} />
-                        <span>
-                          {copiedField === 'Tailored Resume' ? 'Copied LaTeX!' : 'Copy .tex'}
-                        </span>
+                        <span>{copiedField === 'Tailored Resume' ? 'Copied Clean Resume!' : 'Copy Text'}</span>
                       </button>
 
                       <button
@@ -2030,48 +2071,18 @@ export function CareerOpsView() {
                           )
                         }
                         style={{
-                          padding: '3px 8px',
+                          padding: '3px 6px',
                           borderRadius: '6px',
-                          background: 'rgba(99, 102, 241, 0.15)',
-                          color: '#818cf8',
-                          border: '1px solid rgba(99, 102, 241, 0.3)',
-                          fontSize: '10px',
+                          background: 'transparent',
+                          color: '#64748b',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          fontSize: '9px',
                           fontWeight: 600,
                           cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
                         }}
+                        title="For LaTeX power users only"
                       >
-                        <Download size={11} />
-                        <span>Download .tex</span>
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          openInOverleaf(
-                            activeJob.tailoredResume!,
-                            `${activeJob.company.toLowerCase()}_resume`
-                          )
-                        }
-                        style={{
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          background: 'linear-gradient(135deg, #10b981, #059669)',
-                          color: '#ffffff',
-                          border: 'none',
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
-                        }}
-                        title="1-Click project creation on Overleaf"
-                      >
-                        <ExternalLink size={11} />
-                        <span>🚀 Open in Overleaf</span>
+                        .tex
                       </button>
                     </div>
                   )}
@@ -2282,6 +2293,35 @@ export function CareerOpsView() {
                   {activeJob.coverLetter && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <button
+                        onClick={() =>
+                          exportCoverLetterToPdf(
+                            activeJob.coverLetter!,
+                            activeJob.company,
+                            activeJob.role,
+                            candidateVault
+                          )
+                        }
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          background: 'linear-gradient(135deg, #0891b2, #0e7490)',
+                          color: '#ffffff',
+                          border: 'none',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          boxShadow: '0 2px 6px rgba(8, 145, 178, 0.35)',
+                        }}
+                        title="Download executive letterhead Cover Letter as PDF"
+                      >
+                        <Download size={12} />
+                        <span>Download PDF</span>
+                      </button>
+
+                      <button
                         onClick={() => handleCopy(activeJob.coverLetter!, 'Cover Letter')}
                         style={{
                           padding: '3px 8px',
@@ -2310,21 +2350,18 @@ export function CareerOpsView() {
                           )
                         }
                         style={{
-                          padding: '3px 8px',
+                          padding: '3px 6px',
                           borderRadius: '6px',
-                          background: 'rgba(6, 182, 212, 0.15)',
-                          color: '#67e8f9',
-                          border: '1px solid rgba(6, 182, 212, 0.3)',
-                          fontSize: '10px',
+                          background: 'transparent',
+                          color: '#64748b',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          fontSize: '9px',
                           fontWeight: 600,
                           cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
                         }}
+                        title="Download Markdown source"
                       >
-                        <Download size={11} />
-                        <span>Download .md</span>
+                        .md
                       </button>
                     </div>
                   )}

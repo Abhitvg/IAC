@@ -23,6 +23,7 @@ import {
   Pause,
   Play,
   Trash2,
+  Download,
 } from 'lucide-react';
 import {
   JobApplication,
@@ -36,6 +37,8 @@ import {
   REFERRAL_DISCLAIMER_COPY,
 } from '../../../packages/cloud-core/src/apply/job-strategy';
 import { copyToClipboard } from '../../utils/clipboard';
+import { exportTailoredResumeToPdf, exportCoverLetterToPdf } from '../../services/careerOps/resumePdfExporter';
+import { parseLatexForVisualPreview } from '../../services/careerOps/overleafPusher';
 
 interface JobDrawerModalProps {
   job: JobApplication | null;
@@ -575,27 +578,92 @@ export const JobDrawerModal: React.FC<JobDrawerModalProps> = ({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '11px', fontWeight: 800, color: '#818cf8', textTransform: 'uppercase' }}>
-                      Tailored ATS LaTeX Resume ({job.company})
+                      Tailored ATS Resume ({job.company})
                     </span>
                     <span style={{ fontSize: '10px', color: '#a5b4fc', fontWeight: 700 }}>
-                      +42% Keyword Density
+                      Executive 1-Page PDF • High Fit
                     </span>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#e0e7ff', lineHeight: 1.5, fontFamily: 'monospace' }}>
-                    • <strong style={{ color: '#38bdf8' }}>Architected event-driven ingestion pipeline</strong> processing 50k QPS Kafka streams<br />
-                    • Optimized distributed cache layer with Redis, reducing P99 latency by 45%<br />
-                    • Designed resilient idempotency state machines for payment & telemetry reliability<br />
-                    • Standardized benchmark harnesses for continuous model and code evaluation
+                  <div style={{ fontSize: '11px', color: '#e0e7ff', lineHeight: 1.5 }}>
+                    • <strong style={{ color: '#38bdf8' }}>Targeted Architecture Alignment:</strong> Tailored specifically for {job.role} at {job.company}<br />
+                    • <strong style={{ color: '#34d399' }}>Verified Metrics:</strong> Preserves only factual candidate accomplishments with zero hallucinations<br />
+                    • <strong style={{ color: '#818cf8' }}>Internal PDF Compiler:</strong> Generates executive 1-page PDF ready for submission
                   </div>
                 </div>
               </div>
 
-              {/* Actions: Copy & Overleaf */}
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '6px' }}>
+              {/* Actions: Download PDF, Copy Clean Text, & Cover Letter */}
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '6px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    exportTailoredResumeToPdf(
+                      job.tailoredResume || '',
+                      job.role,
+                      job.company
+                    );
+                    showToast('📄 Generating internal Resume PDF...');
+                  }}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.35)',
+                  }}
+                  title="Compile and download 1-page PDF internally"
+                >
+                  <Download size={12} />
+                  <span>Download Resume PDF</span>
+                </button>
+
+                {job.coverLetter && (
+                  <button
+                    onClick={() => {
+                      exportCoverLetterToPdf(
+                        job.coverLetter!,
+                        job.company,
+                        job.role
+                      );
+                      showToast('✉️ Generating internal Cover Letter PDF...');
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      background: 'linear-gradient(135deg, #0891b2, #0e7490)',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                    title="Download tailored cover letter as PDF"
+                  >
+                    <Download size={12} />
+                    <span>Cover Letter PDF</span>
+                  </button>
+                )}
+
                 <button
                   onClick={async () => {
-                    await copyToClipboard(job.tailoredResume || '% Single-Page Dense ATS Resume\n\\documentclass{article}');
-                    showToast('📋 LaTeX resume copied to clipboard!');
+                    const parsed = parseLatexForVisualPreview(job.tailoredResume || '');
+                    const cleanText = [
+                      `${parsed.name} - ${job.role}`,
+                      parsed.email,
+                      '',
+                      ...parsed.sections.flatMap((s) => [s.title.toUpperCase(), ...s.lines, '']),
+                    ].join('\n');
+                    await copyToClipboard(cleanText || job.tailoredResume || '');
+                    showToast('📋 Clean formatted resume copied to clipboard!');
                   }}
                   style={{
                     padding: '6px 12px',
@@ -612,30 +680,8 @@ export const JobDrawerModal: React.FC<JobDrawerModalProps> = ({
                   }}
                 >
                   <Copy size={12} />
-                  <span>Copy LaTeX Code</span>
+                  <span>Copy Clean Text</span>
                 </button>
-
-                {onOpenOverleaf && (
-                  <button
-                    onClick={() => onOpenOverleaf(job)}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      background: 'linear-gradient(135deg, #10b981, #059669)',
-                      color: '#ffffff',
-                      border: 'none',
-                      fontSize: '11px',
-                      fontWeight: 750,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    <span>Open in Overleaf</span>
-                    <ExternalLink size={12} />
-                  </button>
-                )}
               </div>
             </div>
           )}

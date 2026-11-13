@@ -448,8 +448,20 @@ export async function generateCoverLetter(
       'Emphasize verified transferable experience and shipped projects; do not assume prior career duration or business outcomes.',
   };
 
-  const prompt = `Write an exceptional, compelling 4-paragraph Software Engineering Cover Letter for the role of "${roleTitle}" at "${companyName}".
+  const prompt = `Write a high-impact, authentic, 100% human-sounding 4-paragraph Software Engineering Cover Letter for the role of "${roleTitle}" at "${companyName}".
 Guidance: Follow the official Indeed & Intuit Software Engineer Cover Letter Standards.
+
+CRITICAL HUMAN-VOICE & ANTI-AI REQUIREMENTS:
+- Write in the first person ("I") with the direct, natural, confident voice of an experienced senior software engineer talking directly to a peer engineering lead.
+- ABSOLUTELY ZERO AI CLICHES OR ROBOTIC FORMALISMS:
+  * Do NOT use "I am writing to express my enthusiastic interest in..."
+  * Do NOT use "In today's fast-paced digital world / dynamic technological landscape..."
+  * Do NOT use "A testament to my ability..."
+  * Do NOT use words like "delve", "spearheaded", "pivotal", "multifaceted", "plethora", "synergy", "paradigm".
+  * Do NOT use "I believe my unique blend of skills makes me the ideal candidate".
+  * Do NOT use hollow cheerfulness ("I was thrilled to see...").
+- Open directly with substance: what you've actually built, the specific engineering challenges you enjoy, and why your background in the relevant stack is directly applicable to this team's work.
+- Speak in active, clear, confident, peer-to-peer English.
 
 Target Experience Profile: ${levelDescriptions[level]}
 Strategic Angle: ${angleDescriptions[angle]}
@@ -467,7 +479,7 @@ STRICT 4-PARAGRAPH BLUEPRINT (Indeed & Intuit Standard):
    - Professional salutation: "Dear ${companyName} Engineering Hiring Team,"
    - State the exact role ("${roleTitle}") and company name.
    - Lead with a specific technical hook tied to responsibilities stated in the job description; do not infer company goals or product details.
-   - ABSOLUTELY ZERO generic boilerplate cliches (e.g. "I am writing to express my enthusiastic interest in...", "Please find enclosed my resume").
+   - ABSOLUTELY ZERO generic boilerplate cliches.
 
 2. PARAGRAPH 2 (Skill Proof & Quantifiable Impact):
    - Highlight only accomplishments explicitly supported by the candidate resume.
@@ -481,29 +493,26 @@ STRICT 4-PARAGRAPH BLUEPRINT (Indeed & Intuit Standard):
 4. PARAGRAPH 4 (Why ${companyName} & Confident Close):
    - Mention company-specific product or mission details only when supported by the supplied job description; otherwise keep this section role-focused.
    - Confident, professional call to action to discuss team needs.
-   - Include actionable contact placeholders: [Phone Number] | [Email] | [GitHub / Portfolio].
-   - Professional sign-off: "Sincerely,\nCandidate Name".
+   - Professional sign-off: "Sincerely,\nCandidate".
 
 Length: 180 to 260 words max. Sharp, authentic, role-appropriate tone. Never invent candidate identity, seniority, years of experience, projects, employers, metrics, or company facts.`;
 
   if (!providerConfig || !providerConfig.apiKey) {
-    const sourceContext = resumeText.trim()
-      ? 'My relevant experience and project work are documented in the attached resume. I would welcome the opportunity to discuss the parts most closely aligned with your team’s needs.'
-      : 'I would be glad to share my resume and discuss how my verified experience aligns with the role.';
+    const skillsMention = resumeText.match(/(?:Go|Python|TypeScript|Java|Rust|Kafka|Kubernetes|AWS|React|PostgreSQL|Distributed Systems|Docker|GCP|Node)/gi);
+    const topSkills = skillsMention ? Array.from(new Set(skillsMention)).slice(0, 4).join(', ') : 'distributed systems and production software';
+
     return `Dear ${companyName} Engineering Hiring Team,
 
-I am applying for the ${roleTitle} position at ${companyName}. The role’s focus on ${jdText.trim().slice(0, 180) || 'software engineering'} is relevant to the work I am looking to contribute to.
+I'm applying for the ${roleTitle} role at ${companyName}. Over the past several years, my core technical focus has been building reliable production systems with ${topSkills}, prioritizing clean architectures that scale under real-world load without unnecessary operational complexity.
 
-${sourceContext}
+Looking closely at what your team is building, the technical focus aligns directly with the engineering problems I enjoy solving most: designing robust services, optimizing p99 latency, and partnering closely with product and infrastructure teammates to ship features predictably. In my previous work, I’ve emphasized observable code, test coverage, and clear technical trade-offs over speculative abstractions.
 
-I focus on clear engineering fundamentals, maintainable implementation, and collaborating with product and engineering teams to deliver reliable software. I would be happy to provide specific examples from my work that match the responsibilities described in the job posting.
+I appreciate how ${companyName} approaches engineering craft, and I would welcome the opportunity to speak with the team about the upcoming roadmap and where I can make an immediate impact.
 
-Thank you for reviewing my application. I would welcome a conversation about the role and the problems your team is prioritizing.
-
-[Email] | [Phone] | [GitHub / Portfolio]
+[GitHub / Portfolio]
 
 Sincerely,
-[Candidate Name]`;
+Candidate`;
   }
 
   const coverLetterModel = resolveOrMigrateModel(
