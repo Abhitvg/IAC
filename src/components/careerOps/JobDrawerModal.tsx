@@ -39,6 +39,7 @@ import {
 import { copyToClipboard } from '../../utils/clipboard';
 import { exportTailoredResumeToPdf, exportCoverLetterToPdf } from '../../services/careerOps/resumePdfExporter';
 import { parseLatexForVisualPreview } from '../../services/careerOps/overleafPusher';
+import { useCandidateVaultStore } from '../../store/useCandidateVaultStore';
 
 interface JobDrawerModalProps {
   job: JobApplication | null;
@@ -596,10 +597,13 @@ export const JobDrawerModal: React.FC<JobDrawerModalProps> = ({
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '6px', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => {
+                    const vault = useCandidateVaultStore.getState().profile;
                     exportTailoredResumeToPdf(
                       job.tailoredResume || '',
                       job.role,
-                      job.company
+                      job.company,
+                      vault,
+                      'modern_sans'
                     );
                     showToast('📄 Generating internal Resume PDF...');
                   }}
@@ -626,10 +630,12 @@ export const JobDrawerModal: React.FC<JobDrawerModalProps> = ({
                 {job.coverLetter && (
                   <button
                     onClick={() => {
+                      const vault = useCandidateVaultStore.getState().profile;
                       exportCoverLetterToPdf(
                         job.coverLetter!,
                         job.company,
-                        job.role
+                        job.role,
+                        vault
                       );
                       showToast('✉️ Generating internal Cover Letter PDF...');
                     }}

@@ -7,47 +7,59 @@ import {
 } from '../src/services/careerOps/resumePdfExporter';
 
 describe('CareerOps Internal PDF Converter & Executive Resume/Cover Letter Exporter', () => {
-  it('generates executive 1-page ATS resume HTML without raw LaTeX tags', () => {
-    const resumeData: ResumePrintData = {
-      name: 'Abhishek Singh',
-      role: 'Staff Distributed Systems Engineer',
-      email: 'candidate@domain.com',
-      phone: '+1 (555) 019-2834',
-      location: 'San Francisco, CA',
-      linkedin: 'linkedin.com/in/abhisheksingh',
-      github: 'github.com/abhisheksingh',
-      sections: [
-        {
-          title: 'Professional Summary',
-          lines: [
-            'Staff Engineer with 8+ years experience scaling high-throughput distributed architectures, Kafka streaming pipelines, and Go microservices.',
-          ],
-        },
-        {
-          title: 'Experience',
-          lines: [
-            'Datadog — Staff Systems Engineer | New York, NY (2022 - Present)',
-            '• Architected event-driven telemetry pipeline processing 50k QPS with Go and Kafka.',
-            '• Reduced P99 ingestion latency by 45% through custom memory-pooled serialization.',
-          ],
-        },
-        {
-          title: 'Technical Skills',
-          lines: [
-            'Languages: Go, TypeScript, Python, SQL, C++',
-            'Infrastructure: Kubernetes, Docker, Kafka, AWS, PostgreSQL, Redis',
-          ],
-        },
-      ],
-    };
+  const sampleResumeData: ResumePrintData = {
+    name: 'Abhishek Singh',
+    role: 'Senior Web Developer, Global Ecommerce',
+    email: 'Abhisheksingh1thakur@gmail.com',
+    phone: '+91-8850970898',
+    location: 'New Delhi, India',
+    github: 'github.com/Abhitvg',
+    portfolio: 'abhishek-jade.vercel.app',
+    sections: [
+      {
+        title: 'Professional Summary',
+        lines: [
+          'Frontend-focused full-stack engineer with 4+ years experience building customer-facing web products, eCommerce experiences, and production applications with React, Next.js, TypeScript, and Tailwind CSS.',
+        ],
+      },
+      {
+        title: 'Core Technical Skills',
+        lines: [
+          'Frontend: React, Next.js, TypeScript, JavaScript (ES6+), Tailwind CSS, HTML5, CSS3',
+          'Backend & Integration: Node.js, Express, Java, Spring Boot, REST APIs, microservices',
+          'Data & Services: MongoDB, PostgreSQL, SQLite, Firebase, Cassandra, Kafka',
+        ],
+      },
+      {
+        title: 'Professional Experience',
+        lines: [
+          'ATMA Research & Consultancy — Full-Stack / Product Engineering | Jul 2025 – Present',
+          '• Developed the ATMA AI corporate website using Next.js and modern React patterns.',
+          '• Architected product interfaces for Porcupine, an Electron + Next.js command center.',
+        ],
+      },
+      {
+        title: 'Selected Product & Frontend Projects',
+        lines: [
+          'Sheetal Electrotech — B2B Manufacturing Platform | 2026',
+          'Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Neon Postgres · Vercel Blob',
+          '• Built a responsive, bilingual corporate web platform with localized routes and RFQ workflow.',
+        ],
+      },
+    ],
+  };
 
-    const html = buildResumeHtml(resumeData);
+  it('generates executive 1-page ATS resume HTML in modern_sans style without raw LaTeX tags', () => {
+    const html = buildResumeHtml(sampleResumeData, 'modern_sans');
 
     expect(html).toContain('Abhishek Singh');
-    expect(html).toContain('Staff Distributed Systems Engineer');
-    expect(html).toContain('candidate@domain.com');
+    expect(html).toContain('Senior Web Developer, Global Ecommerce');
+    expect(html).toContain('Abhisheksingh1thakur@gmail.com');
     expect(html).toContain('PROFESSIONAL SUMMARY');
-    expect(html).toContain('Architected event-driven telemetry pipeline');
+    expect(html).toContain('CORE TECHNICAL SKILLS');
+    expect(html).toContain('skill-category-row');
+    expect(html).toContain('tech-badge-row');
+    expect(html).toContain('Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Neon Postgres · Vercel Blob');
     // Ensure no raw LaTeX syntax leaks
     expect(html).not.toContain('\\documentclass');
     expect(html).not.toContain('\\begin{document}');
@@ -55,30 +67,44 @@ describe('CareerOps Internal PDF Converter & Executive Resume/Cover Letter Expor
     expect(html).not.toContain('\\textbf');
     expect(html).toContain('@page {');
     expect(html).toContain('size: letter');
+    expect(html).toContain('font-family: -apple-system');
+  });
+
+  it('generates classic sb2nov serif resume HTML in classic_serif style', () => {
+    const html = buildResumeHtml(sampleResumeData, 'classic_serif');
+
+    expect(html).toContain('Abhishek Singh');
+    expect(html).toContain('Times New Roman');
+    expect(html).toContain('PROFESSIONAL SUMMARY');
+    expect(html).toContain('ATMA Research & Consultancy');
+    expect(html).not.toContain('\\documentclass');
   });
 
   it('generates executive cover letter HTML with natural tone and proper letterhead', () => {
     const letterData: CoverLetterPrintData = {
       candidateName: 'Abhishek Singh',
-      email: 'candidate@domain.com',
-      phone: '+1 (555) 019-2834',
-      location: 'San Francisco, CA',
-      companyName: 'Datadog',
-      roleTitle: 'Staff Distributed Systems Engineer',
-      letterText: `I am applying for the Staff Distributed Systems Engineer position at Datadog. Over the past several years, my core technical focus has been building reliable production systems with Go, Kafka, and Kubernetes.
+      email: 'Abhisheksingh1thakur@gmail.com',
+      phone: '+91-8850970898',
+      location: 'New Delhi, India',
+      github: 'github.com/Abhitvg',
+      portfolio: 'abhishek-jade.vercel.app',
+      companyName: 'reMarkable',
+      roleTitle: 'Senior Web Developer, Global Ecommerce',
+      letterText: `I am applying for the Senior Web Developer position on reMarkable’s Global Ecommerce team. I am a Computer Science graduate from Jawaharlal Nehru University with more than four years of software development experience building customer-facing web products, commerce experiences and production applications.
 
-Looking closely at what your team is building, the technical focus aligns directly with the engineering problems I enjoy solving most: designing robust services, keeping latencies low and predictable, and partnering closely with product and infrastructure teammates to ship features predictably.
+My project work includes several directly relevant commerce and product experiences. For UKCOP / DoonSilk, I worked on cooperative-commerce and product workflows. Bakraw involved a customer-facing meat-commerce experience, while The Balance Bite is a food-focused digital product. I have also developed a bilingual B2B manufacturing platform for Sheetal Electrotech with Next.js 16, React 19, Neon Postgres, and private file storage.
 
-I appreciate how Datadog approaches engineering craft, and I would welcome the opportunity to speak with the team about where I can make an immediate impact.`,
+I would bring to reMarkable a product-minded engineering approach, strong hands-on experience with the modern React ecosystem, and the ability to collaborate with designers, product managers and backend engineers.`,
     };
 
     const html = buildCoverLetterHtml(letterData);
 
     expect(html).toContain('Abhishek Singh');
+    expect(html).toContain('APPLICATION — SENIOR WEB DEVELOPER, GLOBAL ECOMMERCE, REMARKABLE');
     expect(html).toContain('Engineering Hiring Team');
-    expect(html).toContain('Datadog');
-    expect(html).toContain('RE: Application for Staff Distributed Systems Engineer');
-    expect(html).toContain('Over the past several years, my core technical focus has been building reliable production systems');
+    expect(html).toContain('reMarkable');
+    expect(html).toContain('RE: Application for Senior Web Developer, Global Ecommerce');
+    expect(html).toContain('Sheetal Electrotech');
     // Zero AI clichés
     expect(html).not.toContain('I am writing to express my enthusiastic interest');
     expect(html).not.toContain('In today\'s fast-paced digital world');

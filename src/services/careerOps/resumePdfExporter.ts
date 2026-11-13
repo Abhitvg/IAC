@@ -3,9 +3,12 @@
  *
  * Converts structured resumes and cover letters directly into print-perfect,
  * ATS-compliant 1-page PDF documents without exposing raw LaTeX code to the user.
+ * Supports both "Modern Executive (Sans-Serif)" and "Classic ATS Ivy (Serif/sb2nov)" styles.
  */
 
 import { parseLatexForVisualPreview } from './overleafPusher';
+
+export type ResumeTheme = 'modern_sans' | 'classic_serif';
 
 export interface ResumePrintData {
   name: string;
@@ -15,6 +18,7 @@ export interface ResumePrintData {
   location?: string;
   linkedin?: string;
   github?: string;
+  portfolio?: string;
   sections: Array<{
     title: string;
     lines: string[];
@@ -26,6 +30,9 @@ export interface CoverLetterPrintData {
   email?: string;
   phone?: string;
   location?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
   companyName: string;
   roleTitle: string;
   letterText: string;
@@ -35,25 +42,66 @@ export interface CoverLetterPrintData {
 /**
  * Builds clean, executive, 1-page ATS-optimized HTML for printing to PDF.
  */
-export function buildResumeHtml(data: ResumePrintData): string {
+export function buildResumeHtml(data: ResumePrintData, theme: ResumeTheme = 'modern_sans'): string {
   const contactParts: string[] = [];
   if (data.email) contactParts.push(`<a href="mailto:${data.email}">${data.email}</a>`);
-  if (data.phone) contactParts.push(data.phone);
-  if (data.location) contactParts.push(data.location);
-  if (data.linkedin) contactParts.push(`<a href="${data.linkedin.startsWith('http') ? data.linkedin : 'https://' + data.linkedin}">LinkedIn</a>`);
-  if (data.github) contactParts.push(`<a href="${data.github.startsWith('http') ? data.github : 'https://' + data.github}">GitHub</a>`);
+  if (data.phone) contactParts.push(`<span>${data.phone}</span>`);
+  if (data.location && data.location !== 'unknown') contactParts.push(`<span>${data.location}</span>`);
+  if (data.github) {
+    const cleanGh = data.github.replace(/^https?:\/\//, '');
+    contactParts.push(`<a href="${data.github.startsWith('http') ? data.github : 'https://' + data.github}">GitHub: ${cleanGh}</a>`);
+  }
+  if (data.linkedin) {
+    const cleanLi = data.linkedin.replace(/^https?:\/\//, '');
+    contactParts.push(`<a href="${data.linkedin.startsWith('http') ? data.linkedin : 'https://' + data.linkedin}">LinkedIn</a>`);
+  }
+  if (data.portfolio) {
+    const cleanPort = data.portfolio.replace(/^https?:\/\//, '');
+    contactParts.push(`<a href="${data.portfolio.startsWith('http') ? data.portfolio : 'https://' + data.portfolio}">Portfolio: ${cleanPort}</a>`);
+  }
+
+  const isModern = theme === 'modern_sans';
 
   const sectionsHtml = data.sections
     .map((sec) => {
+      const isSkillsSection = /skills|technologies|proficiencies|competencies/i.test(sec.title);
+
       const itemsHtml = sec.lines
         .map((line) => {
-          if (line.startsWith('•')) {
-            const cleanLine = line.replace(/^•\s*/, '');
-            return `<li class="bullet">${cleanLine}</li>`;
+          // Bullet point
+          if (line.startsWith('•') || line.startsWith('-')) {
+            const cleanLine = line.replace(/^[•\-]\s*/, '');
+            // Highlight lead-in phrases before colon if present (e.g. "Architected pipeline: ...")
+            const formattedBullet = cleanLine.replace(
+              /^([A-Za-z0-9\s/&—–\-]+:)/,
+              '<strong>$1</strong>'
+            );
+            return `<li class="bullet">${formattedBullet}</li>`;
           }
-          if (line.includes('—') || line.includes('|')) {
+
+          // Technical skills category lines (e.g. "Frontend: React, Next.js...")
+          if (isSkillsSection && line.includes(':')) {
+            const [cat, ...rest] = line.split(':');
+            return `<div class="skill-category-row"><span class="skill-label">${cat.trim()}:</span> <span class="skill-values">${rest.join(':').trim()}</span></div>`;
+          }
+
+          // Technology badge rows (e.g. "Next.js 16 · React 19 · TypeScript · Tailwind CSS 4")
+          if (line.includes('·') && !line.includes('Present') && !line.includes('202')) {
+            return `<div class="tech-badge-row">${line}</div>`;
+          }
+
+          // Subheadings with dates or locations (e.g. "Company — Role | Dates (Location)")
+          if (line.includes('—') || line.includes('|') || line.includes('–')) {
+            // Attempt to split left and right parts if dates are present
+            const dateMatch = line.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|20[12][0-9]|\bPresent\b)[\s\S]*$/i);
+            if (dateMatch && isModern) {
+              const leftPart = line.slice(0, dateMatch.index).replace(/[|\s—–]+$/, '').trim();
+              const rightPart = line.slice(dateMatch.index).trim();
+              return `<div class="subheading-split"><span class="subheading-title">${leftPart}</span><span class="subheading-date">${rightPart}</span></div>`;
+            }
             return `<div class="subheading">${line}</div>`;
           }
+
           return `<div class="text-line">${line}</div>`;
         })
         .join('\n');
@@ -69,32 +117,18 @@ export function buildResumeHtml(data: ResumePrintData): string {
     })
     .join('\n');
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>${data.name} - ${data.role} Resume</title>
-  <style>
-    @page {
-      size: letter;
-      margin: 0.45in 0.5in 0.45in 0.5in;
-    }
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+  const modernStyles = `
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      font-size: 10pt;
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 9pt;
       line-height: 1.35;
-      color: #111827;
+      color: #0f172a;
       background: #ffffff;
       -webkit-font-smoothing: antialiased;
     }
     .header {
       text-align: center;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
     .header .name {
       font-size: 19pt;
@@ -105,60 +139,221 @@ export function buildResumeHtml(data: ResumePrintData): string {
       margin-bottom: 2px;
     }
     .header .role-title {
-      font-size: 11pt;
+      font-size: 9.5pt;
       font-weight: 700;
-      color: #2563eb;
+      letter-spacing: 0.5px;
+      color: #1e40af;
       margin-bottom: 4px;
+      text-transform: uppercase;
     }
     .header .contact-line {
       font-size: 8.5pt;
       color: #475569;
+      line-height: 1.4;
     }
     .header .contact-line a {
-      color: #2563eb;
+      color: #1e40af;
       text-decoration: none;
     }
     .resume-section {
-      margin-bottom: 10px;
+      margin-bottom: 9px;
       break-inside: avoid;
     }
     .section-title {
-      font-size: 9.5pt;
+      font-size: 9pt;
       font-weight: 800;
-      letter-spacing: 0.6px;
+      letter-spacing: 0.8px;
       color: #0f172a;
       border-bottom: 1.5px solid #0f172a;
       padding-bottom: 2px;
-      margin-bottom: 5px;
+      margin-bottom: 4px;
       text-transform: uppercase;
     }
+    .subheading-split {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 9pt;
+      margin-top: 4px;
+      margin-bottom: 1px;
+    }
+    .subheading-title {
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .subheading-date {
+      font-size: 8.5pt;
+      font-weight: 600;
+      color: #64748b;
+      text-align: right;
+    }
     .subheading {
-      font-size: 9.5pt;
+      font-size: 9pt;
       font-weight: 700;
       color: #1e293b;
       margin-top: 4px;
       margin-bottom: 2px;
     }
+    .tech-badge-row {
+      font-size: 8pt;
+      font-weight: 600;
+      color: #0284c7;
+      margin-bottom: 2px;
+      letter-spacing: 0.2px;
+    }
+    .skill-category-row {
+      font-size: 8.5pt;
+      margin-bottom: 2.5px;
+      line-height: 1.35;
+    }
+    .skill-label {
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .skill-values {
+      color: #334155;
+    }
+    .text-line {
+      font-size: 8.5pt;
+      color: #334155;
+      margin-bottom: 2px;
+    }
+    .bullet-list {
+      list-style-type: disc;
+      padding-left: 16px;
+      margin-top: 2px;
+      margin-bottom: 4px;
+    }
+    .bullet {
+      font-size: 8.5pt;
+      line-height: 1.34;
+      color: #334155;
+      margin-bottom: 2px;
+    }
+    .bullet strong {
+      color: #0f172a;
+      font-weight: 700;
+    }
+  `;
+
+  const classicStyles = `
+    body {
+      font-family: "Times New Roman", Times, "Cambria", Georgia, serif;
+      font-size: 9.5pt;
+      line-height: 1.3;
+      color: #000000;
+      background: #ffffff;
+      -webkit-font-smoothing: antialiased;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .header .name {
+      font-size: 20pt;
+      font-weight: bold;
+      color: #000000;
+      letter-spacing: 0.2px;
+      margin-bottom: 2px;
+    }
+    .header .role-title {
+      font-size: 10pt;
+      font-style: italic;
+      color: #333333;
+      margin-bottom: 3px;
+    }
+    .header .contact-line {
+      font-size: 9pt;
+      color: #222222;
+    }
+    .header .contact-line a {
+      color: #000000;
+      text-decoration: underline;
+    }
+    .resume-section {
+      margin-bottom: 8px;
+      break-inside: avoid;
+    }
+    .section-title {
+      font-size: 9.5pt;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      color: #000000;
+      border-bottom: 1px solid #000000;
+      padding-bottom: 1px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    .subheading-split, .subheading {
+      font-size: 9.5pt;
+      font-weight: bold;
+      color: #000000;
+      margin-top: 3px;
+      margin-bottom: 1px;
+    }
+    .subheading-title {
+      font-weight: bold;
+    }
+    .subheading-date {
+      float: right;
+      font-weight: normal;
+      font-style: italic;
+    }
+    .tech-badge-row {
+      font-size: 8.5pt;
+      font-style: italic;
+      color: #333333;
+      margin-bottom: 2px;
+    }
+    .skill-category-row {
+      font-size: 9pt;
+      margin-bottom: 2px;
+    }
+    .skill-label {
+      font-weight: bold;
+    }
+    .skill-values {
+      color: #111111;
+    }
     .text-line {
       font-size: 9pt;
-      color: #334155;
+      color: #111111;
       margin-bottom: 2px;
     }
     .bullet-list {
       list-style-type: disc;
       padding-left: 18px;
       margin-top: 2px;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .bullet {
       font-size: 9pt;
-      line-height: 1.38;
-      color: #334155;
-      margin-bottom: 2px;
+      line-height: 1.32;
+      color: #111111;
+      margin-bottom: 1.5px;
     }
     .bullet strong {
-      color: #0f172a;
+      color: #000000;
+      font-weight: bold;
     }
+  `;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${data.name} - ${data.role} Resume</title>
+  <style>
+    @page {
+      size: letter;
+      margin: 0.42in 0.48in 0.42in 0.48in;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    ${isModern ? modernStyles : classicStyles}
     @media print {
       body {
         -webkit-print-color-adjust: exact;
@@ -171,7 +366,7 @@ export function buildResumeHtml(data: ResumePrintData): string {
   <div class="header">
     <div class="name">${data.name}</div>
     <div class="role-title">${data.role}</div>
-    <div class="contact-line">${contactParts.join(' &nbsp;•&nbsp; ')}</div>
+    <div class="contact-line">${contactParts.join(' &nbsp;|&nbsp; ')}</div>
   </div>
   ${sectionsHtml}
 </body>
@@ -182,13 +377,26 @@ export function buildResumeHtml(data: ResumePrintData): string {
  * Builds clean, executive cover letter HTML for printing to PDF.
  */
 export function buildCoverLetterHtml(data: CoverLetterPrintData): string {
+  const contactParts: string[] = [];
+  if (data.email) contactParts.push(data.email);
+  if (data.phone) contactParts.push(data.phone);
+  if (data.location && data.location !== 'unknown') contactParts.push(data.location);
+  if (data.github) {
+    const cleanGh = data.github.replace(/^https?:\/\//, '');
+    contactParts.push(`GitHub: ${cleanGh}`);
+  }
+  if (data.portfolio) {
+    const cleanPort = data.portfolio.replace(/^https?:\/\//, '');
+    contactParts.push(`Portfolio: ${cleanPort}`);
+  }
+
   const paragraphs = data.letterText
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean);
 
   const formattedParagraphs = paragraphs
-    .map((p) => `<p style="margin-bottom: 14px; font-size: 10.5pt; line-height: 1.55; color: #1e293b;">${p.replace(/\n/g, '<br/>')}</p>`)
+    .map((p) => `<p style="margin-bottom: 14px; font-size: 10pt; line-height: 1.52; color: #1e293b; text-align: justify;">${p.replace(/\n/g, '<br/>')}</p>`)
     .join('\n');
 
   const formattedDate = data.date || new Date().toLocaleDateString('en-US', {
@@ -205,50 +413,79 @@ export function buildCoverLetterHtml(data: CoverLetterPrintData): string {
   <style>
     @page {
       size: letter;
-      margin: 0.8in 0.8in 0.8in 0.8in;
+      margin: 0.65in 0.75in 0.65in 0.75in;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      font-size: 10.5pt;
-      line-height: 1.55;
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.52;
       color: #1e293b;
       background: #ffffff;
       -webkit-font-smoothing: antialiased;
-      max-width: 650px;
+      max-width: 680px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 24px;
     }
     .letterhead {
-      border-bottom: 2px solid #0f172a;
+      border-bottom: 1.5px solid #cbd5e1;
       padding-bottom: 12px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .candidate-name {
-      font-size: 18pt;
+      font-size: 20pt;
       font-weight: 800;
       color: #0f172a;
-      letter-spacing: -0.2px;
+      letter-spacing: -0.3px;
+    }
+    .app-subtitle {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #1e40af;
+      letter-spacing: 0.5px;
+      margin-top: 3px;
+      text-transform: uppercase;
     }
     .candidate-contact {
-      font-size: 9pt;
-      color: #64748b;
-      margin-top: 4px;
+      font-size: 8.5pt;
+      color: #475569;
+      margin-top: 5px;
+      line-height: 1.4;
     }
     .recipient-block {
-      margin-bottom: 20px;
-      font-size: 10pt;
+      margin-top: 14px;
+      margin-bottom: 18px;
+      font-size: 9.5pt;
       color: #334155;
       line-height: 1.4;
     }
-    .date-line {
-      font-size: 9.5pt;
-      color: #64748b;
-      margin-bottom: 16px;
+    .recipient-block strong {
+      color: #0f172a;
     }
-    .re-line {
+    .date-line {
+      font-size: 9pt;
+      color: #64748b;
+      margin-bottom: 14px;
+    }
+    .salutation {
       font-weight: 700;
       color: #0f172a;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
+      font-size: 10pt;
+    }
+    .signoff {
+      margin-top: 20px;
+      font-size: 10pt;
+      color: #1e293b;
+    }
+    .signoff-name {
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 4px;
       font-size: 10.5pt;
     }
     @media print {
@@ -264,8 +501,9 @@ export function buildCoverLetterHtml(data: CoverLetterPrintData): string {
 <body>
   <div class="letterhead">
     <div class="candidate-name">${data.candidateName}</div>
+    <div class="app-subtitle">APPLICATION — ${data.roleTitle.toUpperCase()}, ${data.companyName.toUpperCase()}</div>
     <div class="candidate-contact">
-      ${[data.email, data.phone, data.location].filter(Boolean).join(' • ')}
+      ${contactParts.join(' &nbsp;|&nbsp; ')}
     </div>
   </div>
 
@@ -274,12 +512,19 @@ export function buildCoverLetterHtml(data: CoverLetterPrintData): string {
   <div class="recipient-block">
     <strong>Engineering Hiring Team</strong><br/>
     ${data.companyName}<br/>
+    ${data.location && data.location !== 'unknown' ? data.location : 'Engineering Department'}
   </div>
 
-  <div class="re-line">RE: Application for ${data.roleTitle}</div>
+  <div class="salutation">Dear ${data.companyName} Engineering Hiring Team,</div>
+  <div class="re-line" style="font-weight: 700; color: #0f172a; margin-bottom: 14px; font-size: 10pt;">RE: Application for ${data.roleTitle}</div>
 
   <div class="letter-body">
     ${formattedParagraphs}
+  </div>
+
+  <div class="signoff">
+    Sincerely,<br/>
+    <div class="signoff-name">${data.candidateName}</div>
   </div>
 </body>
 </html>`;
@@ -298,14 +543,14 @@ export function printHtmlToPdf(html: string, title: string = 'document'): void {
   iframe.style.width = '0';
   iframe.style.height = '0';
   iframe.style.border = '0';
-  iframe.title = title;
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
 
   document.body.appendChild(iframe);
 
-  const doc = iframe.contentWindow?.document;
+  const doc = iframe.contentWindow?.document || iframe.contentDocument;
   if (!doc) {
     document.body.removeChild(iframe);
-    window.print();
     return;
   }
 
@@ -313,22 +558,24 @@ export function printHtmlToPdf(html: string, title: string = 'document'): void {
   doc.write(html);
   doc.close();
 
-  // Allow styles and fonts to paint before triggering native PDF print
+  const originalTitle = document.title;
+  document.title = title;
+
   setTimeout(() => {
     try {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
     } catch (err) {
-      console.warn('[CareerOps PDF] print iframe error, falling back to window.print():', err);
-      window.print();
+      console.error('[CareerOps] Print to PDF failed:', err);
     } finally {
+      document.title = originalTitle;
       setTimeout(() => {
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe);
+        if (iframe.parentNode) {
+          iframe.parentNode.removeChild(iframe);
         }
-      }, 1000);
+      }, 2000);
     }
-  }, 250);
+  }, 350);
 }
 
 /**
@@ -338,25 +585,41 @@ export function exportTailoredResumeToPdf(
   rawResumeOrLatex: string,
   targetRole: string,
   companyName: string,
-  candidateDetails?: { name?: string; email?: string; phone?: string; location?: string; linkedin?: string; github?: string }
+  candidateDetails?: {
+    name?: string;
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    linkedin?: string;
+    github?: string;
+    portfolio?: string;
+  },
+  theme: ResumeTheme = 'modern_sans'
 ): void {
   const parsed = parseLatexForVisualPreview(rawResumeOrLatex);
 
+  const candidateName =
+    candidateDetails?.fullName ||
+    candidateDetails?.name ||
+    (parsed.name !== 'Candidate' ? parsed.name : 'Abhishek Singh');
+
   const resumeData: ResumePrintData = {
-    name: candidateDetails?.name || (parsed.name !== 'Candidate' ? parsed.name : 'Engineering Candidate'),
-    role: targetRole || parsed.role || 'Software Engineer',
-    email: candidateDetails?.email || parsed.email || undefined,
+    name: candidateName,
+    role: targetRole || parsed.role || 'Senior Software Engineer',
+    email: candidateDetails?.email || (parsed.email || undefined),
     phone: candidateDetails?.phone || undefined,
-    location: candidateDetails?.location || undefined,
+    location: candidateDetails?.location && candidateDetails.location !== 'unknown' ? candidateDetails.location : undefined,
     linkedin: candidateDetails?.linkedin || undefined,
     github: candidateDetails?.github || undefined,
+    portfolio: candidateDetails?.portfolio || undefined,
     sections: parsed.sections.length > 0
       ? parsed.sections
       : [
           {
             title: 'Professional Summary',
             lines: [
-              `Seasoned engineer focused on ${targetRole} with direct expertise in building production systems for ${companyName}.`,
+              `Frontend-focused full-stack engineer with 4+ years of software development experience building customer-facing web products, eCommerce experiences, responsive interfaces and production applications.`,
             ],
           },
           {
@@ -369,8 +632,9 @@ export function exportTailoredResumeToPdf(
         ],
   };
 
-  const html = buildResumeHtml(resumeData);
-  printHtmlToPdf(html, `${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_Resume`);
+  const html = buildResumeHtml(resumeData, theme);
+  const safeFilename = `${candidateName.replace(/\s+/g, '_')}_${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_Resume`;
+  printHtmlToPdf(html, safeFilename);
 }
 
 /**
@@ -380,17 +644,35 @@ export function exportCoverLetterToPdf(
   letterText: string,
   companyName: string,
   roleTitle: string,
-  candidateDetails?: { name?: string; email?: string; phone?: string; location?: string }
+  candidateDetails?: {
+    name?: string;
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    linkedin?: string;
+    github?: string;
+    portfolio?: string;
+  }
 ): void {
+  const candidateName =
+    candidateDetails?.fullName ||
+    candidateDetails?.name ||
+    'Abhishek Singh';
+
   const html = buildCoverLetterHtml({
-    candidateName: candidateDetails?.name || 'Candidate',
+    candidateName,
     email: candidateDetails?.email,
     phone: candidateDetails?.phone,
     location: candidateDetails?.location,
+    linkedin: candidateDetails?.linkedin,
+    github: candidateDetails?.github,
+    portfolio: candidateDetails?.portfolio,
     companyName,
     roleTitle,
     letterText,
   });
 
-  printHtmlToPdf(html, `${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_Cover_Letter`);
+  const safeFilename = `${candidateName.replace(/\s+/g, '_')}_${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_Cover_Letter`;
+  printHtmlToPdf(html, safeFilename);
 }

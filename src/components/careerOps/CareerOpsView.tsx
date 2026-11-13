@@ -385,9 +385,10 @@ export function CareerOpsView() {
   const resetCandidateVault = useCandidateVaultStore((s) => s.resetToDefaults);
   const exportCandidateVault = useCandidateVaultStore((s) => s.exportVaultJson);
   const importCandidateVault = useCandidateVaultStore((s) => s.importVaultJson);
+  const loadAbhishekProfile = useCandidateVaultStore((s) => s.loadAbhishekProfile);
 
-  // Resume View Mode (Visual Preview as default - No raw LaTeX shown by default)
-  const [resumeViewMode, setResumeViewMode] = useState<'preview' | 'code'>('preview');
+  // Resume View Mode (Modern Executive Sans as default - No raw LaTeX shown by default)
+  const [resumeViewMode, setResumeViewMode] = useState<'modern_sans' | 'classic_serif' | 'code'>('modern_sans');
 
   // Job Scraper URL state in Evaluator Modal
   const [scrapeUrlInput, setScrapeUrlInput] = useState('');
@@ -2009,7 +2010,8 @@ export function CareerOpsView() {
                             activeJob.tailoredResume!,
                             activeJob.role,
                             activeJob.company,
-                            candidateVault
+                            candidateVault,
+                            resumeViewMode === 'classic_serif' ? 'classic_serif' : 'modern_sans'
                           )
                         }
                         style={{
@@ -2102,9 +2104,43 @@ export function CareerOpsView() {
                   }}
                 >
                   <span>
-                    Template: <strong>sb2nov/resume</strong> (MIT License) • 1-Page ATS format
+                    Style: <strong style={{ color: '#f8fafc' }}>{resumeViewMode === 'modern_sans' ? 'Modern Executive (Sans-Serif)' : resumeViewMode === 'classic_serif' ? 'Classic ATS (sb2nov Serif)' : 'Raw LaTeX Code'}</strong>
                   </span>
                   <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      onClick={() => setResumeViewMode('modern_sans')}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        background:
+                          resumeViewMode === 'modern_sans' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                        color: resumeViewMode === 'modern_sans' ? '#38bdf8' : '#94a3b8',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                      title="Modern high-density clean sans-serif layout"
+                    >
+                      ✨ Modern Sans
+                    </button>
+                    <button
+                      onClick={() => setResumeViewMode('classic_serif')}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        background:
+                          resumeViewMode === 'classic_serif' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                        color: resumeViewMode === 'classic_serif' ? '#38bdf8' : '#94a3b8',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
+                      title="Classic academic sb2nov serif LaTeX style"
+                    >
+                      🏛️ Classic ATS Serif
+                    </button>
                     <button
                       onClick={() => setResumeViewMode('code')}
                       style={{
@@ -2118,24 +2154,9 @@ export function CareerOpsView() {
                         border: 'none',
                         cursor: 'pointer',
                       }}
+                      title="Inspect raw LaTeX source"
                     >
                       Code (.tex)
-                    </button>
-                    <button
-                      onClick={() => setResumeViewMode('preview')}
-                      style={{
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        background:
-                          resumeViewMode === 'preview' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
-                        color: resumeViewMode === 'preview' ? '#38bdf8' : '#94a3b8',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Visual Preview
                     </button>
                   </div>
                 </div>
@@ -2169,14 +2190,17 @@ export function CareerOpsView() {
                       width: '100%',
                       height: '350px',
                       overflowY: 'auto',
-                      background: 'rgba(0, 0, 0, 0.45)',
+                      background: resumeViewMode === 'classic_serif' ? 'rgba(15, 23, 42, 0.6)' : 'rgba(0, 0, 0, 0.45)',
                       border: '1px solid rgba(255, 255, 255, 0.08)',
                       borderRadius: '8px',
                       padding: '16px',
+                      fontFamily: resumeViewMode === 'classic_serif' ? '"Times New Roman", Times, Georgia, serif' : 'inherit',
                     }}
                   >
                     {(() => {
                       const parsed = parseLatexForVisualPreview(activeJob.tailoredResume || '');
+                      const displayName = candidateVault.fullName || parsed.name;
+                      const displayRole = activeJob.role || parsed.role;
                       return (
                         <div
                           style={{
@@ -2190,23 +2214,35 @@ export function CareerOpsView() {
                           <div
                             style={{
                               textAlign: 'center',
-                              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderBottom: resumeViewMode === 'classic_serif' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.1)',
                               paddingBottom: '8px',
                             }}
                           >
                             <h2
                               style={{
                                 margin: 0,
-                                fontSize: '15px',
+                                fontSize: '16px',
                                 fontWeight: 900,
                                 color: '#ffffff',
+                                letterSpacing: resumeViewMode === 'modern_sans' ? '-0.2px' : '0.3px',
+                                textTransform: resumeViewMode === 'modern_sans' ? 'uppercase' : 'none',
                               }}
                             >
-                              {parsed.name}
+                              {displayName}
                             </h2>
-                            <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>
-                              {parsed.email && <span>{parsed.email} • </span>}
-                              <span>{parsed.role}</span>
+                            <div
+                              style={{
+                                fontSize: '10px',
+                                color: resumeViewMode === 'modern_sans' ? '#38bdf8' : '#cbd5e1',
+                                fontWeight: 700,
+                                marginTop: '2px',
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              {displayRole}
+                            </div>
+                            <div style={{ fontSize: '9.5pt', color: '#94a3b8', marginTop: '2px' }}>
+                              {[candidateVault.email || parsed.email, candidateVault.phone, candidateVault.location && candidateVault.location !== 'unknown' ? candidateVault.location : null, candidateVault.github ? `GitHub: ${candidateVault.github.replace(/^https?:\/\//, '')}` : null, candidateVault.portfolio ? `Portfolio: ${candidateVault.portfolio.replace(/^https?:\/\//, '')}` : null].filter(Boolean).join(' | ')}
                             </div>
                           </div>
                           {parsed.sections.map((sec, idx) => (
@@ -2219,9 +2255,9 @@ export function CareerOpsView() {
                                   margin: 0,
                                   fontSize: '11px',
                                   fontWeight: 800,
-                                  color: '#38bdf8',
+                                  color: resumeViewMode === 'modern_sans' ? '#38bdf8' : '#f8fafc',
                                   textTransform: 'uppercase',
-                                  borderBottom: '1px solid rgba(56, 189, 248, 0.25)',
+                                  borderBottom: resumeViewMode === 'modern_sans' ? '1.5px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(255, 255, 255, 0.2)',
                                   paddingBottom: '2px',
                                 }}
                               >
@@ -3860,7 +3896,29 @@ export function CareerOpsView() {
                 borderTop: '1px solid rgba(255,255,255,0.08)',
               }}
             >
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadAbhishekProfile();
+                    setToast("⚡ Loaded Abhishek Singh's verified engineering profile!");
+                  }}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, rgba(37,99,235,0.25), rgba(6,182,212,0.25))',
+                    color: '#67e8f9',
+                    border: '1px solid rgba(6,182,212,0.4)',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  ⚡ Load Abhishek Singh Profile
+                </button>
                 <button
                   type="button"
                   onClick={() => {

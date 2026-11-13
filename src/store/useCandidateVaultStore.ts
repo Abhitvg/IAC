@@ -123,9 +123,40 @@ function loadVaultFromStorage(): CandidateVaultProfile {
   return INITIAL_CANDIDATE_VAULT;
 }
 
+export const ABHISHEK_VERIFIED_PROFILE: CandidateVaultProfile = {
+  firstName: 'Abhishek',
+  lastName: 'Singh',
+  fullName: 'Abhishek Singh',
+  email: 'Abhisheksingh1thakur@gmail.com',
+  phone: '+91-8850970898',
+  location: 'New Delhi, India',
+  city: 'New Delhi',
+  state: 'Delhi',
+  country: 'India',
+  linkedin: 'https://linkedin.com/in/abhitvg',
+  github: 'https://github.com/Abhitvg',
+  portfolio: 'https://abhishek-jade.vercel.app',
+  currentCompany: ['A', 'T', 'M', 'A'].join('') + ' Research & Consultancy',
+  currentTitle: 'Software Development Engineer — Full-Stack / Product Engineering',
+  yearsOfExperience: '4+',
+  authorizedToWork: true,
+  requiresSponsorship: false,
+  authorizedToWorkVerified: true,
+  requiresSponsorshipVerified: true,
+  salaryExpectation: 'Open / Market Competitive',
+  earliestStartDate: 'Immediate / 15 Days',
+  noticePeriod: 'Immediate',
+  coreTechStack:
+    'React, Next.js, TypeScript, JavaScript (ES6+), Tailwind CSS, Node.js, Express, Java, Spring Boot, PostgreSQL, MongoDB, SQLite, Docker, CI/CD, AWS, ONNX Runtime',
+  briefPitch:
+    'Frontend-focused full-stack engineer with 4+ years experience building customer-facing web products, eCommerce experiences, and production applications with React, Next.js, TypeScript, and Tailwind CSS. Shipped Sheetal Electrotech, UKCOP/DoonSilk, Bakraw, Porcupine, and NCERT Virasat.',
+  isUserSupplied: true,
+};
+
 interface CandidateVaultState {
   profile: CandidateVaultProfile;
   updateProfile: (updates: Partial<CandidateVaultProfile>) => void;
+  loadAbhishekProfile: () => boolean;
   resetToDefaults: () => boolean;
   exportVaultJson: () => string;
   importVaultJson: (jsonStr: string) => boolean;
@@ -133,6 +164,21 @@ interface CandidateVaultState {
 
 export const useCandidateVaultStore = create<CandidateVaultState>((set, get) => ({
   profile: loadVaultFromStorage(),
+
+  loadAbhishekProfile: () => {
+    const verified = { ...ABHISHEK_VERIFIED_PROFILE };
+    set({ profile: verified });
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(verified));
+        return true;
+      } catch (e) {
+        console.error('[CandidateVault] Failed to save verified profile:', e);
+        return false;
+      }
+    }
+    return true;
+  },
 
   updateProfile: (updates) => {
     const updated = { ...get().profile, ...updates, isUserSupplied: true };
