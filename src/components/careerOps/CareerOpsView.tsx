@@ -1989,7 +1989,7 @@ export function CareerOpsView() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Sparkles size={16} color="#38bdf8" />
                   <span style={{ fontSize: '11px', color: '#e0f2fe' }}>
-                    <strong>1-Click Quick-Fill:</strong> Load Abhishek Singh&apos;s verified engineering profile (Sheetal Electrotech, ATMA, Virasat, Porcupine, JNU).
+                    <strong>1-Click Quick-Fill:</strong> Load Abhishek Singh&apos;s verified engineering profile (Sheetal Electrotech, Virasat, Porcupine, JNU).
                   </span>
                 </div>
                 <button
