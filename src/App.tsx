@@ -21,6 +21,7 @@ import { InterviewHistoryScreen } from './screens/InterviewHistoryScreen';
 import { AnalyticsScreen } from './screens/AnalyticsScreen';
 import { InterviewPreparationScreen } from './screens/InterviewPreparationScreen';
 import { CommandSpotlightModal } from './components/spotlight/CommandSpotlightModal';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import './styles/index.css';
 
 export default function App() {
@@ -236,7 +237,11 @@ export default function App() {
           )}
           {currentNav === 'teleprompter' && <TeleprompterView />}
           {currentNav === 'mock_gym' && <MockGymView />}
-          {currentNav === 'career_ops' && <CareerOpsView />}
+          {currentNav === 'career_ops' && (
+            <ErrorBoundary fallbackTitle="Career Ops Studio">
+              <CareerOpsView />
+            </ErrorBoundary>
+          )}
           {currentNav === 'projects' && <ProjectsScreen />}
           {currentNav === 'evidence_vault' && <EvidenceVaultScreen />}
           {currentNav === 'resume_docs' && <ResumeAndDocumentsScreen />}

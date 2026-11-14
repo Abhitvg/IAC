@@ -42,12 +42,30 @@ export function checkStrategyHold(params: StrategyHoldCheckParams): StrategyHold
   const holdDays = params.holdDays ?? 4;
   const referralState = params.referralState ?? 'waiting';
 
-  const createdTime = Date.parse(params.createdAt);
+  let createdTime = Date.now();
+  if (params.createdAt) {
+    if (typeof (params.createdAt as any) === 'number') {
+      createdTime = params.createdAt as any;
+    } else {
+      const num = Number(params.createdAt);
+      if (!isNaN(num) && num > 1000000000) {
+        createdTime = num;
+      } else {
+        const parsed = Date.parse(params.createdAt);
+        if (!isNaN(parsed)) {
+          createdTime = parsed;
+        }
+      }
+    }
+  }
+
   const now = Date.now();
   const holdDurationMs = holdDays * 24 * 60 * 60 * 1000;
   const holdExpiresTime = createdTime + holdDurationMs;
   const holdRemainingMs = Math.max(0, holdExpiresTime - now);
-  const holdExpiresAt = new Date(holdExpiresTime).toISOString();
+  const holdExpiresAt = !isNaN(holdExpiresTime)
+    ? new Date(holdExpiresTime).toISOString()
+    : new Date().toISOString();
 
   // Strategy: apply_now or both
   if (strategy === 'apply_now' || strategy === 'both') {

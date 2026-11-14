@@ -288,7 +288,10 @@ export const TodayView: React.FC<TodayViewProps> = ({
       .map((app) => ({
         app,
         hold: checkStrategyHold({
-          createdAt: (app as any).createdAt || new Date().toISOString(),
+          createdAt:
+            typeof (app as any).createdAt === 'number'
+              ? new Date((app as any).createdAt).toISOString()
+              : String((app as any).createdAt || new Date().toISOString()),
           strategy: (app as any).strategy || 'referral_first',
           holdDays: 4,
           referralState: (app as any).referralState || 'waiting',
