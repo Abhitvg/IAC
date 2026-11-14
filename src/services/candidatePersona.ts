@@ -4,6 +4,7 @@ import { TechnicalReasoningEngine } from './technicalReasoning';
 import { ProductionDebuggingEngine } from './productionDebugging';
 import { FollowUpEngine } from './followUpEngine';
 import { KnowledgeVaultService } from './knowledgeVault';
+import { CandidateRagService } from './rag';
 import { getGfgKnowledgePromptSection } from '../data/gfgCurriculum';
 import {
   QuestionIntent,
@@ -580,6 +581,13 @@ ${
       ? `${jd.slice(0, maxJdChars)}\n[...job description truncated for live prompt token budget]`
       : jd;
 
+  const ragContext = questionText
+    ? CandidateRagService.getInstance().generateAugmentedContext(questionText, 3)
+    : '';
+  const ragSection = ragContext
+    ? `\n════════════ GROUNDED RAG EVIDENCE (VERIFIED CONTEXT) ════════════\n${ragContext}\n`
+    : '';
+
   return `You are an experienced, articulate software engineer acting as the candidate in a live technical interview for the role of "${role}".
 You are speaking directly to the interviewer.
 NEVER say "As an AI", "The candidate should say", or break character under any circumstances.
@@ -595,7 +603,7 @@ ${roleIntroInstruction}
 
 ════════════ CANDIDATE RESUME & VERIFIED BACKGROUND ════════════
 ${budgetedResume || '[No resume provided — answer general technical questions objectively, conversationally, and factually without inventing personal employers or project metrics.]'}
-
+${ragSection}
 ════════════ TARGET JOB DESCRIPTION ════════════
 ${budgetedJd}
 ${memoryContext}
