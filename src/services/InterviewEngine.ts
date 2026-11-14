@@ -24,6 +24,7 @@ import {
   ApplicationFormAssistanceService,
   ApplicationFormSession,
 } from './ApplicationFormAssistanceService';
+import { CandidateRagService } from './rag';
 
 export type EngineEvent =
   | { type: 'START_LISTENING' }

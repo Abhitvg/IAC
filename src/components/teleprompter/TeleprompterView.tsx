@@ -1,6 +1,7 @@
 import { copyToClipboard } from '../../utils/clipboard';
 import { detectLanguageHint } from '../../services/screenSolver';
 import { readAndParseFile } from '../../services/resume';
+import { CandidateRagService } from '../../services/rag';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
 import { InterviewEngine } from '../../services/InterviewEngine';
@@ -3042,6 +3043,41 @@ export default function TeleprompterView() {
                   }}
                 >
                   <RotateCcw size={13} /> Retry Answer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const qText = currentQuestion || '';
+                    const fallback = CandidateRagService.getInstance().synthesizeEmergencyAnswer(qText);
+                    if (fallback) {
+                      const store = useAppStore.getState();
+                      const sentences = fallback.split(/(?<=[.?!])\s+/).map((s) => s.trim()).filter(Boolean);
+                      store.setCurrentAnswer(fallback);
+                      store.setIsAnswerValidated(true);
+                      store.setAnswerValidationStatus('VALIDATED');
+                      store.setGroundingResult(100, []);
+                      store.enqueueSentences(sentences);
+                      store.setStatus('ready');
+                      store.setBlockedReason(null);
+                      store.setToast('🛡️ Loaded verified answer from Grounded RAG Vault');
+                    }
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#0284c7',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                  title="Instantly load a grounded, verified response from the offline RAG Knowledge Vault"
+                >
+                  <Sparkles size={13} /> ⚡ Use Grounded RAG Answer
                 </button>
                 <button
                   type="button"

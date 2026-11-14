@@ -251,4 +251,26 @@ describe('Candidate RAG & Backup Service Suite', () => {
       expect(ragService.listBackups().length).toBe(countBefore - 1);
     });
   });
+
+  describe('Autonomous Zero-Stall Emergency Answer Synthesis', () => {
+    it('synthesizes an immediate high-quality response for technical questions', () => {
+      const answer = ragService.synthesizeEmergencyAnswer('Explain the JavaScript event loop and microtask queue');
+      expect(answer.length).toBeGreaterThan(50);
+      expect(answer).toMatch(/event loop|microtask|single-threaded|libuv|Promise/i);
+    });
+
+    it('synthesizes grounded response for candidate project questions', () => {
+      const answer = ragService.synthesizeEmergencyAnswer('Tell me about your work on Sheetal Electrotech');
+      expect(answer.length).toBeGreaterThan(50);
+      expect(answer).toContain('Sheetal Electrotech');
+    });
+
+    it('synthesizes resilient general engineering answer when question is blank or novel', () => {
+      const blankAnswer = ragService.synthesizeEmergencyAnswer('');
+      expect(blankAnswer.length).toBeGreaterThan(30);
+
+      const novelAnswer = ragService.synthesizeEmergencyAnswer('How would you design a distributed hypergraph ledger?');
+      expect(novelAnswer.length).toBeGreaterThan(30);
+    });
+  });
 });

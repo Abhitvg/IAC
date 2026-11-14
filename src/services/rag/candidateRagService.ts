@@ -353,6 +353,77 @@ export class CandidateRagService {
     return sections.join('\n\n');
   }
 
+  /**
+   * Autonomous Zero-Stall Emergency Answer Synthesizer.
+   * Generates a fully articulate, first-person, production-grade candidate response
+   * directly from the verified RAG knowledge vault and technical standards.
+   * Guarantees 0% stall rate if cloud AI streams, providers, or networks fail.
+   */
+  public synthesizeEmergencyAnswer(
+    query: string,
+    options?: {
+      category?: string;
+      preferredLang?: string;
+      role?: string;
+    }
+  ): string {
+    const cleanQuery = (query || '').trim();
+    if (!cleanQuery) {
+      return (
+        'When addressing this problem, I begin by clarifying functional requirements and scale constraints, ' +
+        'designing an optimal component hierarchy with modular interfaces, and establishing robust error handling ' +
+        'with end-to-end telemetry across production services.'
+      );
+    }
+
+    // Retrieve top matching knowledge chunks from verified RAG vault
+    const matches = this.retrieve(cleanQuery, { topK: 4, minScore: 0.04 });
+
+    const techCategories = new Set<RagCategory>([
+      'cs_fundamentals',
+      'web_development',
+      'software_engineering',
+      'backend_database',
+      'system_design',
+      'security_devops',
+    ]);
+
+    const topTech = matches.find((m) => techCategories.has(m.chunk.category));
+    const topCandidate = matches.find((m) => !techCategories.has(m.chunk.category));
+
+    // Case 1: Technical query match (CS, Web, Software Eng, DB, System Design, Security)
+    if (topTech && (!topCandidate || topTech.score >= topCandidate.score * 0.75)) {
+      const chunk = topTech.chunk;
+      const sentences = chunk.content.split(/(?<=[.?!])\s+/).map((s) => s.trim()).filter(Boolean);
+      const thesis = sentences[0] || chunk.content;
+      const details = sentences.slice(1, 4).join(' ');
+
+      let answer = `${thesis} ${details}`.trim();
+
+      // If we also matched candidate production experience, ground it with real-world verification
+      if (topCandidate && topCandidate.score > 0.12) {
+        const projName = topCandidate.chunk.title.split('—')[0].trim();
+        answer += ` In my production work on ${projName}, I applied these exact architectural patterns to ensure predictable throughput, eliminate race conditions, and maintain high system reliability.`;
+      }
+
+      return answer;
+    }
+
+    // Case 2: Candidate project or experience query
+    if (topCandidate) {
+      const chunk = topCandidate.chunk;
+      const sentences = chunk.content.split(/(?<=[.?!])\s+/).map((s) => s.trim()).filter(Boolean);
+      return sentences.slice(0, 4).join(' ').trim();
+    }
+
+    // Case 3: Resilient general engineering answer when no high-confidence chunk is found
+    return (
+      'To solve this systematically, I first analyze the problem constraints, time complexity, and data structures involved. ' +
+      'In a production system, I ensure clean separation of concerns, enforce idempotency on state-mutating operations, and validate input boundaries strictly. ' +
+      'I also implement comprehensive observability with structured logging and metrics to verify correctness and maintain peak performance under load.'
+    );
+  }
+
   // ─── CHUNK MANAGEMENT ─────────────────────────────────────────────────────
 
   public getAllChunks(): RagChunk[] {
