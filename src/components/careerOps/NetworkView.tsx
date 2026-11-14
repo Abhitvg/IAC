@@ -67,9 +67,10 @@ const STAGE_CONFIG: Record<
 interface NetworkViewProps {
   applications?: JobApplication[];
   onSelectJob?: (jobId: string) => void;
+  onOpenOutreachStudio?: () => void;
 }
 
-export const NetworkView: React.FC<NetworkViewProps> = ({ applications = [] }) => {
+export const NetworkView: React.FC<NetworkViewProps> = ({ applications = [], onOpenOutreachStudio }) => {
   const {
     contacts,
     selectedContactId,
@@ -417,6 +418,28 @@ export const NetworkView: React.FC<NetworkViewProps> = ({ applications = [] }) =
 
         {/* Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {onOpenOutreachStudio && (
+            <button
+              onClick={onOpenOutreachStudio}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.2), rgba(3, 105, 161, 0.2))',
+                color: '#38bdf8',
+                border: '1px solid rgba(2, 132, 199, 0.4)',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              <Users size={14} />
+              <span>Company Outreach Studio</span>
+            </button>
+          )}
+
           <button
             onClick={() => setIsAddModalOpen(true)}
             style={{

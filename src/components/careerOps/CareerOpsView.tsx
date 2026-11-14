@@ -75,6 +75,7 @@ import { InterviewsView } from './InterviewsView';
 import { InsightsView } from './InsightsView';
 import { ControlsView } from './ControlsView';
 import { OnboardingFlowModal } from './OnboardingFlowModal';
+import { CompanyOutreachStudio } from './CompanyOutreachStudio';
 import { useCareerOpsOnboardingStore } from '../../store/useCareerOpsOnboardingStore';
 
 interface CareerOpsEmptyTabProps {
@@ -905,7 +906,7 @@ export function CareerOpsView() {
               label: '📝 ATS Resume & Cover Letter',
               activeBadge: activeJob?.tailoredResume ? 'Ready' : undefined,
             },
-            { id: 'outreach', label: '🤝 Outreach & Contacto (<= 300 chars)' },
+            { id: 'outreach', label: '🤝 LinkedIn Company Outreach (≤ 300 chars)' },
           ].map((tab) => {
             const isActive = subTab === tab.id;
             return (
@@ -1009,6 +1010,7 @@ export function CareerOpsView() {
         {subTab === 'network' && (
           <NetworkView
             applications={applications}
+            onOpenOutreachStudio={() => setSubTab('outreach')}
             onSelectJob={(jobId) => {
               const job = applications.find((a) => a.id === jobId);
               if (job) {
@@ -2749,283 +2751,16 @@ export function CareerOpsView() {
           />
         ))}
 
-        {/* TAB 4: OUTREACH & CONTACTO */}
-        {subTab === 'outreach' &&
-          (activeJob ? (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-                maxWidth: '860px',
-                margin: '0 auto',
-              }}
-            >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#f8fafc' }}>
-                  Outreach & Contact Discovery (Contacto)
-                </h3>
-                <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#94a3b8' }}>
-                  Draft high-conversion DMs under the 300-character LinkedIn limit and formal
-                  application emails.
-                </p>
-              </div>
-
-              <button
-                onClick={async () => {
-                  setToast('Drafting outreach messages...');
-                  await generateOutreachForJob(activeJob.id);
-                  setToast('Outreach notes generated!');
-                }}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #f97316, #ea580c)',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                ⚡ Draft Contact Notes
-              </button>
-            </div>
-
-            {/* Automated Follow-Up Cadence & Timeline Engine */}
-            {(() => {
-              const appliedTimestamp = activeJob.appliedAt;
-              if (!appliedTimestamp || !['applied', 'interviewing'].includes(activeJob.status)) {
-                return (
-                  <div
-                    style={{
-                      padding: '14px',
-                      borderRadius: '10px',
-                      background: 'rgba(15, 23, 42, 0.65)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      color: '#94a3b8',
-                      fontSize: '11px',
-                    }}
-                  >
-                    Follow-up reminders start after you confirm that the application was submitted.
-                    Update this job’s status to Applied in the pipeline to start the Day 3 / 7 / 14
-                    cadence.
-                  </div>
-                );
-              }
-              const timeline = calculateFollowUpTimeline(
-                appliedTimestamp,
-                activeJob.company,
-                activeJob.role,
-                activeJob.evaluationReport?.strategicAngle
-              );
-              return (
-                <div
-                  style={{
-                    background: 'rgba(15, 23, 42, 0.8)',
-                    border: '1px solid rgba(249, 115, 22, 0.3)',
-                    borderRadius: '12px',
-                    padding: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Calendar size={15} color="#fb923c" />
-                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>
-                        Automated Follow-Up Cadence (Day 3 • Day 7 • Day 14)
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '10px', color: '#94a3b8' }}>
-                      Optimal conversion timing (Recruiter → Hiring Manager → Email)
-                    </span>
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                      gap: '10px',
-                    }}
-                  >
-                    {timeline.map((m) => (
-                      <div
-                        key={m.dayOffset}
-                        style={{
-                          padding: '12px',
-                          borderRadius: '8px',
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: m.isDue
-                            ? '1px solid rgba(249, 115, 22, 0.5)'
-                            : '1px solid rgba(255, 255, 255, 0.06)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px',
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                          }}
-                        >
-                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#f1f5f9' }}>
-                            {m.title}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '9px',
-                              fontWeight: 800,
-                              padding: '1px 5px',
-                              borderRadius: '4px',
-                              background: m.isDue
-                                ? 'rgba(249, 115, 22, 0.25)'
-                                : m.isOverdue
-                                  ? 'rgba(239, 68, 68, 0.2)'
-                                  : 'rgba(255, 255, 255, 0.06)',
-                              color: m.isDue ? '#fb923c' : m.isOverdue ? '#f87171' : '#94a3b8',
-                            }}
-                          >
-                            {m.isDue
-                              ? '🔥 Due Now'
-                              : m.isOverdue
-                                ? '⚠️ Overdue'
-                                : `In ${m.daysRemaining}d`}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '10px', color: '#94a3b8' }}>
-                          Channel:{' '}
-                          <strong style={{ color: '#e2e8f0' }}>
-                            {m.channel === 'linkedin' ? 'LinkedIn DM' : 'Email'}
-                          </strong>{' '}
-                          • {m.draftText.length} chars
-                        </div>
-                        <p
-                          style={{
-                            margin: 0,
-                            fontSize: '10px',
-                            color: '#cbd5e1',
-                            fontStyle: 'italic',
-                            maxHeight: '60px',
-                            overflowY: 'auto',
-                          }}
-                        >
-                          "{m.draftText}"
-                        </p>
-                        <button
-                          onClick={() => handleCopy(m.draftText, `${m.title} Draft`)}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '6px',
-                            background: m.isDue
-                              ? 'rgba(249, 115, 22, 0.2)'
-                              : 'rgba(255, 255, 255, 0.05)',
-                            color: m.isDue ? '#fb923c' : '#cbd5e1',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          <Copy size={11} />
-                          <span>Copy Follow-Up Draft</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Generated Notes or Default View */}
-            <div
-              style={{
-                background: 'rgba(15, 23, 42, 0.7)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '12px',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-              }}
-            >
-              <div
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-              >
-                <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc' }}>
-                  📬 Ready-to-Send Outreach Drafts
-                </span>
-                {activeJob.outreachNote && (
-                  <button
-                    onClick={() => handleCopy(activeJob.outreachNote!, 'Outreach Notes')}
-                    style={{
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      color: '#94a3b8',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <Copy size={11} />
-                    <span>{copiedField === 'Outreach Notes' ? 'Copied!' : 'Copy All Drafts'}</span>
-                  </button>
-                )}
-              </div>
-
-              <textarea
-                readOnly
-                value={
-                  activeJob.outreachNote ||
-                  `=== LINKEDIN RECRUITER (<= 300 chars) ===\nHi! I saw the ${activeJob.role} opening at ${activeJob.company} and submitted my application. With background in distributed systems and high-throughput pipelines, I'd love to connect and follow your team's updates. Thanks!\n\n=== LINKEDIN HIRING MANAGER (<= 300 chars) ===\nHi! Noticed you're leading engineering for ${activeJob.role} at ${activeJob.company}. Having architected equivalent resilient backend services, I just applied and would love to follow your team's roadmap. Best regards!\n\n=== COLD APPLICATION EMAIL DRAFT ===\nSubject: Application: ${activeJob.role} — Production Systems Experience\n\nHi ${activeJob.company} Engineering Team,\n\nI recently applied for the ${activeJob.role} position on your careers portal. Given your team's focus on high-throughput reliability, I wanted to share a brief note highlighting relevant experience.\n\nMy resume and portfolio are attached. I would welcome the opportunity to connect for a brief introductory conversation.\n\nBest regards,\nCandidate`
-                }
-                style={{
-                  width: '100%',
-                  height: '320px',
-                  background: 'rgba(0, 0, 0, 0.35)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
-                  borderRadius: '8px',
-                  color: '#e2e8f0',
-                  fontFamily: 'monospace',
-                  fontSize: '11px',
-                  padding: '10px',
-                  resize: 'none',
-                  lineHeight: '1.6',
-                }}
-              />
-            </div>
-          </div>
-        ) : (
-          <CareerOpsEmptyTab
-            tabName="🤝 Outreach & Contact Discovery (Contacto)"
-            tagline="Compliant <=300 Character Cold Messages & Email Drafts"
-            description="Identifies engineering managers and recruiters for your target role and drafts high-conversion, strictly grounded introductory notes."
-            icon={Mail}
+        {/* TAB 4: LINKEDIN COMPANY EMPLOYEE OUTREACH STUDIO */}
+        {subTab === 'outreach' && (
+          <CompanyOutreachStudio
             applications={applications}
+            activeJobId={activeJobId}
             onSelectJob={(id) => setActiveJobId(id)}
-            onEvaluateNew={() => setShowNewModal(true)}
-            onLoadDemo={enableDemoMode}
+            onOpenAssistQueue={() => setSubTab('network')}
+            candidateName={candidateVault?.fullName || 'Abhishek Singh'}
           />
-        ))}
+        )}
       </div>
 
       {/* New Job Evaluation Modal */}
