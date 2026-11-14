@@ -70,10 +70,10 @@ export function buildResumeHtml(data: ResumePrintData, theme: ResumeTheme = 'mod
         .map((line) => {
           // Bullet point
           if (line.startsWith('•') || line.startsWith('-')) {
-            const cleanLine = line.replace(/^[•\-]\s*/, '');
+            const cleanLine = line.replace(/^[-•]\s*/, '');
             // Highlight lead-in phrases before colon if present (e.g. "Architected pipeline: ...")
             const formattedBullet = cleanLine.replace(
-              /^([A-Za-z0-9\s/&—–\-]+:)/,
+              /^([A-Za-z0-9\s/&—–-]+:)/,
               '<strong>$1</strong>'
             );
             return `<li class="bullet">${formattedBullet}</li>`;

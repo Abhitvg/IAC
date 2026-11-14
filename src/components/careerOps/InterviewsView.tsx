@@ -272,7 +272,7 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({
   const handleGenerateThankYouNote = () => {
     if (!activeInterview) return;
     const name = activeInterview.interviewerName || 'the team';
-    const note = `Hi ${name},\n\nThank you for taking the time to speak today regarding the ${activeInterview.role} role at ${activeInterview.company}. I thoroughly enjoyed our conversation about ${activeInterview.roundName}${debriefWentWell ? ` and specifically discussing ${debriefWentWell.slice(0, 80)}...` : ''}.\n\nOur discussion reinforced my excitement about the team\'s mission. Looking forward to the next steps in the process!\n\nBest regards,\nCandidate Engineer`;
+    const note = `Hi ${name},\n\nThank you for taking the time to speak today regarding the ${activeInterview.role} role at ${activeInterview.company}. I thoroughly enjoyed our conversation about ${activeInterview.roundName}${debriefWentWell ? ` and specifically discussing ${debriefWentWell.slice(0, 80)}...` : ''}.\n\nOur discussion reinforced my excitement about the team's mission. Looking forward to the next steps in the process!\n\nBest regards,\nCandidate Engineer`;
     setDebriefFollowUpNote(note);
     showToast('Generated grounded thank-you note draft!');
   };

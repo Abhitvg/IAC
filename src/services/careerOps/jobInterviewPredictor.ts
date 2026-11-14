@@ -44,7 +44,7 @@ export function predictInterviewLoop(
 
   const technicalQuestions: PredictedInterviewQuestion[] = [];
   const behavioralQuestions: PredictedInterviewQuestion[] = [];
-  let stages: InterviewStageBlueprint[] = [];
+  let stages: InterviewStageBlueprint[];
 
   // Detect Core Stacks
   const hasKafka = lowerJd.includes('kafka') || lowerJd.includes('event-driven') || lowerJd.includes('streaming');

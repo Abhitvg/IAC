@@ -2413,7 +2413,7 @@ export function CareerOpsView() {
                                 <div>
                                   {sec.lines.map((line, lIdx) => {
                                     if (line.startsWith('•') || line.startsWith('-')) {
-                                      const cleanLine = line.replace(/^[•\-]\s*/, '');
+                                      const cleanLine = line.replace(/^[-•]\s*/, '');
                                       return (
                                         <div
                                           key={lIdx}

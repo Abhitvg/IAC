@@ -50,7 +50,7 @@ export function detectGhostJobRisk(
   }
 
   // 3. Compensation Transparency & Vague Scope Check
-  const hasSalary = salaryRange && salaryRange !== 'Not disclosed' && /\$|\€|\£|[0-9]+k/i.test(salaryRange);
+  const hasSalary = salaryRange && salaryRange !== 'Not disclosed' && /\$|[€£]|[0-9]+k/i.test(salaryRange);
   if (!hasSalary) {
     score += 10;
     signals.push('No salary range disclosed in posting.');
