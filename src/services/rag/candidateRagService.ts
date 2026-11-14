@@ -18,6 +18,7 @@ import {
   RagQueryOptions,
 } from './types';
 import { INITIAL_CANDIDATE_RAG_ENTRIES, RawRagSourceEntry } from './candidateRagData';
+import { TECHNICAL_KNOWLEDGE_ENTRIES } from './technicalKnowledgeData';
 import { useCandidateVaultStore } from '../../store/useCandidateVaultStore';
 
 const STORAGE_KEY_CHUNKS = 'iac_rag_knowledge_chunks_v1';
@@ -129,6 +130,12 @@ export class CandidateRagService {
             for (const chunk of parsedChunks) this.chunks.set(chunk.id, chunk);
             for (const doc of parsedDocs) this.documents.set(doc.id, doc);
             loadedFromStorage = true;
+
+            // Seamlessly upgrade existing stored caches if technical knowledge is missing
+            const missingTech = TECHNICAL_KNOWLEDGE_ENTRIES.some((e) => !this.chunks.has(e.id));
+            if (missingTech) {
+              this.seedInitialKnowledge();
+            }
           }
         }
       } catch (e) {
@@ -158,9 +165,14 @@ export class CandidateRagService {
     this.chunks.clear();
     this.documents.clear();
 
+    const allEntries: RawRagSourceEntry[] = [
+      ...INITIAL_CANDIDATE_RAG_ENTRIES,
+      ...TECHNICAL_KNOWLEDGE_ENTRIES,
+    ];
+
     const docMap: Record<string, { title: string; category: RagCategory; chunkIds: string[] }> = {};
 
-    for (const entry of INITIAL_CANDIDATE_RAG_ENTRIES) {
+    for (const entry of allEntries) {
       const fullText = `${entry.title} ${entry.content} ${entry.keywords.join(' ')}`;
       const tokens = tokenizeText(fullText);
       const vector = computeTermVector(tokens);
@@ -297,24 +309,48 @@ export class CandidateRagService {
   }
 
   /**
-   * Builds an augmented context markdown block for injecting into interview system prompts
+   * Builds an augmented context markdown block for injecting into interview system prompts.
+   * Partitions retrieved chunks into Technical Engineering Knowledge (CS/Web/Software/DB/System/Security)
+   * and Verified Candidate Evidence (Projects/Experience/STAR stories), ensuring the AI answers with both
+   * rigorous domain depth and authentic candidate grounding.
    */
-  public generateAugmentedContext(query: string, maxChunks: number = 3): string {
-    const matches = this.retrieve(query, { topK: maxChunks, minScore: 0.15 });
+  public generateAugmentedContext(query: string, maxChunks: number = 4): string {
+    const matches = this.retrieve(query, { topK: maxChunks, minScore: 0.12 });
     if (matches.length === 0) return '';
 
-    const lines: string[] = [
-      '### Verified Candidate Evidence & Grounded Context (from RAG Vault):',
-    ];
+    const techCategories = new Set<RagCategory>([
+      'cs_fundamentals',
+      'web_development',
+      'software_engineering',
+      'backend_database',
+      'system_design',
+      'security_devops',
+    ]);
 
-    for (const match of matches) {
-      lines.push(
-        `- **${match.chunk.title}** [Category: ${match.chunk.category}, Relevance: ${Math.round(match.score * 100)}%]:`
-      );
-      lines.push(`  ${match.chunk.content}`);
+    const techMatches = matches.filter((m) => techCategories.has(m.chunk.category));
+    const candidateMatches = matches.filter((m) => !techCategories.has(m.chunk.category));
+
+    const sections: string[] = [];
+
+    if (techMatches.length > 0) {
+      sections.push('### Technical Engineering Knowledge & CS Standards (from RAG Vault):');
+      for (const match of techMatches) {
+        sections.push(
+          `- **${match.chunk.title}** [Category: ${match.chunk.category}, Relevance: ${Math.round(match.score * 100)}%]:\n  ${match.chunk.content}`
+        );
+      }
     }
 
-    return lines.join('\n');
+    if (candidateMatches.length > 0) {
+      sections.push('### Verified Candidate Evidence & Grounded Context (from RAG Vault):');
+      for (const match of candidateMatches) {
+        sections.push(
+          `- **${match.chunk.title}** [Category: ${match.chunk.category}, Relevance: ${Math.round(match.score * 100)}%]:\n  ${match.chunk.content}`
+        );
+      }
+    }
+
+    return sections.join('\n\n');
   }
 
   // ─── CHUNK MANAGEMENT ─────────────────────────────────────────────────────

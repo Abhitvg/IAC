@@ -582,7 +582,7 @@ ${
       : jd;
 
   const ragContext = questionText
-    ? CandidateRagService.getInstance().generateAugmentedContext(questionText, 3)
+    ? CandidateRagService.getInstance().generateAugmentedContext(questionText, 4)
     : '';
   const ragSection = ragContext
     ? `\n════════════ GROUNDED RAG EVIDENCE (VERIFIED CONTEXT) ════════════\n${ragContext}\n`

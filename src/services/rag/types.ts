@@ -12,7 +12,13 @@ export type RagCategory =
   | 'star_story'
   | 'architecture'
   | 'interview_qa'
-  | 'credential';
+  | 'credential'
+  | 'cs_fundamentals'
+  | 'web_development'
+  | 'software_engineering'
+  | 'backend_database'
+  | 'system_design'
+  | 'security_devops';
 
 export interface RagChunk {
   id: string;

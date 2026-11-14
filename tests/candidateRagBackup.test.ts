@@ -86,13 +86,99 @@ describe('Candidate RAG & Backup Service Suite', () => {
 
       expect(results.length).toBeGreaterThan(0);
       const matched = results.map((r) => r.chunk.title);
-      expect(matched.some((t) => t.includes('Database Indexing'))).toBe(true);
+      expect(matched.some((t) => t.includes('Database') || t.includes('B-Tree'))).toBe(true);
     });
 
-    it('generates augmented markdown context for system prompts', () => {
+    it('retrieves CS fundamentals for "process vs thread IPC shared memory"', () => {
+      const results = ragService.retrieve('process vs thread context switch IPC shared memory', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toContain('Process vs Thread');
+      expect(results[0].chunk.category).toBe('cs_fundamentals');
+      expect(results[0].chunk.content).toContain('Inter-Process Communication');
+    });
+
+    it('retrieves Web Development standards for "JavaScript event loop microtasks"', () => {
+      const results = ragService.retrieve('JavaScript event loop call stack microtask macrotask libuv', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toContain('Event Loop');
+      expect(results[0].chunk.category).toBe('web_development');
+      expect(results[0].chunk.content).toContain('Promise');
+    });
+
+    it('retrieves React & Frontend architecture for "React Server Components vs Client Components"', () => {
+      const results = ragService.retrieve('React Server Components RSC use client Next.js streaming', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toContain('React Server Components');
+      expect(results[0].chunk.category).toBe('web_development');
+    });
+
+    it('retrieves Software Engineering principles for "SOLID single responsibility dependency inversion"', () => {
+      const results = ragService.retrieve('SOLID principles single responsibility dependency inversion', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toContain('SOLID Principles');
+      expect(results[0].chunk.category).toBe('software_engineering');
+    });
+
+    it('retrieves Database internals for "ACID transaction isolation levels dirty read MVCC"', () => {
+      const results = ragService.retrieve('database ACID isolation levels dirty reads non-repeatable read MVCC', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toContain('ACID Guarantees & Transaction Isolation');
+      expect(results[0].chunk.category).toBe('backend_database');
+    });
+
+    it('retrieves System Design principles for "CAP theorem PACELC distributed systems"', () => {
+      const results = ragService.retrieve('CAP theorem PACELC consistency availability partition tolerance', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toContain('CAP Theorem');
+      expect(results[0].chunk.category).toBe('system_design');
+    });
+
+    it('retrieves Security standards for "OAuth 2.0 PKCE JWT token rotation"', () => {
+      const results = ragService.retrieve('OAuth 2.0 PKCE JWT token rotation authorization code', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toContain('OAuth 2.0');
+      expect(results[0].chunk.category).toBe('security_devops');
+    });
+
+    it('generates augmented markdown context for candidate questions', () => {
       const context = ragService.generateAugmentedContext('Sheetal Electrotech RFQ pricing', 2);
       expect(context).toContain('Verified Candidate Evidence & Grounded Context');
       expect(context).toContain('Sheetal Electrotech');
+      expect(context).toContain('Relevance:');
+    });
+
+    it('generates augmented markdown context for purely technical CS/Web questions', () => {
+      const context = ragService.generateAugmentedContext('How does the Node.js event loop handle microtasks vs macrotasks?', 2);
+      expect(context).toContain('Technical Engineering Knowledge & CS Standards');
+      expect(context).toContain('Event Loop');
       expect(context).toContain('Relevance:');
     });
   });

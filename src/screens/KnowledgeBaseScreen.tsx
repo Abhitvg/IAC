@@ -483,7 +483,7 @@ export const KnowledgeBaseScreen: React.FC = () => {
               <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
-                placeholder="Test live RAG retrieval (e.g. Sheetal Electrotech, branching strategy, Porcupine concurrency, database indexing, JNU)..."
+                placeholder="Test live RAG retrieval (e.g. event loop, TCP vs UDP, React server components, B-Tree indexing, SOLID, CORS, CAP theorem, Sheetal Electrotech)..."
                 value={ragSearchQuery}
                 onChange={(e) => setRagSearchQuery(e.target.value)}
                 style={{
@@ -503,7 +503,21 @@ export const KnowledgeBaseScreen: React.FC = () => {
             {/* Category Filter Pills */}
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ fontSize: '11px', color: '#64748b', marginRight: '4px' }}>Filter:</span>
-              {(['all', 'project', 'profile', 'competency', 'star_story', 'experience', 'credential', 'interview_qa'] as const).map((cat) => (
+              {([
+                'all',
+                'cs_fundamentals',
+                'web_development',
+                'software_engineering',
+                'backend_database',
+                'system_design',
+                'security_devops',
+                'project',
+                'profile',
+                'star_story',
+                'experience',
+                'competency',
+                'interview_qa',
+              ] as const).map((cat) => (
                 <button
                   key={cat}
                   type="button"
@@ -520,7 +534,21 @@ export const KnowledgeBaseScreen: React.FC = () => {
                     textTransform: 'capitalize',
                   }}
                 >
-                  {cat === 'all' ? `All (${chunks.length})` : cat.replace('_', ' ')}
+                  {cat === 'all'
+                    ? `All (${chunks.length})`
+                    : cat === 'cs_fundamentals'
+                      ? 'CS Fundamentals'
+                      : cat === 'web_development'
+                        ? 'Web Dev'
+                        : cat === 'software_engineering'
+                          ? 'Software Eng'
+                          : cat === 'backend_database'
+                            ? 'Backend & DB'
+                            : cat === 'system_design'
+                              ? 'System Design'
+                              : cat === 'security_devops'
+                                ? 'Security & DevOps'
+                                : cat.replace('_', ' ')}
                 </button>
               ))}
             </div>
