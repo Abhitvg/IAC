@@ -44,6 +44,13 @@ import {
 } from '../../services/careerOps/resumePdfExporter';
 import { parseLatexForVisualPreview } from '../../services/careerOps/overleafPusher';
 import { useCandidateVaultStore } from '../../store/useCandidateVaultStore';
+import {
+  generateCompanyOutreachPlan,
+  buildLinkedInSearchUrl,
+  queueAllPipelineCompaniesToAssist,
+  CompanyEmployeeTarget,
+} from '../../services/careerOps/linkedinOutreachService';
+import { useNetworkStore } from '../../store/useNetworkStore';
 
 interface JobDrawerModalProps {
   job: JobApplication | null;
@@ -51,6 +58,7 @@ interface JobDrawerModalProps {
   onClose: () => void;
   onNavigateToGym?: (job: JobApplication) => void;
   onOpenOverleaf?: (job: JobApplication) => void;
+  onOpenOutreachStudio?: (job: JobApplication) => void;
 }
 
 export type JobDrawerTab = 'evaluation' | 'tailor_diff' | 'contacts' | 'timeline' | 'actions';
@@ -61,13 +69,21 @@ export const JobDrawerModal: React.FC<JobDrawerModalProps> = ({
   onClose,
   onNavigateToGym,
   onOpenOverleaf,
+  onOpenOutreachStudio,
 }) => {
   const { updateJob, deleteJob } = useCareerOpsStore();
+  const { addContact, contacts } = useNetworkStore();
 
   const [activeTab, setActiveTab] = useState<JobDrawerTab>('evaluation');
   const [withdrawReason, setWithdrawReason] = useState('');
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const outreachPlan = useMemo(() => {
+    if (!job) return null;
+    const candidateName = useCandidateVaultStore.getState().profile?.fullName || 'Abhishek Singh';
+    return generateCompanyOutreachPlan(job.company, job.role, candidateName);
+  }, [job?.company, job?.role]);
 
   // Close on Escape key
   useEffect(() => {
@@ -734,57 +750,306 @@ export const JobDrawerModal: React.FC<JobDrawerModalProps> = ({
           {/* TAB 3: CONTACT PLAN */}
           {activeTab === 'contacts' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Ranked Insider Contacts & Explainability Tags
-              </span>
+              {/* Header banner */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '10px',
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  background: 'rgba(99, 102, 241, 0.1)',
+                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Users size={16} color="#818cf8" />
+                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>
+                      LinkedIn Company Outreach Hub: {job.company}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                    Multi-tier targeted connection notes (strictly ≤ 300 chars) with 1-click LinkedIn employee search
+                  </span>
+                </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {[
-                  { name: 'Sarah Lin', title: 'Engineering Manager, Systems Infrastructure', match: 'Hiring Manager (98% match)', tag: 'Direct Team Lead', channel: 'Verified Business Email' },
-                  { name: 'Alex Vance', title: 'Staff Software Engineer, Platform', match: 'Alumni Connection', tag: 'Shared University (CMU)', channel: 'LinkedIn Assist Queue' },
-                  { name: 'David Zhang', title: 'Technical Recruiter, Distributed Systems', match: 'Talent Sourcer', tag: 'Active Requisition Owner', channel: 'Verified Business Email' },
-                ].map((c, i) => (
-                  <div
-                    key={i}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => {
+                      const candidateName = useCandidateVaultStore.getState().profile?.fullName || 'Abhishek Singh';
+                      const res = queueAllPipelineCompaniesToAssist([job], contacts, addContact, candidateName);
+                      showToast(`⚡ Queued ${res.queuedCount} contacts for ${job.company} to daily Assist Queue!`);
+                    }}
                     style={{
-                      padding: '12px 14px',
-                      borderRadius: '8px',
-                      background: 'rgba(15, 23, 42, 0.75)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      display: 'flex',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      background: 'rgba(249, 115, 22, 0.2)',
+                      color: '#fb923c',
+                      border: '1px solid rgba(249, 115, 22, 0.4)',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: '8px',
+                      gap: '5px',
                     }}
                   >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 750, color: '#f8fafc' }}>{c.name}</span>
-                        <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', fontWeight: 700 }}>
-                          {c.tag}
-                        </span>
-                      </div>
-                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>{c.title} • {c.channel}</span>
-                    </div>
+                    <Zap size={12} />
+                    <span>Queue All to Assist</span>
+                  </button>
 
+                  {onOpenOutreachStudio && (
                     <button
-                      onClick={() => showToast(`Prepared compliant outreach note for ${c.name}`)}
+                      onClick={() => onOpenOutreachStudio(job)}
                       style={{
-                        padding: '4px 10px',
+                        padding: '6px 12px',
                         borderRadius: '6px',
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        color: '#cbd5e1',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        background: '#6366f1',
+                        color: '#ffffff',
+                        border: 'none',
                         fontSize: '11px',
-                        fontWeight: 650,
+                        fontWeight: 700,
                         cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
                       }}
                     >
-                      Draft Outreach (&lt; 300 chars)
+                      <Sparkles size={12} />
+                      <span>Open Outreach Studio</span>
                     </button>
-                  </div>
-                ))}
+                  )}
+                </div>
+              </div>
+
+              {/* Direct LinkedIn 1-Click Search Quick Links */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '8px',
+                  flexWrap: 'wrap',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                }}
+              >
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  🔍 Find on LinkedIn:
+                </span>
+                <a
+                  href={buildLinkedInSearchUrl(job.company, 'Engineering Manager OR Director Engineering OR VP Engineering')}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '5px',
+                    background: 'rgba(129, 140, 248, 0.15)',
+                    color: '#c7d2fe',
+                    border: '1px solid rgba(129, 140, 248, 0.3)',
+                    fontSize: '11px',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <span>Hiring Managers</span>
+                  <ExternalLink size={10} />
+                </a>
+                <a
+                  href={buildLinkedInSearchUrl(job.company, 'Technical Recruiter OR Talent Acquisition Partner')}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '5px',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    color: '#6ee7b7',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    fontSize: '11px',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <span>Recruiters</span>
+                  <ExternalLink size={10} />
+                </a>
+                <a
+                  href={buildLinkedInSearchUrl(job.company, 'Software Engineer OR Distributed Systems')}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '5px',
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    color: '#fcd34d',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    fontSize: '11px',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <span>Peer Engineers</span>
+                  <ExternalLink size={10} />
+                </a>
+              </div>
+
+              {/* Multi-Tier Employee Targets with <= 300 char connection notes */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {outreachPlan?.targets.map((target, idx) => {
+                  const isQueued = contacts.some(
+                    (c) => c.company.toLowerCase() === job.company.toLowerCase() && c.title === target.defaultTitle
+                  );
+
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '8px',
+                        background: 'rgba(15, 23, 42, 0.85)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              padding: '2px 7px',
+                              borderRadius: '4px',
+                              background:
+                                target.tier === 'hiring_manager'
+                                  ? 'rgba(99, 102, 241, 0.25)'
+                                  : target.tier === 'recruiter'
+                                    ? 'rgba(16, 185, 129, 0.25)'
+                                    : 'rgba(245, 158, 11, 0.25)',
+                              color:
+                                target.tier === 'hiring_manager'
+                                  ? '#818cf8'
+                                  : target.tier === 'recruiter'
+                                    ? '#34d399'
+                                    : '#fbbf24',
+                              fontWeight: 800,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {target.tierLabel}
+                          </span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc' }}>
+                            {target.defaultTitle}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <a
+                            href={target.linkedinSearchUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '5px',
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              color: '#cbd5e1',
+                              border: '1px solid rgba(255, 255, 255, 0.12)',
+                              fontSize: '10px',
+                              fontWeight: 650,
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <span>Search on LinkedIn</span>
+                            <ExternalLink size={10} />
+                          </a>
+
+                          <button
+                            onClick={() => {
+                              addContact({
+                                name: `${target.tierLabel} at ${job.company}`,
+                                title: target.defaultTitle,
+                                company: job.company,
+                                linkedinUrl: target.linkedinSearchUrl,
+                                stage: 'outreach_queued',
+                                isSuppressed: false,
+                                outreachDraft: target.connectionNote,
+                                notes: `Outreach plan generated for ${job.role}`,
+                              });
+                              showToast(`⚡ Added ${target.tierLabel} to daily Assist Queue!`);
+                            }}
+                            disabled={isQueued}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '5px',
+                              background: isQueued ? 'rgba(34, 197, 94, 0.2)' : 'rgba(249, 115, 22, 0.2)',
+                              color: isQueued ? '#4ade80' : '#fb923c',
+                              border: isQueued ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(249, 115, 22, 0.35)',
+                              fontSize: '10px',
+                              fontWeight: 650,
+                              cursor: isQueued ? 'default' : 'pointer',
+                            }}
+                          >
+                            {isQueued ? '✓ In Queue' : '⚡ Queue'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Connection Note Preview */}
+                      <div
+                        style={{
+                          background: 'rgba(2, 6, 23, 0.7)',
+                          border: '1px solid rgba(255, 255, 255, 0.06)',
+                          borderRadius: '6px',
+                          padding: '8px 10px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px',
+                        }}
+                      >
+                        <p style={{ margin: 0, fontSize: '11px', color: '#cbd5e1', lineHeight: '1.45' }}>
+                          "{target.connectionNote}"
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '10px', color: '#10b981', fontWeight: 600 }}>
+                            {target.connectionNote.length} / 300 chars (LinkedIn Safe)
+                          </span>
+                          <button
+                            onClick={() => {
+                              copyToClipboard(target.connectionNote);
+                              showToast(`Copied note for ${target.tierLabel}!`);
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#818cf8',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <Copy size={11} />
+                            <span>Copy Note</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

@@ -1550,6 +1550,23 @@ export async function streamAnswer(
           }
         }
         if (!cleanText) {
+          try {
+            const { CandidateRagService } = await import('./rag/candidateRagService');
+            const fallbackRag = CandidateRagService.getInstance().synthesizeEmergencyAnswer(
+              question || ''
+            );
+            if (fallbackRag && fallbackRag.trim()) {
+              cleanText = fallbackRag.trim();
+              callbacks.onToken?.(cleanText);
+              const recoveredSentences = buffer.push(cleanText);
+              for (const sentence of recoveredSentences) callbacks.onSentence?.(sentence);
+              for (const sentence of buffer.flush()) callbacks.onSentence?.(sentence);
+            }
+          } catch (_ragErr) {
+            // Fall through if RAG synthesis is unavailable
+          }
+        }
+        if (!cleanText) {
           throw new Error(
             'AI stream closed without answer content; non-streaming recovery also returned empty.'
           );

@@ -1074,8 +1074,7 @@ export function CareerOpsView() {
             }}
             onOpenOutreach={(job) => {
               setActiveJobId(job.id);
-              setDrawerJob(job);
-              setIsDrawerOpen(true);
+              setSubTab('outreach');
             }}
             onAddNewJob={() => setShowNewModal(true)}
           />
@@ -4048,6 +4047,11 @@ export function CareerOpsView() {
           if (j.tailoredResume) {
             openInOverleaf(j.tailoredResume);
           }
+        }}
+        onOpenOutreachStudio={(j) => {
+          setIsDrawerOpen(false);
+          setActiveJobId(j.id);
+          setSubTab('outreach');
         }}
       />
 

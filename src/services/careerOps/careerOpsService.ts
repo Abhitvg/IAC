@@ -1,6 +1,10 @@
 import { JobEvaluationReport, WeightedRequirement } from './types';
 import { streamAnswer } from '../ai';
 import { resolveOrMigrateModel, AIProviderId } from '../models/modelRegistry';
+import {
+  generateLinkedInConnectionNote,
+  generateLinkedInInMailDraft,
+} from './linkedinOutreachService';
 
 export interface ProviderConfig {
   type: string;
@@ -554,38 +558,31 @@ export async function generateOutreachNotes(
   companyName: string,
   roleTitle: string,
   strategicAngle: string = 'distributed systems scale',
-  providerConfig?: ProviderConfig
+  _providerConfig?: ProviderConfig
 ): Promise<{
   linkedinRecruiter: string;
   linkedinHiringManager: string;
   coldEmailSubject: string;
   coldEmailBody: string;
 }> {
-  // Keep deterministic drafts factual; candidate-specific claims belong in reviewed resume evidence.
-  const linkedinRecruiter =
-    `Hi! I'm interested in the ${roleTitle} opening at ${companyName} and would appreciate the chance to connect and learn what the team is prioritizing. Thanks!`.slice(
-      0,
-      298
-    );
+  const linkedinRecruiter = generateLinkedInConnectionNote({
+    tier: 'recruiter',
+    company: companyName,
+    role: roleTitle,
+  });
 
-  const linkedinHiringManager =
-    `Hi! I'm interested in the ${roleTitle} role at ${companyName} and would welcome a chance to learn more about the team's current engineering priorities. Thanks!`.slice(
-      0,
-      298
-    );
+  const linkedinHiringManager = generateLinkedInConnectionNote({
+    tier: 'hiring_manager',
+    company: companyName,
+    role: roleTitle,
+  });
 
   const coldEmailSubject = `Regarding the ${roleTitle} role at ${companyName}`;
-  const coldEmailBody = `Hi ${companyName} Team,
-
-I'm reaching out regarding the ${roleTitle} position at ${companyName}. I would welcome the opportunity to discuss the role and the engineering problems your team is prioritizing.
-
-My relevant experience and projects are described in my resume. I would be glad to explain how that verified work aligns with the role.
-
-Resume: [Resume Link]
-Portfolio: [Portfolio Link]
-
-Best regards,
-[Candidate Name]`;
+  const coldEmailBody = generateLinkedInInMailDraft({
+    tier: 'hiring_manager',
+    company: companyName,
+    role: roleTitle,
+  });
 
   return {
     linkedinRecruiter,

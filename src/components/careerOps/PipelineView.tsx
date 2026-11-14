@@ -22,6 +22,8 @@ import {
   ExternalLink,
   ChevronDown,
   Download,
+  Users,
+  Zap,
 } from 'lucide-react';
 import {
   JobApplication,
@@ -743,6 +745,32 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                               <span>PDF</span>
                             </button>
                           )}
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveJobId(job.id);
+                              onOpenOutreach(job);
+                            }}
+                            style={{
+                              marginLeft: job.tailoredResume ? '4px' : 'auto',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: 'rgba(99, 102, 241, 0.2)',
+                              color: '#a5b4fc',
+                              border: '1px solid rgba(99, 102, 241, 0.35)',
+                              fontSize: '9px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                            }}
+                            title={`Open LinkedIn Outreach Studio for ${job.company}`}
+                          >
+                            <Users size={9} />
+                            <span>Outreach</span>
+                          </button>
                         </div>
                       </div>
                     );
@@ -946,6 +974,29 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                           }}
                         >
                           Tailor
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveJobId(job.id);
+                            onOpenOutreach(job);
+                          }}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '5px',
+                            background: 'rgba(99, 102, 241, 0.18)',
+                            color: '#a5b4fc',
+                            border: '1px solid rgba(99, 102, 241, 0.35)',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                          title={`Open LinkedIn Outreach Studio for ${job.company}`}
+                        >
+                          <Users size={10} />
+                          <span>Outreach</span>
                         </button>
                       </div>
                     </td>
