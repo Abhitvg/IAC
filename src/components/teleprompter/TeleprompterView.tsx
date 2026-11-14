@@ -2533,7 +2533,7 @@ export default function TeleprompterView() {
               score={groundingScore}
               violationsCount={(groundingViolations || []).length}
               isGenerating={status === 'generating'}
-              hasProviderError={Boolean(blockedReason || (error && status === 'error'))}
+              hasProviderError={Boolean(blockedReason || status === 'error')}
             />
             <MemoryIndicator historyCount={(conversationHistory || []).length} />
           </div>
