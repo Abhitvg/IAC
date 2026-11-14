@@ -168,6 +168,85 @@ describe('Candidate RAG & Backup Service Suite', () => {
       expect(results[0].chunk.category).toBe('security_devops');
     });
 
+    it('retrieves Git branching & commit strategies for "branching and commit strategy"', () => {
+      const results = ragService.retrieve('branching and commit strategy trunk-based development PR squash rebase', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toContain('Branching Strategy');
+      expect(results[0].chunk.category).toBe('software_engineering');
+      expect(results[0].chunk.content).toContain('Trunk-Based Development');
+    });
+
+    it('retrieves Java & JVM architecture for "Java JVM garbage collection ZGC virtual threads"', () => {
+      const results = ragService.retrieve('Java JVM garbage collection G1GC ZGC virtual threads Loom memory', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toMatch(/Java|JVM/i);
+      expect(results[0].chunk.category).toBe('backend_database');
+      expect(results[0].chunk.content).toContain('JVM');
+    });
+
+    it('retrieves Spring Boot & Hibernate standards for "Spring Boot IoC Hibernate N+1 query"', () => {
+      const results = ragService.retrieve('Spring Boot IoC dependency injection Hibernate JPA N+1 problem', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toMatch(/Spring/i);
+      expect(results[0].chunk.category).toBe('backend_database');
+    });
+
+    it('retrieves Docker & Kubernetes architecture for "Docker multi-stage Kubernetes control plane"', () => {
+      const results = ragService.retrieve('Docker containers multi-stage Kubernetes control plane pods', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toMatch(/Docker|Kubernetes/i);
+      expect(results[0].chunk.category).toBe('security_devops');
+    });
+
+    it('retrieves React 19 architecture for "React 19 Server Actions useActionState useOptimistic"', () => {
+      const results = ragService.retrieve('React 19 Server Actions useActionState useOptimistic Fiber', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toMatch(/React 19/i);
+      expect(results[0].chunk.category).toBe('web_development');
+    });
+
+    it('retrieves Python & FastAPI architecture for "Python CPython GIL FastAPI ASGI Pydantic"', () => {
+      const results = ragService.retrieve('Python CPython GIL FastAPI ASGI Pydantic asyncio', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toContain('Python Architecture');
+      expect(results[0].chunk.category).toBe('backend_database');
+    });
+
+    it('retrieves Kafka & Redis architecture for "Apache Kafka zero-copy Redis cluster"', () => {
+      const results = ragService.retrieve('Apache Kafka event streaming zero-copy commit log Redis cluster', {
+        topK: 3,
+        minScore: 0.1,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].chunk.title).toMatch(/Kafka|Redis/i);
+      expect(results[0].chunk.category).toBe('backend_database');
+    });
+
     it('generates augmented markdown context for candidate questions', () => {
       const context = ragService.generateAugmentedContext('Sheetal Electrotech RFQ pricing', 2);
       expect(context).toContain('Verified Candidate Evidence & Grounded Context');
@@ -253,6 +332,30 @@ describe('Candidate RAG & Backup Service Suite', () => {
   });
 
   describe('Autonomous Zero-Stall Emergency Answer Synthesis', () => {
+    it('synthesizes an immediate high-quality response for branching and commit strategy questions', () => {
+      const answer = ragService.synthesizeEmergencyAnswer(
+        'Thank you for explaining your branching and commit strategy. Moving forward, when you deploy to production how do you handle merges?'
+      );
+      expect(answer.length).toBeGreaterThan(50);
+      expect(answer).toMatch(/Trunk-Based Development|Conventional Commits|feature branch|squash/i);
+    });
+
+    it('synthesizes an immediate high-quality response for Java and Virtual Threads', () => {
+      const answer = ragService.synthesizeEmergencyAnswer(
+        'How do Java 21 Project Loom virtual threads improve concurrency over OS platform threads?'
+      );
+      expect(answer.length).toBeGreaterThan(50);
+      expect(answer).toMatch(/Virtual Threads|Loom|carrier|JVM|concurrency/i);
+    });
+
+    it('synthesizes an immediate high-quality response for Docker and Kubernetes', () => {
+      const answer = ragService.synthesizeEmergencyAnswer(
+        'What are the key best practices for Docker multi-stage builds and Kubernetes pod scheduling?'
+      );
+      expect(answer.length).toBeGreaterThan(50);
+      expect(answer).toMatch(/Multi-Stage|Docker|Kubernetes|Pods|cgroups/i);
+    });
+
     it('synthesizes an immediate high-quality response for technical questions', () => {
       const answer = ragService.synthesizeEmergencyAnswer('Explain the JavaScript event loop and microtask queue');
       expect(answer.length).toBeGreaterThan(50);

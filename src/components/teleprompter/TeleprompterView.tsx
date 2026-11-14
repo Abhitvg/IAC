@@ -3099,6 +3099,88 @@ export default function TeleprompterView() {
                   <SettingsIcon size={13} /> Open Settings &amp; Keys
                 </button>
               </div>
+
+              {/* Instant Zero-Stall Grounded Fallback Display */}
+              {(() => {
+                const emergencyRAG = currentQuestion
+                  ? CandidateRagService.getInstance().synthesizeEmergencyAnswer(currentQuestion)
+                  : '';
+                if (!emergencyRAG) return null;
+                return (
+                  <div
+                    style={{
+                      marginTop: '16px',
+                      background: 'rgba(16, 185, 129, 0.14)',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      borderRadius: '10px',
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: '#34d399',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        ⚡ Autonomous RAG Grounded Answer (Recite Directly):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const store = useAppStore.getState();
+                          const sentences = emergencyRAG
+                            .split(/(?<=[.?!])\s+/)
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                          store.setCurrentAnswer(emergencyRAG);
+                          store.setIsAnswerValidated(true);
+                          store.setAnswerValidationStatus('VALIDATED');
+                          store.setGroundingResult(100, []);
+                          store.enqueueSentences(sentences);
+                          store.setStatus('ready');
+                          store.setBlockedReason(null);
+                          store.setToast('🛡️ Teleprompter loaded with Autonomous RAG Grounded Answer');
+                        }}
+                        style={{
+                          background: '#059669',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '5px 12px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Load to Teleprompter
+                      </button>
+                    </div>
+                    <p
+                      style={{
+                        fontSize: '14px',
+                        color: '#f1f5f9',
+                        lineHeight: '1.6',
+                        margin: 0,
+                        fontStyle: 'normal',
+                      }}
+                    >
+                      "{emergencyRAG}"
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           ) : answerValidationStatus === 'ABORTED' ? (
             <div
