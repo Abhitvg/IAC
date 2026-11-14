@@ -311,12 +311,14 @@ function GroundingBadge({
   score,
   violationsCount,
   isGenerating,
+  hasProviderError,
 }: {
   validationStatus?: 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FLAGGED_BUT_QUALIFIED' | 'BLOCKED' | 'FAILED' | 'ABORTED';
   isValidated: boolean;
   score: number | null;
   violationsCount: number;
   isGenerating: boolean;
+  hasProviderError?: boolean;
 }) {
   if (isGenerating || validationStatus === 'PENDING') {
     return (
@@ -385,6 +387,27 @@ function GroundingBadge({
   }
 
   if (validationStatus === 'FAILED') {
+    if (hasProviderError) {
+      return (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            fontSize: '11px',
+            fontWeight: 700,
+            color: '#f87171',
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+          }}
+          title="AI generation encountered a provider or stream error. Click Retry Answer below."
+        >
+          ⚠️ AI Provider Error
+        </span>
+      );
+    }
     return (
       <span
         style={{
@@ -2510,6 +2533,7 @@ export default function TeleprompterView() {
               score={groundingScore}
               violationsCount={(groundingViolations || []).length}
               isGenerating={status === 'generating'}
+              hasProviderError={Boolean(blockedReason || (error && status === 'error'))}
             />
             <MemoryIndicator historyCount={(conversationHistory || []).length} />
           </div>

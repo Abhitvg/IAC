@@ -315,7 +315,9 @@ export class AnswerGenerationService {
     const isHardQuestion =
       ['System Design', 'Coding', 'DSA'].includes(detectedCategory) || promptText.length > 100;
     const temperature = isCoding ? 0.1 : isHardQuestion ? 0.2 : 0.45;
-    const maxTokens = isCoding ? 3500 : Math.min(lengthTarget.recommendedMaxTokens, 1500);
+    const maxTokens = isCoding
+      ? 3500
+      : Math.max(1500, Math.min(lengthTarget.recommendedMaxTokens * 3, 2500));
 
     const providerConfig: AIProviderConfig = {
       type: provider as any,

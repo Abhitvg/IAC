@@ -1071,7 +1071,7 @@ export async function streamAnswer(
 
   try {
     const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
-    const initialRequestBody = {
+    const initialRequestBody: Record<string, any> = {
       model: effectiveModel,
       messages: [
         { role: 'system', content: lowLatencyPrompt },
@@ -1081,6 +1081,9 @@ export async function streamAnswer(
       temperature: config.temperature,
       max_tokens: config.maxTokens,
     };
+    if (config.type === 'groq' && /gpt-oss|qwen/i.test(effectiveModel)) {
+      initialRequestBody.reasoning_format = 'hidden';
+    }
     const response =
       electronAPI?.startCloudLLMStream &&
       (config.type === 'groq' || config.type === 'openai' || config.type === 'openrouter')
@@ -1401,9 +1404,10 @@ export async function streamAnswer(
 
         let cleanText = parser.getCleanText().trim();
         // Some provider/model combinations terminate an SSE stream without content deltas.
-        // Make exactly one non-streaming recovery request before surfacing an empty answer.
+        // Make non-streaming recovery request with adequate token allowance
         if (!cleanText) {
-          const recoveryBody = {
+          const recoveryTokens = Math.max(config.maxTokens || 1500, 1500);
+          const recoveryBody: Record<string, any> = {
             model: effectiveModel,
             messages: [
               { role: 'system', content: lowLatencyPrompt },
@@ -1411,8 +1415,11 @@ export async function streamAnswer(
             ],
             stream: false,
             temperature: config.temperature,
-            max_tokens: config.maxTokens,
+            max_tokens: recoveryTokens,
           };
+          if (config.type === 'groq' && /gpt-oss|qwen/i.test(effectiveModel)) {
+            recoveryBody.reasoning_format = 'hidden';
+          }
           const recoveryResponse =
             electronAPI?.startCloudLLMStream &&
             (config.type === 'groq' || config.type === 'openai' || config.type === 'openrouter')
@@ -1425,7 +1432,7 @@ export async function streamAnswer(
                     systemPrompt: lowLatencyPrompt,
                     question,
                     temperature: config.temperature,
-                    maxTokens: config.maxTokens,
+                    maxTokens: recoveryTokens,
                     stream: false,
                   },
                   requestSignal
@@ -1441,13 +1448,104 @@ export async function streamAnswer(
               recoveryResponse,
               MAX_RENDERER_LLM_RESPONSE_BYTES
             );
-            const recovered = recoveryData.choices?.[0]?.message?.content;
-            if (typeof recovered === 'string' && recovered.trim()) {
-              cleanText = recovered.trim();
+            const choice = recoveryData.choices?.[0];
+            const content = choice?.message?.content;
+            const reasoning = choice?.message?.reasoning || choice?.message?.reasoning_content;
+            let recovered =
+              typeof content === 'string' && content.trim()
+                ? content.trim()
+                : typeof reasoning === 'string' && reasoning.trim()
+                  ? reasoning.trim()
+                  : '';
+            if (recovered) {
+              const cleanThink = recovered.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+              recovered = cleanThink || recovered.replace(/<\/?think>/gi, '').trim();
+            }
+            if (recovered) {
+              cleanText = recovered;
               callbacks.onToken?.(cleanText);
               const recoveredSentences = buffer.push(cleanText);
               for (const sentence of recoveredSentences) callbacks.onSentence?.(sentence);
               for (const sentence of buffer.flush()) callbacks.onSentence?.(sentence);
+            }
+          }
+        }
+
+        // If STILL empty, seamlessly failover through the fallback chain instead of crashing
+        if (!cleanText) {
+          const fallbackChain = getModelFallbackChain(providerId, effectiveModel, 'llm');
+          for (const fbModel of fallbackChain) {
+            if (cleanText) break;
+            try {
+              console.warn(
+                `[AI] Stream and recovery empty for '${effectiveModel}'. Seamlessly falling back to '${fbModel}'...`
+              );
+              const fbTokens = Math.max(config.maxTokens || 1500, 1500);
+              const fbBody: Record<string, any> = {
+                model: fbModel,
+                messages: [
+                  { role: 'system', content: lowLatencyPrompt },
+                  { role: 'user', content: question },
+                ],
+                stream: false,
+                temperature: config.temperature,
+                max_tokens: fbTokens,
+              };
+              if (config.type === 'groq' && /gpt-oss|qwen/i.test(fbModel)) {
+                fbBody.reasoning_format = 'hidden';
+              }
+              const fbResponse =
+                electronAPI?.startCloudLLMStream &&
+                (config.type === 'groq' || config.type === 'openai' || config.type === 'openrouter')
+                  ? await fetchCloudProviderResponse(
+                      electronAPI,
+                      {
+                        requestId: crypto.randomUUID().replace(/[^a-zA-Z0-9_-]/g, ''),
+                        provider: config.type,
+                        model: fbModel,
+                        systemPrompt: lowLatencyPrompt,
+                        question,
+                        temperature: config.temperature,
+                        maxTokens: fbTokens,
+                        stream: false,
+                      },
+                      requestSignal
+                    )
+                  : await fetch(url, {
+                      method: 'POST',
+                      headers,
+                      body: JSON.stringify(fbBody),
+                      signal: requestSignal,
+                    });
+              if (fbResponse.ok) {
+                const fbData = await readResponseJsonLimited(
+                  fbResponse,
+                  MAX_RENDERER_LLM_RESPONSE_BYTES
+                );
+                const fbChoice = fbData.choices?.[0];
+                const fbContent = fbChoice?.message?.content;
+                const fbReasoning = fbChoice?.message?.reasoning || fbChoice?.message?.reasoning_content;
+                let fbRecovered =
+                  typeof fbContent === 'string' && fbContent.trim()
+                    ? fbContent.trim()
+                    : typeof fbReasoning === 'string' && fbReasoning.trim()
+                      ? fbReasoning.trim()
+                      : '';
+                if (fbRecovered) {
+                  const cleanThink = fbRecovered.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                  fbRecovered = cleanThink || fbRecovered.replace(/<\/?think>/gi, '').trim();
+                }
+                if (fbRecovered) {
+                  cleanText = fbRecovered;
+                  callbacks.onToken?.(cleanText);
+                  const recoveredSentences = buffer.push(cleanText);
+                  for (const sentence of recoveredSentences) callbacks.onSentence?.(sentence);
+                  for (const sentence of buffer.flush()) callbacks.onSentence?.(sentence);
+                  break;
+                }
+              }
+            } catch (_fbErr) {
+              // Try next fallback in chain
             }
           }
         }

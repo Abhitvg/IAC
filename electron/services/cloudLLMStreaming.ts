@@ -123,7 +123,8 @@ function isDailyQuotaError(body: string): boolean {
 async function createProviderRequest(
   request: CloudLLMStreamRequest,
   apiKey: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  options?: { omitReasoningFormat?: boolean }
 ): Promise<Response> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -133,19 +134,29 @@ async function createProviderRequest(
     headers['HTTP-Referer'] = 'ai-interview-assistant';
   }
 
+  const payload: Record<string, any> = {
+    model: request.model,
+    messages: [
+      { role: 'system', content: request.systemPrompt },
+      { role: 'user', content: request.question },
+    ],
+    stream: request.stream,
+    temperature: request.temperature,
+    max_tokens: request.maxTokens,
+  };
+
+  if (
+    request.provider === 'groq' &&
+    !options?.omitReasoningFormat &&
+    /gpt-oss|qwen/i.test(request.model)
+  ) {
+    payload.reasoning_format = 'hidden';
+  }
+
   return fetch(PROVIDER_ENDPOINTS[request.provider], {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      model: request.model,
-      messages: [
-        { role: 'system', content: request.systemPrompt },
-        { role: 'user', content: request.question },
-      ],
-      stream: request.stream,
-      temperature: request.temperature,
-      max_tokens: request.maxTokens,
-    }),
+    body: JSON.stringify(payload),
     signal: AbortSignal.any([signal, AbortSignal.timeout(75_000)]),
   });
 }
@@ -175,6 +186,19 @@ export async function startCloudLLMStream(
   }
 
   let response = await createProviderRequest(request, apiKey, signal);
+
+  if (
+    request.provider === 'groq' &&
+    response.status === 400 &&
+    /gpt-oss|qwen/i.test(request.model)
+  ) {
+    const retryRes = await createProviderRequest(request, apiKey, signal, {
+      omitReasoningFormat: true,
+    });
+    if (retryRes.ok || retryRes.status !== 400) {
+      response = retryRes;
+    }
+  }
 
   if (request.provider === 'groq' && response.status === 429 && !usedSecondaryKey) {
     const primaryErrorBody = await readResponseTextLimited(
