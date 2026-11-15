@@ -940,6 +940,8 @@ export class AnswerGenerationService {
       (completionResult as any).answer = completionResult.cleanAnswer;
     }
 
+    // Even a superseded request must settle exactly once with an explicit ABORTED result.
+    notifyComplete(completionResult!);
     cleanupGeneration();
     return completionResult!;
   }
