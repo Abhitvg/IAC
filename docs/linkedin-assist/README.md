@@ -31,6 +31,10 @@ authenticated routes are available:
 - `POST /v1/linkedin/comments`
 - `POST /v1/linkedin/reactions`
 - `DELETE /v1/linkedin/reactions?entityUrn=...`
+- `POST /v1/linkedin/organization/posts`
+- `POST /v1/linkedin/organization/comments`
+- `POST /v1/linkedin/organization/reactions`
+- `DELETE /v1/linkedin/organization/reactions?organizationUrn=...&entityUrn=...`
 
 The current cloud executable does not yet instantiate a KMS provider or configure LinkedIn
 credentials. Until deployment supplies those dependencies, LinkedIn routes intentionally return
