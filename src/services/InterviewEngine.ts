@@ -272,6 +272,13 @@ export class InterviewEngine {
         globalLatencyTracker.mark('speechEnd');
         globalLatencyTracker.mark('transcriptionStart');
         store.setStatus('transcribing');
+        const transcriptionStartedAt = Date.now();
+        DiagnosticLoggerService.getInstance().recordEvent({
+          requestId,
+          pipelineStage: 'transcribing',
+          audioByteLength: event.blob.size,
+          message: 'Speech transcription started.',
+        });
 
         try {
           const result = await transcribeAudio(
@@ -287,6 +294,19 @@ export class InterviewEngine {
 
           globalLatencyTracker.mark('transcriptionEnd');
           const text = (result?.text || '').trim();
+          const transcriptionDurationMs = Date.now() - transcriptionStartedAt;
+          DiagnosticLoggerService.getInstance().recordEvent({
+            requestId,
+            pipelineStage: text ? 'transcript_received' : 'failed',
+            transcriptionDurationMs,
+            transcriptCharacterCount: text.length,
+            audioByteLength: event.blob.size,
+            transcriptionOutcome: text ? 'SUCCESS' : 'EMPTY',
+            finalOutcome: text ? undefined : 'UNCLASSIFIED',
+            message: text
+              ? 'Speech transcription completed.'
+              : 'Speech transcription returned no usable text.',
+          });
 
           if (!text) {
             useAppStore.getState().updateDiagnostics({
@@ -324,7 +344,7 @@ export class InterviewEngine {
           DiagnosticLoggerService.getInstance().recordEvent({
             requestId,
             pipelineStage: 'transcript_received',
-            message: text.slice(0, 100),
+            message: 'Transcript received; text content omitted from diagnostics.',
           });
 
           useAppStore.getState().setPipelineStage('identifying_question');
@@ -511,9 +531,23 @@ export class InterviewEngine {
           useAppStore.getState().setStatus('listening');
           useAppStore.getState().setPipelineStage('listening');
         } catch (e: any) {
-          if (e.name !== 'AbortError') {
+          const isAbort = e?.name === 'AbortError';
+          const isEmptyTranscript = String(e?.message || e).includes('[TRANSCRIPTION_EMPTY]');
+          DiagnosticLoggerService.getInstance().recordEvent({
+            requestId,
+            pipelineStage: 'failed',
+            transcriptionDurationMs: Date.now() - transcriptionStartedAt,
+            audioByteLength: event.blob.size,
+            transcriptionOutcome: isAbort ? 'ABORTED' : isEmptyTranscript ? 'EMPTY' : 'FAILED',
+            finalOutcome: isAbort ? 'ABORTED' : 'FAILED',
+            message: isAbort
+              ? 'Speech transcription was cancelled.'
+              : isEmptyTranscript
+                ? 'Speech transcription returned no usable text.'
+                : 'Speech transcription failed; details remain in local diagnostics.',
+          });
+          if (!isAbort) {
             const state = useAppStore.getState();
-            const isEmptyTranscript = String(e?.message || e).includes('[TRANSCRIPTION_EMPTY]');
             state.updateDiagnostics({
               whisperStatus: 'error: ' + (e?.message || e),
             });
