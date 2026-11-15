@@ -18,7 +18,7 @@ function createElectronApi(
 
 describe('live transcription provider routing', () => {
   it(
-    'preserves parenthetical explanations and uncertainty markers during transcript cleanup',
+    'preserves semantic transcript content',
     () => {
       const transcript =
         'CAP theorem (consistency, availability, and partition tolerance) is a trade-off. [inaudible] is marked for review.';
@@ -91,7 +91,7 @@ describe('live transcription provider routing', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('does not report an empty cloud transcript as a successful transcription', async () => {
+  it('rejects empty cloud transcripts', async () => {
     const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: '   ' });
     vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
 
