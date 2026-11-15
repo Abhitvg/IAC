@@ -62,7 +62,7 @@ Several direct provider adapters issue fetch requests without a request signal o
 
 `saveSession` writes the full session, questions, and performance into separate files. A failure between writes can leave inconsistent session artifacts while the operation rejects. Loading catches corrupt files and continues, which can hide incomplete history unless surfaced in diagnostics.
 
-**Required change:** Make one canonical session record authoritative, write atomically, and treat derived question/performance files as rebuildable indexes or remove the duplicate writes.
+**Change on this branch:** The Electron file-write IPC now writes to a unique same-directory temporary file, fsyncs it, revalidates the destination, and atomically renames it into place. `saveSession` writes exactly one canonical `session_<id>.json` record; the embedded questions and performance remain part of that record. The old separate sidecars are no longer written. Regression tests cover complete replacement, path confinement, one-record persistence, and propagation of disk-write failures.
 
 ### R6 — Reliability is not yet measured end-to-end
 
@@ -118,6 +118,15 @@ The screen-solver completion handler previously set the session status to `ready
 The main-branch tenant-isolation job failed before running the database assertions because it tried to install `postgresql-client` on the GitHub-hosted runner. The parallel workaround in an open PR removed that install step but did not adapt the shell script, which still invoked `psql` locally.
 
 **Change on this branch:** Run the test against the existing PostgreSQL service container, add a `psql` wrapper using `docker exec -i`, and stream migration SQL from the checked-out workspace into the container. The provisioner subprocess inherits the exported wrapper. The actual RLS assertions still run; they are not skipped.
+
+### R11 — Session writes could truncate the last good record (fixed on this branch)
+
+- **Severity:** High
+- **Files:** `electron/services/security.ts`, `electron/main.ts`, `src/services/session.ts`
+
+The original file-write IPC opened the destination and truncated it before writing the replacement payload. A process crash or disk error during the write could destroy the previous valid session file. Session saving also wrote three separate files, allowing inconsistent artifacts.
+
+**Change:** Write payloads to a unique temporary file in the destination directory, fsync the file, revalidate the destination and parent, then atomically rename the temporary file into place. Session persistence now writes one canonical record containing questions and optional performance data. Save errors propagate to callers rather than being swallowed.
 
 ## Cross-repository review: open security PRs
 
