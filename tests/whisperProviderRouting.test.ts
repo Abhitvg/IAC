@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { postProcessTranscript, resolveTranscriptionProvider, transcribeAudio } from '../src/services/whisper';
+import {
+  postProcessTranscript,
+  resolveTranscriptionProvider,
+  transcribeAudio,
+} from '../src/services/whisper';
 import { encodeWav } from '../src/utils/audioConversion';
 
 function createAudioBlob(): Blob {
@@ -13,14 +17,17 @@ function createElectronApi(
 }
 
 describe('live transcription provider routing', () => {
-  it('preserves parenthetical explanations and uncertainty markers during transcript cleanup', () => {
+  it(
+    'preserves parenthetical explanations and uncertainty markers during transcript cleanup',
+    () => {
     const transcript =
       'CAP theorem (consistency, availability, and partition tolerance) is a trade-off. [inaudible] is marked for review.';
 
     expect(postProcessTranscript(transcript)).toBe(
       'CAP theorem (consistency, availability, and partition tolerance) is a trade-off. [inaudible] is marked for review.'
     );
-  });
+    }
+  );
 
   it('normalizes technical terms without deleting surrounding meaning', () => {
     expect(postProcessTranscript('I used aws code pipeline (with manual approvals).')).toBe(
