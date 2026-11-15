@@ -64,10 +64,14 @@ export function getLinkedInCapabilities(
     },
     {
       id: 'member_content_read',
-      status: !entitlements.communityManagementApproved
-        ? 'needs_linkedin_product_approval'
-        : 'needs_linkedin_product_approval',
-      reason: 'Member social read permissions are restricted; do not infer access from write scopes.',
+      status: !tokenUsable
+        ? 'needs_member_authorization'
+        : !entitlements.communityManagementApproved
+          ? 'needs_linkedin_product_approval'
+          : scopes.has('r_member_social')
+            ? 'available'
+            : 'needs_linkedin_product_approval',
+      reason: 'Requires approved member social read access; w_member_social does not grant read access.',
     },
     {
       id: 'connection_invitations',
