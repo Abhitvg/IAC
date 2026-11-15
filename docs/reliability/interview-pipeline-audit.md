@@ -22,7 +22,7 @@ The target should be measurable end-to-end delivery: every accepted interview qu
 
 The previous cleanup expression removed every square-bracketed and parenthetical span. That destroys legitimate spoken content such as definitions, trade-offs, clarifications, examples, and uncertainty markers. Example: `CAP theorem (consistency, availability, and partition tolerance)` was reduced to `CAP theorem`.
 
-**Change:** Preserve the transcript verbatim except for explicit technical-term normalization. Added regression tests for parenthetical explanations, uncertainty markers, and term normalization.
+**Change:** Preserve the transcript end-to-end except for explicit technical-term normalization. Removed the second destructive cleanup in `InterviewEngine`; added regression tests for parenthetical explanations, uncertainty markers, and term normalization.
 
 ### R2 — Transient stream failures are not consistently retried
 
@@ -44,7 +44,7 @@ A bounded retry is now implemented for transient network failures and selected 4
 
 The cloud transcription adapter currently maps a missing provider `text` field to an empty string. The renderer returns that value as a normal `TranscriptionResult`. An empty result can therefore move downstream as if transcription succeeded.
 
-**Required change:** Treat empty/whitespace transcript output as a typed recoverable transcription failure. Preserve the audio/session context so the user can retry, select another explicitly enabled provider, or correct the transcript manually. Do not fabricate a question from silence.
+**Change:** Reject malformed and empty/whitespace transcripts instead of treating them as successful results. The live interview engine now shows an actionable retry/manual-entry toast and restores the listening pipeline state. Cross-provider fallback remains opt-in because it changes data-sharing and potentially billing.
 
 ### R4 — Legacy provider adapters do not share the live request lifecycle
 
@@ -91,6 +91,15 @@ The service already compared request sequence numbers at the end of generation, 
 **Change on this branch:** Suppress token/sentence delivery, completion handling, and error handling when a request is no longer the current sequence. Return an explicit `ABORTED` terminal result for superseded requests. A regression test runs two overlapping generations and verifies that only the latest request emits tokens.
 
 **Remaining improvement:** Abort the underlying provider request as soon as a new request supersedes it, rather than merely suppressing stale output. This reduces wasted provider usage and network work.
+
+### R8 — Transcription errors were only diagnostic, not actionable
+
+**Severity:** Medium–High  
+**File:** `src/services/InterviewEngine.ts`
+
+The transcription catch path recorded an error and restored the high-level status to listening, but did not show a user-facing recovery message or restore the pipeline stage from `transcribing`. A user could experience a missing answer without knowing whether to repeat the question or type it manually.
+
+**Change on this branch:** Show a distinct message for empty speech versus provider failure, and restore both status and pipeline stage to listening.
 
 ## Cross-repository review: open security PRs
 
