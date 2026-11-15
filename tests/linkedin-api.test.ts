@@ -22,7 +22,10 @@ class MemoryStates implements LinkedInOAuthStateStore {
   async consume(state: string, identity: { tenantId: string; subject: string }) {
     const value = this.values.get(state) ?? null;
     this.values.delete(state);
-    if (!value || value.identity.tenantId !== identity.tenantId || value.identity.subject !== identity.subject) return null;
+    if (!value || value.identity.tenantId !== identity.tenantId || value.identity.subject !== identity.subject) {
+      if (value) this.values.set(state, value);
+      return null;
+    }
     return value;
   }
 }
@@ -82,14 +85,13 @@ describe('LinkedIn OAuth service', () => {
   it('creates a state-bound authorization URL and stores tokens after callback', async () => {
     const states = new MemoryStates();
     const tokens = new MemoryTokens();
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
         access_token: 'access-token',
         expires_in: 3600,
         scope: 'openid profile email w_member_social',
-      }), { status: 200, headers: { 'content-type': 'application/json' } }),
-      new Response(JSON.stringify({ sub: 'abc123', name: 'Test User' }), { status: 200 })
-    );
+      }), { status: 200, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ sub: 'abc123', name: 'Test User' }), { status: 200 }));
     const service = new LinkedInOAuthService({
       clientId: 'client-id',
       clientSecret: 'client-secret',
@@ -123,7 +125,7 @@ describe('LinkedIn OAuth service', () => {
       code: 'code',
       state,
       identity: { tenantId: 'tenant-1', subject: 'member-2' },
-    })).rejects.toThrow('does not match');
+    })).rejects.toThrow('invalid, expired, or already used');
   });
 
   it('does not persist token responses without explicit granted scopes', async () => {
@@ -134,8 +136,7 @@ describe('LinkedIn OAuth service', () => {
       clientSecret: 'client-secret',
       redirectUri: 'https://careerops.example.com/oauth/linkedin/callback',
       fetcher: vi.fn<typeof fetch>().mockResolvedValue(
-        new Response(JSON.stringify({ access_token: 'token', expires_in: 3600, scope: 'openid profile' }), { status: 200 }),
-      new Response(JSON.stringify({ sub: 'abc123' }), { status: 200 })
+        new Response(JSON.stringify({ access_token: 'token', expires_in: 3600 }), { status: 200 })
       ),
     }, states, tokens);
     const identity = { tenantId: 'tenant-1', subject: 'member-1' };
