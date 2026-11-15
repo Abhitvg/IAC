@@ -564,11 +564,12 @@ Project Reference: DataEngine
 
       // 10. Stale answer cancellation: New request drops older in-flight request
       const abortCtrl = new AbortController();
-      let staleCompleted = false;
+      let staleResult: any = null;
 
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
         async (_prompt: string, _config: any, _lang: any, callbacks: any) => {
-          // Abort mid-stream
+          // Abort mid-stream. The service must suppress the stale payload but still
+          // settle the accepted request with an explicit ABORTED terminal result.
           abortCtrl.abort();
           callbacks.onComplete('Stale generation result');
         }
@@ -584,13 +585,17 @@ Project Reference: DataEngine
           provider: 'groq',
         },
         {
-          onComplete: () => {
-            staleCompleted = true;
+          onComplete: (result: any) => {
+            staleResult = result;
           },
         }
       );
 
-      expect(staleCompleted).toBe(false); // Stale answer dropped cleanly
+      expect(staleResult).not.toBeNull();
+      expect(staleResult.status).toBe('ABORTED');
+      expect(staleResult.validationStatus).toBe('ABORTED');
+      expect(staleResult.cleanAnswer).toBe('');
+      expect(staleResult.answer).not.toContain('Stale generation result');
     });
   });
 });
