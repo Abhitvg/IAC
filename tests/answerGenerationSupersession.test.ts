@@ -114,6 +114,50 @@ describe('AnswerGenerationService request supersession', () => {
     expect(tokens.join('')).toContain('hash table');
   });
 
+  it('does not retry or append a second answer after partial output', async () => {
+    const credentialStore = {
+      getKey: vi.fn(async () => 'gsk_test_key_123456789012345678901234567890'),
+    };
+    const encoder = new TextEncoder();
+    const interruptedStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ choices: [{ delta: { content: 'Partial answer only.' } }] })}\n\n`
+          )
+        );
+        queueMicrotask(() => controller.error(new TypeError('socket hang up')));
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(interruptedStream, {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    );
+    const gateway = createElectronGateway(credentialStore);
+    vi.stubGlobal('window', { electronAPI: gateway });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const tokens: string[] = [];
+    const result = await AnswerGenerationService.getInstance().generateAnswer(
+      {
+        requestId: 'partial-stream-must-not-retry',
+        type: 'interview',
+        text: 'What is a hash table?',
+        provider: 'groq',
+        model: 'openai/gpt-oss-120b',
+        preferredLanguage: 'Java',
+      },
+      { onToken: (token) => tokens.push(token) }
+    );
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(result.status).toBe('FAILED');
+    expect(result.partialAnswer).toContain('Partial answer only.');
+    expect(tokens.join('')).toContain('Partial answer only.');
+  });
+
   it('suppresses tokens from a superseded interview request', async () => {
     const credentialStore = {
       getKey: vi.fn(async () => 'gsk_test_key_123456789012345678901234567890'),
