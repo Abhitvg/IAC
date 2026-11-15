@@ -286,10 +286,7 @@ export class InterviewEngine {
           }
 
           globalLatencyTracker.mark('transcriptionEnd');
-          let text = (result?.text || '').trim();
-
-          // Strip non-speech brackets like [BLANK_AUDIO], (beep), [MUSIC], etc.
-          text = text.replace(/\[[^\]]+\]|\([^)]+\)/g, '').trim();
+          const text = (result?.text || '').trim();
 
           if (!text) {
             useAppStore.getState().updateDiagnostics({
@@ -515,11 +512,19 @@ export class InterviewEngine {
           useAppStore.getState().setPipelineStage('listening');
         } catch (e: any) {
           if (e.name !== 'AbortError') {
-            useAppStore.getState().updateDiagnostics({
+            const state = useAppStore.getState();
+            const isEmptyTranscript = String(e?.message || e).includes('[TRANSCRIPTION_EMPTY]');
+            state.updateDiagnostics({
               whisperStatus: 'error: ' + (e?.message || e),
             });
             console.error('[InterviewEngine] Transcription error:', e);
-            useAppStore.getState().setStatus('listening');
+            state.setToast(
+              isEmptyTranscript
+                ? 'No speech was recognized. Repeat the question or enter it manually.'
+                : 'Speech transcription failed. Please retry or enter the question manually.'
+            );
+            state.setStatus('listening');
+            state.setPipelineStage('listening');
           }
         }
         break;
