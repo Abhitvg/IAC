@@ -264,7 +264,9 @@ describe('Provider request lifecycle and explicit audio fallback', () => {
       id: 'groq' as const,
       name: 'Groq',
       isLocal: false,
-      complete: vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+      complete: vi
+        .fn()
+        .mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' })),
       stream: vi.fn(),
       checkHealth: async () => ({ ok: false }),
     };
@@ -331,7 +333,9 @@ describe('Provider request lifecycle and explicit audio fallback', () => {
       id: 'groq-whisper' as const,
       name: 'Groq Whisper',
       isLocal: false,
-      transcribe: vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+      transcribe: vi
+        .fn()
+        .mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' })),
       checkHealth: async () => ({ ok: false }),
     };
     const secondary = {

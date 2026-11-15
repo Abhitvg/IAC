@@ -1,7 +1,4 @@
-import {
-  createProviderRequestSignal,
-  DEFAULT_LLM_REQUEST_TIMEOUT_MS,
-} from './requestLifecycle';
+import { createProviderRequestSignal, DEFAULT_LLM_REQUEST_TIMEOUT_MS } from './requestLifecycle';
 import {
   LLMProvider,
   LLMMessage,
@@ -24,7 +21,7 @@ export class GroqProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = getDefaultModelForProvider('groq', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -58,7 +55,7 @@ export class GroqProvider implements LLMProvider {
       let parsed: any = errText;
       try {
         parsed = JSON.parse(errText);
-      } catch { }
+      } catch {}
       const classified = classifyAIError('groq', model, response.status, parsed);
       throw classified;
     }
@@ -106,7 +103,7 @@ export class OpenAIProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = getDefaultModelForProvider('openai', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -176,7 +173,7 @@ export class OpenRouterProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = getDefaultModelForProvider('openrouter', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -248,7 +245,7 @@ export class OllamaProvider implements LLMProvider {
   constructor(
     private endpoint: string = 'http://127.0.0.1:11434',
     private defaultModel: string = getDefaultModelForProvider('ollama', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();

@@ -1,7 +1,4 @@
-import {
-  createProviderRequestSignal,
-  DEFAULT_STT_REQUEST_TIMEOUT_MS,
-} from './requestLifecycle';
+import { createProviderRequestSignal, DEFAULT_STT_REQUEST_TIMEOUT_MS } from './requestLifecycle';
 import { STTProvider, STTOptions, STTResult } from './types';
 import {
   resolveOrMigrateModel,
