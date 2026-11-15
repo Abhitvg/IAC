@@ -152,24 +152,14 @@ export function analyzePerformance(questions: SessionQuestion[]): SessionPerform
 }
 
 /**
- * Save session to local storage
+ * Save one canonical session record. The Electron write IPC uses a same-directory
+ * temporary file and atomic rename, so a failed write cannot leave a truncated
+ * session or mismatched session/questions/performance sidecars.
  */
 export async function saveSession(session: InterviewSession, sessionsDir: string): Promise<void> {
   const sessionDir = `${sessionsDir}/${session.date}`;
-
-  // Save full session data
   const sessionData = JSON.stringify(session, null, 2);
   await window.electronAPI.writeFile(`${sessionDir}/session_${session.id}.json`, sessionData);
-
-  // Save questions separately for easy access
-  const questionsData = JSON.stringify(session.questions, null, 2);
-  await window.electronAPI.writeFile(`${sessionDir}/questions_${session.id}.json`, questionsData);
-
-  // Save performance if available
-  if (session.performance) {
-    const perfData = JSON.stringify(session.performance, null, 2);
-    await window.electronAPI.writeFile(`${sessionDir}/performance_${session.id}.json`, perfData);
-  }
 }
 
 /**
