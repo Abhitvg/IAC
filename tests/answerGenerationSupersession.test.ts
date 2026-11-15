@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AnswerGenerationService } from '../src/services/AnswerGenerationService';
+import { DiagnosticLoggerService } from '../src/services/diagnosticLogger';
 import { RateLimitGovernor } from '../src/services/rateLimitGovernor';
 import { startCloudLLMStream } from '../electron/services/cloudLLMStreaming';
 
@@ -118,6 +119,16 @@ describe('AnswerGenerationService request supersession', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(result.status).toBe('VALIDATED');
     expect(tokens.join('')).toContain('hash table');
+
+    const events = DiagnosticLoggerService.getInstance().getEventsForRequest(
+      'transient-network-retry'
+    );
+    expect(events.some((event) => event.pipelineStage === 'generating')).toBe(true);
+    expect(events.some((event) => event.pipelineStage === 'streaming')).toBe(true);
+    const terminal = events.find((event) => event.finalOutcome === 'SUCCESS');
+    expect(terminal?.totalGenerationTimeMs).toBeGreaterThan(0);
+    expect(terminal?.timeToFirstTokenMs).toBeGreaterThanOrEqual(0);
+    expect(terminal?.receivedTokenCount).toBeGreaterThan(0);
   });
 
   it('does not retry or append a second answer after partial output', async () => {
