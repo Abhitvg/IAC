@@ -1,9 +1,9 @@
 # Live Interview Reliability Audit
 
-**Audit date:** 2026-11-15  
-**Repository:** `Abhitvg/IAC`  
-**Baseline:** `main` at `e050be21ea50e02d9184a3d09d6b44d98342be6b`  
-**Work branch:** `reliability/interview-pipeline-hardening`
+- **Audit date:** 2026-11-15
+- **Repository:** `Abhitvg/IAC`
+- **Baseline:** `main` at `e050be21ea50e02d9184a3d09d6b44d98342be6b`
+- **Work branch:** `reliability/interview-pipeline-hardening`
 
 ## Executive assessment
 
@@ -17,8 +17,8 @@ The target should be measurable end-to-end delivery: every accepted interview qu
 
 ### R1 — Transcript post-processing deleted meaningful speech (fixed on this branch)
 
-**Severity:** High  
-**File:** `src/services/whisper.ts`
+- **Severity:** High
+- **File:** `src/services/whisper.ts`
 
 The previous cleanup expression removed every square-bracketed and parenthetical span. That destroys legitimate spoken content such as definitions, trade-offs, clarifications, examples, and uncertainty markers. Example: `CAP theorem (consistency, availability, and partition tolerance)` was reduced to `CAP theorem`.
 
@@ -29,9 +29,10 @@ The previous cleanup expression removed every square-bracketed and parenthetical
 **Severity:** High  
 **Files:** `src/services/ai.ts`, `src/services/AnswerGenerationService.ts`
 
-The stream layer has an overall deadline and inactivity timeout. It retries an empty stream once using a non-streaming request and attempts alternate models for recoverable model-not-found responses. The higher-level answer service retries rate limits, but does not provide a general bounded retry for transient network/provider failures.
+The stream layer has an overall deadline and inactivity timeout. It retries an empty stream once using a non-streaming request and attempts alternate models for recoverable model-not-found responses. The higher-level answer service previously retried rate limits but did not provide a general bounded retry for transient network/provider failures.
 
 A bounded retry is now implemented for transient network failures and selected 408/425/5xx responses **only before any answer token has been emitted**. Retries use the existing jittered backoff helper and honor cancellation. A safe retry policy must distinguish:
+
 - Before the first token: retry transient network errors, 408, 425, and selected 5xx responses with bounded exponential backoff and jitter.
 - After partial output: never append a second full answer to the first partial answer. Either recover into a replacement answer with an explicit reset event or preserve the partial answer and mark the request interrupted.
 - Never retry invalid credentials, billing failures, user cancellation, policy blocks, or malformed requests.
@@ -47,8 +48,8 @@ The cloud transcription adapter currently maps a missing provider `text` field t
 
 ### R4 — Legacy provider adapters do not share the live request lifecycle
 
-**Severity:** Medium–High  
-**Files:** `src/services/providers/LLMProvider.ts`, `src/services/providers/STTProvider.ts`, `src/services/ai.ts`
+- **Severity:** Medium–High
+- **Files:** `src/services/providers/LLMProvider.ts`, `src/services/providers/STTProvider.ts`, `src/services/ai.ts`
 
 Several direct provider adapters issue fetch requests without a request signal or timeout. The live `streamAnswer` path is better controlled, but legacy/non-streaming generation and direct STT adapters do not consistently inherit those protections.
 
@@ -56,8 +57,8 @@ Several direct provider adapters issue fetch requests without a request signal o
 
 ### R5 — Interview session persistence is multi-write and can partially succeed
 
-**Severity:** Medium  
-**File:** `src/services/session.ts`
+- **Severity:** Medium
+- **File:** `src/services/session.ts`
 
 `saveSession` writes the full session, questions, and performance into separate files. A failure between writes can leave inconsistent session artifacts while the operation rejects. Loading catches corrupt files and continues, which can hide incomplete history unless surfaced in diagnostics.
 
@@ -69,6 +70,7 @@ Several direct provider adapters issue fetch requests without a request signal o
 **Files:** generation, transcription, session and diagnostic services
 
 The code records some latency and provider diagnostics, but there is no demonstrated unified measurement of:
+
 - audio capture success and duration;
 - transcription success, empty-transcript rate, and latency;
 - time-to-first-token and time-to-final-answer;
