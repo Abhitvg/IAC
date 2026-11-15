@@ -15,7 +15,7 @@ show exactly which prerequisite is missing.
 - **Profile identity:** Sign in and read basic identity fields. Requires OpenID Connect `profile` /
   `email`.
 - **Full profile and activity import:** Import permitted member profile, posts, comments, and
-  analytics. Requires relevant approved products and scopes; `r_member_social` is restricted.
+  analytics. Requires relevant approved products and scopes; `r_member_social_feed` is restricted.
 - **Official export import:** Parse member-provided LinkedIn PDF / data archive. Requires a
   user-provided export, not an API scope.
 - **Member post publishing:** Publish text, images, video, documents, and supported post types.
@@ -43,7 +43,7 @@ show exactly which prerequisite is missing.
 
 1. **Open permissions:** LinkedIn documents OpenID Connect `profile` / `email` and Share on
    LinkedIn `w_member_social` as self-service permissions available to all developers.
-   `w_member_social` supports member posting, commenting, and liking.
+   `w_member_social` supports member post publishing. Commenting and reactions require Community Management API access and `w_member_social_feed`.
 2. **Approved Marketing / Community Management products:** Additional organization publishing,
    organization read access, member analytics, and other capabilities require applying for the
    relevant product and receiving approval. Some member read permissions remain restricted.
