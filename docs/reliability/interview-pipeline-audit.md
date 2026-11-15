@@ -31,7 +31,7 @@ The previous cleanup expression removed every square-bracketed and parenthetical
 
 The stream layer has an overall deadline and inactivity timeout. It retries an empty stream once using a non-streaming request and attempts alternate models for recoverable model-not-found responses. The higher-level answer service retries rate limits, but does not provide a general bounded retry for transient network/provider failures.
 
-A safe retry policy must distinguish:
+A bounded retry is now implemented for transient network failures and selected 408/425/5xx responses **only before any answer token has been emitted**. Retries use the existing jittered backoff helper and honor cancellation. A safe retry policy must distinguish:
 - Before the first token: retry transient network errors, 408, 425, and selected 5xx responses with bounded exponential backoff and jitter.
 - After partial output: never append a second full answer to the first partial answer. Either recover into a replacement answer with an explicit reset event or preserve the partial answer and mark the request interrupted.
 - Never retry invalid credentials, billing failures, user cancellation, policy blocks, or malformed requests.
