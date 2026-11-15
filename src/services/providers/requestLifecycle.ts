@@ -18,6 +18,3 @@ export function createProviderRequestSignal(
   return callerSignal ? AbortSignal.any([callerSignal, timeoutSignal]) : timeoutSignal;
 }
 
-export function isCallerCancellation(error: unknown, signal?: AbortSignal): boolean {
-  return Boolean(signal?.aborted || (error instanceof Error && error.name === 'AbortError' && !signal));
-}
