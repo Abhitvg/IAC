@@ -110,6 +110,15 @@ The screen-solver completion handler previously set the session status to `ready
 
 **Change on this branch:** Handle failed/aborted screen results before normal completion, keep the speakable queue empty, set the correct failed/paused state, record the failure, and show a retry/switch-provider message. Factual blocks now remain explicit failures rather than appearing as ready answers.
 
+### R10 — PostgreSQL tenant-isolation CI depended on runner package installation
+
+**Severity:** Medium  
+**Files:** `.github/workflows/ci.yml`, `scripts/test-cloud-postgres-rls.sh`
+
+The main-branch tenant-isolation job failed before running the database assertions because it tried to install `postgresql-client` on the GitHub-hosted runner. The parallel workaround in an open PR removed that install step but did not adapt the shell script, which still invoked `psql` locally.
+
+**Change on this branch:** Run the test against the existing PostgreSQL service container, add a `psql` wrapper using `docker exec -i`, and stream migration SQL from the checked-out workspace into the container. The provisioner subprocess inherits the exported wrapper. The actual RLS assertions still run; they are not skipped.
+
 ## Cross-repository review: open security PRs
 
 The open security changes are not yet a single coherent migration:
@@ -118,6 +127,7 @@ The open security changes are not yet a single coherent migration:
 - **PR #211** is stacked on #210 (its base is the #210 branch) and migrates the canonical profile to that API. It does not complete the repository-wide PII migration.
 - **PR #212** independently introduces `PiiVault`, a second encrypted persistence abstraction with a separate IPC API, namespace model, key file, and AES-GCM envelope format. It is not a consumer migration for all the stores yet.
 - **PRs #206–#209** add KMS-envelope validation, LinkedIn Assist Queue policy, Sprint Contract signature validation, and strict JWT base64url validation. Several open PRs carry the same PostgreSQL CI workaround, so the workflow change should be consolidated rather than maintained as repeated parallel edits.
+- The workflow-only workaround in #212 removes the runner-side `psql` installation but does not make `scripts/test-cloud-postgres-rls.sh` use `POSTGRES_CONTAINER_ID`; without a client-side wrapper, that change still cannot run the script.
 
 ### Security findings from the diffs
 
