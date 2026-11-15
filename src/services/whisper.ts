@@ -192,11 +192,15 @@ export async function transcribeAudio(
  */
 function requireUsableTranscript(result: TranscriptionResult): TranscriptionResult {
   if (!result || typeof result.text !== 'string') {
-    throw new Error('[TRANSCRIPTION_INVALID_RESPONSE] Speech provider returned an invalid transcript.');
+    throw new Error(
+      '[TRANSCRIPTION_INVALID_RESPONSE] Speech provider returned an invalid transcript.'
+    );
   }
   const text = postProcessTranscript(result.text);
   if (!text.trim()) {
-    throw new Error('[TRANSCRIPTION_EMPTY] No speech was recognized. Retry transcription or enter the question manually.');
+    throw new Error(
+      '[TRANSCRIPTION_EMPTY] No speech was recognized. Retry transcription or enter the question manually.'
+    );
   }
   return { ...result, text };
 }
