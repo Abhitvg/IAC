@@ -213,6 +213,134 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           return;
         }
 
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/organization/posts') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.organizationUrn !== 'string' ||
+            typeof body.commentary !== 'string' ||
+            Object.keys(body).some((key) => key !== 'organizationUrn' && key !== 'commentary')
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected organizationUrn and commentary strings',
+              requestId,
+            });
+            return;
+          }
+          if (!integration.entitlements.communityManagementApproved) {
+            sendJson(response, 403, {
+              error: 'LinkedIn Community Management API approval is required',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
+            return;
+          }
+          const result = await integration.api.publishOrganizationTextPost(
+            tokenSet,
+            body.organizationUrn,
+            body.commentary
+          );
+          sendJson(response, 201, { postId: result.id, status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/organization/comments') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.organizationUrn !== 'string' ||
+            typeof body.targetUrn !== 'string' ||
+            typeof body.objectUrn !== 'string' ||
+            typeof body.commentary !== 'string' ||
+            Object.keys(body).some(
+              (key) =>
+                !['organizationUrn', 'targetUrn', 'objectUrn', 'commentary'].includes(key)
+            )
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected organizationUrn, targetUrn, objectUrn, and commentary strings',
+              requestId,
+            });
+            return;
+          }
+          if (!integration.entitlements.communityManagementApproved) {
+            sendJson(response, 403, {
+              error: 'LinkedIn Community Management API approval is required',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before commenting', requestId });
+            return;
+          }
+          const result = await integration.api.createOrganizationComment(
+            tokenSet,
+            body.organizationUrn,
+            body.targetUrn,
+            body.objectUrn,
+            body.commentary
+          );
+          sendJson(response, 201, { commentId: result.id, status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/organization/reactions') {
+          const body = await readJson(request, maxBytes);
+          const allowedReactions = [
+            'LIKE',
+            'PRAISE',
+            'EMPATHY',
+            'INTEREST',
+            'APPRECIATION',
+            'ENTERTAINMENT',
+          ];
+          if (
+            typeof body.organizationUrn !== 'string' ||
+            typeof body.rootUrn !== 'string' ||
+            typeof body.reactionType !== 'string' ||
+            !allowedReactions.includes(body.reactionType) ||
+            Object.keys(body).some(
+              (key) => !['organizationUrn', 'rootUrn', 'reactionType'].includes(key)
+            )
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected organizationUrn, rootUrn, and a supported reactionType',
+              requestId,
+            });
+            return;
+          }
+          if (!integration.entitlements.communityManagementApproved) {
+            sendJson(response, 403, {
+              error: 'LinkedIn Community Management API approval is required',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before reacting', requestId });
+            return;
+          }
+          const result = await integration.api.createOrganizationReaction(
+            tokenSet,
+            body.organizationUrn,
+            body.rootUrn,
+            body.reactionType as
+              | 'LIKE'
+              | 'PRAISE'
+              | 'EMPATHY'
+              | 'INTEREST'
+              | 'APPRECIATION'
+              | 'ENTERTAINMENT'
+          );
+          sendJson(response, 201, { status: result.status, requestId });
+          return;
+        }
+
         if (request.method === 'POST' && url.pathname === '/v1/linkedin/comments') {
           const body = await readJson(request, maxBytes);
           if (
