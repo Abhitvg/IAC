@@ -56,6 +56,14 @@ export interface CloudApiRepository extends TenantMembershipRepository {
     occurredAt: string;
     metadata: Record<string, string | boolean>;
   }): Promise<void>;
+  recordLinkedInAction?(input: {
+    tenantId: string;
+    actorSubject: string;
+    action: string;
+    entityId: string;
+    occurredAt: string;
+    metadata: Record<string, string | number | boolean | null>;
+  }): Promise<void>;
   setGlobalKillSwitchWithAudit(input: {
     tenantId: string;
     actorSubject: string;
