@@ -79,8 +79,8 @@ export class AudioRecorder {
     DiagnosticLoggerService.getInstance().recordEvent({
       requestId: this.captureRequestId,
       pipelineStage: 'listening',
-      audioCaptureOutcome: 'ACTIVE',
-      message: 'Audio capture session started.',
+      audioCaptureOutcome: 'STARTING',
+      message: 'Audio capture startup requested.',
     });
     this.onUtteranceCb = onUtterance;
     this.isListening = true;
@@ -138,6 +138,14 @@ export class AudioRecorder {
       this.gainNode.connect(this.audioContext.destination);
 
       this.captureState = 'active';
+      if (this.captureRequestId) {
+        DiagnosticLoggerService.getInstance().recordEvent({
+          requestId: this.captureRequestId,
+          pipelineStage: 'listening',
+          audioCaptureOutcome: 'ACTIVE',
+          message: 'Microphone capture pipeline is active.',
+        });
+      }
       useAppStore.getState().updateDiagnostics({
         micActive: true,
         mimeType: 'audio/wav (16kHz mono PCM)',
