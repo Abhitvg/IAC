@@ -123,14 +123,29 @@ export class LinkedInOAuthService {
       throw new Error('LinkedIn returned an invalid token response');
     }
     const grantedScopes = parseScopes(payload.scope);
-    if (!grantedScopes.length) {
-      throw new Error('LinkedIn did not return granted scopes; connection was not stored');
+    if (!grantedScopes.length || !grantedScopes.includes('openid')) {
+      throw new Error('LinkedIn did not grant the required OpenID Connect scope; connection was not stored');
+    }
+
+    const identityResponse = await this.fetcher('https://api.linkedin.com/v2/userinfo', {
+      method: 'GET',
+      headers: { authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!identityResponse.ok) {
+      throw new Error(`LinkedIn identity verification failed with HTTP ${identityResponse.status}`);
+    }
+    const identityPayload = (await identityResponse.json()) as Record<string, unknown>;
+    const memberId = typeof identityPayload.sub === 'string' ? identityPayload.sub.trim() : '';
+    if (!memberId || memberId.length > 255 || !/^[A-Za-z0-9_-]+$/.test(memberId)) {
+      throw new Error('LinkedIn returned an invalid member identifier');
     }
 
     const refreshToken = typeof payload.refresh_token === 'string' ? payload.refresh_token : undefined;
     const refreshExpiresIn = Number(payload.refresh_token_expires_in);
     const tokenSet: LinkedInTokenSet = {
       accessToken,
+      memberId,
       expiresAt: Date.now() + expiresIn * 1000,
       grantedScopes,
       tokenType: 'Bearer',
