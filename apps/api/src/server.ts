@@ -136,7 +136,11 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             'email',
             'w_member_social',
             ...(integration.entitlements.communityManagementApproved
-              ? ['w_organization_social']
+              ? [
+                  'w_organization_social',
+                  'w_member_social_feed',
+                  'w_organization_social_feed',
+                ]
               : []),
           ]);
           if (scopes?.some((scope) => !allowedScopes.has(scope))) {
@@ -206,6 +210,101 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             body.commentary
           );
           sendJson(response, 201, { postId: result.id, status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/comments') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.targetUrn !== 'string' ||
+            typeof body.objectUrn !== 'string' ||
+            typeof body.commentary !== 'string' ||
+            Object.keys(body).some(
+              (key) => !['targetUrn', 'objectUrn', 'commentary'].includes(key)
+            )
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected targetUrn, objectUrn, and commentary strings',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before commenting', requestId });
+            return;
+          }
+          const result = await integration.api.createMemberComment(
+            tokenSet,
+            body.targetUrn,
+            body.objectUrn,
+            body.commentary
+          );
+          sendJson(response, 201, { commentId: result.id, status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/reactions') {
+          const body = await readJson(request, maxBytes);
+          const allowedReactions = [
+            'LIKE',
+            'PRAISE',
+            'EMPATHY',
+            'INTEREST',
+            'APPRECIATION',
+            'ENTERTAINMENT',
+          ];
+          if (
+            typeof body.rootUrn !== 'string' ||
+            typeof body.reactionType !== 'string' ||
+            !allowedReactions.includes(body.reactionType) ||
+            Object.keys(body).some((key) => key !== 'rootUrn' && key !== 'reactionType')
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected rootUrn and a supported reactionType',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before reacting', requestId });
+            return;
+          }
+          const result = await integration.api.createMemberReaction(
+            tokenSet,
+            body.rootUrn,
+            body.reactionType as
+              | 'LIKE'
+              | 'PRAISE'
+              | 'EMPATHY'
+              | 'INTEREST'
+              | 'APPRECIATION'
+              | 'ENTERTAINMENT'
+          );
+          sendJson(response, 201, { status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'DELETE' && url.pathname === '/v1/linkedin/reactions') {
+          const entityUrn = url.searchParams.get('entityUrn');
+          if (!entityUrn || url.searchParams.size !== 1) {
+            sendJson(response, 400, {
+              error: 'Provide exactly one entityUrn query parameter',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, {
+              error: 'Connect LinkedIn before removing a reaction',
+              requestId,
+            });
+            return;
+          }
+          const result = await integration.api.deleteMemberReaction(tokenSet, entityUrn);
+          sendJson(response, 200, { status: result.status, requestId });
           return;
         }
 
