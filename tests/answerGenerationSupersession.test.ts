@@ -26,6 +26,7 @@ function createElectronGateway(credentialStore: { getKey: ReturnType<typeof vi.f
   const doneListeners = new Set<(payload: any) => void>();
   const errorListeners = new Set<(payload: any) => void>();
   const controllers = new Map<string, AbortController>();
+  const cancelledRequestIds: string[] = [];
 
   const send = (channel: string, payload: any) => {
     const listeners =
@@ -55,7 +56,9 @@ function createElectronGateway(credentialStore: { getKey: ReturnType<typeof vi.f
         throw error;
       }
     },
+    cancelledRequestIds,
     cancelCloudLLMStream: async (requestId: string) => {
+      cancelledRequestIds.push(requestId);
       const controller = controllers.get(requestId);
       if (!controller) return false;
       controller.abort();
@@ -210,6 +213,7 @@ describe('AnswerGenerationService request supersession', () => {
     const [staleResult, currentResult] = await Promise.all([staleRequest, currentRequest]);
 
     expect(staleResult.status).toBe('ABORTED');
+    expect(gateway.cancelledRequestIds).toContain('stale-interview-request');
     expect(staleTokens).toEqual([]);
     expect(currentResult.status).toBe('VALIDATED');
     expect(currentTokens.join('')).toContain('current answer');
