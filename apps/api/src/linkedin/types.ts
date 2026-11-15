@@ -1,5 +1,7 @@
 export const LINKEDIN_OPENID_SCOPES = ['openid', 'profile', 'email'] as const;
 export const LINKEDIN_MEMBER_WRITE_SCOPE = 'w_member_social' as const;
+export const LINKEDIN_MEMBER_SOCIAL_WRITE_SCOPE = 'w_member_social_feed' as const;
+export const LINKEDIN_ORGANIZATION_SOCIAL_WRITE_SCOPE = 'w_organization_social_feed' as const;
 export const LINKEDIN_ORGANIZATION_WRITE_SCOPE = 'w_organization_social' as const;
 
 export type LinkedInScope =
