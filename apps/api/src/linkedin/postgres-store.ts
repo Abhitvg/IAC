@@ -68,7 +68,7 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
         tenant_id: string; subject: string; redirect_uri: string; expires_at: Date | string;
       }>(
         `DELETE FROM linkedin_oauth_states
-          WHERE state_hash = $1 AND tenant_id = $2 AND subject = $3 AND expires_at > now()
+          WHERE state_hash = $1 AND tenant_id = $2 AND subject = $3
           RETURNING tenant_id, subject, redirect_uri, expires_at`,
         [hash, identity.tenantId, identity.subject]
       );
@@ -123,6 +123,7 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
       try {
         const tokens = JSON.parse(plaintext.toString('utf8')) as LinkedInTokenSet;
         if (!Array.isArray(tokens.grantedScopes) || typeof tokens.accessToken !== 'string' ||
+            typeof tokens.memberId !== 'string' || !/^[A-Za-z0-9_-]{1,255}$/.test(tokens.memberId) ||
             tokens.tokenType !== 'Bearer' || !Number.isFinite(tokens.expiresAt)) {
           throw new Error('Stored LinkedIn token envelope has an invalid payload');
         }
