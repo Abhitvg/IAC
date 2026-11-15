@@ -266,13 +266,6 @@ export class AnswerGenerationService {
       };
     };
 
-    if (requestSeq !== this.currentSequence) {
-      const staleResult = createAbortedResult();
-      clearTimeout(overallTimer);
-      callerSignal?.removeEventListener('abort', abortFromCaller);
-      return staleResult;
-    }
-
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
