@@ -5,6 +5,7 @@ import { PostgresCloudApiRepository, type ClosableSqlPool } from './postgres-rep
 import { PostgresCloudRateLimiter } from './postgres-rate-limiter';
 import { createCloudApiServer } from './server';
 import { PostgresCareerGraphRepository } from './career-graph-repository';
+import type { LinkedInCloudIntegration } from './ports';
 
 export interface CloudApiRuntime {
   server: Server;
@@ -14,7 +15,8 @@ export interface CloudApiRuntime {
 
 export function createCloudApiRuntime(
   pool: ClosableSqlPool,
-  environment: CloudEnvironment = loadCloudEnvironment()
+  environment: CloudEnvironment = loadCloudEnvironment(),
+  linkedin?: LinkedInCloudIntegration
 ): CloudApiRuntime {
   const repository = new PostgresCloudApiRepository(pool);
   const server = createCloudApiServer({
@@ -33,6 +35,7 @@ export function createCloudApiRuntime(
       consentSigningSecret: environment.CAREEROPS_CONSENT_SIGNING_SECRET,
       maxRequestBytes: environment.CAREEROPS_MAX_REQUEST_BYTES,
     },
+    ...(linkedin ? { linkedin } : {}),
   });
 
   let closed = false;

@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { resolveTranscriptionProvider, transcribeAudio } from '../src/services/whisper';
+import {
+  postProcessTranscript,
+  resolveTranscriptionProvider,
+  transcribeAudio,
+} from '../src/services/whisper';
 import { encodeWav } from '../src/utils/audioConversion';
 
 function createAudioBlob(): Blob {
@@ -13,6 +17,20 @@ function createElectronApi(
 }
 
 describe('live transcription provider routing', () => {
+  it('preserves semantic transcript content', () => {
+    const transcript =
+      'CAP Theorem (consistency, availability, and partition tolerance) is a trade-off. [inaudible] is marked for review.';
+
+    expect(postProcessTranscript(transcript)).toBe(
+      'CAP Theorem (consistency, availability, and partition tolerance) is a trade-off. [inaudible] is marked for review.'
+    );
+  });
+
+  it('normalizes technical terms without deleting surrounding meaning', () => {
+    expect(postProcessTranscript('I used aws code pipeline (with manual approvals).')).toBe(
+      'I used AWS CodePipeline (with manual approvals).'
+    );
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -68,6 +86,20 @@ describe('live transcription provider routing', () => {
     });
     expect(transcribeCloudAudio.mock.calls[0][0].audio).toBeInstanceOf(Uint8Array);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects empty cloud transcripts', async () => {
+    const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: '   ' });
+    vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
+
+    await expect(
+      transcribeAudio(createAudioBlob(), {
+        aiProvider: 'groq',
+        whisperModel: 'whisper-large-v3-turbo',
+      })
+    ).rejects.toThrow('[TRANSCRIPTION_EMPTY]');
+
+    expect(transcribeCloudAudio).toHaveBeenCalledOnce();
   });
 
   it('routes Groq transcription through Electron main with the selected STT model', async () => {

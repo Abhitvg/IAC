@@ -180,6 +180,60 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
     });
   }
 
+  async recordLinkedInAction(input: {
+    tenantId: string;
+    actorSubject: string;
+    action: string;
+    entityId: string;
+    occurredAt: string;
+    metadata: Record<string, string | number | boolean | null>;
+  }): Promise<void> {
+    await inTransaction(this.pool, input.actorSubject, input.tenantId, async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [input.tenantId]);
+      const previous = await client.query<{ event_hash: string }>(
+        `SELECT event_hash
+           FROM audit_events
+          WHERE tenant_id = $1
+          ORDER BY sequence_id DESC
+          LIMIT 1`,
+        [input.tenantId]
+      );
+      await appendAuditEvent(
+        {
+          append: async (record: AuditRecord) => {
+            await client.query(
+              `INSERT INTO audit_events
+                (tenant_id, actor_subject, action, entity_type, entity_id, occurred_at,
+                 metadata, previous_hash, event_hash)
+               VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
+              [
+                record.tenantId,
+                record.actorSubject,
+                record.action,
+                record.entityType,
+                record.entityId,
+                record.occurredAt,
+                JSON.stringify(record.metadata ?? {}),
+                record.previousHash,
+                record.eventHash,
+              ]
+            );
+          },
+        },
+        {
+          tenantId: input.tenantId,
+          actorSubject: input.actorSubject,
+          action: input.action,
+          entityType: 'linkedin_action',
+          entityId: input.entityId,
+          occurredAt: input.occurredAt,
+          metadata: input.metadata,
+        },
+        previous.rows[0]?.event_hash ?? null
+      );
+    });
+  }
+
   async setGlobalKillSwitchWithAudit(input: {
     tenantId: string;
     actorSubject: string;
