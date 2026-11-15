@@ -462,7 +462,7 @@ export class LinkedInApiClient {
         'LinkedIn reactions are not authorized: w_member_social_feed scope is missing'
       );
     }
-    if (!/^urn:li:(?:share|ugcPost|activity):[A-Za-z0-9_-]+$/.test(entityUrn)) {
+    if (!/^urn:li:(?:share|ugcPost):[A-Za-z0-9_-]+$/.test(entityUrn)) {
       throw new Error('Invalid LinkedIn reaction entity URN');
     }
     const actor = encodeURIComponent(`urn:li:person:${token.memberId}`);
