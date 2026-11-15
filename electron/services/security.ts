@@ -364,8 +364,8 @@ export function writeFileAtomically(filePath: string, data: unknown, userDataDir
     if (descriptor !== undefined) fs.closeSync(descriptor);
     try {
       fs.unlinkSync(temporaryPath);
-    } catch (error: any) {
-      if (error?.code !== 'ENOENT') throw error;
+    } catch {
+      // Cleanup is best-effort; never mask the original write/rename error.
     }
   }
 }
