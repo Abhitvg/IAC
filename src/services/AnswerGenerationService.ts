@@ -142,9 +142,10 @@ function waitForRetry(delayMs: number, signal: AbortSignal): Promise<void> {
       clearTimeout(timer);
       cleanup();
       reject(
-        Object.assign(new Error(signal.reason?.message || 'Generation cancelled during retry.'), {
-          name: 'AbortError',
-        })
+        Object.assign(
+          new Error(signal.reason?.message || 'Generation cancelled during retry.'),
+          { name: 'AbortError' }
+        )
       );
     };
     timer = setTimeout(() => {
