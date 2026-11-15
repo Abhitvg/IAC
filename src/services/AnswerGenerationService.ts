@@ -835,6 +835,40 @@ export class AnswerGenerationService {
       }
     }
 
+    // Every accepted request must settle with an explicit result, including an
+    // abort observed between retry attempts or a provider that resolves without
+    // invoking its completion callback.
+    if (!completionResult && requestSeq === this.currentSequence) {
+      if (signal.aborted) {
+        const timeoutMessage = signal.reason?.message || 'Generation cancelled';
+        const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
+        completionResult = createAbortedResult(timedOut, timeoutMessage);
+      } else {
+        completionResult = {
+          status: 'FAILED',
+          isValidated: false,
+          cleanAnswer: '',
+          error: 'Generation ended without a completion result.',
+          detectedCategory,
+          confidence: 'low',
+          followUps: [],
+          predictedFollowUps: [],
+          requestId,
+          validationResult: {
+            isGrounded: false,
+            validationStatus: 'FAILED',
+            violations: ['Provider completed without a terminal answer callback.'],
+          },
+          validationStatus: 'FAILED',
+          groundingScore: 0,
+          groundingViolations: ['Provider completed without a terminal answer callback.'],
+          structuredViolations: [],
+        };
+      }
+      (completionResult as any).answer = completionResult.cleanAnswer;
+      cb.onComplete?.(completionResult);
+    }
+
     // Stale request detection
     if (requestSeq < this.currentSequence) {
       completionResult = {
