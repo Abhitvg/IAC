@@ -101,6 +101,15 @@ The transcription catch path recorded an error and restored the high-level statu
 
 **Change on this branch:** Show a distinct message for empty speech versus provider failure, and restore both status and pipeline stage to listening.
 
+### R9 — Screen-answer completion marked failed output as ready
+
+**Severity:** High  
+**File:** `src/services/InterviewEngine.ts`
+
+The screen-solver completion handler previously set the session status to `ready` even when factual verification withheld the answer, and did not consistently surface provider failures returned through `onComplete`. The separate `onError` path also omitted a pipeline-stage failure marker.
+
+**Change on this branch:** Handle failed/aborted screen results before normal completion, keep the speakable queue empty, set the correct failed/paused state, record the failure, and show a retry/switch-provider message. Factual blocks now remain explicit failures rather than appearing as ready answers.
+
 ## Cross-repository review: open security PRs
 
 The open security changes are not yet a single coherent migration:
