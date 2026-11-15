@@ -222,19 +222,22 @@ export class AnswerGenerationService {
       params.text = params.questionText;
     }
 
-    const createAbortedResult = (): AnswerGenerationResult => ({
-      status: 'ABORTED',
+    const createAbortedResult = (
+      timedOut = false,
+      timeoutMessage = 'Generation deadline exceeded'
+    ): AnswerGenerationResult => ({
+      status: timedOut ? 'FAILED' : 'ABORTED',
       isValidated: false,
       cleanAnswer: '',
-      error: 'Generation aborted by user or timeout',
+      error: timedOut ? timeoutMessage : 'Generation aborted by user or timeout',
       detectedCategory: 'General',
       confidence: 'low',
       followUps: [],
       predictedFollowUps: [],
       requestId,
-      validationStatus: 'ABORTED',
+      validationStatus: timedOut ? 'FAILED' : 'ABORTED',
       groundingScore: 0,
-      groundingViolations: ['Request aborted by caller'],
+      groundingViolations: [timedOut ? 'Generation deadline exceeded' : 'Request aborted by caller'],
       structuredViolations: [],
     });
 
@@ -640,7 +643,9 @@ export class AnswerGenerationService {
             await waitForRetry(delayMs, signal);
           } catch (waitError: any) {
             if (signal.aborted || waitError?.name === 'AbortError') {
-              const abortedResult = createAbortedResult();
+              const timeoutMessage = signal.reason?.message || waitError?.message || '';
+              const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
+              const abortedResult = createAbortedResult(timedOut, timeoutMessage || undefined);
               (abortedResult as any).answer = abortedResult.cleanAnswer;
               cb.onComplete?.(abortedResult);
               clearTimeout(overallTimer);
