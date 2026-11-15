@@ -237,6 +237,11 @@ export class AnswerGenerationService {
           followUps: [],
           predictedFollowUps: [],
           requestId,
+          validationResult: {
+            isGrounded: false,
+            validationStatus: 'FAILED',
+            violations: ['Generation deadline exceeded'],
+          },
           validationStatus: 'FAILED',
           groundingScore: 0,
           groundingViolations: ['Generation deadline exceeded'],
