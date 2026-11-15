@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
-import type { TenantEnvelopeCipher, EncryptedEnvelope } from '../../../../packages/cloud-core/src/encryption';
+import type {
+  EncryptedEnvelope,
+  TenantEnvelopeCipher,
+} from '../../../../packages/cloud-core/src/encryption';
 import type {
   LinkedInConnectionIdentity,
   LinkedInOAuthState,
@@ -8,20 +11,35 @@ import type {
   LinkedInTokenVault,
 } from './types';
 
-interface SqlResult<Row> { rows: Row[]; rowCount?: number | null }
+interface SqlResult<Row> {
+  rows: Row[];
+  rowCount?: number | null;
+}
+
 interface SqlClient {
-  query<Row = Record<string, unknown>>(sql: string, values?: unknown[]): Promise<SqlResult<Row>>;
+  query<Row = Record<string, unknown>>(
+    sql: string,
+    values?: unknown[]
+  ): Promise<SqlResult<Row>>;
   release(): void;
 }
-interface SqlPool { connect(): Promise<SqlClient> }
-interface ConnectionRow { token_envelope: EncryptedEnvelope }
+
+interface SqlPool {
+  connect(): Promise<SqlClient>;
+}
+
+interface ConnectionRow {
+  token_envelope: EncryptedEnvelope;
+}
 
 function stateHash(state: string): string {
   return createHash('sha256').update(state, 'utf8').digest('hex');
 }
 
 function tokenContext(subject: string): string {
-  if (!subject || subject.length > 255) throw new Error('Invalid LinkedIn token subject');
+  if (!subject || subject.length > 255) {
+    throw new Error('Invalid LinkedIn token subject');
+  }
   return `linkedin-token:${subject}`;
 }
 
@@ -40,7 +58,11 @@ async function inTenant<T>(
     await client.query('COMMIT');
     return result;
   } catch (error) {
-    try { await client.query('ROLLBACK'); } catch { /* Preserve original error. */ }
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // Preserve original error.
+    }
     throw error;
   } finally {
     client.release();
@@ -48,24 +70,44 @@ async function inTenant<T>(
 }
 
 export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInTokenVault {
-  constructor(private readonly pool: SqlPool, private readonly cipher: TenantEnvelopeCipher) {}
+  constructor(
+    private readonly pool: SqlPool,
+    private readonly cipher: TenantEnvelopeCipher
+  ) {}
 
   async save(state: LinkedInOAuthState): Promise<void> {
-    await inTenant(this.pool, state.identity.tenantId, state.identity.subject, async (client) => {
-      await client.query(
-        `INSERT INTO linkedin_oauth_states (state_hash, tenant_id, subject, redirect_uri, expires_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [stateHash(state.state), state.identity.tenantId, state.identity.subject, state.redirectUri,
-          new Date(state.expiresAt).toISOString()]
-      );
-    });
+    await inTenant(
+      this.pool,
+      state.identity.tenantId,
+      state.identity.subject,
+      async (client) => {
+        await client.query(
+          `INSERT INTO linkedin_oauth_states
+            (state_hash, tenant_id, subject, redirect_uri, expires_at)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            stateHash(state.state),
+            state.identity.tenantId,
+            state.identity.subject,
+            state.redirectUri,
+            new Date(state.expiresAt).toISOString(),
+          ]
+        );
+      }
+    );
   }
 
-  async consume(state: string, identity: LinkedInConnectionIdentity): Promise<LinkedInOAuthState | null> {
+  async consume(
+    state: string,
+    identity: LinkedInConnectionIdentity
+  ): Promise<LinkedInOAuthState | null> {
     const hash = stateHash(state);
     return inTenant(this.pool, identity.tenantId, identity.subject, async (client) => {
       const result = await client.query<{
-        tenant_id: string; subject: string; redirect_uri: string; expires_at: Date | string;
+        tenant_id: string;
+        subject: string;
+        redirect_uri: string;
+        expires_at: Date | string;
       }>(
         `DELETE FROM linkedin_oauth_states
           WHERE state_hash = $1 AND tenant_id = $2 AND subject = $3
@@ -100,8 +142,13 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
            granted_scopes = EXCLUDED.granted_scopes,
            token_expires_at = EXCLUDED.token_expires_at,
            updated_at = now()`,
-        [identity.tenantId, identity.subject, JSON.stringify(envelope), tokens.grantedScopes,
-          new Date(tokens.expiresAt).toISOString()]
+        [
+          identity.tenantId,
+          identity.subject,
+          JSON.stringify(envelope),
+          tokens.grantedScopes,
+          new Date(tokens.expiresAt).toISOString(),
+        ]
       );
     });
   }
@@ -115,6 +162,7 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
       );
       const row = result.rows[0];
       if (!row) return null;
+
       const plaintext = await this.cipher.decrypt(
         row.token_envelope,
         identity.tenantId,
@@ -122,9 +170,14 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
       );
       try {
         const tokens = JSON.parse(plaintext.toString('utf8')) as LinkedInTokenSet;
-        if (!Array.isArray(tokens.grantedScopes) || typeof tokens.accessToken !== 'string' ||
-            typeof tokens.memberId !== 'string' || !/^[A-Za-z0-9_-]{1,255}$/.test(tokens.memberId) ||
-            tokens.tokenType !== 'Bearer' || !Number.isFinite(tokens.expiresAt)) {
+        if (
+          !Array.isArray(tokens.grantedScopes) ||
+          typeof tokens.accessToken !== 'string' ||
+          typeof tokens.memberId !== 'string' ||
+          !/^[A-Za-z0-9_-]{1,255}$/.test(tokens.memberId) ||
+          tokens.tokenType !== 'Bearer' ||
+          !Number.isFinite(tokens.expiresAt)
+        ) {
           throw new Error('Stored LinkedIn token envelope has an invalid payload');
         }
         return tokens;
