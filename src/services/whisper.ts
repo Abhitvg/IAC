@@ -237,7 +237,9 @@ async function transcribeLocal(
 }
 
 export function postProcessTranscript(text: string): string {
-  let processed = text.replace(/\[[^\]]+\]|\([^)]+\)/g, '').trim();
+  // Preserve semantic content: parenthetical explanations and bracketed uncertainty markers
+  // may contain real spoken information. ASR cleanup must never silently delete them.
+  let processed = text.trim();
   const corrections: Record<string, string> = {
     'aws code pipeline': 'AWS CodePipeline',
     'aws codepipeline': 'AWS CodePipeline',
