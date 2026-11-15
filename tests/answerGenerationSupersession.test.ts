@@ -154,6 +154,9 @@ describe('AnswerGenerationService request supersession', () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(result.status).toBe('FAILED');
+    if (result.status !== 'FAILED') {
+      throw new Error(`Expected a failed partial result, received ${result.status}.`);
+    }
     expect(result.partialAnswer).toContain('Partial answer only.');
     expect(tokens.join('')).toContain('Partial answer only.');
   });
