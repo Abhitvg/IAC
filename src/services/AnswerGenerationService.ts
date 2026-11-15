@@ -128,9 +128,10 @@ function isRetryableTransientGenerationError(error: unknown): boolean {
   const status = Number(candidate.status ?? candidate.statusCode);
   if ([408, 425, 500, 502, 503, 504].includes(status)) return true;
   if (Number.isFinite(status) && status > 0) return false;
-  return /fetch failed|network error|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|connection reset/i.test(
-    typeof candidate.message === 'string' ? candidate.message : ''
-  );
+  const message = typeof candidate.message === 'string' ? candidate.message : '';
+  const retryableNetworkError =
+    /fetch failed|network error|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|connection reset/i;
+  return retryableNetworkError.test(message);
 }
 
 function waitForRetry(delayMs: number, signal: AbortSignal): Promise<void> {
