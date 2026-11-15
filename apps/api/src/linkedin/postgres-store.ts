@@ -24,7 +24,7 @@ interface SqlClient {
   release(): void;
 }
 
-interface SqlPool {
+export interface LinkedInSqlPool {
   connect(): Promise<SqlClient>;
 }
 
@@ -44,7 +44,7 @@ function tokenContext(subject: string): string {
 }
 
 async function inTenant<T>(
-  pool: SqlPool,
+  pool: LinkedInSqlPool,
   tenantId: string,
   subject: string,
   work: (client: SqlClient) => Promise<T>
@@ -71,7 +71,7 @@ async function inTenant<T>(
 
 export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInTokenVault {
   constructor(
-    private readonly pool: SqlPool,
+    private readonly pool: LinkedInSqlPool,
     private readonly cipher: TenantEnvelopeCipher
   ) {}
 
