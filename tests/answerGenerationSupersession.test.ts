@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AnswerGenerationService } from '../src/services/AnswerGenerationService';
+import { RateLimitGovernor } from '../src/services/rateLimitGovernor';
 import { startCloudLLMStream } from '../electron/services/cloudLLMStreaming';
 
 function createStreamingResponse(text: string): Response {
@@ -80,6 +81,37 @@ describe('AnswerGenerationService request supersession', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it('retries a transient provider connection failure before any answer token is emitted', async () => {
+    vi.spyOn(RateLimitGovernor, 'calculateBackoffDelayMs').mockReturnValue(1);
+    const credentialStore = {
+      getKey: vi.fn(async () => 'gsk_test_key_123456789012345678901234567890'),
+    };
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce(createStreamingResponse('A hash table maps keys to values.'));
+    const gateway = createElectronGateway(credentialStore);
+    vi.stubGlobal('window', { electronAPI: gateway });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const tokens: string[] = [];
+    const result = await AnswerGenerationService.getInstance().generateAnswer(
+      {
+        requestId: 'transient-network-retry',
+        type: 'interview',
+        text: 'What is a hash table?',
+        provider: 'groq',
+        model: 'openai/gpt-oss-120b',
+        preferredLanguage: 'Java',
+      },
+      { onToken: (token) => tokens.push(token) }
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.status).toBe('VALIDATED');
+    expect(tokens.join('')).toContain('hash table');
   });
 
   it('suppresses tokens from a superseded interview request', async () => {
