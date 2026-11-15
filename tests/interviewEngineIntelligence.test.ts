@@ -63,7 +63,8 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
     });
 
     it('2. Operational Transformation & Concurrency: provides mechanism-level guidance', () => {
-      const q = 'How does Operational Transformation handle concurrent edits in real-time document editing?';
+      const q =
+        'How does Operational Transformation handle concurrent edits in real-time document editing?';
       const intent = classifyQuestionIntent(q, 'interview');
       expect(intent).toBe('implementation');
 
@@ -250,7 +251,9 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
     });
 
     it('deduplicates identical in-flight questions to prevent duplicate answer generation', async () => {
-      const answerSpy = vi.spyOn(AnswerGenerationService.getInstance(), 'generateAnswer').mockResolvedValue();
+      const answerSpy = vi
+        .spyOn(AnswerGenerationService.getInstance(), 'generateAnswer')
+        .mockResolvedValue();
 
       useAppStore.setState({
         currentQuestion: 'Explain database normalization.',
