@@ -641,7 +641,7 @@ export class InterviewEngine {
           pipelineStage: 'generating',
           selectedProvider: currentStore.settings?.aiProvider || 'groq',
           selectedModel: currentStore.settings?.aiModel,
-          message: `Generation started for: "${finalQuestion.slice(0, 80)}"`,
+          message: 'Interview answer generation started; question text omitted from diagnostics.',
         });
 
         const requestController = activeAbortController;
