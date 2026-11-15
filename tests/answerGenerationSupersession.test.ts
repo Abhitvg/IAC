@@ -121,12 +121,14 @@ describe('AnswerGenerationService request supersession', () => {
     const encoder = new TextEncoder();
     const interruptedStream = new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ choices: [{ delta: { content: 'Partial answer only.' } }] })}\n\n`
-          )
-        );
-        queueMicrotask(() => controller.error(new TypeError('socket hang up')));
+        setTimeout(() => {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ choices: [{ delta: { content: 'Partial answer only.' } }] })}\n\n`
+            )
+          );
+          setTimeout(() => controller.error(new TypeError('socket hang up')), 0);
+        }, 10);
       },
     });
     const fetchMock = vi.fn().mockResolvedValue(
@@ -168,7 +170,7 @@ describe('AnswerGenerationService request supersession', () => {
     const fetchMock = vi
       .fn()
       .mockImplementationOnce(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 40));
+        await new Promise((resolve) => setTimeout(resolve, 250));
         return createStreamingResponse('This answer belongs to the stale request.');
       })
       .mockResolvedValueOnce(createStreamingResponse('This is the current answer.'));
@@ -191,7 +193,7 @@ describe('AnswerGenerationService request supersession', () => {
       { onToken: (token) => staleTokens.push(token) }
     );
 
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce(), { interval: 1 });
 
     const currentRequest = service.generateAnswer(
       {
