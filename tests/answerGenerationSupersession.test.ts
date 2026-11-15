@@ -1,0 +1,138 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AnswerGenerationService } from '../src/services/AnswerGenerationService';
+import { RateLimitGovernor } from '../src/services/rateLimitGovernor';
+import { startCloudLLMStream } from '../electron/services/cloudLLMStreaming';
+
+function createStreamingResponse(text: string): Response {
+  const encoder = new TextEncoder();
+  const payload = [
+    `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`,
+    'data: [DONE]\n\n',
+  ].join('');
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(payload));
+      controller.close();
+    },
+  });
+  return new Response(stream, {
+    status: 200,
+    headers: { 'content-type': 'text/event-stream' },
+  });
+}
+
+function createElectronGateway(credentialStore: { getKey: ReturnType<typeof vi.fn> }) {
+  const chunkListeners = new Set<(payload: any) => void>();
+  const doneListeners = new Set<(payload: any) => void>();
+  const errorListeners = new Set<(payload: any) => void>();
+  const controllers = new Map<string, AbortController>();
+
+  const send = (channel: string, payload: any) => {
+    const listeners =
+      channel === 'ai:stream-chunk'
+        ? chunkListeners
+        : channel === 'ai:stream-done'
+          ? doneListeners
+          : errorListeners;
+    for (const listener of listeners) listener(payload);
+  };
+
+  return {
+    startCloudLLMStream: async (request: any) => {
+      const controller = new AbortController();
+      controllers.set(request.requestId, controller);
+      try {
+        const result = await startCloudLLMStream(
+          request,
+          credentialStore as any,
+          controller.signal,
+          send
+        );
+        if (!result.ok) controllers.delete(request.requestId);
+        return result;
+      } catch (error) {
+        controllers.delete(request.requestId);
+        throw error;
+      }
+    },
+    cancelCloudLLMStream: async (requestId: string) => {
+      const controller = controllers.get(requestId);
+      if (!controller) return false;
+      controller.abort();
+      controllers.delete(requestId);
+      return true;
+    },
+    onAIStreamChunk: (callback: (payload: any) => void) => {
+      chunkListeners.add(callback);
+      return () => chunkListeners.delete(callback);
+    },
+    onAIStreamDone: (callback: (payload: any) => void) => {
+      doneListeners.add(callback);
+      return () => doneListeners.delete(callback);
+    },
+    onAIStreamError: (callback: (payload: any) => void) => {
+      errorListeners.add(callback);
+      return () => errorListeners.delete(callback);
+    },
+  };
+}
+
+describe('AnswerGenerationService request supersession', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('suppresses tokens from a superseded interview request', async () => {
+    const credentialStore = {
+      getKey: vi.fn(async () => 'gsk_test_key_123456789012345678901234567890'),
+    };
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        return createStreamingResponse('This answer belongs to the stale request.');
+      })
+      .mockResolvedValueOnce(createStreamingResponse('This is the current answer.'));
+    const gateway = createElectronGateway(credentialStore);
+    vi.stubGlobal('window', { electronAPI: gateway });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const staleTokens: string[] = [];
+    const currentTokens: string[] = [];
+    const service = AnswerGenerationService.getInstance();
+    const staleRequest = service.generateAnswer(
+      {
+        requestId: 'stale-interview-request',
+        type: 'interview',
+        text: 'What is a binary search tree?',
+        provider: 'groq',
+        model: 'openai/gpt-oss-120b',
+        preferredLanguage: 'Java',
+      },
+      { onToken: (token) => staleTokens.push(token) }
+    );
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+    const currentRequest = service.generateAnswer(
+      {
+        requestId: 'current-interview-request',
+        type: 'interview',
+        text: 'What is a hash table?',
+        provider: 'groq',
+        model: 'openai/gpt-oss-120b',
+        preferredLanguage: 'Java',
+      },
+      { onToken: (token) => currentTokens.push(token) }
+    );
+
+    const [staleResult, currentResult] = await Promise.all([staleRequest, currentRequest]);
+
+    expect(staleResult.status).toBe('ABORTED');
+    expect(staleTokens).toEqual([]);
+    expect(currentResult.status).toBe('VALIDATED');
+    expect(currentTokens.join('')).toContain('current answer');
+    expect(currentTokens.join('')).not.toContain('stale request');
+  });
+});
