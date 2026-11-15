@@ -14,12 +14,7 @@ interface SqlClient {
   release(): void;
 }
 interface SqlPool { connect(): Promise<SqlClient> }
-
-interface ConnectionRow {
-  token_envelope: EncryptedEnvelope;
-  granted_scopes: string[];
-  token_expires_at: Date | string;
-}
+interface ConnectionRow { token_envelope: EncryptedEnvelope }
 
 function stateHash(state: string): string {
   return createHash('sha256').update(state, 'utf8').digest('hex');
@@ -55,7 +50,7 @@ async function inTenant<T>(
 export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInTokenVault {
   constructor(private readonly pool: SqlPool, private readonly cipher: TenantEnvelopeCipher) {}
 
-  async put(state: LinkedInOAuthState): Promise<void> {
+  async save(state: LinkedInOAuthState): Promise<void> {
     await inTenant(this.pool, state.identity.tenantId, state.identity.subject, async (client) => {
       await client.query(
         `INSERT INTO linkedin_oauth_states (state_hash, tenant_id, subject, redirect_uri, expires_at)
@@ -66,22 +61,17 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
     });
   }
 
-  async consume(state: string): Promise<LinkedInOAuthState | null> {
-    // The callback is authenticated and tenant-scoped before this lookup. State is single-use.
-    // The tenant and subject are supplied by the caller's auth context, then verified by OAuth service.
+  async consume(state: string, identity: LinkedInConnectionIdentity): Promise<LinkedInOAuthState | null> {
     const hash = stateHash(state);
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
+    return inTenant(this.pool, identity.tenantId, identity.subject, async (client) => {
       const result = await client.query<{
         tenant_id: string; subject: string; redirect_uri: string; expires_at: Date | string;
       }>(
         `DELETE FROM linkedin_oauth_states
-          WHERE state_hash = $1 AND expires_at > now()
+          WHERE state_hash = $1 AND tenant_id = $2 AND subject = $3 AND expires_at > now()
           RETURNING tenant_id, subject, redirect_uri, expires_at`,
-        [hash]
+        [hash, identity.tenantId, identity.subject]
       );
-      await client.query('COMMIT');
       const row = result.rows[0];
       if (!row) return null;
       return {
@@ -90,28 +80,17 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
         redirectUri: row.redirect_uri,
         expiresAt: new Date(row.expires_at).getTime(),
       };
-    } catch (error) {
-      try { await client.query('ROLLBACK'); } catch { /* Preserve original error. */ }
-      throw error;
-    } finally {
-      client.release();
-    }
+    });
   }
 
-  async put(identity: LinkedInConnectionIdentity, tokens: LinkedInTokenSet): Promise<void>;
-  async put(value: LinkedInOAuthState | LinkedInConnectionIdentity, tokens?: LinkedInTokenSet): Promise<void> {
-    if ('state' in value) {
-      await this.put(value as LinkedInOAuthState);
-      return;
-    }
-    if (!tokens) throw new Error('LinkedIn token set is required');
-    const context = tokenContext(value.subject);
+  async put(identity: LinkedInConnectionIdentity, tokens: LinkedInTokenSet): Promise<void> {
+    const context = tokenContext(identity.subject);
     const envelope = await this.cipher.encrypt(
-      value.tenantId,
+      identity.tenantId,
       context,
       Buffer.from(JSON.stringify(tokens), 'utf8')
     );
-    await inTenant(this.pool, value.tenantId, value.subject, async (client) => {
+    await inTenant(this.pool, identity.tenantId, identity.subject, async (client) => {
       await client.query(
         `INSERT INTO linkedin_connections
           (tenant_id, subject, token_envelope, granted_scopes, token_expires_at, updated_at)
@@ -121,7 +100,7 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
            granted_scopes = EXCLUDED.granted_scopes,
            token_expires_at = EXCLUDED.token_expires_at,
            updated_at = now()`,
-        [value.tenantId, value.subject, JSON.stringify(envelope), tokens.grantedScopes,
+        [identity.tenantId, identity.subject, JSON.stringify(envelope), tokens.grantedScopes,
           new Date(tokens.expiresAt).toISOString()]
       );
     });
@@ -130,8 +109,8 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
   async get(identity: LinkedInConnectionIdentity): Promise<LinkedInTokenSet | null> {
     return inTenant(this.pool, identity.tenantId, identity.subject, async (client) => {
       const result = await client.query<ConnectionRow>(
-        `SELECT token_envelope, granted_scopes, token_expires_at
-           FROM linkedin_connections WHERE tenant_id = $1 AND subject = $2`,
+        `SELECT token_envelope FROM linkedin_connections
+          WHERE tenant_id = $1 AND subject = $2`,
         [identity.tenantId, identity.subject]
       );
       const row = result.rows[0];
@@ -143,7 +122,8 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
       );
       try {
         const tokens = JSON.parse(plaintext.toString('utf8')) as LinkedInTokenSet;
-        if (!Array.isArray(tokens.grantedScopes) || !tokens.accessToken || tokens.tokenType !== 'Bearer') {
+        if (!Array.isArray(tokens.grantedScopes) || typeof tokens.accessToken !== 'string' ||
+            tokens.tokenType !== 'Bearer' || !Number.isFinite(tokens.expiresAt)) {
           throw new Error('Stored LinkedIn token envelope has an invalid payload');
         }
         return tokens;
@@ -157,6 +137,10 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
     await inTenant(this.pool, identity.tenantId, identity.subject, async (client) => {
       await client.query(
         'DELETE FROM linkedin_connections WHERE tenant_id = $1 AND subject = $2',
+        [identity.tenantId, identity.subject]
+      );
+      await client.query(
+        'DELETE FROM linkedin_oauth_states WHERE tenant_id = $1 AND subject = $2',
         [identity.tenantId, identity.subject]
       );
     });
