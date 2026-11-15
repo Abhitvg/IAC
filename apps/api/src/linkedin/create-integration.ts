@@ -4,14 +4,8 @@ import {
 } from '../../../../packages/cloud-core/src/encryption';
 import { LinkedInApiClient } from './client';
 import { LinkedInOAuthService } from './oauth';
-import {
-  LinkedInPostgresStore,
-  type LinkedInSqlPool,
-} from './postgres-store';
-import type {
-  LinkedInOAuthConfig,
-  LinkedInProductEntitlements,
-} from './types';
+import { LinkedInPostgresStore, type LinkedInSqlPool } from './postgres-store';
+import type { LinkedInOAuthConfig, LinkedInProductEntitlements } from './types';
 import type { LinkedInCloudIntegration } from '../ports';
 
 export interface CreateLinkedInIntegrationOptions {

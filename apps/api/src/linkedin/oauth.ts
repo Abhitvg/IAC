@@ -21,7 +21,14 @@ function requiredString(value: string, name: string): string {
 
 function parseScopes(value: unknown): string[] {
   if (typeof value !== 'string') return [];
-  return [...new Set(value.split(/[\s,]+/).map((scope) => scope.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      value
+        .split(/[\s,]+/)
+        .map((scope) => scope.trim())
+        .filter(Boolean)
+    ),
+  ];
 }
 
 function safeEqual(left: string, right: string): boolean {
@@ -127,7 +134,12 @@ export class LinkedInOAuthService {
     const payload = (await response.json()) as Record<string, unknown>;
     const accessToken = typeof payload.access_token === 'string' ? payload.access_token : '';
     const expiresIn = Number(payload.expires_in);
-    if (!accessToken || accessToken.length > 4096 || !Number.isFinite(expiresIn) || expiresIn <= 0) {
+    if (
+      !accessToken ||
+      accessToken.length > 4096 ||
+      !Number.isFinite(expiresIn) ||
+      expiresIn <= 0
+    ) {
       throw new Error('LinkedIn returned an invalid token response');
     }
 
@@ -144,9 +156,7 @@ export class LinkedInOAuthService {
       signal: AbortSignal.timeout(10_000),
     });
     if (!identityResponse.ok) {
-      throw new Error(
-        `LinkedIn identity verification failed with HTTP ${identityResponse.status}`
-      );
+      throw new Error(`LinkedIn identity verification failed with HTTP ${identityResponse.status}`);
     }
     const identityPayload = (await identityResponse.json()) as Record<string, unknown>;
     const memberId = typeof identityPayload.sub === 'string' ? identityPayload.sub.trim() : '';

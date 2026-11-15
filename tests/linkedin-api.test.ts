@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  LinkedInApiClient,
-  getLinkedInCapabilities,
-} from '../apps/api/src/linkedin/client';
+import { LinkedInApiClient, getLinkedInCapabilities } from '../apps/api/src/linkedin/client';
 import { LinkedInOAuthService } from '../apps/api/src/linkedin/oauth';
 import type {
   LinkedInOAuthState,
@@ -49,10 +46,7 @@ class MemoryStates implements LinkedInOAuthStateStore {
 class MemoryTokens implements LinkedInTokenVault {
   value: LinkedInTokenSet | null = null;
 
-  async put(
-    _identity: { tenantId: string; subject: string },
-    value: LinkedInTokenSet
-  ) {
+  async put(_identity: { tenantId: string; subject: string }, value: LinkedInTokenSet) {
     this.value = value;
   }
 
@@ -105,11 +99,7 @@ describe('LinkedIn API client', () => {
     const client = new LinkedInApiClient({ fetcher: vi.fn<typeof fetch>() });
 
     await expect(
-      client.publishMemberTextPost(
-        { ...makeToken(), expiresAt: 0 },
-        'urn:li:person:abc',
-        'Hi'
-      )
+      client.publishMemberTextPost({ ...makeToken(), expiresAt: 0 }, 'urn:li:person:abc', 'Hi')
     ).rejects.toThrow('expired');
     await expect(
       client.publishMemberTextPost(makeToken(), 'urn:li:organization:42', 'Hi')
@@ -122,12 +112,12 @@ describe('LinkedIn API client', () => {
       messagesApiApproved: false,
     });
 
-    expect(
-      capabilities.find((item) => item.id === 'connection_invitations')?.status
-    ).toBe('needs_partner_approval');
-    expect(
-      capabilities.find((item) => item.id === 'direct_messages')?.status
-    ).toBe('needs_partner_approval');
+    expect(capabilities.find((item) => item.id === 'connection_invitations')?.status).toBe(
+      'needs_partner_approval'
+    );
+    expect(capabilities.find((item) => item.id === 'direct_messages')?.status).toBe(
+      'needs_partner_approval'
+    );
   });
 });
 
@@ -171,9 +161,9 @@ describe('LinkedIn OAuth service', () => {
     expect(result.scopes).toContain('w_member_social');
     expect(tokens.value?.accessToken).toBe('access-token');
     expect(tokens.value?.memberId).toBe('abc123');
-    await expect(service.completeAuthorization({ code: 'replay', state, identity })).rejects.toThrow(
-      'invalid, expired, or already used'
-    );
+    await expect(
+      service.completeAuthorization({ code: 'replay', state, identity })
+    ).rejects.toThrow('invalid, expired, or already used');
   });
 
   it('rejects OAuth state replay across members', async () => {

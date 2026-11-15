@@ -94,12 +94,14 @@ export function getLinkedInCapabilities(
           : scopes.has('r_member_social')
             ? 'available'
             : 'needs_linkedin_product_approval',
-      reason: 'Requires approved member social read access; w_member_social does not grant read access.',
+      reason:
+        'Requires approved member social read access; w_member_social does not grant read access.',
     },
     {
       id: 'connection_invitations',
       status: entitlements.invitationsApiApproved ? 'not_implemented' : 'needs_partner_approval',
-      reason: 'The Invitations API is partner-restricted; CareerOps has no invitation executor yet.',
+      reason:
+        'The Invitations API is partner-restricted; CareerOps has no invitation executor yet.',
     },
     {
       id: 'direct_messages',
@@ -109,7 +111,8 @@ export function getLinkedInCapabilities(
     {
       id: 'inbox_read',
       status: entitlements.communicationsApiApproved ? 'not_implemented' : 'needs_partner_approval',
-      reason: 'Communications API partner access is required; browser inbox scraping is not supported.',
+      reason:
+        'Communications API partner access is required; browser inbox scraping is not supported.',
     },
   ];
 }
@@ -171,7 +174,9 @@ export class LinkedInApiClient {
     commentary: string
   ): Promise<{ id: string; status: number }> {
     if (!token.grantedScopes.includes(LINKEDIN_MEMBER_WRITE_SCOPE)) {
-      throw new Error('LinkedIn member publishing is not authorized: w_member_social scope is missing');
+      throw new Error(
+        'LinkedIn member publishing is not authorized: w_member_social scope is missing'
+      );
     }
     assertUrn(authorUrn, 'person');
     return this.createTextPost(token, authorUrn, commentary);

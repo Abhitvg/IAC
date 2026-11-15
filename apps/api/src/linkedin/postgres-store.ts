@@ -17,10 +17,7 @@ interface SqlResult<Row> {
 }
 
 interface SqlClient {
-  query<Row = Record<string, unknown>>(
-    sql: string,
-    values?: unknown[]
-  ): Promise<SqlResult<Row>>;
+  query<Row = Record<string, unknown>>(sql: string, values?: unknown[]): Promise<SqlResult<Row>>;
   release(): void;
 }
 
@@ -76,25 +73,20 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
   ) {}
 
   async save(state: LinkedInOAuthState): Promise<void> {
-    await inTenant(
-      this.pool,
-      state.identity.tenantId,
-      state.identity.subject,
-      async (client) => {
-        await client.query(
-          `INSERT INTO linkedin_oauth_states
+    await inTenant(this.pool, state.identity.tenantId, state.identity.subject, async (client) => {
+      await client.query(
+        `INSERT INTO linkedin_oauth_states
             (state_hash, tenant_id, subject, redirect_uri, expires_at)
            VALUES ($1, $2, $3, $4, $5)`,
-          [
-            stateHash(state.state),
-            state.identity.tenantId,
-            state.identity.subject,
-            state.redirectUri,
-            new Date(state.expiresAt).toISOString(),
-          ]
-        );
-      }
-    );
+        [
+          stateHash(state.state),
+          state.identity.tenantId,
+          state.identity.subject,
+          state.redirectUri,
+          new Date(state.expiresAt).toISOString(),
+        ]
+      );
+    });
   }
 
   async consume(
@@ -189,10 +181,10 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
 
   async delete(identity: LinkedInConnectionIdentity): Promise<void> {
     await inTenant(this.pool, identity.tenantId, identity.subject, async (client) => {
-      await client.query(
-        'DELETE FROM linkedin_connections WHERE tenant_id = $1 AND subject = $2',
-        [identity.tenantId, identity.subject]
-      );
+      await client.query('DELETE FROM linkedin_connections WHERE tenant_id = $1 AND subject = $2', [
+        identity.tenantId,
+        identity.subject,
+      ]);
       await client.query(
         'DELETE FROM linkedin_oauth_states WHERE tenant_id = $1 AND subject = $2',
         [identity.tenantId, identity.subject]
