@@ -574,7 +574,7 @@ export class AnswerGenerationService {
     let streamSucceeded = false;
 
     while (retryCount <= maxRetries && !streamSucceeded) {
-      if (signal?.aborted || requestSeq !== this.currentSequence) break;
+      if (signal?.aborted) break;
 
       try {
         if (hasMockedAi) {
