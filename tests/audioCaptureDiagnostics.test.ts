@@ -17,7 +17,7 @@ describe('audio capture diagnostics', () => {
       .getEvents()
       .filter((event) => event.requestId.startsWith('capture_'));
     expect(events).toHaveLength(2);
-    expect(events[0].audioCaptureOutcome).toBe('ACTIVE');
+    expect(events[0].audioCaptureOutcome).toBe('STARTING');
     expect(events[1].audioCaptureOutcome).toBe('FAILED');
     expect(events[1].audioCaptureDurationMs).toBeGreaterThanOrEqual(0);
     expect(events[1].message).not.toContain('navigator');
