@@ -436,6 +436,43 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           return;
         }
 
+        if (
+          request.method === 'DELETE' &&
+          url.pathname === '/v1/linkedin/organization/reactions'
+        ) {
+          const organizationUrn = url.searchParams.get('organizationUrn');
+          const entityUrn = url.searchParams.get('entityUrn');
+          if (!organizationUrn || !entityUrn || url.searchParams.size !== 2) {
+            sendJson(response, 400, {
+              error: 'Provide exactly organizationUrn and entityUrn query parameters',
+              requestId,
+            });
+            return;
+          }
+          if (!integration.entitlements.communityManagementApproved) {
+            sendJson(response, 403, {
+              error: 'LinkedIn Community Management API approval is required',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, {
+              error: 'Connect LinkedIn before removing a reaction',
+              requestId,
+            });
+            return;
+          }
+          const result = await integration.api.deleteOrganizationReaction(
+            tokenSet,
+            organizationUrn,
+            entityUrn
+          );
+          sendJson(response, 200, { status: result.status, requestId });
+          return;
+        }
+
         sendJson(response, 404, { error: 'LinkedIn route not found', requestId });
         return;
       }
