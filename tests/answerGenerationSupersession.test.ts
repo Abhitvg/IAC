@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AnswerGenerationService } from '../src/services/AnswerGenerationService';
-import { RateLimitGovernor } from '../src/services/rateLimitGovernor';
 import { startCloudLLMStream } from '../electron/services/cloudLLMStreaming';
 
 function createStreamingResponse(text: string): Response {
