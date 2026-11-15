@@ -10,6 +10,7 @@ import {
 } from '../src/services/candidatePersona';
 import { classifyQuestion } from '../src/services/ai';
 import { buildScreenSolverPrompt } from '../src/services/screenSolver';
+import * as whisperService from '../src/services/whisper';
 import { InterviewEngine } from '../src/services/InterviewEngine';
 import { useAppStore } from '../src/store/useAppStore';
 import { AudioRecorder } from '../src/services/audio';
@@ -203,6 +204,49 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
         currentAnswer: null,
         teleprompterQueue: [],
       });
+    });
+
+    it('preserves parenthetical technical context from speech through answer generation', async () => {
+      const transcript =
+        'What is CAP theorem (consistency, availability, and partition tolerance)?';
+      const transcriptionSpy = vi
+        .spyOn(whisperService, 'transcribeAudio')
+        .mockResolvedValue({ text: transcript } as any);
+      const answerSpy = vi
+        .spyOn(AnswerGenerationService.getInstance(), 'generateAnswer')
+        .mockResolvedValue(undefined as any);
+
+      useAppStore.setState({
+        status: 'listening',
+        recitalState: 'listening',
+        currentQuestion: null,
+        currentAnswer: null,
+        settings: {
+          aiProvider: 'groq',
+          aiModel: 'openai/gpt-oss-120b',
+          preferredLanguage: 'Java',
+        },
+        responseMode: 'interview',
+        resumeText: verifiedResume,
+      } as any);
+
+      try {
+        await InterviewEngine.handleEvent({
+          type: 'UTTERANCE_FINALIZED',
+          blob: new Blob(['mock audio']),
+        });
+
+        expect(answerSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            text: transcript,
+            originalTranscript: transcript,
+          }),
+          expect.any(Object)
+        );
+      } finally {
+        transcriptionSpy.mockRestore();
+        answerSpy.mockRestore();
+      }
     });
 
     it('deduplicates identical in-flight questions to prevent duplicate answer generation', async () => {
