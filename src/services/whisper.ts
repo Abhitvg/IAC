@@ -118,7 +118,7 @@ export async function transcribeAudio(
   const targetProvider = resolveTranscriptionProvider(config);
   const sttConfig = { ...config, model: config.model || config.whisperModel };
   if (targetProvider === 'local') {
-    return transcribeLocal(audioBlob, sttConfig, signal);
+    return requireUsableTranscript(await transcribeLocal(audioBlob, sttConfig, signal));
   }
 
   const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
@@ -180,13 +180,25 @@ export async function transcribeAudio(
       abortErr.name = 'AbortError';
       throw abortErr;
     }
-    return {
-      ...result,
-      text: postProcessTranscript(result.text || ''),
-    };
+    return requireUsableTranscript(result);
   } finally {
     signal?.removeEventListener('abort', cancelRequest);
   }
+}
+
+/**
+ * Do not treat an empty or malformed ASR payload as a successful transcription.
+ * The caller can now offer retry/manual correction instead of silently dropping a question.
+ */
+function requireUsableTranscript(result: TranscriptionResult): TranscriptionResult {
+  if (!result || typeof result.text !== 'string') {
+    throw new Error('[TRANSCRIPTION_INVALID_RESPONSE] Speech provider returned an invalid transcript.');
+  }
+  const text = postProcessTranscript(result.text);
+  if (!text.trim()) {
+    throw new Error('[TRANSCRIPTION_EMPTY] No speech was recognized. Retry transcription or enter the question manually.');
+  }
+  return { ...result, text };
 }
 
 /** Supports local endpoints with a multipart "file" field, such as whisper.cpp server. */
