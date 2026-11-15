@@ -113,7 +113,7 @@ export function getLinkedInCapabilities(
         ? 'needs_member_authorization'
         : !entitlements.communityManagementApproved
           ? 'needs_linkedin_product_approval'
-          : scopes.has('r_member_social')
+          : scopes.has('r_member_social_feed')
             ? 'available'
             : 'needs_linkedin_product_approval',
       reason:
