@@ -26,7 +26,7 @@ describe('live transcription provider routing', () => {
       expect(postProcessTranscript(transcript)).toBe(
         'CAP theorem (consistency, availability, and partition tolerance) is a trade-off. [inaudible] is marked for review.'
       );
-    }
+    },
   );
 
   it('normalizes technical terms without deleting surrounding meaning', () => {
