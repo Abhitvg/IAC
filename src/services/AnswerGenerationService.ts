@@ -210,6 +210,45 @@ export class AnswerGenerationService {
     const requestId =
       params.requestId || `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const type = params.type || 'interview';
+    const generationStartedAt = Date.now();
+    let firstTokenAt: number | undefined;
+    let receivedTokenCount = 0;
+    let terminalResultRecorded = false;
+    const notifyComplete = (result: AnswerGenerationResult) => {
+      if (terminalResultRecorded) return;
+      terminalResultRecorded = true;
+      const outcome =
+        result.status === 'VALIDATED'
+          ? 'SUCCESS'
+          : result.status === 'FLAGGED'
+            ? 'CONFIRMATION_NEEDED'
+            : result.status === 'BLOCKED'
+              ? 'BLOCKED'
+              : result.status === 'ABORTED'
+                ? 'ABORTED'
+                : 'FAILED';
+      DiagnosticLoggerService.getInstance().recordEvent({
+        requestId,
+        pipelineStage: outcome === 'SUCCESS' ? 'answer_ready' : 'failed',
+        selectedProvider: params.provider || 'groq',
+        selectedModel: params.model,
+        timeToFirstTokenMs:
+          firstTokenAt === undefined ? undefined : firstTokenAt - generationStartedAt,
+        totalGenerationTimeMs: Date.now() - generationStartedAt,
+        receivedTokenCount,
+        isEmptyResponse: !result.cleanAnswer.trim(),
+        finalOutcome: outcome,
+        message: 'Interview generation reached a terminal state.',
+      });
+      cb.onComplete?.(result);
+    };
+    DiagnosticLoggerService.getInstance().recordEvent({
+      requestId,
+      pipelineStage: 'generating',
+      selectedProvider: params.provider || 'groq',
+      selectedModel: params.model,
+      message: 'Interview answer generation started.',
+    });
     const callerSignal = params.signal;
     const generationController = new AbortController();
     this.activeGenerationController = generationController;
@@ -283,7 +322,7 @@ export class AnswerGenerationService {
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
-      cb.onComplete?.(abortedResult);
+      notifyComplete(abortedResult);
       cleanupGeneration();
       return abortedResult;
     }
@@ -298,7 +337,7 @@ export class AnswerGenerationService {
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
-      cb.onComplete?.(abortedResult);
+      notifyComplete(abortedResult);
       cleanupGeneration();
       return abortedResult;
     }
@@ -328,7 +367,7 @@ export class AnswerGenerationService {
         groundingViolations: [err.message],
         structuredViolations: [],
       };
-      cb.onComplete?.(failedResult);
+      notifyComplete(failedResult);
       cleanupGeneration();
       return failedResult;
     }
@@ -513,7 +552,7 @@ export class AnswerGenerationService {
           ],
         };
         (completionResult as any).answer = completionResult.cleanAnswer;
-        cb.onComplete?.(completionResult);
+        notifyComplete(completionResult);
         return;
       }
 
@@ -577,7 +616,7 @@ export class AnswerGenerationService {
         blockedReason: decision.blockedReason,
       } as any;
       (completionResult as any).answer = completionResult.cleanAnswer;
-      cb.onComplete?.(completionResult);
+      notifyComplete(completionResult);
     };
 
     let retryCount = 0;
@@ -604,6 +643,18 @@ export class AnswerGenerationService {
             {
               onToken: (token) => {
                 if (signal?.aborted || requestSeq !== this.currentSequence) return;
+                if (firstTokenAt === undefined) {
+                  firstTokenAt = Date.now();
+                  DiagnosticLoggerService.getInstance().recordEvent({
+                    requestId,
+                    pipelineStage: 'streaming',
+                    selectedProvider: provider,
+                    selectedModel: providerConfig.model,
+                    timeToFirstTokenMs: firstTokenAt - generationStartedAt,
+                    message: 'First answer token received.',
+                  });
+                }
+                receivedTokenCount += Math.max(1, token.length > 0 ? 1 : 0);
                 cb.onToken?.(token, requestId);
               },
               onSentence: (sentence) => {
@@ -643,7 +694,7 @@ export class AnswerGenerationService {
             structuredViolations: [],
           };
           (completionResult as any).answer = completionResult.cleanAnswer;
-          cb.onComplete?.(completionResult);
+          notifyComplete(completionResult);
           cleanupGeneration();
           return completionResult;
         }
@@ -680,7 +731,7 @@ export class AnswerGenerationService {
               const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
               const abortedResult = createAbortedResult(timedOut, timeoutMessage || undefined);
               (abortedResult as any).answer = abortedResult.cleanAnswer;
-              cb.onComplete?.(abortedResult);
+              notifyComplete(abortedResult);
               cleanupGeneration();
               return abortedResult;
             }
@@ -781,7 +832,7 @@ export class AnswerGenerationService {
                 structuredViolations: [],
               };
               (completionResult as any).answer = completionResult.cleanAnswer;
-              cb.onComplete?.(completionResult);
+              notifyComplete(completionResult);
             }
             break;
           }
@@ -830,7 +881,7 @@ export class AnswerGenerationService {
           structuredViolations: [],
         };
         (completionResult as any).answer = completionResult.cleanAnswer;
-        cb.onComplete?.(completionResult);
+        notifyComplete(completionResult);
         break;
       }
     }
@@ -866,7 +917,7 @@ export class AnswerGenerationService {
         };
       }
       (completionResult as any).answer = completionResult.cleanAnswer;
-      cb.onComplete?.(completionResult);
+      notifyComplete(completionResult);
     }
 
     // Stale request detection
