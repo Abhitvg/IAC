@@ -1,3 +1,4 @@
+import { createProviderRequestSignal, DEFAULT_LLM_REQUEST_TIMEOUT_MS } from './requestLifecycle';
 import {
   LLMProvider,
   LLMMessage,
@@ -20,7 +21,7 @@ export class GroqProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = getDefaultModelForProvider('groq', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -43,7 +44,10 @@ export class GroqProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: options?.signal,
+      signal: createProviderRequestSignal(
+        options?.signal,
+        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
+      ),
     });
 
     if (!response.ok) {
@@ -51,7 +55,7 @@ export class GroqProvider implements LLMProvider {
       let parsed: any = errText;
       try {
         parsed = JSON.parse(errText);
-      } catch { }
+      } catch {}
       const classified = classifyAIError('groq', model, response.status, parsed);
       throw classified;
     }
@@ -99,7 +103,7 @@ export class OpenAIProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = getDefaultModelForProvider('openai', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -117,7 +121,10 @@ export class OpenAIProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: options?.signal,
+      signal: createProviderRequestSignal(
+        options?.signal,
+        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
+      ),
     });
 
     if (!response.ok) {
@@ -166,7 +173,7 @@ export class OpenRouterProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = getDefaultModelForProvider('openrouter', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -186,7 +193,10 @@ export class OpenRouterProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: options?.signal,
+      signal: createProviderRequestSignal(
+        options?.signal,
+        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
+      ),
     });
 
     if (!response.ok) {
@@ -235,7 +245,7 @@ export class OllamaProvider implements LLMProvider {
   constructor(
     private endpoint: string = 'http://127.0.0.1:11434',
     private defaultModel: string = getDefaultModelForProvider('ollama', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -255,7 +265,10 @@ export class OllamaProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: options?.signal,
+      signal: createProviderRequestSignal(
+        options?.signal,
+        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
+      ),
     });
 
     if (!response.ok) {
@@ -410,6 +423,7 @@ export class LLMManager {
 
         return response;
       } catch (err: any) {
+        if (options?.signal?.aborted) throw err;
         lastError = err;
         // Non-recoverable errors (invalid API key, billing failure, quota/rate-limit) must not be silently masked
         if (err?.isRecoverableByModelFallback === false) {

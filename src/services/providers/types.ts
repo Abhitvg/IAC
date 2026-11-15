@@ -10,6 +10,7 @@ export interface LLMRequestOptions {
   stream?: boolean;
   onToken?: (token: string) => void;
   signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 export interface LLMResponse {
@@ -36,6 +37,10 @@ export interface STTOptions {
   language?: string;
   prompt?: string;
   temperature?: number;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  /** Cross-provider audio routing is disabled unless the user opts in. */
+  allowFallback?: boolean;
 }
 
 export interface STTResult {

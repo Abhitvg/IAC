@@ -12,6 +12,7 @@ import {
   LocalWhisperCppProvider,
   STTManager,
 } from '../../src/services/providers/STTProvider';
+import { createProviderRequestSignal } from '../../src/services/providers/requestLifecycle';
 import {
   BrowserSpeechTTSProvider,
   PiperLocalTTSProvider,
@@ -221,5 +222,139 @@ describe('15-Minute Offline Mock Session Simulation', () => {
     expect(probeResponse.providerId).toBe('ollama');
     expect(llmManager.getSessionUsage().totalEstimatedCostUsd).toBe(0.0);
     expect(llmManager.getSessionUsage().requestCount).toBe(2);
+  });
+});
+
+describe('Provider request lifecycle and explicit audio fallback', () => {
+  it('composes caller cancellation with a bounded provider deadline', async () => {
+    const caller = new AbortController();
+    const signal = createProviderRequestSignal(caller.signal, 5000);
+
+    expect(signal.aborted).toBe(false);
+    caller.abort(new Error('user cancelled'));
+    expect(signal.aborted).toBe(true);
+    expect(signal.reason).toBeDefined();
+
+    const timeoutSignal = createProviderRequestSignal(undefined, 5);
+    await new Promise<void>((resolve) => {
+      timeoutSignal.addEventListener('abort', () => resolve(), { once: true });
+    });
+    expect(timeoutSignal.aborted).toBe(true);
+    expect((timeoutSignal.reason as Error).name).toBe('TimeoutError');
+  });
+
+  it('does not send an LLM request after caller cancellation', async () => {
+    const caller = new AbortController();
+    caller.abort(new Error('cancelled by caller'));
+    const mockFetch = vi.fn();
+    global.fetch = mockFetch;
+
+    const groq = new GroqProvider('gsk_testkey');
+    await expect(
+      groq.complete([{ role: 'user', content: 'hello' }], { signal: caller.signal })
+    ).rejects.toThrow();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('does not fail over LLM requests after caller cancellation', async () => {
+    const caller = new AbortController();
+    caller.abort();
+    const manager = new LLMManager('groq', 10000);
+    const failingGroq = {
+      id: 'groq' as const,
+      name: 'Groq',
+      isLocal: false,
+      complete: vi
+        .fn()
+        .mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+      stream: vi.fn(),
+      checkHealth: async () => ({ ok: false }),
+    };
+    const healthyOpenAI = {
+      id: 'openai' as const,
+      name: 'OpenAI',
+      isLocal: false,
+      complete: vi.fn(),
+      stream: vi.fn(),
+      checkHealth: async () => ({ ok: true }),
+    };
+    manager.registerProvider(failingGroq);
+    manager.registerProvider(healthyOpenAI);
+
+    await expect(
+      manager.executeWithFallback([{ role: 'user', content: 'hello' }], {
+        signal: caller.signal,
+      })
+    ).rejects.toThrow();
+    expect(healthyOpenAI.complete).not.toHaveBeenCalled();
+  });
+
+  it('keeps STT on the selected provider unless cross-provider fallback is explicitly enabled', async () => {
+    const manager = new STTManager('groq-whisper');
+    const primary = {
+      id: 'groq-whisper' as const,
+      name: 'Groq Whisper',
+      isLocal: false,
+      transcribe: vi.fn().mockRejectedValue(new Error('primary unavailable')),
+      checkHealth: async () => ({ ok: false }),
+    };
+    const secondary = {
+      id: 'openai-whisper' as const,
+      name: 'OpenAI Whisper',
+      isLocal: false,
+      transcribe: vi.fn().mockResolvedValue({
+        transcript: 'fallback transcript',
+        durationSeconds: 3,
+        latencyMs: 10,
+        estimatedCostUsd: 0.001,
+        providerId: 'openai-whisper',
+      }),
+      checkHealth: async () => ({ ok: true }),
+    };
+    manager.register(primary);
+    manager.register(secondary);
+    const audio = new Blob(['test audio']);
+
+    await expect(manager.transcribeWithFallback(audio)).rejects.toThrow(
+      'All STT transcription providers failed'
+    );
+    expect(primary.transcribe).toHaveBeenCalledOnce();
+    expect(secondary.transcribe).not.toHaveBeenCalled();
+
+    const result = await manager.transcribeWithFallback(audio, { allowFallback: true });
+    expect(result.providerId).toBe('openai-whisper');
+    expect(secondary.transcribe).toHaveBeenCalledOnce();
+  });
+
+  it('never tries another STT provider after the caller cancels', async () => {
+    const manager = new STTManager('groq-whisper');
+    const caller = new AbortController();
+    const primary = {
+      id: 'groq-whisper' as const,
+      name: 'Groq Whisper',
+      isLocal: false,
+      transcribe: vi
+        .fn()
+        .mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+      checkHealth: async () => ({ ok: false }),
+    };
+    const secondary = {
+      id: 'openai-whisper' as const,
+      name: 'OpenAI Whisper',
+      isLocal: false,
+      transcribe: vi.fn(),
+      checkHealth: async () => ({ ok: true }),
+    };
+    manager.register(primary);
+    manager.register(secondary);
+    caller.abort();
+
+    await expect(
+      manager.transcribeWithFallback(new Blob(['test audio']), {
+        allowFallback: true,
+        signal: caller.signal,
+      })
+    ).rejects.toThrow();
+    expect(secondary.transcribe).not.toHaveBeenCalled();
   });
 });
