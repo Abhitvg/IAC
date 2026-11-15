@@ -145,9 +145,9 @@ describe('LinkedIn API client', () => {
     await expect(
       client.createMemberReaction(token, 'urn:li:activity:12345', 'PRAISE')
     ).resolves.toEqual({ status: 201 });
-    await expect(
-      client.deleteMemberReaction(token, 'urn:li:ugcPost:12345')
-    ).resolves.toEqual({ status: 204 });
+    await expect(client.deleteMemberReaction(token, 'urn:li:ugcPost:12345')).resolves.toEqual({
+      status: 204,
+    });
 
     expect(fetcher.mock.calls[0][0]).toBe(
       'https://api.linkedin.com/rest/reactions?actor=urn%3Ali%3Aperson%3Aabc123'
@@ -165,12 +165,7 @@ describe('LinkedIn API client', () => {
     const token = makeToken(['openid', 'profile', 'w_member_social']);
 
     await expect(
-      client.createMemberComment(
-        token,
-        'urn:li:ugcPost:12345',
-        'urn:li:activity:12345',
-        'Comment'
-      )
+      client.createMemberComment(token, 'urn:li:ugcPost:12345', 'urn:li:activity:12345', 'Comment')
     ).rejects.toThrow('w_member_social_feed');
     await expect(
       client.createMemberReaction(token, 'urn:li:activity:12345', 'LIKE')

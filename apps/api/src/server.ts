@@ -136,11 +136,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             'email',
             'w_member_social',
             ...(integration.entitlements.communityManagementApproved
-              ? [
-                  'w_organization_social',
-                  'w_member_social_feed',
-                  'w_organization_social_feed',
-                ]
+              ? ['w_organization_social', 'w_member_social_feed', 'w_organization_social_feed']
               : []),
           ]);
           if (scopes?.some((scope) => !allowedScopes.has(scope))) {
@@ -255,8 +251,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             typeof body.objectUrn !== 'string' ||
             typeof body.commentary !== 'string' ||
             Object.keys(body).some(
-              (key) =>
-                !['organizationUrn', 'targetUrn', 'objectUrn', 'commentary'].includes(key)
+              (key) => !['organizationUrn', 'targetUrn', 'objectUrn', 'commentary'].includes(key)
             )
           ) {
             sendJson(response, 400, {
@@ -330,12 +325,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             body.organizationUrn,
             body.rootUrn,
             body.reactionType as
-              | 'LIKE'
-              | 'PRAISE'
-              | 'EMPATHY'
-              | 'INTEREST'
-              | 'APPRECIATION'
-              | 'ENTERTAINMENT'
+              'LIKE' | 'PRAISE' | 'EMPATHY' | 'INTEREST' | 'APPRECIATION' | 'ENTERTAINMENT'
           );
           sendJson(response, 201, { status: result.status, requestId });
           return;
@@ -347,9 +337,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             typeof body.targetUrn !== 'string' ||
             typeof body.objectUrn !== 'string' ||
             typeof body.commentary !== 'string' ||
-            Object.keys(body).some(
-              (key) => !['targetUrn', 'objectUrn', 'commentary'].includes(key)
-            )
+            Object.keys(body).some((key) => !['targetUrn', 'objectUrn', 'commentary'].includes(key))
           ) {
             sendJson(response, 400, {
               error: 'Expected targetUrn, objectUrn, and commentary strings',
@@ -403,12 +391,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             tokenSet,
             body.rootUrn,
             body.reactionType as
-              | 'LIKE'
-              | 'PRAISE'
-              | 'EMPATHY'
-              | 'INTEREST'
-              | 'APPRECIATION'
-              | 'ENTERTAINMENT'
+              'LIKE' | 'PRAISE' | 'EMPATHY' | 'INTEREST' | 'APPRECIATION' | 'ENTERTAINMENT'
           );
           sendJson(response, 201, { status: result.status, requestId });
           return;
@@ -436,10 +419,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           return;
         }
 
-        if (
-          request.method === 'DELETE' &&
-          url.pathname === '/v1/linkedin/organization/reactions'
-        ) {
+        if (request.method === 'DELETE' && url.pathname === '/v1/linkedin/organization/reactions') {
           const organizationUrn = url.searchParams.get('organizationUrn');
           const entityUrn = url.searchParams.get('entityUrn');
           if (!organizationUrn || !entityUrn || url.searchParams.size !== 2) {
