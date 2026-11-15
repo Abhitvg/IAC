@@ -35,7 +35,7 @@ export interface PipelineDiagnosticEvent {
   audioByteLength?: number;
   transcriptionOutcome?: 'SUCCESS' | 'EMPTY' | 'FAILED' | 'ABORTED';
   audioCaptureDurationMs?: number;
-  audioCaptureOutcome?: 'ACTIVE' | 'STOPPED' | 'FAILED' | 'ABORTED';
+  audioCaptureOutcome?: 'STARTING' | 'ACTIVE' | 'STOPPED' | 'FAILED' | 'ABORTED';
   sessionSaveDurationMs?: number;
   sessionQuestionCount?: number;
   sessionSaveOutcome?: 'SUCCESS' | 'FAILED';
