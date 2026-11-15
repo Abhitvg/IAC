@@ -304,11 +304,7 @@ export function validateWritePath(
  * Persist a userData file through a same-directory temporary file and atomic rename.
  * The previous destination remains intact if payload writing or validation fails.
  */
-export function writeFileAtomically(
-  filePath: string,
-  data: unknown,
-  userDataDir: string
-): void {
+export function writeFileAtomically(filePath: string, data: unknown, userDataDir: string): void {
   const prepared = prepareFileWritePayload(data);
   const initial = validateWritePath(filePath, prepared.byteLength, userDataDir);
   if (!initial.allowed || !initial.resolvedPath) {
