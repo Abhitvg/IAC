@@ -304,7 +304,11 @@ export function validateWritePath(
  * Persist a userData file through a same-directory temporary file and atomic rename.
  * The previous destination remains intact if payload writing or validation fails.
  */
-export function writeFileAtomically(filePath: string, data: unknown, userDataDir: string): void {
+export function writeFileAtomically(
+  filePath: string,
+  data: unknown,
+  userDataDir: string
+): void {
   const prepared = prepareFileWritePayload(data);
   const initial = validateWritePath(filePath, prepared.byteLength, userDataDir);
   if (!initial.allowed || !initial.resolvedPath) {
@@ -325,7 +329,10 @@ export function writeFileAtomically(filePath: string, data: unknown, userDataDir
     throw new Error('Access denied: Destination parent resolves outside userData');
   }
 
-  const temporaryPath = path.join(realParent, '.' + path.basename(destination) + '.' + crypto.randomUUID() + '.tmp');
+  const temporaryPath = path.join(
+    realParent,
+    '.' + path.basename(destination) + '.' + crypto.randomUUID() + '.tmp'
+  );
   let descriptor: number | undefined;
   try {
     descriptor = fs.openSync(temporaryPath, 'wx', 0o600);
@@ -349,15 +356,21 @@ export function writeFileAtomically(filePath: string, data: unknown, userDataDir
     fs.renameSync(temporaryPath, destination);
     try {
       const directoryDescriptor = fs.openSync(realParent, 'r');
-      try { fs.fsyncSync(directoryDescriptor); }
-      finally { fs.closeSync(directoryDescriptor); }
+      try {
+        fs.fsyncSync(directoryDescriptor);
+      } finally {
+        fs.closeSync(directoryDescriptor);
+      }
     } catch {
       // Some platforms do not support fsync on directory descriptors.
     }
   } finally {
     if (descriptor !== undefined) fs.closeSync(descriptor);
-    try { fs.unlinkSync(temporaryPath); }
-    catch (error: any) { if (error?.code !== 'ENOENT') throw error; }
+    try {
+      fs.unlinkSync(temporaryPath);
+    } catch (error: any) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
   }
 }
 /**
