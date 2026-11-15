@@ -243,6 +243,13 @@ export class AnswerGenerationService {
       structuredViolations: [],
     });
 
+    if (requestSeq !== this.currentSequence) {
+      const staleResult = createAbortedResult();
+      clearTimeout(overallTimer);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
+      return staleResult;
+    }
+
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
@@ -551,7 +558,7 @@ export class AnswerGenerationService {
     let streamSucceeded = false;
 
     while (retryCount <= maxRetries && !streamSucceeded) {
-      if (signal?.aborted) break;
+      if (signal?.aborted || requestSeq !== this.currentSequence) break;
 
       try {
         if (hasMockedAi) {
@@ -823,7 +830,6 @@ export class AnswerGenerationService {
         structuredViolations: [],
       };
       (completionResult as any).answer = completionResult.cleanAnswer;
-      cb.onComplete?.(completionResult);
     }
 
     clearTimeout(overallTimer);
