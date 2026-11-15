@@ -217,7 +217,10 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             return;
           }
           const authorUrn = `urn:li:person:${tokenSet.memberId}`;
-          await auditLinkedIn('linkedin.member.post.publish.requested', authorUrn, { contentLength: body.commentary.length, postFormat: 'text' });
+          await auditLinkedIn('linkedin.member.post.publish.requested', authorUrn, {
+            contentLength: body.commentary.length,
+            postFormat: 'text',
+          });
           const result = await integration.api.publishMemberTextPost(
             tokenSet,
             authorUrn,
@@ -252,7 +255,11 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
             return;
           }
-          await auditLinkedIn('linkedin.organization.post.publish.requested', body.organizationUrn, { contentLength: body.commentary.length, postFormat: 'text' });
+          await auditLinkedIn(
+            'linkedin.organization.post.publish.requested',
+            body.organizationUrn,
+            { contentLength: body.commentary.length, postFormat: 'text' }
+          );
           const result = await integration.api.publishOrganizationTextPost(
             tokenSet,
             body.organizationUrn,
@@ -291,7 +298,10 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             sendJson(response, 409, { error: 'Connect LinkedIn before commenting', requestId });
             return;
           }
-          await auditLinkedIn('linkedin.organization.comment.create.requested', body.targetUrn, { organizationUrn: body.organizationUrn, contentLength: body.commentary.length });
+          await auditLinkedIn('linkedin.organization.comment.create.requested', body.targetUrn, {
+            organizationUrn: body.organizationUrn,
+            contentLength: body.commentary.length,
+          });
           const result = await integration.api.createOrganizationComment(
             tokenSet,
             body.organizationUrn,
@@ -340,7 +350,10 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             sendJson(response, 409, { error: 'Connect LinkedIn before reacting', requestId });
             return;
           }
-          await auditLinkedIn('linkedin.organization.reaction.create.requested', body.rootUrn, { organizationUrn: body.organizationUrn, reactionType: body.reactionType });
+          await auditLinkedIn('linkedin.organization.reaction.create.requested', body.rootUrn, {
+            organizationUrn: body.organizationUrn,
+            reactionType: body.reactionType,
+          });
           const result = await integration.api.createOrganizationReaction(
             tokenSet,
             body.organizationUrn,
@@ -371,7 +384,9 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             sendJson(response, 409, { error: 'Connect LinkedIn before commenting', requestId });
             return;
           }
-          await auditLinkedIn('linkedin.member.comment.create.requested', body.targetUrn, { contentLength: body.commentary.length });
+          await auditLinkedIn('linkedin.member.comment.create.requested', body.targetUrn, {
+            contentLength: body.commentary.length,
+          });
           const result = await integration.api.createMemberComment(
             tokenSet,
             body.targetUrn,
@@ -409,7 +424,9 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             sendJson(response, 409, { error: 'Connect LinkedIn before reacting', requestId });
             return;
           }
-          await auditLinkedIn('linkedin.member.reaction.create.requested', body.rootUrn, { reactionType: body.reactionType });
+          await auditLinkedIn('linkedin.member.reaction.create.requested', body.rootUrn, {
+            reactionType: body.reactionType,
+          });
           const result = await integration.api.createMemberReaction(
             tokenSet,
             body.rootUrn,
@@ -468,7 +485,9 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          await auditLinkedIn('linkedin.organization.reaction.delete.requested', entityUrn, { organizationUrn });
+          await auditLinkedIn('linkedin.organization.reaction.delete.requested', entityUrn, {
+            organizationUrn,
+          });
           const result = await integration.api.deleteOrganizationReaction(
             tokenSet,
             organizationUrn,
