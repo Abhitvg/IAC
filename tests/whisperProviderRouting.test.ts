@@ -84,6 +84,20 @@ describe('live transcription provider routing', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('does not report an empty cloud transcript as a successful transcription', async () => {
+    const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: '   ' });
+    vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
+
+    await expect(
+      transcribeAudio(createAudioBlob(), {
+        aiProvider: 'groq',
+        whisperModel: 'whisper-large-v3-turbo',
+      })
+    ).rejects.toThrow('[TRANSCRIPTION_EMPTY]');
+
+    expect(transcribeCloudAudio).toHaveBeenCalledOnce();
+  });
+
   it('routes Groq transcription through Electron main with the selected STT model', async () => {
     const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'groq transcript' });
     vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
