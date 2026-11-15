@@ -11,6 +11,8 @@ export interface LLMRequestOptions {
   onToken?: (token: string) => void;
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** Same-provider retries for transient network/HTTP failures (0–2). */
+  maxRetries?: number;
 }
 
 export interface LLMResponse {
@@ -39,6 +41,8 @@ export interface STTOptions {
   temperature?: number;
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** Same-provider audio retries are disabled by default to avoid duplicate transcription billing. */
+  maxRetries?: number;
   /** Cross-provider audio routing is disabled unless the user opts in. */
   allowFallback?: boolean;
 }

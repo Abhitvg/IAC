@@ -12,7 +12,10 @@ import {
   LocalWhisperCppProvider,
   STTManager,
 } from '../../src/services/providers/STTProvider';
-import { createProviderRequestSignal } from '../../src/services/providers/requestLifecycle';
+import {
+  createProviderRequestSignal,
+  fetchProviderWithRetry,
+} from '../../src/services/providers/requestLifecycle';
 import {
   BrowserSpeechTTSProvider,
   PiperLocalTTSProvider,
@@ -356,5 +359,117 @@ describe('Provider request lifecycle and explicit audio fallback', () => {
       })
     ).rejects.toThrow();
     expect(secondary.transcribe).not.toHaveBeenCalled();
+  });
+});
+
+describe('Bounded same-provider retry contract', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('retries transient HTTP 503 once before returning a successful response', async () => {
+    const mockFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response('temporarily unavailable', { status: 503 }))
+      .mockResolvedValueOnce(new Response('ok', { status: 200 }));
+    global.fetch = mockFetch;
+
+    const response = await fetchProviderWithRetry(
+      'https://provider.example.test/completions',
+      { method: 'POST' },
+      { timeoutMs: 1000, maxRetries: 1, retryBaseDelayMs: 0 }
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry authentication or malformed-request responses', async () => {
+    const mockFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response('unauthorized', { status: 401 }));
+    global.fetch = mockFetch;
+
+    const response = await fetchProviderWithRetry(
+      'https://provider.example.test/completions',
+      { method: 'POST' },
+      { timeoutMs: 1000, maxRetries: 2, retryBaseDelayMs: 0 }
+    );
+
+    expect(response.status).toBe(401);
+    expect(mockFetch).toHaveBeenCalledOnce();
+  });
+
+  it('stops retrying immediately when the caller cancels during backoff', async () => {
+    const caller = new AbortController();
+    const mockFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response('temporarily unavailable', { status: 503 }));
+    global.fetch = mockFetch;
+
+    const request = fetchProviderWithRetry(
+      'https://provider.example.test/completions',
+      { method: 'POST' },
+      {
+        signal: caller.signal,
+        timeoutMs: 1000,
+        maxRetries: 2,
+        retryBaseDelayMs: 500,
+      }
+    );
+    setTimeout(() => caller.abort(), 0);
+
+    await expect(request).rejects.toThrow();
+    expect(mockFetch).toHaveBeenCalledOnce();
+  });
+
+  it('retries an LLM request once when the provider returns a transient 503', async () => {
+    const mockFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response('temporarily unavailable', { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'Recovered response' } }],
+            usage: { prompt_tokens: 20, completion_tokens: 10 },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      );
+    global.fetch = mockFetch;
+
+    const provider = new GroqProvider('gsk_testkey');
+    const result = await provider.complete([{ role: 'user', content: 'Hello' }], {
+      timeoutMs: 1000,
+      maxRetries: 1,
+    });
+
+    expect(result.text).toBe('Recovered response');
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps STT same-provider retries disabled by default but supports explicit opt-in', async () => {
+    const mockFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response('temporarily unavailable', { status: 503 }))
+      .mockResolvedValueOnce(new Response('temporarily unavailable', { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ text: 'Recovered transcript', duration: 2 }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      );
+    global.fetch = mockFetch;
+
+    const provider = new OpenAIWhisperProvider('sk-test', 'whisper-1');
+    await expect(provider.transcribe(new Blob(['audio']))).rejects.toThrow('503');
+    expect(mockFetch).toHaveBeenCalledOnce();
+
+    const result = await provider.transcribe(new Blob(['audio']), {
+      timeoutMs: 1000,
+      maxRetries: 1,
+    });
+    expect(result.transcript).toBe('Recovered transcript');
+    expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 });
