@@ -452,6 +452,7 @@ describe('Bounded same-provider retry contract', () => {
     const mockFetch = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(new Response('temporarily unavailable', { status: 503 }))
+      .mockResolvedValueOnce(new Response('temporarily unavailable', { status: 503 }))
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ text: 'Recovered transcript', duration: 2 }), {
           status: 200,
