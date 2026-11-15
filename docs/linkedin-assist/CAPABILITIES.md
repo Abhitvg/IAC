@@ -83,11 +83,21 @@ show exactly which prerequisite is missing.
 
 ## Current implementation status
 
-The files in this directory currently provide content strategy, post hooks, profile scoring,
-attribution, and local writing-quality utilities. They do **not** yet implement production OAuth,
-token lifecycle management, API clients, scheduled execution, messaging, or invitation sending.
-Do not represent those operations as live until implemented and tested against an approved LinkedIn
-developer application.
+The implementation now includes OAuth authorization-code handling, one-time tenant-bound
+state validation, OpenID Connect member verification, encrypted PostgreSQL token persistence through
+the existing tenant-envelope cipher, authenticated cloud routes for connection status / lifecycle,
+and scope-gated member / organization text-post clients using the versioned Posts API.
+
+The cloud runtime accepts a `LinkedInCloudIntegration` dependency. Deployment must compose it with
+`createLinkedInCloudIntegration` and provide a production `TenantKeyManagementService` backed by
+the deployment KMS, plus LinkedIn client credentials and a registered HTTPS redirect URI. The
+repository's current `main.ts` does not yet configure a KMS provider or instantiate this integration,
+so the routes return a clear 503 until deployment wiring is supplied. No token is stored in plaintext.
+
+Scheduled publishing, media uploads, comments / reactions, analytics, invitation execution, and
+message / inbox execution are not implemented yet. Invitations and Messages additionally require
+LinkedIn partner approval. Do not represent those operations as live until their API clients,
+authorization checks, audit trail, idempotency, and tests are implemented against an approved app.
 
 ## Attribution
 
