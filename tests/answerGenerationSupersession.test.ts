@@ -26,6 +26,7 @@ function createElectronGateway(credentialStore: { getKey: ReturnType<typeof vi.f
   const doneListeners = new Set<(payload: any) => void>();
   const errorListeners = new Set<(payload: any) => void>();
   const controllers = new Map<string, AbortController>();
+  const startedRequests: Array<{ requestId: string; question: string }> = [];
   const cancelledRequestIds: string[] = [];
 
   const send = (channel: string, payload: any) => {
@@ -40,6 +41,7 @@ function createElectronGateway(credentialStore: { getKey: ReturnType<typeof vi.f
 
   return {
     startCloudLLMStream: async (request: any) => {
+      startedRequests.push({ requestId: request.requestId, question: request.question });
       const controller = new AbortController();
       controllers.set(request.requestId, controller);
       try {
@@ -56,6 +58,7 @@ function createElectronGateway(credentialStore: { getKey: ReturnType<typeof vi.f
         throw error;
       }
     },
+    startedRequests,
     cancelledRequestIds,
     cancelCloudLLMStream: async (requestId: string) => {
       cancelledRequestIds.push(requestId);
@@ -213,7 +216,11 @@ describe('AnswerGenerationService request supersession', () => {
     const [staleResult, currentResult] = await Promise.all([staleRequest, currentRequest]);
 
     expect(staleResult.status).toBe('ABORTED');
-    expect(gateway.cancelledRequestIds).toContain('stale-interview-request');
+    const staleProviderRequest = gateway.startedRequests.find((request) =>
+      request.question.includes('binary search tree')
+    );
+    expect(staleProviderRequest).toBeDefined();
+    expect(gateway.cancelledRequestIds).toContain(staleProviderRequest?.requestId);
     expect(staleTokens).toEqual([]);
     expect(currentResult.status).toBe('VALIDATED');
     expect(currentTokens.join('')).toContain('current answer');
