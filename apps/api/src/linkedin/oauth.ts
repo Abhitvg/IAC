@@ -63,7 +63,7 @@ export class LinkedInOAuthService {
     if (!scopes.length || scopes.length > 20) throw new Error('Invalid LinkedIn OAuth scope request');
 
     const state = randomBytes(32).toString('base64url');
-    await this.states.put({
+    await this.states.save({
       state,
       identity,
       redirectUri: this.config.redirectUri,
@@ -86,7 +86,7 @@ export class LinkedInOAuthService {
   }): Promise<{ connected: true; scopes: string[]; expiresAt: number }> {
     const code = requiredString(input.code, 'authorization code');
     const state = requiredString(input.state, 'state');
-    const stored = await this.states.consume(state);
+    const stored = await this.states.consume(state, input.identity);
     if (!stored || stored.expiresAt <= Date.now()) {
       throw new Error('LinkedIn OAuth state is invalid, expired, or already used');
     }
