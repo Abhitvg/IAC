@@ -1,4 +1,8 @@
 import {
+  createProviderRequestSignal,
+  DEFAULT_LLM_REQUEST_TIMEOUT_MS,
+} from './requestLifecycle';
+import {
   LLMProvider,
   LLMMessage,
   LLMRequestOptions,
@@ -43,7 +47,10 @@ export class GroqProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: options?.signal,
+      signal: createProviderRequestSignal(
+        options?.signal,
+        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
+      ),
     });
 
     if (!response.ok) {
@@ -117,7 +124,10 @@ export class OpenAIProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: options?.signal,
+      signal: createProviderRequestSignal(
+        options?.signal,
+        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
+      ),
     });
 
     if (!response.ok) {
@@ -186,7 +196,10 @@ export class OpenRouterProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: options?.signal,
+      signal: createProviderRequestSignal(
+        options?.signal,
+        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
+      ),
     });
 
     if (!response.ok) {
@@ -255,7 +268,10 @@ export class OllamaProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: options?.signal,
+      signal: createProviderRequestSignal(
+        options?.signal,
+        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
+      ),
     });
 
     if (!response.ok) {
