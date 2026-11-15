@@ -1,21 +1,47 @@
 # CareerOps LinkedIn Assist
 
-CareerOps LinkedIn Assist is designed as a capability-complete, API-first integration. The product can expose the full workflow—profile import, content planning, publishing, engagement, inbox workflows, and connection workflows—while enabling each execution capability only when the connected LinkedIn application has the required approved product access and the member has granted the relevant OAuth scopes.
+CareerOps LinkedIn Assist is an API-first LinkedIn integration and content toolkit. It is designed
+to expose the full workflow while enabling each execution capability only when the connected
+LinkedIn application has the required product access and the member has granted the relevant OAuth
+scopes.
 
-- `CAPABILITIES.md`: capability matrix, access tiers, and execution requirements.
+## Included
+
+- `CAPABILITIES.md`: capability map, access tiers, and implementation status.
 - `hooks.json`: 21 post-hook formulas.
 - `profile-rubric.json`: 12-part, 100-point profile review rubric.
 - `humanizer/`: local text-cleanup and heuristic quality scripts.
-- `humanizer/slop.json`: cleanup lexicon and character/typography rules.
+- `humanizer/slop.json`: cleanup lexicon and character / typography rules.
 - `LICENSE.upstream`: MIT attribution and license.
+- `../../apps/api/src/linkedin/`: OAuth, API client, encrypted persistence, and composition
+  factory.
+- `../../apps/api/migrations/0006_linkedin_oauth.sql`: tenant-isolated OAuth state and connection
+  tables.
 
-## Integration principles
+## Cloud API
 
-- Use LinkedIn OAuth 2.0 and documented APIs only.
-- Treat API product approval, granted OAuth scopes, member consent, organization role, and endpoint availability as separate checks.
-- Show unavailable capabilities with a precise reason and an access-request path; do not silently hide them or pretend that user consent grants partner access.
-- Support user-provided official exports for profile enrichment when API read access is unavailable.
-- Never collect passwords, browser cookies, session tokens, or browser profiles; never scrape LinkedIn pages or use UI automation as an API fallback.
-- Scheduled actions require explicit owner configuration, clear previews, pause/revoke controls, idempotency, and audit records.
+When a deployment injects a KMS-backed `LinkedInCloudIntegration` into the cloud runtime, these
+authenticated routes are available:
 
-This directory currently contains the content toolkit and integration policy. It does not yet constitute a production LinkedIn OAuth client or live publishing/messaging implementation.
+- `GET /v1/linkedin/status`
+- `POST /v1/linkedin/oauth/start`
+- `POST /v1/linkedin/oauth/callback`
+- `DELETE /v1/linkedin/connection`
+- `POST /v1/linkedin/posts`
+
+The current cloud executable does not yet instantiate a KMS provider or configure LinkedIn
+credentials. Until deployment supplies those dependencies, LinkedIn routes intentionally return
+HTTP 503 rather than storing tokens insecurely or pretending the integration is active.
+
+## Security boundaries
+
+- OAuth 2.0 only; tokens are encrypted with the tenant envelope cipher before database persistence.
+- No LinkedIn password, browser cookie, session token, or local browser profile collection.
+- No page scraping, DOM injection, Playwright, or undocumented endpoint fallback.
+- Restricted partner features remain unavailable until the exact LinkedIn product access is approved
+  and their API clients are implemented.
+- Scheduled and unattended actions require owner configuration, clear auditability, pause / revoke
+  controls, and duplicate prevention before they are enabled.
+
+The integration must be validated against an approved LinkedIn developer application before
+production use.
