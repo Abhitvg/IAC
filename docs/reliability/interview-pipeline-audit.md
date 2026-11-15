@@ -90,6 +90,30 @@ The service already compared request sequence numbers at the end of generation, 
 
 **Remaining improvement:** Abort the underlying provider request as soon as a new request supersedes it, rather than merely suppressing stale output. This reduces wasted provider usage and network work.
 
+## Cross-repository review: open security PRs
+
+The open security changes are not yet a single coherent migration:
+
+- **PR #210** introduces `SecurePersistenceStore` and its IPC API, limited to the `candidate-profile` namespace.
+- **PR #211** is stacked on #210 (its base is the #210 branch) and migrates the canonical profile to that API. It does not complete the repository-wide PII migration.
+- **PR #212** independently introduces `PiiVault`, a second encrypted persistence abstraction with a separate IPC API, namespace model, key file, and AES-GCM envelope format. It is not a consumer migration for all the stores yet.
+- **PRs #206–#209** add KMS-envelope validation, LinkedIn Assist Queue policy, Sprint Contract signature validation, and strict JWT base64url validation. Several open PRs carry the same PostgreSQL CI workaround, so the workflow change should be consolidated rather than maintained as repeated parallel edits.
+
+### Security findings from the diffs
+
+1. **Do not merge #210 and #212 as two independent storage platforms.** Choose one canonical persistence abstraction, port the migration consumers to it, and document key recovery/rotation. Otherwise the app will have multiple incompatible encrypted storage APIs.
+2. **#211 does not finish PII migration.** Candidate vault, knowledge vault, practice stores, feedback, workspace, interview history and recordings still need an owner-by-owner migration and verification.
+3. **#211 can downgrade to plaintext when the secure API is absent.** `CanonicalProfileService` treats a missing secure persistence API as success and uses `localStorage`. Browser-only fallback may be a product decision, but Electron must distinguish an actual browser runtime from a broken/missing preload API and fail closed rather than silently downgrade.
+4. **Legacy candidate-vault data remains a separate source.** `useCandidateVaultStore` still initializes from its localStorage keys. The canonical profile migration must explicitly migrate/verify/delete those legacy copies rather than assume canonical profile migration covers them.
+5. **PR #212 is a primitive, not a completed migration.** Its new vault and IPC methods do not by themselves move existing PII stores into encrypted persistence.
+
+### Recommended merge order
+
+1. Decide the single encrypted persistence architecture and resolve #210/#211/#212 as one migration design.
+2. Land the independent M0 security hardening (#206–#209) after consolidating their repeated CI edits and confirming each test suite.
+3. Complete each PII owner migration with read-back verification, resumable migration, source deletion only after verification, and explicit browser-vs-Electron behavior.
+4. Close issue #72 only after the inventory is fully migrated and verified—not when one profile record is encrypted.
+
 ## Existing safeguards verified
 
 - `streamAnswer` uses an overall deadline and an inactivity deadline.
