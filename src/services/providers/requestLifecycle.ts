@@ -14,6 +14,14 @@ export function createProviderRequestSignal(
     throw new Error('Provider request timeout must be between 1ms and 5 minutes');
   }
 
+  if (callerSignal?.aborted) {
+    throw (
+      callerSignal.reason ??
+      Object.assign(new Error('Provider request was cancelled by the caller.'), {
+        name: 'AbortError',
+      })
+    );
+  }
   const timeoutSignal = AbortSignal.timeout(timeoutMs);
   return callerSignal ? AbortSignal.any([callerSignal, timeoutSignal]) : timeoutSignal;
 }
