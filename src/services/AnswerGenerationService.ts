@@ -333,7 +333,7 @@ export class AnswerGenerationService {
     );
 
     const handleStreamComplete = (full: string) => {
-      if (signal?.aborted) return;
+      if (signal?.aborted || requestSeq !== this.currentSequence) return;
 
       let cleanAnswer = full;
       const followUps: string[] = [];
@@ -530,11 +530,11 @@ export class AnswerGenerationService {
             preferredLang.toLowerCase() as any,
             {
               onToken: (token) => {
-                if (signal?.aborted) return;
+                if (signal?.aborted || requestSeq !== this.currentSequence) return;
                 cb.onToken?.(token, requestId);
               },
               onSentence: (sentence) => {
-                if (signal?.aborted) return;
+                if (signal?.aborted || requestSeq !== this.currentSequence) return;
                 cb.onSentence?.(sentence, requestId);
               },
               onComplete: async (full) => {
@@ -548,6 +548,7 @@ export class AnswerGenerationService {
           streamSucceeded = true;
         }
       } catch (err: any) {
+        if (requestSeq !== this.currentSequence) break;
         if (err.name === 'AbortError' || signal?.aborted) {
           const timeoutMessage = err?.message || signal?.reason?.message || '';
           const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
@@ -739,6 +740,7 @@ export class AnswerGenerationService {
         structuredViolations: [],
       };
       (completionResult as any).answer = completionResult.cleanAnswer;
+      cb.onComplete?.(completionResult);
     }
 
     clearTimeout(overallTimer);
