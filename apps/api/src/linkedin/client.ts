@@ -313,6 +313,105 @@ export class LinkedInApiClient {
     return { status: response.status };
   }
 
+  async createOrganizationComment(
+    token: LinkedInTokenSet,
+    organizationUrn: string,
+    targetPostUrn: string,
+    objectUrn: string,
+    commentary: string
+  ): Promise<{ id: string; status: number }> {
+    assertToken(token);
+    if (!token.grantedScopes.includes(LINKEDIN_ORGANIZATION_SOCIAL_WRITE_SCOPE)) {
+      throw new Error(
+        'LinkedIn organization commenting is not authorized: w_organization_social_feed scope is missing'
+      );
+    }
+    assertUrn(organizationUrn, 'organization');
+    if (!/^urn:li:(?:share|ugcPost):[A-Za-z0-9_-]+$/.test(targetPostUrn)) {
+      throw new Error('Invalid LinkedIn comment target URN');
+    }
+    if (!/^urn:li:activity:[A-Za-z0-9_-]+$/.test(objectUrn)) {
+      throw new Error('Invalid LinkedIn comment object activity URN');
+    }
+    const text = commentary.trim();
+    if (!text || text.length > 3000) {
+      throw new Error('Comment text must contain 1–3000 characters');
+    }
+
+    const response = await this.fetcher(
+      `${REST_BASE}/socialActions/${encodeURIComponent(targetPostUrn)}/comments`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${token.accessToken}`,
+          'content-type': 'application/json',
+          'x-restli-protocol-version': '2.0.0',
+          'linkedin-version': this.apiVersion,
+        },
+        body: JSON.stringify({
+          actor: organizationUrn,
+          object: objectUrn,
+          message: { text },
+        }),
+        signal: AbortSignal.timeout(20_000),
+      }
+    );
+    if (!response.ok) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      throw new LinkedInApiError(
+        `LinkedIn organization comment creation failed with HTTP ${response.status}`,
+        response.status,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
+      );
+    }
+    const id = response.headers.get('x-restli-id');
+    if (!id) {
+      throw new Error('LinkedIn accepted the organization comment but returned no comment ID');
+    }
+    return { id, status: response.status };
+  }
+
+  async createOrganizationReaction(
+    token: LinkedInTokenSet,
+    organizationUrn: string,
+    rootUrn: string,
+    reactionType: 'LIKE' | 'PRAISE' | 'EMPATHY' | 'INTEREST' | 'APPRECIATION' | 'ENTERTAINMENT'
+  ): Promise<{ status: number }> {
+    assertToken(token);
+    if (!token.grantedScopes.includes(LINKEDIN_ORGANIZATION_SOCIAL_WRITE_SCOPE)) {
+      throw new Error(
+        'LinkedIn organization reactions are not authorized: w_organization_social_feed scope is missing'
+      );
+    }
+    assertUrn(organizationUrn, 'organization');
+    if (!/^urn:li:(?:share|ugcPost|activity):[A-Za-z0-9_-]+$/.test(rootUrn)) {
+      throw new Error('Invalid LinkedIn reaction root URN');
+    }
+
+    const url = new URL(`${REST_BASE}/reactions`);
+    url.searchParams.set('actor', organizationUrn);
+    const response = await this.fetcher(url.toString(), {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token.accessToken}`,
+        'content-type': 'application/json',
+        'x-restli-protocol-version': '2.0.0',
+        'linkedin-version': this.apiVersion,
+      },
+      body: JSON.stringify({ root: rootUrn, reactionType }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      throw new LinkedInApiError(
+        `LinkedIn organization reaction creation failed with HTTP ${response.status}`,
+        response.status,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
+      );
+    }
+    return { status: response.status };
+  }
+
   async deleteMemberReaction(
     token: LinkedInTokenSet,
     entityUrn: string
