@@ -609,7 +609,9 @@ export class AnswerGenerationService {
           return completionResult;
         }
 
-        const hasPartialOutput = Boolean((err as any).hasEmittedTokens || (err as any).partialText);
+        const hasPartialOutput = Boolean(
+          (err as any).hasEmittedTokens || (err as any).partialText
+        );
         if (
           !hasPartialOutput &&
           retryCount < maxRetries &&
@@ -620,7 +622,8 @@ export class AnswerGenerationService {
           const store = useAppStore.getState();
           store.setPipelineStage('retrying');
           store.setToast(
-            `Connection interrupted. Retrying answer generation in ${Math.ceil(delayMs / 1000)}s (Attempt ${retryCount}/${maxRetries})...`
+            `Connection interrupted. Retrying in ${Math.ceil(delayMs / 1000)}s ` +
+              `(attempt ${retryCount}/${maxRetries}).`
           );
           DiagnosticLoggerService.getInstance().recordEvent({
             requestId,
@@ -629,7 +632,8 @@ export class AnswerGenerationService {
             retryDelayMs: delayMs,
             selectedProvider: provider,
             selectedModel: providerConfig.model,
-            message: 'Retrying a transient provider/network failure before any answer tokens were emitted.',
+            message:
+              'Retrying a transient provider/network failure before any answer tokens were emitted.',
           });
           try {
             await waitForRetry(delayMs, signal);
