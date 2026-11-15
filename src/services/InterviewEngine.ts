@@ -697,6 +697,9 @@ export class InterviewEngine {
                 );
                 state.setPipelineStage('failed');
                 state.setStatus(res.status === 'ABORTED' ? 'paused' : 'error');
+                if (res.status === 'FAILED') {
+                  state.setToast('AI could not complete this answer. Retry or switch provider.');
+                }
                 DiagnosticLoggerService.getInstance().recordEvent({
                   requestId: res.requestId,
                   pipelineStage: 'failed',
@@ -986,6 +989,35 @@ export class InterviewEngine {
                     : CandidateKnowledgeBase.getActiveKnowledgeBase()
                 );
 
+              if (
+                res.status === 'FAILED' ||
+                res.status === 'ABORTED' ||
+                (!res.cleanAnswer?.trim() && decision.outcome !== 'BLOCKED')
+              ) {
+                state.setCurrentAnswer(null);
+                state.setIsAnswerValidated(false);
+                state.setAnswerValidationStatus(res.status === 'ABORTED' ? 'ABORTED' : 'FAILED');
+                state.setGroundingResult(0, res.groundingViolations ?? []);
+                state.enqueueSentences([]);
+                state.setBlockedReason(
+                  (res as any).error || 'The screen solver returned no usable answer.'
+                );
+                state.setPipelineStage('failed');
+                state.setRecitalState('listening');
+                state.setStatus(res.status === 'ABORTED' ? 'paused' : 'error');
+                if (res.status === 'FAILED') {
+                  state.setToast('Screen answer generation failed. Retry or switch provider.');
+                }
+                DiagnosticLoggerService.getInstance().recordEvent({
+                  requestId: res.requestId,
+                  pipelineStage: 'failed',
+                  finalOutcome: res.status === 'ABORTED' ? 'ABORTED' : 'FAILED',
+                  message:
+                    (res as any).error || 'The screen solver returned no usable answer.',
+                });
+                return;
+              }
+
               if (decision.isSpeakable) {
                 const finalAnswer = decision.speakableAnswer;
                 state.setCurrentAnswer(finalAnswer);
@@ -1008,7 +1040,13 @@ export class InterviewEngine {
               }
 
               state.setRecitalState('listening');
-              state.setStatus('ready');
+              state.setPipelineStage(decision.isSpeakable ? 'answer_ready' : 'failed');
+              state.setStatus(decision.isSpeakable ? 'ready' : 'error');
+              if (!decision.isSpeakable) {
+                state.setToast(
+                  decision.blockedReason || 'The screen answer was withheld by factual verification.'
+                );
+              }
             },
             onError: (err, rId) => {
               if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen)
@@ -1023,7 +1061,9 @@ export class InterviewEngine {
               state.updateDiagnostics({
                 whisperStatus: 'solver error: ' + (err.message || String(err)),
               });
+              state.setPipelineStage('failed');
               state.setStatus('error');
+              state.setToast('Screen answer generation failed. Retry or switch provider.');
             },
           }
         );
