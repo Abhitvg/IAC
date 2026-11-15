@@ -189,9 +189,7 @@ export class PostgresCloudApiRepository implements CloudApiRepository, TenantMem
     metadata: Record<string, string | number | boolean | null>;
   }): Promise<void> {
     await inTransaction(this.pool, input.actorSubject, input.tenantId, async (client) => {
-      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
-        input.tenantId,
-      ]);
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [input.tenantId]);
       const previous = await client.query<{ event_hash: string }>(
         `SELECT event_hash
            FROM audit_events
