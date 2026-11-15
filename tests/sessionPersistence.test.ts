@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveSession } from '../src/services/session';
 import type { InterviewSession } from '../src/types';
+import { DiagnosticLoggerService } from '../src/services/diagnosticLogger';
 
 describe('session persistence', () => {
+  beforeEach(() => DiagnosticLoggerService.getInstance().clear());
   afterEach(() => vi.unstubAllGlobals());
 
   it('writes one canonical session record instead of independently writing sidecars', async () => {
@@ -41,6 +43,12 @@ describe('session persistence', () => {
       '/user-data/sessions/2026-11-16/session_session-123.json',
       JSON.stringify(session, null, 2)
     );
+    const saveEvent = DiagnosticLoggerService.getInstance()
+      .getEventsForRequest('session_save_session-123')
+      .find((event) => event.sessionSaveOutcome === 'SUCCESS');
+    expect(saveEvent?.sessionQuestionCount).toBe(1);
+    expect(saveEvent?.sessionSaveDurationMs).toBeGreaterThanOrEqual(0);
+    expect(saveEvent?.message).not.toContain('What is a hash map?');
   });
 
   it('propagates persistence failures so callers cannot report a false save success', async () => {
@@ -58,5 +66,9 @@ describe('session persistence', () => {
         '/user-data/sessions'
       )
     ).rejects.toThrow('disk full');
+    const saveEvent = DiagnosticLoggerService.getInstance()
+      .getEventsForRequest('session_save_session-456')
+      .find((event) => event.sessionSaveOutcome === 'FAILED');
+    expect(saveEvent?.finalOutcome).toBe('FAILED');
   });
 });

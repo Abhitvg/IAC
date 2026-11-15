@@ -34,6 +34,11 @@ export interface PipelineDiagnosticEvent {
   transcriptCharacterCount?: number;
   audioByteLength?: number;
   transcriptionOutcome?: 'SUCCESS' | 'EMPTY' | 'FAILED' | 'ABORTED';
+  audioCaptureDurationMs?: number;
+  audioCaptureOutcome?: 'STARTING' | 'ACTIVE' | 'STOPPED' | 'FAILED' | 'ABORTED';
+  sessionSaveDurationMs?: number;
+  sessionQuestionCount?: number;
+  sessionSaveOutcome?: 'SUCCESS' | 'FAILED';
   receivedTokenCount?: number;
   isEmptyResponse?: boolean;
   finalOutcome?:
@@ -121,6 +126,13 @@ export class DiagnosticLoggerService {
             : '',
           e.audioByteLength !== undefined ? `AUDIO_BYTES: ${e.audioByteLength}` : '',
           e.transcriptionOutcome ? `STT_OUTCOME: ${e.transcriptionOutcome}` : '',
+          e.audioCaptureDurationMs !== undefined ? `CAPTURE: ${e.audioCaptureDurationMs}ms` : '',
+          e.audioCaptureOutcome ? `CAPTURE_OUTCOME: ${e.audioCaptureOutcome}` : '',
+          e.sessionSaveDurationMs !== undefined ? `SESSION_SAVE: ${e.sessionSaveDurationMs}ms` : '',
+          e.sessionQuestionCount !== undefined
+            ? `SESSION_QUESTIONS: ${e.sessionQuestionCount}`
+            : '',
+          e.sessionSaveOutcome ? `SESSION_SAVE_OUTCOME: ${e.sessionSaveOutcome}` : '',
           e.receivedTokenCount !== undefined ? `TOKENS: ${e.receivedTokenCount}` : '',
           e.finalOutcome ? `OUTCOME: ${e.finalOutcome}` : '',
           e.message ? `MSG: ${e.message}` : '',
