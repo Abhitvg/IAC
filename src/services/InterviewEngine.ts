@@ -697,7 +697,7 @@ export class InterviewEngine {
                 );
                 state.setPipelineStage('failed');
                 state.setStatus(res.status === 'ABORTED' ? 'paused' : 'error');
-                if (res.status === 'FAILED') {
+                if (res.status !== 'ABORTED') {
                   state.setToast('AI could not complete this answer. Retry or switch provider.');
                 }
                 DiagnosticLoggerService.getInstance().recordEvent({
@@ -1005,7 +1005,7 @@ export class InterviewEngine {
                 state.setPipelineStage('failed');
                 state.setRecitalState('listening');
                 state.setStatus(res.status === 'ABORTED' ? 'paused' : 'error');
-                if (res.status === 'FAILED') {
+                if (res.status !== 'ABORTED') {
                   state.setToast('Screen answer generation failed. Retry or switch provider.');
                 }
                 DiagnosticLoggerService.getInstance().recordEvent({
