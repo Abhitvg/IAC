@@ -1,4 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../src/services/InterviewEngine', () => ({
+  InterviewEngine: {
+    handleEvent: vi.fn(),
+    abortActiveGeneration: vi.fn(),
+    markQuestionPendingFinalization: vi.fn(),
+    cancelAllActiveWork: vi.fn(),
+  },
+}));
+
 import { AudioRecorder } from '../src/services/audio';
 import { DiagnosticLoggerService } from '../src/services/diagnosticLogger';
 
