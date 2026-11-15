@@ -22,13 +22,35 @@ export class LinkedInApiError extends Error {
 }
 
 function assertToken(token: LinkedInTokenSet): void {
-  if (!token.accessToken || token.tokenType !== 'Bearer') throw new Error('LinkedIn connection is invalid');
-  if (token.expiresAt <= Date.now()) throw new Error('LinkedIn access token expired; reconnect the account');
+  if (!token.accessToken || token.tokenType !== 'Bearer') {
+    throw new Error('LinkedIn connection is invalid');
+  }
+  if (token.expiresAt <= Date.now()) {
+    throw new Error('LinkedIn access token expired; reconnect the account');
+  }
 }
 
 function assertUrn(value: string, allowed: 'person' | 'organization'): void {
-  const pattern = allowed === 'person' ? /^urn:li:person:[A-Za-z0-9_-]+$/ : /^urn:li:organization:\d+$/;
-  if (!pattern.test(value)) throw new Error(`Invalid LinkedIn ${allowed} author URN`);
+  const pattern =
+    allowed === 'person' ? /^urn:li:person:[A-Za-z0-9_-]+$/ : /^urn:li:organization:\d+$/;
+  if (!pattern.test(value)) {
+    throw new Error(`Invalid LinkedIn ${allowed} author URN`);
+  }
+}
+
+function createPostPayload(author: string, commentary: string): Record<string, unknown> {
+  return {
+    author,
+    commentary,
+    visibility: 'PUBLIC',
+    distribution: {
+      feedDistribution: 'MAIN_FEED',
+      targetEntities: [],
+      thirdPartyDistributionChannels: [],
+    },
+    lifecycleState: 'PUBLISHED',
+    isReshareDisabledByAuthor: false,
+  };
 }
 
 export function getLinkedInCapabilities(
@@ -60,7 +82,8 @@ export function getLinkedInCapabilities(
         : !entitlements.communityManagementApproved
           ? 'needs_linkedin_product_approval'
           : status(LINKEDIN_ORGANIZATION_WRITE_SCOPE),
-      reason: 'Requires Community Management API approval, w_organization_social, and an eligible Page role.',
+      reason:
+        'Requires Community Management API approval, w_organization_social, and an eligible Page role.',
     },
     {
       id: 'member_content_read',
@@ -98,21 +121,21 @@ export class LinkedInApiClient {
   constructor(config: LinkedInApiConfig = {}) {
     this.fetcher = config.fetcher ?? fetch;
     this.apiVersion = config.apiVersion ?? DEFAULT_API_VERSION;
-    if (!/^20\d{4}$/.test(this.apiVersion)) throw new Error('LinkedIn API version must use YYYYMM format');
+    if (!/^20\d{4}$/.test(this.apiVersion)) {
+      throw new Error('LinkedIn API version must use YYYYMM format');
+    }
   }
 
-  async publishMemberTextPost(
+  private async createTextPost(
     token: LinkedInTokenSet,
     authorUrn: string,
     commentary: string
   ): Promise<{ id: string; status: number }> {
     assertToken(token);
-    if (!token.grantedScopes.includes(LINKEDIN_MEMBER_WRITE_SCOPE)) {
-      throw new Error('LinkedIn member publishing is not authorized: w_member_social scope is missing');
-    }
-    assertUrn(authorUrn, 'person');
     const text = commentary.trim();
-    if (!text || text.length > 3000) throw new Error('Post text must contain 1–3000 characters');
+    if (!text || text.length > 3000) {
+      throw new Error('Post text must contain 1–3000 characters');
+    }
 
     const response = await this.fetcher(`${REST_BASE}/posts`, {
       method: 'POST',
@@ -122,18 +145,7 @@ export class LinkedInApiClient {
         'x-restli-protocol-version': '2.0.0',
         'linkedin-version': this.apiVersion,
       },
-      body: JSON.stringify({
-        author: authorUrn,
-        commentary: text,
-        visibility: 'PUBLIC',
-        distribution: {
-          feedDistribution: 'MAIN_FEED',
-          targetEntities: [],
-          thirdPartyDistributionChannels: [],
-        },
-        lifecycleState: 'PUBLISHED',
-        isReshareDisabledByAuthor: false,
-      }),
+      body: JSON.stringify(createPostPayload(authorUrn, text)),
       signal: AbortSignal.timeout(20_000),
     });
 
@@ -145,9 +157,24 @@ export class LinkedInApiClient {
         Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
       );
     }
+
     const id = response.headers.get('x-restli-id');
-    if (!id) throw new Error('LinkedIn accepted the request but did not return a post ID');
+    if (!id) {
+      throw new Error('LinkedIn accepted the request but did not return a post ID');
+    }
     return { id, status: response.status };
+  }
+
+  async publishMemberTextPost(
+    token: LinkedInTokenSet,
+    authorUrn: string,
+    commentary: string
+  ): Promise<{ id: string; status: number }> {
+    if (!token.grantedScopes.includes(LINKEDIN_MEMBER_WRITE_SCOPE)) {
+      throw new Error('LinkedIn member publishing is not authorized: w_member_social scope is missing');
+    }
+    assertUrn(authorUrn, 'person');
+    return this.createTextPost(token, authorUrn, commentary);
   }
 
   async publishOrganizationTextPost(
@@ -155,45 +182,12 @@ export class LinkedInApiClient {
     organizationUrn: string,
     commentary: string
   ): Promise<{ id: string; status: number }> {
-    assertToken(token);
     if (!token.grantedScopes.includes(LINKEDIN_ORGANIZATION_WRITE_SCOPE)) {
-      throw new Error('LinkedIn organization publishing is not authorized: w_organization_social scope is missing');
-    }
-    assertUrn(organizationUrn, 'organization');
-    const text = commentary.trim();
-    if (!text || text.length > 3000) throw new Error('Post text must contain 1–3000 characters');
-    const response = await this.fetcher(`${REST_BASE}/posts`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${token.accessToken}`,
-        'content-type': 'application/json',
-        'x-restli-protocol-version': '2.0.0',
-        'linkedin-version': this.apiVersion,
-      },
-      body: JSON.stringify({
-        author: organizationUrn,
-        commentary: text,
-        visibility: 'PUBLIC',
-        distribution: {
-          feedDistribution: 'MAIN_FEED',
-          targetEntities: [],
-          thirdPartyDistributionChannels: [],
-        },
-        lifecycleState: 'PUBLISHED',
-        isReshareDisabledByAuthor: false,
-      }),
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (!response.ok) {
-      const retryAfter = Number(response.headers.get('retry-after'));
-      throw new LinkedInApiError(
-        `LinkedIn organization post creation failed with HTTP ${response.status}`,
-        response.status,
-        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
+      throw new Error(
+        'LinkedIn organization publishing is not authorized: w_organization_social scope is missing'
       );
     }
-    const id = response.headers.get('x-restli-id');
-    if (!id) throw new Error('LinkedIn accepted the request but did not return a post ID');
-    return { id, status: response.status };
+    assertUrn(organizationUrn, 'organization');
+    return this.createTextPost(token, organizationUrn, commentary);
   }
 }
