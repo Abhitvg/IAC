@@ -90,7 +90,7 @@ The service already compared request sequence numbers at the end of generation, 
 
 **Change on this branch:** Suppress token/sentence delivery, completion handling, and error handling when a request is no longer the current sequence. Return an explicit `ABORTED` terminal result for superseded requests. A regression test runs two overlapping generations and verifies that only the latest request emits tokens.
 
-**Remaining improvement:** Abort the underlying provider request as soon as a new request supersedes it, rather than merely suppressing stale output. This reduces wasted provider usage and network work.
+**Additional change on this branch:** A newer generation now aborts the previous request-scoped controller immediately. The abort signal propagates through `streamAnswer` to the Electron IPC cancellation handler and then to the provider fetch. The supersession regression test now asserts that the stale request ID is cancelled at the gateway, in addition to asserting that stale tokens are never delivered.
 
 ### R8 — Transcription errors were only diagnostic, not actionable
 
