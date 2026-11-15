@@ -223,8 +223,8 @@ export class AnswerGenerationService {
           : result.status === 'FLAGGED'
             ? 'CONFIRMATION_NEEDED'
             : result.status === 'ABORTED'
-                ? 'ABORTED'
-                : 'FAILED';
+              ? 'ABORTED'
+              : 'FAILED';
       DiagnosticLoggerService.getInstance().recordEvent({
         requestId,
         pipelineStage: outcome === 'SUCCESS' ? 'answer_ready' : 'failed',
