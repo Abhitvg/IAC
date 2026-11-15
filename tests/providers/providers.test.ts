@@ -385,9 +385,9 @@ describe('Bounded same-provider retry contract', () => {
   });
 
   it('does not retry authentication or malformed-request responses', async () => {
-    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('unauthorized', { status: 401 })
-    );
+    const mockFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response('unauthorized', { status: 401 }));
     global.fetch = mockFetch;
 
     const response = await fetchProviderWithRetry(
@@ -402,9 +402,9 @@ describe('Bounded same-provider retry contract', () => {
 
   it('stops retrying immediately when the caller cancels during backoff', async () => {
     const caller = new AbortController();
-    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('temporarily unavailable', { status: 503 })
-    );
+    const mockFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response('temporarily unavailable', { status: 503 }));
     global.fetch = mockFetch;
 
     const request = fetchProviderWithRetry(

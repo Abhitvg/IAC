@@ -42,9 +42,14 @@ function isTransientNetworkError(error: unknown): boolean {
   const code = (error as Error & { code?: string }).code;
   return (
     error instanceof TypeError ||
-    ['ECONNRESET', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETUNREACH', 'EAI_AGAIN', 'ETIMEDOUT'].includes(
-      code ?? ''
-    )
+    [
+      'ECONNRESET',
+      'ECONNREFUSED',
+      'EHOSTUNREACH',
+      'ENETUNREACH',
+      'EAI_AGAIN',
+      'ETIMEDOUT',
+    ].includes(code ?? '')
   );
 }
 
@@ -122,12 +127,13 @@ export async function fetchProviderWithRetry(
       if (policy.signal?.aborted) {
         throw policy.signal.reason ?? error;
       }
-      const timedOut = signal.aborted && (signal.reason as Error | undefined)?.name === 'TimeoutError';
+      const timedOut =
+        signal.aborted && (signal.reason as Error | undefined)?.name === 'TimeoutError';
       if (!timedOut && !isTransientNetworkError(error)) {
         throw error;
       }
       if (attempt === maxRetries) {
-        throw timedOut ? signal.reason ?? error : error;
+        throw timedOut ? (signal.reason ?? error) : error;
       }
       const exponentialDelay = Math.min(1000, baseDelayMs * 2 ** attempt);
       const jitter = baseDelayMs === 0 ? 0 : Math.floor(Math.random() * exponentialDelay * 0.2);

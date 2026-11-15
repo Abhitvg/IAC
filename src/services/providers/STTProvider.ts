@@ -33,17 +33,21 @@ export class OpenAIWhisperProvider implements STTProvider {
     if (options?.temperature !== undefined)
       formData.append('temperature', String(options.temperature));
 
-    const response = await fetchProviderWithRetry('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
+    const response = await fetchProviderWithRetry(
+      'https://api.openai.com/v1/audio/transcriptions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: formData,
       },
-      body: formData,
-    }, {
-      signal: options?.signal,
-      timeoutMs: options?.timeoutMs ?? DEFAULT_STT_REQUEST_TIMEOUT_MS,
-      maxRetries: options?.maxRetries ?? 0,
-    });
+      {
+        signal: options?.signal,
+        timeoutMs: options?.timeoutMs ?? DEFAULT_STT_REQUEST_TIMEOUT_MS,
+        maxRetries: options?.maxRetries ?? 0,
+      }
+    );
 
     if (!response.ok) {
       const err = await response.text();
@@ -96,17 +100,21 @@ export class GroqWhisperProvider implements STTProvider {
     if (options?.language) formData.append('language', options.language);
     if (options?.prompt) formData.append('prompt', options.prompt);
 
-    const response = await fetchProviderWithRetry('https://api.groq.com/openai/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
+    const response = await fetchProviderWithRetry(
+      'https://api.groq.com/openai/v1/audio/transcriptions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: formData,
       },
-      body: formData,
-    }, {
-      signal: options?.signal,
-      timeoutMs: options?.timeoutMs ?? DEFAULT_STT_REQUEST_TIMEOUT_MS,
-      maxRetries: options?.maxRetries ?? 0,
-    });
+      {
+        signal: options?.signal,
+        timeoutMs: options?.timeoutMs ?? DEFAULT_STT_REQUEST_TIMEOUT_MS,
+        maxRetries: options?.maxRetries ?? 0,
+      }
+    );
 
     if (!response.ok) {
       const err = await response.text();
@@ -156,14 +164,18 @@ export class LocalWhisperCppProvider implements STTProvider {
     if (options?.language) formData.append('language', options.language);
 
     try {
-      const response = await fetchProviderWithRetry(this.endpoint, {
-        method: 'POST',
-        body: formData,
-      }, {
-        signal: options?.signal,
-        timeoutMs: options?.timeoutMs ?? DEFAULT_STT_REQUEST_TIMEOUT_MS,
-        maxRetries: options?.maxRetries ?? 0,
-      });
+      const response = await fetchProviderWithRetry(
+        this.endpoint,
+        {
+          method: 'POST',
+          body: formData,
+        },
+        {
+          signal: options?.signal,
+          timeoutMs: options?.timeoutMs ?? DEFAULT_STT_REQUEST_TIMEOUT_MS,
+          maxRetries: options?.maxRetries ?? 0,
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Local whisper.cpp HTTP ${response.status}`);
