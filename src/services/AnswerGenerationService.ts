@@ -222,9 +222,7 @@ export class AnswerGenerationService {
           ? 'SUCCESS'
           : result.status === 'FLAGGED'
             ? 'CONFIRMATION_NEEDED'
-            : result.status === 'BLOCKED'
-              ? 'BLOCKED'
-              : result.status === 'ABORTED'
+            : result.status === 'ABORTED'
                 ? 'ABORTED'
                 : 'FAILED';
       DiagnosticLoggerService.getInstance().recordEvent({
