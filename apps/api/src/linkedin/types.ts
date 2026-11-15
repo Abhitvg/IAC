@@ -10,6 +10,7 @@ export type LinkedInScope =
 
 export interface LinkedInTokenSet {
   accessToken: string;
+  memberId: string;
   expiresAt: number;
   grantedScopes: string[];
   refreshToken?: string;
