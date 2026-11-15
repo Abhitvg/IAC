@@ -1,6 +1,8 @@
 import {
   LINKEDIN_MEMBER_WRITE_SCOPE,
+  LINKEDIN_MEMBER_SOCIAL_WRITE_SCOPE,
   LINKEDIN_ORGANIZATION_WRITE_SCOPE,
+  LINKEDIN_ORGANIZATION_SOCIAL_WRITE_SCOPE,
   type LinkedInApiConfig,
   type LinkedInCapability,
   type LinkedInProductEntitlements,
@@ -84,6 +86,26 @@ export function getLinkedInCapabilities(
           : status(LINKEDIN_ORGANIZATION_WRITE_SCOPE),
       reason:
         'Requires Community Management API approval, w_organization_social, and an eligible Page role.',
+    },
+    {
+      id: 'member_comment_react',
+      status: !tokenUsable
+        ? 'needs_member_authorization'
+        : !entitlements.communityManagementApproved
+          ? 'needs_linkedin_product_approval'
+          : status(LINKEDIN_MEMBER_SOCIAL_WRITE_SCOPE),
+      reason:
+        'Requires Community Management API access and w_member_social_feed; w_member_social alone is not sufficient.',
+    },
+    {
+      id: 'organization_comment_react',
+      status: !tokenUsable
+        ? 'needs_member_authorization'
+        : !entitlements.communityManagementApproved
+          ? 'needs_linkedin_product_approval'
+          : status(LINKEDIN_ORGANIZATION_SOCIAL_WRITE_SCOPE),
+      reason:
+        'Requires Community Management API access, w_organization_social_feed, and an eligible Page role.',
     },
     {
       id: 'member_content_read',
@@ -194,5 +216,138 @@ export class LinkedInApiClient {
     }
     assertUrn(organizationUrn, 'organization');
     return this.createTextPost(token, organizationUrn, commentary);
+  }
+
+  async createMemberComment(
+    token: LinkedInTokenSet,
+    targetPostUrn: string,
+    objectUrn: string,
+    commentary: string
+  ): Promise<{ id: string; status: number }> {
+    assertToken(token);
+    if (!token.grantedScopes.includes(LINKEDIN_MEMBER_SOCIAL_WRITE_SCOPE)) {
+      throw new Error(
+        'LinkedIn commenting is not authorized: w_member_social_feed scope is missing'
+      );
+    }
+    if (!/^urn:li:(?:share|ugcPost):[A-Za-z0-9_-]+$/.test(targetPostUrn)) {
+      throw new Error('Invalid LinkedIn comment target URN');
+    }
+    if (!/^urn:li:activity:[A-Za-z0-9_-]+$/.test(objectUrn)) {
+      throw new Error('Invalid LinkedIn comment object activity URN');
+    }
+    const text = commentary.trim();
+    if (!text || text.length > 3000) {
+      throw new Error('Comment text must contain 1–3000 characters');
+    }
+
+    const response = await this.fetcher(
+      `${REST_BASE}/socialActions/${encodeURIComponent(targetPostUrn)}/comments`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${token.accessToken}`,
+          'content-type': 'application/json',
+          'x-restli-protocol-version': '2.0.0',
+          'linkedin-version': this.apiVersion,
+        },
+        body: JSON.stringify({
+          actor: `urn:li:person:${token.memberId}`,
+          object: objectUrn,
+          message: { text },
+        }),
+        signal: AbortSignal.timeout(20_000),
+      }
+    );
+    if (!response.ok) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      throw new LinkedInApiError(
+        `LinkedIn comment creation failed with HTTP ${response.status}`,
+        response.status,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
+      );
+    }
+    const id = response.headers.get('x-restli-id');
+    if (!id) {
+      throw new Error('LinkedIn accepted the comment but did not return a comment ID');
+    }
+    return { id, status: response.status };
+  }
+
+  async createMemberReaction(
+    token: LinkedInTokenSet,
+    rootUrn: string,
+    reactionType: 'LIKE' | 'PRAISE' | 'EMPATHY' | 'INTEREST' | 'APPRECIATION' | 'ENTERTAINMENT'
+  ): Promise<{ status: number }> {
+    assertToken(token);
+    if (!token.grantedScopes.includes(LINKEDIN_MEMBER_SOCIAL_WRITE_SCOPE)) {
+      throw new Error(
+        'LinkedIn reactions are not authorized: w_member_social_feed scope is missing'
+      );
+    }
+    if (!/^urn:li:(?:share|ugcPost|activity):[A-Za-z0-9_-]+$/.test(rootUrn)) {
+      throw new Error('Invalid LinkedIn reaction root URN');
+    }
+
+    const url = new URL(`${REST_BASE}/reactions`);
+    url.searchParams.set('actor', `urn:li:person:${token.memberId}`);
+    const response = await this.fetcher(url.toString(), {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token.accessToken}`,
+        'content-type': 'application/json',
+        'x-restli-protocol-version': '2.0.0',
+        'linkedin-version': this.apiVersion,
+      },
+      body: JSON.stringify({ root: rootUrn, reactionType }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      throw new LinkedInApiError(
+        `LinkedIn reaction creation failed with HTTP ${response.status}`,
+        response.status,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
+      );
+    }
+    return { status: response.status };
+  }
+
+  async deleteMemberReaction(
+    token: LinkedInTokenSet,
+    entityUrn: string
+  ): Promise<{ status: number }> {
+    assertToken(token);
+    if (!token.grantedScopes.includes(LINKEDIN_MEMBER_SOCIAL_WRITE_SCOPE)) {
+      throw new Error(
+        'LinkedIn reactions are not authorized: w_member_social_feed scope is missing'
+      );
+    }
+    if (!/^urn:li:(?:share|ugcPost|activity):[A-Za-z0-9_-]+$/.test(entityUrn)) {
+      throw new Error('Invalid LinkedIn reaction entity URN');
+    }
+    const actor = encodeURIComponent(`urn:li:person:${token.memberId}`);
+    const entity = encodeURIComponent(entityUrn);
+    const response = await this.fetcher(
+      `${REST_BASE}/reactions/(actor:${actor},entity:${entity})`,
+      {
+        method: 'DELETE',
+        headers: {
+          authorization: `Bearer ${token.accessToken}`,
+          'x-restli-protocol-version': '2.0.0',
+          'linkedin-version': this.apiVersion,
+        },
+        signal: AbortSignal.timeout(20_000),
+      }
+    );
+    if (!response.ok) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      throw new LinkedInApiError(
+        `LinkedIn reaction deletion failed with HTTP ${response.status}`,
+        response.status,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
+      );
+    }
+    return { status: response.status };
   }
 }
