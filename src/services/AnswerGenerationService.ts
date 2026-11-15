@@ -122,6 +122,39 @@ export interface GenerationCallbacks {
   onError?: (error: Error, requestId: string) => void;
 }
 
+function isRetryableTransientGenerationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { status?: unknown; statusCode?: unknown; message?: unknown };
+  const status = Number(candidate.status ?? candidate.statusCode);
+  if ([408, 425, 500, 502, 503, 504].includes(status)) return true;
+  if (Number.isFinite(status) && status > 0) return false;
+  return /fetch failed|network error|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|connection reset/i.test(
+    typeof candidate.message === 'string' ? candidate.message : ''
+  );
+}
+
+function waitForRetry(delayMs: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>;
+    const cleanup = () => signal.removeEventListener('abort', onAbort);
+    const onAbort = () => {
+      clearTimeout(timer);
+      cleanup();
+      reject(
+        Object.assign(new Error(signal.reason?.message || 'Generation cancelled during retry.'), {
+          name: 'AbortError',
+        })
+      );
+    };
+    timer = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, delayMs);
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 export class AnswerGenerationService {
   private static instance: AnswerGenerationService | null = null;
   private currentSequence = 0;
@@ -574,6 +607,44 @@ export class AnswerGenerationService {
           clearTimeout(overallTimer);
           callerSignal?.removeEventListener('abort', abortFromCaller);
           return completionResult;
+        }
+
+        const hasPartialOutput = Boolean((err as any).hasEmittedTokens || (err as any).partialText);
+        if (
+          !hasPartialOutput &&
+          retryCount < maxRetries &&
+          isRetryableTransientGenerationError(err)
+        ) {
+          retryCount += 1;
+          const delayMs = RateLimitGovernor.calculateBackoffDelayMs(retryCount, 0);
+          const store = useAppStore.getState();
+          store.setPipelineStage('retrying');
+          store.setToast(
+            `Connection interrupted. Retrying answer generation in ${Math.ceil(delayMs / 1000)}s (Attempt ${retryCount}/${maxRetries})...`
+          );
+          DiagnosticLoggerService.getInstance().recordEvent({
+            requestId,
+            pipelineStage: 'retrying',
+            retryAttempt: retryCount,
+            retryDelayMs: delayMs,
+            selectedProvider: provider,
+            selectedModel: providerConfig.model,
+            message: 'Retrying a transient provider/network failure before any answer tokens were emitted.',
+          });
+          try {
+            await waitForRetry(delayMs, signal);
+          } catch (waitError: any) {
+            if (signal.aborted || waitError?.name === 'AbortError') {
+              const abortedResult = createAbortedResult();
+              (abortedResult as any).answer = abortedResult.cleanAnswer;
+              cb.onComplete?.(abortedResult);
+              clearTimeout(overallTimer);
+              callerSignal?.removeEventListener('abort', abortFromCaller);
+              return abortedResult;
+            }
+            throw waitError;
+          }
+          continue;
         }
 
         const analysis = RateLimitGovernor.analyzeRateLimit(
