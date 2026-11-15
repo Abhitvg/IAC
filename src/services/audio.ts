@@ -1,4 +1,5 @@
 import { useAppStore } from '../store/useAppStore';
+import { DiagnosticLoggerService } from './diagnosticLogger';
 import { downsampleBuffer, encodeWav } from '../utils/audioConversion';
 
 export interface AudioFrameEvent {
@@ -17,6 +18,8 @@ export class AudioRecorder {
   private frameListeners: Set<AudioFrameListener> = new Set();
   private lastFrameTime = 0;
   private captureState: AudioCaptureState = 'stopped';
+  private captureRequestId: string | null = null;
+  private captureStartedAt = 0;
 
   public static getInstance(): AudioRecorder {
     if (!AudioRecorder.instance) {
@@ -70,7 +73,15 @@ export class AudioRecorder {
     }
 
     this.captureState = 'starting';
-    await this.stop(false);
+    await this.stop(false, 'ABORTED');
+    this.captureRequestId = `capture_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    this.captureStartedAt = Date.now();
+    DiagnosticLoggerService.getInstance().recordEvent({
+      requestId: this.captureRequestId,
+      pipelineStage: 'listening',
+      audioCaptureOutcome: 'ACTIVE',
+      message: 'Audio capture session started.',
+    });
     this.onUtteranceCb = onUtterance;
     this.isListening = true;
     this.isCapturing = false;
@@ -134,6 +145,18 @@ export class AudioRecorder {
     } catch (e: any) {
       this.isListening = false;
       this.captureState = 'error';
+      if (this.captureRequestId) {
+        DiagnosticLoggerService.getInstance().recordEvent({
+          requestId: this.captureRequestId,
+          pipelineStage: 'failed',
+          audioCaptureDurationMs: Date.now() - this.captureStartedAt,
+          audioCaptureOutcome: 'FAILED',
+          finalOutcome: 'FAILED',
+          message: 'Audio capture failed before the microphone pipeline became active.',
+        });
+        this.captureRequestId = null;
+        this.captureStartedAt = 0;
+      }
       useAppStore.getState().updateDiagnostics({
         micActive: false,
         whisperStatus: 'Mic error: ' + (e?.message || e),
@@ -273,7 +296,10 @@ export class AudioRecorder {
    * @param flush If true, flushes and finalizes any in-progress speech.
    *              If false (default), discards in-progress buffer to avoid triggering unwanted requests on stop.
    */
-  async stop(flush: boolean = false): Promise<void> {
+  async stop(
+    flush: boolean = false,
+    outcome: 'STOPPED' | 'ABORTED' = 'STOPPED'
+  ): Promise<void> {
     if (this.captureState === 'stopped') {
       return;
     }
@@ -325,6 +351,22 @@ export class AudioRecorder {
     }
 
     this.captureState = 'stopped';
+    if (this.captureRequestId) {
+      const captureDurationMs = Date.now() - this.captureStartedAt;
+      DiagnosticLoggerService.getInstance().recordEvent({
+        requestId: this.captureRequestId,
+        pipelineStage: outcome === 'STOPPED' ? 'listening' : 'failed',
+        audioCaptureDurationMs: captureDurationMs,
+        audioCaptureOutcome: outcome,
+        finalOutcome: outcome === 'STOPPED' ? 'SUCCESS' : 'ABORTED',
+        message:
+          outcome === 'STOPPED'
+            ? 'Audio capture session stopped.'
+            : 'Audio capture session cancelled.',
+      });
+      this.captureRequestId = null;
+      this.captureStartedAt = 0;
+    }
     useAppStore.getState().updateDiagnostics({
       micActive: false,
       speechDetected: false,
@@ -332,6 +374,6 @@ export class AudioRecorder {
   }
 
   async cancel(): Promise<void> {
-    await this.stop(false);
+    await this.stop(false, 'ABORTED');
   }
 }
