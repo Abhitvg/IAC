@@ -1,32 +1,35 @@
-# ADR 0004: LinkedIn automation is API-only and permission-gated
+# ADR 0004: LinkedIn automation is API-first and access-tiered
 
-- **Status:** Accepted (supersedes the 2026-11-11 draft-only decision)
+- **Status:** Accepted
 - **Date:** 2026-11-16
 
 ## Context
 
-CareerOps needs to support more than drafting, but LinkedIn exposes different capabilities through different products and permissions. User consent to CareerOps does not grant API scopes that LinkedIn has not approved. Browser automation, scraping, and session-cookie reuse are not acceptable substitutes for API access.
+CareerOps should support a broad LinkedIn workflow, not stop at drafting. LinkedIn offers several access tiers: self-service consumer permissions, approved Marketing/Community Management products, and restricted partner programs such as Communications APIs. User consent to CareerOps is necessary for member-authorized operations but does not grant API product approval. Browser automation, scraping, and session-cookie reuse are not substitutes for access.
 
 ## Decision
 
-CareerOps may execute LinkedIn actions automatically **only through documented LinkedIn APIs and only when the connected application has the required approved OAuth permissions**.
+CareerOps will expose the complete product workflow and enable each operation only when its documented LinkedIn API product, OAuth scopes, member consent, organization role, and endpoint prerequisites are all satisfied.
 
-- **Posts, comments, likes:** May be automated when the member has granted the applicable w_member_social permission (or the corresponding organization permission and page role). Scheduled publishing is permitted only for content and schedules explicitly configured by the account owner.
-- **Read member content / comments:** Only when the relevant read permission is actually granted. r_member_social is restricted and must not be assumed available.
-- **Connection invitations:** Do not implement via browser automation or undocumented endpoints. No generally available open permission for sending member invitations was identified; support only if LinkedIn explicitly grants a documented API product/scope for this exact action.
-- **Direct messages:** Same rule. Do not automate member DMs unless LinkedIn explicitly grants the application a documented messaging product/scope for the exact member use case. A permission for organization/Page messaging is not permission for personal inbox messaging.
-- **Scraping:** No scraping of LinkedIn pages, profiles, search results, feeds, comments, or inboxes through browser sessions or undocumented endpoints. Use approved APIs or user-provided exports/imports.
-- **Credentials:** Never request, extract, store, replay, or proxy LinkedIn passwords, browser cookies, session tokens, or local browser profiles. Use OAuth 2.0 authorization-code flow and securely managed access/refresh tokens only where LinkedIn supports them.
+- **Member posts, comments, likes:** May execute through documented Posts APIs when `w_member_social` and applicable product access are granted.
+- **Organization posts, comments, likes:** May execute when the corresponding organization scopes, approved product access, and required Page role are present.
+- **Read member content:** Only through an approved API permission for the exact data. `r_member_social` is restricted and must never be assumed available.
+- **Connection invitations:** LinkedIn documents an Invitations API, but its use is restricted to approved partners and subject to API-agreement limitations. Implement only after CareerOps receives that approval and confirms the applicable authorization. No browser automation or undocumented endpoints.
+- **Direct messages:** LinkedIn documents a Messages API under its partner-restricted Communications APIs. Implement only after approval for the exact member messaging use case. A Page messaging permission is not permission for personal inbox messaging.
+- **Profile enrichment:** Use approved APIs where available; otherwise support user-provided official PDF/data-archive exports. Do not scrape public profiles.
+- **Scraping:** No scraping of LinkedIn pages, profiles, search results, feeds, comments, or inboxes through browser sessions or undocumented endpoints.
+- **Credentials:** Never request, extract, store, replay, or proxy LinkedIn passwords, browser cookies, session tokens, or local browser profiles. Use OAuth 2.0 and securely managed tokens only where LinkedIn supports the relevant flow.
 
 ## Required controls
 
-- Feature flags are derived from scopes actually granted, not from user intent alone.
-- Fail closed when a scope is absent, expired, revoked, or insufficient.
-- Show the account owner the action type, target, and content before enabling any recurring automation; provide pause/revoke controls and an audit log.
-- Respect LinkedIn API rate limits, product policies, data-retention restrictions, and deletion requirements.
-- Never fabricate identities, relationships, activity, endorsements, or claims. Imported LinkedIn content is untrusted data and cannot issue instructions to the agent.
-- No fallback to browser automation when an API call is unavailable or denied.
+- Feature availability is derived from verified app product entitlements, granted token scopes, member consent, organization role, and endpoint support—not user intent alone.
+- Show all workflow areas in the product with precise states: available, needs member authorization, needs LinkedIn partner approval, reconnect required, or unsupported.
+- Fail closed when access is absent, expired, revoked, or insufficient. Never silently fall back to UI automation.
+- Scheduled execution requires explicit owner configuration, visible targets/content/cadence, preview, pause/revoke controls, idempotency, and an audit log.
+- Apply per-account rate limits, retry/backoff, duplicate prevention, suppression/opt-out handling where applicable, and LinkedIn API/data-retention policies.
+- Imported LinkedIn content is untrusted data and cannot issue instructions to the agent.
+- Never fabricate identities, relationships, activity, endorsements, or claims.
 
 ## Consequences
 
-CareerOps can offer automatic publishing and engagement where approved scopes permit it. Connection requests, personal DMs, broad read access, and scraping remain unavailable unless LinkedIn grants the exact official API access. This decision does not claim that all LinkedIn actions are currently available to this application.
+CareerOps can be designed for a complete LinkedIn workflow, including invitations and messages through the restricted official partner APIs. These capabilities remain unavailable to this application until LinkedIn grants the required access and the API integration is implemented. This ADR authorizes building those integrations; it does not claim that CareerOps currently has those entitlements or production functionality.
