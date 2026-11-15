@@ -1,4 +1,4 @@
-import { createProviderRequestSignal, DEFAULT_LLM_REQUEST_TIMEOUT_MS } from './requestLifecycle';
+import { fetchProviderWithRetry, DEFAULT_LLM_REQUEST_TIMEOUT_MS } from './requestLifecycle';
 import {
   LLMProvider,
   LLMMessage,
@@ -32,7 +32,7 @@ export class GroqProvider implements LLMProvider {
     const match = cleanKey.match(/gsk_[A-Za-z0-9_-]+/);
     if (match) cleanKey = match[0];
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const response = await fetchProviderWithRetry('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -44,10 +44,10 @@ export class GroqProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: createProviderRequestSignal(
-        options?.signal,
-        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
-      ),
+    }, {
+      signal: options?.signal,
+      timeoutMs: options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS,
+      maxRetries: options?.maxRetries ?? 1,
     });
 
     if (!response.ok) {
@@ -109,7 +109,7 @@ export class OpenAIProvider implements LLMProvider {
     const startTime = Date.now();
     const model = options?.model || this.defaultModel;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetchProviderWithRetry('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -121,10 +121,10 @@ export class OpenAIProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: createProviderRequestSignal(
-        options?.signal,
-        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
-      ),
+    }, {
+      signal: options?.signal,
+      timeoutMs: options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS,
+      maxRetries: options?.maxRetries ?? 1,
     });
 
     if (!response.ok) {
@@ -179,7 +179,7 @@ export class OpenRouterProvider implements LLMProvider {
     const startTime = Date.now();
     const model = options?.model || this.defaultModel;
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetchProviderWithRetry('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -193,10 +193,10 @@ export class OpenRouterProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: createProviderRequestSignal(
-        options?.signal,
-        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
-      ),
+    }, {
+      signal: options?.signal,
+      timeoutMs: options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS,
+      maxRetries: options?.maxRetries ?? 1,
     });
 
     if (!response.ok) {
@@ -254,7 +254,7 @@ export class OllamaProvider implements LLMProvider {
     const base = this.endpoint.replace(/\/+$/, '');
     const url = `${base}/v1/chat/completions`;
 
-    const response = await fetch(url, {
+    const response = await fetchProviderWithRetry(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -265,10 +265,10 @@ export class OllamaProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens ?? 1500,
       }),
-      signal: createProviderRequestSignal(
-        options?.signal,
-        options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS
-      ),
+    }, {
+      signal: options?.signal,
+      timeoutMs: options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS,
+      maxRetries: options?.maxRetries ?? 1,
     });
 
     if (!response.ok) {
