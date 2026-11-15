@@ -142,10 +142,9 @@ function waitForRetry(delayMs: number, signal: AbortSignal): Promise<void> {
       clearTimeout(timer);
       cleanup();
       reject(
-        Object.assign(
-          new Error(signal.reason?.message || 'Generation cancelled during retry.'),
-          { name: 'AbortError' }
-        )
+        Object.assign(new Error(signal.reason?.message || 'Generation cancelled during retry.'), {
+          name: 'AbortError',
+        })
       );
     };
     timer = setTimeout(() => {
@@ -226,23 +225,41 @@ export class AnswerGenerationService {
     const createAbortedResult = (
       timedOut = false,
       timeoutMessage = 'Generation deadline exceeded'
-    ): AnswerGenerationResult => ({
-      status: timedOut ? 'FAILED' : 'ABORTED',
-      isValidated: false,
-      cleanAnswer: '',
-      error: timedOut ? timeoutMessage : 'Generation aborted by user or timeout',
-      detectedCategory: 'General',
-      confidence: 'low',
-      followUps: [],
-      predictedFollowUps: [],
-      requestId,
-      validationStatus: timedOut ? 'FAILED' : 'ABORTED',
-      groundingScore: 0,
-      groundingViolations: [
-        timedOut ? 'Generation deadline exceeded' : 'Request aborted by caller',
-      ],
-      structuredViolations: [],
-    });
+    ): AnswerGenerationResult => {
+      if (timedOut) {
+        return {
+          status: 'FAILED',
+          isValidated: false,
+          cleanAnswer: '',
+          error: timeoutMessage,
+          detectedCategory: 'General',
+          confidence: 'low',
+          followUps: [],
+          predictedFollowUps: [],
+          requestId,
+          validationStatus: 'FAILED',
+          groundingScore: 0,
+          groundingViolations: ['Generation deadline exceeded'],
+          structuredViolations: [],
+        };
+      }
+
+      return {
+        status: 'ABORTED',
+        isValidated: false,
+        cleanAnswer: '',
+        error: 'Generation aborted by user or timeout',
+        detectedCategory: 'General',
+        confidence: 'low',
+        followUps: [],
+        predictedFollowUps: [],
+        requestId,
+        validationStatus: 'ABORTED',
+        groundingScore: 0,
+        groundingViolations: ['Request aborted by caller'],
+        structuredViolations: [],
+      };
+    };
 
     if (requestSeq !== this.currentSequence) {
       const staleResult = createAbortedResult();
@@ -623,9 +640,7 @@ export class AnswerGenerationService {
           return completionResult;
         }
 
-        const hasPartialOutput = Boolean(
-          (err as any).hasEmittedTokens || (err as any).partialText
-        );
+        const hasPartialOutput = Boolean((err as any).hasEmittedTokens || (err as any).partialText);
         if (
           !hasPartialOutput &&
           retryCount < maxRetries &&
