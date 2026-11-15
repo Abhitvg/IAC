@@ -106,6 +106,78 @@ describe('LinkedIn API client', () => {
     ).rejects.toThrow('author URN');
   });
 
+  it('creates a member comment only with the Community Management write scope', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(null, {
+        status: 201,
+        headers: { 'x-restli-id': 'comment-123' },
+      })
+    );
+    const client = new LinkedInApiClient({ fetcher });
+    const token = makeToken(['openid', 'profile', 'w_member_social_feed']);
+    const result = await client.createMemberComment(
+      token,
+      'urn:li:ugcPost:12345',
+      'urn:li:activity:12345',
+      'A useful comment'
+    );
+
+    expect(result).toEqual({ id: 'comment-123', status: 201 });
+    const [url, init] = fetcher.mock.calls[0];
+    expect(url).toBe(
+      'https://api.linkedin.com/rest/socialActions/urn%3Ali%3AugcPost%3A12345/comments'
+    );
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      actor: 'urn:li:person:abc123',
+      object: 'urn:li:activity:12345',
+      message: { text: 'A useful comment' },
+    });
+  });
+
+  it('creates and deletes reactions through the versioned Reactions API', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 201 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const client = new LinkedInApiClient({ fetcher });
+    const token = makeToken(['openid', 'profile', 'w_member_social_feed']);
+
+    await expect(
+      client.createMemberReaction(token, 'urn:li:activity:12345', 'PRAISE')
+    ).resolves.toEqual({ status: 201 });
+    await expect(
+      client.deleteMemberReaction(token, 'urn:li:ugcPost:12345')
+    ).resolves.toEqual({ status: 204 });
+
+    expect(fetcher.mock.calls[0][0]).toBe(
+      'https://api.linkedin.com/rest/reactions?actor=urn%3Ali%3Aperson%3Aabc123'
+    );
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({
+      root: 'urn:li:activity:12345',
+      reactionType: 'PRAISE',
+    });
+    expect(fetcher.mock.calls[1][0]).toContain('/reactions/(actor:urn%3Ali%3Aperson%3Aabc123');
+  });
+
+  it('does not attempt comments or reactions without w_member_social_feed', async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const client = new LinkedInApiClient({ fetcher });
+    const token = makeToken(['openid', 'profile', 'w_member_social']);
+
+    await expect(
+      client.createMemberComment(
+        token,
+        'urn:li:ugcPost:12345',
+        'urn:li:activity:12345',
+        'Comment'
+      )
+    ).rejects.toThrow('w_member_social_feed');
+    await expect(
+      client.createMemberReaction(token, 'urn:li:activity:12345', 'LIKE')
+    ).rejects.toThrow('w_member_social_feed');
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('reports partner-only features as unavailable rather than pretending to execute them', () => {
     const capabilities = getLinkedInCapabilities(makeToken(), {
       invitationsApiApproved: false,
