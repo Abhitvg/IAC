@@ -1012,8 +1012,7 @@ export class InterviewEngine {
                   requestId: res.requestId,
                   pipelineStage: 'failed',
                   finalOutcome: res.status === 'ABORTED' ? 'ABORTED' : 'FAILED',
-                  message:
-                    (res as any).error || 'The screen solver returned no usable answer.',
+                  message: (res as any).error || 'The screen solver returned no usable answer.',
                 });
                 return;
               }
@@ -1044,7 +1043,8 @@ export class InterviewEngine {
               state.setStatus(decision.isSpeakable ? 'ready' : 'error');
               if (!decision.isSpeakable) {
                 state.setToast(
-                  decision.blockedReason || 'The screen answer was withheld by factual verification.'
+                  decision.blockedReason ||
+                    'The screen answer was withheld by factual verification.'
                 );
               }
             },
