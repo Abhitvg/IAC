@@ -8,6 +8,7 @@ import {
 } from '../../../packages/cloud-core/src/career-graph';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
+import { LinkedInApiError } from './linkedin/client';
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, {
@@ -707,6 +708,35 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       sendJson(response, 404, { error: 'Not found', requestId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
+      if (error instanceof LinkedInApiError) {
+        const status =
+          error.status === 401
+            ? 401
+            : error.status === 403
+              ? 403
+              : error.status === 429
+                ? 429
+                : error.status >= 500
+                  ? 502
+                  : 400;
+        if (error.retryAfterSeconds) {
+          response.setHeader('retry-after', String(error.retryAfterSeconds));
+        }
+        sendJson(response, status, {
+          error:
+            status === 401
+              ? 'LinkedIn authorization expired; reconnect the account'
+              : status === 403
+                ? 'LinkedIn denied this action; verify product approval, granted scopes, and Page role'
+                : status === 429
+                  ? 'LinkedIn rate limit reached; retry after the indicated delay'
+                  : status === 502
+                    ? 'LinkedIn API is temporarily unavailable'
+                    : 'LinkedIn rejected the requested operation',
+          requestId,
+        });
+        return;
+      }
       const status =
         error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')
           ? 400
