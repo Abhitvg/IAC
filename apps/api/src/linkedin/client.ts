@@ -412,6 +412,46 @@ export class LinkedInApiClient {
     return { status: response.status };
   }
 
+  async deleteOrganizationReaction(
+    token: LinkedInTokenSet,
+    organizationUrn: string,
+    entityUrn: string
+  ): Promise<{ status: number }> {
+    assertToken(token);
+    if (!token.grantedScopes.includes(LINKEDIN_ORGANIZATION_SOCIAL_WRITE_SCOPE)) {
+      throw new Error(
+        'LinkedIn organization reactions are not authorized: w_organization_social_feed scope is missing'
+      );
+    }
+    assertUrn(organizationUrn, 'organization');
+    if (!/^urn:li:(?:share|ugcPost):[A-Za-z0-9_-]+$/.test(entityUrn)) {
+      throw new Error('Invalid LinkedIn reaction entity URN');
+    }
+    const actor = encodeURIComponent(organizationUrn);
+    const entity = encodeURIComponent(entityUrn);
+    const response = await this.fetcher(
+      `${REST_BASE}/reactions/(actor:${actor},entity:${entity})`,
+      {
+        method: 'DELETE',
+        headers: {
+          authorization: `Bearer ${token.accessToken}`,
+          'x-restli-protocol-version': '2.0.0',
+          'linkedin-version': this.apiVersion,
+        },
+        signal: AbortSignal.timeout(20_000),
+      }
+    );
+    if (!response.ok) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      throw new LinkedInApiError(
+        `LinkedIn organization reaction deletion failed with HTTP ${response.status}`,
+        response.status,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
+      );
+    }
+    return { status: response.status };
+  }
+
   async deleteMemberReaction(
     token: LinkedInTokenSet,
     entityUrn: string
