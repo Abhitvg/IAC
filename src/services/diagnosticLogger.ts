@@ -30,6 +30,10 @@ export interface PipelineDiagnosticEvent {
   retryDelayMs?: number;
   timeToFirstTokenMs?: number;
   totalGenerationTimeMs?: number;
+  transcriptionDurationMs?: number;
+  transcriptCharacterCount?: number;
+  audioByteLength?: number;
+  transcriptionOutcome?: 'SUCCESS' | 'EMPTY' | 'FAILED' | 'ABORTED';
   receivedTokenCount?: number;
   isEmptyResponse?: boolean;
   finalOutcome?: 'SUCCESS' | 'RATE_LIMITED' | 'FAILED' | 'BLOCKED' | 'ABORTED' | 'CONFIRMATION_NEEDED' | 'UNCLASSIFIED';
@@ -102,6 +106,10 @@ export class DiagnosticLoggerService {
           e.retryAttempt !== undefined ? `RETRY: ${e.retryAttempt}` : '',
           e.timeToFirstTokenMs ? `TTFT: ${e.timeToFirstTokenMs}ms` : '',
           e.totalGenerationTimeMs ? `TOTAL: ${e.totalGenerationTimeMs}ms` : '',
+          e.transcriptionDurationMs !== undefined ? `STT: ${e.transcriptionDurationMs}ms` : '',
+          e.transcriptCharacterCount !== undefined ? `TRANSCRIPT_CHARS: ${e.transcriptCharacterCount}` : '',
+          e.audioByteLength !== undefined ? `AUDIO_BYTES: ${e.audioByteLength}` : '',
+          e.transcriptionOutcome ? `STT_OUTCOME: ${e.transcriptionOutcome}` : '',
           e.receivedTokenCount !== undefined ? `TOKENS: ${e.receivedTokenCount}` : '',
           e.finalOutcome ? `OUTCOME: ${e.finalOutcome}` : '',
           e.message ? `MSG: ${e.message}` : '',
