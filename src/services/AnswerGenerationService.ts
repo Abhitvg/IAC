@@ -237,7 +237,9 @@ export class AnswerGenerationService {
       requestId,
       validationStatus: timedOut ? 'FAILED' : 'ABORTED',
       groundingScore: 0,
-      groundingViolations: [timedOut ? 'Generation deadline exceeded' : 'Request aborted by caller'],
+      groundingViolations: [
+        timedOut ? 'Generation deadline exceeded' : 'Request aborted by caller',
+      ],
       structuredViolations: [],
     });
 
