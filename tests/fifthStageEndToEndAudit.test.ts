@@ -40,7 +40,7 @@ describe('IAC Fifth-Stage Audit: Evidence Authenticity, Trust Boundaries and End
             dependencies: { express: '^4.18.2', redis: '^4.6.0', pg: '^8.11.0' },
           }),
           'src/server.ts': 'import express from "express";\nconsole.log("payment service");',
-          'Dockerfile': 'FROM node:18-alpine\nCMD ["npm", "start"]',
+          Dockerfile: 'FROM node:18-alpine\nCMD ["npm", "start"]',
         },
       });
 
@@ -78,16 +78,23 @@ describe('IAC Fifth-Stage Audit: Evidence Authenticity, Trust Boundaries and End
       expect(TrustedRepositoryInspectionService.verifySeal(inspectionResult)).toBe(true);
 
       // 7. Tampering with inspection result breaks seal
-      const tampered = { ...inspectionResult, resolvedCommitSha: '0000000000000000000000000000000000000000' };
+      const tampered = {
+        ...inspectionResult,
+        resolvedCommitSha: '0000000000000000000000000000000000000000',
+      };
       expect(TrustedRepositoryInspectionService.verifySeal(tampered)).toBe(false);
 
       // 8. Applying to KnowledgeBase
-      const kb = new CandidateKnowledgeBase('Projects:\nPaymentGateway - Payment routing\nTechnologies: Express\n');
+      const kb = new CandidateKnowledgeBase(
+        'Projects:\nPaymentGateway - Payment routing\nTechnologies: Express\n'
+      );
       const verified = kb.verifyViaRepositoryInspection('PaymentGateway', inspectionResult);
       expect(verified).toBe(true);
 
       const proj = kb.getProject('PaymentGateway');
-      expect(proj?.fieldProvenance.actualTechnologyUsage.verificationStatus).toBe('REPOSITORY_SUPPORTED');
+      expect(proj?.fieldProvenance.actualTechnologyUsage.verificationStatus).toBe(
+        'REPOSITORY_SUPPORTED'
+      );
       // Invariant: Unverified fields remain UNKNOWN
       expect(proj?.fieldProvenance.personalContribution.verificationStatus).toBe('UNKNOWN');
       expect(proj?.fieldProvenance.performanceMetrics.verificationStatus).toBe('UNKNOWN');
@@ -157,12 +164,23 @@ Signed: VP of Engineering, Cloud Corp
         enabled: true,
       });
       const docBSha = sha256Hex(performanceReview);
-      const docBSig = crypto.sign(null, Buffer.from(docBSha, 'hex'), crypto.createPrivateKey(cloudCorpKeys.privateKeyPem)).toString('hex');
+      const docBSig = crypto
+        .sign(
+          null,
+          Buffer.from(docBSha, 'hex'),
+          crypto.createPrivateKey(cloudCorpKeys.privateKeyPem)
+        )
+        .toString('hex');
 
       const docB = TrustedDocumentInspectionService.inspectDocument({
         documentBytes: performanceReview,
         documentType: 'performance_review',
-        issuer: { issuerId: 'cloud-corp', name: 'Cloud Corp HR & Engineering', authorityLevel: 'employer_hr', signatureHex: docBSig },
+        issuer: {
+          issuerId: 'cloud-corp',
+          name: 'Cloud Corp HR & Engineering',
+          authorityLevel: 'employer_hr',
+          signatureHex: docBSig,
+        },
         candidateIdentity: { fullName: 'Abhishek Singh', email: 'abhishek@example.com' },
         targetProjectName: 'Project Titan',
       });
@@ -180,8 +198,12 @@ Signed: VP of Engineering, Cloud Corp
       expect(resB).toBe(true);
 
       const proj = kb.getProject('Project Titan');
-      expect(proj?.fieldProvenance.personalContribution.verificationStatus).toBe('DOCUMENT_SUPPORTED');
-      expect(proj?.fieldProvenance.performanceMetrics.verificationStatus).toBe('DOCUMENT_SUPPORTED');
+      expect(proj?.fieldProvenance.personalContribution.verificationStatus).toBe(
+        'DOCUMENT_SUPPORTED'
+      );
+      expect(proj?.fieldProvenance.performanceMetrics.verificationStatus).toBe(
+        'DOCUMENT_SUPPORTED'
+      );
       expect(proj?.verifiedResults).toContain('reduced query latency by 45%');
 
       // Invariant: Unmentioned fields remain UNKNOWN
@@ -264,14 +286,20 @@ Signed: VP of Engineering, Cloud Corp
       expect(TrustedIndependentAuditService.verifySeal(auditResult!)).toBe(true);
 
       // Apply to KnowledgeBase
-      const kb = new CandidateKnowledgeBase('Projects:\nDataBridge - High performance replication proxy\n');
+      const kb = new CandidateKnowledgeBase(
+        'Projects:\nDataBridge - High performance replication proxy\n'
+      );
       const verified = kb.verifyViaIndependentAudit('DataBridge', auditResult!);
       expect(verified).toBe(true);
 
       const proj = kb.getProject('DataBridge');
       expect(proj?.verificationStatus).toBe('INDEPENDENTLY_VERIFIED');
-      expect(proj?.fieldProvenance.personalContribution.verificationStatus).toBe('INDEPENDENTLY_VERIFIED');
-      expect(proj?.fieldProvenance.performanceMetrics.verificationStatus).toBe('INDEPENDENTLY_VERIFIED');
+      expect(proj?.fieldProvenance.personalContribution.verificationStatus).toBe(
+        'INDEPENDENTLY_VERIFIED'
+      );
+      expect(proj?.fieldProvenance.performanceMetrics.verificationStatus).toBe(
+        'INDEPENDENTLY_VERIFIED'
+      );
       expect(proj?.verifiedResults).toContain('improved throughput by 30%');
     });
   });
@@ -373,7 +401,9 @@ Signed: VP of Engineering, Cloud Corp
   // ==========================================================================
   describe('P1 — Semantic Factual Grounding Evaluation', () => {
     it('detects indirect personal attribution claims when unverified and neutralizes them cleanly', () => {
-      const kb = new CandidateKnowledgeBase('Projects:\nCommerceApp - Storefront\nTechnologies: Java, PostgreSQL\n');
+      const kb = new CandidateKnowledgeBase(
+        'Projects:\nCommerceApp - Storefront\nTechnologies: Java, PostgreSQL\n'
+      );
 
       const testClaims = [
         'I was responsible for the backend architecture of CommerceApp.',
@@ -413,7 +443,11 @@ Signed: VP of Engineering, Cloud Corp
       ];
 
       for (const explanation of validExplanations) {
-        const val = FactualGroundingValidator.validateAnswer(explanation, kb, 'How would you scale a service?');
+        const val = FactualGroundingValidator.validateAnswer(
+          explanation,
+          kb,
+          'How would you scale a service?'
+        );
         expect(val.isGrounded).toBe(true);
         expect(val.validationStatus).toBe('VALIDATED');
         expect(val.structuredViolations).toEqual([]);
@@ -456,7 +490,9 @@ DataEngine - High-velocity event pipeline
         proposedFutureDesigns: ['Migrate ingest workers to Rust for lower memory usage'],
       });
       expect(confirmed).toBe(true);
-      expect(proj?.fieldProvenance.actualTechnologyUsage.verificationStatus).toBe('CANDIDATE_CONFIRMED');
+      expect(proj?.fieldProvenance.actualTechnologyUsage.verificationStatus).toBe(
+        'CANDIDATE_CONFIRMED'
+      );
 
       // 4. Repository inspection through TrustedRepositoryInspectionService
       const sandbox = TrustedRepositoryInspectionService.getSandboxProvider();
@@ -469,7 +505,8 @@ DataEngine - High-velocity event pipeline
         treeSha,
         author: { name: 'Abhishek Singh', email: 'abhishek@example.com' },
         files: {
-          'pom.xml': '<project><dependencies><dependency><groupId>org.apache.kafka</groupId><artifactId>kafka-clients</artifactId></dependency></dependencies></project>',
+          'pom.xml':
+            '<project><dependencies><dependency><groupId>org.apache.kafka</groupId><artifactId>kafka-clients</artifactId></dependency></dependencies></project>',
           'src/main/java/Engine.java': 'package engine;\npublic class Engine {}',
         },
       });
@@ -480,7 +517,9 @@ DataEngine - High-velocity event pipeline
       });
       const repoVerified = kb.verifyViaRepositoryInspection('DataEngine', repoInspection);
       expect(repoVerified).toBe(true);
-      expect(proj?.fieldProvenance.actualTechnologyUsage.verificationStatus).toBe('REPOSITORY_SUPPORTED');
+      expect(proj?.fieldProvenance.actualTechnologyUsage.verificationStatus).toBe(
+        'REPOSITORY_SUPPORTED'
+      );
       expect(proj?.ownership).toBe('contributor'); // Never sole_owner
 
       // 5. Document inspection through TrustedDocumentInspectionService
@@ -501,12 +540,19 @@ Project Reference: DataEngine
         enabled: true,
       });
       const patentSha = sha256Hex(patentBytes);
-      const patentSig = crypto.sign(null, Buffer.from(patentSha, 'hex'), crypto.createPrivateKey(usptoKeys.privateKeyPem)).toString('hex');
+      const patentSig = crypto
+        .sign(null, Buffer.from(patentSha, 'hex'), crypto.createPrivateKey(usptoKeys.privateKeyPem))
+        .toString('hex');
 
       const docInspection = TrustedDocumentInspectionService.inspectDocument({
         documentBytes: patentBytes,
         documentType: 'patent_grant',
-        issuer: { issuerId: 'uspto', name: 'USPTO', authorityLevel: 'patent_office', signatureHex: patentSig },
+        issuer: {
+          issuerId: 'uspto',
+          name: 'USPTO',
+          authorityLevel: 'patent_office',
+          signatureHex: patentSig,
+        },
         candidateIdentity: { fullName: 'Abhishek Singh' },
         targetProjectName: 'DataEngine',
       });
@@ -523,9 +569,15 @@ Project Reference: DataEngine
       vi.spyOn(aiModule, 'streamAnswer').mockImplementation(
         async (_prompt: string, _config: any, _lang: any, callbacks: any) => {
           // Model attempts to generate answer with both general explanations and a fabricated personal metric
-          callbacks.onToken('To scale an event pipeline, engineers typically buffer messages using Kafka. ');
-          callbacks.onToken('In DataEngine, I personally handled 500k QPS and cut latency by 60%. ');
-          callbacks.onToken('FOLLOW_UPS: How did you configure Kafka consumer groups? | What partition key strategy did you use?');
+          callbacks.onToken(
+            'To scale an event pipeline, engineers typically buffer messages using Kafka. '
+          );
+          callbacks.onToken(
+            'In DataEngine, I personally handled 500k QPS and cut latency by 60%. '
+          );
+          callbacks.onToken(
+            'FOLLOW_UPS: How did you configure Kafka consumer groups? | What partition key strategy did you use?'
+          );
           callbacks.onComplete(
             'To scale an event pipeline, engineers typically buffer messages using Kafka. In DataEngine, I personally handled 500k QPS and cut latency by 60%.\nFOLLOW_UPS: How did you configure Kafka consumer groups? | What partition key strategy did you use?'
           );

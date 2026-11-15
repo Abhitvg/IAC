@@ -36,7 +36,14 @@ export interface PipelineDiagnosticEvent {
   transcriptionOutcome?: 'SUCCESS' | 'EMPTY' | 'FAILED' | 'ABORTED';
   receivedTokenCount?: number;
   isEmptyResponse?: boolean;
-  finalOutcome?: 'SUCCESS' | 'RATE_LIMITED' | 'FAILED' | 'BLOCKED' | 'ABORTED' | 'CONFIRMATION_NEEDED' | 'UNCLASSIFIED';
+  finalOutcome?:
+    | 'SUCCESS'
+    | 'RATE_LIMITED'
+    | 'FAILED'
+    | 'BLOCKED'
+    | 'ABORTED'
+    | 'CONFIRMATION_NEEDED'
+    | 'UNCLASSIFIED';
   message?: string;
 }
 
@@ -52,7 +59,9 @@ export class DiagnosticLoggerService {
     return DiagnosticLoggerService.instance;
   }
 
-  public recordEvent(event: Omit<PipelineDiagnosticEvent, 'timestamp'> & { timestamp?: number }): void {
+  public recordEvent(
+    event: Omit<PipelineDiagnosticEvent, 'timestamp'> & { timestamp?: number }
+  ): void {
     const sanitizedMsg = event.message ? sanitizeDiagnosticSecret(event.message) : undefined;
     const sanitizedReason = event.transcriptClassification?.reason
       ? sanitizeDiagnosticSecret(event.transcriptClassification.reason)
@@ -107,7 +116,9 @@ export class DiagnosticLoggerService {
           e.timeToFirstTokenMs ? `TTFT: ${e.timeToFirstTokenMs}ms` : '',
           e.totalGenerationTimeMs ? `TOTAL: ${e.totalGenerationTimeMs}ms` : '',
           e.transcriptionDurationMs !== undefined ? `STT: ${e.transcriptionDurationMs}ms` : '',
-          e.transcriptCharacterCount !== undefined ? `TRANSCRIPT_CHARS: ${e.transcriptCharacterCount}` : '',
+          e.transcriptCharacterCount !== undefined
+            ? `TRANSCRIPT_CHARS: ${e.transcriptCharacterCount}`
+            : '',
           e.audioByteLength !== undefined ? `AUDIO_BYTES: ${e.audioByteLength}` : '',
           e.transcriptionOutcome ? `STT_OUTCOME: ${e.transcriptionOutcome}` : '',
           e.receivedTokenCount !== undefined ? `TOKENS: ${e.receivedTokenCount}` : '',

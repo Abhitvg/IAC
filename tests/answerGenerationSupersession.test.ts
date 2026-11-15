@@ -120,9 +120,8 @@ describe('AnswerGenerationService request supersession', () => {
     expect(result.status).toBe('VALIDATED');
     expect(tokens.join('')).toContain('hash table');
 
-    const events = DiagnosticLoggerService.getInstance().getEventsForRequest(
-      'transient-network-retry'
-    );
+    const events =
+      DiagnosticLoggerService.getInstance().getEventsForRequest('transient-network-retry');
     expect(events.some((event) => event.pipelineStage === 'generating')).toBe(true);
     expect(events.some((event) => event.pipelineStage === 'streaming')).toBe(true);
     const terminal = events.find((event) => event.finalOutcome === 'SUCCESS');
