@@ -129,7 +129,9 @@ export class DiagnosticLoggerService {
           e.audioCaptureDurationMs !== undefined ? `CAPTURE: ${e.audioCaptureDurationMs}ms` : '',
           e.audioCaptureOutcome ? `CAPTURE_OUTCOME: ${e.audioCaptureOutcome}` : '',
           e.sessionSaveDurationMs !== undefined ? `SESSION_SAVE: ${e.sessionSaveDurationMs}ms` : '',
-          e.sessionQuestionCount !== undefined ? `SESSION_QUESTIONS: ${e.sessionQuestionCount}` : '',
+          e.sessionQuestionCount !== undefined
+            ? `SESSION_QUESTIONS: ${e.sessionQuestionCount}`
+            : '',
           e.sessionSaveOutcome ? `SESSION_SAVE_OUTCOME: ${e.sessionSaveOutcome}` : '',
           e.receivedTokenCount !== undefined ? `TOKENS: ${e.receivedTokenCount}` : '',
           e.finalOutcome ? `OUTCOME: ${e.finalOutcome}` : '',

@@ -296,10 +296,7 @@ export class AudioRecorder {
    * @param flush If true, flushes and finalizes any in-progress speech.
    *              If false (default), discards in-progress buffer to avoid triggering unwanted requests on stop.
    */
-  async stop(
-    flush: boolean = false,
-    outcome: 'STOPPED' | 'ABORTED' = 'STOPPED'
-  ): Promise<void> {
+  async stop(flush: boolean = false, outcome: 'STOPPED' | 'ABORTED' = 'STOPPED'): Promise<void> {
     if (this.captureState === 'stopped') {
       return;
     }
