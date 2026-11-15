@@ -44,11 +44,17 @@ export class LinkedInOAuthService {
     requiredString(config.redirectUri, 'redirect URI');
     const redirect = new URL(config.redirectUri);
     if (redirect.protocol !== 'https:' && redirect.hostname !== 'localhost') {
-      throw new Error('LinkedIn OAuth redirect URI must use HTTPS (localhost is allowed for development)');
+      throw new Error(
+        'LinkedIn OAuth redirect URI must use HTTPS (localhost is allowed for development)'
+      );
     }
     this.fetcher = config.fetcher ?? fetch;
     this.stateTtlMs = config.stateTtlMs ?? DEFAULT_STATE_TTL_MS;
-    if (!Number.isInteger(this.stateTtlMs) || this.stateTtlMs < 60_000 || this.stateTtlMs > 15 * 60_000) {
+    if (
+      !Number.isInteger(this.stateTtlMs) ||
+      this.stateTtlMs < 60_000 ||
+      this.stateTtlMs > 15 * 60_000
+    ) {
       throw new Error('LinkedIn OAuth state TTL must be between 1 and 15 minutes');
     }
   }
@@ -60,7 +66,9 @@ export class LinkedInOAuthService {
     requiredString(identity.tenantId, 'tenant ID');
     requiredString(identity.subject, 'member subject');
     const scopes = [...new Set(requestedScopes.map((scope) => requiredString(scope, 'scope')))];
-    if (!scopes.length || scopes.length > 20) throw new Error('Invalid LinkedIn OAuth scope request');
+    if (!scopes.length || scopes.length > 20) {
+      throw new Error('Invalid LinkedIn OAuth scope request');
+    }
 
     const state = randomBytes(32).toString('base64url');
     await this.states.save({
@@ -122,9 +130,12 @@ export class LinkedInOAuthService {
     if (!accessToken || accessToken.length > 4096 || !Number.isFinite(expiresIn) || expiresIn <= 0) {
       throw new Error('LinkedIn returned an invalid token response');
     }
+
     const grantedScopes = parseScopes(payload.scope);
     if (!grantedScopes.length || !grantedScopes.includes('openid')) {
-      throw new Error('LinkedIn did not grant the required OpenID Connect scope; connection was not stored');
+      throw new Error(
+        'LinkedIn did not grant the required OpenID Connect scope; connection was not stored'
+      );
     }
 
     const identityResponse = await this.fetcher('https://api.linkedin.com/v2/userinfo', {
@@ -133,7 +144,9 @@ export class LinkedInOAuthService {
       signal: AbortSignal.timeout(10_000),
     });
     if (!identityResponse.ok) {
-      throw new Error(`LinkedIn identity verification failed with HTTP ${identityResponse.status}`);
+      throw new Error(
+        `LinkedIn identity verification failed with HTTP ${identityResponse.status}`
+      );
     }
     const identityPayload = (await identityResponse.json()) as Record<string, unknown>;
     const memberId = typeof identityPayload.sub === 'string' ? identityPayload.sub.trim() : '';
@@ -141,7 +154,8 @@ export class LinkedInOAuthService {
       throw new Error('LinkedIn returned an invalid member identifier');
     }
 
-    const refreshToken = typeof payload.refresh_token === 'string' ? payload.refresh_token : undefined;
+    const refreshToken =
+      typeof payload.refresh_token === 'string' ? payload.refresh_token : undefined;
     const refreshExpiresIn = Number(payload.refresh_token_expires_in);
     const tokenSet: LinkedInTokenSet = {
       accessToken,
