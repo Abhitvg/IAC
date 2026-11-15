@@ -91,6 +91,128 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
+      if (url.pathname.startsWith('/v1/linkedin/')) {
+        const integration = dependencies.linkedin;
+        if (!integration) {
+          sendJson(response, 503, {
+            error: 'LinkedIn integration is not configured on this deployment',
+            requestId,
+          });
+          return;
+        }
+        const linkedInIdentity = { tenantId: tenant.tenantId, subject: tenant.subject };
+
+        if (request.method === 'GET' && url.pathname === '/v1/linkedin/status') {
+          const { getLinkedInCapabilities } = await import('./linkedin/client');
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          sendJson(response, 200, {
+            connected: Boolean(tokenSet && tokenSet.expiresAt > Date.now()),
+            expiresAt: tokenSet?.expiresAt ?? null,
+            capabilities: getLinkedInCapabilities(tokenSet, integration.entitlements),
+            requestId,
+          });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/oauth/start') {
+          const body = await readJson(request, maxBytes);
+          if (Object.keys(body).some((key) => key !== 'scopes')) {
+            sendJson(response, 400, { error: 'Only the scopes field is accepted', requestId });
+            return;
+          }
+          const requestedScopes = body.scopes;
+          if (
+            requestedScopes !== undefined &&
+            (!Array.isArray(requestedScopes) ||
+              requestedScopes.some((scope) => typeof scope !== 'string'))
+          ) {
+            sendJson(response, 400, { error: 'scopes must be an array of strings', requestId });
+            return;
+          }
+          const scopes = (requestedScopes as string[] | undefined) ?? undefined;
+          const allowedScopes = new Set([
+            'openid',
+            'profile',
+            'email',
+            'w_member_social',
+            ...(integration.entitlements.communityManagementApproved
+              ? ['w_organization_social']
+              : []),
+          ]);
+          if (scopes?.some((scope) => !allowedScopes.has(scope))) {
+            sendJson(response, 403, {
+              error: 'Requested LinkedIn scope is not enabled for this application',
+              requestId,
+            });
+            return;
+          }
+          const authorizationUrl = await integration.oauth.createAuthorizationUrl(
+            linkedInIdentity,
+            scopes
+          );
+          sendJson(response, 200, { authorizationUrl, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/oauth/callback') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.code !== 'string' ||
+            typeof body.state !== 'string' ||
+            Object.keys(body).some((key) => key !== 'code' && key !== 'state')
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected exactly code and state strings',
+              requestId,
+            });
+            return;
+          }
+          const result = await integration.oauth.completeAuthorization({
+            code: body.code,
+            state: body.state,
+            identity: linkedInIdentity,
+          });
+          sendJson(response, 200, { ...result, requestId });
+          return;
+        }
+
+        if (request.method === 'DELETE' && url.pathname === '/v1/linkedin/connection') {
+          await integration.oauth.disconnect(linkedInIdentity);
+          sendJson(response, 200, { disconnected: true, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/posts') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.commentary !== 'string' ||
+            Object.keys(body).some((key) => key !== 'commentary')
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected exactly one commentary string',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
+            return;
+          }
+          const authorUrn = `urn:li:person:${tokenSet.memberId}`;
+          const result = await integration.api.publishMemberTextPost(
+            tokenSet,
+            authorUrn,
+            body.commentary
+          );
+          sendJson(response, 201, { postId: result.id, status: result.status, requestId });
+          return;
+        }
+
+        sendJson(response, 404, { error: 'LinkedIn route not found', requestId });
+        return;
+      }
+
       if (request.method === 'GET' && url.pathname === '/v1/career-graph/facts') {
         const rawLimit = url.searchParams.get('limit');
         const limit = rawLimit === null ? 50 : Number(rawLimit);
