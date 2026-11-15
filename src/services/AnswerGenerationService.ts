@@ -159,6 +159,7 @@ function waitForRetry(delayMs: number, signal: AbortSignal): Promise<void> {
 export class AnswerGenerationService {
   private static instance: AnswerGenerationService | null = null;
   private currentSequence = 0;
+  private activeGenerationController: AbortController | null = null;
 
   public static getInstance(): AnswerGenerationService {
     if (!AnswerGenerationService.instance) {
@@ -190,6 +191,11 @@ export class AnswerGenerationService {
     callbacks?: GenerationCallbacks | ((token: string) => void) | string
   ): Promise<AnswerGenerationResult> {
     const requestSeq = ++this.currentSequence;
+    // A newer question owns the live interview pipeline. Abort the previous provider
+    // request immediately so it cannot consume network/provider resources in the background.
+    this.activeGenerationController?.abort(
+      Object.assign(new Error('Superseded by a newer interview question.'), { name: 'AbortError' })
+    );
     const directApiKey = typeof callbacks === 'string' ? callbacks : undefined;
     const cb: GenerationCallbacks =
       typeof callbacks === 'function'
@@ -206,6 +212,14 @@ export class AnswerGenerationService {
     const type = params.type || 'interview';
     const callerSignal = params.signal;
     const generationController = new AbortController();
+    this.activeGenerationController = generationController;
+    const cleanupGeneration = () => {
+      clearTimeout(overallTimer);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
+      if (this.activeGenerationController === generationController) {
+        this.activeGenerationController = null;
+      }
+    };
     const abortFromCaller = () => generationController.abort(callerSignal?.reason);
     if (callerSignal?.aborted) generationController.abort(callerSignal.reason);
     else callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
@@ -270,8 +284,7 @@ export class AnswerGenerationService {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
       cb.onComplete?.(abortedResult);
-      clearTimeout(overallTimer);
-      callerSignal?.removeEventListener('abort', abortFromCaller);
+      cleanupGeneration();
       return abortedResult;
     }
 
@@ -286,8 +299,7 @@ export class AnswerGenerationService {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
       cb.onComplete?.(abortedResult);
-      clearTimeout(overallTimer);
-      callerSignal?.removeEventListener('abort', abortFromCaller);
+      cleanupGeneration();
       return abortedResult;
     }
 
@@ -317,8 +329,7 @@ export class AnswerGenerationService {
         structuredViolations: [],
       };
       cb.onComplete?.(failedResult);
-      clearTimeout(overallTimer);
-      callerSignal?.removeEventListener('abort', abortFromCaller);
+      cleanupGeneration();
       return failedResult;
     }
 
@@ -633,8 +644,7 @@ export class AnswerGenerationService {
           };
           (completionResult as any).answer = completionResult.cleanAnswer;
           cb.onComplete?.(completionResult);
-          clearTimeout(overallTimer);
-          callerSignal?.removeEventListener('abort', abortFromCaller);
+          cleanupGeneration();
           return completionResult;
         }
 
@@ -671,8 +681,7 @@ export class AnswerGenerationService {
               const abortedResult = createAbortedResult(timedOut, timeoutMessage || undefined);
               (abortedResult as any).answer = abortedResult.cleanAnswer;
               cb.onComplete?.(abortedResult);
-              clearTimeout(overallTimer);
-              callerSignal?.removeEventListener('abort', abortFromCaller);
+              cleanupGeneration();
               return abortedResult;
             }
             throw waitError;
@@ -846,8 +855,7 @@ export class AnswerGenerationService {
       (completionResult as any).answer = completionResult.cleanAnswer;
     }
 
-    clearTimeout(overallTimer);
-    callerSignal?.removeEventListener('abort', abortFromCaller);
+    cleanupGeneration();
     return completionResult!;
   }
 }
