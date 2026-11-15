@@ -79,6 +79,17 @@ The code records some latency and provider diagnostics, but there is no demonstr
 
 Without these, "zero error" is not testable and regressions can ship undetected.
 
+### R7 — Superseded requests could continue emitting stale tokens
+
+**Severity:** High  
+**File:** `src/services/AnswerGenerationService.ts`
+
+The service already compared request sequence numbers at the end of generation, but token and sentence callbacks were forwarded before that final stale-request check. Two overlapping requests could therefore interleave stale output into the live interview UI. The old request also continued through its provider stream even after a newer request had become authoritative.
+
+**Change on this branch:** Suppress token/sentence delivery, completion handling, and error handling when a request is no longer the current sequence. Return an explicit `ABORTED` terminal result for superseded requests. A regression test runs two overlapping generations and verifies that only the latest request emits tokens.
+
+**Remaining improvement:** Abort the underlying provider request as soon as a new request supersedes it, rather than merely suppressing stale output. This reduces wasted provider usage and network work.
+
 ## Existing safeguards verified
 
 - `streamAnswer` uses an overall deadline and an inactivity deadline.
