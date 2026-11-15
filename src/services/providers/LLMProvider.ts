@@ -426,6 +426,7 @@ export class LLMManager {
 
         return response;
       } catch (err: any) {
+        if (options?.signal?.aborted) throw err;
         lastError = err;
         // Non-recoverable errors (invalid API key, billing failure, quota/rate-limit) must not be silently masked
         if (err?.isRecoverableByModelFallback === false) {
