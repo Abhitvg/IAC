@@ -179,6 +179,61 @@ describe('AnswerGenerationService request supersession', () => {
     expect(tokens.join('')).toContain('Partial answer only.');
   });
 
+  it('preserves partial tokens for recovery when the caller cancels a live stream', async () => {
+    const credentialStore = {
+      getKey: vi.fn(async () => 'gsk_test_key_123456789012345678901234567890'),
+    };
+    const caller = new AbortController();
+    const encoder = new TextEncoder();
+    const interruptedStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ choices: [{ delta: { content: 'A partial but useful answer.' } }] })}\\n\\n`
+          )
+        );
+        setTimeout(() => controller.error(new TypeError('stream interrupted')), 100);
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(interruptedStream, {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    );
+    const gateway = createElectronGateway(credentialStore);
+    vi.stubGlobal('window', { electronAPI: gateway });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await AnswerGenerationService.getInstance().generateAnswer(
+      {
+        requestId: 'partial-output-cancel-recovery',
+        type: 'interview',
+        text: 'Explain a hash table.',
+        provider: 'groq',
+        model: 'openai/gpt-oss-120b',
+        preferredLanguage: 'Java',
+        signal: caller.signal,
+      },
+      {
+        onToken: () => caller.abort(new DOMException('Candidate cancelled', 'AbortError')),
+      }
+    );
+
+    expect(result.status).toBe('ABORTED');
+    const { useAppStore } = await import('../src/store/useAppStore');
+    expect(useAppStore.getState().recoveredPartialAnswer).toContain('A partial but useful answer.');
+
+    const events = DiagnosticLoggerService.getInstance().getEventsForRequest(
+      'partial-output-cancel-recovery'
+    );
+    const terminal = events.find((event) => event.finalOutcome === 'ABORTED');
+    expect(terminal?.failureKind).toBe('CANCELLED');
+    expect(terminal?.partialOutputRecovered).toBe(true);
+    expect(terminal?.partialOutputCharacterCount).toBeGreaterThan(0);
+    useAppStore.getState().setRecoveredPartialAnswer(null);
+  });
+
   it('suppresses tokens from a superseded interview request', async () => {
     const credentialStore = {
       getKey: vi.fn(async () => 'gsk_test_key_123456789012345678901234567890'),
