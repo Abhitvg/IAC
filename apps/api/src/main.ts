@@ -1,4 +1,4 @@
-import { createPostgresPool } from './postgres-pool';
+import { createPostgresPool, createPostgresPoolFromUrl } from './postgres-pool';
 import { loadCloudEnvironment } from './config';
 import { createCloudApiRuntime } from './runtime';
 import { AwsKmsTenantKeyManagementService } from './linkedin/aws-kms';
@@ -17,9 +17,20 @@ async function start(): Promise<void> {
   const port = readPort(process.env.PORT);
   const host = process.env.HOST ?? '0.0.0.0';
   const pool = createPostgresPool(environment);
+  const schedulerPool = environment.LINKEDIN_SCHEDULER_ENABLED
+    ? createPostgresPoolFromUrl(
+        environment.CAREEROPS_SCHEDULER_DATABASE_URL!,
+        environment.NODE_ENV,
+        Math.min(environment.CAREEROPS_DB_POOL_MAX, 5)
+      )
+    : undefined;
   pool.on('error', (error: Error) => {
     // Never log connection strings, query parameters, or SQL values.
     console.error('CareerOps PostgreSQL idle-client error:', error.message);
+  });
+
+  schedulerPool?.on('error', (error: Error) => {
+    console.error('CareerOps scheduler PostgreSQL idle-client error:', error.message);
   });
 
   const linkedin = environment.LINKEDIN_ENABLED
@@ -46,7 +57,7 @@ async function start(): Promise<void> {
       )
     : undefined;
 
-  const runtime = createCloudApiRuntime(pool, environment, linkedin);
+  const runtime = createCloudApiRuntime(pool, environment, linkedin, schedulerPool);
 
   let shutdown: Promise<void> | undefined;
   const stop = () => {
