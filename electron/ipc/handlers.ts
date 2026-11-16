@@ -59,6 +59,7 @@ const ALLOWED_SETTING_KEYS = new Set([
   'hasCompletedOnboarding',
   'windowOpacity',
   'lastModelMigrationNotice',
+  'careerOpsApiBaseUrl',
 ]);
 
 // Non-streaming requests do not emit terminal events, so release their controller after the response.
@@ -242,6 +243,26 @@ export function validateSetting(key: string, value: any): boolean {
         throw new Error(`Endpoint URL for "${key}" must be a string of at most 512 characters.`);
       }
       break;
+    case 'careerOpsApiBaseUrl': {
+      if (!isBoundedString(value, 512)) {
+        throw new Error('CareerOps API base URL must be a string of at most 512 characters.');
+      }
+      if (value.trim()) {
+        const apiUrl = new URL(value.trim());
+        const localDevelopmentHost = ['localhost', '127.0.0.1'].includes(apiUrl.hostname);
+        if (
+          (apiUrl.protocol !== 'https:' && !(apiUrl.protocol === 'http:' && localDevelopmentHost)) ||
+          apiUrl.username ||
+          apiUrl.password ||
+          apiUrl.search ||
+          apiUrl.hash ||
+          apiUrl.pathname !== '/'
+        ) {
+          throw new Error('CareerOps API base URL must be an HTTPS origin (HTTP is allowed only on localhost).');
+        }
+      }
+      break;
+    }
   }
 
   return true;
@@ -280,6 +301,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       systemPrompt:
         'You are an expert technical interviewer and coach in a live practice interview gym.',
       customApiEndpoint: '',
+      careerOpsApiBaseUrl: '',
       ollamaEndpoint: 'http://127.0.0.1:11434',
     },
   });
@@ -489,6 +511,111 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
   ipcMain.handle('credentials:list', async (event) => {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     return credentialStore.listConfigured();
+  });
+
+  // Narrow authenticated API bridge. The renderer never receives the bearer token and
+  // cannot choose a host, tenant header, arbitrary path, or arbitrary HTTP method.
+  ipcMain.handle('linkedin:api-request', async (event, request: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+      throw new Error('Invalid LinkedIn API request');
+    }
+    const input = request as Record<string, unknown>;
+    if (
+      Object.keys(input).some((key) => !['method', 'path', 'body'].includes(key)) ||
+      !['GET', 'POST', 'DELETE'].includes(String(input.method)) ||
+      typeof input.path !== 'string' ||
+      input.path.length > 1024
+    ) {
+      throw new Error('Invalid LinkedIn API request shape');
+    }
+
+    const allowedPaths = new Set([
+      '/v1/linkedin/status',
+      '/v1/linkedin/oauth/start',
+      '/v1/linkedin/connection',
+      '/v1/linkedin/posts',
+      '/v1/linkedin/comments',
+      '/v1/linkedin/reactions',
+      '/v1/linkedin/organization/posts',
+      '/v1/linkedin/organization/comments',
+      '/v1/linkedin/organization/reactions',
+      '/v1/controls',
+      '/v1/controls/channel-pause',
+      '/v1/controls/kill-switch',
+    ]);
+    const baseValue = String(store.get('careerOpsApiBaseUrl', '')).trim();
+    if (!baseValue) throw new Error('Configure the CareerOps cloud API URL before connecting LinkedIn.');
+    const baseUrl = new URL(baseValue);
+    const apiUrl = new URL(input.path, baseUrl);
+    if (apiUrl.origin !== baseUrl.origin || apiUrl.hash || !allowedPaths.has(apiUrl.pathname)) {
+      // The two delete endpoints accept only their documented exact query keys.
+      const memberReactionDelete =
+        input.method === 'DELETE' &&
+        apiUrl.pathname === '/v1/linkedin/reactions' &&
+        apiUrl.searchParams.size === 1 &&
+        apiUrl.searchParams.has('entityUrn');
+      const organizationReactionDelete =
+        input.method === 'DELETE' &&
+        apiUrl.pathname === '/v1/linkedin/organization/reactions' &&
+        apiUrl.searchParams.size === 2 &&
+        apiUrl.searchParams.has('organizationUrn') &&
+        apiUrl.searchParams.has('entityUrn');
+      if (!memberReactionDelete && !organizationReactionDelete) {
+        throw new Error('LinkedIn API endpoint is not allowed by the desktop bridge.');
+      }
+    }
+
+    const method = input.method as 'GET' | 'POST' | 'DELETE';
+    const routeMethodAllowed =
+      (apiUrl.pathname === '/v1/linkedin/status' && method === 'GET') ||
+      (apiUrl.pathname === '/v1/controls' && method === 'GET') ||
+      (apiUrl.pathname === '/v1/linkedin/connection' && method === 'DELETE') ||
+      (apiUrl.pathname.startsWith('/v1/linkedin/') &&
+        method === 'POST' &&
+        apiUrl.pathname !== '/v1/linkedin/status') ||
+      (apiUrl.pathname === '/v1/controls/channel-pause' && method === 'POST') ||
+      (apiUrl.pathname === '/v1/controls/kill-switch' && method === 'POST') ||
+      ((apiUrl.pathname === '/v1/linkedin/reactions' ||
+        apiUrl.pathname === '/v1/linkedin/organization/reactions') &&
+        method === 'DELETE');
+    if (!routeMethodAllowed) throw new Error('HTTP method is not allowed for this LinkedIn API endpoint.');
+
+    if (input.body !== undefined) {
+      if (!input.body || typeof input.body !== 'object' || Array.isArray(input.body)) {
+        throw new Error('LinkedIn API body must be a JSON object.');
+      }
+      if (Buffer.byteLength(JSON.stringify(input.body), 'utf8') > 16 * 1024) {
+        throw new Error('LinkedIn API request body exceeds the desktop limit.');
+      }
+    } else if (method === 'POST') {
+      throw new Error('A JSON body is required for this LinkedIn API action.');
+    }
+
+    const bearer = await credentialStore.getKey('careerops-cloud');
+    if (!bearer) throw new Error('Save a valid CareerOps cloud OIDC bearer token before connecting LinkedIn.');
+    const response = await fetch(apiUrl.toString(), {
+      method,
+      headers: {
+        authorization: 'Bearer ' + bearer,
+        ...(input.body !== undefined ? { 'content-type': 'application/json' } : {}),
+      },
+      ...(input.body !== undefined ? { body: JSON.stringify(input.body) } : {}),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const responseText = await response.text();
+    if (responseText.length > 32 * 1024) {
+      throw new Error('CareerOps API response exceeded the desktop response limit.');
+    }
+    let responseBody: unknown = null;
+    if (responseText) {
+      try {
+        responseBody = JSON.parse(responseText);
+      } catch {
+        responseBody = { message: 'CareerOps API returned a non-JSON response.' };
+      }
+    }
+    return { status: response.status, body: responseBody };
   });
 
   // Secure WebSocket server for Chrome extension
