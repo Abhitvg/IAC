@@ -547,23 +547,38 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     const baseValue = String(store.get('careerOpsApiBaseUrl', '')).trim();
     if (!baseValue) throw new Error('Configure the CareerOps cloud API URL before connecting LinkedIn.');
     const baseUrl = new URL(baseValue);
+    const localDevelopmentHost = ['localhost', '127.0.0.1'].includes(baseUrl.hostname);
+    if (
+      (baseUrl.protocol !== 'https:' && !(baseUrl.protocol === 'http:' && localDevelopmentHost)) ||
+      baseUrl.username ||
+      baseUrl.password ||
+      baseUrl.search ||
+      baseUrl.hash ||
+      baseUrl.pathname !== '/'
+    ) {
+      throw new Error('CareerOps cloud API URL must be a secure origin.');
+    }
     const apiUrl = new URL(input.path, baseUrl);
-    if (apiUrl.origin !== baseUrl.origin || apiUrl.hash || !allowedPaths.has(apiUrl.pathname)) {
-      // The two delete endpoints accept only their documented exact query keys.
-      const memberReactionDelete =
-        input.method === 'DELETE' &&
-        apiUrl.pathname === '/v1/linkedin/reactions' &&
-        apiUrl.searchParams.size === 1 &&
-        apiUrl.searchParams.has('entityUrn');
-      const organizationReactionDelete =
-        input.method === 'DELETE' &&
-        apiUrl.pathname === '/v1/linkedin/organization/reactions' &&
-        apiUrl.searchParams.size === 2 &&
-        apiUrl.searchParams.has('organizationUrn') &&
-        apiUrl.searchParams.has('entityUrn');
-      if (!memberReactionDelete && !organizationReactionDelete) {
-        throw new Error('LinkedIn API endpoint is not allowed by the desktop bridge.');
-      }
+    if (apiUrl.origin !== baseUrl.origin || apiUrl.hash) {
+      throw new Error('LinkedIn API endpoint is not allowed by the desktop bridge.');
+    }
+    // Normal endpoints carry no query string; the two delete endpoints allow only
+    // their exact documented identifiers.
+    const memberReactionDelete =
+      input.method === 'DELETE' &&
+      apiUrl.pathname === '/v1/linkedin/reactions' &&
+      apiUrl.searchParams.size === 1 &&
+      apiUrl.searchParams.has('entityUrn');
+    const organizationReactionDelete =
+      input.method === 'DELETE' &&
+      apiUrl.pathname === '/v1/linkedin/organization/reactions' &&
+      apiUrl.searchParams.size === 2 &&
+      apiUrl.searchParams.has('organizationUrn') &&
+      apiUrl.searchParams.has('entityUrn');
+    const normalEndpoint =
+      allowedPaths.has(apiUrl.pathname) && apiUrl.searchParams.size === 0;
+    if (!normalEndpoint && !memberReactionDelete && !organizationReactionDelete) {
+      throw new Error('LinkedIn API endpoint is not allowed by the desktop bridge.');
     }
 
     const method = input.method as 'GET' | 'POST' | 'DELETE';
