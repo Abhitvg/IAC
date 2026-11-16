@@ -102,6 +102,7 @@ export type AnswerGenerationResult =
       status: 'ABORTED';
       isValidated: false;
       cleanAnswer: string;
+      partialAnswer?: string;
       detectedCategory: QuestionCategory;
       confidence: 'low';
       followUps: string[];
@@ -905,6 +906,7 @@ export class AnswerGenerationService {
             status: 'ABORTED',
             isValidated: false,
             cleanAnswer: '',
+            partialAnswer: partialText || undefined,
             error: 'Generation cancelled by user',
             detectedCategory,
             confidence: 'low',
