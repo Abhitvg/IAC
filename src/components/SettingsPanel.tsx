@@ -865,6 +865,18 @@ export default function SettingsPanel() {
                     <span className="text-[11px] text-slate-400 block">Unresolved</span>
                     <strong className="text-lg">{reliabilitySummary.unresolvedRequestCount}</strong>
                   </div>
+                  <div className="rounded-lg border border-slate-700 p-3">
+                    <span className="text-[11px] text-slate-400 block">Timeout events</span>
+                    <strong className="text-lg">{reliabilitySummary.timeoutCount}</strong>
+                  </div>
+                  <div className="rounded-lg border border-slate-700 p-3">
+                    <span className="text-[11px] text-slate-400 block">
+                      Partial outputs recovered
+                    </span>
+                    <strong className="text-lg">
+                      {reliabilitySummary.partialOutputRecoveryCount}
+                    </strong>
+                  </div>
                 </div>
                 <div className="mt-3 text-[11px] text-slate-400 space-y-1">
                   <p>

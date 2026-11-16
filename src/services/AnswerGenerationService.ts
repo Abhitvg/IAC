@@ -102,6 +102,7 @@ export type AnswerGenerationResult =
       status: 'ABORTED';
       isValidated: false;
       cleanAnswer: string;
+      partialAnswer?: string;
       detectedCategory: QuestionCategory;
       confidence: 'low';
       followUps: string[];
@@ -213,8 +214,16 @@ export class AnswerGenerationService {
     const generationStartedAt = Date.now();
     let firstTokenAt: number | undefined;
     let receivedTokenCount = 0;
+    let partialOutput = '';
     let terminalResultRecorded = false;
-    const notifyComplete = (result: AnswerGenerationResult) => {
+    const notifyComplete = (
+      result: AnswerGenerationResult,
+      diagnosticMetadata: {
+        failureKind?: 'TIMEOUT' | 'CANCELLED' | 'PROVIDER_ERROR' | 'VALIDATION_ERROR' | 'UNKNOWN';
+        partialOutputRecovered?: boolean;
+        partialOutputCharacterCount?: number;
+      } = {}
+    ) => {
       if (terminalResultRecorded) return;
       terminalResultRecorded = true;
       const outcome =
@@ -236,6 +245,7 @@ export class AnswerGenerationService {
         receivedTokenCount,
         isEmptyResponse: !result.cleanAnswer.trim(),
         finalOutcome: outcome,
+        ...diagnosticMetadata,
         message: 'Interview generation reached a terminal state.',
       });
       cb.onComplete?.(result);
@@ -653,6 +663,7 @@ export class AnswerGenerationService {
                   });
                 }
                 receivedTokenCount += Math.max(1, token.length > 0 ? 1 : 0);
+                partialOutput += token;
                 cb.onToken?.(token, requestId);
               },
               onSentence: (sentence) => {
@@ -671,14 +682,31 @@ export class AnswerGenerationService {
         }
       } catch (err: any) {
         if (requestSeq !== this.currentSequence) break;
-        if (err.name === 'AbortError' || signal?.aborted) {
-          const timeoutMessage = err?.message || signal?.reason?.message || '';
-          const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
+        if (err.name === 'AbortError' || err.name === 'TimeoutError' || signal?.aborted) {
+          // Prefer the owning controller's reason: a stream reader may surface a generic
+          // AbortError even when the overall deadline was the actual cause.
+          const abortReason = signal?.reason as Error | undefined;
+          const timeoutMessage = abortReason?.message || err?.message || '';
+          const explicitTimeout =
+            abortReason?.name === 'TimeoutError' ||
+            err?.name === 'TimeoutError' ||
+            /deadline|timed out|timeout|inactivity|stalled/i.test(timeoutMessage);
+          // When the caller supplied an AbortError reason, it takes precedence over
+          // generic stream-reader text such as "cancelled or deadline expired".
+          const callerCancelled = Boolean(callerSignal?.aborted);
+          const timedOut = explicitTimeout && !callerCancelled;
+          const recoveredPartial = partialOutput.trim();
+          if (recoveredPartial) {
+            useAppStore.getState().setRecoveredPartialAnswer(recoveredPartial);
+          }
           completionResult = {
             status: timedOut ? 'FAILED' : 'ABORTED',
             isValidated: false,
             cleanAnswer: '',
-            error: timedOut ? timeoutMessage : 'Generation cancelled by user',
+            partialAnswer: recoveredPartial || undefined,
+            error: timedOut
+              ? timeoutMessage || 'Generation deadline exceeded'
+              : 'Generation cancelled by user',
             detectedCategory,
             confidence: 'low',
             followUps: [],
@@ -692,7 +720,11 @@ export class AnswerGenerationService {
             structuredViolations: [],
           };
           (completionResult as any).answer = completionResult.cleanAnswer;
-          notifyComplete(completionResult);
+          notifyComplete(completionResult, {
+            failureKind: timedOut ? 'TIMEOUT' : 'CANCELLED',
+            partialOutputRecovered: Boolean(recoveredPartial),
+            partialOutputCharacterCount: recoveredPartial.length,
+          });
           cleanupGeneration();
           return completionResult;
         }
@@ -850,19 +882,56 @@ export class AnswerGenerationService {
           });
         }
 
-        const partialText = (err as any).partialText || '';
-        if (partialText) {
+        const originalError = (err as any).originalError || (err as any).cause;
+        const partialText = String((err as any).partialText || partialOutput).trim();
+        const failureMessage = err.message || String(err);
+        const timeoutEvidence = [failureMessage, originalError?.message, originalError?.name]
+          .filter(Boolean)
+          .join(' ');
+        const timedOut =
+          err.name === 'TimeoutError' ||
+          originalError?.name === 'TimeoutError' ||
+          /deadline|timed out|timeout|inactivity|stalled/i.test(timeoutEvidence);
+        const callerCancelled = Boolean(callerSignal?.aborted);
+        const recoveredPartial = Boolean(partialText);
+        if (recoveredPartial) {
           useAppStore.getState().setRecoveredPartialAnswer(partialText);
+        }
+
+        if (callerCancelled) {
+          completionResult = {
+            status: 'ABORTED',
+            isValidated: false,
+            cleanAnswer: '',
+            partialAnswer: partialText || undefined,
+            error: 'Generation cancelled by user',
+            detectedCategory,
+            confidence: 'low',
+            followUps: [],
+            predictedFollowUps: [],
+            requestId,
+            validationStatus: 'ABORTED',
+            groundingScore: 0,
+            groundingViolations: ['Request cancelled during generation'],
+            structuredViolations: [],
+          };
+          (completionResult as any).answer = '';
+          notifyComplete(completionResult, {
+            failureKind: 'CANCELLED',
+            partialOutputRecovered: recoveredPartial,
+            partialOutputCharacterCount: partialText.length,
+          });
+          break;
         }
 
         cb.onError?.(err, requestId);
         completionResult = {
           status: 'FAILED',
           isValidated: false,
-          cleanAnswer:
-            partialText || 'Answer generation failed due to a provider or network error.',
+          // Failed/partial content is deliberately kept out of cleanAnswer.
+          cleanAnswer: '',
           partialAnswer: partialText || undefined,
-          error: err.message || String(err),
+          error: failureMessage,
           detectedCategory,
           confidence: 'low',
           followUps: [],
@@ -871,15 +940,19 @@ export class AnswerGenerationService {
           validationResult: {
             isGrounded: false,
             validationStatus: 'FAILED',
-            violations: [err.message || String(err)],
+            violations: [failureMessage],
           },
           validationStatus: 'FAILED',
           groundingScore: 0,
-          groundingViolations: [err.message || String(err)],
+          groundingViolations: [failureMessage],
           structuredViolations: [],
         };
-        (completionResult as any).answer = completionResult.cleanAnswer;
-        notifyComplete(completionResult);
+        (completionResult as any).answer = '';
+        notifyComplete(completionResult, {
+          failureKind: timedOut ? 'TIMEOUT' : 'PROVIDER_ERROR',
+          partialOutputRecovered: recoveredPartial,
+          partialOutputCharacterCount: partialText.length,
+        });
         break;
       }
     }

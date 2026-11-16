@@ -78,7 +78,7 @@ The pipeline records metadata-only events for capture, transcription, generation
 - transcription empty/failure/abort counts, microphone capture outcomes, and session-save outcomes;
 - JSON export of the aggregate summary.
 
-**Current UI:** Settings now exposes the live reliability snapshot, provider/model breakdown, transcription/capture/session-save counts, and privacy-safe JSON summary export. It is explicitly labeled as current-session data covering at most the latest 200 events.
+**Current UI:** Settings now exposes the live reliability snapshot, provider/model breakdown, transcription/capture/session-save counts, and privacy-safe JSON summary export. It is explicitly labeled as current-session data covering at most the latest 200 events. The snapshot now also reports classified generation timeout events and whether partial output was recovered after cancellation/timeout; recovered text stays in the existing recovery UI state and is not copied into telemetry.
 
 **Still incomplete:** the logger remains an in-memory ring buffer capped at 200 events. Aggregates are not persisted across restarts. Explicit timeout classification, partial-output recovery rates, p95 latency distributions, and durable provider/model trends still require instrumentation and storage.
 

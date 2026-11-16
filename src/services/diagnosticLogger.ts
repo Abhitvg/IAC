@@ -41,6 +41,9 @@ export interface PipelineDiagnosticEvent {
   sessionSaveOutcome?: 'SUCCESS' | 'FAILED';
   receivedTokenCount?: number;
   isEmptyResponse?: boolean;
+  failureKind?: 'TIMEOUT' | 'CANCELLED' | 'PROVIDER_ERROR' | 'VALIDATION_ERROR' | 'UNKNOWN';
+  partialOutputRecovered?: boolean;
+  partialOutputCharacterCount?: number;
   finalOutcome?:
     | 'SUCCESS'
     | 'RATE_LIMITED'
@@ -75,6 +78,8 @@ export interface ReliabilitySummary {
   blocked: number;
   aborted: number;
   rateLimited: number;
+  timeoutCount: number;
+  partialOutputRecoveryCount: number;
   successRate: number | null;
   transcription: { success: number; empty: number; failed: number; aborted: number };
   audioCapture: { started: number; stopped: number; failed: number; aborted: number };
@@ -153,6 +158,8 @@ export class DiagnosticLoggerService {
       blocked: 0,
       aborted: 0,
       rateLimited: 0,
+      timeoutCount: 0,
+      partialOutputRecoveryCount: 0,
       successRate: null,
       transcription: { success: 0, empty: 0, failed: 0, aborted: 0 },
       audioCapture: { started: 0, stopped: 0, failed: 0, aborted: 0 },
@@ -161,6 +168,8 @@ export class DiagnosticLoggerService {
     };
 
     for (const event of this.events) {
+      if (event.failureKind === 'TIMEOUT') summary.timeoutCount += 1;
+      if (event.partialOutputRecovered) summary.partialOutputRecoveryCount += 1;
       const request = requests.get(event.requestId);
       requests.set(event.requestId, {
         latest: !request || event.timestamp >= request.latest.timestamp ? event : request.latest,
