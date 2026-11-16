@@ -11,6 +11,7 @@ import type { VerifiedIdentity } from '../../../packages/cloud-core/src/auth';
 import type { LinkedInApiClient } from './linkedin/client';
 import type { LinkedInOAuthService } from './linkedin/oauth';
 import type { LinkedInProductEntitlements, LinkedInTokenVault } from './linkedin/types';
+import type { LinkedInScheduledPostStore } from './linkedin/scheduled-posts';
 
 export interface LinkedInCloudIntegration {
   oauth: LinkedInOAuthService;
@@ -96,4 +97,5 @@ export interface CloudApiDependencies {
   rateLimiter: CloudRateLimiter;
   config: CloudApiConfig;
   linkedin?: LinkedInCloudIntegration;
+  linkedinScheduler?: LinkedInScheduledPostStore;
 }
