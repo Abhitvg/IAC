@@ -1,5 +1,26 @@
 # CareerOps AWS deployment foundation
 
+## Selected deployment profile
+
+The current deployment profile is pinned to AWS account `165328640460` and region `ap-southeast-2` (Sydney). This supersedes the earlier `ap-south-1` draft. The account ARN `arn:aws:account::165328640460:account` identifies the account; it is **not** a KMS key ARN. Supply the existing customer-managed KMS key ARN separately in the form `arn:aws:kms:ap-southeast-2:165328640460:key/KEY-ID`. The example tfvars deliberately contains a placeholder rather than inventing a key ID.
+
+Initial capacity profile: two API tasks across at least two AZs, 0.5 vCPU / 1 GiB per task, autoscaling capped at four tasks, RDS PostgreSQL `db.t4g.medium` Multi-AZ with 50 GiB gp3 storage, seven-day automated backups, and 30-day application log retention. Deletion protection stays enabled. This is a starting profile, not a price quote; validate actual regional pricing and expected request/job volume before applying.
+
+Availability objective: 99.9% monthly service availability (about 43.8 minutes of error budget in a 30-day month). This is a design objective, not a guarantee or an established SLO. It requires two healthy API tasks across AZs, Multi-AZ RDS, ALB health checks, deployment rollback, monitoring/alert routing, tested restore procedures, and resilient outbound connectivity. A single NAT gateway is a cost-saving single-AZ dependency; use one NAT gateway per AZ or appropriate VPC endpoints plus redundant egress if the 99.9% target is contractual.
+
+## Implementation plan (no resources provisioned by this change)
+
+1. **Account and region guardrails:** use account `165328640460` and `ap-southeast-2`; obtain the actual KMS key ARN, ACM certificate ARN, Secrets Manager ARN, VPC ID, and subnet IDs. The tfvars sample is prefilled with account/region but retains explicit placeholders for unknown infrastructure.
+2. **Network readiness:** verify public ALB subnets and private ECS/database subnets span at least two AZs. Confirm private task egress to ECR, S3, CloudWatch Logs, Secrets Manager, KMS, and the configured external OIDC/JWKS issuer. Prefer interface/gateway VPC endpoints for AWS services; choose redundant NAT egress where required.
+3. **Identity and encryption:** verify the existing KMS key policy allows same-account IAM delegation or explicitly grants the ECS task role. Keep key administration separate. Create the application JSON secret outside Terraform state and use a non-owner PostgreSQL runtime role; never put secret values in tfvars or Git.
+4. **Terraform review:** initialize with an encrypted remote backend and state locking, run `terraform fmt -check`, `terraform validate`, and a reviewed `terraform plan`. Confirm the plan targets only the intended account/region and contains no unexpected replacement or deletion. Do not use `-target` as the normal deployment workflow.
+5. **First controlled deployment (future operator action):** create ECR, publish a uniquely tagged ARM64 image, then apply the reviewed full plan. Run migrations under a separate migration identity, verify tenant isolation, readiness, TLS, KMS encrypt/decrypt, and rollback.
+6. **Reliability instrumentation:** add alert delivery (SNS or an approved incident platform), ALB 5xx/unhealthy-target alarms, ECS desired-vs-running task alarms, RDS CPU/storage/connection alarms, and synthetic health checks. Test alarm delivery rather than treating log retention as monitoring.
+7. **Durable background work (next application milestone):** implement tenant-scoped job/outbox ports, idempotency keys, retry policy, visibility-timeout handling and dead-letter replay in the API/worker first; then add SQS standard queues plus DLQ and least-privilege worker policies. Add EventBridge/Step Functions only for proven scheduled or long-running workflows.
+8. **Recovery and cost review:** perform an RDS point-in-time restore drill, verify backup retention and key access, test ECS rollback, set AWS Budgets and Cost Anomaly Detection, and review spend after the first month. Scale beyond four tasks or add Redis only when metrics justify it.
+
+The changes in this PR update configuration and Terraform source only. They do not run Terraform, create AWS resources, modify the existing KMS key policy, deploy an image, or change production traffic.
+
 This Terraform stack deploys the existing CareerOps API to ECS Fargate behind an HTTPS Application Load Balancer and provisions a private RDS PostgreSQL database, ECR repository, CloudWatch log group, and scoped ECS execution role.
 
 ## AWS KMS envelope encryption
@@ -8,9 +29,9 @@ CareerOps calls AWS KMS directly from the API runtime using SigV4-signed KMS JSO
 
 Sensitive LinkedIn OAuth tokens are encrypted with AES-256-GCM using a fresh data key from KMS `GenerateDataKey`. Only the encrypted data key is stored with the envelope. Reads call KMS `Decrypt` with the exact same encryption context. The context binds `application=careerops`, the authenticated `tenant_id`, and the `data_context` purpose. The API task role receives only `kms:GenerateDataKey` and `kms:Decrypt` on the configured key ARN, conditioned on the application context. It does not receive `kms:*`, key administration, key deletion, or key-policy permissions.
 
-The configured KMS key must have a key policy that permits IAM delegation for the account (the account-root statement in the policy you supplied does this) or explicitly grants the CareerOps task role the two crypto actions. Keep key administrators separate from the application role. Enable automatic key rotation and retain access to old KMS keys until envelopes encrypted under them have been migrated.
+The configured KMS key must be in the selected account and `ap-southeast-2`. The configured KMS key must have a key policy that permits IAM delegation for the account (the account-root statement in the policy you supplied does this) or explicitly grants the CareerOps task role the two crypto actions. Keep key administrators separate from the application role. Enable automatic key rotation and retain access to old KMS keys until envelopes encrypted under them have been migrated.
 
-The API uses the existing key ARN supplied as `kms_key_arn`; Terraform does not replace or rewrite your existing key policy. Add a KMS interface VPC endpoint (`com.amazonaws.<region>.kms`) or NAT egress for private ECS tasks.
+The API uses the existing key ARN supplied as `kms_key_arn`; Terraform does not create, replace, or rewrite your existing key policy. Add a KMS interface VPC endpoint (`com.amazonaws.<region>.kms`) or NAT egress for private ECS tasks.
 
 ## Prerequisites
 
