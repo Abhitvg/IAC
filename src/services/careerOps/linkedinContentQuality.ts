@@ -7,11 +7,11 @@ type Lexicon = {
   structures: { id: string; name: string; regex: string; fix: string }[];
 };
 const terms = lexicon as Lexicon;
-const URL_RE = /(?:https?:\\/\\/|www\\.)[^\\s]+|[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}/gi;
+const URL_RE = /(?:https?:\/\/|www\.)[^\s]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/gi;
 const INVISIBLE =
-  /[\\u00AD\\u061C\\u180E\\u200B\\u200E\\u200F\\u202A-\\u202E\\u2060\\u2066-\\u2069\\uFEFF\\u{E0000}-\\u{E007F}]/gu; // Preserve ZWNJ/ZWJ for Indic text and emoji.
-const SPACES = /[\\u00A0\\u2002-\\u2003\\u2007\\u2009\\u202F]/gu;
-const WORDS = /[\\p{L}\\p{N}][\\p{L}\\p{N}'’-]*/gu;
+  /[\u00AD\u061C\u180E\u200B\u200E\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF\u{E0000}-\u{E007F}]/gu; // Preserve ZWNJ/ZWJ for Indic text and emoji.
+const SPACES = /[\u00A0\u2002-\u2003\u2007\u2009\u202F]/gu;
+const WORDS = /[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu;
 
 export type ContentKind = 'post' | 'comment' | 'reply' | 'dm';
 export interface QualityCheck {
@@ -52,7 +52,7 @@ function mapOutsideUrls(input: string, transform: (part: string) => string): str
 function matchCase(source: string, replacement: string): string {
   if (!replacement) return '';
   if (source === source.toUpperCase() && /[A-Z]/.test(source)) return replacement.toUpperCase();
-  if (/^\\p{Lu}/u.test(source)) {
+  if (/^\p{Lu}/u.test(source)) {
     return replacement[0].toLocaleUpperCase() + replacement.slice(1);
   }
   return replacement;
@@ -60,7 +60,7 @@ function matchCase(source: string, replacement: string): string {
 
 function toJavaScriptRegex(source: string): string {
   // The vendored lexicon uses Python's (?i) and \\UXXXXXXXX syntax.
-  return source.replace(/\\(\\?i\\)/g, '').replace(/\\\\U([0-9A-Fa-f]{8})/g, '\\\\u{$1}');
+  return source.replace(/\(\?i\)/g, '').replace(/\\U([0-9A-Fa-f]{8})/g, '\\\\u{$1}');
 }
 
 function structuralFlags(text: string): string[] {
@@ -75,9 +75,9 @@ function structuralFlags(text: string): string[] {
     }
   }
 
-  const bullets = text.match(/^\\s*[-*•]\\s+.+$/gm) ?? [];
+  const bullets = text.match(/^\s*[-*•]\s+.+$/gm) ?? [];
   if (bullets.length >= 3) {
-    const lengths = bullets.map((line) => line.trim().split(/\\s+/).length);
+    const lengths = bullets.map((line) => line.trim().split(/\s+/).length);
     const mean = lengths.reduce((a, b) => a + b, 0) / lengths.length;
     const variance = lengths.reduce((a, b) => a + (b - mean) ** 2, 0) / lengths.length;
     if (Math.sqrt(variance) < 1.6) {
@@ -114,7 +114,7 @@ export function humanizeLinkedInText(input: string): HumanizeResult {
     for (const entry of entries) {
       if (!entry.find) continue;
       const pattern = new RegExp(
-        '\\\\b' + entry.find.trim().split(/\\s+/).map(escapeRegex).join('\\\\s+') + '\\\\b',
+        '\\\\b' + entry.find.trim().split(/\s+/).map(escapeRegex).join('\\\\s+') + '\\\\b',
         'giu'
       );
       part = part.replace(pattern, (match) => {
@@ -124,9 +124,9 @@ export function humanizeLinkedInText(input: string): HumanizeResult {
     }
 
     return part
-      .replace(/[ \\t]{2,}/g, ' ')
-      .replace(/\\s+([,.;:!?])/g, '$1')
-      .replace(/\\n{3,}/g, '\\n\\n');
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\s+([,.;:!?])/g, '$1')
+      .replace(/\n{3,}/g, '\\n\\n');
   });
 
   const flags = structuralFlags(text);
@@ -137,7 +137,7 @@ export function humanizeLinkedInText(input: string): HumanizeResult {
 }
 
 function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
 }
 
 function words(text: string): string[] {
@@ -146,9 +146,9 @@ function words(text: string): string[] {
 
 function sentences(text: string): string[] {
   return text
-    .split(/(?<=[.!?])\\s+|\\n+/)
+    .split(/(?<=[.!?])\s+|\n+/)
     .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.split(/\\s+/).length > 2);
+    .filter((sentence) => sentence.split(/\s+/).length > 2);
 }
 
 function scaled(value: number, good: number, bad: number): number {
@@ -163,7 +163,7 @@ export function scoreLinkedInText(
   const sentenceList = sentences(text);
   const shortLimit = contentKind === 'post' ? 40 : 12;
   const enough = tokens.length >= shortLimit;
-  const lens = sentenceList.map((sentence) => sentence.split(/\\s+/).length);
+  const lens = sentenceList.map((sentence) => sentence.split(/\s+/).length);
   const mean = lens.length ? lens.reduce((a, b) => a + b, 0) / lens.length : 0;
   const cv =
     mean && lens.length > 1
@@ -172,7 +172,7 @@ export function scoreLinkedInText(
 
   const stockCount = [...terms.words, ...terms.phrases].reduce((sum, entry) => {
     const pattern = new RegExp(
-      '\\\\b' + entry.find.trim().split(/\\s+/).map(escapeRegex).join('\\\\s+') + '\\\\b',
+      '\\\\b' + entry.find.trim().split(/\s+/).map(escapeRegex).join('\\\\s+') + '\\\\b',
       'giu'
     );
     return sum + [...text.matchAll(pattern)].length;
@@ -185,8 +185,8 @@ export function scoreLinkedInText(
     (text.match(/[‘’“”…]/g)?.length ?? 0) +
     invisible * 4 +
     hardSpaces;
-  const contractions = (text.match(/\\b\\w+'(?:s|t|re|ve|ll|d|m)\\b/gi) ?? []).length;
-  const pronouns = (text.match(/\\b(i|me|my|mine|we|us|our|you|your)\\b/gi) ?? []).length;
+  const contractions = (text.match(/\b\w+'(?:s|t|re|ve|ll|d|m)\b/gi) ?? []).length;
+  const pronouns = (text.match(/\b(i|me|my|mine|we|us|our|you|your)\b/gi) ?? []).length;
   const flags = structuralFlags(text);
 
   const checks = {
@@ -202,7 +202,7 @@ export function scoreLinkedInText(
     },
     specificity: {
       score: enough
-        ? Math.round(Math.min(100, (text.match(/\\b\\d+(?:[.,]\\d+)?%?\\b/g) ?? []).length * 12))
+        ? Math.round(Math.min(100, (text.match(/\b\d+(?:[.,]\d+)?%?\b/g) ?? []).length * 12))
         : null,
       detail: enough
         ? 'Counts numeric references only; verify names, examples and claims manually. This is not a measure of truth or writing quality.'
