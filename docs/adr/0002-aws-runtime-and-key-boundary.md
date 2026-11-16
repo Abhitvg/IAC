@@ -1,11 +1,11 @@
-# ADR 0002: AWS production runtime with no application-level KMS calls
+# ADR 0002: AWS production runtime with direct AWS KMS envelope encryption
 
 - **Status:** Proposed
 - **Date:** 2026-11-16
 
 ## Context
 
-CareerOps has a cloud API, PostgreSQL repositories, OIDC verification, tenant isolation, audit records, and an Electron client. It needs a production hosting path. The product requirement is that application code must not call AWS KMS APIs.
+CareerOps has a cloud API, PostgreSQL repositories, OIDC verification, tenant isolation, audit records, and an Electron client. It needs a production hosting path. The product requires application-level encryption for sensitive tenant data using AWS KMS.
 
 ## Decision
 
@@ -18,10 +18,10 @@ Use AWS as the hosting and managed infrastructure platform:
 - CloudWatch Logs stores bounded-retention application logs.
 - Secrets Manager injects application configuration into the ECS task at startup. The application receives values, not permission to retrieve secrets itself.
 - OIDC remains an explicit external identity-provider contract. Configure issuer, audience, and JWKS URL for the selected provider.
-- The task role receives no AWS API permissions by default. The task execution role can pull its image, publish logs, and retrieve only the named application secret.
-- The cloud-core package provides a versioned environment-injected keyring adapter for field-level envelope encryption using Node's built-in cryptography. It does not call KMS. The adapter is not yet wired into the API runtime; callers must explicitly configure it before encrypting production fields. Old key versions must remain available until all data encrypted under them is re-encrypted.
+- The task role receives only KMS GenerateDataKey and Decrypt on the configured key ARN, conditioned on the CareerOps application encryption context. The task execution role can pull its image, publish logs, and retrieve only the named application secret.
+- The cloud-core package provides a SigV4-signed AWS KMS provider. It calls GenerateDataKey for fresh AES-256 data keys and Decrypt to unwrap them. AES-256-GCM encrypts the actual field values. Encryption context binds application, tenant ID, and data purpose. ECS task-role credentials are used; no static production credentials are embedded.
 
-AWS-managed storage services may use AWS-managed encryption internally. This does not introduce an application-level KMS dependency.
+AWS-managed storage services may also use AWS-managed encryption internally. This is separate from application-level KMS envelope encryption.
 
 ## Explicit non-goals for this deployment slice
 
@@ -29,7 +29,7 @@ S3 document storage, SQS job dispatch, EventBridge scheduling, SES delivery, and
 
 ## Security invariants
 
-- No KMS SDK package or direct KMS API call in application code.
+- No broad kms:* permission for the application. The task role may call only GenerateDataKey and Decrypt on the configured key, conditioned on application encryption context.
 - No AWS credentials baked into images or GitHub secrets as long-lived access keys; CI uses GitHub OIDC to assume a narrowly scoped deployment role.
 - ECS tasks run as non-root, without public IPs, with read-only access to infrastructure secrets.
 - Database access is limited to the application security group and a non-owner runtime database role.
@@ -50,4 +50,4 @@ S3 document storage, SQS job dispatch, EventBridge scheduling, SES delivery, and
 
 ## Consequences
 
-This gives CareerOps a repeatable AWS deployment baseline without adding AWS SDK access to application code. It does not claim that every AWS product feature is integrated; new services must be connected through tested application adapters and least-privilege task policies.
+This gives CareerOps a repeatable AWS deployment baseline with narrowly scoped direct AWS KMS access from the API runtime. It does not claim that every AWS product feature is integrated; new services must be connected through tested application adapters and least-privilege task policies.
