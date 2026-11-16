@@ -11,6 +11,7 @@ on:
       - 'tests/linkedin-content-quality.test.ts'
       - 'docs/linkedin-assist/CONTENT_STUDIO.md'
       - 'docs/linkedin-assist/README.md'
+      - '.github/workflows/format-linkedin-playbook.yml'
 
 permissions:
   contents: write
