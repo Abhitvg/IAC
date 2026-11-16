@@ -15,6 +15,8 @@ interface LinkedInCapability {
 
 interface LinkedInStatus {
   connected: boolean;
+  reauthorizationRequired?: boolean;
+  tokenRefreshError?: boolean;
   scheduledPublishingEnabled?: boolean;
   expiresAt: number | null;
   capabilities: LinkedInCapability[];
@@ -694,7 +696,7 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
               fontWeight: 700,
             }}
           >
-            {status?.connected ? 'Connected' : 'Not connected'}
+            {status?.connected ? 'Connected' : status?.reauthorizationRequired ? 'Reconnect required' : status?.tokenRefreshError ? 'Token refresh failed' : 'Not connected'}
           </span>
         </div>
 
@@ -830,6 +832,16 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
             {status.expiresAt && (
               <p style={{ margin: 0, color: '#94a3b8', fontSize: 10 }}>
                 Access token expires: {new Date(status.expiresAt).toLocaleString()}
+              </p>
+            )}
+            {status.reauthorizationRequired && (
+              <p style={{ margin: 0, color: '#fca5a5', fontSize: 11 }}>
+                LinkedIn authorization has expired. Reconnect the account to restore publishing.
+              </p>
+            )}
+            {status.tokenRefreshError && !status.reauthorizationRequired && (
+              <p style={{ margin: 0, color: '#fbbf24', fontSize: 11 }}>
+                Token renewal failed. Refresh the status again; reconnect only if LinkedIn reports that reauthorization is required.
               </p>
             )}
             <div style={{ display: 'grid', gap: 7 }}>
