@@ -25,7 +25,8 @@ function sendHtml(response: ServerResponse, status: number, message: string): vo
   response.writeHead(status, {
     'content-type': 'text/html; charset=utf-8',
     'cache-control': 'no-store',
-    'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'content-security-policy':
+      "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
     'x-content-type-options': 'nosniff',
     'referrer-policy': 'no-referrer',
     'x-frame-options': 'DENY',
@@ -104,13 +105,19 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         const state = url.searchParams.get('state') ?? '';
         const code = url.searchParams.get('code');
         const providerError = url.searchParams.get('error');
-        const allowedParams = providerError ? ['state', 'error', 'error_description'] : ['state', 'code'];
+        const allowedParams = providerError
+          ? ['state', 'error', 'error_description']
+          : ['state', 'code'];
         if (
           !/^[A-Za-z0-9_-]{40,64}$/.test(state) ||
           [...url.searchParams.keys()].some((key) => !allowedParams.includes(key)) ||
           (providerError ? Boolean(code) : !code || code.length > 4096)
         ) {
-          sendHtml(response, 400, 'The LinkedIn authorization response was invalid. Start the connection again in CareerOps.');
+          sendHtml(
+            response,
+            400,
+            'The LinkedIn authorization response was invalid. Start the connection again in CareerOps.'
+          );
           return;
         }
         try {
@@ -126,10 +133,18 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             return;
           }
           await integration.oauth.completeAuthorizationCallback({ code: code!, state });
-          sendHtml(response, 200, 'LinkedIn was connected successfully. Return to CareerOps and refresh the connection status.');
+          sendHtml(
+            response,
+            200,
+            'LinkedIn was connected successfully. Return to CareerOps and refresh the connection status.'
+          );
         } catch {
           // Do not reflect provider error descriptions, codes, tokens, state, or tenant details.
-          sendHtml(response, 400, 'LinkedIn could not complete the connection. Return to CareerOps and try again.');
+          sendHtml(
+            response,
+            400,
+            'LinkedIn could not complete the connection. Return to CareerOps and try again.'
+          );
         }
         return;
       }
@@ -820,19 +835,19 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             ? 423
             : /active Sprint Contract must be revoked|reviewed fact is immutable/i.test(message)
               ? 409
-            : /Only the fact contributor/i.test(message)
-              ? 403
-              : /Career Graph fact not found/i.test(message)
-                ? 404
-                : /token|identity|membership|bearer|authorization/i.test(message)
-                  ? 401
-                  : /size limit/i.test(message)
-                    ? 413
-                    : /JSON|body|Career Graph envelope|Authenticated tenant and actor/i.test(
-                          message
-                        )
-                      ? 400
-                      : 500;
+              : /Only the fact contributor/i.test(message)
+                ? 403
+                : /Career Graph fact not found/i.test(message)
+                  ? 404
+                  : /token|identity|membership|bearer|authorization/i.test(message)
+                    ? 401
+                    : /size limit/i.test(message)
+                      ? 413
+                      : /JSON|body|Career Graph envelope|Authenticated tenant and actor/i.test(
+                            message
+                          )
+                        ? 400
+                        : 500;
       sendJson(response, status, {
         error: status === 500 ? 'Internal server error' : message,
         requestId,

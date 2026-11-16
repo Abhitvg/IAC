@@ -96,9 +96,7 @@ function messageFromBody(body: unknown, fallback: string): string {
 }
 
 function capabilityLabel(id: string): string {
-  return id
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return id.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function capabilityState(status: CapabilityStatus): string {
@@ -234,7 +232,10 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
     (id: string) => status?.capabilities.find((item) => item.id === id),
     [status]
   );
-  const isAvailable = useCallback((id: string) => capability(id)?.status === 'available', [capability]);
+  const isAvailable = useCallback(
+    (id: string) => capability(id)?.status === 'available',
+    [capability]
+  );
 
   const saveConnection = async () => {
     setBusy(true);
@@ -243,7 +244,9 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
     try {
       const normalizedUrl = apiBaseUrl.trim().replace(/\/$/, '');
       if (!isSecureApiOrigin(normalizedUrl)) {
-        throw new Error('Enter an HTTPS cloud API origin. HTTP is permitted only for localhost development.');
+        throw new Error(
+          'Enter an HTTPS cloud API origin. HTTP is permitted only for localhost development.'
+        );
       }
       const saved = await window.electronAPI.setSettings('careerOpsApiBaseUrl', normalizedUrl);
       if (!saved) throw new Error('CareerOps cloud API URL could not be saved.');
@@ -253,7 +256,9 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
         setTokenConfigured(true);
       }
       setApiBaseUrl(normalizedUrl);
-      setNotice('Cloud API settings saved. The bearer token is stored by the operating system keychain.');
+      setNotice(
+        'Cloud API settings saved. The bearer token is stored by the operating system keychain.'
+      );
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Unable to save cloud settings.');
     } finally {
@@ -273,7 +278,11 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       setMember(null);
       setNotice('Saved cloud API credential removed from secure storage.');
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Could not remove the cloud credential.');
+      setError(
+        removeError instanceof Error
+          ? removeError.message
+          : 'Could not remove the cloud credential.'
+      );
     } finally {
       setBusy(false);
     }
@@ -301,9 +310,15 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
         throw new Error('The CareerOps API returned an unexpected LinkedIn authorization URL.');
       }
       await window.electronAPI.openExternal(authorizationUrl.toString());
-      setNotice('LinkedIn authorization opened in your browser. Complete consent there, then refresh connection status here.');
+      setNotice(
+        'LinkedIn authorization opened in your browser. Complete consent there, then refresh connection status here.'
+      );
     } catch (connectError) {
-      setError(connectError instanceof Error ? connectError.message : 'Could not start LinkedIn authorization.');
+      setError(
+        connectError instanceof Error
+          ? connectError.message
+          : 'Could not start LinkedIn authorization.'
+      );
     } finally {
       setBusy(false);
     }
@@ -317,7 +332,11 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       await refreshStatus();
       setNotice('LinkedIn account disconnected.');
     } catch (disconnectError) {
-      setError(disconnectError instanceof Error ? disconnectError.message : 'Could not disconnect LinkedIn.');
+      setError(
+        disconnectError instanceof Error
+          ? disconnectError.message
+          : 'Could not disconnect LinkedIn.'
+      );
     } finally {
       setBusy(false);
     }
@@ -337,7 +356,9 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       );
       setNotice('Post published through LinkedIn. Post ID: ' + result.postId);
     } catch (publishError) {
-      setError(publishError instanceof Error ? publishError.message : 'LinkedIn post publishing failed.');
+      setError(
+        publishError instanceof Error ? publishError.message : 'LinkedIn post publishing failed.'
+      );
     } finally {
       setBusy(false);
     }
@@ -375,7 +396,9 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       });
       setNotice('Reaction submitted through LinkedIn. HTTP ' + result.status + '.');
     } catch (reactionError) {
-      setError(reactionError instanceof Error ? reactionError.message : 'LinkedIn reaction failed.');
+      setError(
+        reactionError instanceof Error ? reactionError.message : 'LinkedIn reaction failed.'
+      );
     } finally {
       setBusy(false);
     }
@@ -392,7 +415,11 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       );
       setNotice('Reaction removal submitted. HTTP ' + result.status + '.');
     } catch (reactionError) {
-      setError(reactionError instanceof Error ? reactionError.message : 'Could not remove LinkedIn reaction.');
+      setError(
+        reactionError instanceof Error
+          ? reactionError.message
+          : 'Could not remove LinkedIn reaction.'
+      );
     } finally {
       setBusy(false);
     }
@@ -405,10 +432,14 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       if (!organizationUrn.trim() || !organizationPostText.trim()) {
         throw new Error('Enter an organization URN and post text.');
       }
-      const result = await apiRequest<{ postId: string }>('POST', '/v1/linkedin/organization/posts', {
-        organizationUrn: organizationUrn.trim(),
-        commentary: organizationPostText.trim(),
-      });
+      const result = await apiRequest<{ postId: string }>(
+        'POST',
+        '/v1/linkedin/organization/posts',
+        {
+          organizationUrn: organizationUrn.trim(),
+          commentary: organizationPostText.trim(),
+        }
+      );
       setNotice('Organization post published. Post ID: ' + result.postId);
     } catch (publishError) {
       setError(publishError instanceof Error ? publishError.message : 'Organization post failed.');
@@ -442,7 +473,9 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       setNotice('Organization comment created. Comment ID: ' + result.commentId);
       setOrganizationCommentText('');
     } catch (commentError) {
-      setError(commentError instanceof Error ? commentError.message : 'Organization comment failed.');
+      setError(
+        commentError instanceof Error ? commentError.message : 'Organization comment failed.'
+      );
     } finally {
       setBusy(false);
     }
@@ -467,9 +500,7 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       setNotice('Organization reaction submitted. HTTP ' + result.status + '.');
     } catch (reactionError) {
       setError(
-        reactionError instanceof Error
-          ? reactionError.message
-          : 'Organization reaction failed.'
+        reactionError instanceof Error ? reactionError.message : 'Organization reaction failed.'
       );
     } finally {
       setBusy(false);
@@ -512,9 +543,17 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
         paused,
       });
       await refreshStatus();
-      setNotice(paused ? 'LinkedIn actions paused for this tenant.' : 'LinkedIn actions resumed for this tenant.');
+      setNotice(
+        paused
+          ? 'LinkedIn actions paused for this tenant.'
+          : 'LinkedIn actions resumed for this tenant.'
+      );
     } catch (pauseError) {
-      setError(pauseError instanceof Error ? pauseError.message : 'Could not update the LinkedIn pause control.');
+      setError(
+        pauseError instanceof Error
+          ? pauseError.message
+          : 'Could not update the LinkedIn pause control.'
+      );
     } finally {
       setBusy(false);
     }
@@ -527,11 +566,21 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
   return (
     <section style={{ display: 'grid', gap: 12 }}>
       <div style={panelStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
           <div>
-            <h3 style={{ margin: 0, color: '#f8fafc', fontSize: 15 }}>LinkedIn account connection</h3>
+            <h3 style={{ margin: 0, color: '#f8fafc', fontSize: 15 }}>
+              LinkedIn account connection
+            </h3>
             <p style={{ margin: '5px 0 0', color: '#94a3b8', fontSize: 11 }}>
-              Uses the official LinkedIn OAuth and API path. The member access token stays in encrypted server storage.
+              Uses the official LinkedIn OAuth and API path. The member access token stays in
+              encrypted server storage.
             </p>
           </div>
           <span
@@ -556,7 +605,8 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
         <label style={{ color: '#cbd5e1', fontSize: 11 }}>
           Cloud OIDC bearer token
           <span style={{ display: 'block', color: '#94a3b8', fontWeight: 400, marginTop: 3 }}>
-            Issued by your CareerOps identity provider. It is encrypted by the OS keychain and never sent back to the renderer.
+            Issued by your CareerOps identity provider. It is encrypted by the OS keychain and never
+            sent back to the renderer.
           </span>
         </label>
         <input
@@ -564,53 +614,112 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
           onChange={(event) => setCloudToken(event.target.value)}
           type="password"
           autoComplete="off"
-          placeholder={tokenConfigured ? 'Saved securely. Enter a replacement only to rotate it.' : 'Paste the cloud API OIDC JWT'}
+          placeholder={
+            tokenConfigured
+              ? 'Saved securely. Enter a replacement only to rotate it.'
+              : 'Paste the cloud API OIDC JWT'
+          }
           style={inputStyle}
         />
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          <button type="button" style={buttonStyle} onClick={() => void saveConnection()} disabled={busy}>
+          <button
+            type="button"
+            style={buttonStyle}
+            onClick={() => void saveConnection()}
+            disabled={busy}
+          >
             Save cloud settings
           </button>
-          <button type="button" style={buttonStyle} onClick={() => void removeCloudToken()} disabled={busy || !tokenConfigured}>
+          <button
+            type="button"
+            style={buttonStyle}
+            onClick={() => void removeCloudToken()}
+            disabled={busy || !tokenConfigured}
+          >
             Remove saved token
           </button>
-          <button type="button" style={buttonStyle} onClick={() => void refreshStatus()} disabled={busy || !tokenConfigured}>
+          <button
+            type="button"
+            style={buttonStyle}
+            onClick={() => void refreshStatus()}
+            disabled={busy || !tokenConfigured}
+          >
             Refresh status
           </button>
         </div>
         {tokenConfigured && (
-          <p style={{ margin: 0, color: '#86efac', fontSize: 11 }}>Cloud bearer token is present in OS-backed secure storage.</p>
+          <p style={{ margin: 0, color: '#86efac', fontSize: 11 }}>
+            Cloud bearer token is present in OS-backed secure storage.
+          </p>
         )}
       </div>
 
       {status && (
         <>
           <div style={panelStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
               <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>Tenant controls</h4>
-              <span style={{ color: writesBlocked ? '#fca5a5' : '#86efac', fontSize: 11, fontWeight: 700 }}>
-                {controls?.globalKillSwitch ? 'Global kill switch ON' : channelPaused ? 'LinkedIn paused' : 'Writes enabled'}
+              <span
+                style={{
+                  color: writesBlocked ? '#fca5a5' : '#86efac',
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
+              >
+                {controls?.globalKillSwitch
+                  ? 'Global kill switch ON'
+                  : channelPaused
+                    ? 'LinkedIn paused'
+                    : 'Writes enabled'}
               </span>
             </div>
             {controls?.globalKillSwitch && (
               <p style={{ margin: 0, color: '#fca5a5', fontSize: 11 }}>
-                The tenant-wide kill switch is active. LinkedIn write actions are blocked by the server.
+                The tenant-wide kill switch is active. LinkedIn write actions are blocked by the
+                server.
               </p>
             )}
             {member?.role === 'owner' && (
-              <button type="button" style={buttonStyle} onClick={() => void toggleLinkedInPause()} disabled={busy || Boolean(controls?.globalKillSwitch)}>
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={() => void toggleLinkedInPause()}
+                disabled={busy || Boolean(controls?.globalKillSwitch)}
+              >
                 {channelPaused ? 'Resume LinkedIn channel' : 'Pause LinkedIn channel'}
               </button>
             )}
             <p style={{ margin: 0, color: '#94a3b8', fontSize: 10 }}>
-              All writes are audited by the cloud API and checked against the kill switch and channel pause immediately before execution.
+              All writes are audited by the cloud API and checked against the kill switch and
+              channel pause immediately before execution.
             </p>
           </div>
 
           <div style={panelStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>Official LinkedIn capabilities</h4>
-              <button type="button" style={buttonStyle} onClick={() => void connect()} disabled={busy || !tokenConfigured || Boolean(status.connected)}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>
+                Official LinkedIn capabilities
+              </h4>
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={() => void connect()}
+                disabled={busy || !tokenConfigured || Boolean(status.connected)}
+              >
                 Connect / authorize
               </button>
             </div>
@@ -621,10 +730,21 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
             )}
             <div style={{ display: 'grid', gap: 7 }}>
               {capabilities.map((item) => (
-                <div key={item.id} style={{ borderTop: '1px solid rgba(255,255,255,.07)', paddingTop: 7 }}>
+                <div
+                  key={item.id}
+                  style={{ borderTop: '1px solid rgba(255,255,255,.07)', paddingTop: 7 }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <strong style={{ color: '#e2e8f0', fontSize: 11 }}>{capabilityLabel(item.id)}</strong>
-                    <span style={{ color: item.status === 'available' ? '#86efac' : '#fbbf24', fontSize: 10, textAlign: 'right' }}>
+                    <strong style={{ color: '#e2e8f0', fontSize: 11 }}>
+                      {capabilityLabel(item.id)}
+                    </strong>
+                    <span
+                      style={{
+                        color: item.status === 'available' ? '#86efac' : '#fbbf24',
+                        fontSize: 10,
+                        textAlign: 'right',
+                      }}
+                    >
                       {capabilityState(item.status)}
                     </span>
                   </div>
@@ -632,7 +752,12 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
                 </div>
               ))}
             </div>
-            <button type="button" style={buttonStyle} onClick={() => void disconnect()} disabled={busy || !tokenConfigured}>
+            <button
+              type="button"
+              style={buttonStyle}
+              onClick={() => void disconnect()}
+              disabled={busy || !tokenConfigured}
+            >
               Disconnect LinkedIn
             </button>
           </div>
@@ -644,7 +769,8 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
           <div style={{ ...panelStyle, opacity: isAvailable('member_post_publish') ? 1 : 0.62 }}>
             <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>Publish a member post</h4>
             <p style={{ margin: 0, color: '#94a3b8', fontSize: 10 }}>
-              This action publishes immediately when you press the button. Review the text first; there is no background publishing.
+              This action publishes immediately when you press the button. Review the text first;
+              there is no background publishing.
             </p>
             <textarea
               value={postText}
@@ -655,63 +781,202 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
               style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: postText.length > 3000 ? '#fca5a5' : '#94a3b8', fontSize: 10 }}>{postText.length}/3000 characters</span>
-              <button type="button" style={buttonStyle} onClick={() => void publishMemberPost()} disabled={busy || writesBlocked || !isAvailable('member_post_publish') || !postText.trim() || postText.length > 3000}>
+              <span style={{ color: postText.length > 3000 ? '#fca5a5' : '#94a3b8', fontSize: 10 }}>
+                {postText.length}/3000 characters
+              </span>
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={() => void publishMemberPost()}
+                disabled={
+                  busy ||
+                  writesBlocked ||
+                  !isAvailable('member_post_publish') ||
+                  !postText.trim() ||
+                  postText.length > 3000
+                }
+              >
                 Publish now
               </button>
             </div>
           </div>
 
           <div style={{ ...panelStyle, opacity: isAvailable('member_comment_react') ? 1 : 0.62 }}>
-            <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>Member comments and reactions</h4>
+            <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>
+              Member comments and reactions
+            </h4>
             <p style={{ margin: 0, color: '#94a3b8', fontSize: 10 }}>
-              Requires Community Management API access and the granted member social feed write scope. Paste URNs from an authorized source; CareerOps does not scrape feeds.
+              Requires Community Management API access and the granted member social feed write
+              scope. Paste URNs from an authorized source; CareerOps does not scrape feeds.
             </p>
-            <input value={commentTarget} onChange={(event) => setCommentTarget(event.target.value)} placeholder="Target post URN (share or ugcPost)" style={inputStyle} />
-            <input value={commentObject} onChange={(event) => setCommentObject(event.target.value)} placeholder="Activity object URN" style={inputStyle} />
-            <textarea value={commentText} onChange={(event) => setCommentText(event.target.value)} rows={3} placeholder="Comment text..." style={{ ...inputStyle, resize: 'vertical' }} />
-            <button type="button" style={buttonStyle} onClick={() => void createMemberComment()} disabled={busy || writesBlocked || !isAvailable('member_comment_react') || !commentText.trim()}>
+            <input
+              value={commentTarget}
+              onChange={(event) => setCommentTarget(event.target.value)}
+              placeholder="Target post URN (share or ugcPost)"
+              style={inputStyle}
+            />
+            <input
+              value={commentObject}
+              onChange={(event) => setCommentObject(event.target.value)}
+              placeholder="Activity object URN"
+              style={inputStyle}
+            />
+            <textarea
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              rows={3}
+              placeholder="Comment text..."
+              style={{ ...inputStyle, resize: 'vertical' }}
+            />
+            <button
+              type="button"
+              style={buttonStyle}
+              onClick={() => void createMemberComment()}
+              disabled={
+                busy || writesBlocked || !isAvailable('member_comment_react') || !commentText.trim()
+              }
+            >
               Create comment
             </button>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 7 }}>
-              <input value={reactionRoot} onChange={(event) => setReactionRoot(event.target.value)} placeholder="Reaction root post / activity URN" style={inputStyle} />
-              <select value={reactionType} onChange={(event) => setReactionType(event.target.value as ReactionType)} style={inputStyle}>
-                {REACTIONS.map((value) => <option key={value} value={value}>{value}</option>)}
+              <input
+                value={reactionRoot}
+                onChange={(event) => setReactionRoot(event.target.value)}
+                placeholder="Reaction root post / activity URN"
+                style={inputStyle}
+              />
+              <select
+                value={reactionType}
+                onChange={(event) => setReactionType(event.target.value as ReactionType)}
+                style={inputStyle}
+              >
+                {REACTIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
               </select>
             </div>
-            <button type="button" style={buttonStyle} onClick={() => void createMemberReaction()} disabled={busy || writesBlocked || !isAvailable('member_comment_react') || !reactionRoot.trim()}>
+            <button
+              type="button"
+              style={buttonStyle}
+              onClick={() => void createMemberReaction()}
+              disabled={
+                busy ||
+                writesBlocked ||
+                !isAvailable('member_comment_react') ||
+                !reactionRoot.trim()
+              }
+            >
               Add reaction
             </button>
-            <input value={reactionEntity} onChange={(event) => setReactionEntity(event.target.value)} placeholder="Post URN to remove your reaction from" style={inputStyle} />
-            <button type="button" style={buttonStyle} onClick={() => void removeMemberReaction()} disabled={busy || writesBlocked || !isAvailable('member_comment_react') || !reactionEntity.trim()}>
+            <input
+              value={reactionEntity}
+              onChange={(event) => setReactionEntity(event.target.value)}
+              placeholder="Post URN to remove your reaction from"
+              style={inputStyle}
+            />
+            <button
+              type="button"
+              style={buttonStyle}
+              onClick={() => void removeMemberReaction()}
+              disabled={
+                busy ||
+                writesBlocked ||
+                !isAvailable('member_comment_react') ||
+                !reactionEntity.trim()
+              }
+            >
               Remove reaction
             </button>
           </div>
 
           {isAvailable('organization_post_publish') && (
             <div style={panelStyle}>
-              <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>Organization Page publishing</h4>
+              <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>
+                Organization Page publishing
+              </h4>
               <p style={{ margin: 0, color: '#94a3b8', fontSize: 10 }}>
-                Requires approved Community Management API access, organization scopes and an eligible Page administrator role.
+                Requires approved Community Management API access, organization scopes and an
+                eligible Page administrator role.
               </p>
-              <input value={organizationUrn} onChange={(event) => setOrganizationUrn(event.target.value)} placeholder="Organization URN (urn:li:organization:...)" style={inputStyle} />
-              <textarea value={organizationPostText} onChange={(event) => setOrganizationPostText(event.target.value)} rows={3} placeholder="Organization post text..." style={{ ...inputStyle, resize: 'vertical' }} />
-              <button type="button" style={buttonStyle} onClick={() => void publishOrganizationPost()} disabled={busy || writesBlocked || !organizationUrn.trim() || !organizationPostText.trim()}>
+              <input
+                value={organizationUrn}
+                onChange={(event) => setOrganizationUrn(event.target.value)}
+                placeholder="Organization URN (urn:li:organization:...)"
+                style={inputStyle}
+              />
+              <textarea
+                value={organizationPostText}
+                onChange={(event) => setOrganizationPostText(event.target.value)}
+                rows={3}
+                placeholder="Organization post text..."
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={() => void publishOrganizationPost()}
+                disabled={
+                  busy || writesBlocked || !organizationUrn.trim() || !organizationPostText.trim()
+                }
+              >
                 Publish for organization
               </button>
-              <input value={organizationCommentTarget} onChange={(event) => setOrganizationCommentTarget(event.target.value)} placeholder="Target post URN" style={inputStyle} />
-              <input value={organizationCommentObject} onChange={(event) => setOrganizationCommentObject(event.target.value)} placeholder="Activity object URN" style={inputStyle} />
-              <textarea value={organizationCommentText} onChange={(event) => setOrganizationCommentText(event.target.value)} rows={2} placeholder="Organization comment..." style={{ ...inputStyle, resize: 'vertical' }} />
-              <button type="button" style={buttonStyle} onClick={() => void createOrganizationComment()} disabled={busy || writesBlocked || !organizationUrn.trim() || !organizationCommentTarget.trim() || !organizationCommentObject.trim() || !organizationCommentText.trim()}>
+              <input
+                value={organizationCommentTarget}
+                onChange={(event) => setOrganizationCommentTarget(event.target.value)}
+                placeholder="Target post URN"
+                style={inputStyle}
+              />
+              <input
+                value={organizationCommentObject}
+                onChange={(event) => setOrganizationCommentObject(event.target.value)}
+                placeholder="Activity object URN"
+                style={inputStyle}
+              />
+              <textarea
+                value={organizationCommentText}
+                onChange={(event) => setOrganizationCommentText(event.target.value)}
+                rows={2}
+                placeholder="Organization comment..."
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={() => void createOrganizationComment()}
+                disabled={
+                  busy ||
+                  writesBlocked ||
+                  !organizationUrn.trim() ||
+                  !organizationCommentTarget.trim() ||
+                  !organizationCommentObject.trim() ||
+                  !organizationCommentText.trim()
+                }
+              >
                 Comment as organization
               </button>
-              <div style={{ borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 10, display: 'grid', gap: 7 }}>
+              <div
+                style={{
+                  borderTop: '1px solid rgba(255,255,255,.08)',
+                  paddingTop: 10,
+                  display: 'grid',
+                  gap: 7,
+                }}
+              >
                 <strong style={{ color: '#e2e8f0', fontSize: 11 }}>Organization reactions</strong>
                 <button
                   type="button"
                   style={buttonStyle}
                   onClick={() => void createOrganizationReaction()}
-                  disabled={busy || writesBlocked || !isAvailable('organization_comment_react') || !organizationUrn.trim() || !reactionRoot.trim()}
+                  disabled={
+                    busy ||
+                    writesBlocked ||
+                    !isAvailable('organization_comment_react') ||
+                    !organizationUrn.trim() ||
+                    !reactionRoot.trim()
+                  }
                 >
                   Add selected reaction
                 </button>
@@ -719,7 +984,13 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
                   type="button"
                   style={buttonStyle}
                   onClick={() => void removeOrganizationReaction()}
-                  disabled={busy || writesBlocked || !isAvailable('organization_comment_react') || !organizationUrn.trim() || !reactionEntity.trim()}
+                  disabled={
+                    busy ||
+                    writesBlocked ||
+                    !isAvailable('organization_comment_react') ||
+                    !organizationUrn.trim() ||
+                    !reactionEntity.trim()
+                  }
                 >
                   Remove organization reaction
                 </button>
@@ -729,10 +1000,20 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
         </>
       )}
 
-      {error && <p role="alert" style={{ margin: 0, color: '#fca5a5', fontSize: 11 }}>{error}</p>}
-      {notice && <p role="status" style={{ margin: 0, color: '#86efac', fontSize: 11 }}>{notice}</p>}
+      {error && (
+        <p role="alert" style={{ margin: 0, color: '#fca5a5', fontSize: 11 }}>
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p role="status" style={{ margin: 0, color: '#86efac', fontSize: 11 }}>
+          {notice}
+        </p>
+      )}
       <p style={{ margin: 0, color: '#94a3b8', fontSize: 10, lineHeight: 1.5 }}>
-        LinkedIn invitations, direct messages and inbox reading remain disabled until LinkedIn grants the exact partner API access. Browser scraping, cookies, hidden sessions and automated engagement are not used.
+        LinkedIn invitations, direct messages and inbox reading remain disabled until LinkedIn
+        grants the exact partner API access. Browser scraping, cookies, hidden sessions and
+        automated engagement are not used.
       </p>
     </section>
   );

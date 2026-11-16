@@ -376,7 +376,9 @@ describe('LinkedIn OAuth service', () => {
           { status: 200 }
         )
       )
-      .mockResolvedValueOnce(new Response(JSON.stringify({ sub: 'no-refresh-member' }), { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ sub: 'no-refresh-member' }), { status: 200 })
+      );
     const service = new LinkedInOAuthService(
       {
         clientId: 'client-id',

@@ -251,14 +251,17 @@ export function validateSetting(key: string, value: any): boolean {
         const apiUrl = new URL(value.trim());
         const localDevelopmentHost = ['localhost', '127.0.0.1'].includes(apiUrl.hostname);
         if (
-          (apiUrl.protocol !== 'https:' && !(apiUrl.protocol === 'http:' && localDevelopmentHost)) ||
+          (apiUrl.protocol !== 'https:' &&
+            !(apiUrl.protocol === 'http:' && localDevelopmentHost)) ||
           apiUrl.username ||
           apiUrl.password ||
           apiUrl.search ||
           apiUrl.hash ||
           apiUrl.pathname !== '/'
         ) {
-          throw new Error('CareerOps API base URL must be an HTTPS origin (HTTP is allowed only on localhost).');
+          throw new Error(
+            'CareerOps API base URL must be an HTTPS origin (HTTP is allowed only on localhost).'
+          );
         }
       }
       break;
@@ -546,7 +549,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       '/v1/controls/kill-switch',
     ]);
     const baseValue = String(store.get('careerOpsApiBaseUrl', '')).trim();
-    if (!baseValue) throw new Error('Configure the CareerOps cloud API URL before connecting LinkedIn.');
+    if (!baseValue)
+      throw new Error('Configure the CareerOps cloud API URL before connecting LinkedIn.');
     const baseUrl = new URL(baseValue);
     const localDevelopmentHost = ['localhost', '127.0.0.1'].includes(baseUrl.hostname);
     if (
@@ -576,15 +580,15 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       apiUrl.searchParams.size === 2 &&
       apiUrl.searchParams.has('organizationUrn') &&
       apiUrl.searchParams.has('entityUrn');
-    const normalEndpoint =
-      allowedPaths.has(apiUrl.pathname) && apiUrl.searchParams.size === 0;
+    const normalEndpoint = allowedPaths.has(apiUrl.pathname) && apiUrl.searchParams.size === 0;
     if (!normalEndpoint && !memberReactionDelete && !organizationReactionDelete) {
       throw new Error('LinkedIn API endpoint is not allowed by the desktop bridge.');
     }
 
     const method = input.method as 'GET' | 'POST' | 'DELETE';
     const routeMethodAllowed =
-      ((apiUrl.pathname === '/v1/linkedin/status' || apiUrl.pathname === '/v1/me') && method === 'GET') ||
+      ((apiUrl.pathname === '/v1/linkedin/status' || apiUrl.pathname === '/v1/me') &&
+        method === 'GET') ||
       (apiUrl.pathname === '/v1/controls' && method === 'GET') ||
       (apiUrl.pathname === '/v1/linkedin/connection' && method === 'DELETE') ||
       (apiUrl.pathname.startsWith('/v1/linkedin/') &&
@@ -595,7 +599,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       ((apiUrl.pathname === '/v1/linkedin/reactions' ||
         apiUrl.pathname === '/v1/linkedin/organization/reactions') &&
         method === 'DELETE');
-    if (!routeMethodAllowed) throw new Error('HTTP method is not allowed for this LinkedIn API endpoint.');
+    if (!routeMethodAllowed)
+      throw new Error('HTTP method is not allowed for this LinkedIn API endpoint.');
 
     if (input.body !== undefined) {
       if (!input.body || typeof input.body !== 'object' || Array.isArray(input.body)) {
@@ -609,7 +614,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     }
 
     const bearer = await credentialStore.getKey('careerops-cloud');
-    if (!bearer) throw new Error('Save a valid CareerOps cloud OIDC bearer token before connecting LinkedIn.');
+    if (!bearer)
+      throw new Error('Save a valid CareerOps cloud OIDC bearer token before connecting LinkedIn.');
     const response = await fetch(apiUrl.toString(), {
       method,
       headers: {

@@ -1,5 +1,8 @@
 import { createHash, createHmac } from 'node:crypto';
-import type { GeneratedDataKey, TenantKeyManagementService } from '../../../../packages/cloud-core/src/encryption';
+import type {
+  GeneratedDataKey,
+  TenantKeyManagementService,
+} from '../../../../packages/cloud-core/src/encryption';
 
 export interface AwsCredentials {
   accessKeyId: string;
@@ -151,14 +154,9 @@ export class AwsKmsTenantKeyManagementService implements TenantKeyManagementServ
       .map((name) => name + ':' + headers[name].trim() + '\n')
       .join('');
     const signedHeaders = signedHeaderNames.join(';');
-    const canonicalRequest = [
-      'POST',
-      '/',
-      '',
-      canonicalHeaders,
-      signedHeaders,
-      payloadHash,
-    ].join('\n');
+    const canonicalRequest = ['POST', '/', '', canonicalHeaders, signedHeaders, payloadHash].join(
+      '\n'
+    );
     const credentialScope = dateStamp + '/' + this.region + '/kms/aws4_request';
     const stringToSign = [
       'AWS4-HMAC-SHA256',

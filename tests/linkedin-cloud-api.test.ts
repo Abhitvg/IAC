@@ -170,7 +170,9 @@ describe('LinkedIn cloud API security boundaries', () => {
     });
 
     expect(response.status).toBe(423);
-    expect(await response.json()).toMatchObject({ error: 'LinkedIn channel is paused for this tenant' });
+    expect(await response.json()).toMatchObject({
+      error: 'LinkedIn channel is paused for this tenant',
+    });
     expect(integration.api.publishMemberTextPost).not.toHaveBeenCalled();
     expect(recordLinkedInAction).not.toHaveBeenCalled();
   });

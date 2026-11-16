@@ -22,17 +22,35 @@ const CloudEnvironmentSchema = z
       .min(1024)
       .max(1024 * 1024)
       .default(16 * 1024),
-    LINKEDIN_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+    LINKEDIN_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
     LINKEDIN_CLIENT_ID: z.string().trim().min(1).max(512).optional(),
     LINKEDIN_CLIENT_SECRET: z.string().trim().min(1).max(4096).optional(),
     LINKEDIN_REDIRECT_URI: z.string().url().optional(),
-    LINKEDIN_API_VERSION: z.string().regex(/^20\d{4}$/).default('202610'),
+    LINKEDIN_API_VERSION: z
+      .string()
+      .regex(/^20\d{4}$/)
+      .default('202610'),
     LINKEDIN_KMS_KEY_ID: z.string().trim().min(1).max(2048).optional(),
     AWS_REGION: z.string().trim().min(3).max(32).optional(),
-    LINKEDIN_COMMUNITY_MANAGEMENT_APPROVED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
-    LINKEDIN_COMMUNICATIONS_API_APPROVED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
-    LINKEDIN_INVITATIONS_API_APPROVED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
-    LINKEDIN_MESSAGES_API_APPROVED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+    LINKEDIN_COMMUNITY_MANAGEMENT_APPROVED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    LINKEDIN_COMMUNICATIONS_API_APPROVED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    LINKEDIN_INVITATIONS_API_APPROVED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    LINKEDIN_MESSAGES_API_APPROVED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
   })
   .superRefine((values, context) => {
     const linkedinFields = [
@@ -46,7 +64,8 @@ const CloudEnvironmentSchema = z
       context.addIssue({
         code: 'custom',
         path: ['LINKEDIN_ENABLED'],
-        message: 'LinkedIn requires client ID, client secret, HTTPS redirect URI, AWS KMS key ID, and AWS region',
+        message:
+          'LinkedIn requires client ID, client secret, HTTPS redirect URI, AWS KMS key ID, and AWS region',
       });
     }
     if (values.LINKEDIN_ENABLED && values.LINKEDIN_REDIRECT_URI) {

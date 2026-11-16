@@ -22,9 +22,7 @@ export function isValidCareerOpsCloudToken(value: string): boolean {
 }
 
 export function parseGroqApiKeyFromEnvContent(content: string): string | null {
-  const line = content
-    .split(/\r?\n/)
-    .find((entry) => /^\s*GROQ_API_KEY\s*=/.test(entry));
+  const line = content.split(/\r?\n/).find((entry) => /^\s*GROQ_API_KEY\s*=/.test(entry));
   if (!line) return null;
 
   const value = line.slice(line.indexOf('=') + 1).trim();

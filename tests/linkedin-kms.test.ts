@@ -54,9 +54,11 @@ describe('AWS KMS tenant key management service', () => {
 
   it('unwraps only with the same tenant and purpose encryption context', async () => {
     const plaintext = Buffer.alloc(32, 9);
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ Plaintext: plaintext.toString('base64') }), { status: 200 })
-    );
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ Plaintext: plaintext.toString('base64') }), { status: 200 })
+      );
     const kms = new AwsKmsTenantKeyManagementService({
       region: 'us-east-1',
       keyId: 'test-key',

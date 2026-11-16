@@ -18,19 +18,19 @@ Invitations, Messages and Communications APIs are partner-restricted. Keep their
 
 Set these variables on the API service:
 
-| Variable | Required | Purpose |
-|---|---:|---|
-| `LINKEDIN_ENABLED` | Yes | Set to `true` to compose the official integration |
-| `LINKEDIN_CLIENT_ID` | Yes | LinkedIn developer application client ID |
-| `LINKEDIN_CLIENT_SECRET` | Yes | LinkedIn client secret; server-side only |
-| `LINKEDIN_REDIRECT_URI` | Yes | Exact HTTPS callback URI registered in the LinkedIn app |
-| `LINKEDIN_API_VERSION` | Recommended | Versioned Marketing API header; default is `202610` |
-| `LINKEDIN_KMS_KEY_ID` | Yes | AWS KMS symmetric key ID or ARN |
-| `AWS_REGION` | Yes | AWS region containing the KMS key |
-| `LINKEDIN_COMMUNITY_MANAGEMENT_APPROVED` | No | Set true only after approval |
-| `LINKEDIN_COMMUNICATIONS_API_APPROVED` | No | Set true only after partner approval |
-| `LINKEDIN_INVITATIONS_API_APPROVED` | No | Set true only after partner approval |
-| `LINKEDIN_MESSAGES_API_APPROVED` | No | Set true only after partner approval |
+| Variable                                 |    Required | Purpose                                                 |
+| ---------------------------------------- | ----------: | ------------------------------------------------------- |
+| `LINKEDIN_ENABLED`                       |         Yes | Set to `true` to compose the official integration       |
+| `LINKEDIN_CLIENT_ID`                     |         Yes | LinkedIn developer application client ID                |
+| `LINKEDIN_CLIENT_SECRET`                 |         Yes | LinkedIn client secret; server-side only                |
+| `LINKEDIN_REDIRECT_URI`                  |         Yes | Exact HTTPS callback URI registered in the LinkedIn app |
+| `LINKEDIN_API_VERSION`                   | Recommended | Versioned Marketing API header; default is `202610`     |
+| `LINKEDIN_KMS_KEY_ID`                    |         Yes | AWS KMS symmetric key ID or ARN                         |
+| `AWS_REGION`                             |         Yes | AWS region containing the KMS key                       |
+| `LINKEDIN_COMMUNITY_MANAGEMENT_APPROVED` |          No | Set true only after approval                            |
+| `LINKEDIN_COMMUNICATIONS_API_APPROVED`   |          No | Set true only after partner approval                    |
+| `LINKEDIN_INVITATIONS_API_APPROVED`      |          No | Set true only after partner approval                    |
+| `LINKEDIN_MESSAGES_API_APPROVED`         |          No | Set true only after partner approval                    |
 
 The API also needs its normal CareerOps OIDC issuer, audience, JWKS URL, database URL and distinct signing / rate-limit secrets.
 

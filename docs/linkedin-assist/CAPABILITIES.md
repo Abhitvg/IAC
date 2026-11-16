@@ -105,7 +105,7 @@ show exactly which prerequisite is missing.
 The desktop app also requires a cloud API origin and an OIDC bearer JWT issued by the configured CareerOps identity provider. This repository does not provision the customer’s identity provider credentials or deploy the cloud API automatically. See [DEPLOYMENT.md](./DEPLOYMENT.md) for required environment variables, redirect URI, AWS KMS IAM permissions and operational setup.
 
 Do not represent partner-only features or unscheduled background automation as live. A signed-in CareerOps user, a LinkedIn login, or a stored connection does not itself grant product approval or API scopes.
- 
+
 ## Attribution
 
 Adapted from Avi Grondin's MIT-licensed avi691/linkedin-agent-skill. Original skill instructions
