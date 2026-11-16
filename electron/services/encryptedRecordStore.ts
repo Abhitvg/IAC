@@ -11,6 +11,16 @@ const KEY_FILE = 'secure-record-store.key';
 interface Envelope { version: 1; algorithm: 'aes-256-gcm'; iv: string; authTag: string; ciphertext: string; }
 function validNamespace(value: unknown): value is SecureRecordNamespace { return typeof value === 'string' && (SECURE_RECORD_NAMESPACES as readonly string[]).includes(value); }
 function validId(value: unknown): value is string { return typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value); }
+function ensureDirectorySafe(directory: string, create: boolean): boolean {
+  if (!fs.existsSync(directory)) {
+    if (!create) return false;
+    fs.mkdirSync(directory, { mode: 0o700 });
+  }
+  const stat = fs.lstatSync(directory);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('Secure record directory is not a regular directory.');
+  return true;
+}
+
 function atomicWrite(filePath: string, content: string): void {
   const directory = path.dirname(filePath); fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const temporaryPath = path.join(directory, '.' + path.basename(filePath) + '.' + crypto.randomUUID() + '.tmp');
@@ -29,7 +39,10 @@ export class EncryptedRecordStore {
     if (!available) throw new Error('OS-backed secure storage is unavailable. Unlock or configure the system keyring before using encrypted records.');
   }
   private async loadOrCreateKey(): Promise<Buffer> {
-    await this.assertSecureStorage(); fs.mkdirSync(this.rootDir, { recursive: true, mode: 0o700 }); const keyPath = path.join(this.rootDir, KEY_FILE);
+    await this.assertSecureStorage();
+    if (!fs.existsSync(path.dirname(this.rootDir))) throw new Error('Secure record parent directory is unavailable.');
+    ensureDirectorySafe(this.rootDir, true);
+    const keyPath = path.join(this.rootDir, KEY_FILE);
     if (fs.existsSync(keyPath)) { const stat = fs.lstatSync(keyPath); if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Secure record key file is not a regular file.');
       const wrapped = JSON.parse(fs.readFileSync(keyPath, 'utf8')) as { version?: number; data?: string }; if (wrapped.version !== VERSION || typeof wrapped.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(wrapped.data)) throw new Error('Secure record key file is malformed.');
       const decoded = await this.storage.decryptStringAsync(Buffer.from(wrapped.data, 'base64')); const key = Buffer.from(decoded, 'base64'); if (key.length !== 32) throw new Error('Secure record key could not be recovered.'); return key;
@@ -45,15 +58,21 @@ export class EncryptedRecordStore {
     const key = await this.getKey(); const iv = crypto.randomBytes(12); const aad = Buffer.from('iac-secure-record:v' + VERSION + ':' + namespace + ':' + id, 'utf8');
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv); cipher.setAAD(aad); const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
     const envelope: Envelope = { version: VERSION, algorithm: 'aes-256-gcm', iv: iv.toString('base64'), authTag: cipher.getAuthTag().toString('base64'), ciphertext: ciphertext.toString('base64') };
+    ensureDirectorySafe(path.join(this.rootDir, 'records'), true);
+    ensureDirectorySafe(path.join(this.rootDir, 'records', namespace), true);
     atomicWrite(this.recordPath(namespace, id), JSON.stringify(envelope));
   }
   async get(namespace: SecureRecordNamespace, id: string): Promise<string | null> {
-    if (!validNamespace(namespace) || !validId(id)) throw new Error('Invalid secure record namespace or identifier.'); const filePath = this.recordPath(namespace, id); if (!fs.existsSync(filePath)) return null;
+    if (!validNamespace(namespace) || !validId(id)) throw new Error('Invalid secure record namespace or identifier.');
+    if (!ensureDirectorySafe(this.rootDir, false)) return null;
+    if (!ensureDirectorySafe(path.join(this.rootDir, 'records'), false)) return null;
+    if (!ensureDirectorySafe(path.join(this.rootDir, 'records', namespace), false)) return null;
+    const filePath = this.recordPath(namespace, id); if (!fs.existsSync(filePath)) return null;
     const stat = fs.lstatSync(filePath); if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Secure record is not a regular file.'); if (stat.size > MAX_RECORD_BYTES + 4096) throw new Error('Secure record exceeds the maximum supported size.');
     const envelope = JSON.parse(fs.readFileSync(filePath, 'utf8')) as Partial<Envelope>; if (envelope.version !== VERSION || envelope.algorithm !== 'aes-256-gcm' || typeof envelope.iv !== 'string' || typeof envelope.authTag !== 'string' || typeof envelope.ciphertext !== 'string') throw new Error('Secure record envelope is malformed or unsupported.');
     const iv = Buffer.from(envelope.iv, 'base64'); const tag = Buffer.from(envelope.authTag, 'base64'); const ciphertext = Buffer.from(envelope.ciphertext, 'base64'); if (iv.length !== 12 || tag.length !== 16 || ciphertext.length > MAX_RECORD_BYTES) throw new Error('Secure record envelope has invalid cryptographic fields.');
     const key = await this.getKey(); const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv); decipher.setAAD(Buffer.from('iac-secure-record:v' + VERSION + ':' + namespace + ':' + id, 'utf8')); decipher.setAuthTag(tag);
     try { return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8'); } catch { throw new Error('Secure record authentication failed.'); }
   }
-  async delete(namespace: SecureRecordNamespace, id: string): Promise<boolean> { if (!validNamespace(namespace) || !validId(id)) throw new Error('Invalid secure record namespace or identifier.'); const filePath = this.recordPath(namespace, id); if (!fs.existsSync(filePath)) return false; const stat = fs.lstatSync(filePath); if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Secure record is not a regular file.'); fs.unlinkSync(filePath); return true; }
+  async delete(namespace: SecureRecordNamespace, id: string): Promise<boolean> { if (!validNamespace(namespace) || !validId(id)) throw new Error('Invalid secure record namespace or identifier.'); if (!ensureDirectorySafe(this.rootDir, false) || !ensureDirectorySafe(path.join(this.rootDir, 'records'), false) || !ensureDirectorySafe(path.join(this.rootDir, 'records', namespace), false)) return false; const filePath = this.recordPath(namespace, id); if (!fs.existsSync(filePath)) return false; const stat = fs.lstatSync(filePath); if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Secure record is not a regular file.'); fs.unlinkSync(filePath); return true; }
 }
