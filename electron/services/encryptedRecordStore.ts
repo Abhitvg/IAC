@@ -107,6 +107,21 @@ export class EncryptedRecordStore {
   private readonly storage: SecureStorageAdapter;
   private readonly platform: string;
   private keyPromise: Promise<Buffer> | null = null;
+  private readonly namespaceQueues = new Map<string, Promise<void>>();
+
+  private async withNamespaceLock<T>(namespace: SecureRecordNamespace, operation: () => Promise<T>): Promise<T> {
+    const previous = this.namespaceQueues.get(namespace) || Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => { release = resolve; });
+    this.namespaceQueues.set(namespace, previous.then(() => current));
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+      if (this.namespaceQueues.get(namespace) === current) this.namespaceQueues.delete(namespace);
+    }
+  }
 
   constructor(options: { rootDir: string; storage: SecureStorageAdapter; platform?: string }) {
     this.rootDir = path.resolve(options.rootDir);
@@ -207,21 +222,13 @@ export class EncryptedRecordStore {
     return path.join(this.rootDir, 'records', namespace, digest + '.json');
   }
 
-  async set(namespace: SecureRecordNamespace, id: string, plaintext: string): Promise<void> {
-    if (!validNamespace(namespace) || !validId(id)) {
-      throw new Error('Invalid secure record namespace or identifier.');
-    }
-    if (typeof plaintext !== 'string' || Buffer.byteLength(plaintext, 'utf8') > MAX_RECORD_BYTES) {
-      throw new Error('Secure record payload must be a string no larger than 5 MiB.');
-    }
-
+  private async writeRecord(namespace: SecureRecordNamespace, id: string, plaintext: string): Promise<void> {
     const key = await this.getKey();
     const iv = crypto.randomBytes(12);
     const aad = Buffer.from('iac-secure-record:v' + VERSION + ':' + namespace + ':' + id, 'utf8');
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     cipher.setAAD(aad);
     const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-
     const envelope: Envelope = {
       version: VERSION,
       algorithm: 'aes-256-gcm',
@@ -229,10 +236,52 @@ export class EncryptedRecordStore {
       authTag: cipher.getAuthTag().toString('base64'),
       ciphertext: ciphertext.toString('base64'),
     };
-
     ensureDirectorySafe(path.join(this.rootDir, 'records'), true);
     ensureDirectorySafe(path.join(this.rootDir, 'records', namespace), true);
     atomicWrite(this.recordPath(namespace, id), JSON.stringify(envelope));
+  }
+
+  private async readIndex(namespace: SecureRecordNamespace): Promise<string[]> {
+    const raw = await this.get(namespace, '__index__');
+    if (raw === null) return [];
+    let parsed: unknown;
+    try { parsed = JSON.parse(raw); } catch { throw new Error('Secure record index is malformed.'); }
+    if (!Array.isArray(parsed) || parsed.length > 100000 ||
+        !parsed.every((id) => validId(id) && id !== '__index__')) {
+      throw new Error('Secure record index is malformed.');
+    }
+    return Array.from(new Set(parsed as string[])).sort();
+  }
+
+  async set(namespace: SecureRecordNamespace, id: string, plaintext: string): Promise<void> {
+    if (!validNamespace(namespace) || !validId(id) || id === '__index__') {
+      throw new Error('Invalid secure record namespace or identifier.');
+    }
+    if (typeof plaintext !== 'string' || Buffer.byteLength(plaintext, 'utf8') > MAX_RECORD_BYTES) {
+      throw new Error('Secure record payload must be a string no larger than 5 MiB.');
+    }
+    await this.withNamespaceLock(namespace, async () => {
+      await this.writeRecord(namespace, id, plaintext);
+      const ids = await this.readIndex(namespace);
+      if (!ids.includes(id)) {
+        ids.push(id);
+        ids.sort();
+        await this.writeRecord(namespace, '__index__', JSON.stringify(ids));
+      }
+    });
+  }
+
+  async list(namespace: SecureRecordNamespace): Promise<string[]> {
+    if (!validNamespace(namespace)) throw new Error('Invalid secure record namespace.');
+    return this.withNamespaceLock(namespace, async () => {
+      const ids = await this.readIndex(namespace);
+      const verified: string[] = [];
+      for (const id of ids) {
+        const record = await this.get(namespace, id);
+        if (record !== null) verified.push(id);
+      }
+      return verified;
+    });
   }
 
   async get(namespace: SecureRecordNamespace, id: string): Promise<string | null> {
@@ -289,25 +338,24 @@ export class EncryptedRecordStore {
   }
 
   async delete(namespace: SecureRecordNamespace, id: string): Promise<boolean> {
-    if (!validNamespace(namespace) || !validId(id)) {
+    if (!validNamespace(namespace) || !validId(id) || id === '__index__') {
       throw new Error('Invalid secure record namespace or identifier.');
     }
-    if (
-      !ensureDirectorySafe(this.rootDir, false) ||
-      !ensureDirectorySafe(path.join(this.rootDir, 'records'), false) ||
-      !ensureDirectorySafe(path.join(this.rootDir, 'records', namespace), false)
-    ) {
-      return false;
-    }
-
-    const filePath = this.recordPath(namespace, id);
-    if (!fs.existsSync(filePath)) return false;
-
-    const stat = fs.lstatSync(filePath);
-    if (!stat.isFile() || stat.isSymbolicLink()) {
-      throw new Error('Secure record is not a regular file.');
-    }
-    fs.unlinkSync(filePath);
-    return true;
-  }
-}
+    return this.withNamespaceLock(namespace, async () => {
+      if (
+        !ensureDirectorySafe(this.rootDir, false) ||
+        !ensureDirectorySafe(path.join(this.rootDir, 'records'), false) ||
+        !ensureDirectorySafe(path.join(this.rootDir, 'records', namespace), false)
+      ) return false;
+      const filePath = this.recordPath(namespace, id);
+      if (!fs.existsSync(filePath)) return false;
+      const stat = fs.lstatSync(filePath);
+      if (!stat.isFile() || stat.isSymbolicLink()) {
+        throw new Error('Secure record is not a regular file.');
+      }
+      fs.unlinkSync(filePath);
+      const ids = (await this.readIndex(namespace)).filter((entry) => entry !== id);
+      await this.writeRecord(namespace, '__index__', JSON.stringify(ids));
+      return true;
+    });
+  }}
