@@ -35,7 +35,7 @@ function associatedData(tenantId: string, context: string, keyVersion: string): 
 }
 
 export class TenantEnvelopeCipher {
-  constructor(private readonly kms: TenantKeyManagementService) {}
+  constructor(private readonly keyProvider: TenantKeyProvider) {}
 
   async encrypt(tenantId: string, context: string, plaintext: Buffer): Promise<EncryptedEnvelope> {
     const generated = await this.keyProvider.generateDataKey(tenantId, context);
@@ -75,7 +75,7 @@ export class TenantEnvelopeCipher {
     ) {
       throw new Error('Encrypted envelope tenant or context mismatch');
     }
-    const key = await this.kms.unwrapDataKey(
+    const key = await this.keyProvider.unwrapDataKey(
       expectedTenantId,
       envelope.wrappedKey,
       envelope.keyVersion,
