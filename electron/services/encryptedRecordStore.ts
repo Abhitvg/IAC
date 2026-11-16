@@ -13,10 +13,15 @@ export const SECURE_RECORD_NAMESPACES = [
 
 export type SecureRecordNamespace = (typeof SECURE_RECORD_NAMESPACES)[number];
 
+export interface SecureStorageDecryption {
+  result: string;
+  shouldReEncrypt: boolean;
+}
+
 export interface SecureStorageAdapter {
   isAsyncEncryptionAvailable(): Promise<boolean>;
   encryptStringAsync(value: string): Promise<Buffer>;
-  decryptStringAsync(value: Buffer): Promise<{ result: string; shouldReEncrypt: boolean }>;
+  decryptStringAsync(value: Buffer): Promise<SecureStorageDecryption>;
   getSelectedStorageBackend?: () => string;
 }
 
@@ -166,17 +171,13 @@ export class EncryptedRecordStore {
         throw new Error('Secure record key file is malformed.');
       }
 
-      const decrypted = await this.storage.decryptStringAsync(
-        Buffer.from(wrapped.data, 'base64')
-      );
+      const decrypted = await this.storage.decryptStringAsync(Buffer.from(wrapped.data, 'base64'));
       const key = Buffer.from(decrypted.result, 'base64');
       if (key.length !== 32) {
         throw new Error('Secure record key could not be recovered.');
       }
       if (decrypted.shouldReEncrypt) {
-        const rewrapped = await this.storage.encryptStringAsync(
-          decrypted.result
-        );
+        const rewrapped = await this.storage.encryptStringAsync(decrypted.result);
         atomicWrite(
           keyPath,
           JSON.stringify({ version: VERSION, data: rewrapped.toString('base64') })
