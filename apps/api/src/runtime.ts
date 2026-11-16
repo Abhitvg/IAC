@@ -20,12 +20,16 @@ export interface CloudApiRuntime {
 export function createCloudApiRuntime(
   pool: ClosableSqlPool,
   environment: CloudEnvironment = loadCloudEnvironment(),
-  linkedin?: LinkedInCloudIntegration
+  linkedin?: LinkedInCloudIntegration,
+  schedulerPool?: ClosableSqlPool
 ): CloudApiRuntime {
+  if (environment.LINKEDIN_SCHEDULER_ENABLED && (!linkedin || !schedulerPool)) {
+    throw new Error('LinkedIn scheduled publishing requires the LinkedIn integration and a dedicated scheduler database pool');
+  }
   const repository = new PostgresCloudApiRepository(pool);
   const linkedInSchedulerStore =
-    environment.LINKEDIN_SCHEDULER_ENABLED && linkedin
-      ? new LinkedInScheduledPostStore(pool)
+    environment.LINKEDIN_SCHEDULER_ENABLED && linkedin && schedulerPool
+      ? new LinkedInScheduledPostStore(pool, schedulerPool)
       : undefined;
   const linkedInScheduler =
     linkedInSchedulerStore && linkedin
@@ -86,7 +90,7 @@ export function createCloudApiRuntime(
           });
         }
       } finally {
-        await pool.end();
+        await Promise.all([pool.end(), ...(schedulerPool ? [schedulerPool.end()] : [])]);
       }
     },
   };
