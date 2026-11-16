@@ -50,6 +50,7 @@ import {
 } from '../../services/careerOps/overleafPusher';
 import { useCareerOpsStore } from '../../store/useCareerOpsStore';
 import { CareerDiscoveryPanel } from './CareerDiscoveryPanel';
+import { LinkedInContentStudio } from './LinkedInContentStudio';
 import { useAppStore } from '../../store/useAppStore';
 import { usePracticeStore } from '../../store/usePracticeStore';
 import { ApplicationStatus, JobApplication } from '../../services/careerOps/types';
@@ -123,9 +124,10 @@ export function CareerOpsView() {
 
   // Internal sub-tab state
   const [subTab, setSubTab] = useState<
-    'pipeline' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
+    'pipeline' | 'discovery' | 'evaluator' | 'tailor' | 'outreach' | 'linkedinStudio'
   >('pipeline');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [linkedinStudioDraft, setLinkedinStudioDraft] = useState('');
 
   // New Job Input Modal / Form
   const [newCompany, setNewCompany] = useState('');
@@ -548,6 +550,7 @@ export function CareerOpsView() {
               activeBadge: activeJob?.tailoredResume ? 'Ready' : undefined,
             },
             { id: 'outreach', label: '🤝 Outreach & Contacto (<= 300 chars)' },
+            { id: 'linkedinStudio', label: '✍️ LinkedIn Studio' },
           ].map((tab) => {
             const isActive = subTab === tab.id;
             return (
@@ -638,6 +641,10 @@ export function CareerOpsView() {
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
         {subTab === 'discovery' && (
           <CareerDiscoveryPanel resumeText={resumeText} providerConfig={careerOpsProviderConfig} />
+        )}
+
+        {subTab === 'linkedinStudio' && (
+          <LinkedInContentStudio initialDraft={linkedinStudioDraft} initialKind="dm" />
         )}
 
         {/* TAB 1: PIPELINE BOARD */}
@@ -2244,25 +2251,87 @@ export function CareerOpsView() {
                 </p>
               </div>
 
-              <button
-                onClick={async () => {
-                  setToast('Drafting outreach messages...');
-                  await generateOutreachForJob(activeJob.id);
-                  setToast('Outreach notes generated!');
-                }}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #f97316, #ea580c)',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
+              <div
+                style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}
               >
-                ⚡ Draft Contact Notes
-              </button>
+                <button
+                  onClick={async () => {
+                    setToast('Drafting outreach messages...');
+                    await generateOutreachForJob(activeJob.id);
+                    setToast('Outreach notes generated!');
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ⚡ Draft Contact Notes
+                </button>
+                {activeJob.outreachNote && (
+                  <>
+                    <button
+                      onClick={() => {
+                        const draft = activeJob.outreachNote
+                          ?.match(
+                            /=== LINKEDIN RECRUITER \(<= 300 chars\) ===\s*([\s\S]*?)(?=\n\n===|$)/
+                          )?.[1]
+                          ?.trim();
+                        if (draft) {
+                          setLinkedinStudioDraft(draft);
+                          setSubTab('linkedinStudio');
+                        } else {
+                          setToast('No recruiter DM was found in the saved outreach notes.');
+                        }
+                      }}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        background: 'rgba(255,255,255,.07)',
+                        color: '#e2e8f0',
+                        border: '1px solid rgba(255,255,255,.12)',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Review recruiter DM
+                    </button>
+                    <button
+                      onClick={() => {
+                        const draft = activeJob.outreachNote
+                          ?.match(
+                            /=== LINKEDIN HIRING MANAGER \(<= 300 chars\) ===\s*([\s\S]*?)(?=\n\n===|$)/
+                          )?.[1]
+                          ?.trim();
+                        if (draft) {
+                          setLinkedinStudioDraft(draft);
+                          setSubTab('linkedinStudio');
+                        } else {
+                          setToast('No hiring-manager DM was found in the saved outreach notes.');
+                        }
+                      }}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        background: 'rgba(255,255,255,.07)',
+                        color: '#e2e8f0',
+                        border: '1px solid rgba(255,255,255,.12)',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Review hiring-manager DM
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Automated Follow-Up Cadence & Timeline Engine */}
