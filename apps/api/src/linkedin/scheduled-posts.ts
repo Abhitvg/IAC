@@ -205,30 +205,30 @@ export class LinkedInScheduledPostStore {
     }
   }
 
-  async defer(id: string, delaySeconds = 30): Promise<void> {
+  async defer(post: ScheduledLinkedInPost, delaySeconds = 30): Promise<void> {
     const boundedDelay = Math.max(10, Math.min(delaySeconds, 3600));
     const nextAttemptAt = new Date(Date.now() + boundedDelay * 1000).toISOString();
-    await this.updateClaimed(id, 'scheduled', { nextAttemptAt });
+    await this.updateClaimed(post, 'scheduled', { nextAttemptAt });
   }
 
-  async markPublished(id: string, postUrn: string): Promise<void> {
-    await this.updateClaimed(id, 'published', { publishedPostUrn: postUrn });
+  async markPublished(post: ScheduledLinkedInPost, postUrn: string): Promise<void> {
+    await this.updateClaimed(post, 'published', { publishedPostUrn: postUrn });
   }
 
-  async markFailed(id: string, errorCode: string): Promise<void> {
-    await this.updateClaimed(id, 'failed', { errorCode });
+  async markFailed(post: ScheduledLinkedInPost, errorCode: string): Promise<void> {
+    await this.updateClaimed(post, 'failed', { errorCode });
   }
 
-  async markUnknownOutcome(id: string, errorCode: string): Promise<void> {
-    await this.updateClaimed(id, 'unknown_outcome', { errorCode });
+  async markUnknownOutcome(post: ScheduledLinkedInPost, errorCode: string): Promise<void> {
+    await this.updateClaimed(post, 'unknown_outcome', { errorCode });
   }
 
-  async markNeedsReview(id: string, errorCode: string): Promise<void> {
-    await this.updateClaimed(id, 'needs_review', { errorCode });
+  async markNeedsReview(post: ScheduledLinkedInPost, errorCode: string): Promise<void> {
+    await this.updateClaimed(post, 'needs_review', { errorCode });
   }
 
   private async updateClaimed(
-    id: string,
+    post: ScheduledLinkedInPost,
     status: 'scheduled' | 'published' | 'failed' | 'unknown_outcome' | 'needs_review',
     values: {
       publishedPostUrn?: string;
@@ -239,9 +239,11 @@ export class LinkedInScheduledPostStore {
     const client = await this.pool.connect();
     try {
       const result = await client.query<{ changed: boolean }>(
-        `SELECT transition_linkedin_scheduled_post($1, $2, $3, $4, $5) AS changed`,
+        'SELECT transition_linkedin_scheduled_post($1, $2, $3, $4, $5, $6, $7) AS changed',
         [
-          id,
+          post.id,
+          post.tenantId,
+          post.subject,
           status,
           values.publishedPostUrn ?? null,
           values.errorCode ?? null,
@@ -323,7 +325,7 @@ export class LinkedInScheduledPostWorker {
         controls.globalKillSwitch ||
         controls.pausedChannels.includes('linkedin_assist')
       ) {
-        await this.store.defer(post.id, 60);
+        await this.store.defer(post, 60);
         return;
       }
 
@@ -336,26 +338,26 @@ export class LinkedInScheduledPostWorker {
             membership.status === 'active'
         )
       ) {
-        await this.store.markFailed(post.id, 'tenant_membership_inactive');
+        await this.store.markFailed(post, 'tenant_membership_inactive');
         return;
       }
 
       if (Date.now() - new Date(post.scheduledAt).getTime() > 60 * 60_000) {
-        await this.store.markNeedsReview(post.id, 'scheduled_time_missed_by_over_one_hour');
+        await this.store.markNeedsReview(post, 'scheduled_time_missed_by_over_one_hour');
         return;
       }
 
       const tokenSet = await this.integration.oauth.getValidToken(identity);
       if (!tokenSet) {
-        await this.store.markFailed(post.id, 'linkedin_connection_missing');
+        await this.store.markFailed(post, 'linkedin_connection_missing');
         return;
       }
       if (!tokenSet.grantedScopes.includes('w_member_social')) {
-        await this.store.markFailed(post.id, 'linkedin_member_post_scope_missing');
+        await this.store.markFailed(post, 'linkedin_member_post_scope_missing');
         return;
       }
       if (!this.repository.recordLinkedInAction) {
-        await this.store.markFailed(post.id, 'linkedin_audit_unavailable');
+        await this.store.markFailed(post, 'linkedin_audit_unavailable');
         return;
       }
 
@@ -387,7 +389,7 @@ export class LinkedInScheduledPostWorker {
             membership.status === 'active'
         )
       ) {
-        await this.store.defer(post.id, 60);
+        await this.store.defer(post, 60);
         return;
       }
 
@@ -396,20 +398,20 @@ export class LinkedInScheduledPostWorker {
         `urn:li:person:${tokenSet.memberId}`,
         post.commentary
       );
-      await this.store.markPublished(post.id, result.id);
+      await this.store.markPublished(post, result.id);
     } catch (error) {
       if (error instanceof LinkedInApiError && error.status === 429 && post.attemptCount < 3) {
-        await this.store.defer(post.id, error.retryAfterSeconds ?? 60);
+        await this.store.defer(post, error.retryAfterSeconds ?? 60);
         return;
       }
       if (error instanceof LinkedInApiError && error.status < 500) {
-        await this.store.markFailed(post.id, 'linkedin_api_rejected_request');
+        await this.store.markFailed(post, 'linkedin_api_rejected_request');
         return;
       }
       // A network or server error may happen after LinkedIn accepted the post.
       // Mark unknown instead of blindly retrying and creating a duplicate post.
       try {
-        await this.store.markUnknownOutcome(post.id, 'linkedin_publish_outcome_unknown');
+        await this.store.markUnknownOutcome(post, 'linkedin_publish_outcome_unknown');
       } catch {
         // An expired processing lease will be moved to unknown_outcome on the next claim.
       }
