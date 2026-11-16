@@ -27,7 +27,7 @@ Open **CareerOps > LinkedIn Studio > Connected Account & API**.
 - The bearer token is stored with Electron OS-backed secure storage. The renderer cannot read it; a narrow IPC allowlist sends authorized API calls from the Electron main process.
 - Start LinkedIn OAuth in the system browser and complete the one-time, tenant-bound callback on the cloud API.
 - View connection status, granted capability states and expiry; disconnect the member account when required.
-- Publish member text posts, create member comments/reactions, and use approved organization Page operations through explicit buttons.
+- Publish member text posts and native polls, create member comments/reactions, and use approved organization Page operations through explicit buttons.
 - Tenant owners can pause or resume the LinkedIn channel. Every write is independently checked against the global kill switch and channel pause by the cloud API.
 
 The connection panel supports immediate user-triggered actions and optional, cloud-scheduled member text posts when the deployment enables the scheduler. LinkedIn invitations, direct messages and inbox reading stay disabled until the exact partner API permissions and implementation are available.
