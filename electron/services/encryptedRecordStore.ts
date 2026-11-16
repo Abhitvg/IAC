@@ -262,13 +262,16 @@ export class EncryptedRecordStore {
       throw new Error('Secure record payload must be a string no larger than 5 MiB.');
     }
     await this.withNamespaceLock(namespace, async () => {
-      await this.writeRecord(namespace, id, plaintext);
       const ids = await this.readIndex(namespace);
       if (!ids.includes(id)) {
         ids.push(id);
         ids.sort();
+        // Publish the identifier first. If the process crashes before the record
+        // write, list() can repair the stale index entry; the reverse order can
+        // leave an encrypted record permanently orphaned and undiscoverable.
         await this.writeRecord(namespace, '__index__', JSON.stringify(ids));
       }
+      await this.writeRecord(namespace, id, plaintext);
     });
   }
 
