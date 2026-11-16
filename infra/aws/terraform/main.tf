@@ -7,6 +7,30 @@ locals {
   }
 }
 
+# Reuse the existing public/private subnets and route tables. No VPC, subnet,
+# Internet Gateway, or S3 endpoint resources are created or modified here.
+# Staging uses one NAT Gateway; production uses one NAT Gateway per AZ.
+resource "aws_eip" "nat" {
+  count  = var.environment == "production" ? 2 : 1
+  domain = "vpc"
+  tags   = merge(local.tags, { Name = "${local.name}-nat-${count.index + 1}" })
+}
+
+resource "aws_nat_gateway" "egress" {
+  count         = var.environment == "production" ? 2 : 1
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = var.public_subnet_ids[count.index]
+  depends_on    = [aws_eip.nat]
+  tags          = merge(local.tags, { Name = "${local.name}-nat-${count.index + 1}" })
+}
+
+resource "aws_route" "private_egress" {
+  count                  = 2
+  route_table_id         = var.private_route_table_ids[count.index]
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.egress[var.environment == "production" ? count.index : 0].id
+}
+
 resource "aws_ecr_repository" "api" {
   name                 = local.name
   image_tag_mutability = "IMMUTABLE"
