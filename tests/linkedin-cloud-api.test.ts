@@ -31,6 +31,7 @@ function makeIntegration() {
     api: {
       publishMemberTextPost: vi.fn(async () => ({ id: 'urn:li:share:published', status: 201 })),
       publishMemberPoll: vi.fn(async () => ({ id: 'urn:li:share:poll', status: 201 })),
+      publishOrganizationImagePost: vi.fn(async () => ({ id: 'urn:li:share:image-post', status: 201 })),
     },
     entitlements: {
       communityManagementApproved: false,
@@ -48,6 +49,7 @@ function makeIntegration() {
     api: {
       publishMemberTextPost: ReturnType<typeof vi.fn>;
       publishMemberPoll: ReturnType<typeof vi.fn>;
+      publishOrganizationImagePost: ReturnType<typeof vi.fn>;
     };
   };
 }
@@ -425,6 +427,89 @@ describe('LinkedIn cloud API security boundaries', () => {
       scheduler.cancel.mock.invocationCallOrder[0]
     );
     expect(scheduler.cancel).toHaveBeenCalledWith(tenantId, subject, id);
+  });
+
+  it('publishes an organization image only after Community Management approval and audits it', async () => {
+    const { integration, recordLinkedInAction } = await start();
+    integration.entitlements.communityManagementApproved = true;
+    const authorizedToken = {
+      ...token,
+      grantedScopes: [...token.grantedScopes, 'w_organization_social'],
+    };
+    integration.oauth.getValidToken.mockResolvedValueOnce(authorizedToken);
+    const response = await fetch(baseUrl + '/v1/linkedin/organization/image-posts', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        organizationUrn: 'urn:li:organization:12345',
+        commentary: 'A reviewed image post',
+        imageUrn: 'urn:li:image:asset_123',
+        altText: 'A team working on a prototype',
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ postId: 'urn:li:share:image-post' });
+    expect(integration.api.publishOrganizationImagePost).toHaveBeenCalledWith(
+      authorizedToken,
+      'urn:li:organization:12345',
+      'A reviewed image post',
+      'urn:li:image:asset_123',
+      'A team working on a prototype'
+    );
+    expect(recordLinkedInAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'linkedin.organization.image_post.publish.requested',
+        entityId: 'urn:li:image:asset_123',
+        tenantId,
+        actorSubject: subject,
+      })
+    );
+  });
+
+  it('rejects organization image posts without product approval or with an unready asset', async () => {
+    const { integration } = await start();
+    const body = {
+      organizationUrn: 'urn:li:organization:12345',
+      commentary: 'A reviewed image post',
+      imageUrn: 'urn:li:image:asset_123',
+      altText: 'A useful image',
+    };
+    const denied = await fetch(baseUrl + '/v1/linkedin/organization/image-posts', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    expect(denied.status).toBe(403);
+    expect(integration.api.publishOrganizationImagePost).not.toHaveBeenCalled();
+
+    integration.entitlements.communityManagementApproved = true;
+    integration.api.publishOrganizationImagePost.mockRejectedValueOnce(
+      new Error('LinkedIn image asset is not AVAILABLE (current status: PROCESSING)')
+    );
+    const authorizedToken = {
+      ...token,
+      grantedScopes: [...token.grantedScopes, 'w_organization_social'],
+    };
+    integration.oauth.getValidToken.mockResolvedValueOnce(authorizedToken);
+    const processing = await fetch(baseUrl + '/v1/linkedin/organization/image-posts', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    expect(processing.status).toBe(409);
+    expect(await processing.json()).toMatchObject({
+      error: 'LinkedIn image asset is not AVAILABLE (current status: PROCESSING)',
+    });
   });
 
   it('audits and then executes a member post when the channel is enabled', async () => {
