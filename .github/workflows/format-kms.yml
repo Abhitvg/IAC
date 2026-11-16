@@ -1,0 +1,34 @@
+name: One-time KMS formatting
+
+on:
+  push:
+    branches:
+      - feat/careerops-aws-production-foundation
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Format KMS integration files
+        run: npx prettier --write apps/api/src/config.ts packages/cloud-core/src/aws-kms-key-provider.ts
+      - name: Commit formatting changes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "Formatting is already clean."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/api/src/config.ts packages/cloud-core/src/aws-kms-key-provider.ts
+          git commit -m "style: apply Prettier to KMS integration"
+          git push
