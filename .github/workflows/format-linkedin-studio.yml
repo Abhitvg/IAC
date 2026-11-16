@@ -1,0 +1,40 @@
+name: Format LinkedIn Studio branch
+
+on:
+  push:
+    branches:
+      - feat/linkedin-content-quality-studio
+    paths:
+      - 'src/components/careerOps/LinkedInContentStudio.tsx'
+      - 'src/services/careerOps/linkedinContentQuality.ts'
+      - 'tests/linkedin-content-quality.test.ts'
+      - 'docs/linkedin-assist/CONTENT_STUDIO.md'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/linkedin-content-quality-studio
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Format changed LinkedIn Studio files
+        run: npx prettier --write docs/linkedin-assist/CONTENT_STUDIO.md src/components/careerOps/LinkedInContentStudio.tsx src/services/careerOps/linkedinContentQuality.ts tests/linkedin-content-quality.test.ts
+      - name: Commit formatted files
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/linkedin-assist/CONTENT_STUDIO.md src/components/careerOps/LinkedInContentStudio.tsx src/services/careerOps/linkedinContentQuality.ts tests/linkedin-content-quality.test.ts
+          git commit -m "style: format LinkedIn content studio"
+          git push origin HEAD:feat/linkedin-content-quality-studio
