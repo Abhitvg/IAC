@@ -246,7 +246,10 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             reauthorizationRequired,
             tokenRefreshError,
             expiresAt: tokenSet?.expiresAt ?? null,
-            capabilities: getLinkedInCapabilities(tokenSet, integration.entitlements),
+            capabilities: getLinkedInCapabilities(
+              tokenSet && tokenSet.expiresAt > Date.now() ? tokenSet : null,
+              integration.entitlements
+            ),
             entitlements: integration.entitlements,
             scheduledPublishingEnabled: Boolean(dependencies.linkedinScheduler),
             requestId,
