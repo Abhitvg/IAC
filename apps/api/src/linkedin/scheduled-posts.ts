@@ -111,7 +111,10 @@ async function inTenant<T>(
 }
 
 export class LinkedInScheduledPostStore {
-  constructor(private readonly pool: LinkedInScheduleSqlPool) {}
+  constructor(
+    private readonly pool: LinkedInScheduleSqlPool,
+    private readonly workerPool: LinkedInScheduleSqlPool = pool
+  ) {}
 
   async create(input: ScheduleLinkedInPostInput): Promise<ScheduledLinkedInPost> {
     if (
@@ -193,7 +196,7 @@ export class LinkedInScheduledPostStore {
   }
 
   async claimDue(limit = 10): Promise<ScheduledLinkedInPost[]> {
-    const client = await this.pool.connect();
+    const client = await this.workerPool.connect();
     try {
       const result = await client.query<ScheduledPostRow>(
         'SELECT * FROM claim_linkedin_scheduled_posts_due($1)',
@@ -236,7 +239,7 @@ export class LinkedInScheduledPostStore {
       nextAttemptAt?: string;
     } = {}
   ): Promise<void> {
-    const client = await this.pool.connect();
+    const client = await this.workerPool.connect();
     try {
       const result = await client.query<{ changed: boolean }>(
         'SELECT transition_linkedin_scheduled_post($1, $2, $3, $4, $5, $6, $7) AS changed',
