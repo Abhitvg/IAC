@@ -196,6 +196,32 @@ describe('M0 cloud security foundation', () => {
     ).toThrow();
   });
 
+  it('accepts only exact HTTPS CORS origins from environment configuration', () => {
+    const base = {
+      NODE_ENV: 'test',
+      CAREEROPS_JWT_ISSUER: authConfig.issuer,
+      CAREEROPS_JWT_AUDIENCE: authConfig.audience,
+      CAREEROPS_JWKS_URL: authConfig.jwksUrl,
+      CAREEROPS_CONSENT_SIGNING_SECRET: secret,
+      CAREEROPS_RATE_LIMIT_HASH_SECRET: rateSecret,
+    };
+    expect(loadCloudEnvironment({
+      ...base,
+      CAREEROPS_CORS_ALLOWED_ORIGINS: 'https://main.d37etc5h2drv5h.amplifyapp.com, https://app.example.com',
+    } as NodeJS.ProcessEnv).CAREEROPS_CORS_ALLOWED_ORIGINS).toEqual([
+      'https://main.d37etc5h2drv5h.amplifyapp.com',
+      'https://app.example.com',
+    ]);
+    expect(() => loadCloudEnvironment({
+      ...base,
+      CAREEROPS_CORS_ALLOWED_ORIGINS: 'http://app.example.com',
+    } as NodeJS.ProcessEnv)).toThrow(/exact HTTPS origins/);
+    expect(() => loadCloudEnvironment({
+      ...base,
+      CAREEROPS_CORS_ALLOWED_ORIGINS: 'https://app.example.com/path',
+    } as NodeJS.ProcessEnv)).toThrow(/exact HTTPS origins/);
+  });
+
   it('requires HTTPS issuer/JWKS endpoints and a separate consent signing secret', () => {
     expect(() =>
       loadCloudEnvironment({
