@@ -10,6 +10,10 @@ const mockElectronAPI = {
   readFile: vi.fn(),
   writeFile: vi.fn().mockResolvedValue(true),
   deleteFile: vi.fn().mockResolvedValue(true),
+  secureRecordSet: vi.fn().mockResolvedValue(true),
+  secureRecordGet: vi.fn().mockResolvedValue(null),
+  secureRecordDelete: vi.fn().mockResolvedValue(true),
+  secureRecordList: vi.fn().mockResolvedValue([]),
   getSettings: vi.fn().mockResolvedValue({}),
   getApiKey: vi.fn().mockResolvedValue('gsk_test12345'),
 };
