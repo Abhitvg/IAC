@@ -322,7 +322,8 @@ resource "aws_ecs_task_definition" "api" {
       { name = "PORT", value = "3000" },
       { name = "HOST", value = "0.0.0.0" },
       { name = "AWS_REGION", value = var.aws_region },
-      { name = "CAREEROPS_KMS_KEY_ARN", value = var.kms_key_arn }
+      { name = "CAREEROPS_KMS_KEY_ARN", value = var.kms_key_arn },
+      { name = "CAREEROPS_CORS_ALLOWED_ORIGINS", value = join(",", var.api_allowed_origins) }
     ]
     secrets = [
       { name = "CAREEROPS_DATABASE_URL", valueFrom = "${var.app_secrets_arn}:CAREEROPS_DATABASE_URL::" },
