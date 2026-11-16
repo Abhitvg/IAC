@@ -953,8 +953,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
 
       const sessions = Array.from(sessionsById.values());
       sessions.sort(
-        (a, b) =>
-          new Date(b.startTime || 0).getTime() - new Date(a.startTime || 0).getTime()
+        (a, b) => new Date(b.startTime || 0).getTime() - new Date(a.startTime || 0).getTime()
       );
       set({ sessionHistory: sessions });
     } catch (error) {
@@ -991,7 +990,8 @@ export const useAppStore = create<InterviewState>((set, get) => ({
           const legacy = JSON.parse(raw);
           if (Array.isArray(legacy)) {
             const remaining = legacy.filter((item) => item?.id !== sessionId);
-            if (remaining.length) localStorage.setItem('iac_session_history', JSON.stringify(remaining));
+            if (remaining.length)
+              localStorage.setItem('iac_session_history', JSON.stringify(remaining));
             else localStorage.removeItem('iac_session_history');
           }
         }
@@ -1210,12 +1210,19 @@ export const useAppStore = create<InterviewState>((set, get) => ({
             );
             if (removed === false) failedStores.push(`secure-session:${sessionId}`);
           } catch (error) {
-            console.error('[AppStore] Failed to delete encrypted interview session:', sessionId, error);
+            console.error(
+              '[AppStore] Failed to delete encrypted interview session:',
+              sessionId,
+              error
+            );
             failedStores.push(`secure-session:${sessionId}`);
           }
         }
       } catch (error) {
-        console.error('[AppStore] Failed to enumerate encrypted interview sessions during wipe:', error);
+        console.error(
+          '[AppStore] Failed to enumerate encrypted interview sessions during wipe:',
+          error
+        );
         failedStores.push('secure-session-history');
       }
     }

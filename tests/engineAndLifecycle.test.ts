@@ -39,8 +39,12 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
   });
 
   it('handles START_LISTENING and STOP_LISTENING idempotently', async () => {
-    const audioSpyStart = vi.spyOn(AudioRecorder.getInstance(), 'start').mockImplementation(async () => {});
-    const audioSpyStop = vi.spyOn(AudioRecorder.getInstance(), 'stop').mockImplementation(async () => {});
+    const audioSpyStart = vi
+      .spyOn(AudioRecorder.getInstance(), 'start')
+      .mockImplementation(async () => {});
+    const audioSpyStop = vi
+      .spyOn(AudioRecorder.getInstance(), 'stop')
+      .mockImplementation(async () => {});
 
     await InterviewEngine.handleEvent({ type: 'START_LISTENING' });
     expect(useAppStore.getState().status).toBe('listening');
@@ -97,7 +101,9 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
     expect(useAppStore.getState().sessionHistory.some((s) => s.id === 'session_test_1')).toBe(true);
 
     await useAppStore.getState().deleteSession('session_test_1');
-    expect(useAppStore.getState().sessionHistory.some((s) => s.id === 'session_test_1')).toBe(false);
+    expect(useAppStore.getState().sessionHistory.some((s) => s.id === 'session_test_1')).toBe(
+      false
+    );
   });
 
   it('preserves question undo/redo stack on history restoration', () => {

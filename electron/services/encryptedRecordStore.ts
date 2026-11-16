@@ -109,10 +109,15 @@ export class EncryptedRecordStore {
   private keyPromise: Promise<Buffer> | null = null;
   private readonly namespaceQueues = new Map<string, Promise<void>>();
 
-  private async withNamespaceLock<T>(namespace: SecureRecordNamespace, operation: () => Promise<T>): Promise<T> {
+  private async withNamespaceLock<T>(
+    namespace: SecureRecordNamespace,
+    operation: () => Promise<T>
+  ): Promise<T> {
     const previous = this.namespaceQueues.get(namespace) || Promise.resolve();
     let release!: () => void;
-    const current = new Promise<void>((resolve) => { release = resolve; });
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     const tail = previous.then(() => current);
     this.namespaceQueues.set(namespace, tail);
     await previous;
@@ -223,7 +228,11 @@ export class EncryptedRecordStore {
     return path.join(this.rootDir, 'records', namespace, digest + '.json');
   }
 
-  private async writeRecord(namespace: SecureRecordNamespace, id: string, plaintext: string): Promise<void> {
+  private async writeRecord(
+    namespace: SecureRecordNamespace,
+    id: string,
+    plaintext: string
+  ): Promise<void> {
     const key = await this.getKey();
     const iv = crypto.randomBytes(12);
     const aad = Buffer.from('iac-secure-record:v' + VERSION + ':' + namespace + ':' + id, 'utf8');
@@ -246,9 +255,16 @@ export class EncryptedRecordStore {
     const raw = await this.get(namespace, '__index__');
     if (raw === null) return [];
     let parsed: unknown;
-    try { parsed = JSON.parse(raw); } catch { throw new Error('Secure record index is malformed.'); }
-    if (!Array.isArray(parsed) || parsed.length > 100000 ||
-        !parsed.every((id) => validId(id) && id !== '__index__')) {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error('Secure record index is malformed.');
+    }
+    if (
+      !Array.isArray(parsed) ||
+      parsed.length > 100000 ||
+      !parsed.every((id) => validId(id) && id !== '__index__')
+    ) {
       throw new Error('Secure record index is malformed.');
     }
     return Array.from(new Set(parsed as string[])).sort();
@@ -353,7 +369,8 @@ export class EncryptedRecordStore {
         !ensureDirectorySafe(this.rootDir, false) ||
         !ensureDirectorySafe(path.join(this.rootDir, 'records'), false) ||
         !ensureDirectorySafe(path.join(this.rootDir, 'records', namespace), false)
-      ) return false;
+      )
+        return false;
       const indexedIds = await this.readIndex(namespace);
       const ids = indexedIds.filter((entry) => entry !== id);
       const filePath = this.recordPath(namespace, id);

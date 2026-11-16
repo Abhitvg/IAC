@@ -211,7 +211,10 @@ export async function loadSessions(sessionsDir: string): Promise<InterviewSessio
             sessionsById.set(id, session);
           }
         } catch (error) {
-          console.error('Failed to decrypt an interview session; encrypted data was retained.', error);
+          console.error(
+            'Failed to decrypt an interview session; encrypted data was retained.',
+            error
+          );
         }
       }
     }

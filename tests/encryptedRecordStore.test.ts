@@ -36,10 +36,7 @@ describe('EncryptedRecordStore', () => {
     await store.set('interview-sessions', 'session_123', secret);
 
     const directory = path.join(rootDir, 'records', 'interview-sessions');
-    const recordDigest = crypto
-      .createHash('sha256')
-      .update('session_123', 'utf8')
-      .digest('hex');
+    const recordDigest = crypto.createHash('sha256').update('session_123', 'utf8').digest('hex');
     const file = path.join(directory, recordDigest + '.json');
     expect(fs.readFileSync(file, 'utf8')).not.toContain('private interview answer');
     await expect(store.get('interview-sessions', 'session_123')).resolves.toBe(secret);
@@ -83,11 +80,7 @@ describe('EncryptedRecordStore', () => {
   it('does not leave an unindexed record when index persistence fails', async () => {
     const store = createStore();
     const originalWriteRecord = (store as any).writeRecord.bind(store);
-    (store as any).writeRecord = async (
-      namespace: string,
-      id: string,
-      plaintext: string
-    ) => {
+    (store as any).writeRecord = async (namespace: string, id: string, plaintext: string) => {
       if (id === '__index__') throw new Error('simulated index write failure');
       return originalWriteRecord(namespace, id, plaintext);
     };
@@ -97,10 +90,7 @@ describe('EncryptedRecordStore', () => {
     );
 
     const directory = path.join(rootDir, 'records', 'practice');
-    const digest = crypto
-      .createHash('sha256')
-      .update('answer_orphan', 'utf8')
-      .digest('hex');
+    const digest = crypto.createHash('sha256').update('answer_orphan', 'utf8').digest('hex');
     expect(fs.existsSync(path.join(directory, digest + '.json'))).toBe(false);
     await expect(store.list('practice')).resolves.toEqual([]);
   });
@@ -111,10 +101,7 @@ describe('EncryptedRecordStore', () => {
     await expect(store.get('candidate-vault', 'candidate_2')).resolves.toBeNull();
 
     const directory = path.join(rootDir, 'records', 'candidate-vault');
-    const sourceDigest = crypto
-      .createHash('sha256')
-      .update('candidate_1', 'utf8')
-      .digest('hex');
+    const sourceDigest = crypto.createHash('sha256').update('candidate_1', 'utf8').digest('hex');
     const source = path.join(directory, sourceDigest + '.json');
     const targetDirectory = path.join(rootDir, 'records', 'practice');
     fs.mkdirSync(targetDirectory, { recursive: true });
@@ -128,10 +115,7 @@ describe('EncryptedRecordStore', () => {
     await store.set('practice', 'answer_1', 'private');
 
     const directory = path.join(rootDir, 'records', 'practice');
-    const recordDigest = crypto
-      .createHash('sha256')
-      .update('answer_1', 'utf8')
-      .digest('hex');
+    const recordDigest = crypto.createHash('sha256').update('answer_1', 'utf8').digest('hex');
     const file = path.join(directory, recordDigest + '.json');
     const envelope = JSON.parse(fs.readFileSync(file, 'utf8'));
     envelope.ciphertext = Buffer.from('tampered').toString('base64');
@@ -166,8 +150,8 @@ describe('EncryptedRecordStore', () => {
     await expect(store.set('practice', '../escape', 'secret')).rejects.toThrow(
       'Invalid secure record'
     );
-    await expect(
-      store.set('practice', 'large', 'x'.repeat(5 * 1024 * 1024 + 1))
-    ).rejects.toThrow('5 MiB');
+    await expect(store.set('practice', 'large', 'x'.repeat(5 * 1024 * 1024 + 1))).rejects.toThrow(
+      '5 MiB'
+    );
   });
 });

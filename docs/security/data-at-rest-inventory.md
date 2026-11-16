@@ -81,7 +81,6 @@ Further source inspection confirmed:
 4. P1: define multi-device sync and cloud backup separately; a device-bound safeStorage key cannot decrypt data on another device and must not be reused as a cloud tenant key.
 5. P1: define behavior on Linux without a secure keyring: either require configuration, or require an explicit user-managed passphrase with a documented recovery model. Never silently fall back to a public constant.
 
-
 ## Implementation status update (2026-11-16)
 
 - The Electron secure-record store now maintains an authenticated encrypted namespace index and exposes trusted IPC enumeration. The index is itself encrypted and binds to the namespace through AES-GCM AAD.
