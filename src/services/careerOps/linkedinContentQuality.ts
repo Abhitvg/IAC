@@ -4,7 +4,7 @@ type LexiconEntry = { find: string; replace: string; family: string };
 type Lexicon = { words: LexiconEntry[]; phrases: LexiconEntry[]; structures: { id: string; name: string; regex: string; fix: string }[] };
 const terms = lexicon as Lexicon;
 const URL_RE = /(?:https?:\/\/|www\.)[^\s]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/gi;
-const INVISIBLE = /[\u00AD\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060\uFEFF\uE0000-\uE007F]/gu;
+const INVISIBLE = /[\u00AD\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060\uFEFF\u{E0000}-\u{E007F}]/gu;
 const SPACES = /[\u00A0\u2002-\u2003\u2007\u2009\u202F]/gu;
 const WORDS = /[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu;
 
