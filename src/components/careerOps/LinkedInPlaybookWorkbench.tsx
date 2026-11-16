@@ -50,11 +50,36 @@ export function LinkedInPlaybookWorkbench({ onUseDraft }: LinkedInPlaybookWorkbe
   }, [query]);
 
   const profileScore = criteria.reduce((sum, item) => sum + (scores[item.id] ?? 0), 0);
-  const plannerFields: { label: string; value: string; setValue: (value: string) => void; placeholder: string }[] = [
-    { label: 'Proof', value: proof, setValue: setProof, placeholder: 'A real result, project, mistake or measured outcome' },
-    { label: 'Opinion', value: opinion, setValue: setOpinion, placeholder: 'A defensible position your audience may disagree with' },
-    { label: 'Teach', value: teach, setValue: setTeach, placeholder: 'One useful method, lesson or process' },
-    { label: 'Story / offer', value: story, setValue: setStory, placeholder: 'A true scene, lesson or clear offer' },
+  const plannerFields: {
+    label: string;
+    value: string;
+    setValue: (value: string) => void;
+    placeholder: string;
+  }[] = [
+    {
+      label: 'Proof',
+      value: proof,
+      setValue: setProof,
+      placeholder: 'A real result, project, mistake or measured outcome',
+    },
+    {
+      label: 'Opinion',
+      value: opinion,
+      setValue: setOpinion,
+      placeholder: 'A defensible position your audience may disagree with',
+    },
+    {
+      label: 'Teach',
+      value: teach,
+      setValue: setTeach,
+      placeholder: 'One useful method, lesson or process',
+    },
+    {
+      label: 'Story / offer',
+      value: story,
+      setValue: setStory,
+      placeholder: 'A true scene, lesson or clear offer',
+    },
   ];
   const plan = useMemo(
     () =>
@@ -104,15 +129,17 @@ export function LinkedInPlaybookWorkbench({ onUseDraft }: LinkedInPlaybookWorkbe
           LinkedIn Playbook Workbench
         </h3>
         <p style={muted}>
-          Practical frameworks adapted from the MIT-licensed upstream skill pack. These are
-          planning aids, not claims about guaranteed reach, engagement or hiring outcomes.
+          Practical frameworks adapted from the MIT-licensed upstream skill pack. These are planning
+          aids, not claims about guaranteed reach, engagement or hiring outcomes.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
-          {([
-            ['hooks', '21 post hooks'],
-            ['profile', 'Profile scorecard'],
-            ['planner', 'Weekly planner'],
-          ] as [WorkbenchMode, string][]).map(([value, label]) => (
+          {(
+            [
+              ['hooks', '21 post hooks'],
+              ['profile', 'Profile scorecard'],
+              ['planner', 'Weekly planner'],
+            ] as [WorkbenchMode, string][]
+          ).map(([value, label]) => (
             <button
               key={value}
               style={{
@@ -157,8 +184,8 @@ export function LinkedInPlaybookWorkbench({ onUseDraft }: LinkedInPlaybookWorkbe
               }}
             />
             <p style={muted}>
-              {filteredHooks.length} of {hooks.length} formulas. Pick a structure that fits the
-              real material; do not force a formula onto a weak idea.
+              {filteredHooks.length} of {hooks.length} formulas. Pick a structure that fits the real
+              material; do not force a formula onto a weak idea.
             </p>
           </div>
           {filteredHooks.map((hook) => (
@@ -193,10 +220,16 @@ export function LinkedInPlaybookWorkbench({ onUseDraft }: LinkedInPlaybookWorkbe
           <div style={panel}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 14 }}>Profile self-assessment</h4>
-                <p style={muted}>Score each section against the criteria. This is not an automatic profile audit.</p>
+                <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 14 }}>
+                  Profile self-assessment
+                </h4>
+                <p style={muted}>
+                  Score each section against the criteria. This is not an automatic profile audit.
+                </p>
               </div>
-              <strong style={{ color: '#fdba74', fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>
+              <strong
+                style={{ color: '#fdba74', fontSize: 24, fontVariantNumeric: 'tabular-nums' }}
+              >
                 {profileScore}/100
               </strong>
             </div>
@@ -275,7 +308,12 @@ export function LinkedInPlaybookWorkbench({ onUseDraft }: LinkedInPlaybookWorkbe
             </article>
           ))}
           <button
-            style={{ ...button, justifySelf: 'start', background: 'rgba(249,115,22,.18)', color: '#fdba74' }}
+            style={{
+              ...button,
+              justifySelf: 'start',
+              background: 'rgba(249,115,22,.18)',
+              color: '#fdba74',
+            }}
             onClick={() =>
               copy(
                 [
@@ -370,7 +408,11 @@ export function LinkedInPlaybookWorkbench({ onUseDraft }: LinkedInPlaybookWorkbe
           </div>
         </div>
       )}
-      {notice && <p role="status" style={muted}>{notice}</p>}
+      {notice && (
+        <p role="status" style={muted}>
+          {notice}
+        </p>
+      )}
     </section>
   );
 }

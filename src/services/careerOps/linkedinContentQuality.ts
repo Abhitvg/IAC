@@ -102,8 +102,7 @@ function structuralFlags(text: string): string[] {
   if (bullets.length >= 3) {
     const lengths = bullets.map((line) => line.trim().split(/\s+/).filter(Boolean).length);
     const mean = lengths.reduce((sum, value) => sum + value, 0) / lengths.length;
-    const variance =
-      lengths.reduce((sum, value) => sum + (value - mean) ** 2, 0) / lengths.length;
+    const variance = lengths.reduce((sum, value) => sum + (value - mean) ** 2, 0) / lengths.length;
     if (Math.sqrt(variance) < 1.6) {
       flags.push('Bullets have unusually uniform length; vary them only when it improves clarity.');
     }
@@ -171,8 +170,10 @@ export function humanizeLinkedInText(input: string): HumanizeResult {
       .replace(/^\s*([,.;:])\s*/gm, '')
       .replace(/\s+([,.;:!?])/g, '$1')
       .replace(/\n{3,}/g, '\n\n')
-      .replace(/,\s*(also|so|still|basically|in the end),\s*/gi, (_match, connective: string) =>
-        '. ' + connective[0].toUpperCase() + connective.slice(1) + ', '
+      .replace(
+        /,\s*(also|so|still|basically|in the end),\s*/gi,
+        (_match, connective: string) =>
+          '. ' + connective[0].toUpperCase() + connective.slice(1) + ', '
       );
   });
 
@@ -244,8 +245,7 @@ export function scoreLinkedInText(
   const cv =
     mean && sentenceList.length >= 4
       ? Math.sqrt(
-          sentenceList.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
-            sentenceList.length
+          sentenceList.reduce((sum, value) => sum + (value - mean) ** 2, 0) / sentenceList.length
         ) / mean
       : null;
 
@@ -259,8 +259,7 @@ export function scoreLinkedInText(
   const stockDensity = wordCount ? (stockCount * 100) / wordCount : 0;
 
   const formatCharacters = [...analysisText].filter(
-    (character) =>
-      /\p{Cf}/u.test(character) && character !== '\u200C' && character !== '\u200D'
+    (character) => /\p{Cf}/u.test(character) && character !== '\u200C' && character !== '\u200D'
   ).length;
   const emDashes = (analysisText.match(/—/g) ?? []).length;
   const curlyQuotes = (analysisText.match(/[‘’“”]/g) ?? []).length;
@@ -275,22 +274,16 @@ export function scoreLinkedInText(
   const pronounsPerHundred =
     ((analysisText.match(PRONOUNS) ?? []).length * 100) / Math.max(wordCount, 1);
   const flags = structuralFlags(analysisText);
-  const uniformBulletFlag = flags.some((flag) =>
-    flag.startsWith('Bullets have unusually uniform')
-  );
+  const uniformBulletFlag = flags.some((flag) => flag.startsWith('Bullets have unusually uniform'));
 
-  const readabilityScore =
-    cv === null ? null : Math.round(scaleHigherIsBetter(cv, 0.7, 0.22));
+  const readabilityScore = cv === null ? null : Math.round(scaleHigherIsBetter(cv, 0.7, 0.22));
   const concreteMarkers =
-    (analysisText.match(/\b\d[\d,.]*(?:%|\b)|\$\d/g) ?? []).length +
-    properNameCount(analysisText);
+    (analysisText.match(/\b\d[\d,.]*(?:%|\b)|\$\d/g) ?? []).length + properNameCount(analysisText);
   const specificityDensity = (concreteMarkers * 100) / Math.max(wordCount, 1);
   const specificityScore = enoughWords
     ? Math.round(scaleHigherIsBetter(specificityDensity, 6, 0.5))
     : null;
-  const stockScore = wordCount
-    ? Math.round(scaleLowerIsBetter(stockDensity, 0, 4))
-    : null;
+  const stockScore = wordCount ? Math.round(scaleLowerIsBetter(stockDensity, 0, 4)) : null;
   const typographyScore = analysisText.trim()
     ? Math.round(scaleLowerIsBetter(fingerprintPerThousand, 0, 12))
     : null;
@@ -311,12 +304,16 @@ export function scoreLinkedInText(
       detail:
         cv === null
           ? 'Need at least four complete sentences to assess sentence-length variation.'
-          : 'Sentence-length variation: ' + cv.toFixed(2) + '. This is a rough rhythm signal, not a readability grade.',
+          : 'Sentence-length variation: ' +
+            cv.toFixed(2) +
+            '. This is a rough rhythm signal, not a readability grade.',
     },
     specificity: {
       score: specificityScore,
       detail: enoughWords
-        ? concreteMarkers + ' number/name markers, ' + specificityDensity.toFixed(1) +
+        ? concreteMarkers +
+          ' number/name markers, ' +
+          specificityDensity.toFixed(1) +
           ' per 100 words. Verify that each marker is relevant and true.'
         : 'Need at least 25 words to assess numbers and proper-name signals.',
     },
@@ -326,15 +323,27 @@ export function scoreLinkedInText(
     },
     typography: {
       score: typographyScore,
-      detail: formatCharacters + ' format characters, ' + emDashes + ' em dashes, ' +
-        curlyQuotes + ' curly quotes, ' + ellipses + ' ellipses, ' + hardSpaces + ' hard spaces.',
+      detail:
+        formatCharacters +
+        ' format characters, ' +
+        emDashes +
+        ' em dashes, ' +
+        curlyQuotes +
+        ' curly quotes, ' +
+        ellipses +
+        ' ellipses, ' +
+        hardSpaces +
+        ' hard spaces.',
     },
     voice: {
       score: voiceScore,
       detail: enoughWords
-        ? contractionsPerHundred.toFixed(1) + ' contractions and ' +
-          pronounsPerHundred.toFixed(1) + ' personal pronouns per 100 words; ' +
-          flags.length + ' structural flag(s).'
+        ? contractionsPerHundred.toFixed(1) +
+          ' contractions and ' +
+          pronounsPerHundred.toFixed(1) +
+          ' personal pronouns per 100 words; ' +
+          flags.length +
+          ' structural flag(s).'
         : 'Need at least 25 words to assess voice signals.',
     },
   };
@@ -350,7 +359,7 @@ export function scoreLinkedInText(
       )
     : null;
   const weakestCheck = allSignalsAvailable
-    ? Object.entries(checks).sort((a, b) => (a[1].score ?? 0) - (b[1].score ?? 0))[0]?.[0] ?? null
+    ? (Object.entries(checks).sort((a, b) => (a[1].score ?? 0) - (b[1].score ?? 0))[0]?.[0] ?? null)
     : null;
   const enoughText = wordCount >= Math.max(shortLimit, 25) && enoughSentences;
   const verdict: QualityVerdict =
