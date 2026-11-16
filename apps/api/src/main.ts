@@ -1,6 +1,8 @@
 import { createPostgresPool } from './postgres-pool';
 import { loadCloudEnvironment } from './config';
 import { createCloudApiRuntime } from './runtime';
+import { AwsKmsTenantKeyManagementService } from './linkedin/aws-kms';
+import { createLinkedInCloudIntegration } from './linkedin/create-integration';
 
 function readPort(value: string | undefined): number {
   const port = Number(value ?? 3000);
@@ -20,7 +22,32 @@ async function start(): Promise<void> {
     console.error('CareerOps PostgreSQL idle-client error:', error.message);
   });
 
-  const runtime = createCloudApiRuntime(pool, environment);
+  const linkedin =
+    environment.LINKEDIN_ENABLED
+      ? createLinkedInCloudIntegration(
+          pool,
+          new AwsKmsTenantKeyManagementService({
+            region: environment.AWS_REGION!,
+            keyId: environment.LINKEDIN_KMS_KEY_ID!,
+          }),
+          {
+            oauth: {
+              clientId: environment.LINKEDIN_CLIENT_ID!,
+              clientSecret: environment.LINKEDIN_CLIENT_SECRET!,
+              redirectUri: environment.LINKEDIN_REDIRECT_URI!,
+            },
+            apiVersion: environment.LINKEDIN_API_VERSION,
+            entitlements: {
+              communityManagementApproved: environment.LINKEDIN_COMMUNITY_MANAGEMENT_APPROVED,
+              communicationsApiApproved: environment.LINKEDIN_COMMUNICATIONS_API_APPROVED,
+              invitationsApiApproved: environment.LINKEDIN_INVITATIONS_API_APPROVED,
+              messagesApiApproved: environment.LINKEDIN_MESSAGES_API_APPROVED,
+            },
+          }
+        )
+      : undefined;
+
+  const runtime = createCloudApiRuntime(pool, environment, linkedin);
 
   let shutdown: Promise<void> | undefined;
   const stop = () => {
