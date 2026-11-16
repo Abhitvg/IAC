@@ -30,7 +30,7 @@ Open **CareerOps > LinkedIn Studio > Connected Account & API**.
 - Publish member text posts, create member comments/reactions, and use approved organization Page operations through explicit buttons.
 - Tenant owners can pause or resume the LinkedIn channel. Every write is independently checked against the global kill switch and channel pause by the cloud API.
 
-The current connection panel invokes actions immediately on a user click. It does not queue or background-schedule posts. LinkedIn invitations, direct messages and inbox reading stay disabled until the exact partner API permissions and implementation are available.
+The connection panel supports immediate user-triggered actions and optional, cloud-scheduled member text posts when the deployment enables the scheduler. LinkedIn invitations, direct messages and inbox reading stay disabled until the exact partner API permissions and implementation are available.
 
 ## Deployment
 
