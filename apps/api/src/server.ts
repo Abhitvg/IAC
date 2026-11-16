@@ -371,6 +371,17 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
+          if (!dependencies.repository.recordLinkedInAction) {
+            throw new Error('LinkedIn action audit logging is unavailable');
+          }
+          await dependencies.repository.recordLinkedInAction({
+            tenantId: tenant.tenantId,
+            actorSubject: tenant.subject,
+            action: 'linkedin.member.post.schedule.cancel.requested',
+            entityId: scheduledPostCancelMatch[1],
+            occurredAt: new Date().toISOString(),
+            metadata: {},
+          });
           const cancelled = await scheduler.cancel(
             tenant.tenantId,
             tenant.subject,
@@ -383,17 +394,6 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          if (!dependencies.repository.recordLinkedInAction) {
-            throw new Error('LinkedIn action audit logging is unavailable');
-          }
-          await dependencies.repository.recordLinkedInAction({
-            tenantId: tenant.tenantId,
-            actorSubject: tenant.subject,
-            action: 'linkedin.member.post.schedule.cancelled',
-            entityId: scheduledPostCancelMatch[1],
-            occurredAt: new Date().toISOString(),
-            metadata: {},
-          });
           sendJson(response, 200, { cancelled: true, requestId });
           return;
         }
