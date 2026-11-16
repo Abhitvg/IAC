@@ -32,6 +32,7 @@ import {
   MessageRateLimiter,
   parseBrowserContextMessage,
 } from '../services/browserContextValidation';
+import { createReliabilitySnapshot, normalizeReliabilitySnapshots } from '../services/reliabilitySnapshotStore';
 
 let wsServer: WebSocketServer | null = null;
 let httpServer: http.Server | null = null;
@@ -370,6 +371,35 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     validateSetting(key, value);
     store.set(key, value);
+    return true;
+  });
+
+  // Persist only bounded aggregate diagnostics. Raw interview content is rejected by schema.
+  ipcMain.handle('diagnostics:reliability:get-snapshots', (event) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    const snapshots = normalizeReliabilitySnapshots(
+      store.get('interviewReliabilitySnapshots', []),
+      Date.now()
+    );
+    store.set('interviewReliabilitySnapshots', snapshots);
+    return snapshots;
+  });
+
+  ipcMain.handle('diagnostics:reliability:save-snapshot', (event, summary: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    const snapshots = normalizeReliabilitySnapshots(
+      store.get('interviewReliabilitySnapshots', []),
+      Date.now()
+    );
+    const snapshot = createReliabilitySnapshot(summary, crypto.randomUUID(), Date.now());
+    const next = normalizeReliabilitySnapshots([snapshot, ...snapshots], Date.now());
+    store.set('interviewReliabilitySnapshots', next);
+    return snapshot;
+  });
+
+  ipcMain.handle('diagnostics:reliability:clear-snapshots', (event) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    store.set('interviewReliabilitySnapshots', []);
     return true;
   });
 
