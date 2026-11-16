@@ -926,7 +926,10 @@ export const useAppStore = create<InterviewState>((set, get) => ({
             const value = JSON.parse(raw);
             if (value?.id === id) sessionsById.set(id, value);
           } catch (error) {
-            console.error('Unable to decrypt interview history record; encrypted source retained.', error);
+            console.error(
+              'Unable to decrypt interview history record; encrypted source retained.',
+              error
+            );
           }
         }
       }
@@ -949,7 +952,10 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       }
 
       const sessions = Array.from(sessionsById.values());
-      sessions.sort((a, b) => new Date(b.startTime || 0).getTime() - new Date(a.startTime || 0).getTime());
+      sessions.sort(
+        (a, b) =>
+          new Date(b.startTime || 0).getTime() - new Date(a.startTime || 0).getTime()
+      );
       set({ sessionHistory: sessions });
     } catch (error) {
       console.error('Unable to load secure interview history.', error);
@@ -961,8 +967,15 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     if (typeof window === 'undefined' || !window.electronAPI?.secureRecordSet) {
       throw new Error('Secure session storage is unavailable. No plaintext fallback was used.');
     }
-    await window.electronAPI.secureRecordSet('interview-sessions', session.id, JSON.stringify(session));
-    const updated = [session, ...get().sessionHistory.filter((item) => item.id !== session.id)].slice(0, 50);
+    await window.electronAPI.secureRecordSet(
+      'interview-sessions',
+      session.id,
+      JSON.stringify(session)
+    );
+    const updated = [
+      session,
+      ...get().sessionHistory.filter((item) => item.id !== session.id),
+    ].slice(0, 50);
     set({ sessionHistory: updated });
   },
 
@@ -986,7 +999,9 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         console.error('Unable to update legacy session history after explicit deletion.', error);
       }
     }
-    set({ sessionHistory: get().sessionHistory.filter((item) => item.id !== sessionId) });
+    set({
+      sessionHistory: get().sessionHistory.filter((item) => item.id !== sessionId),
+    });
   },
 
   copyAnswer: async () => {
