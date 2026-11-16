@@ -2,11 +2,15 @@
 
 This Terraform stack deploys the existing CareerOps API to ECS Fargate behind an HTTPS Application Load Balancer and provisions a private RDS PostgreSQL database, ECR repository, CloudWatch log group, and scoped ECS execution role.
 
-## Deliberate KMS boundary
+## AWS KMS envelope encryption
 
-CareerOps application code does not call AWS KMS. ECS receives configuration through task-definition secret injection. The ECS task role has no AWS permissions by default. RDS storage encryption is enabled using the AWS-managed default key; AWS may use KMS internally for managed encryption, outside the application process.
+CareerOps calls AWS KMS directly from the API runtime using SigV4-signed KMS JSON requests. The provider uses the ECS task-role credential endpoint in production; no long-lived AWS access keys are stored in the image or application secret. Local development may use temporary AWS environment credentials.
 
-Do not attach customer-managed KMS permissions to the API task role. If the Secrets Manager secret uses a customer-managed key, the ECS execution role may need an additional decrypt permission; prefer the AWS-managed Secrets Manager key for this baseline.
+Sensitive LinkedIn OAuth tokens are encrypted with AES-256-GCM using a fresh data key from KMS `GenerateDataKey`. Only the encrypted data key is stored with the envelope. Reads call KMS `Decrypt` with the exact same encryption context. The context binds `careerops:application=careerops`, the authenticated tenant ID, and the data purpose. The API task role receives only `kms:GenerateDataKey` and `kms:Decrypt` on the configured key ARN, conditioned on the application context. It does not receive `kms:*`, key administration, key deletion, or key-policy permissions.
+
+The configured KMS key must have a key policy that permits IAM delegation for the account (the account-root statement in the policy you supplied does this) or explicitly grants the CareerOps task role the two crypto actions. Keep key administrators separate from the application role. Enable automatic key rotation and retain access to old KMS keys until envelopes encrypted under them have been migrated.
+
+The API uses the existing key ARN supplied as `kms_key_arn`; Terraform does not replace or rewrite your existing key policy. Add a KMS interface VPC endpoint (`com.amazonaws.<region>.kms`) or NAT egress for private ECS tasks.
 
 ## Prerequisites
 
@@ -21,6 +25,9 @@ Do not attach customer-managed KMS permissions to the API task role. If the Secr
   - `CAREEROPS_CONSENT_SIGNING_SECRET`
   - `CAREEROPS_RATE_LIMIT_HASH_SECRET`
   - `CAREEROPS_DATABASE_URL`
+  - `LINKEDIN_CLIENT_ID` (empty string if LinkedIn OAuth is not enabled)
+  - `LINKEDIN_CLIENT_SECRET` (empty string if LinkedIn OAuth is not enabled)
+  - `LINKEDIN_REDIRECT_URI` (empty string if LinkedIn OAuth is not enabled; HTTPS when enabled)
 - The database URL must use the non-owner `careerops_app` role. Provision that role and apply migrations using a separate privileged migration identity. Do not give the API the master database credentials.
 - Terraform 1.8+ and AWS provider credentials for provisioning only.
 
@@ -29,7 +36,7 @@ The RDS master password and application secret values must never be committed. U
 ## Deploy
 
 1. Copy `terraform/terraform.tfvars.example` to a private local `terraform.tfvars`.
-2. Set the VPC/subnet IDs, ACM certificate ARN, region, database credentials, and application secret ARN.
+2. Set the VPC/subnet IDs, ACM certificate ARN, region, existing KMS key ARN, database credentials, and application secret ARN.
 3. Bootstrap the ECR repository before creating the ECS service:
 
 ```bash
