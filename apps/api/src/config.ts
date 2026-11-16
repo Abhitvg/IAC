@@ -15,10 +15,15 @@ const CloudEnvironmentSchema = z
     CAREEROPS_CONSENT_SIGNING_SECRET: z.string().min(32),
     CAREEROPS_RATE_LIMIT_HASH_SECRET: z.string().min(32),
     CAREEROPS_DATABASE_URL: z.string().url().optional(),
-    AWS_REGION: z.string().regex(/^[a-z]{2}(-gov)?-[a-z]+-[0-9]+$/).optional(),
+    AWS_REGION: z
+      .string()
+      .regex(/^[a-z]{2}(-gov)?-[a-z]+-[0-9]+$/)
+      .optional(),
     CAREEROPS_KMS_KEY_ARN: z
       .string()
-      .regex(/^arn:(aws|aws-us-gov|aws-cn):kms:[a-z0-9-]+:[0-9]{12}:key[/][A-Za-z0-9-]+$/)
+      .regex(
+        /^arn:(aws|aws-us-gov|aws-cn):kms:[a-z0-9-]+:[0-9]{12}:key[/][A-Za-z0-9-]+$/
+      )
       .optional(),
     LINKEDIN_CLIENT_ID: z.string().default(''),
     LINKEDIN_CLIENT_SECRET: z.string().default(''),
@@ -45,14 +50,20 @@ const CloudEnvironmentSchema = z
         message: 'LinkedIn OAuth requires client ID, client secret, and redirect URI together',
       });
     }
-    if (linkedinConfigured && (!values.AWS_REGION || !values.CAREEROPS_KMS_KEY_ARN)) {
+    if (
+      linkedinConfigured &&
+      (!values.AWS_REGION || !values.CAREEROPS_KMS_KEY_ARN)
+    ) {
       context.addIssue({
         code: 'custom',
         path: ['CAREEROPS_KMS_KEY_ARN'],
         message: 'LinkedIn token encryption requires AWS_REGION and CAREEROPS_KMS_KEY_ARN',
       });
     }
-    if (values.LINKEDIN_REDIRECT_URI && !values.LINKEDIN_REDIRECT_URI.startsWith('https://')) {
+    if (
+      values.LINKEDIN_REDIRECT_URI &&
+      !values.LINKEDIN_REDIRECT_URI.startsWith('https://')
+    ) {
       context.addIssue({
         code: 'custom',
         path: ['LINKEDIN_REDIRECT_URI'],
