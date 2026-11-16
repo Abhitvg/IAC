@@ -102,10 +102,6 @@ variable "db_master_username" {
   type    = string
   default = "careerops_admin"
 }
-variable "db_master_password" {
-  type      = string
-  sensitive = true
-}
 variable "db_instance_class" {
   type    = string
   default = "db.t4g.medium"
