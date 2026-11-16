@@ -40,20 +40,23 @@ resource "aws_cloudwatch_log_group" "api" {
 
 resource "aws_security_group" "alb" {
   name        = "${local.name}-alb"
-  description = "Public HTTPS ingress to CareerOps API"
+  description = "Public ingress to CareerOps API; HTTPS is used when enabled"
   vpc_id      = var.vpc_id
-  ingress {
-    description = "HTTPS"
-    from_port = 443
-    to_port = 443
-    protocol = "tcp"
-    cidr_blocks = var.allowed_ingress_cidrs
+  dynamic "ingress" {
+    for_each = var.enable_https ? [1] : []
+    content {
+      description = "HTTPS"
+      from_port   = 443
+      to_port     = 443
+      protocol    = "tcp"
+      cidr_blocks = var.allowed_ingress_cidrs
+    }
   }
   ingress {
-    description = "HTTP redirect only"
-    from_port = 80
-    to_port = 80
-    protocol = "tcp"
+    description = var.enable_https ? "HTTP to HTTPS redirect" : "Staging HTTP ingress; no sensitive or production traffic"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
     cidr_blocks = var.allowed_ingress_cidrs
   }
   egress {
@@ -174,16 +177,21 @@ resource "aws_lb_listener" "http" {
   port              = 80
   protocol          = "HTTP"
   default_action {
-    type = "redirect"
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
+    type             = var.enable_https ? "redirect" : "forward"
+    target_group_arn = var.enable_https ? null : aws_lb_target_group.api.arn
+    dynamic "redirect" {
+      for_each = var.enable_https ? [1] : []
+      content {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
     }
   }
 }
 
 resource "aws_lb_listener" "https" {
+  count             = var.enable_https ? 1 : 0
   load_balancer_arn = aws_lb.api.arn
   port              = 443
   protocol          = "HTTPS"
@@ -192,6 +200,12 @@ resource "aws_lb_listener" "https" {
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.api.arn
+  }
+  lifecycle {
+    precondition {
+      condition     = var.acm_certificate_arn != null
+      error_message = "HTTPS requires a valid ACM certificate ARN. Use staging with enable_https=false only for non-sensitive testing."
+    }
   }
 }
 
@@ -330,7 +344,7 @@ resource "aws_ecs_service" "api" {
     container_name   = "careerops-api"
     container_port   = 3000
   }
-  depends_on = [aws_lb_listener.https, aws_iam_role_policy_attachment.execution_managed, aws_iam_role_policy.read_app_secret, aws_iam_role_policy.kms_data_key]
+  depends_on = [aws_lb_listener.http, aws_iam_role_policy_attachment.execution_managed, aws_iam_role_policy.read_app_secret, aws_iam_role_policy.kms_data_key]
   tags = local.tags
 }
 
