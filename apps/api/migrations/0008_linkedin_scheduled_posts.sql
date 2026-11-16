@@ -47,8 +47,10 @@ GRANT SELECT, INSERT, DELETE ON linkedin_oauth_states TO careerops_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON linkedin_connections TO careerops_app;
 GRANT SELECT, INSERT ON linkedin_scheduled_posts TO careerops_app;
 
--- No-login BYPASSRLS role is used only as SECURITY DEFINER function owner.
--- It cannot connect and the application role receives no membership in it.
+-- Non-login role owns only the scheduled-post table and its SECURITY DEFINER routines.
+-- It cannot connect; FORCE ROW LEVEL SECURITY is intentionally not set on this one table,
+-- so this owner bypasses that table's policy without receiving the BYPASSRLS attribute.
+-- The application role is neither owner nor a member of this role.
 DO $role$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'careerops_scheduler_fn') THEN
