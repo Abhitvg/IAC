@@ -106,7 +106,6 @@ resource "aws_db_subnet_group" "database" {
 resource "aws_db_instance" "database" {
   identifier                 = local.name
   engine                     = "postgres"
-  engine_version             = "16"
   instance_class             = var.db_instance_class
   allocated_storage          = var.db_allocated_storage
   storage_type               = "gp3"

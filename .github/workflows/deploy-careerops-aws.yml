@@ -1,0 +1,89 @@
+name: Deploy CareerOps API to AWS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: careerops-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials through GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Resolve ECR repository
+        id: ecr
+        shell: bash
+        run: |
+          set -euo pipefail
+          URI="$(aws ecr describe-repositories --repository-names "${{ vars.ECR_REPOSITORY }}" --query 'repositories[0].repositoryUri' --output text)"
+          echo "uri=$URI" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push immutable ARM64 image
+        shell: bash
+        env:
+          ECR_URI: ${{ steps.ecr.outputs.uri }}
+          IMAGE_TAG: release-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker buildx build --platform linux/arm64 --push \
+            --tag "$ECR_URI:$IMAGE_TAG" \
+            --file Dockerfile.api .
+
+      - name: Register task definition with the new image
+        id: task
+        shell: bash
+        env:
+          TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
+          IMAGE: ${{ steps.ecr.outputs.uri }}:release-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition --task-definition "$TASK_FAMILY" \
+            --query taskDefinition > /tmp/current-task-definition.json
+          jq --arg image "$IMAGE" '
+            .containerDefinitions |= map(
+              if .name == "careerops-api" then .image = $image else . end
+            )
+            | del(
+                .taskDefinitionArn, .revision, .status, .requiresAttributes,
+                .compatibilities, .registeredAt, .registeredBy, .deregisteredAt
+              )
+          ' /tmp/current-task-definition.json > /tmp/next-task-definition.json
+          ARN="$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/next-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text)"
+          echo "arn=$ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy and wait for service stability
+        env:
+          CLUSTER: ${{ vars.ECS_CLUSTER }}
+          SERVICE: ${{ vars.ECS_SERVICE }}
+          TASK_DEFINITION: ${{ steps.task.outputs.arn }}
+        run: |
+          set -euo pipefail
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
+            --task-definition "$TASK_DEFINITION" >/dev/null
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+            --query 'services[0].{status:status,desired:desiredCount,running:runningCount,taskDefinition:taskDefinition}' \
+            --output table

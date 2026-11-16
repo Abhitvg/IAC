@@ -57,6 +57,14 @@ The image runs as the non-root Node user and starts `dist-api/apps/api/src/main.
 
 The manual deployment workflow uses GitHub OIDC. Configure repository variable `AWS_REGION`, secret `AWS_ROLE_TO_ASSUME`, and variables `ECR_REPOSITORY`, `ECS_CLUSTER`, `ECS_SERVICE`, and `ECS_TASK_FAMILY`. The assumed role must be restricted to this repository and branch/environment, and permit only ECR push plus updating the named ECS service/task family.
 
+## OIDC deployment role
+
+Create an IAM OIDC provider for `token.actions.githubusercontent.com` and a role whose trust policy restricts the subject to this repository and the protected deployment branch/environment. Do not use long-lived AWS access keys in GitHub.
+
+The deployment role needs ECR push actions on this repository, `ecs:DescribeTaskDefinition`, `ecs:RegisterTaskDefinition`, `ecs:UpdateService`, `ecs:DescribeServices`, and `iam:PassRole` for only the ECS execution and task roles created by this stack. Configure GitHub repository variables/secrets as described above.
+
+The workflow builds a Linux ARM64 image, pushes an immutable `release-<commit-sha>` tag, registers a new task-definition revision with that exact image, updates the service, and waits for ECS stability. The ECS deployment circuit breaker is configured to roll back failed deployments.
+
 ## Not included yet
 
 The existing API has no production adapters for S3 object storage, SQS job dispatch, EventBridge schedules, or SES delivery. Do not enable those resources until the corresponding ports, tenant-scoped authorization, idempotency, retry/dead-letter behavior, and integration tests are implemented. This stack is the AWS compute/database/deployment foundation, not a claim that every future AWS capability is already wired.
