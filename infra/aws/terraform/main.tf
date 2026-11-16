@@ -60,9 +60,9 @@ resource "aws_security_group" "alb" {
     cidr_blocks = var.allowed_ingress_cidrs
   }
   egress {
-    from_port = 0
-    to_port = 0
-    protocol = "-1"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = local.tags
@@ -73,9 +73,9 @@ resource "aws_security_group" "api" {
   description = "Only the ALB can reach CareerOps tasks"
   vpc_id      = var.vpc_id
   ingress {
-    from_port = 3000
-    to_port = 3000
-    protocol = "tcp"
+    from_port       = 3000
+    to_port         = 3000
+    protocol        = "tcp"
     security_groups = [aws_security_group.alb.id]
   }
   egress {
@@ -92,9 +92,9 @@ resource "aws_security_group" "database" {
   description = "PostgreSQL is reachable only from CareerOps tasks"
   vpc_id      = var.vpc_id
   ingress {
-    from_port = 5432
-    to_port = 5432
-    protocol = "tcp"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
     security_groups = [aws_security_group.api.id]
   }
   tags = local.tags
@@ -144,14 +144,14 @@ resource "aws_db_instance" "database" {
 }
 
 resource "aws_lb" "api" {
-  name               = substr("${local.name}-api", 0, 32)
-  load_balancer_type = "application"
-  internal           = false
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = var.public_subnet_ids
+  name                       = substr("${local.name}-api", 0, 32)
+  load_balancer_type          = "application"
+  internal                   = false
+  security_groups            = [aws_security_group.alb.id]
+  subnets                    = var.public_subnet_ids
   drop_invalid_header_fields = true
   enable_deletion_protection = var.deletion_protection
-  tags = local.tags
+  tags                       = local.tags
 }
 
 resource "aws_lb_target_group" "api" {
@@ -324,11 +324,11 @@ resource "aws_ecs_task_definition" "api" {
 }
 
 resource "aws_ecs_service" "api" {
-  name            = "${local.name}-api"
-  cluster         = aws_ecs_cluster.api.id
-  task_definition = aws_ecs_task_definition.api.arn
-  desired_count   = var.api_desired_count
-  launch_type     = "FARGATE"
+  name             = "${local.name}-api"
+  cluster          = aws_ecs_cluster.api.id
+  task_definition  = aws_ecs_task_definition.api.arn
+  desired_count    = var.api_desired_count
+  launch_type      = "FARGATE"
   platform_version = "LATEST"
   deployment_circuit_breaker {
     enable   = true
@@ -369,7 +369,6 @@ resource "aws_appautoscaling_policy" "api_cpu" {
     }
   }
 }
-
 
 resource "aws_sns_topic" "operations_alerts" {
   name              = "${local.name}-operations-alerts"
