@@ -439,7 +439,13 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       setNotice(
         'Post scheduled for ' + new Date(result.scheduledPost.scheduledAt).toLocaleString()
       );
-      await refreshScheduledPosts();
+      try {
+        await refreshScheduledPosts();
+      } catch {
+        setNotice(
+          'Post was scheduled, but the status list could not refresh. Refresh status to confirm it.'
+        );
+      }
     } catch (scheduleError) {
       setError(
         scheduleError instanceof Error
