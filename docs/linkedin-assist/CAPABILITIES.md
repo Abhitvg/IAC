@@ -90,7 +90,7 @@ show exactly which prerequisite is missing.
 - Optional access-token refresh when LinkedIn actually returns a refresh token to the application. If no refresh token was granted or it expires, the member must reconnect.
 - Authenticated desktop connection panel using the existing CareerOps OIDC identity. The OIDC bearer credential is stored through Electron OS-backed secure storage and is never returned to renderer JavaScript.
 - Narrow desktop IPC allowlist for LinkedIn API and tenant-control routes. It does not expose a general-purpose authenticated network proxy.
-- Scope- and entitlement-gated member text publishing, member comments/reactions, organization text publishing and organization comments/reactions through the documented APIs.
+- Scope- and entitlement-gated member text and poll publishing, member comments/reactions, organization text publishing and organization comments/reactions through the documented APIs. Poll input is limited to 2–4 unique options and LinkedIn-supported durations.
 - Server-side global kill-switch and `linkedin_assist` channel-pause enforcement before every LinkedIn write, plus audit recording.
 - Explicit UI actions for publish/comment/react/remove-reaction and account disconnect; owner-only pause/resume control.
 
