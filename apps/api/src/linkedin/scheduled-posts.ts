@@ -327,6 +327,19 @@ export class LinkedInScheduledPostWorker {
         return;
       }
 
+      const memberships = await this.repository.findMembershipsBySubject(post.subject);
+      if (
+        !memberships.some(
+          (membership) =>
+            membership.tenantId === post.tenantId &&
+            membership.subject === post.subject &&
+            membership.status === 'active'
+        )
+      ) {
+        await this.store.markFailed(post.id, 'tenant_membership_inactive');
+        return;
+      }
+
       if (Date.now() - new Date(post.scheduledAt).getTime() > 60 * 60_000) {
         await this.store.markNeedsReview(post.id, 'scheduled_time_missed_by_over_one_hour');
         return;
@@ -358,6 +371,25 @@ export class LinkedInScheduledPostWorker {
           contentLength: post.commentary.length,
         },
       });
+
+      // Re-check controls and membership as close as possible to the external write.
+      // Any change after this check is still reconciled by the tenant's audit trail.
+      const finalControls = await this.repository.getControlState(post.tenantId);
+      const finalMemberships = await this.repository.findMembershipsBySubject(post.subject);
+      if (
+        finalControls.tenantId !== post.tenantId ||
+        finalControls.globalKillSwitch ||
+        finalControls.pausedChannels.includes('linkedin_assist') ||
+        !finalMemberships.some(
+          (membership) =>
+            membership.tenantId === post.tenantId &&
+            membership.subject === post.subject &&
+            membership.status === 'active'
+        )
+      ) {
+        await this.store.defer(post.id, 60);
+        return;
+      }
 
       const result = await this.integration.api.publishMemberTextPost(
         tokenSet,
