@@ -684,11 +684,19 @@ export class AnswerGenerationService {
         if (err.name === 'AbortError' || err.name === 'TimeoutError' || signal?.aborted) {
           // Prefer the owning controller's reason: a stream reader may surface a generic
           // AbortError even when the overall deadline was the actual cause.
-          const timeoutMessage = signal?.reason?.message || err?.message || '';
-          const timedOut =
+          const abortReason = signal?.reason as Error | undefined;
+          const timeoutMessage = abortReason?.message || err?.message || '';
+          const explicitTimeout =
+            abortReason?.name === 'TimeoutError' ||
             err?.name === 'TimeoutError' ||
-            signal?.reason?.name === 'TimeoutError' ||
             /deadline|timed out|timeout|inactivity|stalled/i.test(timeoutMessage);
+          // When the caller supplied an AbortError reason, it takes precedence over
+          // generic stream-reader text such as "cancelled or deadline expired".
+          const callerCancelled =
+            Boolean(signal?.aborted) &&
+            abortReason?.name !== 'TimeoutError' &&
+            !/deadline|timed out|timeout|inactivity|stalled/i.test(abortReason?.message || '');
+          const timedOut = explicitTimeout && !callerCancelled;
           const recoveredPartial = partialOutput.trim();
           if (recoveredPartial) {
             useAppStore.getState().setRecoveredPartialAnswer(recoveredPartial);
