@@ -18,7 +18,7 @@ scopes.
 - `LICENSE.upstream`: MIT attribution and license.
 - `../../apps/api/src/linkedin/`: OAuth, API client, encrypted persistence, and composition
   factory.
-- `../../apps/api/migrations/0006_linkedin_oauth.sql` and `0007_linkedin_oauth_callback.sql`: tenant-isolated OAuth state, encrypted connections and one-time public callback consumption.
+- `../../apps/api/migrations/0006_linkedin_oauth.sql`, `0007_linkedin_oauth_callback.sql` and `0008_linkedin_scheduled_posts.sql`: tenant-isolated OAuth state, encrypted connections, one-time callback consumption and the isolated scheduled-post queue.
 
 ## Cloud API
 
@@ -37,6 +37,9 @@ authenticated routes are available:
 - `POST /v1/linkedin/organization/comments`
 - `POST /v1/linkedin/organization/reactions`
 - `DELETE /v1/linkedin/organization/reactions?organizationUrn=...&entityUrn=...`
+- `GET /v1/linkedin/scheduled-posts`
+- `POST /v1/linkedin/scheduled-posts`
+- `DELETE /v1/linkedin/scheduled-posts/:id`
 
 The API entry point now composes the LinkedIn cloud integration when `LINKEDIN_ENABLED=true` and the required client, callback, AWS region and KMS key configuration is present. When disabled or misconfigured, LinkedIn routes fail closed rather than storing tokens insecurely.
 
