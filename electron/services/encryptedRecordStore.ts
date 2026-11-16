@@ -113,13 +113,14 @@ export class EncryptedRecordStore {
     const previous = this.namespaceQueues.get(namespace) || Promise.resolve();
     let release!: () => void;
     const current = new Promise<void>((resolve) => { release = resolve; });
-    this.namespaceQueues.set(namespace, previous.then(() => current));
+    const tail = previous.then(() => current);
+    this.namespaceQueues.set(namespace, tail);
     await previous;
     try {
       return await operation();
     } finally {
       release();
-      if (this.namespaceQueues.get(namespace) === current) this.namespaceQueues.delete(namespace);
+      if (this.namespaceQueues.get(namespace) === tail) this.namespaceQueues.delete(namespace);
     }
   }
 
@@ -347,6 +348,7 @@ export class EncryptedRecordStore {
         !ensureDirectorySafe(path.join(this.rootDir, 'records'), false) ||
         !ensureDirectorySafe(path.join(this.rootDir, 'records', namespace), false)
       ) return false;
+      const ids = (await this.readIndex(namespace)).filter((entry) => entry !== id);
       const filePath = this.recordPath(namespace, id);
       if (!fs.existsSync(filePath)) return false;
       const stat = fs.lstatSync(filePath);
@@ -354,8 +356,8 @@ export class EncryptedRecordStore {
         throw new Error('Secure record is not a regular file.');
       }
       fs.unlinkSync(filePath);
-      const ids = (await this.readIndex(namespace)).filter((entry) => entry !== id);
       await this.writeRecord(namespace, '__index__', JSON.stringify(ids));
       return true;
     });
-  }}
+  }
+}
