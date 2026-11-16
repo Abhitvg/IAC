@@ -79,9 +79,9 @@ resource "aws_security_group" "api" {
     security_groups = [aws_security_group.alb.id]
   }
   egress {
-    from_port = 0
-    to_port = 0
-    protocol = "-1"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = local.tags
@@ -145,7 +145,7 @@ resource "aws_db_instance" "database" {
 
 resource "aws_lb" "api" {
   name                       = substr("${local.name}-api", 0, 32)
-  load_balancer_type          = "application"
+  load_balancer_type         = "application"
   internal                   = false
   security_groups            = [aws_security_group.alb.id]
   subnets                    = var.public_subnet_ids
@@ -289,9 +289,9 @@ resource "aws_ecs_task_definition" "api" {
     cpu_architecture        = "ARM64"
   }
   container_definitions = jsonencode([{
-    name      = "careerops-api"
-    image     = var.container_image
-    essential = true
+    name         = "careerops-api"
+    image        = var.container_image
+    essential    = true
     portMappings = [{ containerPort = 3000, hostPort = 3000, protocol = "tcp" }]
     environment = [
       { name = "NODE_ENV", value = "production" },
@@ -345,7 +345,7 @@ resource "aws_ecs_service" "api" {
     container_port   = 3000
   }
   depends_on = [aws_lb_listener.http, aws_iam_role_policy_attachment.execution_managed, aws_iam_role_policy.read_app_secret, aws_iam_role_policy.kms_data_key]
-  tags = local.tags
+  tags       = local.tags
 }
 
 resource "aws_appautoscaling_target" "api" {
