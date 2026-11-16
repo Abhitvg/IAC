@@ -184,135 +184,73 @@ export class LinkedInScheduledPostStore {
 
   async cancel(tenantId: string, subject: string, id: string): Promise<boolean> {
     return inTenant(this.pool, tenantId, subject, async (client) => {
-      const result = await client.query(
-        `UPDATE linkedin_scheduled_posts
-            SET status = 'cancelled', lock_expires_at = NULL, updated_at = now()
-          WHERE id = $1 AND tenant_id = $2 AND subject = $3 AND status = 'scheduled'`,
+      const result = await client.query<{ cancelled: boolean }>(
+        'SELECT cancel_linkedin_scheduled_post($1, $2, $3) AS cancelled',
         [id, tenantId, subject]
       );
-      return (result.rowCount ?? 0) === 1;
+      return result.rows[0]?.cancelled === true;
     });
   }
 
   async claimDue(limit = 10): Promise<ScheduledLinkedInPost[]> {
-    return this.withWorkerContext(async (client) => {
-      // A worker interruption after an external publish is an unknown outcome.
-      // Do not retry such rows: that could publish duplicate content.
-      await client.query(
-        `UPDATE linkedin_scheduled_posts
-            SET status = 'unknown_outcome',
-                error_code = 'worker_interrupted',
-                lock_expires_at = NULL,
-                updated_at = now()
-          WHERE status = 'processing' AND lock_expires_at <= now()`
-      );
+    const client = await this.pool.connect();
+    try {
       const result = await client.query<ScheduledPostRow>(
-        `WITH due AS (
-           SELECT id
-             FROM linkedin_scheduled_posts
-            WHERE status = 'scheduled' AND next_attempt_at <= now()
-            ORDER BY next_attempt_at, created_at
-            FOR UPDATE SKIP LOCKED
-            LIMIT $1
-         )
-         UPDATE linkedin_scheduled_posts AS post
-            SET status = 'processing',
-                attempt_count = post.attempt_count + 1,
-                lock_expires_at = now() + interval '5 minutes',
-                updated_at = now()
-           FROM due
-          WHERE post.id = due.id
-         RETURNING post.id, post.tenant_id, post.subject, post.commentary,
-                   post.scheduled_at, post.next_attempt_at, post.status,
-                   post.attempt_count, post.published_post_urn, post.error_code,
-                   post.created_at, post.updated_at`,
+        'SELECT * FROM claim_linkedin_scheduled_posts_due($1)',
         [limit]
       );
       return result.rows.map(mapRow);
-    });
+    } finally {
+      client.release();
+    }
   }
 
   async defer(id: string, delaySeconds = 30): Promise<void> {
-    await this.updateClaimed(id, `status = 'scheduled',
-      next_attempt_at = now() + make_interval(secs => $2),
-      lock_expires_at = NULL,
-      error_code = NULL,
-      updated_at = now()`, [Math.max(10, Math.min(delaySeconds, 3600))]);
+    const boundedDelay = Math.max(10, Math.min(delaySeconds, 3600));
+    const nextAttemptAt = new Date(Date.now() + boundedDelay * 1000).toISOString();
+    await this.updateClaimed(id, 'scheduled', { nextAttemptAt });
   }
 
   async markPublished(id: string, postUrn: string): Promise<void> {
-    await this.updateClaimed(
-      id,
-      `status = 'published',
-       published_post_urn = $2,
-       lock_expires_at = NULL,
-       error_code = NULL,
-       updated_at = now()`,
-      [postUrn]
-    );
+    await this.updateClaimed(id, 'published', { publishedPostUrn: postUrn });
   }
 
   async markFailed(id: string, errorCode: string): Promise<void> {
-    await this.updateClaimed(
-      id,
-      `status = 'failed',
-       error_code = $2,
-       lock_expires_at = NULL,
-       updated_at = now()`,
-      [errorCode]
-    );
+    await this.updateClaimed(id, 'failed', { errorCode });
   }
 
   async markUnknownOutcome(id: string, errorCode: string): Promise<void> {
-    await this.updateClaimed(
-      id,
-      `status = 'unknown_outcome',
-       error_code = $2,
-       lock_expires_at = NULL,
-       updated_at = now()`,
-      [errorCode]
-    );
+    await this.updateClaimed(id, 'unknown_outcome', { errorCode });
   }
 
   async markNeedsReview(id: string, errorCode: string): Promise<void> {
-    await this.updateClaimed(
-      id,
-      `status = 'needs_review',
-       error_code = $2,
-       lock_expires_at = NULL,
-       updated_at = now()`,
-      [errorCode]
-    );
+    await this.updateClaimed(id, 'needs_review', { errorCode });
   }
 
-  private async updateClaimed(id: string, setClause: string, values: unknown[]): Promise<void> {
-    await this.withWorkerContext(async (client) => {
-      const result = await client.query(
-        `UPDATE linkedin_scheduled_posts SET ${setClause}
-          WHERE id = $1 AND status = 'processing'`,
-        [id, ...values]
-      );
-      if ((result.rowCount ?? 0) !== 1) {
-        throw new Error('Scheduled LinkedIn post is no longer owned by this worker');
-      }
-    });
-  }
-
-  private async withWorkerContext<T>(work: (client: SqlClient) => Promise<T>): Promise<T> {
+  private async updateClaimed(
+    id: string,
+    status: 'scheduled' | 'published' | 'failed' | 'unknown_outcome' | 'needs_review',
+    values: {
+      publishedPostUrn?: string;
+      errorCode?: string;
+      nextAttemptAt?: string;
+    } = {}
+  ): Promise<void> {
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
-      await client.query("SELECT set_config('app.linkedin_scheduler_worker', 'true', true)");
-      const result = await work(client);
-      await client.query('COMMIT');
-      return result;
-    } catch (error) {
-      try {
-        await client.query('ROLLBACK');
-      } catch {
-        // Preserve the original error.
+      const result = await client.query<{ changed: boolean }>(
+        `SELECT transition_linkedin_scheduled_post($1, $2, $3, $4, $5) AS changed`,
+        [
+          id,
+          status,
+          values.publishedPostUrn ?? null,
+          values.errorCode ?? null,
+          values.nextAttemptAt ?? null,
+        ]
+      );
+      if (result.rows[0]?.changed !== true) {
+        throw new Error('Scheduled LinkedIn post is no longer owned by this worker');
       }
-      throw error;
     } finally {
       client.release();
     }
