@@ -221,9 +221,30 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
 
         if (request.method === 'GET' && url.pathname === '/v1/linkedin/status') {
           const { getLinkedInCapabilities } = await import('./linkedin/client');
-          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
+          const storedTokens = await integration.tokens.get(linkedInIdentity);
+          let tokenSet = storedTokens;
+          let tokenRefreshError = false;
+          if (storedTokens) {
+            try {
+              tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
+            } catch {
+              // A status request must still expose a reconnect state when refresh is unavailable.
+              // Do not leak provider errors or token material to the desktop renderer.
+              tokenSet = storedTokens;
+              tokenRefreshError = true;
+            }
+          }
+          const accessTokenExpired = Boolean(tokenSet && tokenSet.expiresAt <= Date.now());
+          const refreshTokenExpired = Boolean(
+            tokenSet?.refreshTokenExpiresAt && tokenSet.refreshTokenExpiresAt <= Date.now()
+          );
+          const reauthorizationRequired = Boolean(
+            tokenSet && accessTokenExpired && (!tokenSet.refreshToken || refreshTokenExpired)
+          );
           sendJson(response, 200, {
             connected: Boolean(tokenSet && tokenSet.expiresAt > Date.now()),
+            reauthorizationRequired,
+            tokenRefreshError,
             expiresAt: tokenSet?.expiresAt ?? null,
             capabilities: getLinkedInCapabilities(tokenSet, integration.entitlements),
             entitlements: integration.entitlements,
