@@ -50,3 +50,18 @@ The AWS KMS envelope-encryption foundation is not yet a complete application-wid
 ## Scope caveat
 
 This inventory is based on the source paths listed above and is intentionally conservative. It is not exhaustive until all repository persistence APIs, IndexedDB/filesystem writes, exports, crash reports, logs, caches and backup flows have been traced.
+
+
+## Additional verified renderer write paths
+
+A follow-up trace of `src/store/useAppStore.ts` confirms these are plaintext browser-storage writes, not merely in-memory state:
+
+- `candidate_resume` and `target_job_description` store full document text.
+- `interview_workspaces_v1` stores workspace objects including job descriptions.
+- `iac_session_history` is used as a local fallback for session history.
+- The store also references `interview_transcript` and `conversation_history` during data cleanup; their complete writers and the primary session-history database adapter still need tracing.
+- `target_role`, settings and device preferences are also persisted; classify them separately because not all are sensitive.
+
+The Practice store writes serialized active sessions, session history, behavioral stories, feedback records, company preparation plans, weakness plans, explainer attempts and concept cards through generic `localStorage` helpers. Those payloads can contain user answers and resume-derived information, so they must be treated as sensitive until field-level classification proves otherwise.
+
+This makes the desktop persistence migration a first-class blocker, not an optional hardening task. Server-side KMS encryption alone cannot protect plaintext that remains in browser storage on the user's device.
