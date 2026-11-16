@@ -204,6 +204,80 @@ export class LinkedInApiClient {
     return this.createTextPost(token, authorUrn, commentary);
   }
 
+  async publishMemberPoll(
+    token: LinkedInTokenSet,
+    authorUrn: string,
+    commentary: string,
+    question: string,
+    options: string[],
+    duration: 'ONE_DAY' | 'THREE_DAYS' | 'SEVEN_DAYS' | 'FOURTEEN_DAYS'
+  ): Promise<{ id: string; status: number }> {
+    if (!token.grantedScopes.includes(LINKEDIN_MEMBER_WRITE_SCOPE)) {
+      throw new Error(
+        'LinkedIn member poll publishing is not authorized: w_member_social scope is missing'
+      );
+    }
+    assertToken(token);
+    assertUrn(authorUrn, 'person');
+    const text = commentary.trim();
+    const pollQuestion = question.trim();
+    const pollOptions = options.map((option) => option.trim());
+    if (!text || text.length > 3000) {
+      throw new Error('Poll commentary must contain 1–3000 characters');
+    }
+    if (!pollQuestion || pollQuestion.length > 140) {
+      throw new Error('Poll question must contain 1–140 characters');
+    }
+    if (pollOptions.length < 2 || pollOptions.length > 4) {
+      throw new Error('A LinkedIn poll must contain 2–4 options');
+    }
+    if (pollOptions.some((option) => !option || option.length > 30)) {
+      throw new Error('Each LinkedIn poll option must contain 1–30 characters');
+    }
+    if (new Set(pollOptions.map((option) => option.toLocaleLowerCase())).size !== pollOptions.length) {
+      throw new Error('LinkedIn poll options must be unique');
+    }
+
+    const payload = {
+      ...createPostPayload(authorUrn, text),
+      content: {
+        poll: {
+          question: pollQuestion,
+          options: pollOptions.map((option) => ({ text: option })),
+          settings: {
+            voteSelectionType: 'SINGLE_VOTE',
+            duration,
+            isVoterVisibleToAuthor: true,
+          },
+        },
+      },
+    };
+    const response = await this.fetcher(`${REST_BASE}/posts`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token.accessToken}`,
+        'content-type': 'application/json',
+        'x-restli-protocol-version': '2.0.0',
+        'linkedin-version': this.apiVersion,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      throw new LinkedInApiError(
+        `LinkedIn poll creation failed with HTTP ${response.status}`,
+        response.status,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
+      );
+    }
+    const id = response.headers.get('x-restli-id');
+    if (!id) {
+      throw new Error('LinkedIn accepted the poll but did not return a post ID');
+    }
+    return { id, status: response.status };
+  }
+
   async publishOrganizationTextPost(
     token: LinkedInTokenSet,
     organizationUrn: string,
