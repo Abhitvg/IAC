@@ -16,7 +16,7 @@ This mode is strictly for non-sensitive testing:
 
 - Do not send production traffic, passwords, session cookies, OAuth authorization codes, access tokens, or other sensitive data over this endpoint.
 - Keep LinkedIn OAuth disabled: leave `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, and `LINKEDIN_REDIRECT_URI` empty. OAuth redirect flows must wait until a real HTTPS hostname and certificate are configured.
-- Restrict `allowed_ingress_cidrs` to your current public IP (/32) where practical. The default `0.0.0.0/0` is convenient for initial testing but exposes the HTTP endpoint to the internet.
+- Set `allowed_ingress_cidrs` to your current public IP with `/32`. The example intentionally contains a placeholder and Terraform validation will reject it until you replace it. Use `0.0.0.0/0` only if you deliberately accept an internet-accessible HTTP test endpoint.
 - The ECS-to-RDS connection remains private and TLS-enforced; KMS envelope encryption remains enabled. These controls do not make client-to-ALB HTTP traffic confidential.
 
 Production is guarded in Terraform: `environment = "production"` cannot be planned with `enable_https = false`; HTTPS requires a valid ACM certificate ARN in this account and region. Do not work around this guardrail.
@@ -72,7 +72,7 @@ The RDS master password and application secret values must never be committed. U
 ## Deploy
 
 1. Copy `terraform/terraform.tfvars.example` to a private local `terraform.tfvars`. It is preconfigured for staging-only HTTP; never use it as a production configuration.
-2. Set the VPC/subnet IDs, region, existing KMS key ARN, database credentials, and application secret ARN. The checked-in example is staging-only HTTP (`enable_https = false`) and intentionally has no ACM certificate. Restrict `allowed_ingress_cidrs` to your IP where feasible.
+2. Set the VPC/subnet IDs, region, existing KMS key ARN, database credentials, and application secret ARN. The checked-in example is staging-only HTTP (`enable_https = false`) and intentionally has no ACM certificate. Replace the `allowed_ingress_cidrs` placeholder with your public IP `/32`; the example will not validate until you do.
 3. Bootstrap the ECR repository before creating the ECS service:
 
 ```bash
