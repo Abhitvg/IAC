@@ -697,7 +697,9 @@ export class AnswerGenerationService {
             status: timedOut ? 'FAILED' : 'ABORTED',
             isValidated: false,
             cleanAnswer: '',
-            error: timedOut ? timeoutMessage || 'Generation deadline exceeded' : 'Generation cancelled by user',
+            error: timedOut
+              ? timeoutMessage || 'Generation deadline exceeded'
+              : 'Generation cancelled by user',
             detectedCategory,
             confidence: 'low',
             followUps: [],
