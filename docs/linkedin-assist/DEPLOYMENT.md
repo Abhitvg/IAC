@@ -34,8 +34,9 @@ Set these variables on the API service:
 | `LINKEDIN_SCHEDULER_ENABLED`             |          No | Set true only after applying migration 0008 and provisioning the isolated scheduler login |
 | `LINKEDIN_SCHEDULER_POLL_MS`             |          No | Worker poll interval, 5000–60000 ms; default 15000                                        |
 | `CAREEROPS_SCHEDULER_DATABASE_URL`       | Conditional | Dedicated PostgreSQL login in `careerops_scheduler`; never reuse `careerops_app`          |
+| `CAREEROPS_MIGRATION_DATABASE_URL`        | Migration job only | Privileged migration login allowed to create roles and transfer the scheduler table/function ownership |
 
-The API also needs its normal CareerOps OIDC issuer, audience, JWKS URL, database URL and distinct signing / rate-limit secrets.
+The API also needs its normal CareerOps OIDC issuer, audience, JWKS URL, `CAREEROPS_DATABASE_URL` and distinct signing / rate-limit secrets. The migration job uses a separate privileged `CAREEROPS_MIGRATION_DATABASE_URL`; do not point it at the runtime `careerops_app` URL.
 
 ### AWS KMS role
 
@@ -79,8 +80,8 @@ Refresh tokens are used only when LinkedIn returns one for the approved applicat
 
 Scheduled member text publishing is implemented but disabled by default. To enable it:
 
-1. Apply `apps/api/migrations/0008_linkedin_scheduled_posts.sql` with the migration role. It creates a tenant/subject RLS table, a no-login function-owner role, a no-login `careerops_scheduler` execution group, and narrowly scoped worker functions. The application role does not receive `BYPASSRLS`, membership in the scheduler group, or execute permission on the cross-tenant claim / transition functions.
-2. Provision a dedicated LOGIN role for the worker and grant it membership in `careerops_scheduler`. For example (use your secret manager to supply the password):
+1. Run `npm run migrate:cloud` with `CAREEROPS_MIGRATION_DATABASE_URL` set to a dedicated privileged migration login. It must be able to create the two no-login roles and assign the scheduled-post table and `SECURITY DEFINER` functions to `careerops_scheduler_fn`. The migration creates a tenant/subject RLS table, a no-login function-owner role, a no-login `careerops_scheduler` execution group, and narrowly scoped worker functions. The application role does not receive `BYPASSRLS`, membership in the scheduler group, or execute permission on the cross-tenant claim / transition functions.
+2. Provision a dedicated LOGIN role for the worker and grant it membership in `careerops_scheduler`. Do this as the database administrator (use your secret manager to supply the password):
    ```sql
    CREATE ROLE careerops_scheduler_login LOGIN PASSWORD '<managed-secret>';
    GRANT careerops_scheduler TO careerops_scheduler_login;
