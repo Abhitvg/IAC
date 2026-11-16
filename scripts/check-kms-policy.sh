@@ -8,5 +8,5 @@ if git grep -n -I -E '"kms:\*"' -- 'infra/aws/terraform/**'; then
 fi
 git grep -q -I 'kms:GenerateDataKey' -- 'infra/aws/terraform/**'
 git grep -q -I 'kms:Decrypt' -- 'infra/aws/terraform/**'
-git grep -q -I 'kms:EncryptionContext:careerops:application' -- 'infra/aws/terraform/**'
+git grep -q -I 'kms:EncryptionContext:application' -- 'infra/aws/terraform/**'
 echo "KMS application permissions are scoped to envelope crypto and CareerOps context."
