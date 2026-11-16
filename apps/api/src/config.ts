@@ -15,6 +15,7 @@ const CloudEnvironmentSchema = z
     CAREEROPS_CONSENT_SIGNING_SECRET: z.string().min(32),
     CAREEROPS_RATE_LIMIT_HASH_SECRET: z.string().min(32),
     CAREEROPS_DATABASE_URL: z.string().url().optional(),
+    CAREEROPS_SCHEDULER_DATABASE_URL: z.string().url().optional(),
     CAREEROPS_DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
     CAREEROPS_MAX_REQUEST_BYTES: z.coerce
       .number()
@@ -65,6 +66,13 @@ const CloudEnvironmentSchema = z
       values.LINKEDIN_KMS_KEY_ID,
       values.AWS_REGION,
     ];
+    if (values.LINKEDIN_SCHEDULER_ENABLED && !values.CAREEROPS_SCHEDULER_DATABASE_URL) {
+      context.addIssue({
+        code: 'custom',
+        path: ['CAREEROPS_SCHEDULER_DATABASE_URL'],
+        message: 'A dedicated scheduler database login URL is required when scheduled publishing is enabled',
+      });
+    }
     if (values.LINKEDIN_SCHEDULER_ENABLED && !values.LINKEDIN_ENABLED) {
       context.addIssue({
         code: 'custom',
