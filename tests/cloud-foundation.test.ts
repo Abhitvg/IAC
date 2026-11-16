@@ -681,6 +681,7 @@ describe('M0 cloud security foundation', () => {
         audience: authConfig.audience,
         jwksUrl: authConfig.jwksUrl,
         consentSigningSecret: secret,
+        allowedOrigins: ['https://main.d37etc5h2drv5h.amplifyapp.com'],
       },
       identityVerifier: {
         verify: async (token) =>
@@ -734,6 +735,30 @@ describe('M0 cloud security foundation', () => {
     const address = server.address();
     if (!address || typeof address === 'string') throw new Error('Expected TCP address');
     try {
+      const preflight = await fetch(`http://127.0.0.1:${address.port}/v1/me`, {
+        method: 'OPTIONS',
+        headers: {
+          origin: 'https://main.d37etc5h2drv5h.amplifyapp.com',
+          'access-control-request-method': 'GET',
+          'access-control-request-headers': 'authorization, content-type, x-tenant-id',
+        },
+      });
+      expect(preflight.status).toBe(204);
+      expect(preflight.headers.get('access-control-allow-origin')).toBe(
+        'https://main.d37etc5h2drv5h.amplifyapp.com'
+      );
+      expect(preflight.headers.get('access-control-allow-credentials')).toBeNull();
+
+      const rejectedPreflight = await fetch(`http://127.0.0.1:${address.port}/v1/me`, {
+        method: 'OPTIONS',
+        headers: {
+          origin: 'https://attacker.example',
+          'access-control-request-method': 'GET',
+        },
+      });
+      expect(rejectedPreflight.status).toBe(403);
+      expect(rejectedPreflight.headers.get('access-control-allow-origin')).toBeNull();
+
       const health = await fetch(`http://127.0.0.1:${address.port}/health/live`);
       expect(health.status).toBe(200);
       const ready = await fetch(`http://127.0.0.1:${address.port}/health/ready`);
