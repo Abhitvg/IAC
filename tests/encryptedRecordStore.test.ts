@@ -14,7 +14,10 @@ describe('EncryptedRecordStore', () => {
     isAsyncEncryptionAvailable: async () => true,
     getSelectedStorageBackend: () => 'gnome_libsecret',
     encryptStringAsync: async (value) => Buffer.from(value, 'utf8'),
-    decryptStringAsync: async (value) => value.toString('utf8'),
+    decryptStringAsync: async (value) => ({
+      result: value.toString('utf8'),
+      shouldReEncrypt: false,
+    }),
   };
 
   afterEach(() => {
