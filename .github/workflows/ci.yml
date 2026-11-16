@@ -1,8 +1,5 @@
 name: CI
 
-permissions:
-  contents: write
-
 on:
   push:
     branches: [main, 'fix/**', 'feat/**', 'security/**']
@@ -76,27 +73,6 @@ jobs:
             process.exitCode = 1;
           }
           NODE
-
-      - name: Auto-format LinkedIn Playbook feature branch
-        if: github.event_name == 'push' && github.ref_name == 'feat/linkedin-playbook-workbench' && matrix.os == 'ubuntu-24.04'
-        shell: bash
-        run: |
-          npx prettier --write \
-            src/components/careerOps/LinkedInContentStudio.tsx \
-            src/components/careerOps/LinkedInPlaybookWorkbench.tsx \
-            src/services/careerOps/linkedinContentQuality.ts \
-            tests/linkedin-content-quality.test.ts \
-            docs/linkedin-assist/CONTENT_STUDIO.md \
-            docs/linkedin-assist/README.md
-          git add src/components/careerOps/LinkedInContentStudio.tsx src/components/careerOps/LinkedInPlaybookWorkbench.tsx src/services/careerOps/linkedinContentQuality.ts tests/linkedin-content-quality.test.ts docs/linkedin-assist/CONTENT_STUDIO.md docs/linkedin-assist/README.md
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "style: format LinkedIn Playbook workbench"
-            git fetch origin "$GITHUB_REF_NAME"
-            git rebase "origin/$GITHUB_REF_NAME"
-            git push origin "HEAD:$GITHUB_REF_NAME"
-          fi
 
       - name: Check formatting for changed files
         shell: bash
