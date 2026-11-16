@@ -540,6 +540,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       '/v1/linkedin/oauth/start',
       '/v1/linkedin/connection',
       '/v1/linkedin/posts',
+      '/v1/linkedin/polls',
       '/v1/linkedin/comments',
       '/v1/linkedin/reactions',
       '/v1/linkedin/organization/posts',
