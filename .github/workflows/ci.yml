@@ -33,6 +33,9 @@ jobs:
       - name: Scan tracked source for committed secrets
         run: npm run security:source
 
+      - name: Reject direct AWS KMS application dependencies
+        run: bash scripts/check-no-direct-kms.sh
+
       - name: Report dependency security advisories
         if: matrix.os == 'ubuntu-24.04'
         shell: bash
