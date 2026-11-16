@@ -6,10 +6,10 @@ import {
 
 describe('LinkedIn content quality', () => {
   it('normalizes invisible characters and typography without changing URLs', () => {
-    const input = 'A\\u200B robust post — see https://example.com/a—b and “quotes”…';
+    const input = 'A\u200B robust post — see https://example.com/a—b and “quotes”…';
     const result = humanizeLinkedInText(input);
     expect(result.text).toContain('https://example.com/a—b');
-    expect(result.text).not.toContain('\\u200B');
+    expect(result.text).not.toContain('\u200B');
     expect(result.text).toContain('"quotes"...');
   });
 
@@ -30,7 +30,7 @@ describe('LinkedIn content quality', () => {
 
   it('flags known structural patterns for manual review', () => {
     const result = humanizeLinkedInText("It's not just a tool, it's a system.");
-    expect(result.structuralFlags).toContain('"It\\'s not just X, it\\'s Y"');
+    expect(result.structuralFlags).toContain(`"It's not just X, it's Y"`);
   });
 
   it('preserves joiner characters used by emoji and Indic scripts', () => {
