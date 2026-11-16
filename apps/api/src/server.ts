@@ -197,7 +197,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
 
         if (request.method === 'GET' && url.pathname === '/v1/linkedin/status') {
           const { getLinkedInCapabilities } = await import('./linkedin/client');
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           sendJson(response, 200, {
             connected: Boolean(tokenSet && tokenSet.expiresAt > Date.now()),
             expiresAt: tokenSet?.expiresAt ?? null,
@@ -287,7 +287,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
             return;
@@ -326,7 +326,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
             return;
@@ -369,7 +369,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before commenting', requestId });
             return;
@@ -421,7 +421,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before reacting', requestId });
             return;
@@ -455,7 +455,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before commenting', requestId });
             return;
@@ -495,7 +495,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before reacting', requestId });
             return;
@@ -522,7 +522,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, {
               error: 'Connect LinkedIn before removing a reaction',
@@ -553,7 +553,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, {
               error: 'Connect LinkedIn before removing a reaction',
