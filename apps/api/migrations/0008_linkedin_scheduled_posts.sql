@@ -28,7 +28,8 @@ CREATE INDEX linkedin_scheduled_posts_tenant_subject_idx
   ON linkedin_scheduled_posts(tenant_id, subject, scheduled_at DESC);
 
 ALTER TABLE linkedin_scheduled_posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE linkedin_scheduled_posts FORCE ROW LEVEL SECURITY;
+-- The non-login function owner may bypass RLS on this table only; ordinary app sessions do not own it.
+-- Keep RLS enabled but not FORCE so the SECURITY DEFINER functions can operate across tenants.
 
 CREATE POLICY linkedin_scheduled_posts_member_isolation
   ON linkedin_scheduled_posts
@@ -51,12 +52,12 @@ GRANT SELECT, INSERT ON linkedin_scheduled_posts TO careerops_app;
 DO $role$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'careerops_scheduler_fn') THEN
-    CREATE ROLE careerops_scheduler_fn NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT BYPASSRLS;
+    CREATE ROLE careerops_scheduler_fn NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
   END IF;
 END
 $role$;
 
-ALTER ROLE careerops_scheduler_fn NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT BYPASSRLS;
+ALTER ROLE careerops_scheduler_fn NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
 
 -- Separate, non-login execution group for the scheduler pool. A dedicated login
 -- configured by the operator must be granted membership in this role. The API
@@ -72,6 +73,7 @@ $scheduler_role$;
 ALTER ROLE careerops_scheduler NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
 GRANT USAGE ON SCHEMA public TO careerops_scheduler;
 GRANT USAGE ON SCHEMA public TO careerops_scheduler_fn;
+ALTER TABLE linkedin_scheduled_posts OWNER TO careerops_scheduler_fn;
 GRANT SELECT, UPDATE ON linkedin_scheduled_posts TO careerops_scheduler_fn;
 
 CREATE OR REPLACE FUNCTION claim_linkedin_scheduled_posts_due(p_limit integer)
