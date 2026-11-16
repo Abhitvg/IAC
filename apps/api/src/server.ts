@@ -257,7 +257,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             'email',
             'w_member_social',
             ...(integration.entitlements.communityManagementApproved
-              ? ['w_organization_social']
+              ? ['w_organization_social', 'w_member_social_feed', 'w_organization_social_feed']
               : []),
           ]);
           if (scopes?.some((scope) => !allowedScopes.has(scope))) {
