@@ -1,0 +1,100 @@
+name: Format LinkedIn integration branch
+
+on:
+  push:
+    branches:
+      - feat/linkedin-playbook-workbench
+    paths:
+      - 'apps/api/src/config.ts'
+      - 'apps/api/src/linkedin/aws-kms.ts'
+      - 'apps/api/src/linkedin/oauth.ts'
+      - 'apps/api/src/linkedin/postgres-store.ts'
+      - 'apps/api/src/linkedin/scheduled-posts.ts'
+      - 'apps/api/src/linkedin/types.ts'
+      - 'apps/api/src/main.ts'
+      - 'apps/api/src/ports.ts'
+      - 'apps/api/src/runtime.ts'
+      - 'apps/api/src/server.ts'
+      - 'docs/linkedin-assist/CAPABILITIES.md'
+      - 'docs/linkedin-assist/CONTENT_STUDIO.md'
+      - 'docs/linkedin-assist/DEPLOYMENT.md'
+      - 'docs/linkedin-assist/README.md'
+      - 'electron/ipc/handlers.ts'
+      - 'electron/preload.ts'
+      - 'electron/services/credentialStore.ts'
+      - 'src/components/careerOps/LinkedInConnectionPanel.tsx'
+      - 'src/components/careerOps/LinkedInContentStudio.tsx'
+      - 'src/components/careerOps/LinkedInPlaybookWorkbench.tsx'
+      - 'src/services/careerOps/linkedinContentQuality.ts'
+      - 'src/types/index.ts'
+      - 'tests/linkedin-api.test.ts'
+      - 'tests/linkedin-cloud-api.test.ts'
+      - 'tests/linkedin-content-quality.test.ts'
+      - 'tests/linkedin-kms.test.ts'
+      - 'tests/linkedin-scheduled-posts.test.ts'
+      - '.github/workflows/format-linkedin-final.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: linkedin-final-format
+  cancel-in-progress: false
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/linkedin-playbook-workbench
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Format changed LinkedIn integration files
+        run: |
+          npx prettier --write \
+            apps/api/src/config.ts \
+            apps/api/src/linkedin/aws-kms.ts \
+            apps/api/src/linkedin/oauth.ts \
+            apps/api/src/linkedin/postgres-store.ts \
+            apps/api/src/linkedin/scheduled-posts.ts \
+            apps/api/src/linkedin/types.ts \
+            apps/api/src/main.ts \
+            apps/api/src/ports.ts \
+            apps/api/src/runtime.ts \
+            apps/api/src/server.ts \
+            docs/linkedin-assist/CAPABILITIES.md \
+            docs/linkedin-assist/CONTENT_STUDIO.md \
+            docs/linkedin-assist/DEPLOYMENT.md \
+            docs/linkedin-assist/README.md \
+            electron/ipc/handlers.ts \
+            electron/preload.ts \
+            electron/services/credentialStore.ts \
+            src/components/careerOps/LinkedInConnectionPanel.tsx \
+            src/components/careerOps/LinkedInContentStudio.tsx \
+            src/components/careerOps/LinkedInPlaybookWorkbench.tsx \
+            src/services/careerOps/linkedinContentQuality.ts \
+            src/types/index.ts \
+            tests/linkedin-api.test.ts \
+            tests/linkedin-cloud-api.test.ts \
+            tests/linkedin-content-quality.test.ts \
+            tests/linkedin-kms.test.ts \
+            tests/linkedin-scheduled-posts.test.ts
+      - name: Commit formatter output
+        shell: bash
+        run: |
+          git add apps/api/src/config.ts apps/api/src/linkedin/aws-kms.ts apps/api/src/linkedin/oauth.ts apps/api/src/linkedin/postgres-store.ts apps/api/src/linkedin/scheduled-posts.ts apps/api/src/linkedin/types.ts apps/api/src/main.ts apps/api/src/ports.ts apps/api/src/runtime.ts apps/api/src/server.ts docs/linkedin-assist/CAPABILITIES.md docs/linkedin-assist/CONTENT_STUDIO.md docs/linkedin-assist/DEPLOYMENT.md docs/linkedin-assist/README.md electron/ipc/handlers.ts electron/preload.ts electron/services/credentialStore.ts src/components/careerOps/LinkedInConnectionPanel.tsx src/components/careerOps/LinkedInContentStudio.tsx src/components/careerOps/LinkedInPlaybookWorkbench.tsx src/services/careerOps/linkedinContentQuality.ts src/types/index.ts tests/linkedin-api.test.ts tests/linkedin-cloud-api.test.ts tests/linkedin-content-quality.test.ts tests/linkedin-kms.test.ts tests/linkedin-scheduled-posts.test.ts
+          if git diff --cached --quiet; then
+            echo "Changed files are already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "style: format LinkedIn integration changes"
+          git fetch origin "$GITHUB_REF_NAME"
+          git rebase "origin/$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
