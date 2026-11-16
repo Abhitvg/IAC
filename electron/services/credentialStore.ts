@@ -15,7 +15,7 @@ export type AllowedService = (typeof ALLOWED_SERVICES)[number];
 
 const LEGACY_FALLBACK_KEY_FILE = '.machine_secret';
 const GROQ_API_KEY_PATTERN = /^gsk_[A-Za-z0-9_-]+$/;
-const JWT_PATTERN = /^[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}$/;
+const JWT_PATTERN = /^[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}$/;
 
 export function isValidCareerOpsCloudToken(value: string): boolean {
   return value.length <= 8192 && JWT_PATTERN.test(value.trim());
