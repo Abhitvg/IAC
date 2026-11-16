@@ -448,6 +448,59 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
     }
   };
 
+  const createOrganizationReaction = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      if (!organizationUrn.trim() || !reactionRoot.trim()) {
+        throw new Error('Enter the organization URN and post / activity URN.');
+      }
+      const result = await apiRequest<{ status: number }>(
+        'POST',
+        '/v1/linkedin/organization/reactions',
+        {
+          organizationUrn: organizationUrn.trim(),
+          rootUrn: reactionRoot.trim(),
+          reactionType,
+        }
+      );
+      setNotice('Organization reaction submitted. HTTP ' + result.status + '.');
+    } catch (reactionError) {
+      setError(
+        reactionError instanceof Error
+          ? reactionError.message
+          : 'Organization reaction failed.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeOrganizationReaction = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      if (!organizationUrn.trim() || !reactionEntity.trim()) {
+        throw new Error('Enter the organization URN and post URN for the reaction to remove.');
+      }
+      const path =
+        '/v1/linkedin/organization/reactions?organizationUrn=' +
+        encodeURIComponent(organizationUrn.trim()) +
+        '&entityUrn=' +
+        encodeURIComponent(reactionEntity.trim());
+      const result = await apiRequest<{ status: number }>('DELETE', path);
+      setNotice('Organization reaction removal submitted. HTTP ' + result.status + '.');
+    } catch (reactionError) {
+      setError(
+        reactionError instanceof Error
+          ? reactionError.message
+          : 'Could not remove organization reaction.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const toggleLinkedInPause = async () => {
     if (member?.role !== 'owner') return;
     const paused = !(controls?.pausedChannels ?? []).includes('linkedin_assist');
@@ -579,7 +632,7 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
                 </div>
               ))}
             </div>
-            <button type="button" style={buttonStyle} onClick={() => void disconnect()} disabled={busy || !status.connected}>
+            <button type="button" style={buttonStyle} onClick={() => void disconnect()} disabled={busy || !tokenConfigured}>
               Disconnect LinkedIn
             </button>
           </div>
@@ -652,6 +705,25 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
               <button type="button" style={buttonStyle} onClick={() => void createOrganizationComment()} disabled={busy || writesBlocked || !organizationUrn.trim() || !organizationCommentTarget.trim() || !organizationCommentObject.trim() || !organizationCommentText.trim()}>
                 Comment as organization
               </button>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 10, display: 'grid', gap: 7 }}>
+                <strong style={{ color: '#e2e8f0', fontSize: 11 }}>Organization reactions</strong>
+                <button
+                  type="button"
+                  style={buttonStyle}
+                  onClick={() => void createOrganizationReaction()}
+                  disabled={busy || writesBlocked || !isAvailable('organization_comment_react') || !organizationUrn.trim() || !reactionRoot.trim()}
+                >
+                  Add selected reaction
+                </button>
+                <button
+                  type="button"
+                  style={buttonStyle}
+                  onClick={() => void removeOrganizationReaction()}
+                  disabled={busy || writesBlocked || !isAvailable('organization_comment_react') || !organizationUrn.trim() || !reactionEntity.trim()}
+                >
+                  Remove organization reaction
+                </button>
+              </div>
             </div>
           )}
         </>
