@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createCloudApiServer } from '../apps/api/src/server';
 import type { CloudApiDependencies, LinkedInCloudIntegration } from '../apps/api/src/ports';
 import type { LinkedInTokenSet } from '../apps/api/src/linkedin/types';
+import type { LinkedInScheduledPostStore } from '../apps/api/src/linkedin/scheduled-posts';
 
 const tenantId = '10000000-0000-4000-8000-000000000001';
 const subject = 'candidate:linkedin-member';
@@ -51,6 +52,11 @@ function makeDependencies(input?: {
   integration?: ReturnType<typeof makeIntegration>;
   globalKillSwitch?: boolean;
   pausedChannels?: string[];
+  scheduler?: {
+    list: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    cancel: ReturnType<typeof vi.fn>;
+  };
 }) {
   const integration = input?.integration ?? makeIntegration();
   const recordLinkedInAction = vi.fn(async () => undefined);
@@ -94,6 +100,9 @@ function makeDependencies(input?: {
       reviewFact: vi.fn(),
     },
     linkedin: integration,
+    ...(input?.scheduler
+      ? { linkedinScheduler: input.scheduler as unknown as LinkedInScheduledPostStore }
+      : {}),
   };
   return { dependencies, integration, recordLinkedInAction };
 }
@@ -196,6 +205,135 @@ describe('LinkedIn cloud API security boundaries', () => {
     });
     expect(integration.api.publishMemberTextPost).not.toHaveBeenCalled();
     expect(recordLinkedInAction).not.toHaveBeenCalled();
+  });
+
+  it('lists only the authenticated member tenant scheduled posts', async () => {
+    const scheduledPost = {
+      id: '11111111-1111-4111-8111-111111111111',
+      tenantId,
+      subject,
+      commentary: 'Scheduled copy',
+      scheduledAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      status: 'scheduled',
+    };
+    const scheduler = {
+      list: vi.fn(async () => [scheduledPost]),
+      create: vi.fn(),
+      cancel: vi.fn(),
+    };
+    const { dependencies } = await start({ scheduler });
+    const response = await fetch(baseUrl + '/v1/linkedin/scheduled-posts?limit=20', {
+      headers: { authorization: 'Bearer test-token' },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ scheduledPosts: [scheduledPost] });
+    expect(scheduler.list).toHaveBeenCalledWith(tenantId, subject, 20);
+    expect(dependencies.identityVerifier.verify).toHaveBeenCalledWith('test-token');
+  });
+
+  it('schedules a member text post only with granted member publishing scope and audit', async () => {
+    const scheduledPost = {
+      id: '11111111-1111-4111-8111-111111111111',
+      tenantId,
+      subject,
+      commentary: 'A reviewed scheduled post',
+      scheduledAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+      status: 'scheduled',
+    };
+    const scheduler = {
+      list: vi.fn(),
+      create: vi.fn(async () => scheduledPost),
+      cancel: vi.fn(),
+    };
+    const { scheduler: _unused, ...setup } = await start({ scheduler } as Parameters<typeof makeDependencies>[0]);
+    const scheduledAt = new Date(Date.now() + 10 * 60_000).toISOString();
+    const response = await fetch(baseUrl + '/v1/linkedin/scheduled-posts', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        commentary: 'A reviewed scheduled post',
+        scheduledAt,
+        idempotencyKey: 'schedule_key_1234',
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ scheduledPost });
+    expect(scheduler.create).toHaveBeenCalledWith({
+      tenantId,
+      subject,
+      commentary: 'A reviewed scheduled post',
+      scheduledAt: expect.any(String),
+      idempotencyKey: 'schedule_key_1234',
+    });
+    expect(setup.recordLinkedInAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'linkedin.member.post.schedule.requested',
+        tenantId,
+        actorSubject: subject,
+      })
+    );
+  });
+
+  it('does not create a scheduled post while LinkedIn is paused for the tenant', async () => {
+    const scheduler = {
+      list: vi.fn(),
+      create: vi.fn(),
+      cancel: vi.fn(),
+    };
+    const { recordLinkedInAction } = await start({
+      scheduler,
+      pausedChannels: ['linkedin_assist'],
+    });
+    const response = await fetch(baseUrl + '/v1/linkedin/scheduled-posts', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        commentary: 'A reviewed scheduled post',
+        scheduledAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+        idempotencyKey: 'schedule_key_1234',
+      }),
+    });
+
+    expect(response.status).toBe(423);
+    expect(scheduler.create).not.toHaveBeenCalled();
+    expect(recordLinkedInAction).not.toHaveBeenCalled();
+  });
+
+  it('audits a scheduled-post cancellation before changing queue state', async () => {
+    const scheduler = {
+      list: vi.fn(),
+      create: vi.fn(),
+      cancel: vi.fn(async () => true),
+    };
+    const { recordLinkedInAction } = await start({ scheduler });
+    const id = '11111111-1111-4111-8111-111111111111';
+    const response = await fetch(baseUrl + '/v1/linkedin/scheduled-posts/' + id, {
+      method: 'DELETE',
+      headers: { authorization: 'Bearer test-token' },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ cancelled: true });
+    expect(recordLinkedInAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'linkedin.member.post.schedule.cancel.requested',
+        tenantId,
+        actorSubject: subject,
+        entityId: id,
+      })
+    );
+    expect(recordLinkedInAction.mock.invocationCallOrder[0]).toBeLessThan(
+      scheduler.cancel.mock.invocationCallOrder[0]
+    );
+    expect(scheduler.cancel).toHaveBeenCalledWith(tenantId, subject, id);
   });
 
   it('audits and then executes a member post when the channel is enabled', async () => {
