@@ -174,6 +174,8 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
   const [reactionEntity, setReactionEntity] = useState('');
   const [reactionType, setReactionType] = useState<ReactionType>('LIKE');
   const [organizationUrn, setOrganizationUrn] = useState('');
+  const [organizationImageUrn, setOrganizationImageUrn] = useState('');
+  const [organizationImageAltText, setOrganizationImageAltText] = useState('');
   const [organizationPostText, setOrganizationPostText] = useState('');
   const [organizationCommentTarget, setOrganizationCommentTarget] = useState('');
   const [organizationCommentObject, setOrganizationCommentObject] = useState('');
@@ -600,6 +602,44 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       setNotice('Organization post published. Post ID: ' + result.postId);
     } catch (publishError) {
       setError(publishError instanceof Error ? publishError.message : 'Organization post failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const publishOrganizationImagePost = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      if (!organizationUrn.trim() || !organizationPostText.trim()) {
+        throw new Error('Enter the organization URN and image post commentary.');
+      }
+      if (!/^urn:li:image:[A-Za-z0-9_-]+$/.test(organizationImageUrn.trim())) {
+        throw new Error('Enter a valid, previously uploaded LinkedIn image URN.');
+      }
+      if (!organizationImageAltText.trim() || organizationImageAltText.trim().length > 120) {
+        throw new Error('Add image alt text between 1 and 120 characters.');
+      }
+      const result = await apiRequest<{ postId: string }>(
+        'POST',
+        '/v1/linkedin/organization/image-posts',
+        {
+          organizationUrn: organizationUrn.trim(),
+          commentary: organizationPostText.trim(),
+          imageUrn: organizationImageUrn.trim(),
+          altText: organizationImageAltText.trim(),
+        }
+      );
+      setNotice(
+        'Organization image post published after LinkedIn confirmed the asset was AVAILABLE. Post ID: ' +
+          result.postId
+      );
+    } catch (publishError) {
+      setError(
+        publishError instanceof Error
+          ? publishError.message
+          : 'Organization image post failed.'
+      );
     } finally {
       setBusy(false);
     }
@@ -1336,6 +1376,38 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
               >
                 Publish for organization
               </button>
+              <input
+                value={organizationImageUrn}
+                onChange={(event) => setOrganizationImageUrn(event.target.value)}
+                placeholder="Existing LinkedIn image URN (urn:li:image:...)"
+                style={inputStyle}
+              />
+              <input
+                value={organizationImageAltText}
+                onChange={(event) => setOrganizationImageAltText(event.target.value)}
+                placeholder="Image alt text (1–120 characters)"
+                style={inputStyle}
+              />
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={() => void publishOrganizationImagePost()}
+                disabled={
+                  busy ||
+                  writesBlocked ||
+                  !organizationUrn.trim() ||
+                  !organizationPostText.trim() ||
+                  !organizationImageUrn.trim() ||
+                  !organizationImageAltText.trim()
+                }
+              >
+                Verify asset and publish image post
+              </button>
+              <p style={{ margin: 0, color: '#94a3b8', fontSize: 10 }}>
+                Use an image already uploaded through LinkedIn. CareerOps checks that its status is
+                AVAILABLE and that its owner matches this Page before publishing. This does not
+                upload local image files.
+              </p>
               <input
                 value={organizationCommentTarget}
                 onChange={(event) => setOrganizationCommentTarget(event.target.value)}
