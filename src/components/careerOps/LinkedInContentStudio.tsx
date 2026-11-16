@@ -100,6 +100,19 @@ export function LinkedInContentStudio({
             lineHeight: 1.6,
           }}
         />
+        {kind === 'dm' && (
+          <p
+            style={{
+              margin: '6px 0 0',
+              color: (cleaned || draft).length > 300 ? '#fca5a5' : '#94a3b8',
+              fontSize: 11,
+              textAlign: 'right',
+            }}
+          >
+            {(cleaned || draft).length}/300 characters
+            {(cleaned || draft).length > 300 ? ' — over the current CareerOps DM target' : ''}
+          </p>
+        )}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
           <button
             style={{ ...button, background: 'rgba(249,115,22,.18)', color: '#fdba74' }}
