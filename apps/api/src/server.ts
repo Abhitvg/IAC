@@ -229,6 +229,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             expiresAt: tokenSet?.expiresAt ?? null,
             capabilities: getLinkedInCapabilities(tokenSet, integration.entitlements),
             entitlements: integration.entitlements,
+            scheduledPublishingEnabled: Boolean(dependencies.linkedinScheduler),
             requestId,
           });
           return;
