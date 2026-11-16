@@ -273,6 +273,13 @@ export class InterviewEngine {
         globalLatencyTracker.mark('speechEnd');
         globalLatencyTracker.mark('transcriptionStart');
         store.setStatus('transcribing');
+        const transcriptionStartedAt = Date.now();
+        DiagnosticLoggerService.getInstance().recordEvent({
+          requestId,
+          pipelineStage: 'transcribing',
+          audioByteLength: event.blob.size,
+          message: 'Speech transcription started.',
+        });
 
         try {
           const result = await transcribeAudio(
@@ -287,10 +294,20 @@ export class InterviewEngine {
           }
 
           globalLatencyTracker.mark('transcriptionEnd');
-          let text = (result?.text || '').trim();
-
-          // Strip non-speech brackets like [BLANK_AUDIO], (beep), [MUSIC], etc.
-          text = text.replace(/\[[^\]]+\]|\([^)]+\)/g, '').trim();
+          const text = (result?.text || '').trim();
+          const transcriptionDurationMs = Date.now() - transcriptionStartedAt;
+          DiagnosticLoggerService.getInstance().recordEvent({
+            requestId,
+            pipelineStage: text ? 'transcript_received' : 'failed',
+            transcriptionDurationMs,
+            transcriptCharacterCount: text.length,
+            audioByteLength: event.blob.size,
+            transcriptionOutcome: text ? 'SUCCESS' : 'EMPTY',
+            finalOutcome: text ? undefined : 'UNCLASSIFIED',
+            message: text
+              ? 'Speech transcription completed.'
+              : 'Speech transcription returned no usable text.',
+          });
 
           if (!text) {
             useAppStore.getState().updateDiagnostics({
@@ -328,7 +345,7 @@ export class InterviewEngine {
           DiagnosticLoggerService.getInstance().recordEvent({
             requestId,
             pipelineStage: 'transcript_received',
-            message: text.slice(0, 100),
+            message: 'Transcript received; text content omitted from diagnostics.',
           });
 
           useAppStore.getState().setPipelineStage('identifying_question');
@@ -515,12 +532,34 @@ export class InterviewEngine {
           useAppStore.getState().setStatus('listening');
           useAppStore.getState().setPipelineStage('listening');
         } catch (e: any) {
-          if (e.name !== 'AbortError') {
-            useAppStore.getState().updateDiagnostics({
+          const isAbort = e?.name === 'AbortError';
+          const isEmptyTranscript = String(e?.message || e).includes('[TRANSCRIPTION_EMPTY]');
+          DiagnosticLoggerService.getInstance().recordEvent({
+            requestId,
+            pipelineStage: 'failed',
+            transcriptionDurationMs: Date.now() - transcriptionStartedAt,
+            audioByteLength: event.blob.size,
+            transcriptionOutcome: isAbort ? 'ABORTED' : isEmptyTranscript ? 'EMPTY' : 'FAILED',
+            finalOutcome: isAbort ? 'ABORTED' : 'FAILED',
+            message: isAbort
+              ? 'Speech transcription was cancelled.'
+              : isEmptyTranscript
+                ? 'Speech transcription returned no usable text.'
+                : 'Speech transcription failed; details remain in local diagnostics.',
+          });
+          if (!isAbort) {
+            const state = useAppStore.getState();
+            state.updateDiagnostics({
               whisperStatus: 'error: ' + (e?.message || e),
             });
             console.error('[InterviewEngine] Transcription error:', e);
-            useAppStore.getState().setStatus('listening');
+            state.setToast(
+              isEmptyTranscript
+                ? 'No speech was recognized. Repeat the question or enter it manually.'
+                : 'Speech transcription failed. Please retry or enter the question manually.'
+            );
+            state.setStatus('listening');
+            state.setPipelineStage('listening');
           }
         }
         break;
@@ -603,7 +642,7 @@ export class InterviewEngine {
           pipelineStage: 'generating',
           selectedProvider: currentStore.settings?.aiProvider || 'groq',
           selectedModel: currentStore.settings?.aiModel,
-          message: `Generation started for: "${finalQuestion.slice(0, 80)}"`,
+          message: 'Interview answer generation started; question text omitted from diagnostics.',
         });
 
         const requestController = activeAbortController;
@@ -693,6 +732,9 @@ export class InterviewEngine {
                 );
                 state.setPipelineStage('failed');
                 state.setStatus(res.status === 'ABORTED' ? 'paused' : 'error');
+                if (res.status !== 'ABORTED') {
+                  state.setToast('AI could not complete this answer. Retry or switch provider.');
+                }
                 DiagnosticLoggerService.getInstance().recordEvent({
                   requestId: res.requestId,
                   pipelineStage: 'failed',
@@ -982,6 +1024,34 @@ export class InterviewEngine {
                     : CandidateKnowledgeBase.getActiveKnowledgeBase()
                 );
 
+              if (
+                res.status === 'FAILED' ||
+                res.status === 'ABORTED' ||
+                (!res.cleanAnswer?.trim() && decision.outcome !== 'BLOCKED')
+              ) {
+                state.setCurrentAnswer(null);
+                state.setIsAnswerValidated(false);
+                state.setAnswerValidationStatus(res.status === 'ABORTED' ? 'ABORTED' : 'FAILED');
+                state.setGroundingResult(0, res.groundingViolations ?? []);
+                state.enqueueSentences([]);
+                state.setBlockedReason(
+                  (res as any).error || 'The screen solver returned no usable answer.'
+                );
+                state.setPipelineStage('failed');
+                state.setRecitalState('listening');
+                state.setStatus(res.status === 'ABORTED' ? 'paused' : 'error');
+                if (res.status !== 'ABORTED') {
+                  state.setToast('Screen answer generation failed. Retry or switch provider.');
+                }
+                DiagnosticLoggerService.getInstance().recordEvent({
+                  requestId: res.requestId,
+                  pipelineStage: 'failed',
+                  finalOutcome: res.status === 'ABORTED' ? 'ABORTED' : 'FAILED',
+                  message: (res as any).error || 'The screen solver returned no usable answer.',
+                });
+                return;
+              }
+
               if (decision.isSpeakable) {
                 const finalAnswer = decision.speakableAnswer;
                 state.setCurrentAnswer(finalAnswer);
@@ -1004,7 +1074,14 @@ export class InterviewEngine {
               }
 
               state.setRecitalState('listening');
-              state.setStatus('ready');
+              state.setPipelineStage(decision.isSpeakable ? 'answer_ready' : 'failed');
+              state.setStatus(decision.isSpeakable ? 'ready' : 'error');
+              if (!decision.isSpeakable) {
+                state.setToast(
+                  decision.blockedReason ||
+                    'The screen answer was withheld by factual verification.'
+                );
+              }
             },
             onError: (err, rId) => {
               if (rId !== activeRequestId || useAppStore.getState().generationId !== screenGen)
@@ -1019,7 +1096,9 @@ export class InterviewEngine {
               state.updateDiagnostics({
                 whisperStatus: 'solver error: ' + (err.message || String(err)),
               });
+              state.setPipelineStage('failed');
               state.setStatus('error');
+              state.setToast('Screen answer generation failed. Retry or switch provider.');
             },
           }
         );

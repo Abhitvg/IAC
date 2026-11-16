@@ -1,3 +1,4 @@
+import { fetchProviderWithRetry, DEFAULT_LLM_REQUEST_TIMEOUT_MS } from './requestLifecycle';
 import {
   LLMProvider,
   LLMMessage,
@@ -20,7 +21,7 @@ export class GroqProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = getDefaultModelForProvider('groq', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -31,27 +32,34 @@ export class GroqProvider implements LLMProvider {
     const match = cleanKey.match(/gsk_[A-Za-z0-9_-]+/);
     if (match) cleanKey = match[0];
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${cleanKey}`,
+    const response = await fetchProviderWithRetry(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${cleanKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: options?.temperature ?? 0.2,
+          max_tokens: options?.maxTokens ?? 1500,
+        }),
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: options?.temperature ?? 0.2,
-        max_tokens: options?.maxTokens ?? 1500,
-      }),
-      signal: options?.signal,
-    });
+      {
+        signal: options?.signal,
+        timeoutMs: options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS,
+        maxRetries: options?.maxRetries ?? 1,
+      }
+    );
 
     if (!response.ok) {
       const errText = await response.text();
       let parsed: any = errText;
       try {
         parsed = JSON.parse(errText);
-      } catch { }
+      } catch {}
       const classified = classifyAIError('groq', model, response.status, parsed);
       throw classified;
     }
@@ -99,26 +107,33 @@ export class OpenAIProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = getDefaultModelForProvider('openai', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
     const model = options?.model || this.defaultModel;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
+    const response = await fetchProviderWithRetry(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: options?.temperature ?? 0.2,
+          max_tokens: options?.maxTokens ?? 1500,
+        }),
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: options?.temperature ?? 0.2,
-        max_tokens: options?.maxTokens ?? 1500,
-      }),
-      signal: options?.signal,
-    });
+      {
+        signal: options?.signal,
+        timeoutMs: options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS,
+        maxRetries: options?.maxRetries ?? 1,
+      }
+    );
 
     if (!response.ok) {
       const errText = await response.text();
@@ -166,28 +181,35 @@ export class OpenRouterProvider implements LLMProvider {
   constructor(
     private apiKey: string,
     private defaultModel: string = getDefaultModelForProvider('openrouter', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
     const model = options?.model || this.defaultModel;
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-        'HTTP-Referer': 'https://github.com/ai-interview-assistant',
-        'X-Title': 'AI Interview Practice Gym',
+    const response = await fetchProviderWithRetry(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+          'HTTP-Referer': 'https://github.com/ai-interview-assistant',
+          'X-Title': 'AI Interview Practice Gym',
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: options?.temperature ?? 0.2,
+          max_tokens: options?.maxTokens ?? 1500,
+        }),
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: options?.temperature ?? 0.2,
-        max_tokens: options?.maxTokens ?? 1500,
-      }),
-      signal: options?.signal,
-    });
+      {
+        signal: options?.signal,
+        timeoutMs: options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS,
+        maxRetries: options?.maxRetries ?? 1,
+      }
+    );
 
     if (!response.ok) {
       const errText = await response.text();
@@ -235,7 +257,7 @@ export class OllamaProvider implements LLMProvider {
   constructor(
     private endpoint: string = 'http://127.0.0.1:11434',
     private defaultModel: string = getDefaultModelForProvider('ollama', 'llm')
-  ) { }
+  ) {}
 
   async complete(messages: LLMMessage[], options?: LLMRequestOptions): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -244,19 +266,26 @@ export class OllamaProvider implements LLMProvider {
     const base = this.endpoint.replace(/\/+$/, '');
     const url = `${base}/v1/chat/completions`;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await fetchProviderWithRetry(
+      url,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: options?.temperature ?? 0.2,
+          max_tokens: options?.maxTokens ?? 1500,
+        }),
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: options?.temperature ?? 0.2,
-        max_tokens: options?.maxTokens ?? 1500,
-      }),
-      signal: options?.signal,
-    });
+      {
+        signal: options?.signal,
+        timeoutMs: options?.timeoutMs ?? DEFAULT_LLM_REQUEST_TIMEOUT_MS,
+        maxRetries: options?.maxRetries ?? 1,
+      }
+    );
 
     if (!response.ok) {
       const errText = await response.text();
@@ -410,6 +439,7 @@ export class LLMManager {
 
         return response;
       } catch (err: any) {
+        if (options?.signal?.aborted) throw err;
         lastError = err;
         // Non-recoverable errors (invalid API key, billing failure, quota/rate-limit) must not be silently masked
         if (err?.isRecoverableByModelFallback === false) {

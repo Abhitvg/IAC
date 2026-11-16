@@ -78,6 +78,7 @@ import { TierEnforcer, type SubscriptionTier } from '../../../packages/cloud-cor
 import { globalActivityHub } from './activity-hub';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
+import { LinkedInApiError } from './linkedin/client';
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, {
@@ -160,6 +161,416 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           tenantId: tenant.tenantId,
           role: tenant.role,
         });
+        return;
+      }
+
+      if (url.pathname.startsWith('/v1/linkedin/')) {
+        const integration = dependencies.linkedin;
+        if (!integration) {
+          sendJson(response, 503, {
+            error: 'LinkedIn integration is not configured on this deployment',
+            requestId,
+          });
+          return;
+        }
+        const linkedInIdentity = { tenantId: tenant.tenantId, subject: tenant.subject };
+        const auditLinkedIn = async (
+          action: string,
+          entityId: string,
+          metadata: Record<string, string | number | boolean | null>
+        ) => {
+          if (!dependencies.repository.recordLinkedInAction) {
+            throw new Error('LinkedIn action audit logging is unavailable; execution is disabled');
+          }
+          await dependencies.repository.recordLinkedInAction({
+            tenantId: tenant.tenantId,
+            actorSubject: tenant.subject,
+            action,
+            entityId,
+            occurredAt: new Date().toISOString(),
+            metadata,
+          });
+        };
+
+        if (request.method === 'GET' && url.pathname === '/v1/linkedin/status') {
+          const { getLinkedInCapabilities } = await import('./linkedin/client');
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          sendJson(response, 200, {
+            connected: Boolean(tokenSet && tokenSet.expiresAt > Date.now()),
+            expiresAt: tokenSet?.expiresAt ?? null,
+            capabilities: getLinkedInCapabilities(tokenSet, integration.entitlements),
+            requestId,
+          });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/oauth/start') {
+          const body = await readJson(request, maxBytes);
+          if (Object.keys(body).some((key) => key !== 'scopes')) {
+            sendJson(response, 400, { error: 'Only the scopes field is accepted', requestId });
+            return;
+          }
+          const requestedScopes = body.scopes;
+          if (
+            requestedScopes !== undefined &&
+            (!Array.isArray(requestedScopes) ||
+              requestedScopes.some((scope) => typeof scope !== 'string'))
+          ) {
+            sendJson(response, 400, { error: 'scopes must be an array of strings', requestId });
+            return;
+          }
+          const scopes = (requestedScopes as string[] | undefined) ?? undefined;
+          const allowedScopes = new Set([
+            'openid',
+            'profile',
+            'email',
+            'w_member_social',
+            ...(integration.entitlements.communityManagementApproved
+              ? ['w_organization_social', 'w_member_social_feed', 'w_organization_social_feed']
+              : []),
+          ]);
+          if (scopes?.some((scope) => !allowedScopes.has(scope))) {
+            sendJson(response, 403, {
+              error: 'Requested LinkedIn scope is not enabled for this application',
+              requestId,
+            });
+            return;
+          }
+          const authorizationUrl = await integration.oauth.createAuthorizationUrl(
+            linkedInIdentity,
+            scopes
+          );
+          sendJson(response, 200, { authorizationUrl, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/oauth/callback') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.code !== 'string' ||
+            typeof body.state !== 'string' ||
+            Object.keys(body).some((key) => key !== 'code' && key !== 'state')
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected exactly code and state strings',
+              requestId,
+            });
+            return;
+          }
+          const result = await integration.oauth.completeAuthorization({
+            code: body.code,
+            state: body.state,
+            identity: linkedInIdentity,
+          });
+          sendJson(response, 200, { ...result, requestId });
+          return;
+        }
+
+        if (request.method === 'DELETE' && url.pathname === '/v1/linkedin/connection') {
+          await integration.oauth.disconnect(linkedInIdentity);
+          sendJson(response, 200, { disconnected: true, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/posts') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.commentary !== 'string' ||
+            Object.keys(body).some((key) => key !== 'commentary')
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected exactly one commentary string',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
+            return;
+          }
+          const authorUrn = `urn:li:person:${tokenSet.memberId}`;
+          await auditLinkedIn('linkedin.member.post.publish.requested', authorUrn, {
+            contentLength: body.commentary.length,
+            postFormat: 'text',
+          });
+          const result = await integration.api.publishMemberTextPost(
+            tokenSet,
+            authorUrn,
+            body.commentary
+          );
+          sendJson(response, 201, { postId: result.id, status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/organization/posts') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.organizationUrn !== 'string' ||
+            typeof body.commentary !== 'string' ||
+            Object.keys(body).some((key) => key !== 'organizationUrn' && key !== 'commentary')
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected organizationUrn and commentary strings',
+              requestId,
+            });
+            return;
+          }
+          if (!integration.entitlements.communityManagementApproved) {
+            sendJson(response, 403, {
+              error: 'LinkedIn Community Management API approval is required',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
+            return;
+          }
+          await auditLinkedIn(
+            'linkedin.organization.post.publish.requested',
+            body.organizationUrn,
+            { contentLength: body.commentary.length, postFormat: 'text' }
+          );
+          const result = await integration.api.publishOrganizationTextPost(
+            tokenSet,
+            body.organizationUrn,
+            body.commentary
+          );
+          sendJson(response, 201, { postId: result.id, status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/organization/comments') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.organizationUrn !== 'string' ||
+            typeof body.targetUrn !== 'string' ||
+            typeof body.objectUrn !== 'string' ||
+            typeof body.commentary !== 'string' ||
+            Object.keys(body).some(
+              (key) => !['organizationUrn', 'targetUrn', 'objectUrn', 'commentary'].includes(key)
+            )
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected organizationUrn, targetUrn, objectUrn, and commentary strings',
+              requestId,
+            });
+            return;
+          }
+          if (!integration.entitlements.communityManagementApproved) {
+            sendJson(response, 403, {
+              error: 'LinkedIn Community Management API approval is required',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before commenting', requestId });
+            return;
+          }
+          await auditLinkedIn('linkedin.organization.comment.create.requested', body.targetUrn, {
+            organizationUrn: body.organizationUrn,
+            contentLength: body.commentary.length,
+          });
+          const result = await integration.api.createOrganizationComment(
+            tokenSet,
+            body.organizationUrn,
+            body.targetUrn,
+            body.objectUrn,
+            body.commentary
+          );
+          sendJson(response, 201, { commentId: result.id, status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/organization/reactions') {
+          const body = await readJson(request, maxBytes);
+          const allowedReactions = [
+            'LIKE',
+            'PRAISE',
+            'EMPATHY',
+            'INTEREST',
+            'APPRECIATION',
+            'ENTERTAINMENT',
+          ];
+          if (
+            typeof body.organizationUrn !== 'string' ||
+            typeof body.rootUrn !== 'string' ||
+            typeof body.reactionType !== 'string' ||
+            !allowedReactions.includes(body.reactionType) ||
+            Object.keys(body).some(
+              (key) => !['organizationUrn', 'rootUrn', 'reactionType'].includes(key)
+            )
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected organizationUrn, rootUrn, and a supported reactionType',
+              requestId,
+            });
+            return;
+          }
+          if (!integration.entitlements.communityManagementApproved) {
+            sendJson(response, 403, {
+              error: 'LinkedIn Community Management API approval is required',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before reacting', requestId });
+            return;
+          }
+          await auditLinkedIn('linkedin.organization.reaction.create.requested', body.rootUrn, {
+            organizationUrn: body.organizationUrn,
+            reactionType: body.reactionType,
+          });
+          const result = await integration.api.createOrganizationReaction(
+            tokenSet,
+            body.organizationUrn,
+            body.rootUrn,
+            body.reactionType as
+              'LIKE' | 'PRAISE' | 'EMPATHY' | 'INTEREST' | 'APPRECIATION' | 'ENTERTAINMENT'
+          );
+          sendJson(response, 201, { status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/comments') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.targetUrn !== 'string' ||
+            typeof body.objectUrn !== 'string' ||
+            typeof body.commentary !== 'string' ||
+            Object.keys(body).some((key) => !['targetUrn', 'objectUrn', 'commentary'].includes(key))
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected targetUrn, objectUrn, and commentary strings',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before commenting', requestId });
+            return;
+          }
+          await auditLinkedIn('linkedin.member.comment.create.requested', body.targetUrn, {
+            contentLength: body.commentary.length,
+          });
+          const result = await integration.api.createMemberComment(
+            tokenSet,
+            body.targetUrn,
+            body.objectUrn,
+            body.commentary
+          );
+          sendJson(response, 201, { commentId: result.id, status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/reactions') {
+          const body = await readJson(request, maxBytes);
+          const allowedReactions = [
+            'LIKE',
+            'PRAISE',
+            'EMPATHY',
+            'INTEREST',
+            'APPRECIATION',
+            'ENTERTAINMENT',
+          ];
+          if (
+            typeof body.rootUrn !== 'string' ||
+            typeof body.reactionType !== 'string' ||
+            !allowedReactions.includes(body.reactionType) ||
+            Object.keys(body).some((key) => key !== 'rootUrn' && key !== 'reactionType')
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected rootUrn and a supported reactionType',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before reacting', requestId });
+            return;
+          }
+          await auditLinkedIn('linkedin.member.reaction.create.requested', body.rootUrn, {
+            reactionType: body.reactionType,
+          });
+          const result = await integration.api.createMemberReaction(
+            tokenSet,
+            body.rootUrn,
+            body.reactionType as
+              'LIKE' | 'PRAISE' | 'EMPATHY' | 'INTEREST' | 'APPRECIATION' | 'ENTERTAINMENT'
+          );
+          sendJson(response, 201, { status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'DELETE' && url.pathname === '/v1/linkedin/reactions') {
+          const entityUrn = url.searchParams.get('entityUrn');
+          if (!entityUrn || url.searchParams.size !== 1) {
+            sendJson(response, 400, {
+              error: 'Provide exactly one entityUrn query parameter',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, {
+              error: 'Connect LinkedIn before removing a reaction',
+              requestId,
+            });
+            return;
+          }
+          await auditLinkedIn('linkedin.member.reaction.delete.requested', entityUrn, {});
+          const result = await integration.api.deleteMemberReaction(tokenSet, entityUrn);
+          sendJson(response, 200, { status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'DELETE' && url.pathname === '/v1/linkedin/organization/reactions') {
+          const organizationUrn = url.searchParams.get('organizationUrn');
+          const entityUrn = url.searchParams.get('entityUrn');
+          if (!organizationUrn || !entityUrn || url.searchParams.size !== 2) {
+            sendJson(response, 400, {
+              error: 'Provide exactly organizationUrn and entityUrn query parameters',
+              requestId,
+            });
+            return;
+          }
+          if (!integration.entitlements.communityManagementApproved) {
+            sendJson(response, 403, {
+              error: 'LinkedIn Community Management API approval is required',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, {
+              error: 'Connect LinkedIn before removing a reaction',
+              requestId,
+            });
+            return;
+          }
+          await auditLinkedIn('linkedin.organization.reaction.delete.requested', entityUrn, {
+            organizationUrn,
+          });
+          const result = await integration.api.deleteOrganizationReaction(
+            tokenSet,
+            organizationUrn,
+            entityUrn
+          );
+          sendJson(response, 200, { status: result.status, requestId });
+          return;
+        }
+
+        sendJson(response, 404, { error: 'LinkedIn route not found', requestId });
         return;
       }
 
@@ -2710,6 +3121,35 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       sendJson(response, 404, { error: 'Not found', requestId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
+      if (error instanceof LinkedInApiError) {
+        const status =
+          error.status === 401
+            ? 401
+            : error.status === 403
+              ? 403
+              : error.status === 429
+                ? 429
+                : error.status >= 500
+                  ? 502
+                  : 400;
+        if (error.retryAfterSeconds) {
+          response.setHeader('retry-after', String(error.retryAfterSeconds));
+        }
+        sendJson(response, status, {
+          error:
+            status === 401
+              ? 'LinkedIn authorization expired; reconnect the account'
+              : status === 403
+                ? 'LinkedIn denied this action; verify product approval, granted scopes, and Page role'
+                : status === 429
+                  ? 'LinkedIn rate limit reached; retry after the indicated delay'
+                  : status === 502
+                    ? 'LinkedIn API is temporarily unavailable'
+                    : 'LinkedIn rejected the requested operation',
+          requestId,
+        });
+        return;
+      }
       const status =
         error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')
           ? 400

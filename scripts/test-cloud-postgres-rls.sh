@@ -4,11 +4,27 @@ set -euo pipefail
 : "${DATABASE_URL:?DATABASE_URL must point to a disposable PostgreSQL database}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0001_cloud_foundation.sql"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0002_runtime_role_hardening.sql"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0003_sprint_contract_revisions.sql"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0004_shared_rate_limits.sql"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/apps/api/migrations/0005_career_graph_facts.sql"
+
+if [[ -n "${POSTGRES_CONTAINER_ID:-}" ]]; then
+  psql() {
+    docker exec -i "$POSTGRES_CONTAINER_ID" psql "$@"
+  }
+else
+  command -v psql >/dev/null 2>&1 || {
+    echo "psql is required when POSTGRES_CONTAINER_ID is not set."
+    exit 1
+  }
+  psql() {
+    command psql "$@"
+  }
+fi
+export -f psql
+
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0001_cloud_foundation.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0002_runtime_role_hardening.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0003_sprint_contract_revisions.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0004_shared_rate_limits.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0005_career_graph_facts.sql"
 
 DATABASE_URL="$DATABASE_URL" \
 TENANT_ID="30000000-0000-4000-8000-000000000003" \

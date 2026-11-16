@@ -57,6 +57,7 @@ import {
 import { useCareerOpsStore } from '../../store/useCareerOpsStore';
 import { detectGhostJobRisk } from '../../services/careerOps/ghostJobDetector';
 import { CareerDiscoveryPanel } from './CareerDiscoveryPanel';
+import { LinkedInContentStudio } from './LinkedInContentStudio';
 import { useAppStore } from '../../store/useAppStore';
 import { usePracticeStore } from '../../store/usePracticeStore';
 import { ApplicationStatus, JobApplication } from '../../services/careerOps/types';
@@ -346,9 +347,10 @@ export function CareerOpsView() {
   // Internal sub-tab state
   const { openOnboarding } = useCareerOpsOnboardingStore();
   const [subTab, setSubTab] = useState<
-    'today' | 'pipeline' | 'network' | 'inbox' | 'interviews' | 'insights' | 'controls' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
+    'today' | 'pipeline' | 'network' | 'inbox' | 'interviews' | 'insights' | 'controls' | 'discovery' | 'evaluator' | 'tailor' | 'outreach' | 'linkedinStudio'
   >('today');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [linkedinStudioDraft, setLinkedinStudioDraft] = useState('');
 
   // Job Drawer State
   const [drawerJob, setDrawerJob] = useState<JobApplication | null>(null);
@@ -907,6 +909,7 @@ export function CareerOpsView() {
               activeBadge: activeJob?.tailoredResume ? 'Ready' : undefined,
             },
             { id: 'outreach', label: '🤝 LinkedIn Company Outreach (≤ 300 chars)' },
+            { id: 'linkedinStudio', label: '✍️ LinkedIn Studio' },
           ].map((tab) => {
             const isActive = subTab === tab.id;
             return (
@@ -1052,6 +1055,10 @@ export function CareerOpsView() {
 
         {subTab === 'discovery' && (
           <CareerDiscoveryPanel resumeText={resumeText} providerConfig={careerOpsProviderConfig} />
+        )}
+
+        {subTab === 'linkedinStudio' && (
+          <LinkedInContentStudio initialDraft={linkedinStudioDraft} initialKind="dm" />
         )}
 
         {/* TAB 1: PIPELINE BOARD */}
@@ -2759,6 +2766,11 @@ export function CareerOpsView() {
             onOpenAssistQueue={() => setSubTab('network')}
             candidateName={candidateVault?.fullName || 'Abhishek Singh'}
           />
+        )}
+
+        {/* TAB 5: LINKEDIN CONTENT STUDIO */}
+        {subTab === 'linkedinStudio' && (
+          <LinkedInContentStudio initialDraft={linkedinStudioDraft} initialKind="dm" />
         )}
       </div>
 

@@ -8,6 +8,16 @@ import type {
 import type { TenantControlState } from '../../../packages/cloud-core/src/controls';
 import type { TenantMembershipRepository } from '../../../packages/cloud-core/src/tenant';
 import type { VerifiedIdentity } from '../../../packages/cloud-core/src/auth';
+import type { LinkedInApiClient } from './linkedin/client';
+import type { LinkedInOAuthService } from './linkedin/oauth';
+import type { LinkedInProductEntitlements, LinkedInTokenVault } from './linkedin/types';
+
+export interface LinkedInCloudIntegration {
+  oauth: LinkedInOAuthService;
+  tokens: LinkedInTokenVault;
+  api: LinkedInApiClient;
+  entitlements: LinkedInProductEntitlements;
+}
 
 export interface CareerGraphRepository {
   createFact(
@@ -45,6 +55,14 @@ export interface CloudApiRepository extends TenantMembershipRepository {
     paused: boolean;
     occurredAt: string;
     metadata: Record<string, string | boolean>;
+  }): Promise<void>;
+  recordLinkedInAction?(input: {
+    tenantId: string;
+    actorSubject: string;
+    action: string;
+    entityId: string;
+    occurredAt: string;
+    metadata: Record<string, string | number | boolean | null>;
   }): Promise<void>;
   setGlobalKillSwitchWithAudit(input: {
     tenantId: string;
@@ -96,4 +114,5 @@ export interface CloudApiDependencies {
   experiments?: ExperimentRepository;
   rateLimiter: CloudRateLimiter;
   config: CloudApiConfig;
+  linkedin?: LinkedInCloudIntegration;
 }

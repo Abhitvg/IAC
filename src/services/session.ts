@@ -5,6 +5,7 @@
 
 import { InterviewSession, SessionQuestion, SessionPerformance, QuestionCategory } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { DiagnosticLoggerService } from './diagnosticLogger';
 
 /**
  * Create a new interview session
@@ -152,23 +153,38 @@ export function analyzePerformance(questions: SessionQuestion[]): SessionPerform
 }
 
 /**
- * Save session to local storage
+ * Save one canonical session record. The Electron write IPC uses a same-directory
+ * temporary file and atomic rename, so a failed write cannot leave a truncated
+ * session or mismatched session/questions/performance sidecars.
  */
 export async function saveSession(session: InterviewSession, sessionsDir: string): Promise<void> {
   const sessionDir = `${sessionsDir}/${session.date}`;
-
-  // Save full session data
   const sessionData = JSON.stringify(session, null, 2);
-  await window.electronAPI.writeFile(`${sessionDir}/session_${session.id}.json`, sessionData);
+  const requestId = `session_save_${session.id}`;
+  const startedAt = Date.now();
 
-  // Save questions separately for easy access
-  const questionsData = JSON.stringify(session.questions, null, 2);
-  await window.electronAPI.writeFile(`${sessionDir}/questions_${session.id}.json`, questionsData);
-
-  // Save performance if available
-  if (session.performance) {
-    const perfData = JSON.stringify(session.performance, null, 2);
-    await window.electronAPI.writeFile(`${sessionDir}/performance_${session.id}.json`, perfData);
+  try {
+    await window.electronAPI.writeFile(`${sessionDir}/session_${session.id}.json`, sessionData);
+    DiagnosticLoggerService.getInstance().recordEvent({
+      requestId,
+      pipelineStage: 'ready',
+      sessionSaveDurationMs: Date.now() - startedAt,
+      sessionQuestionCount: session.questions.length,
+      sessionSaveOutcome: 'SUCCESS',
+      finalOutcome: 'SUCCESS',
+      message: 'Interview session saved successfully.',
+    });
+  } catch (error) {
+    DiagnosticLoggerService.getInstance().recordEvent({
+      requestId,
+      pipelineStage: 'failed',
+      sessionSaveDurationMs: Date.now() - startedAt,
+      sessionQuestionCount: session.questions.length,
+      sessionSaveOutcome: 'FAILED',
+      finalOutcome: 'FAILED',
+      message: 'Interview session save failed; session content omitted from diagnostics.',
+    });
+    throw error;
   }
 }
 

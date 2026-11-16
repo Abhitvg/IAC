@@ -30,6 +30,7 @@
     "tests/m4-ah-evaluation.test.ts",
     "tests/m4-tailoring-engine.test.ts",
     "tests/m4-truthfulness-gate.test.ts",
-    "tests/m4-api-evaluation.test.ts"
+    "tests/m4-api-evaluation.test.ts",
+    "tests/linkedin-api.test.ts"
   ]
 }

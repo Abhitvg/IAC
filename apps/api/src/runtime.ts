@@ -12,6 +12,7 @@ import { SqlOutreachRepository } from './outreach-repository';
 import { SqlLinkedInAuditRepository } from './linkedin-audit-repository';
 import { SqlSprintRepository } from './sprint-repository';
 import { SqlExperimentRepository } from './experiment-repository';
+import type { LinkedInCloudIntegration } from './ports';
 
 export interface CloudApiRuntime {
   server: Server;
@@ -21,7 +22,8 @@ export interface CloudApiRuntime {
 
 export function createCloudApiRuntime(
   pool: ClosableSqlPool,
-  environment: CloudEnvironment = loadCloudEnvironment()
+  environment: CloudEnvironment = loadCloudEnvironment(),
+  linkedin?: LinkedInCloudIntegration
 ): CloudApiRuntime {
   const repository = new PostgresCloudApiRepository(pool);
   const server = createCloudApiServer({
@@ -47,6 +49,7 @@ export function createCloudApiRuntime(
       consentSigningSecret: environment.CAREEROPS_CONSENT_SIGNING_SECRET,
       maxRequestBytes: environment.CAREEROPS_MAX_REQUEST_BYTES,
     },
+    ...(linkedin ? { linkedin } : {}),
   });
 
   let closed = false;

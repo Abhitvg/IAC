@@ -1,4 +1,5 @@
 import path from 'path';
+import crypto from 'crypto';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
@@ -299,6 +300,75 @@ export function validateWritePath(
   }
 }
 
+/**
+ * Persist a userData file through a same-directory temporary file and atomic rename.
+ * The previous destination remains intact if payload writing or validation fails.
+ */
+export function writeFileAtomically(filePath: string, data: unknown, userDataDir: string): void {
+  const prepared = prepareFileWritePayload(data);
+  const initial = validateWritePath(filePath, prepared.byteLength, userDataDir);
+  if (!initial.allowed || !initial.resolvedPath) {
+    throw new Error(initial.reason || 'Access denied');
+  }
+
+  const directory = path.dirname(initial.resolvedPath);
+  fs.mkdirSync(directory, { recursive: true });
+  const validation = validateWritePath(filePath, prepared.byteLength, userDataDir);
+  if (!validation.allowed || !validation.resolvedPath) {
+    throw new Error(validation.reason || 'Access denied');
+  }
+
+  const destination = validation.resolvedPath;
+  const realUserData = getCanonicalPath(userDataDir);
+  const realParent = fs.realpathSync(path.dirname(destination));
+  if (realParent !== realUserData && !realParent.startsWith(realUserData + path.sep)) {
+    throw new Error('Access denied: Destination parent resolves outside userData');
+  }
+
+  const temporaryPath = path.join(
+    realParent,
+    '.' + path.basename(destination) + '.' + crypto.randomUUID() + '.tmp'
+  );
+  let descriptor: number | undefined;
+  try {
+    descriptor = fs.openSync(temporaryPath, 'wx', 0o600);
+    fs.writeFileSync(descriptor, prepared.payload);
+    fs.fsyncSync(descriptor);
+    fs.closeSync(descriptor);
+    descriptor = undefined;
+
+    const finalValidation = validateWritePath(filePath, prepared.byteLength, userDataDir);
+    if (!finalValidation.allowed || !finalValidation.resolvedPath) {
+      throw new Error(finalValidation.reason || 'Access denied');
+    }
+    if (finalValidation.resolvedPath !== destination) {
+      throw new Error('Access denied: Destination changed during atomic write');
+    }
+    const finalParent = fs.realpathSync(path.dirname(destination));
+    if (finalParent !== realParent) {
+      throw new Error('Access denied: Destination parent changed during atomic write');
+    }
+
+    fs.renameSync(temporaryPath, destination);
+    try {
+      const directoryDescriptor = fs.openSync(realParent, 'r');
+      try {
+        fs.fsyncSync(directoryDescriptor);
+      } finally {
+        fs.closeSync(directoryDescriptor);
+      }
+    } catch {
+      // Some platforms do not support fsync on directory descriptors.
+    }
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+    try {
+      fs.unlinkSync(temporaryPath);
+    } catch {
+      // Cleanup is best-effort; never mask the original write/rename error.
+    }
+  }
+}
 /**
  * Validates that a path is safe for deletion:
  * 1. Target must exist.

@@ -102,6 +102,7 @@ export type AnswerGenerationResult =
       status: 'ABORTED';
       isValidated: false;
       cleanAnswer: string;
+      partialAnswer?: string;
       detectedCategory: QuestionCategory;
       confidence: 'low';
       followUps: string[];
@@ -122,9 +123,44 @@ export interface GenerationCallbacks {
   onError?: (error: Error, requestId: string) => void;
 }
 
+function isRetryableTransientGenerationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { status?: unknown; statusCode?: unknown; message?: unknown };
+  const status = Number(candidate.status ?? candidate.statusCode);
+  if ([408, 425, 500, 502, 503, 504].includes(status)) return true;
+  if (Number.isFinite(status) && status > 0) return false;
+  const message = typeof candidate.message === 'string' ? candidate.message : '';
+  const retryableNetworkError =
+    /fetch failed|network error|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|connection reset/i;
+  return retryableNetworkError.test(message);
+}
+
+function waitForRetry(delayMs: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>;
+    const cleanup = () => signal.removeEventListener('abort', onAbort);
+    const onAbort = () => {
+      clearTimeout(timer);
+      cleanup();
+      reject(
+        Object.assign(new Error(signal.reason?.message || 'Generation cancelled during retry.'), {
+          name: 'AbortError',
+        })
+      );
+    };
+    timer = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, delayMs);
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 export class AnswerGenerationService {
   private static instance: AnswerGenerationService | null = null;
   private currentSequence = 0;
+  private activeGenerationController: AbortController | null = null;
 
   public static getInstance(): AnswerGenerationService {
     if (!AnswerGenerationService.instance) {
@@ -156,6 +192,11 @@ export class AnswerGenerationService {
     callbacks?: GenerationCallbacks | ((token: string) => void) | string
   ): Promise<AnswerGenerationResult> {
     const requestSeq = ++this.currentSequence;
+    // A newer question owns the live interview pipeline. Abort the previous provider
+    // request immediately so it cannot consume network/provider resources in the background.
+    this.activeGenerationController?.abort(
+      Object.assign(new Error('Superseded by a newer interview question.'), { name: 'AbortError' })
+    );
     const directApiKey = typeof callbacks === 'string' ? callbacks : undefined;
     const cb: GenerationCallbacks =
       typeof callbacks === 'function'
@@ -170,8 +211,62 @@ export class AnswerGenerationService {
     const requestId =
       params.requestId || `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const type = params.type || 'interview';
+    const generationStartedAt = Date.now();
+    let firstTokenAt: number | undefined;
+    let receivedTokenCount = 0;
+    let partialOutput = '';
+    let terminalResultRecorded = false;
+    const notifyComplete = (
+      result: AnswerGenerationResult,
+      diagnosticMetadata: {
+        failureKind?: 'TIMEOUT' | 'CANCELLED' | 'PROVIDER_ERROR' | 'VALIDATION_ERROR' | 'UNKNOWN';
+        partialOutputRecovered?: boolean;
+        partialOutputCharacterCount?: number;
+      } = {}
+    ) => {
+      if (terminalResultRecorded) return;
+      terminalResultRecorded = true;
+      const outcome =
+        result.status === 'VALIDATED'
+          ? 'SUCCESS'
+          : result.status === 'FLAGGED'
+            ? 'CONFIRMATION_NEEDED'
+            : result.status === 'ABORTED'
+              ? 'ABORTED'
+              : 'FAILED';
+      DiagnosticLoggerService.getInstance().recordEvent({
+        requestId,
+        pipelineStage: outcome === 'SUCCESS' ? 'answer_ready' : 'failed',
+        selectedProvider: params.provider || 'groq',
+        selectedModel: params.model,
+        timeToFirstTokenMs:
+          firstTokenAt === undefined ? undefined : firstTokenAt - generationStartedAt,
+        totalGenerationTimeMs: Date.now() - generationStartedAt,
+        receivedTokenCount,
+        isEmptyResponse: !result.cleanAnswer.trim(),
+        finalOutcome: outcome,
+        ...diagnosticMetadata,
+        message: 'Interview generation reached a terminal state.',
+      });
+      cb.onComplete?.(result);
+    };
+    DiagnosticLoggerService.getInstance().recordEvent({
+      requestId,
+      pipelineStage: 'generating',
+      selectedProvider: params.provider || 'groq',
+      selectedModel: params.model,
+      message: 'Interview answer generation started.',
+    });
     const callerSignal = params.signal;
     const generationController = new AbortController();
+    this.activeGenerationController = generationController;
+    const cleanupGeneration = () => {
+      clearTimeout(overallTimer);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
+      if (this.activeGenerationController === generationController) {
+        this.activeGenerationController = null;
+      }
+    };
     const abortFromCaller = () => generationController.abort(callerSignal?.reason);
     if (callerSignal?.aborted) generationController.abort(callerSignal.reason);
     else callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
@@ -188,28 +283,55 @@ export class AnswerGenerationService {
       params.text = params.questionText;
     }
 
-    const createAbortedResult = (): AnswerGenerationResult => ({
-      status: 'ABORTED',
-      isValidated: false,
-      cleanAnswer: '',
-      error: 'Generation aborted by user or timeout',
-      detectedCategory: 'General',
-      confidence: 'low',
-      followUps: [],
-      predictedFollowUps: [],
-      requestId,
-      validationStatus: 'ABORTED',
-      groundingScore: 0,
-      groundingViolations: ['Request aborted by caller'],
-      structuredViolations: [],
-    });
+    const createAbortedResult = (
+      timedOut = false,
+      timeoutMessage = 'Generation deadline exceeded'
+    ): AnswerGenerationResult => {
+      if (timedOut) {
+        return {
+          status: 'FAILED',
+          isValidated: false,
+          cleanAnswer: '',
+          error: timeoutMessage,
+          detectedCategory: 'General',
+          confidence: 'low',
+          followUps: [],
+          predictedFollowUps: [],
+          requestId,
+          validationResult: {
+            isGrounded: false,
+            validationStatus: 'FAILED',
+            violations: ['Generation deadline exceeded'],
+          },
+          validationStatus: 'FAILED',
+          groundingScore: 0,
+          groundingViolations: ['Generation deadline exceeded'],
+          structuredViolations: [],
+        };
+      }
+
+      return {
+        status: 'ABORTED',
+        isValidated: false,
+        cleanAnswer: '',
+        error: 'Generation aborted by user or timeout',
+        detectedCategory: 'General',
+        confidence: 'low',
+        followUps: [],
+        predictedFollowUps: [],
+        requestId,
+        validationStatus: 'ABORTED',
+        groundingScore: 0,
+        groundingViolations: ['Request aborted by caller'],
+        structuredViolations: [],
+      };
+    };
 
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
-      cb.onComplete?.(abortedResult);
-      clearTimeout(overallTimer);
-      callerSignal?.removeEventListener('abort', abortFromCaller);
+      notifyComplete(abortedResult);
+      cleanupGeneration();
       return abortedResult;
     }
 
@@ -223,9 +345,8 @@ export class AnswerGenerationService {
     if (signal.aborted) {
       const abortedResult = createAbortedResult();
       (abortedResult as any).answer = abortedResult.cleanAnswer;
-      cb.onComplete?.(abortedResult);
-      clearTimeout(overallTimer);
-      callerSignal?.removeEventListener('abort', abortFromCaller);
+      notifyComplete(abortedResult);
+      cleanupGeneration();
       return abortedResult;
     }
 
@@ -254,9 +375,8 @@ export class AnswerGenerationService {
         groundingViolations: [err.message],
         structuredViolations: [],
       };
-      cb.onComplete?.(failedResult);
-      clearTimeout(overallTimer);
-      callerSignal?.removeEventListener('abort', abortFromCaller);
+      notifyComplete(failedResult);
+      cleanupGeneration();
       return failedResult;
     }
 
@@ -335,7 +455,7 @@ export class AnswerGenerationService {
     );
 
     const handleStreamComplete = (full: string) => {
-      if (signal?.aborted) return;
+      if (signal?.aborted || requestSeq !== this.currentSequence) return;
 
       let cleanAnswer = full;
       const followUps: string[] = [];
@@ -442,7 +562,7 @@ export class AnswerGenerationService {
           ],
         };
         (completionResult as any).answer = completionResult.cleanAnswer;
-        cb.onComplete?.(completionResult);
+        notifyComplete(completionResult);
         return;
       }
 
@@ -506,7 +626,7 @@ export class AnswerGenerationService {
         blockedReason: decision.blockedReason,
       } as any;
       (completionResult as any).answer = completionResult.cleanAnswer;
-      cb.onComplete?.(completionResult);
+      notifyComplete(completionResult);
     };
 
     let retryCount = 0;
@@ -532,11 +652,24 @@ export class AnswerGenerationService {
             preferredLang.toLowerCase() as any,
             {
               onToken: (token) => {
-                if (signal?.aborted) return;
+                if (signal?.aborted || requestSeq !== this.currentSequence) return;
+                if (firstTokenAt === undefined) {
+                  firstTokenAt = Date.now();
+                  DiagnosticLoggerService.getInstance().recordEvent({
+                    requestId,
+                    pipelineStage: 'streaming',
+                    selectedProvider: provider,
+                    selectedModel: providerConfig.model,
+                    timeToFirstTokenMs: firstTokenAt - generationStartedAt,
+                    message: 'First answer token received.',
+                  });
+                }
+                receivedTokenCount += Math.max(1, token.length > 0 ? 1 : 0);
+                partialOutput += token;
                 cb.onToken?.(token, requestId);
               },
               onSentence: (sentence) => {
-                if (signal?.aborted) return;
+                if (signal?.aborted || requestSeq !== this.currentSequence) return;
                 cb.onSentence?.(sentence, requestId);
               },
               onComplete: async (full) => {
@@ -550,14 +683,32 @@ export class AnswerGenerationService {
           streamSucceeded = true;
         }
       } catch (err: any) {
-        if (err.name === 'AbortError' || signal?.aborted) {
-          const timeoutMessage = err?.message || signal?.reason?.message || '';
-          const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
+        if (requestSeq !== this.currentSequence) break;
+        if (err.name === 'AbortError' || err.name === 'TimeoutError' || signal?.aborted) {
+          // Prefer the owning controller's reason: a stream reader may surface a generic
+          // AbortError even when the overall deadline was the actual cause.
+          const abortReason = signal?.reason as Error | undefined;
+          const timeoutMessage = abortReason?.message || err?.message || '';
+          const explicitTimeout =
+            abortReason?.name === 'TimeoutError' ||
+            err?.name === 'TimeoutError' ||
+            /deadline|timed out|timeout|inactivity|stalled/i.test(timeoutMessage);
+          // When the caller supplied an AbortError reason, it takes precedence over
+          // generic stream-reader text such as "cancelled or deadline expired".
+          const callerCancelled = Boolean(callerSignal?.aborted);
+          const timedOut = explicitTimeout && !callerCancelled;
+          const recoveredPartial = partialOutput.trim();
+          if (recoveredPartial) {
+            useAppStore.getState().setRecoveredPartialAnswer(recoveredPartial);
+          }
           completionResult = {
             status: timedOut ? 'FAILED' : 'ABORTED',
             isValidated: false,
             cleanAnswer: '',
-            error: timedOut ? timeoutMessage : 'Generation cancelled by user',
+            partialAnswer: recoveredPartial || undefined,
+            error: timedOut
+              ? timeoutMessage || 'Generation deadline exceeded'
+              : 'Generation cancelled by user',
             detectedCategory,
             confidence: 'low',
             followUps: [],
@@ -571,10 +722,54 @@ export class AnswerGenerationService {
             structuredViolations: [],
           };
           (completionResult as any).answer = completionResult.cleanAnswer;
-          cb.onComplete?.(completionResult);
-          clearTimeout(overallTimer);
-          callerSignal?.removeEventListener('abort', abortFromCaller);
+          notifyComplete(completionResult, {
+            failureKind: timedOut ? 'TIMEOUT' : 'CANCELLED',
+            partialOutputRecovered: Boolean(recoveredPartial),
+            partialOutputCharacterCount: recoveredPartial.length,
+          });
+          cleanupGeneration();
           return completionResult;
+        }
+
+        const hasPartialOutput = Boolean((err as any).hasEmittedTokens || (err as any).partialText);
+        if (
+          !hasPartialOutput &&
+          retryCount < maxRetries &&
+          isRetryableTransientGenerationError(err)
+        ) {
+          retryCount += 1;
+          const delayMs = RateLimitGovernor.calculateBackoffDelayMs(retryCount, 0);
+          const store = useAppStore.getState();
+          store.setPipelineStage('retrying');
+          store.setToast(
+            `Connection interrupted. Retrying in ${Math.ceil(delayMs / 1000)}s ` +
+              `(attempt ${retryCount}/${maxRetries}).`
+          );
+          DiagnosticLoggerService.getInstance().recordEvent({
+            requestId,
+            pipelineStage: 'retrying',
+            retryAttempt: retryCount,
+            retryDelayMs: delayMs,
+            selectedProvider: provider,
+            selectedModel: providerConfig.model,
+            message:
+              'Retrying a transient provider/network failure before any answer tokens were emitted.',
+          });
+          try {
+            await waitForRetry(delayMs, signal);
+          } catch (waitError: any) {
+            if (signal.aborted || waitError?.name === 'AbortError') {
+              const timeoutMessage = signal.reason?.message || waitError?.message || '';
+              const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
+              const abortedResult = createAbortedResult(timedOut, timeoutMessage || undefined);
+              (abortedResult as any).answer = abortedResult.cleanAnswer;
+              notifyComplete(abortedResult);
+              cleanupGeneration();
+              return abortedResult;
+            }
+            throw waitError;
+          }
+          continue;
         }
 
         const analysis = RateLimitGovernor.analyzeRateLimit(
@@ -669,7 +864,7 @@ export class AnswerGenerationService {
                 structuredViolations: [],
               };
               (completionResult as any).answer = completionResult.cleanAnswer;
-              cb.onComplete?.(completionResult);
+              notifyComplete(completionResult);
             }
             break;
           }
@@ -689,19 +884,56 @@ export class AnswerGenerationService {
           });
         }
 
-        const partialText = (err as any).partialText || '';
-        if (partialText) {
+        const originalError = (err as any).originalError || (err as any).cause;
+        const partialText = String((err as any).partialText || partialOutput).trim();
+        const failureMessage = err.message || String(err);
+        const timeoutEvidence = [failureMessage, originalError?.message, originalError?.name]
+          .filter(Boolean)
+          .join(' ');
+        const timedOut =
+          err.name === 'TimeoutError' ||
+          originalError?.name === 'TimeoutError' ||
+          /deadline|timed out|timeout|inactivity|stalled/i.test(timeoutEvidence);
+        const callerCancelled = Boolean(callerSignal?.aborted);
+        const recoveredPartial = Boolean(partialText);
+        if (recoveredPartial) {
           useAppStore.getState().setRecoveredPartialAnswer(partialText);
+        }
+
+        if (callerCancelled) {
+          completionResult = {
+            status: 'ABORTED',
+            isValidated: false,
+            cleanAnswer: '',
+            partialAnswer: partialText || undefined,
+            error: 'Generation cancelled by user',
+            detectedCategory,
+            confidence: 'low',
+            followUps: [],
+            predictedFollowUps: [],
+            requestId,
+            validationStatus: 'ABORTED',
+            groundingScore: 0,
+            groundingViolations: ['Request cancelled during generation'],
+            structuredViolations: [],
+          };
+          (completionResult as any).answer = '';
+          notifyComplete(completionResult, {
+            failureKind: 'CANCELLED',
+            partialOutputRecovered: recoveredPartial,
+            partialOutputCharacterCount: partialText.length,
+          });
+          break;
         }
 
         cb.onError?.(err, requestId);
         completionResult = {
           status: 'FAILED',
           isValidated: false,
-          cleanAnswer:
-            partialText || 'Answer generation failed due to a provider or network error.',
+          // Failed/partial content is deliberately kept out of cleanAnswer.
+          cleanAnswer: '',
           partialAnswer: partialText || undefined,
-          error: err.message || String(err),
+          error: failureMessage,
           detectedCategory,
           confidence: 'low',
           followUps: [],
@@ -710,17 +942,55 @@ export class AnswerGenerationService {
           validationResult: {
             isGrounded: false,
             validationStatus: 'FAILED',
-            violations: [err.message || String(err)],
+            violations: [failureMessage],
           },
           validationStatus: 'FAILED',
           groundingScore: 0,
-          groundingViolations: [err.message || String(err)],
+          groundingViolations: [failureMessage],
           structuredViolations: [],
         };
-        (completionResult as any).answer = completionResult.cleanAnswer;
-        cb.onComplete?.(completionResult);
+        (completionResult as any).answer = '';
+        notifyComplete(completionResult, {
+          failureKind: timedOut ? 'TIMEOUT' : 'PROVIDER_ERROR',
+          partialOutputRecovered: recoveredPartial,
+          partialOutputCharacterCount: partialText.length,
+        });
         break;
       }
+    }
+
+    // Every accepted request must settle with an explicit result, including an
+    // abort observed between retry attempts or a provider that resolves without
+    // invoking its completion callback.
+    if (!completionResult && requestSeq === this.currentSequence) {
+      if (signal.aborted) {
+        const timeoutMessage = signal.reason?.message || 'Generation cancelled';
+        const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
+        completionResult = createAbortedResult(timedOut, timeoutMessage);
+      } else {
+        completionResult = {
+          status: 'FAILED',
+          isValidated: false,
+          cleanAnswer: '',
+          error: 'Generation ended without a completion result.',
+          detectedCategory,
+          confidence: 'low',
+          followUps: [],
+          predictedFollowUps: [],
+          requestId,
+          validationResult: {
+            isGrounded: false,
+            validationStatus: 'FAILED',
+            violations: ['Provider completed without a terminal answer callback.'],
+          },
+          validationStatus: 'FAILED',
+          groundingScore: 0,
+          groundingViolations: ['Provider completed without a terminal answer callback.'],
+          structuredViolations: [],
+        };
+      }
+      (completionResult as any).answer = completionResult.cleanAnswer;
+      notifyComplete(completionResult);
     }
 
     // Stale request detection
@@ -743,8 +1013,9 @@ export class AnswerGenerationService {
       (completionResult as any).answer = completionResult.cleanAnswer;
     }
 
-    clearTimeout(overallTimer);
-    callerSignal?.removeEventListener('abort', abortFromCaller);
+    // Even a superseded request must settle exactly once with an explicit ABORTED result.
+    notifyComplete(completionResult!);
+    cleanupGeneration();
     return completionResult!;
   }
 }

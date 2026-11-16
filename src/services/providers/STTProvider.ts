@@ -1,3 +1,4 @@
+import { fetchProviderWithRetry, DEFAULT_STT_REQUEST_TIMEOUT_MS } from './requestLifecycle';
 import { STTProvider, STTOptions, STTResult } from './types';
 import {
   resolveOrMigrateModel,
@@ -32,13 +33,21 @@ export class OpenAIWhisperProvider implements STTProvider {
     if (options?.temperature !== undefined)
       formData.append('temperature', String(options.temperature));
 
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
+    const response = await fetchProviderWithRetry(
+      'https://api.openai.com/v1/audio/transcriptions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: formData,
       },
-      body: formData,
-    });
+      {
+        signal: options?.signal,
+        timeoutMs: options?.timeoutMs ?? DEFAULT_STT_REQUEST_TIMEOUT_MS,
+        maxRetries: options?.maxRetries ?? 0,
+      }
+    );
 
     if (!response.ok) {
       const err = await response.text();
@@ -91,13 +100,21 @@ export class GroqWhisperProvider implements STTProvider {
     if (options?.language) formData.append('language', options.language);
     if (options?.prompt) formData.append('prompt', options.prompt);
 
-    const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
+    const response = await fetchProviderWithRetry(
+      'https://api.groq.com/openai/v1/audio/transcriptions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: formData,
       },
-      body: formData,
-    });
+      {
+        signal: options?.signal,
+        timeoutMs: options?.timeoutMs ?? DEFAULT_STT_REQUEST_TIMEOUT_MS,
+        maxRetries: options?.maxRetries ?? 0,
+      }
+    );
 
     if (!response.ok) {
       const err = await response.text();
@@ -147,10 +164,18 @@ export class LocalWhisperCppProvider implements STTProvider {
     if (options?.language) formData.append('language', options.language);
 
     try {
-      const response = await fetch(this.endpoint, {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await fetchProviderWithRetry(
+        this.endpoint,
+        {
+          method: 'POST',
+          body: formData,
+        },
+        {
+          signal: options?.signal,
+          timeoutMs: options?.timeoutMs ?? DEFAULT_STT_REQUEST_TIMEOUT_MS,
+          maxRetries: options?.maxRetries ?? 0,
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Local whisper.cpp HTTP ${response.status}`);
@@ -168,6 +193,7 @@ export class LocalWhisperCppProvider implements STTProvider {
         segments: data.segments,
       };
     } catch (err: any) {
+      if (options?.signal?.aborted) throw err;
       throw new Error(
         `Local whisper.cpp failed at ${this.endpoint}: ${err.message || String(err)}. Ensure whisper.cpp server is running (./server -m models/ggml-base.bin).`,
         { cause: err }
@@ -205,9 +231,17 @@ export class STTManager {
     audioData: Blob | Buffer | ArrayBuffer,
     options?: STTOptions
   ): Promise<STTResult> {
-    const order = [this.primaryId, 'groq-whisper', 'openai-whisper', 'local-whisper-cpp'].filter(
-      (id, idx, arr) => arr.indexOf(id) === idx && this.providers.has(id)
-    );
+    const fallbackOrder = [
+      this.primaryId,
+      'groq-whisper',
+      'openai-whisper',
+      'local-whisper-cpp',
+    ].filter((id, idx, arr) => arr.indexOf(id) === idx && this.providers.has(id));
+    const order = options?.allowFallback
+      ? fallbackOrder
+      : this.providers.has(this.primaryId)
+        ? [this.primaryId]
+        : [];
 
     let lastError: Error | null = null;
 
@@ -217,6 +251,7 @@ export class STTManager {
       try {
         return await p.transcribe(audioData, options);
       } catch (err: any) {
+        if (options?.signal?.aborted) throw err;
         lastError = err;
         console.warn(
           `[STTManager] ${id} transcription failed: ${err.message}. Trying next fallback...`
