@@ -1,6 +1,6 @@
 # LinkedIn Content Studio
 
-CareerOps provides a local content workspace for posts, comments, replies, connection invite notes and direct messages.
+CareerOps provides a local content workspace and a permission-gated connection to LinkedIn's official APIs.
 
 ## Drafting and review
 
@@ -15,14 +15,29 @@ CareerOps provides a local content workspace for posts, comments, replies, conne
 
 ## Playbook Workbench
 
-- Searchable library of 21 post-hook structures, including their examples, best uses and common traps.
-- A 12-part profile self-assessment rubric worth 100 points. Scores are entered by the user; the app does not pretend to inspect a live LinkedIn profile.
-- A four-slot weekly planning worksheet: proof, opinion, teaching and story / offer.
+- Searchable library of 21 post-hook structures, including examples, best uses and common traps.
+- A 12-part profile self-assessment rubric worth 100 points. Scores are entered by the user; the app does not inspect a live LinkedIn profile.
+- A four-slot weekly content planner: proof, opinion, teaching and story / offer.
+
+## Connected Account & API
+
+Open **CareerOps > LinkedIn Studio > Connected Account & API**.
+
+- Configure the HTTPS CareerOps cloud API origin and provide an OIDC bearer JWT from the deployment's identity provider.
+- The bearer token is stored with Electron OS-backed secure storage. The renderer cannot read it; a narrow IPC allowlist sends authorized API calls from the Electron main process.
+- Start LinkedIn OAuth in the system browser and complete the one-time, tenant-bound callback on the cloud API.
+- View connection status, granted capability states and expiry; disconnect the member account when required.
+- Publish member text posts, create member comments/reactions, and use approved organization Page operations through explicit buttons.
+- Tenant owners can pause or resume the LinkedIn channel. Every write is independently checked against the global kill switch and channel pause by the cloud API.
+
+The current connection panel invokes actions immediately on a user click. It does not queue or background-schedule posts. LinkedIn invitations, direct messages and inbox reading stay disabled until the exact partner API permissions and implementation are available.
+
+## Deployment
+
+The cloud integration must be enabled and configured by the API operator with LinkedIn client credentials, an exact HTTPS redirect URI and an AWS KMS key. The LinkedIn developer application must have the appropriate product approvals and scopes. See [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## Boundaries
 
 Scores are deterministic writing heuristics, not a detector, authorship classifier, deliverability estimate, moderation prediction or guarantee about LinkedIn performance. A passing result does not prove authorship. The profile scorecard is a manual self-assessment, not a live profile audit. Verify every number, name, claim and anecdote. Never add fabricated metrics, clients, endorsements, credentials or personal stories to improve a score.
 
-## Use
-
-Open CareerOps > LinkedIn Studio. Use **Draft & Review** to edit, clean and copy text, or **Playbook Workbench** to browse hooks, score a profile manually and plan a week. Generated outreach remains a draft for user review. The feature does not publish, comment, send DMs or invitations, scrape LinkedIn, access browser sessions or read the inbox.
+CareerOps does not scrape LinkedIn pages or inboxes, inject into the DOM, use Playwright against LinkedIn, or collect passwords, browser cookies, session tokens or browser profiles. Do not bypass LinkedIn approval gates using undocumented endpoints.
