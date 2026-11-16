@@ -103,6 +103,8 @@ GRANT EXECUTE ON FUNCTION claim_linkedin_scheduled_posts_due(integer) TO careero
 
 CREATE OR REPLACE FUNCTION transition_linkedin_scheduled_post(
   p_id uuid,
+  p_tenant_id uuid,
+  p_subject text,
   p_status text,
   p_published_post_urn text,
   p_error_code text,
@@ -139,17 +141,20 @@ BEGIN
          next_attempt_at = COALESCE(p_next_attempt_at, next_attempt_at),
          lock_expires_at = NULL,
          updated_at = now()
-   WHERE id = p_id AND status = 'processing';
+   WHERE id = p_id
+     AND tenant_id = p_tenant_id
+     AND subject = p_subject
+     AND status = 'processing';
   GET DIAGNOSTICS affected = ROW_COUNT;
   RETURN affected = 1;
 END;
 $fn$;
 
-ALTER FUNCTION transition_linkedin_scheduled_post(uuid, text, text, text, timestamptz)
+ALTER FUNCTION transition_linkedin_scheduled_post(uuid, uuid, text, text, text, text, timestamptz)
   OWNER TO careerops_scheduler_fn;
-REVOKE ALL ON FUNCTION transition_linkedin_scheduled_post(uuid, text, text, text, timestamptz)
+REVOKE ALL ON FUNCTION transition_linkedin_scheduled_post(uuid, uuid, text, text, text, text, timestamptz)
   FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION transition_linkedin_scheduled_post(uuid, text, text, text, timestamptz)
+GRANT EXECUTE ON FUNCTION transition_linkedin_scheduled_post(uuid, uuid, text, text, text, text, timestamptz)
   TO careerops_app;
 
 CREATE OR REPLACE FUNCTION cancel_linkedin_scheduled_post(
