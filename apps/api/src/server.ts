@@ -598,7 +598,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           const body = await readJson(request, maxBytes);
           if (
             typeof body.organizationUrn !== 'string' ||
-            !/^urn:li:organization:\\d+$/.test(body.organizationUrn) ||
+            !/^urn:li:organization:\d+$/.test(body.organizationUrn) ||
             typeof body.commentary !== 'string' ||
             !body.commentary.trim() ||
             body.commentary.trim().length > 3000 ||
