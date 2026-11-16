@@ -38,6 +38,14 @@ variable "database_subnet_ids" {
   }
 }
 variable "acm_certificate_arn" { type = string }
+variable "kms_key_arn" {
+  type        = string
+  description = "Existing customer-managed KMS key ARN used for CareerOps envelope encryption."
+  validation {
+    condition     = can(regex("^arn:(aws|aws-us-gov|aws-cn):kms:[a-z0-9-]+:[0-9]{12}:key/[A-Za-z0-9-]+$", var.kms_key_arn))
+    error_message = "kms_key_arn must be a customer-managed KMS key ARN."
+  }
+}
 variable "container_image" {
   type        = string
   description = "Full ECR image URI including tag or digest."

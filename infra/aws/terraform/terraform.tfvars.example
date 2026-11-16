@@ -6,6 +6,7 @@ public_subnet_ids     = ["subnet-PUBLIC_A", "subnet-PUBLIC_B"]
 private_subnet_ids    = ["subnet-PRIVATE_A", "subnet-PRIVATE_B"]
 database_subnet_ids   = ["subnet-DB_A", "subnet-DB_B"]
 acm_certificate_arn   = "arn:aws:acm:ap-south-1:ACCOUNT:certificate/REPLACE"
+kms_key_arn           = "arn:aws:kms:ap-south-1:ACCOUNT:key/REPLACE"
 container_image       = "ACCOUNT.dkr.ecr.ap-south-1.amazonaws.com/careerops-production:release-bootstrap"
 app_secrets_arn       = "arn:aws:secretsmanager:ap-south-1:ACCOUNT:secret:careerops-production-config-REPLACE"
 db_master_username    = "careerops_admin"
