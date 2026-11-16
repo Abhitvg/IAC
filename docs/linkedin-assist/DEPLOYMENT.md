@@ -66,14 +66,24 @@ The Connected Account panel exposes explicit user-triggered operations:
 - Member comments and reactions when the Community Management API and member social feed write scope are available.
 - Organization posts, comments and reactions only when the app has Community Management approval, the relevant organization scopes, and the member has the required Page role.
 - Account status, disconnect and the tenant owner's LinkedIn pause control.
+- Optional scheduled member text posts when `LINKEDIN_SCHEDULER_ENABLED=true`. The worker checks tenant membership, connection scopes, global kill switch and channel pause before the external write. Schedule creation is limited to 2 minutes–90 days ahead, and the UI shows statuses and allows cancellation while a post remains scheduled.
 
 Every write is checked server-side against the tenant-wide kill switch and the `linkedin_assist` channel pause immediately before auditing and calling LinkedIn. Writes fail with HTTP 423 when either control blocks the channel. The cloud API records requested write actions in the tenant audit trail.
 
 Refresh tokens are used only when LinkedIn returns one for the approved application. Otherwise, an expired access token requires the member to reconnect; the integration does not claim that all LinkedIn apps can refresh tokens.
 
-## 5. Not enabled by this integration
+## 5. Scheduled publishing and remaining limitations
 
-The current implementation does not run a background posting scheduler, publish media/carousels, read member feeds or inboxes, send direct messages, or send/manage connection invitations. Some of these capabilities require additional API clients; others require partner approval. Their presence in the adapted skill pack does not grant LinkedIn API access.
+Scheduled member text publishing is implemented but disabled by default. To enable it:
+
+1. Apply `apps/api/migrations/0008_linkedin_scheduled_posts.sql` with the migration role. It creates a tenant/subject RLS table and narrowly scoped worker functions. The application role does not receive `BYPASSRLS` or membership in the no-login worker function role.
+2. Set `LINKEDIN_SCHEDULER_ENABLED=true` on the API service and optionally configure `LINKEDIN_SCHEDULER_POLL_MS`.
+3. Confirm the Share on LinkedIn product and `w_member_social` scope are approved and granted.
+4. Run a staging schedule, pause the tenant, cancel a pending post, and test worker restart / ambiguous outcomes before enabling production traffic.
+
+The queue supports text-only member posts. It does not retry ambiguous external outcomes: the row becomes `unknown_outcome` to avoid publishing duplicates. A worker outage that misses a scheduled time by over one hour results in `needs_review` rather than a late public post.
+
+Media uploads, carousel creation, member feed / inbox reads, direct messages and connection invitations are not implemented. Some of these require additional API clients; others require partner approval. Their presence in the adapted skill pack does not grant LinkedIn API access.
 
 No LinkedIn browser scraping, DOM injection, Playwright automation, session-cookie access, account-password collection or undocumented endpoint fallback is implemented.
 
