@@ -348,6 +348,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           if (
             !body.commentary.trim() ||
             body.commentary.length > 3000 ||
+            !/(?:Z|[+-]\\d{2}:\\d{2})$/i.test(body.scheduledAt) ||
             !Number.isFinite(scheduledAtMs) ||
             scheduledAtMs < Date.now() + 2 * 60_000 ||
             scheduledAtMs > Date.now() + 90 * 24 * 60 * 60_000 ||
@@ -355,7 +356,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           ) {
             sendJson(response, 400, {
               error:
-                'Post text must be 1–3000 characters; schedule time must be 2 minutes to 90 days ahead; idempotency key must be 12–64 safe characters',
+                'Post text must be 1–3000 characters; schedule time must include a timezone and be 2 minutes to 90 days ahead; idempotency key must be 12–64 safe characters',
               requestId,
             });
             return;
