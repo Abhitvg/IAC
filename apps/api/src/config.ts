@@ -26,7 +26,7 @@ const CloudEnvironmentSchema = z
     LINKEDIN_CLIENT_ID: z.string().trim().min(1).max(512).optional(),
     LINKEDIN_CLIENT_SECRET: z.string().trim().min(1).max(4096).optional(),
     LINKEDIN_REDIRECT_URI: z.string().url().optional(),
-    LINKEDIN_API_VERSION: z.string().regex(/^20\\d{4}$/).default('202610'),
+    LINKEDIN_API_VERSION: z.string().regex(/^20\d{4}$/).default('202610'),
     LINKEDIN_KMS_KEY_ID: z.string().trim().min(1).max(2048).optional(),
     AWS_REGION: z.string().trim().min(3).max(32).optional(),
     LINKEDIN_COMMUNITY_MANAGEMENT_APPROVED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
