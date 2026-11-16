@@ -8,6 +8,7 @@ on:
       - 'src/components/careerOps/LinkedInContentStudio.tsx'
       - 'src/services/careerOps/linkedinContentQuality.ts'
       - 'tests/linkedin-content-quality.test.ts'
+      - '.github/workflows/format-linkedin-studio.yml'
       - 'docs/linkedin-assist/CONTENT_STUDIO.md'
 
 permissions:
