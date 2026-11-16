@@ -79,6 +79,7 @@ export interface CloudApiConfig {
   jwksUrl: string;
   consentSigningSecret: string;
   maxRequestBytes?: number;
+  allowedOrigins?: readonly string[];
 }
 
 export interface CloudRateLimiter {
