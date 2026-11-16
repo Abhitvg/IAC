@@ -51,7 +51,10 @@ export class LinkedInOAuthService {
     requiredString(config.clientSecret, 'client secret');
     requiredString(config.redirectUri, 'redirect URI');
     const redirect = new URL(config.redirectUri);
-    if (redirect.protocol !== 'https:' && redirect.hostname !== 'localhost') {
+    const isLocalDevelopmentRedirect =
+      redirect.protocol === 'http:' &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(redirect.hostname);
+    if (redirect.protocol !== 'https:' && !isLocalDevelopmentRedirect) {
       throw new Error(
         'LinkedIn OAuth redirect URI must use HTTPS (localhost is allowed for development)'
       );
