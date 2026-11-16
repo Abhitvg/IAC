@@ -499,11 +499,19 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
 
   // Encrypted device-local records. The encryption key remains in the main process.
   ipcMain.handle('secure-records:set', async (event, request: unknown) => {
-    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
-    if (!request || typeof request !== 'object' || Array.isArray(request)) throw new Error('Invalid secure record request');
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error('Unauthorized IPC sender');
+    }
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+      throw new Error('Invalid secure record request');
+    }
     const value = request as Record<string, unknown>;
-    if (Object.keys(value).some((key) => !['namespace', 'id', 'data'].includes(key)) ||
-        typeof value.namespace !== 'string' || typeof value.id !== 'string' || typeof value.data !== 'string') {
+    if (
+      Object.keys(value).some((key) => !['namespace', 'id', 'data'].includes(key)) ||
+      typeof value.namespace !== 'string' ||
+      typeof value.id !== 'string' ||
+      typeof value.data !== 'string'
+    ) {
       throw new Error('Invalid secure record request');
     }
     await encryptedRecordStore.set(value.namespace as any, value.id, value.data);
@@ -511,22 +519,36 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
   });
 
   ipcMain.handle('secure-records:get', async (event, request: unknown) => {
-    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
-    if (!request || typeof request !== 'object' || Array.isArray(request)) throw new Error('Invalid secure record request');
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error('Unauthorized IPC sender');
+    }
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+      throw new Error('Invalid secure record request');
+    }
     const value = request as Record<string, unknown>;
-    if (Object.keys(value).some((key) => !['namespace', 'id'].includes(key)) ||
-        typeof value.namespace !== 'string' || typeof value.id !== 'string') {
+    if (
+      Object.keys(value).some((key) => !['namespace', 'id'].includes(key)) ||
+      typeof value.namespace !== 'string' ||
+      typeof value.id !== 'string'
+    ) {
       throw new Error('Invalid secure record request');
     }
     return encryptedRecordStore.get(value.namespace as any, value.id);
   });
 
   ipcMain.handle('secure-records:delete', async (event, request: unknown) => {
-    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
-    if (!request || typeof request !== 'object' || Array.isArray(request)) throw new Error('Invalid secure record request');
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error('Unauthorized IPC sender');
+    }
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+      throw new Error('Invalid secure record request');
+    }
     const value = request as Record<string, unknown>;
-    if (Object.keys(value).some((key) => !['namespace', 'id'].includes(key)) ||
-        typeof value.namespace !== 'string' || typeof value.id !== 'string') {
+    if (
+      Object.keys(value).some((key) => !['namespace', 'id'].includes(key)) ||
+      typeof value.namespace !== 'string' ||
+      typeof value.id !== 'string'
+    ) {
       throw new Error('Invalid secure record request');
     }
     return encryptedRecordStore.delete(value.namespace as any, value.id);
