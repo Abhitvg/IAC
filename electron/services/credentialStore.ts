@@ -146,9 +146,11 @@ export class CredentialStore {
       throw new Error('API key must be a non-empty string');
     }
 
-    const maxLength = service === 'careerops-cloud' ? 8192 : 2048;
-    if (key.length > maxLength) {
-      throw new Error('Credential exceeds maximum length of ' + maxLength + ' characters');
+    if (service === 'careerops-cloud' && key.length > 8192) {
+      throw new Error('CareerOps cloud credential exceeds maximum length of 8192 characters');
+    }
+    if (service !== 'careerops-cloud' && key.length > 2048) {
+      throw new Error('API key exceeds maximum length of 2048 characters');
     }
 
     const trimmed = key.trim();
