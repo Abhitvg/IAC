@@ -255,8 +255,11 @@ export class AwsKmsTenantKeyProvider implements TenantKeyProvider {
       signingKey(credentials.secretAccessKey, date, this.options.region),
       stringToSign
     ).toString('hex');
-    headers.Authorization =
-      `AWS4-HMAC-SHA256 Credential=${credentials.accessKeyId}/${scope}, SignedHeaders=${signedHeaderNames.join(';')}, Signature=${signature}`;
+    headers.Authorization = [
+      `AWS4-HMAC-SHA256 Credential=${credentials.accessKeyId}/${scope}`,
+      `SignedHeaders=${signedHeaderNames.join(';')}`,
+      `Signature=${signature}`,
+    ].join(', ');
 
     const response = await this.fetcher(`https://${host}/`, {
       method: 'POST',
