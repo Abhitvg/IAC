@@ -16,3 +16,8 @@ output "ecs_task_family" {
 output "database_address" {
   value = aws_db_instance.database.address
 }
+
+output "operations_alerts_topic_arn" {
+  description = "Subscribe an on-call email or incident system to receive CloudWatch alarm notifications."
+  value       = aws_sns_topic.operations_alerts.arn
+}
