@@ -20,10 +20,17 @@ function requiredString(value: string, name: string): string {
 }
 
 function parseScopes(value: unknown): string[] {
-  if (typeof value !== 'string') return [];
+  if (typeof value !== 'string' || !value.trim()) return [];
+  let decoded: string;
+  try {
+    // LinkedIn describes the token response scope as URL-encoded and space-delimited.
+    decoded = decodeURIComponent(value.replace(/\+/g, '%20'));
+  } catch {
+    return [];
+  }
   return [
     ...new Set(
-      value
+      decoded
         .split(/[\s,]+/)
         .map((scope) => scope.trim())
         .filter(Boolean)
