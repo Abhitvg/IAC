@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { usePracticeStore } from '../store/usePracticeStore';
 import { X, Save, AlertTriangle, Volume2, VolumeX, CheckCircle, ShieldAlert } from 'lucide-react';
 import { isSoundMuted, toggleSoundMuted } from '../utils/soundEffects';
+import { DiagnosticLoggerService, ReliabilitySummary } from '../services/diagnosticLogger';
 import {
   getActiveModelsForProvider,
   getDefaultModelForProvider,
@@ -39,6 +40,7 @@ export default function SettingsPanel() {
     message?: string;
   }>({ running: false });
   const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const [reliabilitySummary, setReliabilitySummary] = useState<ReliabilitySummary | null>(null);
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -79,6 +81,30 @@ export default function SettingsPanel() {
       if (info?.tokenPreview) setExtensionTokenPreview(info.tokenPreview);
     });
   }, [settings?.aiProvider]);
+
+  const refreshReliabilitySummary = () => {
+    setReliabilitySummary(DiagnosticLoggerService.getInstance().getReliabilitySummary());
+  };
+
+  const exportReliabilitySummary = async () => {
+    const summary = DiagnosticLoggerService.getInstance().exportReliabilitySummaryAsJson();
+    try {
+      if (window.electronAPI?.copyToClipboard) {
+        await window.electronAPI.copyToClipboard(summary);
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(summary);
+      } else {
+        throw new Error('Clipboard access is unavailable.');
+      }
+      setToast('Privacy-safe reliability summary copied to clipboard.');
+    } catch {
+      setToast('Could not copy the reliability summary.');
+    }
+  };
+
+  useEffect(() => {
+    refreshReliabilitySummary();
+  }, []);
 
   if (!settings) return null;
 
@@ -805,6 +831,96 @@ export default function SettingsPanel() {
                 aria-label="Custom Interviewer System Prompt"
               />
               <span className="field__hint">Customize how the AI behaves and responds.</span>
+            </div>
+          </div>
+
+          <div className="settings-section" data-testid="interview-reliability-panel">
+            <h3 className="settings-section__title">Interview Reliability Diagnostics</h3>
+            <p className="field__hint">
+              Current application session only. The snapshot covers at most the latest 200
+              diagnostic events and is not historical or a provider guarantee.
+            </p>
+            {reliabilitySummary ? (
+              <>
+                <div className="grid grid-cols-2 gap-2 mt-3" aria-live="polite">
+                  <div className="rounded-lg border border-slate-700 p-3">
+                    <span className="text-[11px] text-slate-400 block">Requests observed</span>
+                    <strong className="text-lg">{reliabilitySummary.requestCount}</strong>
+                  </div>
+                  <div className="rounded-lg border border-slate-700 p-3">
+                    <span className="text-[11px] text-slate-400 block">Terminal success rate</span>
+                    <strong className="text-lg">
+                      {reliabilitySummary.successRate === null
+                        ? '—'
+                        : `${(reliabilitySummary.successRate * 100).toFixed(1)}%`}
+                    </strong>
+                  </div>
+                  <div className="rounded-lg border border-slate-700 p-3">
+                    <span className="text-[11px] text-slate-400 block">Failed / aborted</span>
+                    <strong className="text-lg">
+                      {reliabilitySummary.failed} / {reliabilitySummary.aborted}
+                    </strong>
+                  </div>
+                  <div className="rounded-lg border border-slate-700 p-3">
+                    <span className="text-[11px] text-slate-400 block">Unresolved</span>
+                    <strong className="text-lg">{reliabilitySummary.unresolvedRequestCount}</strong>
+                  </div>
+                </div>
+                <div className="mt-3 text-[11px] text-slate-400 space-y-1">
+                  <p>
+                    Transcription — success {reliabilitySummary.transcription.success}, empty{' '}
+                    {reliabilitySummary.transcription.empty}, failed{' '}
+                    {reliabilitySummary.transcription.failed}, aborted{' '}
+                    {reliabilitySummary.transcription.aborted}
+                  </p>
+                  <p>
+                    Microphone capture — failed {reliabilitySummary.audioCapture.failed}, aborted{' '}
+                    {reliabilitySummary.audioCapture.aborted}
+                  </p>
+                  <p>
+                    Session saves — success {reliabilitySummary.sessionSave.success}, failed{' '}
+                    {reliabilitySummary.sessionSave.failed}
+                  </p>
+                </div>
+                {reliabilitySummary.byProviderModel.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <span className="text-xs font-semibold text-slate-300">Provider / model</span>
+                    {reliabilitySummary.byProviderModel.map((group) => (
+                      <div
+                        key={`${group.provider}/${group.model}`}
+                        className="flex items-center justify-between gap-3 text-[11px] border-b border-slate-800 pb-2"
+                      >
+                        <span className="min-w-0 truncate text-slate-300">
+                          {group.provider} / {group.model}
+                        </span>
+                        <span className="shrink-0 text-slate-400">
+                          {group.succeeded}/{group.requests - group.unresolved} successful
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="field__hint mt-2">No interview diagnostic events recorded yet.</p>
+            )}
+            <div className="flex gap-2 mt-3">
+              <button
+                type="button"
+                className="action-btn"
+                onClick={refreshReliabilitySummary}
+                data-testid="refresh-interview-reliability"
+              >
+                Refresh snapshot
+              </button>
+              <button
+                type="button"
+                className="action-btn"
+                onClick={exportReliabilitySummary}
+                data-testid="export-interview-reliability"
+              >
+                Export summary JSON
+              </button>
             </div>
           </div>
 
