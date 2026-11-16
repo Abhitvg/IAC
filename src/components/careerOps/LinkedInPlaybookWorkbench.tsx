@@ -50,6 +50,12 @@ export function LinkedInPlaybookWorkbench({ onUseDraft }: LinkedInPlaybookWorkbe
   }, [query]);
 
   const profileScore = criteria.reduce((sum, item) => sum + (scores[item.id] ?? 0), 0);
+  const plannerFields: { label: string; value: string; setValue: (value: string) => void; placeholder: string }[] = [
+    { label: 'Proof', value: proof, setValue: setProof, placeholder: 'A real result, project, mistake or measured outcome' },
+    { label: 'Opinion', value: opinion, setValue: setOpinion, placeholder: 'A defensible position your audience may disagree with' },
+    { label: 'Teach', value: teach, setValue: setTeach, placeholder: 'One useful method, lesson or process' },
+    { label: 'Story / offer', value: story, setValue: setStory, placeholder: 'A true scene, lesson or clear offer' },
+  ];
   const plan = useMemo(
     () =>
       [
@@ -316,21 +322,16 @@ export function LinkedInPlaybookWorkbench({ onUseDraft }: LinkedInPlaybookWorkbe
               }}
             />
           </div>
-          {([
-            ['Proof', proof, setProof, 'A real result, project, mistake or measured outcome'],
-            ['Opinion', opinion, setOpinion, 'A defensible position your audience may disagree with'],
-            ['Teach', teach, setTeach, 'One useful method, lesson or process'],
-            ['Story / offer', story, setStory, 'A true scene, lesson or clear offer'],
-          ] as const).map(([label, value, setter, placeholder]) => (
-            <div key={label} style={panel}>
+          {plannerFields.map((field) => (
+            <div key={field.label} style={panel}>
               <label style={{ display: 'block', color: '#f8fafc', fontWeight: 700, fontSize: 12 }}>
-                {label}
+                {field.label}
               </label>
               <textarea
-                value={value}
-                onChange={(event) => setter(event.target.value)}
+                value={field.value}
+                onChange={(event) => field.setValue(event.target.value)}
                 rows={3}
-                placeholder={placeholder}
+                placeholder={field.placeholder}
                 style={{
                   width: '100%',
                   boxSizing: 'border-box',
