@@ -234,6 +234,63 @@ describe('AnswerGenerationService request supersession', () => {
     useAppStore.getState().setRecoveredPartialAnswer(null);
   });
 
+  it('classifies a stream inactivity deadline separately and records partial recovery', async () => {
+    const credentialStore = {
+      getKey: vi.fn(async () => 'gsk_test_key_123456789012345678901234567890'),
+    };
+    const encoder = new TextEncoder();
+    const timedOutStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ choices: [{ delta: { content: 'A partial answer before timeout.' } }] })}\\n\\n`
+          )
+        );
+        setTimeout(
+          () =>
+            controller.error(
+              Object.assign(new Error('Stream inactivity timeout exceeded'), {
+                name: 'AbortError',
+              })
+            ),
+          10
+        );
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(timedOutStream, {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    );
+    const gateway = createElectronGateway(credentialStore);
+    vi.stubGlobal('window', { electronAPI: gateway });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await AnswerGenerationService.getInstance().generateAnswer({
+      requestId: 'partial-output-timeout-recovery',
+      type: 'interview',
+      text: 'Explain a hash table.',
+      provider: 'groq',
+      model: 'openai/gpt-oss-120b',
+      preferredLanguage: 'Java',
+    });
+
+    expect(result.status).toBe('FAILED');
+    const events = DiagnosticLoggerService.getInstance().getEventsForRequest(
+      'partial-output-timeout-recovery'
+    );
+    const terminal = events.find((event) => event.finalOutcome === 'FAILED');
+    expect(terminal?.failureKind).toBe('TIMEOUT');
+    expect(terminal?.partialOutputRecovered).toBe(true);
+    expect(terminal?.partialOutputCharacterCount).toBeGreaterThan(0);
+    const { useAppStore } = await import('../src/store/useAppStore');
+    expect(useAppStore.getState().recoveredPartialAnswer).toContain(
+      'A partial answer before timeout.'
+    );
+    useAppStore.getState().setRecoveredPartialAnswer(null);
+  });
+
   it('suppresses tokens from a superseded interview request', async () => {
     const credentialStore = {
       getKey: vi.fn(async () => 'gsk_test_key_123456789012345678901234567890'),
