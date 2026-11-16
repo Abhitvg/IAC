@@ -250,7 +250,7 @@ describe('AnswerGenerationService request supersession', () => {
           () =>
             controller.error(
               Object.assign(new Error('Stream inactivity timeout exceeded'), {
-                name: 'AbortError',
+                name: 'TimeoutError',
               })
             ),
           10
