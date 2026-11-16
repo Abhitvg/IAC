@@ -34,6 +34,7 @@ export function createCloudApiRuntime(
       jwksUrl: environment.CAREEROPS_JWKS_URL,
       consentSigningSecret: environment.CAREEROPS_CONSENT_SIGNING_SECRET,
       maxRequestBytes: environment.CAREEROPS_MAX_REQUEST_BYTES,
+      allowedOrigins: environment.CAREEROPS_CORS_ALLOWED_ORIGINS,
     },
     ...(linkedin ? { linkedin } : {}),
   });
