@@ -310,6 +310,7 @@ export class CredentialStore {
       openai: false,
       openrouter: false,
       ollama: false,
+      'careerops-cloud': false,
     };
 
     for (const service of ALLOWED_SERVICES) {
