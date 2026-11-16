@@ -591,9 +591,9 @@ describe('M0 cloud security foundation', () => {
       KeyId: keyArn,
       KeySpec: 'AES_256',
       EncryptionContext: {
-        'careerops:application': 'careerops',
-        'careerops:tenant_id': 'tenant-123',
-        'careerops:data_context': 'linkedin-token:member-1',
+        application: 'careerops',
+        tenant_id: 'tenant-123',
+        data_context: 'linkedin-token:member-1',
       },
     });
     expect(calls[1].target).toBe('TrentService.Decrypt');

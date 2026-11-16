@@ -241,7 +241,7 @@ data "aws_iam_policy_document" "kms_data_key" {
     resources = [var.kms_key_arn]
     condition {
       test     = "StringEquals"
-      variable = "kms:EncryptionContext:careerops:application"
+      variable = "kms:EncryptionContext:application"
       values   = ["careerops"]
     }
   }

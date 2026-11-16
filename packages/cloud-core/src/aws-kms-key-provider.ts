@@ -126,9 +126,9 @@ async function defaultCredentialsProvider(
 function encryptionContext(tenantId: string, context: string): Record<string, string> {
   validateTenantContext(tenantId, context);
   return {
-    'careerops:application': 'careerops',
-    'careerops:tenant_id': tenantId,
-    'careerops:data_context': context,
+    application: 'careerops',
+    tenant_id: tenantId,
+    data_context: context,
   };
 }
 
