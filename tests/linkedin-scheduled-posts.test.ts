@@ -36,6 +36,7 @@ function makeWorker(overrides?: {
   controls?: { globalKillSwitch: boolean; pausedChannels: string[]; tenantId?: string };
   memberships?: Array<{ tenantId: string; subject: string; role: string; status: string }>;
   publish?: () => Promise<{ id: string; status: number }>;
+  token?: LinkedInTokenSet | null;
   getControls?: () => Promise<{
     tenantId: string;
     globalKillSwitch: boolean;
@@ -52,7 +53,11 @@ function makeWorker(overrides?: {
     markNeedsReview: vi.fn(async () => undefined),
   } as unknown as LinkedInScheduledPostStore;
   const integration = {
-    oauth: { getValidToken: vi.fn(async () => token) },
+    oauth: {
+      getValidToken: vi.fn(async () =>
+        overrides?.token === null ? null : (overrides?.token ?? token)
+      ),
+    },
     api: {
       publishMemberTextPost: vi.fn(
         overrides?.publish ??
@@ -178,6 +183,127 @@ describe('LinkedIn scheduled post execution', () => {
 
     expect(store.defer).toHaveBeenCalledWith(scheduledPost, 45);
     expect(store.markUnknownOutcome).not.toHaveBeenCalled();
+  });
+
+  it('defers without publishing while the tenant-wide kill switch is enabled', async () => {
+    const { worker, store, integration } = makeWorker({
+      controls: { globalKillSwitch: true, pausedChannels: [] },
+    });
+
+    await worker.runOnce();
+
+    expect(store.defer).toHaveBeenCalledWith(scheduledPost, 60);
+    expect(integration.api.publishMemberTextPost).not.toHaveBeenCalled();
+  });
+
+  it('re-checks pause controls immediately before the LinkedIn side effect', async () => {
+    let reads = 0;
+    const { worker, store, integration } = makeWorker({
+      getControls: async () => {
+        reads += 1;
+        return {
+          tenantId: scheduledPost.tenantId,
+          globalKillSwitch: false,
+          pausedChannels: reads === 2 ? ['linkedin_assist'] : [],
+          updatedAt: new Date().toISOString(),
+        };
+      },
+    });
+
+    await worker.runOnce();
+
+    expect(reads).toBe(2);
+    expect(store.defer).toHaveBeenCalledWith(scheduledPost, 60);
+    expect(integration.api.publishMemberTextPost).not.toHaveBeenCalled();
+  });
+
+  it('does not publish when the account is missing or the member post scope was revoked', async () => {
+    const disconnected = makeWorker({ token: null });
+    await disconnected.worker.runOnce();
+    expect(disconnected.store.markFailed).toHaveBeenCalledWith(
+      scheduledPost,
+      'linkedin_connection_missing'
+    );
+    expect(disconnected.integration.api.publishMemberTextPost).not.toHaveBeenCalled();
+
+    const revoked = makeWorker({
+      token: { ...token, grantedScopes: ['openid', 'profile'] },
+    });
+    await revoked.worker.runOnce();
+    expect(revoked.store.markFailed).toHaveBeenCalledWith(
+      scheduledPost,
+      'linkedin_member_post_scope_missing'
+    );
+    expect(revoked.integration.api.publishMemberTextPost).not.toHaveBeenCalled();
+  });
+
+  it('requires manual review instead of posting a schedule that missed its time by over one hour', async () => {
+    const { worker, store, integration } = makeWorker();
+    const overdue = {
+      ...scheduledPost,
+      scheduledAt: new Date(Date.now() - 61 * 60_000).toISOString(),
+    };
+    store.claimDue = vi.fn(async () => [overdue]);
+
+    await worker.runOnce();
+
+    expect(store.markNeedsReview).toHaveBeenCalledWith(
+      overdue,
+      'scheduled_time_missed_by_over_one_hour'
+    );
+    expect(integration.api.publishMemberTextPost).not.toHaveBeenCalled();
+  });
+
+  it('marks explicit non-rate-limit LinkedIn rejections as failed', async () => {
+    const { worker, store, integration } = makeWorker({
+      publish: async () => {
+        throw new LinkedInApiError('Permission denied', 403);
+      },
+    });
+
+    await worker.runOnce();
+
+    expect(store.markFailed).toHaveBeenCalledWith(
+      scheduledPost,
+      'linkedin_api_rejected_request'
+    );
+    expect(store.markUnknownOutcome).not.toHaveBeenCalled();
+    expect(store.defer).not.toHaveBeenCalled();
+    expect(integration.api.publishMemberTextPost).toHaveBeenCalledOnce();
+  });
+
+  it('does not retry an explicit 429 after the bounded retry count is exhausted', async () => {
+    const { worker, store } = makeWorker({
+      publish: async () => {
+        throw new LinkedInApiError('Rate limited', 429, 45);
+      },
+    });
+    const exhausted = { ...scheduledPost, attemptCount: 3 };
+    store.claimDue = vi.fn(async () => [exhausted]);
+
+    await worker.runOnce();
+
+    expect(store.markFailed).toHaveBeenCalledWith(
+      exhausted,
+      'linkedin_api_rejected_request'
+    );
+    expect(store.defer).not.toHaveBeenCalled();
+  });
+
+  it('rejects a mismatched tenant control record before publishing', async () => {
+    const { worker, store, integration } = makeWorker({
+      getControls: async () => ({
+        tenantId: 'different-tenant',
+        globalKillSwitch: false,
+        pausedChannels: [],
+        updatedAt: new Date().toISOString(),
+      }),
+    });
+
+    await worker.runOnce();
+
+    expect(store.defer).toHaveBeenCalledWith(scheduledPost, 60);
+    expect(integration.api.publishMemberTextPost).not.toHaveBeenCalled();
   });
 
   it('marks a preflight failure for review after bounded attempts without calling LinkedIn', async () => {
