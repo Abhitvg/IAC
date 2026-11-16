@@ -19,7 +19,7 @@ Use AWS as the hosting and managed infrastructure platform:
 - Secrets Manager injects application configuration into the ECS task at startup. The application receives values, not permission to retrieve secrets itself.
 - OIDC remains an explicit external identity-provider contract. Configure issuer, audience, and JWKS URL for the selected provider.
 - The task role receives only KMS GenerateDataKey and Decrypt on the configured key ARN, conditioned on the CareerOps application encryption context. The task execution role can pull its image, publish logs, and retrieve only the named application secret.
-- The cloud-core package provides a SigV4-signed AWS KMS provider. It calls GenerateDataKey for fresh AES-256 data keys and Decrypt to unwrap them. AES-256-GCM encrypts the actual field values. Encryption context binds application, tenant ID, and data purpose. ECS task-role credentials are used; no static production credentials are embedded.
+- The cloud-core package provides a SigV4-signed AWS KMS provider. It calls GenerateDataKey for fresh AES-256 data keys and Decrypt to unwrap them. AES-256-GCM encrypts the actual field values. Encryption context binds `application`, `tenant_id`, and `data_context`. ECS task-role credentials are used; no static production credentials are embedded.
 
 AWS-managed storage services may also use AWS-managed encryption internally. This is separate from application-level KMS envelope encryption.
 
@@ -36,7 +36,7 @@ S3 document storage, SQS job dispatch, EventBridge scheduling, SES delivery, and
 - PostgreSQL RLS remains the tenant isolation boundary; infrastructure networking does not replace it.
 - The ALB is the only public ingress. RDS and ECS tasks are private.
 - Production Terraform state must be stored remotely with encryption, locking, and tightly restricted access.
-- Backups, restore drills, image rollback, and keyring rotation are operational requirements.
+- Backups, restore drills, image rollback, and KMS key rotation and data-key migration are operational requirements.
 
 ## Rollout
 
