@@ -8,7 +8,7 @@ Create or use an approved LinkedIn developer application and configure the exact
 
 `https://YOUR-CAREEROPS-API-HOST/oauth/linkedin/callback`
 
-For member text publishing, request the **Share on LinkedIn** product and the `w_member_social` scope. The integration also requests OpenID Connect `openid`, `profile` and `email` so the cloud API can verify which member authorized the connection.
+For member text and poll publishing, request the **Share on LinkedIn** product and the `w_member_social` scope. Polls are organic Posts API content; they allow 2–4 options and a 1-, 3-, 7- or 14-day duration. The integration also requests OpenID Connect `openid`, `profile` and `email` so the cloud API can verify which member authorized the connection.
 
 The app can request Community Management scopes only when the LinkedIn application has actually been approved for the corresponding Community Management API product. A requested scope is not proof of approval. The UI receives the deployment entitlement flags and shows unavailable capabilities with their reason.
 
