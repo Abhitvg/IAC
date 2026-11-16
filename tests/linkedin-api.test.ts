@@ -41,6 +41,12 @@ class MemoryStates implements LinkedInOAuthStateStore {
     }
     return value;
   }
+
+  async consumeCallback(state: string): Promise<LinkedInOAuthState | null> {
+    const value = this.values.get(state) ?? null;
+    this.values.delete(state);
+    return value;
+  }
 }
 
 class MemoryTokens implements LinkedInTokenVault {
@@ -231,6 +237,70 @@ describe('LinkedIn OAuth service', () => {
     await expect(
       service.completeAuthorization({ code: 'replay', state, identity })
     ).rejects.toThrow('invalid, expired, or already used');
+  });
+
+  it('completes the public OAuth callback from one-time state without renderer credentials', async () => {
+    const states = new MemoryStates();
+    const tokens = new MemoryTokens();
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: 'callback-access-token',
+            expires_in: 3600,
+            scope: 'openid profile email w_member_social',
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ sub: 'callback-member' }), { status: 200 })
+      );
+    const service = new LinkedInOAuthService(
+      {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://careerops.example.com/oauth/linkedin/callback',
+        fetcher,
+      },
+      states,
+      tokens
+    );
+    const identity = { tenantId: 'tenant-bound', subject: 'user-bound' };
+    const authorizeUrl = new URL(await service.createAuthorizationUrl(identity));
+    const state = authorizeUrl.searchParams.get('state')!;
+
+    const result = await service.completeAuthorizationCallback({ code: 'callback-code', state });
+
+    expect(result.connected).toBe(true);
+    expect(tokens.value?.memberId).toBe('callback-member');
+    expect(tokens.value?.accessToken).toBe('callback-access-token');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    await expect(
+      service.completeAuthorizationCallback({ code: 'replay-code', state })
+    ).rejects.toThrow('invalid, expired, or already used');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('consumes an OAuth denial callback and cannot replay it', async () => {
+    const states = new MemoryStates();
+    const service = new LinkedInOAuthService(
+      {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://careerops.example.com/oauth/linkedin/callback',
+        fetcher: vi.fn<typeof fetch>(),
+      },
+      states,
+      new MemoryTokens()
+    );
+    const url = new URL(
+      await service.createAuthorizationUrl({ tenantId: 'tenant-1', subject: 'member-1' })
+    );
+    const state = url.searchParams.get('state')!;
+    await expect(service.cancelAuthorizationCallback(state)).resolves.toBe(true);
+    await expect(service.cancelAuthorizationCallback(state)).resolves.toBe(false);
   });
 
   it('rejects OAuth state replay across members', async () => {
