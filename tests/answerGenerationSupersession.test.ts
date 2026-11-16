@@ -244,7 +244,7 @@ describe('AnswerGenerationService request supersession', () => {
       start(controller) {
         controller.enqueue(
           encoder.encode(
-            `data: ${JSON.stringify({ choices: [{ delta: { content: 'A partial answer before timeout.' } }] })}\\n\\n`
+            `data: ${JSON.stringify({ choices: [{ delta: { content: 'A partial answer before timeout.' } }] })}\n\n`
           )
         );
         setTimeout(
