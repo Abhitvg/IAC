@@ -96,7 +96,7 @@ show exactly which prerequisite is missing.
 
 ### Not implemented or not entitled by default
 
-- Background post scheduling / queue worker and automatic unattended publishing.
+- Optional background scheduling for member text posts is implemented behind `LINKEDIN_SCHEDULER_ENABLED` (default off). Media scheduling, bulk campaigns and autonomous content generation/publication are not implemented.
 - Media uploads, documents, video and carousel creation.
 - Member feed, profile activity and inbox reads.
 - Direct messages, invitations and communications execution. These are partner-restricted and remain unavailable until LinkedIn approves the exact application and CareerOps implements the required API clients.
