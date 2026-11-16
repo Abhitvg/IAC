@@ -30,6 +30,15 @@ variable "environment" {
     error_message = "environment must be staging or production."
   }
 }
+variable "api_allowed_origins" {
+  type        = list(string)
+  description = "Exact HTTPS browser origins allowed to call the API. Configure per environment; never use wildcard origins."
+  default     = []
+  validation {
+    condition     = length(distinct(var.api_allowed_origins)) == length(var.api_allowed_origins) && alltrue([for origin in var.api_allowed_origins : can(regex("^https://[^/]+$", origin))])
+    error_message = "api_allowed_origins must contain unique exact HTTPS origins without paths, trailing slashes, or wildcards."
+  }
+}
 variable "vpc_id" { type = string }
 variable "public_subnet_ids" {
   type = list(string)
