@@ -259,7 +259,7 @@ export class LinkedInScheduledPostStore {
 
 export class LinkedInScheduledPostWorker {
   private timer: ReturnType<typeof setInterval> | null = null;
-  private running = false;
+  private activeRun: Promise<void> | null = null;
 
   constructor(
     private readonly store: LinkedInScheduledPostStore,
@@ -288,9 +288,21 @@ export class LinkedInScheduledPostWorker {
     this.timer = null;
   }
 
-  async runOnce(): Promise<void> {
-    if (this.running) return;
-    this.running = true;
+  async stopAndWait(): Promise<void> {
+    this.stop();
+    await this.activeRun;
+  }
+
+  runOnce(): Promise<void> {
+    if (this.activeRun) return this.activeRun;
+    const run = this.runBatch().finally(() => {
+      if (this.activeRun === run) this.activeRun = null;
+    });
+    this.activeRun = run;
+    return run;
+  }
+
+  private async runBatch(): Promise<void> {
     try {
       const duePosts = await this.store.claimDue(this.batchSize);
       for (const post of duePosts) {
@@ -299,8 +311,6 @@ export class LinkedInScheduledPostWorker {
     } catch {
       // Intentionally avoid logging database values, OAuth material or user post text.
       console.error('LinkedIn scheduled-post worker tick failed.');
-    } finally {
-      this.running = false;
     }
   }
 
