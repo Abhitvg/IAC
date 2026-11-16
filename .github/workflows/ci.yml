@@ -198,7 +198,7 @@ jobs:
         with:
           terraform_version: 1.8.5
       - name: Check Terraform formatting
-        run: terraform fmt -check -recursive infra/aws/terraform
+        run: terraform fmt -diff -recursive infra/aws/terraform
       - name: Initialize providers without backend
         run: terraform -chdir=infra/aws/terraform init -backend=false -input=false
       - name: Validate Terraform configuration
