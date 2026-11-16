@@ -90,9 +90,7 @@ function structuralFlags(text: string): string[] {
 export function humanizeLinkedInText(input: string): HumanizeResult {
   let lexicalChanged = false;
   const changes: string[] = [];
-  const entries = [...terms.phrases, ...terms.words].sort(
-    (a, b) => b.find.length - a.find.length
-  );
+  const entries = [...terms.phrases, ...terms.words].sort((a, b) => b.find.length - a.find.length);
 
   const text = mapOutsideUrls(input, (part) => {
     const before = part;
@@ -191,10 +189,7 @@ export function scoreLinkedInText(
 
   const checks = {
     readability: {
-      score:
-        cv === null || sentenceList.length < 2
-          ? null
-          : Math.round(scaled(cv, 0.55, 0.12)),
+      score: cv === null || sentenceList.length < 2 ? null : Math.round(scaled(cv, 0.55, 0.12)),
       detail:
         cv === null
           ? 'Need at least two complete sentences.'
@@ -218,7 +213,9 @@ export function scoreLinkedInText(
     },
     voice: {
       score: enough
-        ? Math.round(Math.max(0, Math.min(100, 50 + contractions * 8 + pronouns * 2 - flags.length * 8)))
+        ? Math.round(
+            Math.max(0, Math.min(100, 50 + contractions * 8 + pronouns * 2 - flags.length * 8))
+          )
         : null,
       detail: enough
         ? `${contractions} contractions and ${pronouns} personal pronouns; review flags rather than adding them artificially.`
@@ -232,9 +229,7 @@ export function scoreLinkedInText(
   return {
     checks,
     overall:
-      values.length === 5
-        ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
-        : null,
+      values.length === 5 ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : null,
     verdict: enough ? 'REVIEW' : 'INSUFFICIENT_TEXT',
     structuralFlags: flags,
     wordCount: tokens.length,

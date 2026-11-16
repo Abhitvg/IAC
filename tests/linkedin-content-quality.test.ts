@@ -14,8 +14,7 @@ describe('LinkedIn content quality', () => {
   });
 
   it('does not rewrite URL query text or email addresses', () => {
-    const input =
-      'Use leverage in this note. https://example.com/?q=leverage test@example.com';
+    const input = 'Use leverage in this note. https://example.com/?q=leverage test@example.com';
     const result = humanizeLinkedInText(input);
     expect(result.text).toContain('https://example.com/?q=leverage');
     expect(result.text).toContain('test@example.com');

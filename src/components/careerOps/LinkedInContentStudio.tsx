@@ -29,10 +29,7 @@ export function LinkedInContentStudio({
     }
   }, [initialDraft, initialKind]);
 
-  const report = useMemo(
-    () => scoreLinkedInText(cleaned || draft, kind),
-    [cleaned, draft, kind]
-  );
+  const report = useMemo(() => scoreLinkedInText(cleaned || draft, kind), [cleaned, draft, kind]);
   const result = useMemo(() => humanizeLinkedInText(draft), [draft]);
   const panel: React.CSSProperties = {
     background: 'rgba(15,23,42,.72)',
@@ -60,9 +57,7 @@ export function LinkedInContentStudio({
           Clean formatting, catch generic phrasing and review factual quality before using a post,
           comment, reply or DM. Scores are local writing heuristics, not AI-detector predictions.
         </p>
-        <label
-          style={{ display: 'block', color: '#cbd5e1', fontSize: 11, marginBottom: 6 }}
-        >
+        <label style={{ display: 'block', color: '#cbd5e1', fontSize: 11, marginBottom: 6 }}>
           CONTENT TYPE
         </label>
         <select
@@ -180,7 +175,9 @@ export function LinkedInContentStudio({
         </div>
         <p style={{ color: '#94a3b8', fontSize: 11 }}>
           Text: {report.wordCount} words · {report.contentKind} ·{' '}
-          {report.verdict === 'INSUFFICIENT_TEXT' ? 'Insufficient sample' : 'Manual review required'}
+          {report.verdict === 'INSUFFICIENT_TEXT'
+            ? 'Insufficient sample'
+            : 'Manual review required'}
         </p>
         <div
           style={{
@@ -200,9 +197,7 @@ export function LinkedInContentStudio({
               <strong style={{ color: '#f8fafc', fontSize: 20 }}>
                 {check.score === null ? 'N/A' : check.score}
               </strong>
-              <div style={{ color: '#94a3b8', fontSize: 10, lineHeight: 1.4 }}>
-                {check.detail}
-              </div>
+              <div style={{ color: '#94a3b8', fontSize: 10, lineHeight: 1.4 }}>{check.detail}</div>
             </div>
           ))}
         </div>

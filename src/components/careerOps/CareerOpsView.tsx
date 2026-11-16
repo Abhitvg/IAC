@@ -2251,7 +2251,9 @@ export function CareerOpsView() {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}>
+              <div
+                style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}
+              >
                 <button
                   onClick={async () => {
                     setToast('Drafting outreach messages...');
@@ -2275,9 +2277,11 @@ export function CareerOpsView() {
                   <>
                     <button
                       onClick={() => {
-                        const draft = activeJob.outreachNote?.match(
-                          /=== LINKEDIN RECRUITER \(<= 300 chars\) ===\s*([\s\S]*?)(?=\n\n===|$)/
-                        )?.[1]?.trim();
+                        const draft = activeJob.outreachNote
+                          ?.match(
+                            /=== LINKEDIN RECRUITER \(<= 300 chars\) ===\s*([\s\S]*?)(?=\n\n===|$)/
+                          )?.[1]
+                          ?.trim();
                         if (draft) {
                           setLinkedinStudioDraft(draft);
                           setSubTab('linkedinStudio');
@@ -2300,9 +2304,11 @@ export function CareerOpsView() {
                     </button>
                     <button
                       onClick={() => {
-                        const draft = activeJob.outreachNote?.match(
-                          /=== LINKEDIN HIRING MANAGER \(<= 300 chars\) ===\s*([\s\S]*?)(?=\n\n===|$)/
-                        )?.[1]?.trim();
+                        const draft = activeJob.outreachNote
+                          ?.match(
+                            /=== LINKEDIN HIRING MANAGER \(<= 300 chars\) ===\s*([\s\S]*?)(?=\n\n===|$)/
+                          )?.[1]
+                          ?.trim();
                         if (draft) {
                           setLinkedinStudioDraft(draft);
                           setSubTab('linkedinStudio');
