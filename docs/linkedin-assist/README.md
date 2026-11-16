@@ -8,10 +8,12 @@ scopes.
 ## Included
 
 - `CAPABILITIES.md`: capability map, access tiers, and implementation status.
-- `hooks.json`: 21 post-hook formulas.
-- `profile-rubric.json`: 12-part, 100-point profile review rubric.
+- `hooks.json`: searchable 21-formula post-hook library in the Playbook Workbench.
+- `profile-rubric.json`: 12-part, 100-point user-scored profile self-assessment.
+- Playbook Workbench: four-slot weekly content planner for proof, opinion, teaching and story / offer.
 - `humanizer/`: local text-cleanup and heuristic quality scripts.
 - `humanizer/slop.json`: cleanup lexicon and character / typography rules.
+- LinkedIn Studio: separate 200-character connection-invite and 300-character DM targets, plus explicit lexical replacement review.
 - `LICENSE.upstream`: MIT attribution and license.
 - `../../apps/api/src/linkedin/`: OAuth, API client, encrypted persistence, and composition
   factory.
