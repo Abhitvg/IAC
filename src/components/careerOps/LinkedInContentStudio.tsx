@@ -24,7 +24,7 @@ export function LinkedInContentStudio() {
       <textarea value={draft} onChange={e=>{setDraft(e.target.value);setCleaned('');}} placeholder="Paste or write your LinkedIn draft..." rows={9} style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', background: '#0b1220', border: '1px solid rgba(255,255,255,.14)', borderRadius: 8, color: '#f8fafc', padding: 12, font: 'inherit', fontSize: 13, lineHeight: 1.6 }} />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
         <button style={{ ...button, background: 'rgba(249,115,22,.18)', color: '#fdba74' }} onClick={()=>{setCleaned(result.text);setNotice('Formatting and wording cleanup applied. Review every change before use.');}} disabled={!draft.trim()}><Wand2 size={14} style={{ verticalAlign: 'middle' }}/> Clean draft</button>
-        <button style={button} onClick={async()=>{await copyToClipboard(cleaned || draft);setNotice('Draft copied.');}} disabled={!(cleaned || draft).trim()}><Clipboard size={14} style={{ verticalAlign: 'middle' }}/> Copy draft</button>
+        <button style={button} onClick={async()=>{const copied=await copyToClipboard(cleaned || draft);setNotice(copied ? 'Draft copied.' : 'Copy failed. Select and copy the draft manually.');}} disabled={!(cleaned || draft).trim()}><Clipboard size={14} style={{ verticalAlign: 'middle' }}/> Copy draft</button>
         <button style={button} onClick={()=>{setDraft('');setCleaned('');setNotice('');}}>Clear</button>
       </div>
       {notice && <p role="status" style={{ color: '#cbd5e1', fontSize: 12 }}>{notice}</p>}
