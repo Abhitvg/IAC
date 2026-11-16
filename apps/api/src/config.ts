@@ -51,6 +51,11 @@ const CloudEnvironmentSchema = z
       .enum(['true', 'false'])
       .default('false')
       .transform((value) => value === 'true'),
+    LINKEDIN_SCHEDULER_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    LINKEDIN_SCHEDULER_POLL_MS: z.coerce.number().int().min(5_000).max(60_000).default(15_000),
   })
   .superRefine((values, context) => {
     const linkedinFields = [
@@ -60,6 +65,13 @@ const CloudEnvironmentSchema = z
       values.LINKEDIN_KMS_KEY_ID,
       values.AWS_REGION,
     ];
+    if (values.LINKEDIN_SCHEDULER_ENABLED && !values.LINKEDIN_ENABLED) {
+      context.addIssue({
+        code: 'custom',
+        path: ['LINKEDIN_SCHEDULER_ENABLED'],
+        message: 'LinkedIn scheduled publishing requires LINKEDIN_ENABLED=true',
+      });
+    }
     if (values.LINKEDIN_ENABLED && linkedinFields.some((value) => !value)) {
       context.addIssue({
         code: 'custom',
