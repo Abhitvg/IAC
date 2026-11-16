@@ -1,6 +1,6 @@
 # LinkedIn Content Studio
 
-CareerOps now provides a local content-quality workspace for posts, comments, replies and DMs.
+CareerOps provides a local content-quality workspace for posts, comments, replies and DMs.
 
 ## Behavior
 
