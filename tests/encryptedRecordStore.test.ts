@@ -77,6 +77,32 @@ describe('EncryptedRecordStore', () => {
     expect(await store.list('practice')).toHaveLength(12);
   });
 
+  it('does not leave an unindexed record when index persistence fails', async () => {
+    const store = createStore();
+    const originalWriteRecord = (store as any).writeRecord.bind(store);
+    (store as any).writeRecord = async (
+      namespace: string,
+      id: string,
+      plaintext: string
+    ) => {
+      if (id === '__index__') throw new Error('simulated index write failure');
+      return originalWriteRecord(namespace, id, plaintext);
+    };
+
+    await expect(store.set('practice', 'answer_orphan', 'secret')).rejects.toThrow(
+      'simulated index write failure'
+    );
+
+    const directory = path.join(rootDir, 'records', 'practice');
+    const digest = crypto
+      .createHash('sha256')
+      .update('answer_orphan', 'utf8')
+      .digest('hex');
+    expect(fs.existsSync(path.join(directory, digest + '.json'))).toBe(false);
+    await expect(store.list('practice')).resolves.toEqual([]);
+  });
+
+
   it('authenticates the namespace and identifier as associated data', async () => {
     const store = createStore();
     await store.set('candidate-vault', 'candidate_1', 'private');
