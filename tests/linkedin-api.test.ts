@@ -303,6 +303,103 @@ describe('LinkedIn OAuth service', () => {
     await expect(service.cancelAuthorizationCallback(state)).resolves.toBe(false);
   });
 
+  it('refreshes an access token only when LinkedIn supplied a usable refresh token', async () => {
+    const states = new MemoryStates();
+    const tokens = new MemoryTokens();
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: 'initial-access-token',
+            expires_in: 3600,
+            scope: 'openid profile email w_member_social',
+            refresh_token: 'partner-refresh-token',
+            refresh_token_expires_in: 86_400,
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ sub: 'refresh-member' }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: 'renewed-access-token',
+            expires_in: 3600,
+            scope: 'openid profile email w_member_social',
+          }),
+          { status: 200 }
+        )
+      );
+    const service = new LinkedInOAuthService(
+      {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://careerops.example.com/oauth/linkedin/callback',
+        fetcher,
+      },
+      states,
+      tokens
+    );
+    const identity = { tenantId: 'tenant-refresh', subject: 'member-refresh' };
+    const url = new URL(await service.createAuthorizationUrl(identity));
+    await service.completeAuthorization({
+      code: 'initial-code',
+      state: url.searchParams.get('state')!,
+      identity,
+    });
+    tokens.value!.expiresAt = Date.now() - 1;
+
+    const refreshed = await service.getValidToken(identity);
+
+    expect(refreshed?.accessToken).toBe('renewed-access-token');
+    expect(refreshed?.memberId).toBe('refresh-member');
+    expect(refreshed?.refreshToken).toBe('partner-refresh-token');
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(String(fetcher.mock.calls[2][1]?.body)).toContain('grant_type=refresh_token');
+  });
+
+  it('requires reconnect instead of faking refresh when LinkedIn did not grant a refresh token', async () => {
+    const states = new MemoryStates();
+    const tokens = new MemoryTokens();
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: 'short-lived-token',
+            expires_in: 3600,
+            scope: 'openid profile email',
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ sub: 'no-refresh-member' }), { status: 200 }));
+    const service = new LinkedInOAuthService(
+      {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://careerops.example.com/oauth/linkedin/callback',
+        fetcher,
+      },
+      states,
+      tokens
+    );
+    const identity = { tenantId: 'tenant-no-refresh', subject: 'member-no-refresh' };
+    const url = new URL(await service.createAuthorizationUrl(identity));
+    await service.completeAuthorization({
+      code: 'initial-code',
+      state: url.searchParams.get('state')!,
+      identity,
+    });
+    tokens.value!.expiresAt = Date.now() - 1;
+
+    await expect(service.getValidToken(identity)).rejects.toThrow('reconnect the account');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects OAuth state replay across members', async () => {
     const states = new MemoryStates();
     const service = new LinkedInOAuthService(
