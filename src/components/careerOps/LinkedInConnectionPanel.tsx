@@ -1045,7 +1045,7 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
                         type="button"
                         style={buttonStyle}
                         onClick={() => void cancelScheduledPost(item.id)}
-                        disabled={busy || writesBlocked}
+                        disabled={busy}
                       >
                         Cancel scheduled post
                       </button>
