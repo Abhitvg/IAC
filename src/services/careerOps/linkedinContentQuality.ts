@@ -4,7 +4,7 @@ type LexiconEntry = { find: string; replace: string; family: string };
 type Lexicon = { words: LexiconEntry[]; phrases: LexiconEntry[]; structures: { id: string; name: string; regex: string; fix: string }[] };
 const terms = lexicon as Lexicon;
 const URL_RE = /(?:https?:\/\/|www\.)[^\s]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/gi;
-const INVISIBLE = /[\\u00AD\\u061C\\u180E\\u200B\\u200E\\u200F\\u202A-\\u202E\\u2060\\u2066-\\u2069\\uFEFF\\u{E0000}-\\u{E007F}]/gu; // Preserve ZWNJ/ZWJ for Indic text and emoji.
+const INVISIBLE = /[\u00AD\u061C\u180E\u200B\u200E\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF\u{E0000}-\u{E007F}]/gu; // Preserve ZWNJ/ZWJ for Indic text and emoji.
 const SPACES = /[\u00A0\u2002-\u2003\u2007\u2009\u202F]/gu;
 const WORDS = /[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu;
 
@@ -38,7 +38,7 @@ function matchCase(source: string, replacement: string): string {
 }
 function toJavaScriptRegex(source: string): string {
   // The vendored lexicon uses Python's (?i) and \\UXXXXXXXX syntax.
-  return source.replace(/\\(\?i\)/g, '').replace(/\\\\U([0-9A-Fa-f]{8})/g, '\\\\u{$1}');
+  return source.replace(/\(\?i\)/g, '').replace(/\\U([0-9A-Fa-f]{8})/g, '\\u{$1}');
 }
 function structuralFlags(text: string): string[] {
   const flags: string[] = [];
@@ -55,6 +55,7 @@ function structuralFlags(text: string): string[] {
   return flags;
 }
 export function humanizeLinkedInText(input: string): HumanizeResult {
+  let lexicalChanged = false;
   const changes: string[] = [];
   let text = mapOutsideUrls(input, (part) => {
     const before = part;
