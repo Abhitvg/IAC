@@ -35,7 +35,7 @@ variable "api_allowed_origins" {
   description = "Exact HTTPS browser origins allowed to call the API. Configure per environment; never use wildcard origins."
   default     = []
   validation {
-    condition     = length(distinct(var.api_allowed_origins)) == length(var.api_allowed_origins) && alltrue([for origin in var.api_allowed_origins : can(regex("^https://[^/]+$", origin))])
+    condition     = length(distinct(var.api_allowed_origins)) == length(var.api_allowed_origins) && alltrue([for origin in var.api_allowed_origins : can(regex("^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$", origin))])
     error_message = "api_allowed_origins must contain unique exact HTTPS origins without paths, trailing slashes, or wildcards."
   }
 }
