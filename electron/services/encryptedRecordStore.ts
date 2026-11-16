@@ -281,6 +281,9 @@ export class EncryptedRecordStore {
         const record = await this.get(namespace, id);
         if (record !== null) verified.push(id);
       }
+      if (verified.length !== ids.length) {
+        await this.writeRecord(namespace, '__index__', JSON.stringify(verified));
+      }
       return verified;
     });
   }
@@ -348,9 +351,15 @@ export class EncryptedRecordStore {
         !ensureDirectorySafe(path.join(this.rootDir, 'records'), false) ||
         !ensureDirectorySafe(path.join(this.rootDir, 'records', namespace), false)
       ) return false;
-      const ids = (await this.readIndex(namespace)).filter((entry) => entry !== id);
+      const indexedIds = await this.readIndex(namespace);
+      const ids = indexedIds.filter((entry) => entry !== id);
       const filePath = this.recordPath(namespace, id);
-      if (!fs.existsSync(filePath)) return false;
+      if (!fs.existsSync(filePath)) {
+        if (ids.length !== indexedIds.length) {
+          await this.writeRecord(namespace, '__index__', JSON.stringify(ids));
+        }
+        return false;
+      }
       const stat = fs.lstatSync(filePath);
       if (!stat.isFile() || stat.isSymbolicLink()) {
         throw new Error('Secure record is not a regular file.');
