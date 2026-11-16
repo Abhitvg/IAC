@@ -159,6 +159,11 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
   const [controls, setControls] = useState<TenantControls | null>(null);
   const [member, setMember] = useState<MemberInfo | null>(null);
   const [postText, setPostText] = useState(initialDraft);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+  const [pollDuration, setPollDuration] = useState<
+    'ONE_DAY' | 'THREE_DAYS' | 'SEVEN_DAYS' | 'FOURTEEN_DAYS'
+  >('SEVEN_DAYS');
   const [scheduledAt, setScheduledAt] = useState('');
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPostItem[]>([]);
   const [scheduleIdempotencyKey, setScheduleIdempotencyKey] = useState('');
@@ -395,6 +400,46 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       setError(
         publishError instanceof Error ? publishError.message : 'LinkedIn post publishing failed.'
       );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const publishMemberPoll = async () => {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const options = pollOptions.map((option) => option.trim()).filter(Boolean);
+      if (!postText.trim() || postText.length > 3000) {
+        throw new Error('Poll commentary must contain 1–3000 characters.');
+      }
+      if (!pollQuestion.trim() || pollQuestion.trim().length > 140) {
+        throw new Error('Poll question must contain 1–140 characters.');
+      }
+      if (
+        options.length < 2 ||
+        options.length > 4 ||
+        options.some((option) => option.length > 30) ||
+        new Set(options.map((option) => option.toLocaleLowerCase())).size !== options.length
+      ) {
+        throw new Error('Add 2–4 unique poll options; each option must be 1–30 characters.');
+      }
+      const result = await apiRequest<{ postId: string; status: number }>(
+        'POST',
+        '/v1/linkedin/polls',
+        {
+          commentary: postText.trim(),
+          question: pollQuestion.trim(),
+          options,
+          duration: pollDuration,
+        }
+      );
+      setNotice('LinkedIn poll published. Post ID: ' + result.postId);
+      setPollQuestion('');
+      setPollOptions(['', '']);
+    } catch (pollError) {
+      setError(pollError instanceof Error ? pollError.message : 'LinkedIn poll publishing failed.');
     } finally {
       setBusy(false);
     }
@@ -928,6 +973,98 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
                 Publish now
               </button>
             </div>
+          </div>
+
+          <div style={panelStyle}>
+            <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>Publish a LinkedIn poll</h4>
+            <p style={{ margin: 0, color: '#94a3b8', fontSize: 10, lineHeight: 1.5 }}>
+              Uses the official Poll API. The post text above becomes the poll commentary. Polls
+              publish immediately when you press the button and are not included in the text-post scheduler.
+            </p>
+            <label style={{ color: '#cbd5e1', fontSize: 11 }}>Poll question (max 140 characters)</label>
+            <input
+              value={pollQuestion}
+              onChange={(event) => setPollQuestion(event.target.value)}
+              maxLength={140}
+              placeholder="Which topic should we cover next?"
+              style={inputStyle}
+              disabled={busy || writesBlocked}
+            />
+            <div style={{ display: 'grid', gap: 7 }}>
+              {pollOptions.map((option, index) => (
+                <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 7 }}>
+                  <input
+                    value={option}
+                    onChange={(event) =>
+                      setPollOptions((current) =>
+                        current.map((value, optionIndex) =>
+                          optionIndex === index ? event.target.value : value
+                        )
+                      )
+                    }
+                    maxLength={30}
+                    aria-label={`Poll option ${index + 1}`}
+                    placeholder={`Option ${index + 1} (max 30 characters)`}
+                    style={inputStyle}
+                    disabled={busy || writesBlocked}
+                  />
+                  {index > 1 && (
+                    <button
+                      type="button"
+                      style={buttonStyle}
+                      onClick={() =>
+                        setPollOptions((current) => current.filter((_value, optionIndex) => optionIndex !== index))
+                      }
+                      disabled={busy || writesBlocked}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={() => setPollOptions((current) => [...current, ''])}
+                disabled={busy || writesBlocked || pollOptions.length >= 4}
+              >
+                Add poll option
+              </button>
+            </div>
+            <label style={{ color: '#cbd5e1', fontSize: 11 }}>Poll duration</label>
+            <select
+              value={pollDuration}
+              onChange={(event) =>
+                setPollDuration(
+                  event.target.value as 'ONE_DAY' | 'THREE_DAYS' | 'SEVEN_DAYS' | 'FOURTEEN_DAYS'
+                )
+              }
+              style={inputStyle}
+              disabled={busy || writesBlocked}
+            >
+              <option value="ONE_DAY">1 day</option>
+              <option value="THREE_DAYS">3 days</option>
+              <option value="SEVEN_DAYS">1 week</option>
+              <option value="FOURTEEN_DAYS">2 weeks</option>
+            </select>
+            <p style={{ margin: 0, color: '#fbbf24', fontSize: 10, lineHeight: 1.5 }}>
+              Do not ask poll respondents about political opinions, health status, or other sensitive personal data.
+            </p>
+            <button
+              type="button"
+              style={buttonStyle}
+              onClick={() => void publishMemberPoll()}
+              disabled={
+                busy ||
+                writesBlocked ||
+                !isAvailable('member_post_publish') ||
+                !postText.trim() ||
+                !pollQuestion.trim() ||
+                pollOptions.filter((option) => option.trim()).length < 2
+              }
+            >
+              Publish poll now
+            </button>
           </div>
 
           {status.scheduledPublishingEnabled && (
