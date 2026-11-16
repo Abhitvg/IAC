@@ -504,8 +504,7 @@ describe('LinkedIn cloud API security boundaries', () => {
     });
     expect(integration.api.publishOrganizationImagePost).not.toHaveBeenCalled();
 
-    integration.api.publishOrganizationImagePost.mockRejectedValueOnce(`new Error('LinkedIn image asset is not AVAILABLE (current status: PROCESSING)')`);
-
+    integration.api.publishOrganizationImagePost.mockRejectedValueOnce(
       new Error('LinkedIn image asset is not AVAILABLE (current status: PROCESSING)')
     );
     const authorizedToken = {
