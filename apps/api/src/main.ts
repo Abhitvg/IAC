@@ -1,6 +1,8 @@
 import { createPostgresPool } from './postgres-pool';
 import { loadCloudEnvironment } from './config';
 import { createCloudApiRuntime } from './runtime';
+import { AwsKmsTenantKeyProvider } from '../../../packages/cloud-core/src/aws-kms-key-provider';
+import { createLinkedInCloudIntegration } from './linkedin/create-integration';
 
 function readPort(value: string | undefined): number {
   const port = Number(value ?? 3000);
@@ -20,7 +22,17 @@ async function start(): Promise<void> {
     console.error('CareerOps PostgreSQL idle-client error:', error.message);
   });
 
-  const runtime = createCloudApiRuntime(pool, environment);
+  const linkedin = environment.LINKEDIN_CLIENT_ID
+    ? createLinkedInCloudIntegration(
+        pool,
+        new AwsKmsTenantKeyProvider({ region: environment.AWS_REGION!, keyArn: environment.CAREEROPS_KMS_KEY_ARN! }),
+        {
+          oauth: { clientId: environment.LINKEDIN_CLIENT_ID, clientSecret: environment.LINKEDIN_CLIENT_SECRET, redirectUri: environment.LINKEDIN_REDIRECT_URI },
+          entitlements: {},
+        }
+      )
+    : undefined;
+  const runtime = createCloudApiRuntime(pool, environment, linkedin);
 
   let shutdown: Promise<void> | undefined;
   const stop = () => {
