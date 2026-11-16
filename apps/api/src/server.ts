@@ -274,6 +274,137 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           return;
         }
 
+        if (
+          url.pathname === '/v1/linkedin/scheduled-posts' &&
+          request.method === 'GET'
+        ) {
+          const scheduler = dependencies.linkedinScheduler;
+          if (!scheduler) {
+            sendJson(response, 503, {
+              error: 'LinkedIn scheduled publishing is not enabled on this deployment',
+              requestId,
+            });
+            return;
+          }
+          const limitRaw = url.searchParams.get('limit');
+          const limit = limitRaw === null ? 50 : Number(limitRaw);
+          if (!Number.isInteger(limit) || limit < 1 || limit > 100 || url.searchParams.size > 1) {
+            sendJson(response, 400, { error: 'limit must be an integer between 1 and 100', requestId });
+            return;
+          }
+          const scheduledPosts = await scheduler.list(
+            tenant.tenantId,
+            tenant.subject,
+            limit
+          );
+          sendJson(response, 200, { scheduledPosts, requestId });
+          return;
+        }
+
+        if (
+          request.method === 'POST' &&
+          url.pathname === '/v1/linkedin/scheduled-posts'
+        ) {
+          const scheduler = dependencies.linkedinScheduler;
+          if (!scheduler) {
+            sendJson(response, 503, {
+              error: 'LinkedIn scheduled publishing is not enabled on this deployment',
+              requestId,
+            });
+            return;
+          }
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.commentary !== 'string' ||
+            typeof body.scheduledAt !== 'string' ||
+            typeof body.idempotencyKey !== 'string' ||
+            Object.keys(body).some(
+              (key) => !['commentary', 'scheduledAt', 'idempotencyKey'].includes(key)
+            )
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected commentary, scheduledAt and idempotencyKey strings',
+              requestId,
+            });
+            return;
+          }
+          const scheduledAtMs = Date.parse(body.scheduledAt);
+          if (
+            !body.commentary.trim() ||
+            body.commentary.length > 3000 ||
+            !Number.isFinite(scheduledAtMs) ||
+            scheduledAtMs < Date.now() + 2 * 60_000 ||
+            scheduledAtMs > Date.now() + 90 * 24 * 60 * 60_000 ||
+            !/^[A-Za-z0-9_-]{12,64}$/.test(body.idempotencyKey)
+          ) {
+            sendJson(response, 400, {
+              error: 'Post text must be 1–3000 characters; schedule time must be 2 minutes to 90 days ahead; idempotency key must be 12–64 safe characters',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
+          if (!tokenSet || !tokenSet.grantedScopes.includes('w_member_social')) {
+            sendJson(response, 409, {
+              error: 'Connect LinkedIn with the w_member_social scope before scheduling a post',
+              requestId,
+            });
+            return;
+          }
+          await auditLinkedIn('linkedin.member.post.schedule.requested', body.idempotencyKey, {
+            contentLength: body.commentary.length,
+            scheduledAt: new Date(scheduledAtMs).toISOString(),
+          });
+          const scheduledPost = await scheduler.create({
+            tenantId: tenant.tenantId,
+            subject: tenant.subject,
+            commentary: body.commentary,
+            scheduledAt: new Date(scheduledAtMs).toISOString(),
+            idempotencyKey: body.idempotencyKey,
+          });
+          sendJson(response, 201, { scheduledPost, requestId });
+          return;
+        }
+
+        const scheduledPostCancelMatch = url.pathname.match(
+          /^\/v1\/linkedin\/scheduled-posts\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i
+        );
+        if (request.method === 'DELETE' && scheduledPostCancelMatch) {
+          const scheduler = dependencies.linkedinScheduler;
+          if (!scheduler) {
+            sendJson(response, 503, {
+              error: 'LinkedIn scheduled publishing is not enabled on this deployment',
+              requestId,
+            });
+            return;
+          }
+          const cancelled = await scheduler.cancel(
+            tenant.tenantId,
+            tenant.subject,
+            scheduledPostCancelMatch[1]
+          );
+          if (!cancelled) {
+            sendJson(response, 409, {
+              error: 'Scheduled post was not found or is no longer cancellable',
+              requestId,
+            });
+            return;
+          }
+          if (!dependencies.repository.recordLinkedInAction) {
+            throw new Error('LinkedIn action audit logging is unavailable');
+          }
+          await dependencies.repository.recordLinkedInAction({
+            tenantId: tenant.tenantId,
+            actorSubject: tenant.subject,
+            action: 'linkedin.member.post.schedule.cancelled',
+            entityId: scheduledPostCancelMatch[1],
+            occurredAt: new Date().toISOString(),
+            metadata: {},
+          });
+          sendJson(response, 200, { cancelled: true, requestId });
+          return;
+        }
+
         if (request.method === 'POST' && url.pathname === '/v1/linkedin/oauth/callback') {
           const body = await readJson(request, maxBytes);
           if (
