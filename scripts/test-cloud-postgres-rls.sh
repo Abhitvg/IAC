@@ -176,8 +176,6 @@ END
 $schedule_rls$;
 ROLLBACK;
 RESET ROLE;
-SQL
-
 DO $scheduler_login_setup$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'careerops_scheduler_ci') THEN
@@ -186,6 +184,7 @@ BEGIN
 END
 $scheduler_login_setup$;
 GRANT careerops_scheduler TO careerops_scheduler_ci;
+SQL
 
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 SET SESSION AUTHORIZATION careerops_scheduler_ci;
