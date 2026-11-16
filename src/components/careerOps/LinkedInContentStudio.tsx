@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Clipboard, ShieldCheck, Wand2 } from 'lucide-react';
 import { copyToClipboard } from '../../utils/clipboard';
 import { LinkedInPlaybookWorkbench } from './LinkedInPlaybookWorkbench';
+import { LinkedInConnectionPanel } from './LinkedInConnectionPanel';
 import {
   getLinkedInCharacterLimit,
   humanizeLinkedInText,
@@ -22,7 +23,7 @@ export function LinkedInContentStudio({
   const [draft, setDraft] = useState(initialDraft ?? '');
   const [cleaned, setCleaned] = useState('');
   const [notice, setNotice] = useState('');
-  const [view, setView] = useState<'draft' | 'playbooks'>('draft');
+  const [view, setView] = useState<'draft' | 'playbooks' | 'connected'>('draft');
   useEffect(() => {
     if (initialDraft !== undefined) {
       setDraft(initialDraft);
@@ -80,6 +81,17 @@ export function LinkedInContentStudio({
         >
           Playbook Workbench
         </button>
+        <button
+          type="button"
+          style={{
+            ...button,
+            background: view === 'connected' ? 'rgba(249,115,22,.18)' : button.background,
+            color: view === 'connected' ? '#fdba74' : '#e2e8f0',
+          }}
+          onClick={() => setView('connected')}
+        >
+          Connected Account & API
+        </button>
       </div>
       {view === 'playbooks' ? (
         <LinkedInPlaybookWorkbench
@@ -93,6 +105,8 @@ export function LinkedInContentStudio({
             setView('draft');
           }}
         />
+      ) : view === 'connected' ? (
+        <LinkedInConnectionPanel initialDraft={cleaned || draft} />
       ) : (
         <>
           <div style={panel}>
