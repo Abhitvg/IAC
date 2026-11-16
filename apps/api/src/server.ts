@@ -629,6 +629,13 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
             return;
           }
+          if (!tokenSet.grantedScopes.includes('w_organization_social')) {
+            sendJson(response, 403, {
+              error: 'LinkedIn organization image publishing requires the w_organization_social scope',
+              requestId,
+            });
+            return;
+          }
           await auditLinkedIn(
             'linkedin.organization.image_post.publish.requested',
             body.imageUrn,
