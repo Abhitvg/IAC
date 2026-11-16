@@ -1,0 +1,26 @@
+name: Temporary interview diagnostics formatter
+on:
+  push:
+    branches:
+      - reliability/interview-diagnostics-panel
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: reliability/interview-diagnostics-panel
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - run: npx prettier --write docs/reliability/interview-pipeline-audit.md src/components/SettingsPanel.tsx
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/reliability/interview-pipeline-audit.md src/components/SettingsPanel.tsx
+          git commit -m "style(settings): format interview diagnostics panel"
+          git push origin reliability/interview-diagnostics-panel
