@@ -177,7 +177,10 @@ export class EncryptedRecordStore {
         const rewrapped = await this.storage.encryptStringAsync(
           decrypted.result
         );
-        atomicWrite(keyPath, JSON.stringify({ version: VERSION, data: rewrapped.toString('base64') }));
+        atomicWrite(
+          keyPath,
+          JSON.stringify({ version: VERSION, data: rewrapped.toString('base64') })
+        );
       }
       return key;
     }
