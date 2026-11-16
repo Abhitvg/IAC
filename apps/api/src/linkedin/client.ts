@@ -294,6 +294,116 @@ export class LinkedInApiClient {
     return this.createTextPost(token, organizationUrn, commentary);
   }
 
+  async publishOrganizationImagePost(
+    token: LinkedInTokenSet,
+    organizationUrn: string,
+    commentary: string,
+    imageUrn: string,
+    altText: string
+  ): Promise<{ id: string; status: number }> {
+    assertToken(token);
+    if (!token.grantedScopes.includes(LINKEDIN_ORGANIZATION_WRITE_SCOPE)) {
+      throw new Error(
+        'LinkedIn organization image publishing is not authorized: w_organization_social scope is missing'
+      );
+    }
+    assertUrn(organizationUrn, 'organization');
+
+    const text = commentary.trim();
+    const imageId = imageUrn.trim();
+    const alternativeText = altText.trim();
+    if (!text || text.length > 3000) {
+      throw new Error('Image post commentary must contain 1–3000 characters');
+    }
+    if (!/^urn:li:image:[A-Za-z0-9_-]+$/.test(imageId)) {
+      throw new Error('Invalid LinkedIn image asset URN');
+    }
+    if (!alternativeText || alternativeText.length > 120) {
+      throw new Error('Image alt text must contain 1–120 characters');
+    }
+
+    // A write grant is not treated as proof that processing has finished. Verify the
+    // exact asset, its owner and its AVAILABLE state before creating a public post.
+    const imageResponse = await this.fetcher(
+      `${REST_BASE}/images/${encodeURIComponent(imageId)}`,
+      {
+        method: 'GET',
+        headers: {
+          authorization: `Bearer ${token.accessToken}`,
+          'x-restli-protocol-version': '2.0.0',
+          'linkedin-version': this.apiVersion,
+        },
+        signal: AbortSignal.timeout(20_000),
+      }
+    );
+    if (!imageResponse.ok) {
+      const retryAfter = Number(imageResponse.headers.get('retry-after'));
+      throw new LinkedInApiError(
+        `LinkedIn image status check failed with HTTP ${imageResponse.status}`,
+        imageResponse.status,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
+      );
+    }
+
+    let image: unknown;
+    try {
+      image = await imageResponse.json();
+    } catch {
+      throw new Error('LinkedIn returned an invalid image asset status response');
+    }
+    if (!image || typeof image !== 'object' || Array.isArray(image)) {
+      throw new Error('LinkedIn returned an invalid image asset status response');
+    }
+    const imageRecord = image as Record<string, unknown>;
+    if (imageRecord.owner !== organizationUrn) {
+      throw new LinkedInApiError(
+        'LinkedIn image asset owner does not match the organization',
+        403
+      );
+    }
+    if (imageRecord.status !== 'AVAILABLE') {
+      const currentStatus =
+        typeof imageRecord.status === 'string' ? imageRecord.status : 'unknown';
+      throw new Error(
+        `LinkedIn image asset is not AVAILABLE (current status: ${currentStatus})`
+      );
+    }
+
+    const response = await this.fetcher(`${REST_BASE}/posts`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token.accessToken}`,
+        'content-type': 'application/json',
+        'x-restli-protocol-version': '2.0.0',
+        'linkedin-version': this.apiVersion,
+      },
+      body: JSON.stringify({
+        ...createPostPayload(organizationUrn, text),
+        content: {
+          media: {
+            id: imageId,
+            altText: alternativeText,
+          },
+        },
+      }),
+      signal: AbortSignal.timeout(20_000),
+    });
+
+    if (!response.ok) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      throw new LinkedInApiError(
+        `LinkedIn image post creation failed with HTTP ${response.status}`,
+        response.status,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined
+      );
+    }
+    const id = response.headers.get('x-restli-id');
+    if (!id) {
+      throw new Error('LinkedIn accepted the image post but did not return a post ID');
+    }
+    return { id, status: response.status };
+  }
+
   async createMemberComment(
     token: LinkedInTokenSet,
     targetPostUrn: string,
