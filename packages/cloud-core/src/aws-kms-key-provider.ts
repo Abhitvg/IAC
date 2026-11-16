@@ -222,7 +222,6 @@ export class AwsKmsTenantKeyProvider implements TenantKeyProvider {
     }`;
     const headers: Record<string, string> = {
       'content-type': 'application/x-amz-json-1.1',
-      host,
       'x-amz-date': amzDate,
       'x-amz-target': target,
     };
