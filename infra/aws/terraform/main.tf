@@ -118,29 +118,29 @@ resource "aws_db_parameter_group" "database" {
 }
 
 resource "aws_db_instance" "database" {
-  identifier                 = local.name
-  engine                     = "postgres"
-  instance_class             = var.db_instance_class
-  allocated_storage          = var.db_allocated_storage
-  storage_type               = "gp3"
-  storage_encrypted          = true
-  db_name                    = var.db_name
-  username                   = var.db_master_username
+  identifier                  = local.name
+  engine                      = "postgres"
+  instance_class              = var.db_instance_class
+  allocated_storage           = var.db_allocated_storage
+  storage_type                = "gp3"
+  storage_encrypted           = true
+  db_name                     = var.db_name
+  username                    = var.db_master_username
   manage_master_user_password = true
-  port                       = 5432
-  db_subnet_group_name       = aws_db_subnet_group.database.name
-  parameter_group_name       = aws_db_parameter_group.database.name
-  vpc_security_group_ids     = [aws_security_group.database.id]
-  publicly_accessible        = false
-  multi_az                   = true
-  backup_retention_period    = var.db_backup_retention_days
-  auto_minor_version_upgrade = true
-  deletion_protection        = var.deletion_protection
-  skip_final_snapshot        = false
-  final_snapshot_identifier  = "${local.name}-final"
-  copy_tags_to_snapshot      = true
-  apply_immediately          = false
-  tags                       = local.tags
+  port                        = 5432
+  db_subnet_group_name        = aws_db_subnet_group.database.name
+  parameter_group_name        = aws_db_parameter_group.database.name
+  vpc_security_group_ids      = [aws_security_group.database.id]
+  publicly_accessible         = false
+  multi_az                    = true
+  backup_retention_period     = var.db_backup_retention_days
+  auto_minor_version_upgrade  = true
+  deletion_protection         = var.deletion_protection
+  skip_final_snapshot         = false
+  final_snapshot_identifier   = "${local.name}-final"
+  copy_tags_to_snapshot       = true
+  apply_immediately           = false
+  tags                        = local.tags
 }
 
 resource "aws_lb" "api" {
