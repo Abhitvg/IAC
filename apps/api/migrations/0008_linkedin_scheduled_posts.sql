@@ -72,7 +72,7 @@ $scheduler_role$;
 
 ALTER ROLE careerops_scheduler NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
 GRANT USAGE ON SCHEMA public TO careerops_scheduler;
-GRANT USAGE ON SCHEMA public TO careerops_scheduler_fn;
+GRANT USAGE, CREATE ON SCHEMA public TO careerops_scheduler_fn;
 ALTER TABLE linkedin_scheduled_posts OWNER TO careerops_scheduler_fn;
 GRANT SELECT, UPDATE ON linkedin_scheduled_posts TO careerops_scheduler_fn;
 
@@ -217,5 +217,7 @@ $fn$;
 ALTER FUNCTION cancel_linkedin_scheduled_post(uuid, uuid, text) OWNER TO careerops_scheduler_fn;
 REVOKE ALL ON FUNCTION cancel_linkedin_scheduled_post(uuid, uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION cancel_linkedin_scheduled_post(uuid, uuid, text) TO careerops_app;
+
+REVOKE CREATE ON SCHEMA public FROM careerops_scheduler_fn;
 
 COMMIT;
