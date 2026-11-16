@@ -131,6 +131,7 @@ export class EncryptedRecordStore {
     }
 
     const available = await this.storage.isAsyncEncryptionAvailable();
+
     if (!available) {
       throw new Error(
         'OS-backed secure storage is unavailable. Unlock or configure the system keyring before using encrypted records.'
