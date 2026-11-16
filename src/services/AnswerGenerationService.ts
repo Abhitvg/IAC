@@ -692,10 +692,7 @@ export class AnswerGenerationService {
             /deadline|timed out|timeout|inactivity|stalled/i.test(timeoutMessage);
           // When the caller supplied an AbortError reason, it takes precedence over
           // generic stream-reader text such as "cancelled or deadline expired".
-          const callerCancelled =
-            Boolean(signal?.aborted) &&
-            abortReason?.name !== 'TimeoutError' &&
-            !/deadline|timed out|timeout|inactivity|stalled/i.test(abortReason?.message || '');
+          const callerCancelled = Boolean(callerSignal?.aborted);
           const timedOut = explicitTimeout && !callerCancelled;
           const recoveredPartial = partialOutput.trim();
           if (recoveredPartial) {
