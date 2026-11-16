@@ -15,6 +15,7 @@ interface LinkedInCapability {
 
 interface LinkedInStatus {
   connected: boolean;
+  scheduledPublishingEnabled?: boolean;
   expiresAt: number | null;
   capabilities: LinkedInCapability[];
   entitlements?: {
@@ -23,6 +24,16 @@ interface LinkedInStatus {
     invitationsApiApproved?: boolean;
     messagesApiApproved?: boolean;
   };
+}
+
+interface ScheduledPostItem {
+  id: string;
+  commentary: string;
+  scheduledAt: string;
+  status: 'scheduled' | 'processing' | 'published' | 'failed' | 'cancelled' | 'unknown_outcome' | 'needs_review';
+  attemptCount: number;
+  publishedPostUrn: string | null;
+  errorCode: string | null;
 }
 
 interface TenantControls {
@@ -139,6 +150,9 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
   const [controls, setControls] = useState<TenantControls | null>(null);
   const [member, setMember] = useState<MemberInfo | null>(null);
   const [postText, setPostText] = useState(initialDraft);
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPostItem[]>([]);
+  const [scheduleIdempotencyKey, setScheduleIdempotencyKey] = useState('');
   const [commentTarget, setCommentTarget] = useState('');
   const [commentObject, setCommentObject] = useState('');
   const [commentText, setCommentText] = useState('');
@@ -200,6 +214,14 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
     []
   );
 
+  const refreshScheduledPosts = useCallback(async () => {
+    const result = await apiRequest<{ scheduledPosts: ScheduledPostItem[] }>(
+      'GET',
+      '/v1/linkedin/scheduled-posts'
+    );
+    setScheduledPosts(Array.isArray(result.scheduledPosts) ? result.scheduledPosts : []);
+  }, [apiRequest]);
+
   const refreshStatus = useCallback(async () => {
     setBusy(true);
     setError('');
@@ -212,6 +234,11 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       setMember(me);
       setStatus(linkedIn);
       setControls(tenantControls);
+      if (linkedIn.scheduledPublishingEnabled) {
+        await refreshScheduledPosts();
+      } else {
+        setScheduledPosts([]);
+      }
       setNotice('LinkedIn connection status refreshed.');
       setTokenConfigured(await window.electronAPI.hasApiKey('careerops-cloud'));
     } catch (refreshError) {
@@ -226,7 +253,7 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
     } finally {
       setBusy(false);
     }
-  }, [apiRequest]);
+  }, [apiRequest, refreshScheduledPosts]);
 
   const capability = useCallback(
     (id: string) => status?.capabilities.find((item) => item.id === id),
@@ -358,6 +385,72 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
     } catch (publishError) {
       setError(
         publishError instanceof Error ? publishError.message : 'LinkedIn post publishing failed.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const scheduleMemberPost = async () => {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      if (!postText.trim() || postText.length > 3000) {
+        throw new Error('A scheduled post must contain 1–3000 characters.');
+      }
+      if (!scheduledAt) throw new Error('Choose a future publication time.');
+      const scheduledAtDate = new Date(scheduledAt);
+      if (!Number.isFinite(scheduledAtDate.getTime())) {
+        throw new Error('The selected publication time is invalid.');
+      }
+      if (
+        scheduledAtDate.getTime() < Date.now() + 2 * 60_000 ||
+        scheduledAtDate.getTime() > Date.now() + 90 * 24 * 60 * 60_000
+      ) {
+        throw new Error('Choose a time at least 2 minutes from now and no more than 90 days ahead.');
+      }
+
+      // Keep the same idempotency key after ambiguous network failures, so a retry
+      // retrieves the existing schedule rather than creating a duplicate row.
+      const idempotencyKey = scheduleIdempotencyKey || crypto.randomUUID();
+      if (!scheduleIdempotencyKey) setScheduleIdempotencyKey(idempotencyKey);
+      const result = await apiRequest<{ scheduledPost: ScheduledPostItem }>(
+        'POST',
+        '/v1/linkedin/scheduled-posts',
+        {
+          commentary: postText.trim(),
+          scheduledAt: scheduledAtDate.toISOString(),
+          idempotencyKey,
+        }
+      );
+      setScheduleIdempotencyKey('');
+      setNotice('Post scheduled for ' + new Date(result.scheduledPost.scheduledAt).toLocaleString());
+      await refreshScheduledPosts();
+    } catch (scheduleError) {
+      setError(
+        scheduleError instanceof Error
+          ? scheduleError.message
+          : 'Unable to schedule this LinkedIn post.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelScheduledPost = async (id: string) => {
+    setBusy(true);
+    setError('');
+    try {
+      await apiRequest<{ cancelled: boolean }>(
+        'DELETE',
+        '/v1/linkedin/scheduled-posts/' + encodeURIComponent(id)
+      );
+      await refreshScheduledPosts();
+      setNotice('Scheduled LinkedIn post cancelled.');
+    } catch (cancelError) {
+      setError(
+        cancelError instanceof Error ? cancelError.message : 'Unable to cancel the scheduled post.'
       );
     } finally {
       setBusy(false);
@@ -800,6 +893,74 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
               </button>
             </div>
           </div>
+
+          {status.scheduledPublishingEnabled && (
+            <div style={panelStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>Scheduled publishing</h4>
+                <span style={{ color: '#86efac', fontSize: 10, fontWeight: 700 }}>Cloud worker enabled</span>
+              </div>
+              <p style={{ margin: 0, color: '#94a3b8', fontSize: 10, lineHeight: 1.5 }}>
+                Schedules this exact reviewed text for the member account. The cloud worker checks tenant membership, LinkedIn authorization, channel pause and the global kill switch before publishing.
+              </p>
+              <label style={{ color: '#cbd5e1', fontSize: 11 }}>Publish at (your local time)</label>
+              <input
+                type="datetime-local"
+                value={scheduledAt}
+                min={new Date(Date.now() + 2 * 60_000 - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16)}
+                max={new Date(Date.now() + 90 * 24 * 60 * 60_000 - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16)}
+                onChange={(event) => setScheduledAt(event.target.value)}
+                style={inputStyle}
+                disabled={busy || writesBlocked}
+              />
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={() => void scheduleMemberPost()}
+                disabled={
+                  busy ||
+                  writesBlocked ||
+                  !isAvailable('member_post_publish') ||
+                  !postText.trim() ||
+                  postText.length > 3000 ||
+                  !scheduledAt
+                }
+              >
+                Schedule this post
+              </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <strong style={{ color: '#e2e8f0', fontSize: 11 }}>Your scheduled posts</strong>
+                <button type="button" style={buttonStyle} onClick={() => void refreshScheduledPosts()} disabled={busy}>
+                  Refresh queue
+                </button>
+              </div>
+              {scheduledPosts.length === 0 ? (
+                <p style={{ color: '#94a3b8', fontSize: 10, margin: 0 }}>No scheduled posts found.</p>
+              ) : scheduledPosts.map((item) => (
+                <div key={item.id} style={{ borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 8, display: 'grid', gap: 5 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <strong style={{ color: '#e2e8f0', fontSize: 11 }}>{item.status.replace(/_/g, ' ')}</strong>
+                    <span style={{ color: '#94a3b8', fontSize: 10 }}>{new Date(item.scheduledAt).toLocaleString()}</span>
+                  </div>
+                  <p style={{ margin: 0, color: '#cbd5e1', fontSize: 11, whiteSpace: 'pre-wrap' }}>
+                    {item.commentary.length > 240 ? item.commentary.slice(0, 240) + '…' : item.commentary}
+                  </p>
+                  {item.errorCode && <span style={{ color: '#fbbf24', fontSize: 10 }}>Status detail: {item.errorCode}</span>}
+                  {item.publishedPostUrn && <span style={{ color: '#86efac', fontSize: 10 }}>Published: {item.publishedPostUrn}</span>}
+                  {item.status === 'scheduled' && (
+                    <button type="button" style={buttonStyle} onClick={() => void cancelScheduledPost(item.id)} disabled={busy || writesBlocked}>
+                      Cancel scheduled post
+                    </button>
+                  )}
+                  {item.status === 'unknown_outcome' && (
+                    <span style={{ color: '#fca5a5', fontSize: 10 }}>
+                      LinkedIn may have accepted this post. It was not retried to avoid duplication; check LinkedIn before scheduling again.
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           <div style={{ ...panelStyle, opacity: isAvailable('member_comment_react') ? 1 : 0.62 }}>
             <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>
