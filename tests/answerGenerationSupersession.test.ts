@@ -189,7 +189,7 @@ describe('AnswerGenerationService request supersession', () => {
       start(controller) {
         controller.enqueue(
           encoder.encode(
-            `data: ${JSON.stringify({ choices: [{ delta: { content: 'A partial but useful answer.' } }] })}\\n\\n`
+            `data: ${JSON.stringify({ choices: [{ delta: { content: 'A partial but useful answer.' } }] })}\n\n`
           )
         );
         setTimeout(() => controller.error(new TypeError('stream interrupted')), 100);
