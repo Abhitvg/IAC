@@ -57,10 +57,13 @@ async function defaultCredentialsProvider(
   const accessKeyId = environment.AWS_ACCESS_KEY_ID;
   const secretAccessKey = environment.AWS_SECRET_ACCESS_KEY;
   if (accessKeyId && secretAccessKey) {
+    if (!environment.AWS_SESSION_TOKEN) {
+      throw new Error('Local AWS credentials must be temporary and include AWS_SESSION_TOKEN');
+    }
     return {
       accessKeyId,
       secretAccessKey,
-      ...(environment.AWS_SESSION_TOKEN ? { sessionToken: environment.AWS_SESSION_TOKEN } : {}),
+      sessionToken: environment.AWS_SESSION_TOKEN,
     };
   }
 
