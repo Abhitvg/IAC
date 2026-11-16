@@ -884,11 +884,7 @@ export class AnswerGenerationService {
         const originalError = (err as any).originalError || (err as any).cause;
         const partialText = String((err as any).partialText || partialOutput).trim();
         const failureMessage = err.message || String(err);
-        const timeoutEvidence = [
-          failureMessage,
-          originalError?.message,
-          originalError?.name,
-        ]
+        const timeoutEvidence = [failureMessage, originalError?.message, originalError?.name]
           .filter(Boolean)
           .join(' ');
         const timedOut =
