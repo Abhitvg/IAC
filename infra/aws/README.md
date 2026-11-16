@@ -73,7 +73,7 @@ The RDS master password and application secret values must never be committed. U
 
 1. Copy `terraform/terraform.tfvars.example` to a private local `terraform.tfvars`. It is preconfigured for staging-only HTTP; never use it as a production configuration.
 2. Set the VPC/subnet IDs, region, existing KMS key ARN, database credentials, and application secret ARN. The checked-in example is staging-only HTTP (`enable_https = false`) and intentionally has no ACM certificate. Replace the `allowed_ingress_cidrs` placeholder with your public IP `/32`; the example will not validate until you do.
-3. Bootstrap the ECR repository before creating the ECS service:
+3. **One-time bootstrap exception:** the ECS service needs an image to start, so create only the ECR repository before the first image push. This is the sole documented use of `-target`; do not use targeted applies for routine infrastructure changes. First configure an encrypted remote backend with state locking, then run:
 
 ```bash
 cd infra/aws/terraform
