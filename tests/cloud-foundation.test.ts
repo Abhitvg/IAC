@@ -602,6 +602,9 @@ describe('M0 cloud security foundation', () => {
       EncryptionContext: calls[0].body.EncryptionContext,
     });
     expect(calls[0].headers.get('authorization')).toContain('AWS4-HMAC-SHA256');
+    expect(calls[0].headers.get('authorization')).toContain(
+      'SignedHeaders=content-type;host;x-amz-date;x-amz-security-token;x-amz-target'
+    );
     expect(calls[0].headers.get('x-amz-security-token')).toBe('test-session-token');
     await expect(
       cipher.decrypt(envelope, 'other-tenant', 'linkedin-token:member-1')
