@@ -18,23 +18,23 @@ Invitations, Messages and Communications APIs are partner-restricted. Keep their
 
 Set these variables on the API service:
 
-| Variable                                 |    Required | Purpose                                                                                   |
-| ---------------------------------------- | ----------: | ----------------------------------------------------------------------------------------- |
-| `LINKEDIN_ENABLED`                       |         Yes | Set to `true` to compose the official integration                                         |
-| `LINKEDIN_CLIENT_ID`                     |         Yes | LinkedIn developer application client ID                                                  |
-| `LINKEDIN_CLIENT_SECRET`                 |         Yes | LinkedIn client secret; server-side only                                                  |
-| `LINKEDIN_REDIRECT_URI`                  |         Yes | Exact HTTPS callback URI registered in the LinkedIn app                                   |
-| `LINKEDIN_API_VERSION`                   | Recommended | Versioned Marketing API header; default is `202610`                                       |
-| `LINKEDIN_KMS_KEY_ID`                    |         Yes | AWS KMS symmetric key ID or ARN                                                           |
-| `AWS_REGION`                             |         Yes | AWS region containing the KMS key                                                         |
-| `LINKEDIN_COMMUNITY_MANAGEMENT_APPROVED` |          No | Set true only after approval                                                              |
-| `LINKEDIN_COMMUNICATIONS_API_APPROVED`   |          No | Set true only after partner approval                                                      |
-| `LINKEDIN_INVITATIONS_API_APPROVED`      |          No | Set true only after partner approval                                                      |
-| `LINKEDIN_MESSAGES_API_APPROVED`         |          No | Set true only after partner approval                                                      |
-| `LINKEDIN_SCHEDULER_ENABLED`             |          No | Set true only after applying migration 0008 and provisioning the isolated scheduler login |
-| `LINKEDIN_SCHEDULER_POLL_MS`             |          No | Worker poll interval, 5000–60000 ms; default 15000                                        |
-| `CAREEROPS_SCHEDULER_DATABASE_URL`       | Conditional | Dedicated PostgreSQL login in `careerops_scheduler`; never reuse `careerops_app`          |
-| `CAREEROPS_MIGRATION_DATABASE_URL`        | Migration job only | Privileged migration login allowed to create roles and transfer the scheduler table/function ownership |
+| Variable                                 |           Required | Purpose                                                                                                |
+| ---------------------------------------- | -----------------: | ------------------------------------------------------------------------------------------------------ |
+| `LINKEDIN_ENABLED`                       |                Yes | Set to `true` to compose the official integration                                                      |
+| `LINKEDIN_CLIENT_ID`                     |                Yes | LinkedIn developer application client ID                                                               |
+| `LINKEDIN_CLIENT_SECRET`                 |                Yes | LinkedIn client secret; server-side only                                                               |
+| `LINKEDIN_REDIRECT_URI`                  |                Yes | Exact HTTPS callback URI registered in the LinkedIn app                                                |
+| `LINKEDIN_API_VERSION`                   |        Recommended | Versioned Marketing API header; default is `202610`                                                    |
+| `LINKEDIN_KMS_KEY_ID`                    |                Yes | AWS KMS symmetric key ID or ARN                                                                        |
+| `AWS_REGION`                             |                Yes | AWS region containing the KMS key                                                                      |
+| `LINKEDIN_COMMUNITY_MANAGEMENT_APPROVED` |                 No | Set true only after approval                                                                           |
+| `LINKEDIN_COMMUNICATIONS_API_APPROVED`   |                 No | Set true only after partner approval                                                                   |
+| `LINKEDIN_INVITATIONS_API_APPROVED`      |                 No | Set true only after partner approval                                                                   |
+| `LINKEDIN_MESSAGES_API_APPROVED`         |                 No | Set true only after partner approval                                                                   |
+| `LINKEDIN_SCHEDULER_ENABLED`             |                 No | Set true only after applying migration 0008 and provisioning the isolated scheduler login              |
+| `LINKEDIN_SCHEDULER_POLL_MS`             |                 No | Worker poll interval, 5000–60000 ms; default 15000                                                     |
+| `CAREEROPS_SCHEDULER_DATABASE_URL`       |        Conditional | Dedicated PostgreSQL login in `careerops_scheduler`; never reuse `careerops_app`                       |
+| `CAREEROPS_MIGRATION_DATABASE_URL`       | Migration job only | Privileged migration login allowed to create roles and transfer the scheduler table/function ownership |
 
 The API also needs its normal CareerOps OIDC issuer, audience, JWKS URL, `CAREEROPS_DATABASE_URL` and distinct signing / rate-limit secrets. The migration job uses a separate privileged `CAREEROPS_MIGRATION_DATABASE_URL`; do not point it at the runtime `careerops_app` URL.
 
