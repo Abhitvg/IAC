@@ -7,6 +7,7 @@ vpc_id                = "vpc-REPLACE"
 public_subnet_ids     = ["subnet-PUBLIC_A", "subnet-PUBLIC_B"]
 private_subnet_ids    = ["subnet-PRIVATE_A", "subnet-PRIVATE_B"]
 database_subnet_ids   = ["subnet-DB_A", "subnet-DB_B"]
+allowed_ingress_cidrs = ["REPLACE_WITH_YOUR_PUBLIC_IP/32"]
 kms_key_arn           = "arn:aws:kms:ap-southeast-2:165328640460:key/9dffb4cb-6a4a-40e7-b49e-40415ddb9bf7"
 container_image       = "165328640460.dkr.ecr.ap-southeast-2.amazonaws.com/careerops-staging:release-bootstrap"
 app_secrets_arn       = "arn:aws:secretsmanager:ap-southeast-2:165328640460:secret:careerops-staging-config-REPLACE"
