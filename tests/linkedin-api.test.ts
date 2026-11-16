@@ -205,7 +205,7 @@ describe('LinkedIn OAuth service', () => {
           JSON.stringify({
             access_token: 'access-token',
             expires_in: 3600,
-            scope: 'openid profile email w_member_social',
+            scope: 'openid%20profile%20email%20w_member_social',
           }),
           { status: 200, headers: { 'content-type': 'application/json' } }
         )
