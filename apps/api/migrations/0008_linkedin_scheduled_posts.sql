@@ -57,6 +57,20 @@ END
 $role$;
 
 ALTER ROLE careerops_scheduler_fn NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT BYPASSRLS;
+
+-- Separate, non-login execution group for the scheduler pool. A dedicated login
+-- configured by the operator must be granted membership in this role. The API
+-- application login must never be a member of it.
+DO $scheduler_role$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'careerops_scheduler') THEN
+    CREATE ROLE careerops_scheduler NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+  END IF;
+END
+$scheduler_role$;
+
+ALTER ROLE careerops_scheduler NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+GRANT USAGE ON SCHEMA public TO careerops_scheduler;
 GRANT USAGE ON SCHEMA public TO careerops_scheduler_fn;
 GRANT SELECT, UPDATE ON linkedin_scheduled_posts TO careerops_scheduler_fn;
 
@@ -67,6 +81,10 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $fn$
 BEGIN
+  IF NOT pg_has_role(session_user, 'careerops_scheduler', 'MEMBER') THEN
+    RAISE EXCEPTION 'Dedicated LinkedIn scheduler database role required';
+  END IF;
+
   UPDATE linkedin_scheduled_posts
      SET status = 'unknown_outcome',
          error_code = 'worker_interrupted',
@@ -99,7 +117,8 @@ $fn$;
 
 ALTER FUNCTION claim_linkedin_scheduled_posts_due(integer) OWNER TO careerops_scheduler_fn;
 REVOKE ALL ON FUNCTION claim_linkedin_scheduled_posts_due(integer) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION claim_linkedin_scheduled_posts_due(integer) TO careerops_app;
+REVOKE ALL ON FUNCTION claim_linkedin_scheduled_posts_due(integer) FROM careerops_app;
+GRANT EXECUTE ON FUNCTION claim_linkedin_scheduled_posts_due(integer) TO careerops_scheduler;
 
 CREATE OR REPLACE FUNCTION transition_linkedin_scheduled_post(
   p_id uuid,
@@ -118,6 +137,9 @@ AS $fn$
 DECLARE
   affected integer;
 BEGIN
+  IF NOT pg_has_role(session_user, 'careerops_scheduler', 'MEMBER') THEN
+    RAISE EXCEPTION 'Dedicated LinkedIn scheduler database role required';
+  END IF;
   IF p_status NOT IN ('scheduled', 'published', 'failed', 'unknown_outcome', 'needs_review') THEN
     RAISE EXCEPTION 'Invalid scheduled LinkedIn post transition';
   END IF;
@@ -154,8 +176,10 @@ ALTER FUNCTION transition_linkedin_scheduled_post(uuid, uuid, text, text, text, 
   OWNER TO careerops_scheduler_fn;
 REVOKE ALL ON FUNCTION transition_linkedin_scheduled_post(uuid, uuid, text, text, text, text, timestamptz)
   FROM PUBLIC;
+REVOKE ALL ON FUNCTION transition_linkedin_scheduled_post(uuid, uuid, text, text, text, text, timestamptz)
+  FROM careerops_app;
 GRANT EXECUTE ON FUNCTION transition_linkedin_scheduled_post(uuid, uuid, text, text, text, text, timestamptz)
-  TO careerops_app;
+  TO careerops_scheduler;
 
 CREATE OR REPLACE FUNCTION cancel_linkedin_scheduled_post(
   p_id uuid,
