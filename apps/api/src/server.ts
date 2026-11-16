@@ -21,6 +21,24 @@ function sendJson(response: ServerResponse, status: number, body: unknown): void
   response.end(JSON.stringify(body));
 }
 
+function sendHtml(response: ServerResponse, status: number, message: string): void {
+  response.writeHead(status, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'x-content-type-options': 'nosniff',
+    'referrer-policy': 'no-referrer',
+    'x-frame-options': 'DENY',
+  });
+  response.end(
+    '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<title>CareerOps LinkedIn connection</title><body style="font:16px system-ui;max-width:36rem;margin:12vh auto;padding:0 1.5rem;background:#0b1220;color:#e2e8f0">' +
+      '<h1 style="font-size:1.4rem">CareerOps LinkedIn connection</h1><p>' +
+      message +
+      '</p><p>You can close this tab and return to CareerOps.</p></body></html>'
+  );
+}
+
 async function readJson(
   request: IncomingMessage,
   maxBytes: number
@@ -69,6 +87,53 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
+      // This is the sole unauthenticated LinkedIn endpoint. A 256-bit one-time state
+      // binds the callback to the tenant/member saved at OAuth start; no tenant ID,
+      // access token, or session credential is accepted from the browser.
+      if (url.pathname === '/oauth/linkedin/callback') {
+        const integration = dependencies.linkedin;
+        if (!integration) {
+          sendHtml(response, 503, 'LinkedIn integration is not configured on this deployment.');
+          return;
+        }
+        if (request.method !== 'GET') {
+          response.setHeader('allow', 'GET');
+          sendHtml(response, 405, 'This callback only accepts a browser redirect.');
+          return;
+        }
+        const state = url.searchParams.get('state') ?? '';
+        const code = url.searchParams.get('code');
+        const providerError = url.searchParams.get('error');
+        const allowedParams = providerError ? ['state', 'error', 'error_description'] : ['state', 'code'];
+        if (
+          !/^[A-Za-z0-9_-]{40,64}$/.test(state) ||
+          [...url.searchParams.keys()].some((key) => !allowedParams.includes(key)) ||
+          (providerError ? Boolean(code) : !code || code.length > 4096)
+        ) {
+          sendHtml(response, 400, 'The LinkedIn authorization response was invalid. Start the connection again in CareerOps.');
+          return;
+        }
+        try {
+          if (providerError) {
+            const cancelled = await integration.oauth.cancelAuthorizationCallback(state);
+            sendHtml(
+              response,
+              cancelled ? 200 : 400,
+              cancelled
+                ? 'LinkedIn authorization was not completed. No connection was added.'
+                : 'The authorization request expired or was already used. Start again in CareerOps.'
+            );
+            return;
+          }
+          await integration.oauth.completeAuthorizationCallback({ code: code!, state });
+          sendHtml(response, 200, 'LinkedIn was connected successfully. Return to CareerOps and refresh the connection status.');
+        } catch {
+          // Do not reflect provider error descriptions, codes, tokens, state, or tenant details.
+          sendHtml(response, 400, 'LinkedIn could not complete the connection. Return to CareerOps and try again.');
+        }
+        return;
+      }
+
       const token = readBearerToken(request.headers.authorization);
       const identity = await dependencies.identityVerifier.verify(token);
       const requestedTenant = request.headers['x-tenant-id'];
@@ -107,6 +172,16 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           entityId: string,
           metadata: Record<string, string | number | boolean | null>
         ) => {
+          const controls = await dependencies.repository.getControlState(tenant.tenantId);
+          if (controls.tenantId !== tenant.tenantId) {
+            throw new Error('LinkedIn tenant control context mismatch');
+          }
+          if (controls.globalKillSwitch) {
+            throw new Error('LinkedIn writes are disabled by the global kill switch');
+          }
+          if (controls.pausedChannels.includes('linkedin_assist')) {
+            throw new Error('LinkedIn channel is paused for this tenant');
+          }
           if (!dependencies.repository.recordLinkedInAction) {
             throw new Error('LinkedIn action audit logging is unavailable; execution is disabled');
           }
@@ -740,8 +815,10 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       const status =
         error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')
           ? 400
-          : /active Sprint Contract must be revoked|reviewed fact is immutable/i.test(message)
-            ? 409
+          : /LinkedIn writes are disabled|LinkedIn channel is paused/i.test(message)
+            ? 423
+            : /active Sprint Contract must be revoked|reviewed fact is immutable/i.test(message)
+              ? 409
             : /Only the fact contributor/i.test(message)
               ? 403
               : /Career Graph fact not found/i.test(message)
