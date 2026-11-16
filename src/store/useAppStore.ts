@@ -1203,10 +1203,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
           const secureSessionIds = await electronAPI.secureRecordList('interview-sessions');
           for (const sessionId of secureSessionIds) {
             try {
-              const removed = await electronAPI.secureRecordDelete(
-                'interview-sessions',
-                sessionId
-              );
+              const removed = await electronAPI.secureRecordDelete('interview-sessions', sessionId);
               if (removed === false) failedStores.push(`secure-session:${sessionId}`);
             } catch (error) {
               console.error(
