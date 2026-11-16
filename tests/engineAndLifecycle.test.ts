@@ -88,6 +88,34 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
     expect(state.sessionHistory).toEqual([]);
   });
 
+  it('reports failure when Electron persistence APIs are unavailable during a data wipe', async () => {
+    const originalSecureRecordList = mockElectronAPI.secureRecordList;
+    const originalSecureRecordDelete = mockElectronAPI.secureRecordDelete;
+    const originalGetSessionsDir = mockElectronAPI.getSessionsDir;
+    const originalListDir = mockElectronAPI.listDir;
+    const originalDeleteFile = mockElectronAPI.deleteFile;
+
+    mockElectronAPI.secureRecordList = undefined as never;
+    mockElectronAPI.secureRecordDelete = undefined as never;
+    mockElectronAPI.getSessionsDir = undefined as never;
+    mockElectronAPI.listDir = undefined as never;
+    mockElectronAPI.deleteFile = undefined as never;
+
+    try {
+      const result = await useAppStore.getState().clearAllData();
+
+      expect(result.success).toBe(false);
+      expect(result.failedStores).toContain('secure-session-history:api-unavailable');
+      expect(result.failedStores).toContain('session-files:api-unavailable');
+    } finally {
+      mockElectronAPI.secureRecordList = originalSecureRecordList;
+      mockElectronAPI.secureRecordDelete = originalSecureRecordDelete;
+      mockElectronAPI.getSessionsDir = originalGetSessionsDir;
+      mockElectronAPI.listDir = originalListDir;
+      mockElectronAPI.deleteFile = originalDeleteFile;
+    }
+  });
+
   it('saves and deletes sessions correctly in session history', async () => {
     const mockSession = {
       id: 'session_test_1',
