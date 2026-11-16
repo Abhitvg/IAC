@@ -1,4 +1,19 @@
-variable "aws_region" { type = string }
+variable "aws_region" {
+  type        = string
+  description = "AWS deployment region. This deployment is pinned to ap-southeast-2."
+  validation {
+    condition     = var.aws_region == "ap-southeast-2"
+    error_message = "CareerOps production is configured for ap-southeast-2. Change this only through an explicit architecture decision."
+  }
+}
+variable "aws_account_id" {
+  type        = string
+  description = "12-digit AWS account ID expected for all account-scoped infrastructure dependencies."
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
+    error_message = "aws_account_id must contain exactly 12 digits."
+  }
+}
 variable "project" {
   type    = string
   default = "careerops"
@@ -37,13 +52,20 @@ variable "database_subnet_ids" {
     error_message = "At least two isolated database subnets are required."
   }
 }
-variable "acm_certificate_arn" { type = string }
+variable "acm_certificate_arn" {
+  type        = string
+  description = "ACM certificate ARN in ap-southeast-2 and the configured AWS account."
+  validation {
+    condition     = can(regex("^arn:aws:acm:ap-southeast-2:[0-9]{12}:certificate/", var.acm_certificate_arn))
+    error_message = "acm_certificate_arn must be an ACM certificate ARN in ap-southeast-2."
+  }
+}
 variable "kms_key_arn" {
   type        = string
   description = "Existing customer-managed KMS key ARN used for CareerOps envelope encryption."
   validation {
-    condition     = can(regex("^arn:(aws|aws-us-gov|aws-cn):kms:[a-z0-9-]+:[0-9]{12}:key/[A-Za-z0-9-]+$", var.kms_key_arn))
-    error_message = "kms_key_arn must be a customer-managed KMS key ARN."
+    condition     = can(regex("^arn:aws:kms:ap-southeast-2:[0-9]{12}:key/[A-Za-z0-9-]+$", var.kms_key_arn)) && split(":", var.kms_key_arn)[4] == var.aws_account_id
+    error_message = "kms_key_arn must be a customer-managed KMS key ARN in ap-southeast-2 and aws_account_id."
   }
 }
 variable "container_image" {
@@ -53,6 +75,10 @@ variable "container_image" {
 variable "app_secrets_arn" {
   type        = string
   description = "Secrets Manager ARN for the JSON application configuration secret."
+  validation {
+    condition     = can(regex("^arn:aws:secretsmanager:ap-southeast-2:[0-9]{12}:secret:", var.app_secrets_arn)) && split(":", var.app_secrets_arn)[4] == var.aws_account_id
+    error_message = "app_secrets_arn must belong to aws_account_id in ap-southeast-2."
+  }
 }
 variable "db_name" {
   type    = string
@@ -72,11 +98,27 @@ variable "db_instance_class" {
 }
 variable "db_allocated_storage" {
   type    = number
-  default = 100
+  default = 50
+  validation {
+    condition     = var.db_allocated_storage >= 20 && var.db_allocated_storage <= 200
+    error_message = "For the initial balanced footprint, allocated storage must be between 20 and 200 GiB."
+  }
 }
 variable "api_desired_count" {
   type    = number
   default = 2
+  validation {
+    condition     = var.api_desired_count >= 2 && var.api_desired_count <= 4
+    error_message = "The 99.9% target requires at least two API tasks; the initial footprint is capped at four."
+  }
+}
+variable "api_max_count" {
+  type    = number
+  default = 4
+  validation {
+    condition     = var.api_max_count >= var.api_desired_count && var.api_max_count <= 8
+    error_message = "api_max_count must be at least api_desired_count and no more than eight for the initial footprint."
+  }
 }
 variable "api_cpu" {
   type    = number
@@ -88,11 +130,11 @@ variable "api_memory" {
 }
 variable "log_retention_days" {
   type    = number
-  default = 90
+  default = 30
 }
 variable "db_backup_retention_days" {
   type    = number
-  default = 14
+  default = 7
 }
 variable "deletion_protection" {
   type    = bool
