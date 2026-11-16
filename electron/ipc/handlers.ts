@@ -544,6 +544,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       '/v1/linkedin/comments',
       '/v1/linkedin/reactions',
       '/v1/linkedin/organization/posts',
+      '/v1/linkedin/organization/image-posts',
       '/v1/linkedin/organization/comments',
       '/v1/linkedin/organization/reactions',
       '/v1/controls',
