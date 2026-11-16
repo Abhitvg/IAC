@@ -207,6 +207,33 @@ describe('LinkedIn cloud API security boundaries', () => {
     expect(recordLinkedInAction).not.toHaveBeenCalled();
   });
 
+  it('returns reconnect-required status when an expired token cannot be refreshed', async () => {
+    const { integration } = await start();
+    integration.tokens.get = vi.fn(async () => ({
+      ...token,
+      expiresAt: Date.now() - 60_000,
+      refreshToken: undefined,
+      refreshTokenExpiresAt: undefined,
+    }));
+    integration.oauth.getValidToken.mockRejectedValueOnce(
+      new Error('LinkedIn access token expired; reconnect the account')
+    );
+
+    const response = await fetch(baseUrl + '/v1/linkedin/status', {
+      headers: { authorization: 'Bearer test-token' },
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      connected: false,
+      reauthorizationRequired: true,
+      tokenRefreshError: true,
+    });
+    expect(body.capabilities.find((item: { id: string }) => item.id === 'member_post_publish').status)
+      .not.toBe('available');
+  });
+
   it('lists only the authenticated member tenant scheduled posts', async () => {
     const scheduledPost = {
       id: '11111111-1111-4111-8111-111111111111',
