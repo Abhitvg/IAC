@@ -1195,65 +1195,64 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       }
     }
 
-    if (
-      typeof window !== 'undefined' &&
-      window.electronAPI?.secureRecordList &&
-      window.electronAPI?.secureRecordDelete
-    ) {
-      try {
-        const secureSessionIds = await window.electronAPI.secureRecordList('interview-sessions');
-        for (const sessionId of secureSessionIds) {
-          try {
-            const removed = await window.electronAPI.secureRecordDelete(
-              'interview-sessions',
-              sessionId
-            );
-            if (removed === false) failedStores.push(`secure-session:${sessionId}`);
-          } catch (error) {
-            console.error(
-              '[AppStore] Failed to delete encrypted interview session:',
-              sessionId,
-              error
-            );
-            failedStores.push(`secure-session:${sessionId}`);
-          }
-        }
-      } catch (error) {
-        console.error(
-          '[AppStore] Failed to enumerate encrypted interview sessions during wipe:',
-          error
-        );
-        failedStores.push('secure-session-history');
-      }
-    }
+    const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
 
-    if (
-      typeof window !== 'undefined' &&
-      window.electronAPI?.getSessionsDir &&
-      window.electronAPI?.listDir &&
-      window.electronAPI?.deleteFile
-    ) {
-      try {
-        const dir = await window.electronAPI.getSessionsDir();
-        const files = await window.electronAPI.listDir(dir);
-        if (!Array.isArray(files)) {
-          failedStores.push('session-files:directory-list');
-        } else {
-          for (const file of files) {
-            if (!file.isDirectory && file.name.endsWith('.json')) {
-              try {
-                const removed = await window.electronAPI.deleteFile(file.path);
-                if (removed === false) failedStores.push(`session-file:${file.name}`);
-              } catch (error) {
-                console.error('[AppStore] Failed to delete session file:', file.name, error);
-                failedStores.push(`session-file:${file.name}`);
+    if (electronAPI) {
+      if (electronAPI.secureRecordList && electronAPI.secureRecordDelete) {
+        try {
+          const secureSessionIds = await electronAPI.secureRecordList('interview-sessions');
+          for (const sessionId of secureSessionIds) {
+            try {
+              const removed = await electronAPI.secureRecordDelete(
+                'interview-sessions',
+                sessionId
+              );
+              if (removed === false) failedStores.push(`secure-session:${sessionId}`);
+            } catch (error) {
+              console.error(
+                '[AppStore] Failed to delete encrypted interview session:',
+                sessionId,
+                error
+              );
+              failedStores.push(`secure-session:${sessionId}`);
+            }
+          }
+        } catch (error) {
+          console.error(
+            '[AppStore] Failed to enumerate encrypted interview sessions during wipe:',
+            error
+          );
+          failedStores.push('secure-session-history');
+        }
+      } else {
+        failedStores.push('secure-session-history:api-unavailable');
+      }
+
+      if (electronAPI.getSessionsDir && electronAPI.listDir && electronAPI.deleteFile) {
+        try {
+          const dir = await electronAPI.getSessionsDir();
+          const files = await electronAPI.listDir(dir);
+          if (!Array.isArray(files)) {
+            failedStores.push('session-files:directory-list');
+          } else {
+            for (const file of files) {
+              if (!file.isDirectory && file.name.endsWith('.json')) {
+                try {
+                  const removed = await electronAPI.deleteFile(file.path);
+                  if (removed === false) failedStores.push(`session-file:${file.name}`);
+                } catch (error) {
+                  console.error('[AppStore] Failed to delete session file:', file.name, error);
+                  failedStores.push(`session-file:${file.name}`);
+                }
               }
             }
           }
+        } catch (error) {
+          console.error('[AppStore] Failed to enumerate session files during wipe:', error);
+          failedStores.push('session-files:directory-access');
         }
-      } catch (error) {
-        console.error('[AppStore] Failed to enumerate session files during wipe:', error);
-        failedStores.push('session-files:directory-access');
+      } else {
+        failedStores.push('session-files:api-unavailable');
       }
     }
 
