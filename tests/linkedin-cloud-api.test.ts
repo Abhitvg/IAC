@@ -30,6 +30,7 @@ function makeIntegration() {
     tokens: { get: vi.fn(async () => token) },
     api: {
       publishMemberTextPost: vi.fn(async () => ({ id: 'urn:li:share:published', status: 201 })),
+      publishMemberPoll: vi.fn(async () => ({ id: 'urn:li:share:poll', status: 201 })),
     },
     entitlements: {
       communityManagementApproved: false,
@@ -44,7 +45,10 @@ function makeIntegration() {
       getValidToken: ReturnType<typeof vi.fn>;
       disconnect: ReturnType<typeof vi.fn>;
     };
-    api: { publishMemberTextPost: ReturnType<typeof vi.fn> };
+    api: {
+      publishMemberTextPost: ReturnType<typeof vi.fn>;
+      publishMemberPoll: ReturnType<typeof vi.fn>;
+    };
   };
 }
 
@@ -233,6 +237,65 @@ describe('LinkedIn cloud API security boundaries', () => {
     expect(
       body.capabilities.find((item: { id: string }) => item.id === 'member_post_publish').status
     ).not.toBe('available');
+  });
+
+  it('publishes a member poll only with member write scope and audit', async () => {
+    const { integration, recordLinkedInAction } = await start();
+    const response = await fetch(baseUrl + '/v1/linkedin/polls', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        commentary: 'Help us plan the next session.',
+        question: 'Which topic should we cover?',
+        options: ['Cloud security', 'PostgreSQL', 'Kubernetes'],
+        duration: 'SEVEN_DAYS',
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      postId: 'urn:li:share:poll',
+      status: 201,
+    });
+    expect(recordLinkedInAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'linkedin.member.poll.publish.requested',
+        tenantId,
+        actorSubject: subject,
+      })
+    );
+    expect(integration.api.publishMemberPoll).toHaveBeenCalledWith(
+      token,
+      'urn:li:person:member-urn-id',
+      'Help us plan the next session.',
+      'Which topic should we cover?',
+      ['Cloud security', 'PostgreSQL', 'Kubernetes'],
+      'SEVEN_DAYS'
+    );
+  });
+
+  it('rejects invalid poll shape before writing an audit event or calling LinkedIn', async () => {
+    const { integration, recordLinkedInAction } = await start();
+    const response = await fetch(baseUrl + '/v1/linkedin/polls', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        commentary: 'Help us plan.',
+        question: 'Pick one',
+        options: ['Only one option'],
+        duration: 'SEVEN_DAYS',
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(integration.api.publishMemberPoll).not.toHaveBeenCalled();
+    expect(recordLinkedInAction).not.toHaveBeenCalled();
   });
 
   it('lists only the authenticated member tenant scheduled posts', async () => {
