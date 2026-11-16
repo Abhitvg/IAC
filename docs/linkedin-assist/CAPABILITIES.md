@@ -82,21 +82,30 @@ show exactly which prerequisite is missing.
 
 ## Current implementation status
 
-The implementation now includes OAuth authorization-code handling, one-time tenant-bound
-state validation, OpenID Connect member verification, encrypted PostgreSQL token persistence through
-the existing tenant-envelope cipher, authenticated cloud routes for connection status / lifecycle,
-scope-gated member / organization text-post clients using the versioned Posts API, and member / organization comment and reaction operations using the documented Comments / Reactions APIs.
+### Implemented
 
-The cloud runtime accepts a `LinkedInCloudIntegration` dependency. Deployment must compose it with
-`createLinkedInCloudIntegration` and provide a production `TenantKeyManagementService` backed by
-the deployment KMS, plus LinkedIn client credentials and a registered HTTPS redirect URI. The
-repository's current `main.ts` does not yet configure a KMS provider or instantiate this integration,
-so the routes return a clear 503 until deployment wiring is supplied. No token is stored in plaintext.
+- Tenant-bound OAuth authorization-code flow with a high-entropy one-time state, a public browser callback, OpenID Connect member identity verification, and callback replay prevention.
+- Encrypted PostgreSQL token persistence through the tenant envelope cipher, using AWS KMS `GenerateDataKey` / `Decrypt` with tenant and purpose encryption context.
+- Production API composition from `main.ts` when `LINKEDIN_ENABLED=true`; missing client, redirect or KMS configuration causes startup configuration validation to fail.
+- Optional access-token refresh when LinkedIn actually returns a refresh token to the application. If no refresh token was granted or it expires, the member must reconnect.
+- Authenticated desktop connection panel using the existing CareerOps OIDC identity. The OIDC bearer credential is stored through Electron OS-backed secure storage and is never returned to renderer JavaScript.
+- Narrow desktop IPC allowlist for LinkedIn API and tenant-control routes. It does not expose a general-purpose authenticated network proxy.
+- Scope- and entitlement-gated member text publishing, member comments/reactions, organization text publishing and organization comments/reactions through the documented APIs.
+- Server-side global kill-switch and `linkedin_assist` channel-pause enforcement before every LinkedIn write, plus audit recording.
+- Explicit UI actions for publish/comment/react/remove-reaction and account disconnect; owner-only pause/resume control.
 
-Scheduled publishing, media uploads, analytics, invitation execution, and message / inbox execution are not implemented yet. Member read operations remain unavailable until the exact restricted read permission is granted and read methods are wired. Invitations and Messages additionally require
-LinkedIn partner approval. Do not represent those operations as live until their API clients,
-authorization checks, audit trail, idempotency, and tests are implemented against an approved app.
+### Not implemented or not entitled by default
 
+- Background post scheduling / queue worker and automatic unattended publishing.
+- Media uploads, documents, video and carousel creation.
+- Member feed, profile activity and inbox reads.
+- Direct messages, invitations and communications execution. These are partner-restricted and remain unavailable until LinkedIn approves the exact application and CareerOps implements the required API clients.
+- Analytics, reporting and profile import through member read APIs.
+
+The desktop app also requires a cloud API origin and an OIDC bearer JWT issued by the configured CareerOps identity provider. This repository does not provision the customer’s identity provider credentials or deploy the cloud API automatically. See [DEPLOYMENT.md](./DEPLOYMENT.md) for required environment variables, redirect URI, AWS KMS IAM permissions and operational setup.
+
+Do not represent partner-only features or unscheduled background automation as live. A signed-in CareerOps user, a LinkedIn login, or a stored connection does not itself grant product approval or API scopes.
+ 
 ## Attribution
 
 Adapted from Avi Grondin's MIT-licensed avi691/linkedin-agent-skill. Original skill instructions
