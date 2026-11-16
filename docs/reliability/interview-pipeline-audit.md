@@ -69,17 +69,17 @@ Several direct provider adapters issue fetch requests without a request signal o
 **Severity:** High  
 **Files:** generation, transcription, session and diagnostic services
 
-The code records some latency and provider diagnostics, but there is no demonstrated unified measurement of:
+The pipeline records metadata-only events for capture, transcription, generation, and session persistence. This branch adds a deterministic aggregation API over the retained diagnostic window:
+- unique request counts with terminal versus unresolved separation;
+- success, failure, blocked, aborted, and rate-limited counts;
+- success rates that exclude unresolved requests from the denominator;
+- provider/model grouping, carrying provider identity forward from earlier events in the same request;
+- transcription empty/failure/abort counts, microphone capture outcomes, and session-save outcomes;
+- JSON export of the aggregate summary.
 
-- audio capture success and duration;
-- transcription success, empty-transcript rate, and latency;
-- time-to-first-token and time-to-final-answer;
-- completed, interrupted, cancelled, timed-out, and failed request counts;
-- partial-output recovery rate;
-- session-save success and recovery;
-- provider/model-specific error rates.
+**Still incomplete:** the logger remains an in-memory ring buffer capped at 200 events. Aggregates are not persisted across restarts and are not yet exposed in a user-facing diagnostics dashboard. Explicit timeout classification, partial-output recovery rates, p95 latency distributions, and durable provider/model trends still require instrumentation and storage.
 
-Without these, "zero error" is not testable and regressions can ship undetected.
+Without durable, representative measurements, "zero error" is not testable and regressions can ship undetected.
 
 ### R7 — Superseded requests could continue emitting stale tokens
 
