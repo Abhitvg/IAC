@@ -51,7 +51,7 @@ The OAuth browser redirect is handled by the public, one-time-state route `GET /
   and their API clients are implemented.
 - The desktop app stores its CareerOps cloud OIDC bearer token using Electron OS-backed secure storage. A narrow IPC bridge limits requests to documented LinkedIn and tenant-control routes; the token never crosses to renderer code.
 - All LinkedIn write routes check the tenant-wide kill switch and the `linkedin_assist` channel pause before recording and executing the action.
-- The Connected Account panel exposes explicit member post, comment and reaction actions and approved organization Page actions. There is no background scheduler, automatic commenting, invitation sender, DM sender or inbox reader in the current build.
+- The Connected Account panel exposes explicit member post, comment and reaction actions and approved organization Page actions. Optional scheduled member text publishing is available when `LINKEDIN_SCHEDULER_ENABLED=true`; all other engagement is explicit and partner-restricted features remain gated.
 
 The integration must be validated against an approved LinkedIn developer application before
 production use.
