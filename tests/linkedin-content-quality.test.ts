@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { humanizeLinkedInText, scoreLinkedInText } from '../src/services/careerOps/linkedinContentQuality';
+import {
+  humanizeLinkedInText,
+  scoreLinkedInText,
+} from '../src/services/careerOps/linkedinContentQuality';
 
 describe('LinkedIn content quality', () => {
   it('normalizes invisible characters and typography without changing URLs', () => {
