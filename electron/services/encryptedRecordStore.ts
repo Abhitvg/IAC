@@ -39,8 +39,7 @@ interface Envelope {
 
 function validNamespace(value: unknown): value is SecureRecordNamespace {
   return (
-    typeof value === 'string' &&
-    (SECURE_RECORD_NAMESPACES as readonly string[]).includes(value)
+    typeof value === 'string' && (SECURE_RECORD_NAMESPACES as readonly string[]).includes(value)
   );
 }
 
@@ -109,11 +108,7 @@ export class EncryptedRecordStore {
   private readonly platform: string;
   private keyPromise: Promise<Buffer> | null = null;
 
-  constructor(options: {
-    rootDir: string;
-    storage: SecureStorageAdapter;
-    platform?: string;
-  }) {
+  constructor(options: { rootDir: string; storage: SecureStorageAdapter; platform?: string }) {
     this.rootDir = path.resolve(options.rootDir);
     this.storage = options.storage;
     this.platform = options.platform || process.platform;
@@ -146,10 +141,7 @@ export class EncryptedRecordStore {
 
   private async rewrapKey(keyPath: string, plaintext: string): Promise<void> {
     const wrapped = await this.storage.encryptStringAsync(plaintext);
-    atomicWrite(
-      keyPath,
-      JSON.stringify({ version: VERSION, data: wrapped.toString('base64') })
-    );
+    atomicWrite(keyPath, JSON.stringify({ version: VERSION, data: wrapped.toString('base64') }));
   }
 
   private async loadOrCreateKey(): Promise<Buffer> {
@@ -196,10 +188,7 @@ export class EncryptedRecordStore {
       throw new Error('OS-backed secure storage failed to protect the record key.');
     }
 
-    atomicWrite(
-      keyPath,
-      JSON.stringify({ version: VERSION, data: wrapped.toString('base64') })
-    );
+    atomicWrite(keyPath, JSON.stringify({ version: VERSION, data: wrapped.toString('base64') }));
     return key;
   }
 
@@ -218,33 +207,20 @@ export class EncryptedRecordStore {
     return path.join(this.rootDir, 'records', namespace, digest + '.json');
   }
 
-  async set(
-    namespace: SecureRecordNamespace,
-    id: string,
-    plaintext: string
-  ): Promise<void> {
+  async set(namespace: SecureRecordNamespace, id: string, plaintext: string): Promise<void> {
     if (!validNamespace(namespace) || !validId(id)) {
       throw new Error('Invalid secure record namespace or identifier.');
     }
-    if (
-      typeof plaintext !== 'string' ||
-      Buffer.byteLength(plaintext, 'utf8') > MAX_RECORD_BYTES
-    ) {
+    if (typeof plaintext !== 'string' || Buffer.byteLength(plaintext, 'utf8') > MAX_RECORD_BYTES) {
       throw new Error('Secure record payload must be a string no larger than 5 MiB.');
     }
 
     const key = await this.getKey();
     const iv = crypto.randomBytes(12);
-    const aad = Buffer.from(
-      'iac-secure-record:v' + VERSION + ':' + namespace + ':' + id,
-      'utf8'
-    );
+    const aad = Buffer.from('iac-secure-record:v' + VERSION + ':' + namespace + ':' + id, 'utf8');
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     cipher.setAAD(aad);
-    const ciphertext = Buffer.concat([
-      cipher.update(plaintext, 'utf8'),
-      cipher.final(),
-    ]);
+    const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
 
     const envelope: Envelope = {
       version: VERSION,
@@ -259,21 +235,13 @@ export class EncryptedRecordStore {
     atomicWrite(this.recordPath(namespace, id), JSON.stringify(envelope));
   }
 
-  async get(
-    namespace: SecureRecordNamespace,
-    id: string
-  ): Promise<string | null> {
+  async get(namespace: SecureRecordNamespace, id: string): Promise<string | null> {
     if (!validNamespace(namespace) || !validId(id)) {
       throw new Error('Invalid secure record namespace or identifier.');
     }
     if (!ensureDirectorySafe(this.rootDir, false)) return null;
     if (!ensureDirectorySafe(path.join(this.rootDir, 'records'), false)) return null;
-    if (
-      !ensureDirectorySafe(
-        path.join(this.rootDir, 'records', namespace),
-        false
-      )
-    ) {
+    if (!ensureDirectorySafe(path.join(this.rootDir, 'records', namespace), false)) {
       return null;
     }
 
@@ -309,27 +277,18 @@ export class EncryptedRecordStore {
     const key = await this.getKey();
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAAD(
-      Buffer.from(
-        'iac-secure-record:v' + VERSION + ':' + namespace + ':' + id,
-        'utf8'
-      )
+      Buffer.from('iac-secure-record:v' + VERSION + ':' + namespace + ':' + id, 'utf8')
     );
     decipher.setAuthTag(tag);
 
     try {
-      return Buffer.concat([
-        decipher.update(ciphertext),
-        decipher.final(),
-      ]).toString('utf8');
+      return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
     } catch {
       throw new Error('Secure record authentication failed.');
     }
   }
 
-  async delete(
-    namespace: SecureRecordNamespace,
-    id: string
-  ): Promise<boolean> {
+  async delete(namespace: SecureRecordNamespace, id: string): Promise<boolean> {
     if (!validNamespace(namespace) || !validId(id)) {
       throw new Error('Invalid secure record namespace or identifier.');
     }

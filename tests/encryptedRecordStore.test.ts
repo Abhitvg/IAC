@@ -51,9 +51,7 @@ describe('EncryptedRecordStore', () => {
     fs.mkdirSync(targetDirectory, { recursive: true });
     fs.copyFileSync(source, path.join(targetDirectory, fs.readdirSync(directory)[0]));
 
-    await expect(store.get('practice', 'candidate_1')).rejects.toThrow(
-      'authentication failed'
-    );
+    await expect(store.get('practice', 'candidate_1')).rejects.toThrow('authentication failed');
   });
 
   it('rejects tampered ciphertext', async () => {
@@ -66,9 +64,7 @@ describe('EncryptedRecordStore', () => {
     envelope.ciphertext = Buffer.from('tampered').toString('base64');
     fs.writeFileSync(file, JSON.stringify(envelope));
 
-    await expect(store.get('practice', 'answer_1')).rejects.toThrow(
-      'authentication failed'
-    );
+    await expect(store.get('practice', 'answer_1')).rejects.toThrow('authentication failed');
   });
 
   it('fails closed when Linux has no OS-backed keyring', async () => {
@@ -91,14 +87,14 @@ describe('EncryptedRecordStore', () => {
   it('rejects invalid namespaces, identifiers and oversized payloads', async () => {
     const store = createStore('darwin');
 
-    await expect(
-      store.set('../outside' as never, 'id', 'secret')
-    ).rejects.toThrow('Invalid secure record');
-    await expect(
-      store.set('practice', '../escape', 'secret')
-    ).rejects.toThrow('Invalid secure record');
-    await expect(
-      store.set('practice', 'large', 'x'.repeat(5 * 1024 * 1024 + 1))
-    ).rejects.toThrow('5 MiB');
+    await expect(store.set('../outside' as never, 'id', 'secret')).rejects.toThrow(
+      'Invalid secure record'
+    );
+    await expect(store.set('practice', '../escape', 'secret')).rejects.toThrow(
+      'Invalid secure record'
+    );
+    await expect(store.set('practice', 'large', 'x'.repeat(5 * 1024 * 1024 + 1))).rejects.toThrow(
+      '5 MiB'
+    );
   });
 });
