@@ -1,8 +1,5 @@
 name: CI
 
-permissions:
-  contents: write
-
 on:
   push:
     branches: [main, 'fix/**', 'feat/**', 'security/**']
@@ -76,19 +73,6 @@ jobs:
             process.exitCode = 1;
           }
           NODE
-
-      - name: Temporarily format LinkedIn Studio files on its feature branch
-        if: github.event_name == 'push' && github.ref_name == 'feat/linkedin-content-quality-studio'
-        shell: bash
-        run: |
-          npx prettier --write docs/linkedin-assist/CONTENT_STUDIO.md src/components/careerOps/LinkedInContentStudio.tsx src/components/careerOps/CareerOpsView.tsx src/services/careerOps/linkedinContentQuality.ts tests/linkedin-content-quality.test.ts
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/linkedin-assist/CONTENT_STUDIO.md src/components/careerOps/LinkedInContentStudio.tsx src/components/careerOps/CareerOpsView.tsx src/services/careerOps/linkedinContentQuality.ts tests/linkedin-content-quality.test.ts
-          if ! git diff --cached --quiet; then
-            git commit -m "style: format LinkedIn Studio integration"
-            git push origin "HEAD:$GITHUB_REF_NAME"
-          fi
 
       - name: Check formatting for changed files
         shell: bash
