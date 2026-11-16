@@ -554,6 +554,23 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     return encryptedRecordStore.delete(value.namespace as any, value.id);
   });
 
+  ipcMain.handle('secure-records:list', async (event, request: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error('Unauthorized IPC sender');
+    }
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+      throw new Error('Invalid secure record request');
+    }
+    const value = request as Record<string, unknown>;
+    if (
+      Object.keys(value).some((key) => key !== 'namespace') ||
+      typeof value.namespace !== 'string'
+    ) {
+      throw new Error('Invalid secure record request');
+    }
+    return encryptedRecordStore.list(value.namespace as any);
+  });
+
   // Secure WebSocket server for Chrome extension
   ipcMain.handle('ws:get-info', (event) => {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
