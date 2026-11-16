@@ -154,9 +154,7 @@ describe('CredentialStore', () => {
   it('rejects Groq keys with valid-looking substrings surrounded by other text', async () => {
     const creds = new CredentialStore(mockStore, tempDir);
 
-    await expect(creds.setKey('groq', 'prefix gsk_valid_key_123')).rejects.toThrow(
-      /complete key/i
-    );
+    await expect(creds.setKey('groq', 'prefix gsk_valid_key_123')).rejects.toThrow(/complete key/i);
     await expect(creds.setKey('groq-secondary', 'gsk_valid_key_123 trailing')).rejects.toThrow(
       /complete key/i
     );
@@ -280,6 +278,21 @@ describe('CredentialStore', () => {
     expect(await creds.getKey('openrouter')).toBeNull();
   });
 
+  it('stores CareerOps cloud OIDC credentials only when they have a bounded JWT shape', async () => {
+    const creds = new CredentialStore(mockStore, tempDir);
+    const jwt = 'headersegment123.payloadsegment456.signaturesegment789';
+
+    await expect(creds.setKey('careerops-cloud', 'not-a-jwt')).rejects.toThrow(
+      'valid three-part OIDC JWT'
+    );
+    expect(mockStore.get('secure_credentials.careerops-cloud')).toBeUndefined();
+
+    await expect(creds.setKey('careerops-cloud', jwt)).resolves.toBe(true);
+    expect(mockStore.get('secure_credentials.careerops-cloud').type).toBe('safeStorage-async');
+    expect(mockStore.get('secure_credentials.careerops-cloud').data).not.toContain(jwt);
+    await expect(creds.getKey('careerops-cloud')).resolves.toBe(jwt);
+  });
+
   it('lists configured services accurately, including the secondary Groq slot', async () => {
     const creds = new CredentialStore(mockStore, tempDir);
 
@@ -294,6 +307,7 @@ describe('CredentialStore', () => {
       openai: true,
       openrouter: false,
       ollama: false,
+      'careerops-cloud': false,
     });
   });
 });

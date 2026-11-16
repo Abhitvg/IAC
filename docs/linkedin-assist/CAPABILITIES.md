@@ -18,17 +18,17 @@ show exactly which prerequisite is missing.
   analytics. Requires relevant approved products and scopes; `r_member_social_feed` is restricted.
 - **Official export import:** Parse member-provided LinkedIn PDF / data archive. Requires a
   user-provided export, not an API scope.
-- **Member post publishing:** Publish text, images, video, documents, and supported post types.
-  Requires `w_member_social` and relevant Posts API product access.
-- **Organization publishing:** Publish for an organization Page. Requires
-  `w_organization_social`, approved product access, and the required Page role.
+- **Member post publishing:** Text and native poll posts are implemented with `w_member_social`. Image, video, document, multi-image and other media publishing require additional upload work and applicable Posts API access.
+- **Organization publishing:** Publish text for an organization Page, or publish an image
+  from an existing LinkedIn image asset URN after the server confirms `AVAILABLE` status and
+  exact Page ownership. Requires `w_organization_social`, approved product access, and the
+  required Page role. Local image upload is not implemented.
 - **Comments and reactions:** Create member comments and reactions through the Comments and Reactions APIs. Requires Community Management API access and `w_member_social_feed`; organization actions require `w_organization_social_feed` and an eligible Page role.
 - **Read engagement:** Read supported organization/member engagement data. Requires applicable
   read scopes; member read permissions may be restricted.
 - **Editorial calendar:** Plan, draft, queue, and schedule content. Planning is local; publishing
   additionally requires write access.
-- **Carousel / media:** Prepare carousel assets and publish supported media formats. Requires
-  media upload and post API access; API format limitations apply.
+- **Carousel / media:** Planned. Media upload, multi-image and document/video post flows are not implemented in this branch; sponsored-only carousel constraints also apply.
 - **Repurposing:** Turn user-provided material into posts and campaigns. Available locally.
 - **Inbox triage:** Classify and draft replies from permitted message data. Requires official
   Communications/Messages API partner access and applicable authorization.
@@ -82,20 +82,29 @@ show exactly which prerequisite is missing.
 
 ## Current implementation status
 
-The implementation now includes OAuth authorization-code handling, one-time tenant-bound
-state validation, OpenID Connect member verification, encrypted PostgreSQL token persistence through
-the existing tenant-envelope cipher, authenticated cloud routes for connection status / lifecycle,
-scope-gated member / organization text-post clients using the versioned Posts API, and member / organization comment and reaction operations using the documented Comments / Reactions APIs.
+### Implemented
 
-The cloud runtime accepts a `LinkedInCloudIntegration` dependency. Deployment must compose it with
-`createLinkedInCloudIntegration` and provide a production `TenantKeyManagementService` backed by
-the deployment KMS, plus LinkedIn client credentials and a registered HTTPS redirect URI. The
-repository's current `main.ts` does not yet configure a KMS provider or instantiate this integration,
-so the routes return a clear 503 until deployment wiring is supplied. No token is stored in plaintext.
+- Tenant-bound OAuth authorization-code flow with a high-entropy one-time state, a public browser callback, OpenID Connect member identity verification, and callback replay prevention.
+- Encrypted PostgreSQL token persistence through the tenant envelope cipher, using AWS KMS `GenerateDataKey` / `Decrypt` with tenant and purpose encryption context.
+- Production API composition from `main.ts` when `LINKEDIN_ENABLED=true`; missing client, redirect or KMS configuration causes startup configuration validation to fail.
+- Optional access-token refresh when LinkedIn actually returns a refresh token to the application. If no refresh token was granted or it expires, the member must reconnect.
+- Authenticated desktop connection panel using the existing CareerOps OIDC identity. The OIDC bearer credential is stored through Electron OS-backed secure storage and is never returned to renderer JavaScript.
+- Narrow desktop IPC allowlist for LinkedIn API and tenant-control routes. It does not expose a general-purpose authenticated network proxy.
+- Scope- and entitlement-gated member text and poll publishing, member comments/reactions, organization text and image publishing, and organization comments/reactions through documented APIs. Organization image posts accept an existing image URN only after checking that the asset is `AVAILABLE` and its owner exactly matches the Page URN. Poll input is limited to 2–4 unique options and LinkedIn-supported durations.
+- Server-side global kill-switch and `linkedin_assist` channel-pause enforcement before every LinkedIn write, plus audit recording.
+- Explicit UI actions for publish/comment/react/remove-reaction and account disconnect; owner-only pause/resume control.
 
-Scheduled publishing, media uploads, analytics, invitation execution, and message / inbox execution are not implemented yet. Member read operations remain unavailable until the exact restricted read permission is granted and read methods are wired. Invitations and Messages additionally require
-LinkedIn partner approval. Do not represent those operations as live until their API clients,
-authorization checks, audit trail, idempotency, and tests are implemented against an approved app.
+### Not implemented or not entitled by default
+
+- Optional background scheduling for member text posts is implemented behind `LINKEDIN_SCHEDULER_ENABLED` (default off). It requires a dedicated `CAREEROPS_SCHEDULER_DATABASE_URL` login granted membership in `careerops_scheduler`; `careerops_app` cannot claim or transition cross-tenant rows. Media scheduling, bulk campaigns and autonomous content generation/publication are not implemented.
+- Local image, document and video uploads; multi-image posts; and carousel creation. Organization image posts can reference an already-uploaded, ready image asset; member image publishing is not implemented because the ordinary `w_member_social` grant is write-only for versioned image-status reads. Native member polls are implemented.
+- Member feed, profile activity and inbox reads.
+- Direct messages, invitations and communications execution. These are partner-restricted and remain unavailable until LinkedIn approves the exact application and CareerOps implements the required API clients.
+- Analytics, reporting and profile import through member read APIs.
+
+The desktop app also requires a cloud API origin and an OIDC bearer JWT issued by the configured CareerOps identity provider. This repository does not provision the customer’s identity provider credentials or deploy the cloud API automatically. See [DEPLOYMENT.md](./DEPLOYMENT.md) for required environment variables, redirect URI, AWS KMS IAM permissions and operational setup.
+
+Do not represent partner-only features or unscheduled background automation as live. A signed-in CareerOps user, a LinkedIn login, or a stored connection does not itself grant product approval or API scopes.
 
 ## Attribution
 

@@ -117,6 +117,46 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
     });
   }
 
+  async consumeCallback(state: string): Promise<LinkedInOAuthState | null> {
+    const hash = stateHash(state);
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // A one-time random OAuth state is the callback credential. This narrowly scoped
+      // transaction flag is permitted only by the callback DELETE policy on the state table.
+      await client.query("SELECT set_config('app.linkedin_oauth_callback', 'true', true)");
+      const result = await client.query<{
+        tenant_id: string;
+        subject: string;
+        redirect_uri: string;
+        expires_at: Date | string;
+      }>(
+        `DELETE FROM linkedin_oauth_states
+          WHERE state_hash = $1
+          RETURNING tenant_id, subject, redirect_uri, expires_at`,
+        [hash]
+      );
+      await client.query('COMMIT');
+      const row = result.rows[0];
+      if (!row) return null;
+      return {
+        state,
+        identity: { tenantId: row.tenant_id, subject: row.subject },
+        redirectUri: row.redirect_uri,
+        expiresAt: new Date(row.expires_at).getTime(),
+      };
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // Preserve the original database error.
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async put(identity: LinkedInConnectionIdentity, tokens: LinkedInTokenSet): Promise<void> {
     const context = tokenContext(identity.subject);
     const envelope = await this.cipher.encrypt(

@@ -8,15 +8,17 @@ scopes.
 ## Included
 
 - `CAPABILITIES.md`: capability map, access tiers, and implementation status.
-- `hooks.json`: 21 post-hook formulas.
-- `profile-rubric.json`: 12-part, 100-point profile review rubric.
+- `DEPLOYMENT.md`: cloud configuration, AWS KMS permissions, LinkedIn OAuth setup and operational checks.
+- `hooks.json`: searchable 21-formula post-hook library in the Playbook Workbench.
+- `profile-rubric.json`: 12-part, 100-point user-scored profile self-assessment.
+- Playbook Workbench: four-slot weekly content planner for proof, opinion, teaching and story / offer.
 - `humanizer/`: local text-cleanup and heuristic quality scripts.
 - `humanizer/slop.json`: cleanup lexicon and character / typography rules.
+- LinkedIn Studio: separate 200-character connection-invite and 300-character DM targets, plus explicit lexical replacement review.
 - `LICENSE.upstream`: MIT attribution and license.
 - `../../apps/api/src/linkedin/`: OAuth, API client, encrypted persistence, and composition
   factory.
-- `../../apps/api/migrations/0006_linkedin_oauth.sql`: tenant-isolated OAuth state and connection
-  tables.
+- `../../apps/api/migrations/0006_linkedin_oauth.sql`, `0007_linkedin_oauth_callback.sql` and `0008_linkedin_scheduled_posts.sql`: tenant-isolated OAuth state, encrypted connections, one-time callback consumption and the isolated scheduled-post queue.
 
 ## Cloud API
 
@@ -28,17 +30,22 @@ authenticated routes are available:
 - `POST /v1/linkedin/oauth/callback`
 - `DELETE /v1/linkedin/connection`
 - `POST /v1/linkedin/posts`
+- `POST /v1/linkedin/polls`
+- `POST /v1/linkedin/organization/posts`
+- `POST /v1/linkedin/organization/image-posts`
 - `POST /v1/linkedin/comments`
 - `POST /v1/linkedin/reactions`
 - `DELETE /v1/linkedin/reactions?entityUrn=...`
-- `POST /v1/linkedin/organization/posts`
 - `POST /v1/linkedin/organization/comments`
 - `POST /v1/linkedin/organization/reactions`
 - `DELETE /v1/linkedin/organization/reactions?organizationUrn=...&entityUrn=...`
+- `GET /v1/linkedin/scheduled-posts`
+- `POST /v1/linkedin/scheduled-posts`
+- `DELETE /v1/linkedin/scheduled-posts/:id`
 
-The current cloud executable does not yet instantiate a KMS provider or configure LinkedIn
-credentials. Until deployment supplies those dependencies, LinkedIn routes intentionally return
-HTTP 503 rather than storing tokens insecurely or pretending the integration is active.
+The API entry point now composes the LinkedIn cloud integration when `LINKEDIN_ENABLED=true` and the required client, callback, AWS region and KMS key configuration is present. When disabled or misconfigured, LinkedIn routes fail closed rather than storing tokens insecurely.
+
+The OAuth browser redirect is handled by the public, one-time-state route `GET /oauth/linkedin/callback`. The callback does not require the desktop OIDC bearer token because the 256-bit state is bound server-side to the authenticated tenant/member when OAuth starts. The token exchange and OpenID Connect identity check remain server-side; access and refresh tokens are persisted through the tenant envelope cipher backed by AWS KMS.
 
 ## Security boundaries
 
@@ -47,8 +54,9 @@ HTTP 503 rather than storing tokens insecurely or pretending the integration is 
 - No page scraping, DOM injection, Playwright, or undocumented endpoint fallback.
 - Restricted partner features remain unavailable until the exact LinkedIn product access is approved
   and their API clients are implemented.
-- Scheduled and unattended actions require owner configuration, clear auditability, pause / revoke
-  controls, and duplicate prevention before they are enabled.
+- The desktop app stores its CareerOps cloud OIDC bearer token using Electron OS-backed secure storage. A narrow IPC bridge limits requests to documented LinkedIn and tenant-control routes; the token never crosses to renderer code.
+- All LinkedIn write routes check the tenant-wide kill switch and the `linkedin_assist` channel pause before recording and executing the action.
+- The Connected Account panel exposes explicit member text-post and poll publishing, comment and reaction actions, and approved organization Page actions. Optional scheduled member text publishing is available when `LINKEDIN_SCHEDULER_ENABLED=true`; all other engagement is explicit and partner-restricted features remain gated.
 
 The integration must be validated against an approved LinkedIn developer application before
 production use.

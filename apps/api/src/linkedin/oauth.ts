@@ -15,15 +15,22 @@ const DEFAULT_STATE_TTL_MS = 10 * 60 * 1000;
 
 function requiredString(value: string, name: string): string {
   const normalized = value.trim();
-  if (!normalized) throw new Error(`LinkedIn ${name} is required`);
+  if (!normalized) throw new Error('LinkedIn ' + name + ' is required');
   return normalized;
 }
 
 function parseScopes(value: unknown): string[] {
-  if (typeof value !== 'string') return [];
+  if (typeof value !== 'string' || !value.trim()) return [];
+  let decoded: string;
+  try {
+    // LinkedIn describes the token response scope as URL-encoded and space-delimited.
+    decoded = decodeURIComponent(value.replace(/\+/g, '%20'));
+  } catch {
+    return [];
+  }
   return [
     ...new Set(
-      value
+      decoded
         .split(/[\s,]+/)
         .map((scope) => scope.trim())
         .filter(Boolean)
@@ -40,6 +47,7 @@ function safeEqual(left: string, right: string): boolean {
 export class LinkedInOAuthService {
   private readonly fetcher: typeof fetch;
   private readonly stateTtlMs: number;
+  private readonly refreshes = new Map<string, Promise<LinkedInTokenSet>>();
 
   constructor(
     private readonly config: LinkedInOAuthConfig,
@@ -50,7 +58,10 @@ export class LinkedInOAuthService {
     requiredString(config.clientSecret, 'client secret');
     requiredString(config.redirectUri, 'redirect URI');
     const redirect = new URL(config.redirectUri);
-    if (redirect.protocol !== 'https:' && redirect.hostname !== 'localhost') {
+    const isLocalDevelopmentRedirect =
+      redirect.protocol === 'http:' &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(redirect.hostname);
+    if (redirect.protocol !== 'https:' && !isLocalDevelopmentRedirect) {
       throw new Error(
         'LinkedIn OAuth redirect URI must use HTTPS (localhost is allowed for development)'
       );
@@ -105,14 +116,52 @@ export class LinkedInOAuthService {
     if (!stored || stored.expiresAt <= Date.now()) {
       throw new Error('LinkedIn OAuth state is invalid, expired, or already used');
     }
+    this.assertStoredState(stored, input.identity);
+    return this.exchangeAuthorizationCode(code, input.identity);
+  }
+
+  /**
+   * Completes the public LinkedIn redirect. The state is a high-entropy,
+   * one-time credential bound to the tenant/member when it was created.
+   * No tenant ID or access token is accepted from the browser callback.
+   */
+  async completeAuthorizationCallback(input: {
+    code: string;
+    state: string;
+  }): Promise<{ connected: true; scopes: string[]; expiresAt: number }> {
+    const code = requiredString(input.code, 'authorization code');
+    const state = requiredString(input.state, 'state');
+    const stored = await this.states.consumeCallback(state);
+    if (!stored || stored.expiresAt <= Date.now()) {
+      throw new Error('LinkedIn OAuth state is invalid, expired, or already used');
+    }
+    this.assertStoredState(stored, stored.identity);
+    return this.exchangeAuthorizationCode(code, stored.identity);
+  }
+
+  async cancelAuthorizationCallback(state: string): Promise<boolean> {
+    const normalized = requiredString(state, 'state');
+    const stored = await this.states.consumeCallback(normalized);
+    return Boolean(stored && stored.expiresAt > Date.now());
+  }
+
+  private assertStoredState(
+    stored: { identity: LinkedInConnectionIdentity; redirectUri: string },
+    expected: LinkedInConnectionIdentity
+  ): void {
     if (
-      !safeEqual(stored.identity.tenantId, input.identity.tenantId) ||
-      !safeEqual(stored.identity.subject, input.identity.subject) ||
+      !safeEqual(stored.identity.tenantId, expected.tenantId) ||
+      !safeEqual(stored.identity.subject, expected.subject) ||
       stored.redirectUri !== this.config.redirectUri
     ) {
       throw new Error('LinkedIn OAuth state does not match the authenticated member');
     }
+  }
 
+  private async exchangeAuthorizationCode(
+    code: string,
+    identity: LinkedInConnectionIdentity
+  ): Promise<{ connected: true; scopes: string[]; expiresAt: number }> {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -128,7 +177,7 @@ export class LinkedInOAuthService {
     });
     if (!response.ok) {
       // Never include the response body: OAuth errors can echo sensitive request data.
-      throw new Error(`LinkedIn token exchange failed with HTTP ${response.status}`);
+      throw new Error('LinkedIn token exchange failed with HTTP ' + response.status);
     }
 
     const payload = (await response.json()) as Record<string, unknown>;
@@ -152,11 +201,11 @@ export class LinkedInOAuthService {
 
     const identityResponse = await this.fetcher('https://api.linkedin.com/v2/userinfo', {
       method: 'GET',
-      headers: { authorization: `Bearer ${accessToken}` },
+      headers: { authorization: 'Bearer ' + accessToken },
       signal: AbortSignal.timeout(10_000),
     });
     if (!identityResponse.ok) {
-      throw new Error(`LinkedIn identity verification failed with HTTP ${identityResponse.status}`);
+      throw new Error('LinkedIn identity verification failed with HTTP ' + identityResponse.status);
     }
     const identityPayload = (await identityResponse.json()) as Record<string, unknown>;
     const memberId = typeof identityPayload.sub === 'string' ? identityPayload.sub.trim() : '';
@@ -178,8 +227,88 @@ export class LinkedInOAuthService {
         ? { refreshTokenExpiresAt: Date.now() + refreshExpiresIn * 1000 }
         : {}),
     };
-    await this.tokens.put(input.identity, tokenSet);
+    await this.tokens.put(identity, tokenSet);
     return { connected: true, scopes: grantedScopes, expiresAt: tokenSet.expiresAt };
+  }
+
+  async getValidToken(identity: LinkedInConnectionIdentity): Promise<LinkedInTokenSet | null> {
+    const tokens = await this.tokens.get(identity);
+    if (!tokens) return null;
+    if (tokens.expiresAt > Date.now() + 60_000) return tokens;
+
+    if (!tokens.refreshToken) {
+      throw new Error('LinkedIn access token expired; reconnect the account');
+    }
+    if (tokens.refreshTokenExpiresAt && tokens.refreshTokenExpiresAt <= Date.now()) {
+      throw new Error('LinkedIn refresh token expired; reconnect the account');
+    }
+
+    const key = JSON.stringify([identity.tenantId, identity.subject]);
+    const pending = this.refreshes.get(key);
+    if (pending) return pending;
+    const refresh = this.refreshAccessToken(identity, tokens).finally(() => {
+      this.refreshes.delete(key);
+    });
+    this.refreshes.set(key, refresh);
+    return refresh;
+  }
+
+  private async refreshAccessToken(
+    identity: LinkedInConnectionIdentity,
+    previous: LinkedInTokenSet
+  ): Promise<LinkedInTokenSet> {
+    const body = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: previous.refreshToken!,
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret,
+    });
+    const response = await this.fetcher(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) {
+      throw new Error('LinkedIn token refresh failed with HTTP ' + response.status);
+    }
+    const payload = (await response.json()) as Record<string, unknown>;
+    const accessToken = typeof payload.access_token === 'string' ? payload.access_token : '';
+    const expiresIn = Number(payload.expires_in);
+    if (
+      !accessToken ||
+      accessToken.length > 4096 ||
+      !Number.isFinite(expiresIn) ||
+      expiresIn <= 0
+    ) {
+      throw new Error('LinkedIn returned an invalid token refresh response');
+    }
+
+    const returnedScopes = parseScopes(payload.scope);
+    const grantedScopes = returnedScopes.length ? returnedScopes : previous.grantedScopes;
+    if (!grantedScopes.includes('openid')) {
+      throw new Error('LinkedIn refresh did not preserve the required OpenID Connect scope');
+    }
+    const refreshToken =
+      typeof payload.refresh_token === 'string' && payload.refresh_token.length <= 4096
+        ? payload.refresh_token
+        : previous.refreshToken;
+    const refreshExpiresIn = Number(payload.refresh_token_expires_in);
+    const refreshed: LinkedInTokenSet = {
+      accessToken,
+      memberId: previous.memberId,
+      expiresAt: Date.now() + expiresIn * 1000,
+      grantedScopes,
+      tokenType: 'Bearer',
+      ...(refreshToken ? { refreshToken } : {}),
+      ...(Number.isFinite(refreshExpiresIn) && refreshExpiresIn > 0
+        ? { refreshTokenExpiresAt: Date.now() + refreshExpiresIn * 1000 }
+        : previous.refreshTokenExpiresAt !== undefined
+          ? { refreshTokenExpiresAt: previous.refreshTokenExpiresAt }
+          : {}),
+    };
+    await this.tokens.put(identity, refreshed);
+    return refreshed;
   }
 
   async disconnect(identity: LinkedInConnectionIdentity): Promise<void> {

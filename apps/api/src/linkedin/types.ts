@@ -35,6 +35,7 @@ export interface LinkedInOAuthState {
 export interface LinkedInOAuthStateStore {
   save(state: LinkedInOAuthState): Promise<void>;
   consume(state: string, identity: LinkedInConnectionIdentity): Promise<LinkedInOAuthState | null>;
+  consumeCallback(state: string): Promise<LinkedInOAuthState | null>;
 }
 
 export interface LinkedInTokenVault {

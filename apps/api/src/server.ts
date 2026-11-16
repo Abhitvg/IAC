@@ -21,6 +21,25 @@ function sendJson(response: ServerResponse, status: number, body: unknown): void
   response.end(JSON.stringify(body));
 }
 
+function sendHtml(response: ServerResponse, status: number, message: string): void {
+  response.writeHead(status, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'content-security-policy':
+      "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'x-content-type-options': 'nosniff',
+    'referrer-policy': 'no-referrer',
+    'x-frame-options': 'DENY',
+  });
+  response.end(
+    '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<title>CareerOps LinkedIn connection</title><body style="font:16px system-ui;max-width:36rem;margin:12vh auto;padding:0 1.5rem;background:#0b1220;color:#e2e8f0">' +
+      '<h1 style="font-size:1.4rem">CareerOps LinkedIn connection</h1><p>' +
+      message +
+      '</p><p>You can close this tab and return to CareerOps.</p></body></html>'
+  );
+}
+
 async function readJson(
   request: IncomingMessage,
   maxBytes: number
@@ -69,6 +88,76 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
+      // This is the sole unauthenticated LinkedIn endpoint. A 256-bit one-time state
+      // binds the callback to the tenant/member saved at OAuth start; no tenant ID,
+      // access token, or session credential is accepted from the browser.
+      if (url.pathname === '/oauth/linkedin/callback') {
+        const integration = dependencies.linkedin;
+        if (!integration) {
+          sendHtml(response, 503, 'LinkedIn integration is not configured on this deployment.');
+          return;
+        }
+        if (request.method !== 'GET') {
+          response.setHeader('allow', 'GET');
+          sendHtml(response, 405, 'This callback only accepts a browser redirect.');
+          return;
+        }
+        const stateValues = url.searchParams.getAll('state');
+        const codeValues = url.searchParams.getAll('code');
+        const errorValues = url.searchParams.getAll('error');
+        const descriptionValues = url.searchParams.getAll('error_description');
+        const state = stateValues[0] ?? '';
+        const code = codeValues[0] ?? null;
+        const providerError = errorValues[0] ?? null;
+        const hasProviderError = url.searchParams.has('error');
+        const allowedParams = hasProviderError
+          ? ['state', 'error', 'error_description']
+          : ['state', 'code'];
+        if (
+          stateValues.length !== 1 ||
+          codeValues.length > 1 ||
+          errorValues.length > 1 ||
+          descriptionValues.length > 1 ||
+          !/^[A-Za-z0-9_-]{40,64}$/.test(state) ||
+          [...url.searchParams.keys()].some((key) => !allowedParams.includes(key)) ||
+          (hasProviderError ? !providerError?.trim() || Boolean(code) : !code || code.length > 4096)
+        ) {
+          sendHtml(
+            response,
+            400,
+            'The LinkedIn authorization response was invalid. Start the connection again in CareerOps.'
+          );
+          return;
+        }
+        try {
+          if (hasProviderError) {
+            const cancelled = await integration.oauth.cancelAuthorizationCallback(state);
+            sendHtml(
+              response,
+              cancelled ? 200 : 400,
+              cancelled
+                ? 'LinkedIn authorization was not completed. No connection was added.'
+                : 'The authorization request expired or was already used. Start again in CareerOps.'
+            );
+            return;
+          }
+          await integration.oauth.completeAuthorizationCallback({ code: code!, state });
+          sendHtml(
+            response,
+            200,
+            'LinkedIn was connected successfully. Return to CareerOps and refresh the connection status.'
+          );
+        } catch {
+          // Do not reflect provider error descriptions, codes, tokens, state, or tenant details.
+          sendHtml(
+            response,
+            400,
+            'LinkedIn could not complete the connection. Return to CareerOps and try again.'
+          );
+        }
+        return;
+      }
+
       const token = readBearerToken(request.headers.authorization);
       const identity = await dependencies.identityVerifier.verify(token);
       const requestedTenant = request.headers['x-tenant-id'];
@@ -107,6 +196,16 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           entityId: string,
           metadata: Record<string, string | number | boolean | null>
         ) => {
+          const controls = await dependencies.repository.getControlState(tenant.tenantId);
+          if (controls.tenantId !== tenant.tenantId) {
+            throw new Error('LinkedIn tenant control context mismatch');
+          }
+          if (controls.globalKillSwitch) {
+            throw new Error('LinkedIn writes are disabled by the global kill switch');
+          }
+          if (controls.pausedChannels.includes('linkedin_assist')) {
+            throw new Error('LinkedIn channel is paused for this tenant');
+          }
           if (!dependencies.repository.recordLinkedInAction) {
             throw new Error('LinkedIn action audit logging is unavailable; execution is disabled');
           }
@@ -122,11 +221,37 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
 
         if (request.method === 'GET' && url.pathname === '/v1/linkedin/status') {
           const { getLinkedInCapabilities } = await import('./linkedin/client');
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const storedTokens = await integration.tokens.get(linkedInIdentity);
+          let tokenSet = storedTokens;
+          let tokenRefreshError = false;
+          if (storedTokens) {
+            try {
+              tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
+            } catch {
+              // A status request must still expose a reconnect state when refresh is unavailable.
+              // Do not leak provider errors or token material to the desktop renderer.
+              tokenSet = storedTokens;
+              tokenRefreshError = true;
+            }
+          }
+          const accessTokenExpired = Boolean(tokenSet && tokenSet.expiresAt <= Date.now());
+          const refreshTokenExpired = Boolean(
+            tokenSet?.refreshTokenExpiresAt && tokenSet.refreshTokenExpiresAt <= Date.now()
+          );
+          const reauthorizationRequired = Boolean(
+            tokenSet && accessTokenExpired && (!tokenSet.refreshToken || refreshTokenExpired)
+          );
           sendJson(response, 200, {
             connected: Boolean(tokenSet && tokenSet.expiresAt > Date.now()),
+            reauthorizationRequired,
+            tokenRefreshError,
             expiresAt: tokenSet?.expiresAt ?? null,
-            capabilities: getLinkedInCapabilities(tokenSet, integration.entitlements),
+            capabilities: getLinkedInCapabilities(
+              tokenSet && tokenSet.expiresAt > Date.now() ? tokenSet : null,
+              integration.entitlements
+            ),
+            entitlements: integration.entitlements,
+            scheduledPublishingEnabled: Boolean(dependencies.linkedinScheduler),
             requestId,
           });
           return;
@@ -172,6 +297,132 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           return;
         }
 
+        if (url.pathname === '/v1/linkedin/scheduled-posts' && request.method === 'GET') {
+          const scheduler = dependencies.linkedinScheduler;
+          if (!scheduler) {
+            sendJson(response, 503, {
+              error: 'LinkedIn scheduled publishing is not enabled on this deployment',
+              requestId,
+            });
+            return;
+          }
+          const limitRaw = url.searchParams.get('limit');
+          const limit = limitRaw === null ? 50 : Number(limitRaw);
+          if (!Number.isInteger(limit) || limit < 1 || limit > 100 || url.searchParams.size > 1) {
+            sendJson(response, 400, {
+              error: 'limit must be an integer between 1 and 100',
+              requestId,
+            });
+            return;
+          }
+          const scheduledPosts = await scheduler.list(tenant.tenantId, tenant.subject, limit);
+          sendJson(response, 200, { scheduledPosts, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/scheduled-posts') {
+          const scheduler = dependencies.linkedinScheduler;
+          if (!scheduler) {
+            sendJson(response, 503, {
+              error: 'LinkedIn scheduled publishing is not enabled on this deployment',
+              requestId,
+            });
+            return;
+          }
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.commentary !== 'string' ||
+            typeof body.scheduledAt !== 'string' ||
+            typeof body.idempotencyKey !== 'string' ||
+            Object.keys(body).some(
+              (key) => !['commentary', 'scheduledAt', 'idempotencyKey'].includes(key)
+            )
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected commentary, scheduledAt and idempotencyKey strings',
+              requestId,
+            });
+            return;
+          }
+          const scheduledAtMs = Date.parse(body.scheduledAt);
+          if (
+            !body.commentary.trim() ||
+            body.commentary.length > 3000 ||
+            !/(?:Z|[+-]\\d{2}:\\d{2})$/i.test(body.scheduledAt) ||
+            !Number.isFinite(scheduledAtMs) ||
+            scheduledAtMs < Date.now() + 2 * 60_000 ||
+            scheduledAtMs > Date.now() + 90 * 24 * 60 * 60_000 ||
+            !/^[A-Za-z0-9_-]{12,64}$/.test(body.idempotencyKey)
+          ) {
+            sendJson(response, 400, {
+              error:
+                'Post text must be 1–3000 characters; schedule time must include a timezone and be 2 minutes to 90 days ahead; idempotency key must be 12–64 safe characters',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
+          if (!tokenSet || !tokenSet.grantedScopes.includes('w_member_social')) {
+            sendJson(response, 409, {
+              error: 'Connect LinkedIn with the w_member_social scope before scheduling a post',
+              requestId,
+            });
+            return;
+          }
+          await auditLinkedIn('linkedin.member.post.schedule.requested', body.idempotencyKey, {
+            contentLength: body.commentary.length,
+            scheduledAt: new Date(scheduledAtMs).toISOString(),
+          });
+          const scheduledPost = await scheduler.create({
+            tenantId: tenant.tenantId,
+            subject: tenant.subject,
+            commentary: body.commentary,
+            scheduledAt: new Date(scheduledAtMs).toISOString(),
+            idempotencyKey: body.idempotencyKey,
+          });
+          sendJson(response, 201, { scheduledPost, requestId });
+          return;
+        }
+
+        const scheduledPostCancelMatch = url.pathname.match(
+          /^\/v1\/linkedin\/scheduled-posts\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i
+        );
+        if (request.method === 'DELETE' && scheduledPostCancelMatch) {
+          const scheduler = dependencies.linkedinScheduler;
+          if (!scheduler) {
+            sendJson(response, 503, {
+              error: 'LinkedIn scheduled publishing is not enabled on this deployment',
+              requestId,
+            });
+            return;
+          }
+          if (!dependencies.repository.recordLinkedInAction) {
+            throw new Error('LinkedIn action audit logging is unavailable');
+          }
+          await dependencies.repository.recordLinkedInAction({
+            tenantId: tenant.tenantId,
+            actorSubject: tenant.subject,
+            action: 'linkedin.member.post.schedule.cancel.requested',
+            entityId: scheduledPostCancelMatch[1],
+            occurredAt: new Date().toISOString(),
+            metadata: {},
+          });
+          const cancelled = await scheduler.cancel(
+            tenant.tenantId,
+            tenant.subject,
+            scheduledPostCancelMatch[1]
+          );
+          if (!cancelled) {
+            sendJson(response, 409, {
+              error: 'Scheduled post was not found or is no longer cancellable',
+              requestId,
+            });
+            return;
+          }
+          sendJson(response, 200, { cancelled: true, requestId });
+          return;
+        }
+
         if (request.method === 'POST' && url.pathname === '/v1/linkedin/oauth/callback') {
           const body = await readJson(request, maxBytes);
           if (
@@ -212,7 +463,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
             return;
@@ -226,6 +477,79 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             tokenSet,
             authorUrn,
             body.commentary
+          );
+          sendJson(response, 201, { postId: result.id, status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/polls') {
+          const body = await readJson(request, maxBytes);
+          const allowedDurations = ['ONE_DAY', 'THREE_DAYS', 'SEVEN_DAYS', 'FOURTEEN_DAYS'];
+          if (
+            typeof body.commentary !== 'string' ||
+            typeof body.question !== 'string' ||
+            !Array.isArray(body.options) ||
+            body.options.some((option) => typeof option !== 'string') ||
+            typeof body.duration !== 'string' ||
+            !allowedDurations.includes(body.duration) ||
+            Object.keys(body).some(
+              (key) => !['commentary', 'question', 'options', 'duration'].includes(key)
+            )
+          ) {
+            sendJson(response, 400, {
+              error:
+                'Expected commentary, question, options (string array) and an approved poll duration',
+              requestId,
+            });
+            return;
+          }
+          if (
+            !body.commentary.trim() ||
+            body.commentary.length > 3000 ||
+            !body.question.trim() ||
+            body.question.length > 140 ||
+            body.options.length < 2 ||
+            body.options.length > 4 ||
+            body.options.some((option) => !option.trim() || option.length > 30) ||
+            new Set(body.options.map((option) => option.trim().toLocaleLowerCase())).size !==
+              body.options.length
+          ) {
+            sendJson(response, 400, {
+              error:
+                'Poll commentary must be 1–3000 characters, question 1–140 characters, and 2–4 unique options of 1–30 characters each',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, {
+              error: 'Connect LinkedIn before publishing a poll',
+              requestId,
+            });
+            return;
+          }
+          if (!tokenSet.grantedScopes.includes('w_member_social')) {
+            sendJson(response, 409, {
+              error: 'LinkedIn poll publishing requires the w_member_social scope',
+              requestId,
+            });
+            return;
+          }
+          const authorUrn = `urn:li:person:${tokenSet.memberId}`;
+          await auditLinkedIn('linkedin.member.poll.publish.requested', authorUrn, {
+            commentaryLength: body.commentary.length,
+            questionLength: body.question.length,
+            optionCount: body.options.length,
+            duration: body.duration,
+          });
+          const result = await integration.api.publishMemberPoll(
+            tokenSet,
+            authorUrn,
+            body.commentary,
+            body.question,
+            body.options,
+            body.duration as 'ONE_DAY' | 'THREE_DAYS' | 'SEVEN_DAYS' | 'FOURTEEN_DAYS'
           );
           sendJson(response, 201, { postId: result.id, status: result.status, requestId });
           return;
@@ -251,7 +575,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
             return;
@@ -265,6 +589,67 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             tokenSet,
             body.organizationUrn,
             body.commentary
+          );
+          sendJson(response, 201, { postId: result.id, status: result.status, requestId });
+          return;
+        }
+
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/organization/image-posts') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.organizationUrn !== 'string' ||
+            !/^urn:li:organization:\d+$/.test(body.organizationUrn) ||
+            typeof body.commentary !== 'string' ||
+            !body.commentary.trim() ||
+            body.commentary.trim().length > 3000 ||
+            typeof body.imageUrn !== 'string' ||
+            !/^urn:li:image:[A-Za-z0-9_-]+$/.test(body.imageUrn) ||
+            typeof body.altText !== 'string' ||
+            !body.altText.trim() ||
+            body.altText.trim().length > 120 ||
+            Object.keys(body).some(
+              (key) => !['organizationUrn', 'commentary', 'imageUrn', 'altText'].includes(key)
+            )
+          ) {
+            sendJson(response, 400, {
+              error:
+                'Expected organizationUrn, 1–3000 character commentary, imageUrn and 1–120 character altText',
+              requestId,
+            });
+            return;
+          }
+          if (!integration.entitlements.communityManagementApproved) {
+            sendJson(response, 403, {
+              error: 'LinkedIn Community Management API approval is required',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
+            return;
+          }
+          if (!tokenSet.grantedScopes.includes('w_organization_social')) {
+            sendJson(response, 403, {
+              error:
+                'LinkedIn organization image publishing requires the w_organization_social scope',
+              requestId,
+            });
+            return;
+          }
+          await auditLinkedIn('linkedin.organization.image_post.publish.requested', body.imageUrn, {
+            organizationUrn: body.organizationUrn,
+            commentaryLength: body.commentary.length,
+            altTextLength: body.altText.length,
+            postFormat: 'image',
+          });
+          const result = await integration.api.publishOrganizationImagePost(
+            tokenSet,
+            body.organizationUrn,
+            body.commentary,
+            body.imageUrn,
+            body.altText
           );
           sendJson(response, 201, { postId: result.id, status: result.status, requestId });
           return;
@@ -294,7 +679,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before commenting', requestId });
             return;
@@ -346,7 +731,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before reacting', requestId });
             return;
@@ -380,7 +765,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before commenting', requestId });
             return;
@@ -420,7 +805,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, { error: 'Connect LinkedIn before reacting', requestId });
             return;
@@ -447,7 +832,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, {
               error: 'Connect LinkedIn before removing a reaction',
@@ -478,7 +863,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             });
             return;
           }
-          const tokenSet = await integration.tokens.get(linkedInIdentity);
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
             sendJson(response, 409, {
               error: 'Connect LinkedIn before removing a reaction',
@@ -740,21 +1125,25 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       const status =
         error instanceof SyntaxError || (error instanceof Error && error.name === 'ZodError')
           ? 400
-          : /active Sprint Contract must be revoked|reviewed fact is immutable/i.test(message)
-            ? 409
-            : /Only the fact contributor/i.test(message)
-              ? 403
-              : /Career Graph fact not found/i.test(message)
-                ? 404
-                : /token|identity|membership|bearer|authorization/i.test(message)
-                  ? 401
-                  : /size limit/i.test(message)
-                    ? 413
-                    : /JSON|body|Career Graph envelope|Authenticated tenant and actor/i.test(
-                          message
-                        )
-                      ? 400
-                      : 500;
+          : /LinkedIn writes are disabled|LinkedIn channel is paused/i.test(message)
+            ? 423
+            : /active Sprint Contract must be revoked|reviewed fact is immutable|LinkedIn image asset is not AVAILABLE/i.test(
+                  message
+                )
+              ? 409
+              : /Only the fact contributor/i.test(message)
+                ? 403
+                : /Career Graph fact not found/i.test(message)
+                  ? 404
+                  : /token|identity|membership|bearer|authorization/i.test(message)
+                    ? 401
+                    : /size limit/i.test(message)
+                      ? 413
+                      : /JSON|body|Career Graph envelope|Authenticated tenant and actor/i.test(
+                            message
+                          )
+                        ? 400
+                        : 500;
       sendJson(response, status, {
         error: status === 500 ? 'Internal server error' : message,
         requestId,

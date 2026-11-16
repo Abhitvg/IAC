@@ -197,6 +197,7 @@ export interface AppSettings {
   systemPrompt: string;
   customApiEndpoint: string;
   ollamaEndpoint: string;
+  careerOpsApiBaseUrl?: string;
   lastModelMigrationNotice?: ModelMigrationNotice | null;
 }
 
@@ -300,6 +301,11 @@ export interface ElectronAPI {
     callback: (payload: { requestId: string; name: string; message: string }) => void
   ) => () => void;
   setApiKey: (service: string, key: string) => Promise<boolean>;
+  linkedinApiRequest: (request: {
+    method: 'GET' | 'POST' | 'DELETE';
+    path: string;
+    body?: Record<string, unknown>;
+  }) => Promise<{ status: number; body: unknown }>;
   hasApiKey: (service: string) => Promise<boolean>;
   deleteApiKey: (service: string) => Promise<boolean>;
   listConfiguredKeys: () => Promise<Record<string, boolean>>;

@@ -9,16 +9,20 @@ export const ALLOWED_SERVICES = [
   'openai',
   'openrouter',
   'ollama',
+  'careerops-cloud',
 ] as const;
 export type AllowedService = (typeof ALLOWED_SERVICES)[number];
 
 const LEGACY_FALLBACK_KEY_FILE = '.machine_secret';
 const GROQ_API_KEY_PATTERN = /^gsk_[A-Za-z0-9_-]+$/;
+const JWT_PATTERN = /^[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}$/;
+
+export function isValidCareerOpsCloudToken(value: string): boolean {
+  return value.length <= 8192 && JWT_PATTERN.test(value.trim());
+}
 
 export function parseGroqApiKeyFromEnvContent(content: string): string | null {
-  const line = content
-    .split(/\r?\n/)
-    .find((entry) => /^\s*GROQ_API_KEY\s*=/.test(entry));
+  const line = content.split(/\r?\n/).find((entry) => /^\s*GROQ_API_KEY\s*=/.test(entry));
   if (!line) return null;
 
   const value = line.slice(line.indexOf('=') + 1).trim();
@@ -142,11 +146,17 @@ export class CredentialStore {
       throw new Error('API key must be a non-empty string');
     }
 
-    if (key.length > 2048) {
+    if (service === 'careerops-cloud' && key.length > 8192) {
+      throw new Error('CareerOps cloud credential exceeds maximum length of 8192 characters');
+    }
+    if (service !== 'careerops-cloud' && key.length > 2048) {
       throw new Error('API key exceeds maximum length of 2048 characters');
     }
 
-    let trimmed = key.trim();
+    const trimmed = key.trim();
+    if (service === 'careerops-cloud' && !isValidCareerOpsCloudToken(trimmed)) {
+      throw new Error('CareerOps cloud credential must be a valid three-part OIDC JWT.');
+    }
     if (service === 'groq' || service === 'groq-secondary') {
       if (!GROQ_API_KEY_PATTERN.test(trimmed)) {
         throw new Error(
@@ -221,6 +231,9 @@ export class CredentialStore {
             if (decryptedRecord.shouldReEncrypt) {
               await this.setKey(service, decrypted);
             }
+            if (service === 'careerops-cloud') {
+              return isValidCareerOpsCloudToken(decrypted) ? decrypted.trim() : null;
+            }
             if (service === 'groq' || service === 'groq-secondary') {
               const normalized = decrypted.trim();
               if (GROQ_API_KEY_PATTERN.test(normalized)) return normalized;
@@ -240,6 +253,9 @@ export class CredentialStore {
           await this.setKey(service, decrypted);
           this.removeLegacyKeyFileWhenUnused();
 
+          if (service === 'careerops-cloud') {
+            return isValidCareerOpsCloudToken(decrypted) ? decrypted.trim() : null;
+          }
           if (service === 'groq' || service === 'groq-secondary') {
             const normalized = decrypted.trim();
             return GROQ_API_KEY_PATTERN.test(normalized) ? normalized : null;
@@ -294,6 +310,7 @@ export class CredentialStore {
       openai: false,
       openrouter: false,
       ollama: false,
+      'careerops-cloud': false,
     };
 
     for (const service of ALLOWED_SERVICES) {

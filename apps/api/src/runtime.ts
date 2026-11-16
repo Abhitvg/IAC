@@ -6,6 +6,10 @@ import { PostgresCloudRateLimiter } from './postgres-rate-limiter';
 import { createCloudApiServer } from './server';
 import { PostgresCareerGraphRepository } from './career-graph-repository';
 import type { LinkedInCloudIntegration } from './ports';
+import {
+  LinkedInScheduledPostStore,
+  LinkedInScheduledPostWorker,
+} from './linkedin/scheduled-posts';
 
 export interface CloudApiRuntime {
   server: Server;
@@ -16,9 +20,29 @@ export interface CloudApiRuntime {
 export function createCloudApiRuntime(
   pool: ClosableSqlPool,
   environment: CloudEnvironment = loadCloudEnvironment(),
-  linkedin?: LinkedInCloudIntegration
+  linkedin?: LinkedInCloudIntegration,
+  schedulerPool?: ClosableSqlPool
 ): CloudApiRuntime {
+  if (environment.LINKEDIN_SCHEDULER_ENABLED && (!linkedin || !schedulerPool)) {
+    throw new Error(
+      'LinkedIn scheduled publishing requires the LinkedIn integration and a dedicated scheduler database pool'
+    );
+  }
   const repository = new PostgresCloudApiRepository(pool);
+  const linkedInSchedulerStore =
+    environment.LINKEDIN_SCHEDULER_ENABLED && linkedin && schedulerPool
+      ? new LinkedInScheduledPostStore(pool, schedulerPool)
+      : undefined;
+  const linkedInScheduler =
+    linkedInSchedulerStore && linkedin
+      ? new LinkedInScheduledPostWorker(
+          linkedInSchedulerStore,
+          linkedin,
+          repository,
+          environment.LINKEDIN_SCHEDULER_POLL_MS,
+          10
+        )
+      : undefined;
   const server = createCloudApiServer({
     identityVerifier: createOidcIdentityVerifier({
       issuer: environment.CAREEROPS_JWT_ISSUER,
@@ -36,6 +60,7 @@ export function createCloudApiRuntime(
       maxRequestBytes: environment.CAREEROPS_MAX_REQUEST_BYTES,
     },
     ...(linkedin ? { linkedin } : {}),
+    ...(linkedInSchedulerStore ? { linkedinScheduler: linkedInSchedulerStore } : {}),
   });
 
   let closed = false;
@@ -51,6 +76,7 @@ export function createCloudApiRuntime(
         server.once('error', onError);
         server.listen(port, host, () => {
           server.off('error', onError);
+          linkedInScheduler?.start();
           resolve();
         });
       });
@@ -59,13 +85,14 @@ export function createCloudApiRuntime(
       if (closed) return;
       closed = true;
       try {
+        await linkedInScheduler?.stopAndWait();
         if (server.listening) {
           await new Promise<void>((resolve, reject) => {
             server.close((error) => (error ? reject(error) : resolve()));
           });
         }
       } finally {
-        await pool.end();
+        await Promise.all([pool.end(), ...(schedulerPool ? [schedulerPool.end()] : [])]);
       }
     },
   };

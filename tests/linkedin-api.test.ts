@@ -41,6 +41,12 @@ class MemoryStates implements LinkedInOAuthStateStore {
     }
     return value;
   }
+
+  async consumeCallback(state: string): Promise<LinkedInOAuthState | null> {
+    const value = this.values.get(state) ?? null;
+    this.values.delete(state);
+    return value;
+  }
 }
 
 class MemoryTokens implements LinkedInTokenVault {
@@ -85,6 +91,80 @@ describe('LinkedIn API client', () => {
     });
   });
 
+  it('publishes a member poll with validated options and duration', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(null, {
+        status: 201,
+        headers: { 'x-restli-id': 'urn:li:share:poll-123' },
+      })
+    );
+    const client = new LinkedInApiClient({ fetcher });
+    const token = makeToken(['openid', 'profile', 'w_member_social']);
+    const result = await client.publishMemberPoll(
+      token,
+      'urn:li:person:abc123',
+      'Help us choose the next workshop.',
+      'Which topic should we cover next?',
+      ['Cloud security', 'PostgreSQL', 'Kubernetes'],
+      'SEVEN_DAYS'
+    );
+
+    expect(result).toEqual({ id: 'urn:li:share:poll-123', status: 201 });
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toMatchObject({
+      author: 'urn:li:person:abc123',
+      content: {
+        poll: {
+          question: 'Which topic should we cover next?',
+          options: [{ text: 'Cloud security' }, { text: 'PostgreSQL' }, { text: 'Kubernetes' }],
+          settings: {
+            voteSelectionType: 'SINGLE_VOTE',
+            duration: 'SEVEN_DAYS',
+            isVoterVisibleToAuthor: true,
+          },
+        },
+      },
+    });
+  });
+
+  it('rejects invalid poll options and missing member publish scope before calling LinkedIn', async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const client = new LinkedInApiClient({ fetcher });
+    const token = makeToken(['openid', 'profile', 'w_member_social']);
+
+    await expect(
+      client.publishMemberPoll(
+        token,
+        'urn:li:person:abc123',
+        'Pick one',
+        'A question',
+        ['One'],
+        'ONE_DAY'
+      )
+    ).rejects.toThrow('2–4 options');
+    await expect(
+      client.publishMemberPoll(
+        token,
+        'urn:li:person:abc123',
+        'Pick one',
+        'A question',
+        ['One', 'one'],
+        'ONE_DAY'
+      )
+    ).rejects.toThrow('unique');
+    await expect(
+      client.publishMemberPoll(
+        makeToken(['openid', 'profile']),
+        'urn:li:person:abc123',
+        'Pick one',
+        'A question',
+        ['One', 'Two'],
+        'ONE_DAY'
+      )
+    ).rejects.toThrow('w_member_social');
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('fails closed when the member write scope is absent', async () => {
     const fetcher = vi.fn<typeof fetch>();
     const client = new LinkedInApiClient({ fetcher });
@@ -104,6 +184,106 @@ describe('LinkedIn API client', () => {
     await expect(
       client.publishMemberTextPost(makeToken(), 'urn:li:organization:42', 'Hi')
     ).rejects.toThrow('author URN');
+  });
+
+  it('publishes an organization image only after status and owner verification', async () => {
+    const organizationUrn = 'urn:li:organization:12345';
+    const imageUrn = 'urn:li:image:asset_123';
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ owner: organizationUrn, status: 'AVAILABLE' }), {
+          status: 200,
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 201,
+          headers: { 'x-restli-id': 'urn:li:share:image-post-123' },
+        })
+      );
+    const client = new LinkedInApiClient({ fetcher });
+    const token = makeToken(['openid', 'profile', 'w_organization_social']);
+
+    const result = await client.publishOrganizationImagePost(
+      token,
+      organizationUrn,
+      'A reviewed image post',
+      imageUrn,
+      'A team working on a prototype'
+    );
+
+    expect(result).toEqual({ id: 'urn:li:share:image-post-123', status: 201 });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls[0][0]).toBe(
+      'https://api.linkedin.com/rest/images/urn%3Ali%3Aimage%3Aasset_123'
+    );
+    expect(new Headers(fetcher.mock.calls[0][1]?.headers).get('linkedin-version')).toBe('202610');
+    expect(JSON.parse(String(fetcher.mock.calls[1][1]?.body))).toMatchObject({
+      author: organizationUrn,
+      commentary: 'A reviewed image post',
+      content: {
+        media: {
+          id: imageUrn,
+          altText: 'A team working on a prototype',
+        },
+      },
+      lifecycleState: 'PUBLISHED',
+    });
+  });
+
+  it('does not publish an organization image while processing or when owned by another Page', async () => {
+    const organizationUrn = 'urn:li:organization:12345';
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ owner: organizationUrn, status: 'PROCESSING' }), {
+          status: 200,
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ owner: 'urn:li:organization:99999', status: 'AVAILABLE' }), {
+          status: 200,
+        })
+      );
+    const client = new LinkedInApiClient({ fetcher });
+    const token = makeToken(['openid', 'profile', 'w_organization_social']);
+
+    await expect(
+      client.publishOrganizationImagePost(
+        token,
+        organizationUrn,
+        'A reviewed image post',
+        'urn:li:image:asset_123',
+        'A useful image'
+      )
+    ).rejects.toThrow('not AVAILABLE');
+    await expect(
+      client.publishOrganizationImagePost(
+        token,
+        organizationUrn,
+        'A reviewed image post',
+        'urn:li:image:asset_456',
+        'A useful image'
+      )
+    ).rejects.toThrow('owner does not match');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('requires the organization write scope before inspecting an image asset', async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const client = new LinkedInApiClient({ fetcher });
+
+    await expect(
+      client.publishOrganizationImagePost(
+        makeToken(['openid', 'profile', 'w_member_social']),
+        'urn:li:organization:12345',
+        'A reviewed image post',
+        'urn:li:image:asset_123',
+        'A useful image'
+      )
+    ).rejects.toThrow('w_organization_social');
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it('creates a member comment only with the Community Management write scope', async () => {
@@ -199,7 +379,7 @@ describe('LinkedIn OAuth service', () => {
           JSON.stringify({
             access_token: 'access-token',
             expires_in: 3600,
-            scope: 'openid profile email w_member_social',
+            scope: 'openid%20profile%20email%20w_member_social',
           }),
           { status: 200, headers: { 'content-type': 'application/json' } }
         )
@@ -231,6 +411,169 @@ describe('LinkedIn OAuth service', () => {
     await expect(
       service.completeAuthorization({ code: 'replay', state, identity })
     ).rejects.toThrow('invalid, expired, or already used');
+  });
+
+  it('completes the public OAuth callback from one-time state without renderer credentials', async () => {
+    const states = new MemoryStates();
+    const tokens = new MemoryTokens();
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: 'callback-access-token',
+            expires_in: 3600,
+            scope: 'openid profile email w_member_social',
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ sub: 'callback-member' }), { status: 200 })
+      );
+    const service = new LinkedInOAuthService(
+      {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://careerops.example.com/oauth/linkedin/callback',
+        fetcher,
+      },
+      states,
+      tokens
+    );
+    const identity = { tenantId: 'tenant-bound', subject: 'user-bound' };
+    const authorizeUrl = new URL(await service.createAuthorizationUrl(identity));
+    const state = authorizeUrl.searchParams.get('state')!;
+
+    const result = await service.completeAuthorizationCallback({ code: 'callback-code', state });
+
+    expect(result.connected).toBe(true);
+    expect(tokens.value?.memberId).toBe('callback-member');
+    expect(tokens.value?.accessToken).toBe('callback-access-token');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    await expect(
+      service.completeAuthorizationCallback({ code: 'replay-code', state })
+    ).rejects.toThrow('invalid, expired, or already used');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('consumes an OAuth denial callback and cannot replay it', async () => {
+    const states = new MemoryStates();
+    const service = new LinkedInOAuthService(
+      {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://careerops.example.com/oauth/linkedin/callback',
+        fetcher: vi.fn<typeof fetch>(),
+      },
+      states,
+      new MemoryTokens()
+    );
+    const url = new URL(
+      await service.createAuthorizationUrl({ tenantId: 'tenant-1', subject: 'member-1' })
+    );
+    const state = url.searchParams.get('state')!;
+    await expect(service.cancelAuthorizationCallback(state)).resolves.toBe(true);
+    await expect(service.cancelAuthorizationCallback(state)).resolves.toBe(false);
+  });
+
+  it('refreshes an access token only when LinkedIn supplied a usable refresh token', async () => {
+    const states = new MemoryStates();
+    const tokens = new MemoryTokens();
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: 'initial-access-token',
+            expires_in: 3600,
+            scope: 'openid profile email w_member_social',
+            refresh_token: 'partner-refresh-token',
+            refresh_token_expires_in: 86_400,
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ sub: 'refresh-member' }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: 'renewed-access-token',
+            expires_in: 3600,
+            scope: 'openid profile email w_member_social',
+          }),
+          { status: 200 }
+        )
+      );
+    const service = new LinkedInOAuthService(
+      {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://careerops.example.com/oauth/linkedin/callback',
+        fetcher,
+      },
+      states,
+      tokens
+    );
+    const identity = { tenantId: 'tenant-refresh', subject: 'member-refresh' };
+    const url = new URL(await service.createAuthorizationUrl(identity));
+    await service.completeAuthorization({
+      code: 'initial-code',
+      state: url.searchParams.get('state')!,
+      identity,
+    });
+    tokens.value!.expiresAt = Date.now() - 1;
+
+    const refreshed = await service.getValidToken(identity);
+
+    expect(refreshed?.accessToken).toBe('renewed-access-token');
+    expect(refreshed?.memberId).toBe('refresh-member');
+    expect(refreshed?.refreshToken).toBe('partner-refresh-token');
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(String(fetcher.mock.calls[2][1]?.body)).toContain('grant_type=refresh_token');
+  });
+
+  it('requires reconnect instead of faking refresh when LinkedIn did not grant a refresh token', async () => {
+    const states = new MemoryStates();
+    const tokens = new MemoryTokens();
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: 'short-lived-token',
+            expires_in: 3600,
+            scope: 'openid profile email',
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ sub: 'no-refresh-member' }), { status: 200 })
+      );
+    const service = new LinkedInOAuthService(
+      {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://careerops.example.com/oauth/linkedin/callback',
+        fetcher,
+      },
+      states,
+      tokens
+    );
+    const identity = { tenantId: 'tenant-no-refresh', subject: 'member-no-refresh' };
+    const url = new URL(await service.createAuthorizationUrl(identity));
+    await service.completeAuthorization({
+      code: 'initial-code',
+      state: url.searchParams.get('state')!,
+      identity,
+    });
+    tokens.value!.expiresAt = Date.now() - 1;
+
+    await expect(service.getValidToken(identity)).rejects.toThrow('reconnect the account');
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it('rejects OAuth state replay across members', async () => {
