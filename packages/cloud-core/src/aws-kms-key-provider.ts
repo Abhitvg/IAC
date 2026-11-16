@@ -147,6 +147,9 @@ export class AwsKmsTenantKeyProvider implements TenantKeyProvider {
     ) {
       throw new Error('CAREEROPS_KMS_KEY_ARN must be a KMS key ARN, not an alias');
     }
+    if (options.keyArn.split(':')[3] !== options.region) {
+      throw new Error('CAREEROPS_KMS_KEY_ARN must belong to AWS_REGION');
+    }
     this.fetcher = options.fetcher ?? fetch;
     this.environment = options.environment ?? process.env;
     this.credentialsProvider =
