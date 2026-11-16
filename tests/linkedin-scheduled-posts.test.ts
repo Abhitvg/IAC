@@ -263,10 +263,7 @@ describe('LinkedIn scheduled post execution', () => {
 
     await worker.runOnce();
 
-    expect(store.markFailed).toHaveBeenCalledWith(
-      scheduledPost,
-      'linkedin_api_rejected_request'
-    );
+    expect(store.markFailed).toHaveBeenCalledWith(scheduledPost, 'linkedin_api_rejected_request');
     expect(store.markUnknownOutcome).not.toHaveBeenCalled();
     expect(store.defer).not.toHaveBeenCalled();
     expect(integration.api.publishMemberTextPost).toHaveBeenCalledOnce();
@@ -283,10 +280,7 @@ describe('LinkedIn scheduled post execution', () => {
 
     await worker.runOnce();
 
-    expect(store.markFailed).toHaveBeenCalledWith(
-      exhausted,
-      'linkedin_api_rejected_request'
-    );
+    expect(store.markFailed).toHaveBeenCalledWith(exhausted, 'linkedin_api_rejected_request');
     expect(store.defer).not.toHaveBeenCalled();
   });
 
