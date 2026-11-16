@@ -13,6 +13,7 @@ Availability objective: 99.9% monthly service availability (about 43.8 minutes o
 A public ACM certificate cannot be issued for the AWS-generated ALB DNS hostname. The example tfvars therefore defaults to a **staging-only HTTP configuration** (`environment = "staging"`, `enable_https = false`) and does not require an ACM certificate. After deployment, use the ALB's AWS-generated DNS name for temporary smoke tests.
 
 This mode is strictly for non-sensitive testing:
+
 - Do not send production traffic, passwords, session cookies, OAuth authorization codes, access tokens, or other sensitive data over this endpoint.
 - Keep LinkedIn OAuth disabled: leave `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, and `LINKEDIN_REDIRECT_URI` empty. OAuth redirect flows must wait until a real HTTPS hostname and certificate are configured.
 - Restrict `allowed_ingress_cidrs` to your current public IP (/32) where practical. The default `0.0.0.0/0` is convenient for initial testing but exposes the HTTP endpoint to the internet.
