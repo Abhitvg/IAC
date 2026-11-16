@@ -482,6 +482,73 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           return;
         }
 
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/polls') {
+          const body = await readJson(request, maxBytes);
+          const allowedDurations = ['ONE_DAY', 'THREE_DAYS', 'SEVEN_DAYS', 'FOURTEEN_DAYS'];
+          if (
+            typeof body.commentary !== 'string' ||
+            typeof body.question !== 'string' ||
+            !Array.isArray(body.options) ||
+            body.options.some((option) => typeof option !== 'string') ||
+            typeof body.duration !== 'string' ||
+            !allowedDurations.includes(body.duration) ||
+            Object.keys(body).some(
+              (key) => !['commentary', 'question', 'options', 'duration'].includes(key)
+            )
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected commentary, question, options (string array) and an approved poll duration',
+              requestId,
+            });
+            return;
+          }
+          if (
+            !body.commentary.trim() ||
+            body.commentary.length > 3000 ||
+            !body.question.trim() ||
+            body.question.length > 140 ||
+            body.options.length < 2 ||
+            body.options.length > 4 ||
+            body.options.some((option) => !option.trim() || option.length > 30) ||
+            new Set(body.options.map((option) => option.trim().toLocaleLowerCase())).size !== body.options.length
+          ) {
+            sendJson(response, 400, {
+              error: 'Poll commentary must be 1–3000 characters, question 1–140 characters, and 2–4 unique options of 1–30 characters each',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before publishing a poll', requestId });
+            return;
+          }
+          if (!tokenSet.grantedScopes.includes('w_member_social')) {
+            sendJson(response, 409, {
+              error: 'LinkedIn poll publishing requires the w_member_social scope',
+              requestId,
+            });
+            return;
+          }
+          const authorUrn = `urn:li:person:${tokenSet.memberId}`;
+          await auditLinkedIn('linkedin.member.poll.publish.requested', authorUrn, {
+            commentaryLength: body.commentary.length,
+            questionLength: body.question.length,
+            optionCount: body.options.length,
+            duration: body.duration,
+          });
+          const result = await integration.api.publishMemberPoll(
+            tokenSet,
+            authorUrn,
+            body.commentary,
+            body.question,
+            body.options,
+            body.duration as 'ONE_DAY' | 'THREE_DAYS' | 'SEVEN_DAYS' | 'FOURTEEN_DAYS'
+          );
+          sendJson(response, 201, { postId: result.id, status: result.status, requestId });
+          return;
+        }
+
         if (request.method === 'POST' && url.pathname === '/v1/linkedin/organization/posts') {
           const body = await readJson(request, maxBytes);
           if (
