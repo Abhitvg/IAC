@@ -52,12 +52,26 @@ variable "database_subnet_ids" {
     error_message = "At least two isolated database subnets are required."
   }
 }
+variable "enable_https" {
+  type        = bool
+  description = "Enable the ALB HTTPS listener. Production must keep this true; staging may disable it for temporary HTTP-only smoke tests."
+  default     = true
+  validation {
+    condition     = var.environment != "production" || var.enable_https
+    error_message = "Production deployments must enable HTTPS. HTTP-only mode is restricted to staging."
+  }
+}
 variable "acm_certificate_arn" {
   type        = string
-  description = "ACM certificate ARN in ap-southeast-2 and the configured AWS account."
+  description = "Optional ACM certificate ARN for HTTPS. Required when enable_https=true."
+  default     = null
+  nullable    = true
   validation {
-    condition     = can(regex("^arn:aws:acm:ap-southeast-2:${var.aws_account_id}:certificate/[A-Za-z0-9-]+$", var.acm_certificate_arn))
-    error_message = "acm_certificate_arn must be an ACM certificate ARN in ap-southeast-2."
+    condition = var.acm_certificate_arn == null || can(regex(
+      "^arn:aws:acm:ap-southeast-2:${var.aws_account_id}:certificate/[A-Za-z0-9-]+$",
+      var.acm_certificate_arn
+    ))
+    error_message = "When supplied, acm_certificate_arn must be an ACM certificate ARN in ap-southeast-2 and the configured account."
   }
 }
 variable "kms_key_arn" {
