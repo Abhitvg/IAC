@@ -318,6 +318,7 @@ export class LinkedInScheduledPostWorker {
 
   private async process(post: ScheduledLinkedInPost): Promise<void> {
     const identity = { tenantId: post.tenantId, subject: post.subject };
+    let externalWriteStarted = false;
     try {
       const controls = await this.repository.getControlState(post.tenantId);
       if (
@@ -393,6 +394,7 @@ export class LinkedInScheduledPostWorker {
         return;
       }
 
+      externalWriteStarted = true;
       const result = await this.integration.api.publishMemberTextPost(
         tokenSet,
         `urn:li:person:${tokenSet.memberId}`,
@@ -401,6 +403,7 @@ export class LinkedInScheduledPostWorker {
       await this.store.markPublished(post, result.id);
     } catch (error) {
       if (error instanceof LinkedInApiError && error.status === 429 && post.attemptCount < 3) {
+        // HTTP 429 is an explicit rejection; retrying after the provider delay is safe.
         await this.store.defer(post, error.retryAfterSeconds ?? 60);
         return;
       }
@@ -408,8 +411,20 @@ export class LinkedInScheduledPostWorker {
         await this.store.markFailed(post, 'linkedin_api_rejected_request');
         return;
       }
-      // A network or server error may happen after LinkedIn accepted the post.
-      // Mark unknown instead of blindly retrying and creating a duplicate post.
+
+      if (!externalWriteStarted) {
+        // Preflight/database failures happen before the LinkedIn side effect. They are
+        // safe to retry a small number of times; after that, require operator review.
+        if (post.attemptCount < 5) {
+          await this.store.defer(post, 60);
+        } else {
+          await this.store.markNeedsReview(post, 'scheduler_preflight_failed_repeatedly');
+        }
+        return;
+      }
+
+      // A network/server error may happen after LinkedIn accepted the post. Never blindly
+      // retry an ambiguous result because that could create duplicate public content.
       try {
         await this.store.markUnknownOutcome(post, 'linkedin_publish_outcome_unknown');
       } catch {
