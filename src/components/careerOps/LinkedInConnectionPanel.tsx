@@ -30,7 +30,14 @@ interface ScheduledPostItem {
   id: string;
   commentary: string;
   scheduledAt: string;
-  status: 'scheduled' | 'processing' | 'published' | 'failed' | 'cancelled' | 'unknown_outcome' | 'needs_review';
+  status:
+    | 'scheduled'
+    | 'processing'
+    | 'published'
+    | 'failed'
+    | 'cancelled'
+    | 'unknown_outcome'
+    | 'needs_review';
   attemptCount: number;
   publishedPostUrn: string | null;
   errorCode: string | null;
@@ -408,7 +415,9 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
         scheduledAtDate.getTime() < Date.now() + 2 * 60_000 ||
         scheduledAtDate.getTime() > Date.now() + 90 * 24 * 60 * 60_000
       ) {
-        throw new Error('Choose a time at least 2 minutes from now and no more than 90 days ahead.');
+        throw new Error(
+          'Choose a time at least 2 minutes from now and no more than 90 days ahead.'
+        );
       }
 
       // Keep the same idempotency key after ambiguous network failures, so a retry
@@ -425,7 +434,9 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
         }
       );
       setScheduleIdempotencyKey('');
-      setNotice('Post scheduled for ' + new Date(result.scheduledPost.scheduledAt).toLocaleString());
+      setNotice(
+        'Post scheduled for ' + new Date(result.scheduledPost.scheduledAt).toLocaleString()
+      );
       await refreshScheduledPosts();
     } catch (scheduleError) {
       setError(
@@ -896,19 +907,36 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
 
           {status.scheduledPublishingEnabled && (
             <div style={panelStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                }}
+              >
                 <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>Scheduled publishing</h4>
-                <span style={{ color: '#86efac', fontSize: 10, fontWeight: 700 }}>Cloud worker enabled</span>
+                <span style={{ color: '#86efac', fontSize: 10, fontWeight: 700 }}>
+                  Cloud worker enabled
+                </span>
               </div>
               <p style={{ margin: 0, color: '#94a3b8', fontSize: 10, lineHeight: 1.5 }}>
-                Schedules this exact reviewed text for the member account. The cloud worker checks tenant membership, LinkedIn authorization, channel pause and the global kill switch before publishing.
+                Schedules this exact reviewed text for the member account. The cloud worker checks
+                tenant membership, LinkedIn authorization, channel pause and the global kill switch
+                before publishing.
               </p>
               <label style={{ color: '#cbd5e1', fontSize: 11 }}>Publish at (your local time)</label>
               <input
                 type="datetime-local"
                 value={scheduledAt}
-                min={new Date(Date.now() + 2 * 60_000 - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16)}
-                max={new Date(Date.now() + 90 * 24 * 60 * 60_000 - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16)}
+                min={new Date(Date.now() + 2 * 60_000 - new Date().getTimezoneOffset() * 60_000)
+                  .toISOString()
+                  .slice(0, 16)}
+                max={new Date(
+                  Date.now() + 90 * 24 * 60 * 60_000 - new Date().getTimezoneOffset() * 60_000
+                )
+                  .toISOString()
+                  .slice(0, 16)}
                 onChange={(event) => setScheduledAt(event.target.value)}
                 style={inputStyle}
                 disabled={busy || writesBlocked}
@@ -928,37 +956,90 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
               >
                 Schedule this post
               </button>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
                 <strong style={{ color: '#e2e8f0', fontSize: 11 }}>Your scheduled posts</strong>
-                <button type="button" style={buttonStyle} onClick={() => void refreshScheduledPosts()} disabled={busy}>
+                <button
+                  type="button"
+                  style={buttonStyle}
+                  onClick={() => void refreshScheduledPosts()}
+                  disabled={busy}
+                >
                   Refresh queue
                 </button>
               </div>
               {scheduledPosts.length === 0 ? (
-                <p style={{ color: '#94a3b8', fontSize: 10, margin: 0 }}>No scheduled posts found.</p>
-              ) : scheduledPosts.map((item) => (
-                <div key={item.id} style={{ borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 8, display: 'grid', gap: 5 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                    <strong style={{ color: '#e2e8f0', fontSize: 11 }}>{item.status.replace(/_/g, ' ')}</strong>
-                    <span style={{ color: '#94a3b8', fontSize: 10 }}>{new Date(item.scheduledAt).toLocaleString()}</span>
+                <p style={{ color: '#94a3b8', fontSize: 10, margin: 0 }}>
+                  No scheduled posts found.
+                </p>
+              ) : (
+                scheduledPosts.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      borderTop: '1px solid rgba(255,255,255,.08)',
+                      paddingTop: 8,
+                      display: 'grid',
+                      gap: 5,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <strong style={{ color: '#e2e8f0', fontSize: 11 }}>
+                        {item.status.replace(/_/g, ' ')}
+                      </strong>
+                      <span style={{ color: '#94a3b8', fontSize: 10 }}>
+                        {new Date(item.scheduledAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <p
+                      style={{ margin: 0, color: '#cbd5e1', fontSize: 11, whiteSpace: 'pre-wrap' }}
+                    >
+                      {item.commentary.length > 240
+                        ? item.commentary.slice(0, 240) + '…'
+                        : item.commentary}
+                    </p>
+                    {item.errorCode && (
+                      <span style={{ color: '#fbbf24', fontSize: 10 }}>
+                        Status detail: {item.errorCode}
+                      </span>
+                    )}
+                    {item.publishedPostUrn && (
+                      <span style={{ color: '#86efac', fontSize: 10 }}>
+                        Published: {item.publishedPostUrn}
+                      </span>
+                    )}
+                    {item.status === 'scheduled' && (
+                      <button
+                        type="button"
+                        style={buttonStyle}
+                        onClick={() => void cancelScheduledPost(item.id)}
+                        disabled={busy || writesBlocked}
+                      >
+                        Cancel scheduled post
+                      </button>
+                    )}
+                    {item.status === 'unknown_outcome' && (
+                      <span style={{ color: '#fca5a5', fontSize: 10 }}>
+                        LinkedIn may have accepted this post. It was not retried to avoid
+                        duplication; check LinkedIn before scheduling again.
+                      </span>
+                    )}
                   </div>
-                  <p style={{ margin: 0, color: '#cbd5e1', fontSize: 11, whiteSpace: 'pre-wrap' }}>
-                    {item.commentary.length > 240 ? item.commentary.slice(0, 240) + '…' : item.commentary}
-                  </p>
-                  {item.errorCode && <span style={{ color: '#fbbf24', fontSize: 10 }}>Status detail: {item.errorCode}</span>}
-                  {item.publishedPostUrn && <span style={{ color: '#86efac', fontSize: 10 }}>Published: {item.publishedPostUrn}</span>}
-                  {item.status === 'scheduled' && (
-                    <button type="button" style={buttonStyle} onClick={() => void cancelScheduledPost(item.id)} disabled={busy || writesBlocked}>
-                      Cancel scheduled post
-                    </button>
-                  )}
-                  {item.status === 'unknown_outcome' && (
-                    <span style={{ color: '#fca5a5', fontSize: 10 }}>
-                      LinkedIn may have accepted this post. It was not retried to avoid duplication; check LinkedIn before scheduling again.
-                    </span>
-                  )}
-                </div>
-              ))}
+                ))
+              )}
             </div>
           )}
 
@@ -967,7 +1048,8 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
               Member comments and reactions
             </h4>
             <p style={{ margin: 0, color: '#94a3b8', fontSize: 10 }}>
-              Requires Community Management API access and the granted `w_member_social_feed` scope. Paste URNs from an authorized source; CareerOps does not scrape feeds.
+              Requires Community Management API access and the granted `w_member_social_feed` scope.
+              Paste URNs from an authorized source; CareerOps does not scrape feeds.
             </p>
             <input
               value={commentTarget}

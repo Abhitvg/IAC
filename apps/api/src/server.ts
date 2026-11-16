@@ -120,9 +120,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           descriptionValues.length > 1 ||
           !/^[A-Za-z0-9_-]{40,64}$/.test(state) ||
           [...url.searchParams.keys()].some((key) => !allowedParams.includes(key)) ||
-          (hasProviderError
-            ? !providerError?.trim() || Boolean(code)
-            : !code || code.length > 4096)
+          (hasProviderError ? !providerError?.trim() || Boolean(code) : !code || code.length > 4096)
         ) {
           sendHtml(
             response,
@@ -275,10 +273,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           return;
         }
 
-        if (
-          url.pathname === '/v1/linkedin/scheduled-posts' &&
-          request.method === 'GET'
-        ) {
+        if (url.pathname === '/v1/linkedin/scheduled-posts' && request.method === 'GET') {
           const scheduler = dependencies.linkedinScheduler;
           if (!scheduler) {
             sendJson(response, 503, {
@@ -290,22 +285,18 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           const limitRaw = url.searchParams.get('limit');
           const limit = limitRaw === null ? 50 : Number(limitRaw);
           if (!Number.isInteger(limit) || limit < 1 || limit > 100 || url.searchParams.size > 1) {
-            sendJson(response, 400, { error: 'limit must be an integer between 1 and 100', requestId });
+            sendJson(response, 400, {
+              error: 'limit must be an integer between 1 and 100',
+              requestId,
+            });
             return;
           }
-          const scheduledPosts = await scheduler.list(
-            tenant.tenantId,
-            tenant.subject,
-            limit
-          );
+          const scheduledPosts = await scheduler.list(tenant.tenantId, tenant.subject, limit);
           sendJson(response, 200, { scheduledPosts, requestId });
           return;
         }
 
-        if (
-          request.method === 'POST' &&
-          url.pathname === '/v1/linkedin/scheduled-posts'
-        ) {
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/scheduled-posts') {
           const scheduler = dependencies.linkedinScheduler;
           if (!scheduler) {
             sendJson(response, 503, {
@@ -339,7 +330,8 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             !/^[A-Za-z0-9_-]{12,64}$/.test(body.idempotencyKey)
           ) {
             sendJson(response, 400, {
-              error: 'Post text must be 1–3000 characters; schedule time must be 2 minutes to 90 days ahead; idempotency key must be 12–64 safe characters',
+              error:
+                'Post text must be 1–3000 characters; schedule time must be 2 minutes to 90 days ahead; idempotency key must be 12–64 safe characters',
               requestId,
             });
             return;

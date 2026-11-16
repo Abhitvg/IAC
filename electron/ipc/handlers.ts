@@ -583,7 +583,9 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       apiUrl.searchParams.has('entityUrn');
     const scheduledPostCancel =
       input.method === 'DELETE' &&
-      /^\/v1\/linkedin\/scheduled-posts\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(apiUrl.pathname) &&
+      /^\/v1\/linkedin\/scheduled-posts\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        apiUrl.pathname
+      ) &&
       apiUrl.searchParams.size === 0;
     const normalEndpoint = allowedPaths.has(apiUrl.pathname) && apiUrl.searchParams.size === 0;
     if (
@@ -597,7 +599,9 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
 
     const method = input.method as 'GET' | 'POST' | 'DELETE';
     const routeMethodAllowed =
-      ((apiUrl.pathname === '/v1/linkedin/status' || apiUrl.pathname === '/v1/me' || apiUrl.pathname === '/v1/linkedin/scheduled-posts') &&
+      ((apiUrl.pathname === '/v1/linkedin/status' ||
+        apiUrl.pathname === '/v1/me' ||
+        apiUrl.pathname === '/v1/linkedin/scheduled-posts') &&
         method === 'GET') ||
       (apiUrl.pathname === '/v1/controls' && method === 'GET') ||
       (apiUrl.pathname === '/v1/linkedin/connection' && method === 'DELETE') ||

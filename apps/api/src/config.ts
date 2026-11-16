@@ -70,7 +70,8 @@ const CloudEnvironmentSchema = z
       context.addIssue({
         code: 'custom',
         path: ['CAREEROPS_SCHEDULER_DATABASE_URL'],
-        message: 'A dedicated scheduler database login URL is required when scheduled publishing is enabled',
+        message:
+          'A dedicated scheduler database login URL is required when scheduled publishing is enabled',
       });
     }
     if (values.LINKEDIN_SCHEDULER_ENABLED && !values.LINKEDIN_ENABLED) {

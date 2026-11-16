@@ -24,7 +24,9 @@ export function createCloudApiRuntime(
   schedulerPool?: ClosableSqlPool
 ): CloudApiRuntime {
   if (environment.LINKEDIN_SCHEDULER_ENABLED && (!linkedin || !schedulerPool)) {
-    throw new Error('LinkedIn scheduled publishing requires the LinkedIn integration and a dedicated scheduler database pool');
+    throw new Error(
+      'LinkedIn scheduled publishing requires the LinkedIn integration and a dedicated scheduler database pool'
+    );
   }
   const repository = new PostgresCloudApiRepository(pool);
   const linkedInSchedulerStore =

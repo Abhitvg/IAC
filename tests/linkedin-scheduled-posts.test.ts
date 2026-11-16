@@ -54,10 +54,13 @@ function makeWorker(overrides?: {
   const integration = {
     oauth: { getValidToken: vi.fn(async () => token) },
     api: {
-      publishMemberTextPost: vi.fn(overrides?.publish ?? (async () => ({
-        id: 'urn:li:share:published',
-        status: 201,
-      }))),
+      publishMemberTextPost: vi.fn(
+        overrides?.publish ??
+          (async () => ({
+            id: 'urn:li:share:published',
+            status: 201,
+          }))
+      ),
     },
   } as unknown as LinkedInCloudIntegration;
   const getControlState =
@@ -70,15 +73,16 @@ function makeWorker(overrides?: {
     }));
   const repository = {
     getControlState: vi.fn(getControlState),
-    findMembershipsBySubject: vi.fn(async () =>
-      overrides?.memberships ?? [
-        {
-          tenantId: scheduledPost.tenantId,
-          subject: scheduledPost.subject,
-          role: 'owner',
-          status: 'active',
-        },
-      ]
+    findMembershipsBySubject: vi.fn(
+      async () =>
+        overrides?.memberships ?? [
+          {
+            tenantId: scheduledPost.tenantId,
+            subject: scheduledPost.subject,
+            role: 'owner',
+            status: 'active',
+          },
+        ]
     ),
     recordLinkedInAction: vi.fn(async () => undefined),
   } as unknown as CloudApiRepository;
@@ -123,10 +127,7 @@ describe('LinkedIn scheduled post execution', () => {
       'urn:li:person:member-urn',
       scheduledPost.commentary
     );
-    expect(store.markPublished).toHaveBeenCalledWith(
-      scheduledPost,
-      'urn:li:share:published'
-    );
+    expect(store.markPublished).toHaveBeenCalledWith(scheduledPost, 'urn:li:share:published');
   });
 
   it('defers without publishing when the tenant pauses LinkedIn', async () => {
