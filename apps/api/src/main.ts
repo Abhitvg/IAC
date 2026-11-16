@@ -25,9 +25,16 @@ async function start(): Promise<void> {
   const linkedin = environment.LINKEDIN_CLIENT_ID
     ? createLinkedInCloudIntegration(
         pool,
-        new AwsKmsTenantKeyProvider({ region: environment.AWS_REGION!, keyArn: environment.CAREEROPS_KMS_KEY_ARN! }),
+        new AwsKmsTenantKeyProvider({
+          region: environment.AWS_REGION!,
+          keyArn: environment.CAREEROPS_KMS_KEY_ARN!,
+        }),
         {
-          oauth: { clientId: environment.LINKEDIN_CLIENT_ID, clientSecret: environment.LINKEDIN_CLIENT_SECRET, redirectUri: environment.LINKEDIN_REDIRECT_URI },
+          oauth: {
+            clientId: environment.LINKEDIN_CLIENT_ID,
+            clientSecret: environment.LINKEDIN_CLIENT_SECRET,
+            redirectUri: environment.LINKEDIN_REDIRECT_URI,
+          },
           entitlements: {},
         }
       )
