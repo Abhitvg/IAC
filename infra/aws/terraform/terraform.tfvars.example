@@ -2,6 +2,7 @@ aws_region               = "ap-southeast-2"
 aws_account_id           = "165328640460"
 project                  = "careerops"
 environment              = "staging"
+api_allowed_origins      = ["https://main.d37etc5h2drv5h.amplifyapp.com"]
 enable_https             = true
 acm_certificate_arn      = "arn:aws:acm:ap-southeast-2:165328640460:certificate/9470a63a-647e-4f35-b32e-165b3d5e27fc"
 vpc_id                   = "vpc-0bc0cb5d78fb32a15"
