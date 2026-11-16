@@ -1,6 +1,6 @@
 import {
   TenantEnvelopeCipher,
-  type TenantKeyManagementService,
+  type TenantKeyProvider,
 } from '../../../../packages/cloud-core/src/encryption';
 import { LinkedInApiClient } from './client';
 import { LinkedInOAuthService } from './oauth';
@@ -15,15 +15,16 @@ export interface CreateLinkedInIntegrationOptions {
 }
 
 /**
- * Builds the API integration using the deployment's KMS implementation.
- * No plaintext-token or local-key fallback is provided.
+ * Builds the API integration using the deployment's configured tenant key provider.
+ * This abstraction does not call AWS KMS; production callers must inject a securely
+ * provisioned provider and retain old key versions until encrypted tokens are rewrapped.
  */
 export function createLinkedInCloudIntegration(
   pool: LinkedInSqlPool,
-  keyManagement: TenantKeyManagementService,
+  keyProvider: TenantKeyProvider,
   options: CreateLinkedInIntegrationOptions
 ): LinkedInCloudIntegration {
-  const store = new LinkedInPostgresStore(pool, new TenantEnvelopeCipher(keyManagement));
+  const store = new LinkedInPostgresStore(pool, new TenantEnvelopeCipher(keyProvider));
   return {
     oauth: new LinkedInOAuthService(options.oauth, store, store),
     tokens: store,
