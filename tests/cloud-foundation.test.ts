@@ -547,7 +547,6 @@ describe('M0 cloud security foundation', () => {
     ).rejects.toThrow();
   });
 
-
   it('uses AWS KMS GenerateDataKey and Decrypt with tenant-bound encryption context', async () => {
     const keyArn = 'arn:aws:kms:ap-south-1:123456789012:key/11111111-2222-3333-4444-555555555555';
     const dataKey = randomBytes(32);
