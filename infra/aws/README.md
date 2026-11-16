@@ -11,7 +11,8 @@ Do not attach customer-managed KMS permissions to the API task role. If the Secr
 ## Prerequisites
 
 - An existing VPC with at least two public subnets and two private application subnets across availability zones.
-- Two isolated database subnets.
+- Private application subnets need outbound access through NAT or appropriate VPC endpoints for ECR (API and Docker), CloudWatch Logs, Secrets Manager, and the external OIDC/JWKS endpoint. Without this, Fargate tasks may fail to pull images, load secrets, publish logs, or validate tokens.
+- Two isolated database subnets. The database subnets must not have a public route.
 - An ACM certificate in the same region as the ALB.
 - A Secrets Manager JSON secret containing:
   - `CAREEROPS_JWT_ISSUER`

@@ -103,6 +103,17 @@ resource "aws_db_subnet_group" "database" {
   tags       = local.tags
 }
 
+resource "aws_db_parameter_group" "database" {
+  name   = "${local.name}-postgres16"
+  family = "postgres16"
+  parameter {
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "immediate"
+  }
+  tags = local.tags
+}
+
 resource "aws_db_instance" "database" {
   identifier                 = local.name
   engine                     = "postgres"
@@ -115,6 +126,7 @@ resource "aws_db_instance" "database" {
   password                   = var.db_master_password
   port                       = 5432
   db_subnet_group_name       = aws_db_subnet_group.database.name
+  parameter_group_name       = aws_db_parameter_group.database.name
   vpc_security_group_ids     = [aws_security_group.database.id]
   publicly_accessible        = false
   multi_az                   = true
