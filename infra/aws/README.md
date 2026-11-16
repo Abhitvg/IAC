@@ -8,9 +8,23 @@ Initial capacity profile: two API tasks across at least two AZs, 0.5 vCPU / 1 Gi
 
 Availability objective: 99.9% monthly service availability (about 43.8 minutes of error budget in a 30-day month). This is a design objective, not a guarantee or an established SLO. It requires two healthy API tasks across AZs, Multi-AZ RDS, ALB health checks, deployment rollback, monitoring/alert routing, tested restore procedures, and resilient outbound connectivity. A single NAT gateway is a cost-saving single-AZ dependency; use one NAT gateway per AZ or appropriate VPC endpoints plus redundant egress if the 99.9% target is contractual.
 
+## HTTP-only staging when you do not own a domain
+
+A public ACM certificate cannot be issued for the AWS-generated ALB DNS hostname. The example tfvars therefore defaults to a **staging-only HTTP configuration** (`environment = "staging"`, `enable_https = false`) and does not require an ACM certificate. After deployment, use the ALB's AWS-generated DNS name for temporary smoke tests.
+
+This mode is strictly for non-sensitive testing:
+- Do not send production traffic, passwords, session cookies, OAuth authorization codes, access tokens, or other sensitive data over this endpoint.
+- Keep LinkedIn OAuth disabled: leave `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, and `LINKEDIN_REDIRECT_URI` empty. OAuth redirect flows must wait until a real HTTPS hostname and certificate are configured.
+- Restrict `allowed_ingress_cidrs` to your current public IP (/32) where practical. The default `0.0.0.0/0` is convenient for initial testing but exposes the HTTP endpoint to the internet.
+- The ECS-to-RDS connection remains private and TLS-enforced; KMS envelope encryption remains enabled. These controls do not make client-to-ALB HTTP traffic confidential.
+
+Production is guarded in Terraform: `environment = "production"` cannot be planned with `enable_https = false`; HTTPS requires a valid ACM certificate ARN in this account and region. Do not work around this guardrail.
+
+To switch staging to HTTPS later, set `enable_https = true` and supply an ACM certificate ARN for a domain you control. To deploy production, use a distinct production tfvars/state and a verified domain/certificate. Do not reuse the staging state or credentials.
+
 ## Implementation plan (no resources provisioned by this change)
 
-1. **Account and region guardrails:** use account `165328640460` and `ap-southeast-2`; obtain the actual KMS key ARN, ACM certificate ARN, Secrets Manager ARN, VPC ID, and subnet IDs. The tfvars sample is prefilled with account/region but retains explicit placeholders for unknown infrastructure.
+1. **Account and region guardrails:** use account `165328640460` and `ap-southeast-2`; the existing KMS key ARN is configured. For HTTP-only staging, no ACM certificate is required. Obtain the Secrets Manager ARN, VPC ID, and subnet IDs. The tfvars sample is prefilled with account/region but retains explicit placeholders for unknown infrastructure.
 2. **Network readiness:** verify public ALB subnets and private ECS/database subnets span at least two AZs. Confirm private task egress to ECR, S3, CloudWatch Logs, Secrets Manager, KMS, and the configured external OIDC/JWKS issuer. Prefer interface/gateway VPC endpoints for AWS services; choose redundant NAT egress where required.
 3. **Identity and encryption:** verify the existing KMS key policy allows same-account IAM delegation or explicitly grants the ECS task role. Keep key administration separate. Create the application JSON secret outside Terraform state and use a non-owner PostgreSQL runtime role; never put secret values in tfvars or Git.
 4. **Terraform review:** initialize with an encrypted remote backend and state locking, run `terraform fmt -check`, `terraform validate`, and a reviewed `terraform plan`. Confirm the plan targets only the intended account/region and contains no unexpected replacement or deletion. Do not use `-target` as the normal deployment workflow.
@@ -21,7 +35,7 @@ Availability objective: 99.9% monthly service availability (about 43.8 minutes o
 
 The changes in this PR update configuration and Terraform source only. They do not run Terraform, create AWS resources, modify the existing KMS key policy, deploy an image, or change production traffic.
 
-This Terraform stack deploys the existing CareerOps API to ECS Fargate behind an HTTPS Application Load Balancer and provisions a private RDS PostgreSQL database, ECR repository, CloudWatch log group, and scoped ECS execution role.
+This Terraform stack deploys the existing CareerOps API to ECS Fargate behind an Application Load Balancer (HTTPS for production; optional HTTP-only staging) and provisions a private RDS PostgreSQL database, ECR repository, CloudWatch log group, and scoped ECS execution role.
 
 ## AWS KMS envelope encryption
 
@@ -38,7 +52,7 @@ The API uses the existing key ARN supplied as `kms_key_arn`; Terraform does not 
 - An existing VPC with at least two public subnets and two private application subnets across availability zones.
 - Private application subnets need outbound access through NAT or appropriate VPC endpoints for ECR (API and Docker), CloudWatch Logs, Secrets Manager, and the external OIDC/JWKS endpoint. Without this, Fargate tasks may fail to pull images, load secrets, publish logs, or validate tokens.
 - Two isolated database subnets. The database subnets must not have a public route.
-- An ACM certificate in the same region as the ALB.
+- An ACM certificate in the same region as the ALB only when `enable_https = true`. It is mandatory for production; staging HTTP-only smoke tests may omit it.
 - A Secrets Manager JSON secret containing:
   - `CAREEROPS_JWT_ISSUER`
   - `CAREEROPS_JWT_AUDIENCE`
@@ -56,8 +70,8 @@ The RDS master password and application secret values must never be committed. U
 
 ## Deploy
 
-1. Copy `terraform/terraform.tfvars.example` to a private local `terraform.tfvars`.
-2. Set the VPC/subnet IDs, ACM certificate ARN, region, existing KMS key ARN, database credentials, and application secret ARN.
+1. Copy `terraform/terraform.tfvars.example` to a private local `terraform.tfvars`. It is preconfigured for staging-only HTTP; never use it as a production configuration.
+2. Set the VPC/subnet IDs, region, existing KMS key ARN, database credentials, and application secret ARN. The checked-in example is staging-only HTTP (`enable_https = false`) and intentionally has no ACM certificate. Restrict `allowed_ingress_cidrs` to your IP where feasible.
 3. Bootstrap the ECR repository before creating the ECS service:
 
 ```bash
@@ -81,7 +95,7 @@ terraform plan
 terraform apply
 ```
 
-6. Verify the ALB `/health/ready` endpoint before routing production traffic.
+6. For staging HTTP, verify the ALB-generated DNS name and `/health/ready` endpoint using non-sensitive test data only. Production traffic must wait for HTTPS and a valid certificate.
 7. Apply SQL migrations through a separate migration job/identity; the API task must not run migrations as a database owner.
 
 ## Container
