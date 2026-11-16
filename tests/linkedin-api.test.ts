@@ -186,6 +186,107 @@ describe('LinkedIn API client', () => {
     ).rejects.toThrow('author URN');
   });
 
+  it('publishes an organization image only after status and owner verification', async () => {
+    const organizationUrn = 'urn:li:organization:12345';
+    const imageUrn = 'urn:li:image:asset_123';
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ owner: organizationUrn, status: 'AVAILABLE' }), {
+          status: 200,
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 201,
+          headers: { 'x-restli-id': 'urn:li:share:image-post-123' },
+        })
+      );
+    const client = new LinkedInApiClient({ fetcher });
+    const token = makeToken(['openid', 'profile', 'w_organization_social']);
+
+    const result = await client.publishOrganizationImagePost(
+      token,
+      organizationUrn,
+      'A reviewed image post',
+      imageUrn,
+      'A team working on a prototype'
+    );
+
+    expect(result).toEqual({ id: 'urn:li:share:image-post-123', status: 201 });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls[0][0]).toBe(
+      'https://api.linkedin.com/rest/images/urn%3Ali%3Aimage%3Aasset_123'
+    );
+    expect(new Headers(fetcher.mock.calls[0][1]?.headers).get('linkedin-version')).toBe('202610');
+    expect(JSON.parse(String(fetcher.mock.calls[1][1]?.body))).toMatchObject({
+      author: organizationUrn,
+      commentary: 'A reviewed image post',
+      content: {
+        media: {
+          id: imageUrn,
+          altText: 'A team working on a prototype',
+        },
+      },
+      lifecycleState: 'PUBLISHED',
+    });
+  });
+
+  it('does not publish an organization image while processing or when owned by another Page', async () => {
+    const organizationUrn = 'urn:li:organization:12345';
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ owner: organizationUrn, status: 'PROCESSING' }), {
+          status: 200,
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ owner: 'urn:li:organization:99999', status: 'AVAILABLE' }),
+          { status: 200 }
+        )
+      );
+    const client = new LinkedInApiClient({ fetcher });
+    const token = makeToken(['openid', 'profile', 'w_organization_social']);
+
+    await expect(
+      client.publishOrganizationImagePost(
+        token,
+        organizationUrn,
+        'A reviewed image post',
+        'urn:li:image:asset_123',
+        'A useful image'
+      )
+    ).rejects.toThrow('not AVAILABLE');
+    await expect(
+      client.publishOrganizationImagePost(
+        token,
+        organizationUrn,
+        'A reviewed image post',
+        'urn:li:image:asset_456',
+        'A useful image'
+      )
+    ).rejects.toThrow('owner does not match');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('requires the organization write scope before inspecting an image asset', async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const client = new LinkedInApiClient({ fetcher });
+
+    await expect(
+      client.publishOrganizationImagePost(
+        makeToken(['openid', 'profile', 'w_member_social']),
+        'urn:li:organization:12345',
+        'A reviewed image post',
+        'urn:li:image:asset_123',
+        'A useful image'
+      )
+    ).rejects.toThrow('w_organization_social');
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('creates a member comment only with the Community Management write scope', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(null, {
