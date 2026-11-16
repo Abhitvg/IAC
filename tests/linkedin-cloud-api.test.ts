@@ -490,7 +490,22 @@ describe('LinkedIn cloud API security boundaries', () => {
     expect(integration.api.publishOrganizationImagePost).not.toHaveBeenCalled();
 
     integration.entitlements.communityManagementApproved = true;
-    integration.api.publishOrganizationImagePost.mockRejectedValueOnce(
+    const noScope = await fetch(baseUrl + '/v1/linkedin/organization/image-posts', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    expect(noScope.status).toBe(403);
+    expect(await noScope.json()).toMatchObject({
+      error: 'LinkedIn organization image publishing requires the w_organization_social scope',
+    });
+    expect(integration.api.publishOrganizationImagePost).not.toHaveBeenCalled();
+
+    integration.api.publishOrganizationImagePost.mockRejectedValueOnce(`new Error('LinkedIn image asset is not AVAILABLE (current status: PROCESSING)')`);
+
       new Error('LinkedIn image asset is not AVAILABLE (current status: PROCESSING)')
     );
     const authorizedToken = {
