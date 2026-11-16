@@ -65,7 +65,7 @@ The API uses the existing key ARN supplied as `kms_key_arn`; Terraform does not 
   - `LINKEDIN_CLIENT_SECRET` (empty string if LinkedIn OAuth is not enabled)
   - `LINKEDIN_REDIRECT_URI` (empty string if LinkedIn OAuth is not enabled; HTTPS when enabled)
 - The database URL must use the non-owner `careerops_app` role. Provision that role and apply migrations using a separate privileged migration identity. Do not give the API the master database credentials.
-- Terraform 1.8+ and AWS provider credentials for provisioning only.
+- Terraform 1.9+ and AWS provider credentials for provisioning only.
 
 The RDS master password and application secret values must never be committed. Use a remote Terraform backend with encryption, locking, and restricted access. Do not use local state for production.
 
