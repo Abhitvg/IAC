@@ -21,8 +21,19 @@ describe('LinkedIn content quality', () => {
     expect(report.verdict).toBe('INSUFFICIENT_TEXT');
     expect(report.checks.voice.score).toBeNull();
   });
-  it('flags structural patterns for manual review', () => {
-    const result = humanizeLinkedInText('It is not just a tool, it is a system.');
-    expect(result.structuralFlags.length).toBeGreaterThanOrEqual(0);
+  it('flags known structural patterns for manual review', () => {
+    const result = humanizeLinkedInText("It's not just a tool, it's a system.");
+    expect(result.structuralFlags).toContain('"It\'s not just X, it\'s Y"');
+  });
+  it('preserves joiner characters used by emoji and Indic scripts', () => {
+    const input = '👩‍💻 हिन्दी क्‍षि';
+    const result = humanizeLinkedInText(input);
+    expect(result.text).toContain('👩‍💻');
+    expect(result.text).toContain('क्‍षि');
+  });
+  it('does not claim lexical cleanup when only typography changed', () => {
+    const result = humanizeLinkedInText('A useful note — with clean typography.');
+    expect(result.changes).toContain('Normalized invisible characters and typography');
+    expect(result.changes).not.toContain('Replaced stock phrases with plainer wording');
   });
 });
