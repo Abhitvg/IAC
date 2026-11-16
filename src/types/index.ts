@@ -257,6 +257,7 @@ export interface ElectronAPI {
   secureRecordSet: (namespace: string, id: string, data: string) => Promise<boolean>;
   secureRecordGet: (namespace: string, id: string) => Promise<string | null>;
   secureRecordDelete: (namespace: string, id: string) => Promise<boolean>;
+  secureRecordList: (namespace: string) => Promise<string[]>;
   resolveDns?: (hostname: string) => Promise<Array<{ address: string; family: number }>>;
   safeFetchPinned?: (options: any) => Promise<any>;
   openExternal: (url: string) => Promise<void>;
