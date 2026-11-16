@@ -1,0 +1,30 @@
+name: Temporary timeout recovery formatter
+on:
+  push:
+    branches:
+      - reliability/timeout-partial-recovery
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: reliability/timeout-partial-recovery
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - run: npx prettier --write src/services/AnswerGenerationService.ts tests/answerGenerationSupersession.test.ts
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/services/AnswerGenerationService.ts tests/answerGenerationSupersession.test.ts
+          if git diff --cached --quiet; then
+            echo "Already formatted."
+            exit 0
+          fi
+          git commit -m "style(interview): format partial recovery handling"
+          git push origin reliability/timeout-partial-recovery
