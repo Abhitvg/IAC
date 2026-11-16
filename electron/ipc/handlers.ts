@@ -536,6 +536,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     const allowedPaths = new Set([
       '/v1/me',
       '/v1/linkedin/status',
+      '/v1/linkedin/scheduled-posts',
       '/v1/linkedin/oauth/start',
       '/v1/linkedin/connection',
       '/v1/linkedin/posts',
@@ -580,14 +581,23 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       apiUrl.searchParams.size === 2 &&
       apiUrl.searchParams.has('organizationUrn') &&
       apiUrl.searchParams.has('entityUrn');
+    const scheduledPostCancel =
+      input.method === 'DELETE' &&
+      /^\\/v1\\/linkedin\\/scheduled-posts\\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(apiUrl.pathname) &&
+      apiUrl.searchParams.size === 0;
     const normalEndpoint = allowedPaths.has(apiUrl.pathname) && apiUrl.searchParams.size === 0;
-    if (!normalEndpoint && !memberReactionDelete && !organizationReactionDelete) {
+    if (
+      !normalEndpoint &&
+      !memberReactionDelete &&
+      !organizationReactionDelete &&
+      !scheduledPostCancel
+    ) {
       throw new Error('LinkedIn API endpoint is not allowed by the desktop bridge.');
     }
 
     const method = input.method as 'GET' | 'POST' | 'DELETE';
     const routeMethodAllowed =
-      ((apiUrl.pathname === '/v1/linkedin/status' || apiUrl.pathname === '/v1/me') &&
+      ((apiUrl.pathname === '/v1/linkedin/status' || apiUrl.pathname === '/v1/me' || apiUrl.pathname === '/v1/linkedin/scheduled-posts') &&
         method === 'GET') ||
       (apiUrl.pathname === '/v1/controls' && method === 'GET') ||
       (apiUrl.pathname === '/v1/linkedin/connection' && method === 'DELETE') ||
@@ -597,7 +607,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
       (apiUrl.pathname === '/v1/controls/channel-pause' && method === 'POST') ||
       (apiUrl.pathname === '/v1/controls/kill-switch' && method === 'POST') ||
       ((apiUrl.pathname === '/v1/linkedin/reactions' ||
-        apiUrl.pathname === '/v1/linkedin/organization/reactions') &&
+        apiUrl.pathname === '/v1/linkedin/organization/reactions' ||
+        scheduledPostCancel) &&
         method === 'DELETE');
     if (!routeMethodAllowed)
       throw new Error('HTTP method is not allowed for this LinkedIn API endpoint.');
