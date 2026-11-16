@@ -31,6 +31,9 @@ Set these variables on the API service:
 | `LINKEDIN_COMMUNICATIONS_API_APPROVED`   |          No | Set true only after partner approval                    |
 | `LINKEDIN_INVITATIONS_API_APPROVED`      |          No | Set true only after partner approval                    |
 | `LINKEDIN_MESSAGES_API_APPROVED`         |          No | Set true only after partner approval                    |
+| `LINKEDIN_SCHEDULER_ENABLED`       | No          | Set true only after applying migration 0008 and provisioning the isolated scheduler login |
+| `LINKEDIN_SCHEDULER_POLL_MS`       | No          | Worker poll interval, 5000–60000 ms; default 15000 |
+| `CAREEROPS_SCHEDULER_DATABASE_URL` | Conditional | Dedicated PostgreSQL login in `careerops_scheduler`; never reuse `careerops_app` |
 
 The API also needs its normal CareerOps OIDC issuer, audience, JWKS URL, database URL and distinct signing / rate-limit secrets.
 
