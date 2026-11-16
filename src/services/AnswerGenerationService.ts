@@ -213,8 +213,16 @@ export class AnswerGenerationService {
     const generationStartedAt = Date.now();
     let firstTokenAt: number | undefined;
     let receivedTokenCount = 0;
+    let partialOutput = '';
     let terminalResultRecorded = false;
-    const notifyComplete = (result: AnswerGenerationResult) => {
+    const notifyComplete = (
+      result: AnswerGenerationResult,
+      diagnosticMetadata: {
+        failureKind?: 'TIMEOUT' | 'CANCELLED' | 'PROVIDER_ERROR' | 'VALIDATION_ERROR' | 'UNKNOWN';
+        partialOutputRecovered?: boolean;
+        partialOutputCharacterCount?: number;
+      } = {}
+    ) => {
       if (terminalResultRecorded) return;
       terminalResultRecorded = true;
       const outcome =
@@ -236,6 +244,7 @@ export class AnswerGenerationService {
         receivedTokenCount,
         isEmptyResponse: !result.cleanAnswer.trim(),
         finalOutcome: outcome,
+        ...diagnosticMetadata,
         message: 'Interview generation reached a terminal state.',
       });
       cb.onComplete?.(result);
@@ -653,6 +662,7 @@ export class AnswerGenerationService {
                   });
                 }
                 receivedTokenCount += Math.max(1, token.length > 0 ? 1 : 0);
+                partialOutput += token;
                 cb.onToken?.(token, requestId);
               },
               onSentence: (sentence) => {
@@ -671,14 +681,23 @@ export class AnswerGenerationService {
         }
       } catch (err: any) {
         if (requestSeq !== this.currentSequence) break;
-        if (err.name === 'AbortError' || signal?.aborted) {
-          const timeoutMessage = err?.message || signal?.reason?.message || '';
-          const timedOut = /deadline|timed out|inactivity|stalled/i.test(timeoutMessage);
+        if (err.name === 'AbortError' || err.name === 'TimeoutError' || signal?.aborted) {
+          // Prefer the owning controller's reason: a stream reader may surface a generic
+          // AbortError even when the overall deadline was the actual cause.
+          const timeoutMessage = signal?.reason?.message || err?.message || '';
+          const timedOut =
+            err?.name === 'TimeoutError' ||
+            signal?.reason?.name === 'TimeoutError' ||
+            /deadline|timed out|timeout|inactivity|stalled/i.test(timeoutMessage);
+          const recoveredPartial = partialOutput.trim();
+          if (recoveredPartial) {
+            useAppStore.getState().setRecoveredPartialAnswer(recoveredPartial);
+          }
           completionResult = {
             status: timedOut ? 'FAILED' : 'ABORTED',
             isValidated: false,
             cleanAnswer: '',
-            error: timedOut ? timeoutMessage : 'Generation cancelled by user',
+            error: timedOut ? timeoutMessage || 'Generation deadline exceeded' : 'Generation cancelled by user',
             detectedCategory,
             confidence: 'low',
             followUps: [],
@@ -692,7 +711,11 @@ export class AnswerGenerationService {
             structuredViolations: [],
           };
           (completionResult as any).answer = completionResult.cleanAnswer;
-          notifyComplete(completionResult);
+          notifyComplete(completionResult, {
+            failureKind: timedOut ? 'TIMEOUT' : 'CANCELLED',
+            partialOutputRecovered: Boolean(recoveredPartial),
+            partialOutputCharacterCount: recoveredPartial.length,
+          });
           cleanupGeneration();
           return completionResult;
         }
