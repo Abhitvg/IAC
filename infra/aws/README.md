@@ -29,19 +29,31 @@ The RDS master password and application secret values must never be committed. U
 
 1. Copy `terraform/terraform.tfvars.example` to a private local `terraform.tfvars`.
 2. Set the VPC/subnet IDs, ACM certificate ARN, region, database credentials, and application secret ARN.
-3. Set `container_image` to a valid image in the ECR repository (first bootstrap the ECR repository, then push an image, then apply again).
-4. Run:
+3. Bootstrap the ECR repository before creating the ECS service:
 
 ```bash
 cd infra/aws/terraform
 terraform init
+terraform apply -target=aws_ecr_repository.api
+```
+
+4. Build and push an initial ARM64 image using a unique immutable tag, then set `container_image` to that exact image URI in your private tfvars file:
+
+```bash
+docker buildx build --platform linux/arm64 --push -f Dockerfile.api \\
+  -t ACCOUNT.dkr.ecr.REGION.amazonaws.com/careerops-production:release-bootstrap .
+```
+
+5. Run the full plan and apply:
+
+```bash
 terraform validate
 terraform plan
 terraform apply
 ```
 
-5. Verify the ALB `/health/ready` endpoint before routing production traffic.
-6. Apply SQL migrations through a separate migration job/identity; the API task must not run migrations as a database owner.
+6. Verify the ALB `/health/ready` endpoint before routing production traffic.
+7. Apply SQL migrations through a separate migration job/identity; the API task must not run migrations as a database owner.
 
 ## Container
 

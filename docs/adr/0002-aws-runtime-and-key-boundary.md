@@ -19,7 +19,7 @@ Use AWS as the hosting and managed infrastructure platform:
 - Secrets Manager injects application configuration into the ECS task at startup. The application receives values, not permission to retrieve secrets itself.
 - OIDC remains an explicit external identity-provider contract. Configure issuer, audience, and JWKS URL for the selected provider.
 - The task role receives no AWS API permissions by default. The task execution role can pull its image, publish logs, and retrieve only the named application secret.
-- The application uses a versioned environment-injected keyring for field-level envelope encryption. The keyring uses Node's built-in cryptography and does not call KMS. Old key versions must remain available until all data encrypted under them is re-encrypted.
+- The cloud-core package provides a versioned environment-injected keyring adapter for field-level envelope encryption using Node's built-in cryptography. It does not call KMS. The adapter is not yet wired into the API runtime; callers must explicitly configure it before encrypting production fields. Old key versions must remain available until all data encrypted under them is re-encrypted.
 
 AWS-managed storage services may use AWS-managed encryption internally. This does not introduce an application-level KMS dependency.
 
