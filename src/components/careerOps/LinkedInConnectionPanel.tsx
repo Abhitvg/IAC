@@ -979,9 +979,12 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
             <h4 style={{ margin: 0, color: '#f8fafc', fontSize: 13 }}>Publish a LinkedIn poll</h4>
             <p style={{ margin: 0, color: '#94a3b8', fontSize: 10, lineHeight: 1.5 }}>
               Uses the official Poll API. The post text above becomes the poll commentary. Polls
-              publish immediately when you press the button and are not included in the text-post scheduler.
+              publish immediately when you press the button and are not included in the text-post
+              scheduler.
             </p>
-            <label style={{ color: '#cbd5e1', fontSize: 11 }}>Poll question (max 140 characters)</label>
+            <label style={{ color: '#cbd5e1', fontSize: 11 }}>
+              Poll question (max 140 characters)
+            </label>
             <input
               value={pollQuestion}
               onChange={(event) => setPollQuestion(event.target.value)}
@@ -992,7 +995,10 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
             />
             <div style={{ display: 'grid', gap: 7 }}>
               {pollOptions.map((option, index) => (
-                <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 7 }}>
+                <div
+                  key={index}
+                  style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 7 }}
+                >
                   <input
                     value={option}
                     onChange={(event) =>
@@ -1013,7 +1019,9 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
                       type="button"
                       style={buttonStyle}
                       onClick={() =>
-                        setPollOptions((current) => current.filter((_value, optionIndex) => optionIndex !== index))
+                        setPollOptions((current) =>
+                          current.filter((_value, optionIndex) => optionIndex !== index)
+                        )
                       }
                       disabled={busy || writesBlocked}
                     >
@@ -1048,7 +1056,8 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
               <option value="FOURTEEN_DAYS">2 weeks</option>
             </select>
             <p style={{ margin: 0, color: '#fbbf24', fontSize: 10, lineHeight: 1.5 }}>
-              Do not ask poll respondents about political opinions, health status, or other sensitive personal data.
+              Do not ask poll respondents about political opinions, health status, or other
+              sensitive personal data.
             </p>
             <button
               type="button"

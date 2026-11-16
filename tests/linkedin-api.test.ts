@@ -116,11 +116,7 @@ describe('LinkedIn API client', () => {
       content: {
         poll: {
           question: 'Which topic should we cover next?',
-          options: [
-            { text: 'Cloud security' },
-            { text: 'PostgreSQL' },
-            { text: 'Kubernetes' },
-          ],
+          options: [{ text: 'Cloud security' }, { text: 'PostgreSQL' }, { text: 'Kubernetes' }],
           settings: {
             voteSelectionType: 'SINGLE_VOTE',
             duration: 'SEVEN_DAYS',

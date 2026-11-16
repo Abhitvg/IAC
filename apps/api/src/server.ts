@@ -497,7 +497,8 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             )
           ) {
             sendJson(response, 400, {
-              error: 'Expected commentary, question, options (string array) and an approved poll duration',
+              error:
+                'Expected commentary, question, options (string array) and an approved poll duration',
               requestId,
             });
             return;
@@ -510,17 +511,22 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             body.options.length < 2 ||
             body.options.length > 4 ||
             body.options.some((option) => !option.trim() || option.length > 30) ||
-            new Set(body.options.map((option) => option.trim().toLocaleLowerCase())).size !== body.options.length
+            new Set(body.options.map((option) => option.trim().toLocaleLowerCase())).size !==
+              body.options.length
           ) {
             sendJson(response, 400, {
-              error: 'Poll commentary must be 1–3000 characters, question 1–140 characters, and 2–4 unique options of 1–30 characters each',
+              error:
+                'Poll commentary must be 1–3000 characters, question 1–140 characters, and 2–4 unique options of 1–30 characters each',
               requestId,
             });
             return;
           }
           const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
           if (!tokenSet) {
-            sendJson(response, 409, { error: 'Connect LinkedIn before publishing a poll', requestId });
+            sendJson(response, 409, {
+              error: 'Connect LinkedIn before publishing a poll',
+              requestId,
+            });
             return;
           }
           if (!tokenSet.grantedScopes.includes('w_member_social')) {

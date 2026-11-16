@@ -234,7 +234,9 @@ export class LinkedInApiClient {
     if (pollOptions.some((option) => !option || option.length > 30)) {
       throw new Error('Each LinkedIn poll option must contain 1–30 characters');
     }
-    if (new Set(pollOptions.map((option) => option.toLocaleLowerCase())).size !== pollOptions.length) {
+    if (
+      new Set(pollOptions.map((option) => option.toLocaleLowerCase())).size !== pollOptions.length
+    ) {
       throw new Error('LinkedIn poll options must be unique');
     }
 
