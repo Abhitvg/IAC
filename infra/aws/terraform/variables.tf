@@ -56,7 +56,7 @@ variable "acm_certificate_arn" {
   type        = string
   description = "ACM certificate ARN in ap-southeast-2 and the configured AWS account."
   validation {
-    condition     = can(regex("^arn:aws:acm:ap-southeast-2:[0-9]{12}:certificate/", var.acm_certificate_arn))
+    condition     = can(regex("^arn:aws:acm:ap-southeast-2:${var.aws_account_id}:certificate/[A-Za-z0-9-]+$", var.acm_certificate_arn))
     error_message = "acm_certificate_arn must be an ACM certificate ARN in ap-southeast-2."
   }
 }
@@ -64,7 +64,7 @@ variable "kms_key_arn" {
   type        = string
   description = "Existing customer-managed KMS key ARN used for CareerOps envelope encryption."
   validation {
-    condition     = can(regex("^arn:aws:kms:ap-southeast-2:[0-9]{12}:key/[A-Za-z0-9-]+$", var.kms_key_arn)) && split(":", var.kms_key_arn)[4] == var.aws_account_id
+    condition     = can(regex("^arn:aws:kms:ap-southeast-2:${var.aws_account_id}:key/[A-Za-z0-9-]+$", var.kms_key_arn))
     error_message = "kms_key_arn must be a customer-managed KMS key ARN in ap-southeast-2 and aws_account_id."
   }
 }
@@ -76,7 +76,7 @@ variable "app_secrets_arn" {
   type        = string
   description = "Secrets Manager ARN for the JSON application configuration secret."
   validation {
-    condition     = can(regex("^arn:aws:secretsmanager:ap-southeast-2:[0-9]{12}:secret:", var.app_secrets_arn)) && split(":", var.app_secrets_arn)[4] == var.aws_account_id
+    condition     = can(regex("^arn:aws:secretsmanager:ap-southeast-2:${var.aws_account_id}:secret:.+$", var.app_secrets_arn))
     error_message = "app_secrets_arn must belong to aws_account_id in ap-southeast-2."
   }
 }
