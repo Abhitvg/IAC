@@ -31,6 +31,7 @@ authenticated routes are available:
 - `DELETE /v1/linkedin/connection`
 - `POST /v1/linkedin/posts`
 - `POST /v1/linkedin/polls`
+- `POST /v1/linkedin/polls`
 - `POST /v1/linkedin/comments`
 - `POST /v1/linkedin/reactions`
 - `DELETE /v1/linkedin/reactions?entityUrn=...`
