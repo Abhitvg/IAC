@@ -49,7 +49,6 @@ The AWS KMS envelope-encryption foundation is not yet a complete application-wid
 
 This inventory is based on the source paths listed above and is intentionally conservative. It is not exhaustive until all repository persistence APIs, IndexedDB/filesystem writes, exports, crash reports, logs, caches and backup flows have been traced.
 
-
 ## Additional verified renderer write paths
 
 A follow-up trace of `src/store/useAppStore.ts` confirms these are plaintext browser-storage writes, not merely in-memory state:
@@ -63,7 +62,6 @@ A follow-up trace of `src/store/useAppStore.ts` confirms these are plaintext bro
 The Practice store writes serialized active sessions, session history, behavioral stories, feedback records, company preparation plans, weakness plans, explainer attempts and concept cards through generic `localStorage` helpers. Those payloads can contain user answers and resume-derived information, so they must be treated as sensitive until field-level classification proves otherwise.
 
 This makes the desktop persistence migration a first-class blocker, not an optional hardening task. Server-side KMS encryption alone cannot protect plaintext that remains in browser storage on the user's device.
-
 
 ## Additional verified storage paths and security caveats
 
