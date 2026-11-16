@@ -91,6 +91,84 @@ describe('LinkedIn API client', () => {
     });
   });
 
+  it('publishes a member poll with validated options and duration', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(null, {
+        status: 201,
+        headers: { 'x-restli-id': 'urn:li:share:poll-123' },
+      })
+    );
+    const client = new LinkedInApiClient({ fetcher });
+    const token = makeToken(['openid', 'profile', 'w_member_social']);
+    const result = await client.publishMemberPoll(
+      token,
+      'urn:li:person:abc123',
+      'Help us choose the next workshop.',
+      'Which topic should we cover next?',
+      ['Cloud security', 'PostgreSQL', 'Kubernetes'],
+      'SEVEN_DAYS'
+    );
+
+    expect(result).toEqual({ id: 'urn:li:share:poll-123', status: 201 });
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toMatchObject({
+      author: 'urn:li:person:abc123',
+      content: {
+        poll: {
+          question: 'Which topic should we cover next?',
+          options: [
+            { text: 'Cloud security' },
+            { text: 'PostgreSQL' },
+            { text: 'Kubernetes' },
+          ],
+          settings: {
+            voteSelectionType: 'SINGLE_VOTE',
+            duration: 'SEVEN_DAYS',
+            isVoterVisibleToAuthor: true,
+          },
+        },
+      },
+    });
+  });
+
+  it('rejects invalid poll options and missing member publish scope before calling LinkedIn', async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const client = new LinkedInApiClient({ fetcher });
+    const token = makeToken(['openid', 'profile', 'w_member_social']);
+
+    await expect(
+      client.publishMemberPoll(
+        token,
+        'urn:li:person:abc123',
+        'Pick one',
+        'A question',
+        ['One'],
+        'ONE_DAY'
+      )
+    ).rejects.toThrow('2–4 options');
+    await expect(
+      client.publishMemberPoll(
+        token,
+        'urn:li:person:abc123',
+        'Pick one',
+        'A question',
+        ['One', 'one'],
+        'ONE_DAY'
+      )
+    ).rejects.toThrow('unique');
+    await expect(
+      client.publishMemberPoll(
+        makeToken(['openid', 'profile']),
+        'urn:li:person:abc123',
+        'Pick one',
+        'A question',
+        ['One', 'Two'],
+        'ONE_DAY'
+      )
+    ).rejects.toThrow('w_member_social');
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('fails closed when the member write scope is absent', async () => {
     const fetcher = vi.fn<typeof fetch>();
     const client = new LinkedInApiClient({ fetcher });
