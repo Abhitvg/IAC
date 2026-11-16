@@ -54,10 +54,18 @@ variable "private_route_table_ids" {
   }
 }
 variable "database_subnet_ids" {
-  type = list(string)
+  type        = list(string)
+  description = "Dedicated database subnet IDs. Must be distinct from application subnets and placed in separate AZs."
   validation {
-    condition     = length(var.database_subnet_ids) >= 2
-    error_message = "At least two isolated database subnets are required."
+    condition     = length(var.database_subnet_ids) >= 2 && length(distinct(var.database_subnet_ids)) == length(var.database_subnet_ids)
+    error_message = "At least two distinct database subnet IDs are required."
+  }
+  validation {
+    condition = length(setintersection(
+      toset(var.database_subnet_ids),
+      toset(var.private_subnet_ids)
+    )) == 0
+    error_message = "Database subnets must not overlap application private subnets. Use dedicated database subnets with isolated route tables."
   }
 }
 variable "enable_https" {
