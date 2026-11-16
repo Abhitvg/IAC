@@ -221,6 +221,7 @@ describe('AnswerGenerationService request supersession', () => {
     );
 
     expect(result.status).toBe('ABORTED');
+    expect(result.partialAnswer).toContain('A partial but useful answer.');
     const { useAppStore } = await import('../src/store/useAppStore');
     expect(useAppStore.getState().recoveredPartialAnswer).toContain('A partial but useful answer.');
 
@@ -277,6 +278,9 @@ describe('AnswerGenerationService request supersession', () => {
     });
 
     expect(result.status).toBe('FAILED');
+    if (result.status !== 'FAILED') throw new Error('Expected a timeout failure result.');
+    expect(result.cleanAnswer).toBe('');
+    expect(result.partialAnswer).toContain('A partial answer before timeout.');
     const events = DiagnosticLoggerService.getInstance().getEventsForRequest(
       'partial-output-timeout-recovery'
     );
