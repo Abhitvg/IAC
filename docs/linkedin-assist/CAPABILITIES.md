@@ -19,8 +19,10 @@ show exactly which prerequisite is missing.
 - **Official export import:** Parse member-provided LinkedIn PDF / data archive. Requires a
   user-provided export, not an API scope.
 - **Member post publishing:** Text and native poll posts are implemented with `w_member_social`. Image, video, document, multi-image and other media publishing require additional upload work and applicable Posts API access.
-- **Organization publishing:** Publish for an organization Page. Requires
-  `w_organization_social`, approved product access, and the required Page role.
+- **Organization publishing:** Publish text for an organization Page, or publish an image
+  from an existing LinkedIn image asset URN after the server confirms `AVAILABLE` status and
+  exact Page ownership. Requires `w_organization_social`, approved product access, and the
+  required Page role. Local image upload is not implemented.
 - **Comments and reactions:** Create member comments and reactions through the Comments and Reactions APIs. Requires Community Management API access and `w_member_social_feed`; organization actions require `w_organization_social_feed` and an eligible Page role.
 - **Read engagement:** Read supported organization/member engagement data. Requires applicable
   read scopes; member read permissions may be restricted.
@@ -88,14 +90,14 @@ show exactly which prerequisite is missing.
 - Optional access-token refresh when LinkedIn actually returns a refresh token to the application. If no refresh token was granted or it expires, the member must reconnect.
 - Authenticated desktop connection panel using the existing CareerOps OIDC identity. The OIDC bearer credential is stored through Electron OS-backed secure storage and is never returned to renderer JavaScript.
 - Narrow desktop IPC allowlist for LinkedIn API and tenant-control routes. It does not expose a general-purpose authenticated network proxy.
-- Scope- and entitlement-gated member text and poll publishing, member comments/reactions, organization text publishing and organization comments/reactions through the documented APIs. Poll input is limited to 2–4 unique options and LinkedIn-supported durations.
+- Scope- and entitlement-gated member text and poll publishing, member comments/reactions, organization text and image publishing, and organization comments/reactions through documented APIs. Organization image posts accept an existing image URN only after checking that the asset is `AVAILABLE` and its owner exactly matches the Page URN. Poll input is limited to 2–4 unique options and LinkedIn-supported durations.
 - Server-side global kill-switch and `linkedin_assist` channel-pause enforcement before every LinkedIn write, plus audit recording.
 - Explicit UI actions for publish/comment/react/remove-reaction and account disconnect; owner-only pause/resume control.
 
 ### Not implemented or not entitled by default
 
 - Optional background scheduling for member text posts is implemented behind `LINKEDIN_SCHEDULER_ENABLED` (default off). It requires a dedicated `CAREEROPS_SCHEDULER_DATABASE_URL` login granted membership in `careerops_scheduler`; `careerops_app` cannot claim or transition cross-tenant rows. Media scheduling, bulk campaigns and autonomous content generation/publication are not implemented.
-- Image, document and video uploads; multi-image posts; and carousel creation. Native member polls are implemented, but other media formats are not.
+- Local image, document and video uploads; multi-image posts; and carousel creation. Organization image posts can reference an already-uploaded, ready image asset; member image publishing is not implemented because the ordinary `w_member_social` grant is write-only for versioned image-status reads. Native member polls are implemented.
 - Member feed, profile activity and inbox reads.
 - Direct messages, invitations and communications execution. These are partner-restricted and remain unavailable until LinkedIn approves the exact application and CareerOps implements the required API clients.
 - Analytics, reporting and profile import through member read APIs.
