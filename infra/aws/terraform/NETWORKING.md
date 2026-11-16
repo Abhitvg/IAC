@@ -25,11 +25,13 @@ private default routes through the NAT Gateway resources defined here.
 ## Environment behavior
 
 Set `environment = "staging"` for the staging footprint:
+
 - One NAT Gateway and one Elastic IP in the first public subnet (AZ-a).
 - Both private route tables use that NAT Gateway for default IPv4 egress.
 - This is a cost-saving staging arrangement; AZ-b egress depends on AZ-a NAT.
 
 Set `environment = "production"` for production:
+
 - Two NAT Gateways and two Elastic IPs, one in each public subnet/AZ.
 - Each private route table uses its same-AZ NAT Gateway.
 - Production still requires HTTPS and a valid ACM certificate.
