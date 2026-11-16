@@ -642,6 +642,8 @@ export function CareerOpsView() {
           <CareerDiscoveryPanel resumeText={resumeText} providerConfig={careerOpsProviderConfig} />
         )}
 
+        {subTab === 'linkedinStudio' && <LinkedInContentStudio />}
+
         {/* TAB 1: PIPELINE BOARD */}
         {subTab === 'pipeline' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
