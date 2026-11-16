@@ -880,19 +880,59 @@ export class AnswerGenerationService {
           });
         }
 
-        const partialText = (err as any).partialText || '';
-        if (partialText) {
+        const originalError = (err as any).originalError || (err as any).cause;
+        const partialText = String((err as any).partialText || partialOutput).trim();
+        const failureMessage = err.message || String(err);
+        const timeoutEvidence = [
+          failureMessage,
+          originalError?.message,
+          originalError?.name,
+        ]
+          .filter(Boolean)
+          .join(' ');
+        const timedOut =
+          err.name === 'TimeoutError' ||
+          originalError?.name === 'TimeoutError' ||
+          /deadline|timed out|timeout|inactivity|stalled/i.test(timeoutEvidence);
+        const callerCancelled = Boolean(callerSignal?.aborted);
+        const recoveredPartial = Boolean(partialText);
+        if (recoveredPartial) {
           useAppStore.getState().setRecoveredPartialAnswer(partialText);
+        }
+
+        if (callerCancelled) {
+          completionResult = {
+            status: 'ABORTED',
+            isValidated: false,
+            cleanAnswer: '',
+            error: 'Generation cancelled by user',
+            detectedCategory,
+            confidence: 'low',
+            followUps: [],
+            predictedFollowUps: [],
+            requestId,
+            validationStatus: 'ABORTED',
+            groundingScore: 0,
+            groundingViolations: ['Request cancelled during generation'],
+            structuredViolations: [],
+          };
+          (completionResult as any).answer = '';
+          notifyComplete(completionResult, {
+            failureKind: 'CANCELLED',
+            partialOutputRecovered: recoveredPartial,
+            partialOutputCharacterCount: partialText.length,
+          });
+          break;
         }
 
         cb.onError?.(err, requestId);
         completionResult = {
           status: 'FAILED',
           isValidated: false,
-          cleanAnswer:
-            partialText || 'Answer generation failed due to a provider or network error.',
+          // Failed/partial content is deliberately kept out of cleanAnswer.
+          cleanAnswer: '',
           partialAnswer: partialText || undefined,
-          error: err.message || String(err),
+          error: failureMessage,
           detectedCategory,
           confidence: 'low',
           followUps: [],
@@ -901,15 +941,19 @@ export class AnswerGenerationService {
           validationResult: {
             isGrounded: false,
             validationStatus: 'FAILED',
-            violations: [err.message || String(err)],
+            violations: [failureMessage],
           },
           validationStatus: 'FAILED',
           groundingScore: 0,
-          groundingViolations: [err.message || String(err)],
+          groundingViolations: [failureMessage],
           structuredViolations: [],
         };
-        (completionResult as any).answer = completionResult.cleanAnswer;
-        notifyComplete(completionResult);
+        (completionResult as any).answer = '';
+        notifyComplete(completionResult, {
+          failureKind: timedOut ? 'TIMEOUT' : 'PROVIDER_ERROR',
+          partialOutputRecovered: recoveredPartial,
+          partialOutputCharacterCount: partialText.length,
+        });
         break;
       }
     }
