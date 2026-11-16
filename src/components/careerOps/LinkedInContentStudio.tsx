@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Clipboard, ShieldCheck, Wand2 } from 'lucide-react';
 import { copyToClipboard } from '../../utils/clipboard';
 import {
@@ -7,11 +7,28 @@ import {
   type ContentKind,
 } from '../../services/careerOps/linkedinContentQuality';
 
-export function LinkedInContentStudio() {
-  const [kind, setKind] = useState<ContentKind>('post');
-  const [draft, setDraft] = useState('');
+interface LinkedInContentStudioProps {
+  initialDraft?: string;
+  initialKind?: ContentKind;
+}
+
+export function LinkedInContentStudio({
+  initialDraft,
+  initialKind = 'post',
+}: LinkedInContentStudioProps) {
+  const [kind, setKind] = useState<ContentKind>(initialKind);
+  const [draft, setDraft] = useState(initialDraft ?? '');
   const [cleaned, setCleaned] = useState('');
   const [notice, setNotice] = useState('');
+  useEffect(() => {
+    if (initialDraft !== undefined) {
+      setDraft(initialDraft);
+      setCleaned('');
+      setNotice('');
+      setKind(initialKind);
+    }
+  }, [initialDraft, initialKind]);
+
   const report = useMemo(
     () => scoreLinkedInText(cleaned || draft, kind),
     [cleaned, draft, kind]
