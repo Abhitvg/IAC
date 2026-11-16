@@ -87,7 +87,7 @@ describe('EncryptedRecordStore', () => {
     const source = path.join(directory, sourceDigest + '.json');
     const targetDirectory = path.join(rootDir, 'records', 'practice');
     fs.mkdirSync(targetDirectory, { recursive: true });
-    fs.copyFileSync(source, path.join(targetDirectory, fs.readdirSync(directory)[0]));
+    fs.copyFileSync(source, path.join(targetDirectory, sourceDigest + '.json'));
 
     await expect(store.get('practice', 'candidate_1')).rejects.toThrow('authentication failed');
   });
