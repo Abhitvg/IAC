@@ -8,6 +8,14 @@ Initial capacity profile: two API tasks across at least two AZs, 0.5 vCPU / 1 Gi
 
 Availability objective: 99.9% monthly service availability (about 43.8 minutes of error budget in a 30-day month). This is a design objective, not a guarantee or an established SLO. It requires two healthy API tasks across AZs, Multi-AZ RDS, ALB health checks, deployment rollback, monitoring/alert routing, tested restore procedures, and resilient outbound connectivity. A single NAT gateway is a cost-saving single-AZ dependency; use one NAT gateway per AZ or appropriate VPC endpoints plus redundant egress if the 99.9% target is contractual.
 
+## Amplify frontend and API CORS
+
+The browser frontend is a Vite/React static application; Electron is a separate desktop client. The repository root `amplify.yml` builds only the browser bundle with `vite.config.web.ts` and publishes `dist/`. It deliberately does not run the Electron or API TypeScript builds as part of the Amplify frontend deployment.
+
+The staging Amplify origin is configured as `https://main.d37etc5h2drv5h.amplifyapp.com` in the example Terraform variables. Terraform passes `api_allowed_origins` to the ECS API as `CAREEROPS_CORS_ALLOWED_ORIGINS`. The API accepts only exact HTTPS origins and handles preflight requests for the supported bearer-token headers/methods; it does not enable cookie credentials or wildcard origins. For another Amplify branch or a production custom domain, set a separate exact origin in that environment's private tfvars.
+
+Amplify must be configured with the API base URL as a non-secret `VITE_*` build variable only after the API has a reachable HTTPS endpoint. Do not put JWT signing secrets, database credentials, OAuth client secrets, or other credentials in Amplify build variables. Add the Amplify SPA fallback rewrite in the Amplify app's Rewrites and redirects settings: source `/<*>`, target `/index.html`, status `200`. The managed `amplifyapp.com` hostname uses Amplify-managed HTTPS; the ALB ACM certificate is a separate certificate boundary.
+
 ## HTTP-only staging when you do not own a domain
 
 A public ACM certificate cannot be issued for the AWS-generated ALB DNS hostname. The example tfvars therefore defaults to a **staging-only HTTP configuration** (`environment = "staging"`, `enable_https = false`) and does not require an ACM certificate. After deployment, use the ALB's AWS-generated DNS name for temporary smoke tests.
