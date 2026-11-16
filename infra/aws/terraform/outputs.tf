@@ -21,3 +21,8 @@ output "operations_alerts_topic_arn" {
   description = "Subscribe an on-call email or incident system to receive CloudWatch alarm notifications."
   value       = aws_sns_topic.operations_alerts.arn
 }
+
+output "nat_gateway_ids" {
+  description = "NAT Gateway IDs created for this environment (one for staging, two for production)."
+  value       = aws_nat_gateway.egress[*].id
+}
