@@ -50,6 +50,7 @@ import {
 } from '../../services/careerOps/overleafPusher';
 import { useCareerOpsStore } from '../../store/useCareerOpsStore';
 import { CareerDiscoveryPanel } from './CareerDiscoveryPanel';
+import { LinkedInContentStudio } from './LinkedInContentStudio';
 import { useAppStore } from '../../store/useAppStore';
 import { usePracticeStore } from '../../store/usePracticeStore';
 import { ApplicationStatus, JobApplication } from '../../services/careerOps/types';
@@ -123,7 +124,7 @@ export function CareerOpsView() {
 
   // Internal sub-tab state
   const [subTab, setSubTab] = useState<
-    'pipeline' | 'discovery' | 'evaluator' | 'tailor' | 'outreach'
+    'pipeline' | 'discovery' | 'evaluator' | 'tailor' | 'outreach' | 'linkedinStudio'
   >('pipeline');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -548,6 +549,7 @@ export function CareerOpsView() {
               activeBadge: activeJob?.tailoredResume ? 'Ready' : undefined,
             },
             { id: 'outreach', label: '🤝 Outreach & Contacto (<= 300 chars)' },
+            { id: 'linkedinStudio', label: '✍️ LinkedIn Studio' },
           ].map((tab) => {
             const isActive = subTab === tab.id;
             return (
