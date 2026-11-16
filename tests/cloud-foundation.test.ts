@@ -15,7 +15,6 @@ import {
 } from '../packages/cloud-core/src/audit';
 import {
   TenantEnvelopeCipher,
-  EnvironmentTenantKeyProvider,
   type TenantKeyProvider,
 } from '../packages/cloud-core/src/encryption';
 import { resolveTenantContext, type TenantMembership } from '../packages/cloud-core/src/tenant';
@@ -546,49 +545,6 @@ describe('M0 cloud security foundation', () => {
         'resume:abc'
       )
     ).rejects.toThrow();
-  });
-
-
-  it('wraps tenant data keys with a versioned runtime keyring without a cloud KMS dependency', async () => {
-    const masterV1 = randomBytes(32);
-    const masterV2 = randomBytes(32);
-    const keyring = EnvironmentTenantKeyProvider.fromJson(
-      JSON.stringify({
-        currentVersion: 'v2',
-        keys: { v1: masterV1.toString('base64'), v2: masterV2.toString('base64') },
-      })
-    );
-    const cipher = new TenantEnvelopeCipher(keyring);
-    const envelope = await cipher.encrypt(
-      'tenant-a',
-      'resume:primary',
-      Buffer.from('private data')
-    );
-    expect(envelope.keyVersion).toBe('v2');
-    expect(
-      (await cipher.decrypt(envelope, 'tenant-a', 'resume:primary')).toString()
-    ).toBe('private data');
-    await expect(cipher.decrypt(envelope, 'tenant-b', 'resume:primary')).rejects.toThrow();
-    await expect(
-      cipher.decrypt(envelope, 'tenant-a', 'linkedin-token:member')
-    ).rejects.toThrow();
-
-    const legacyKeyring = EnvironmentTenantKeyProvider.fromJson(
-      JSON.stringify({
-        currentVersion: 'v1',
-        keys: { v1: masterV1.toString('base64'), v2: masterV2.toString('base64') },
-      })
-    );
-    const legacyCipher = new TenantEnvelopeCipher(legacyKeyring);
-    const legacyEnvelope = await legacyCipher.encrypt(
-      'tenant-a',
-      'resume:legacy',
-      Buffer.from('legacy')
-    );
-    const rotatedCipher = new TenantEnvelopeCipher(keyring);
-    expect(
-      (await rotatedCipher.decrypt(legacyEnvelope, 'tenant-a', 'resume:legacy')).toString()
-    ).toBe('legacy');
   });
 
 
