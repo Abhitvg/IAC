@@ -46,6 +46,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('secure-records:get', { namespace, id }),
   secureRecordDelete: (namespace: string, id: string) =>
     ipcRenderer.invoke('secure-records:delete', { namespace, id }),
+  secureRecordList: (namespace: string) =>
+    ipcRenderer.invoke('secure-records:list', { namespace }),
 
   // Network / SSRF verification
   resolveDns: (hostname: string) => ipcRenderer.invoke('net:resolve-dns', hostname),
