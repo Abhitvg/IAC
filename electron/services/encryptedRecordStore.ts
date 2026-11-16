@@ -144,6 +144,14 @@ export class EncryptedRecordStore {
     }
   }
 
+  private async rewrapKey(keyPath: string, plaintext: string): Promise<void> {
+    const wrapped = await this.storage.encryptStringAsync(plaintext);
+    atomicWrite(
+      keyPath,
+      JSON.stringify({ version: VERSION, data: wrapped.toString('base64') })
+    );
+  }
+
   private async loadOrCreateKey(): Promise<Buffer> {
     await this.assertSecureStorage();
 
@@ -177,11 +185,7 @@ export class EncryptedRecordStore {
         throw new Error('Secure record key could not be recovered.');
       }
       if (decrypted.shouldReEncrypt) {
-        const rewrapped = await this.storage.encryptStringAsync(decrypted.result);
-        atomicWrite(
-          keyPath,
-          JSON.stringify({ version: VERSION, data: rewrapped.toString('base64') })
-        );
+        await this.rewrapKey(keyPath, decrypted.result);
       }
       return key;
     }
