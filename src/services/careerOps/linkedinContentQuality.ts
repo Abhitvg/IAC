@@ -191,7 +191,7 @@ export function humanizeLinkedInText(input: string): HumanizeResult {
 }
 
 function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^\${}()|[\]\\]/g, '\\$&');
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\return value.replace(/[.*+?^\${}()|[\]\\]/g, '\\$&');');
 }
 
 function words(text: string): string[] {
