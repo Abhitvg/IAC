@@ -36,7 +36,6 @@ authenticated routes are available:
 - `POST /v1/linkedin/comments`
 - `POST /v1/linkedin/reactions`
 - `DELETE /v1/linkedin/reactions?entityUrn=...`
-- `POST /v1/linkedin/organization/posts`
 - `POST /v1/linkedin/organization/comments`
 - `POST /v1/linkedin/organization/reactions`
 - `DELETE /v1/linkedin/organization/reactions?organizationUrn=...&entityUrn=...`
