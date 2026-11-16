@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Clipboard, ShieldCheck, Wand2 } from 'lucide-react';
 import { copyToClipboard } from '../../utils/clipboard';
+import { LinkedInPlaybookWorkbench } from './LinkedInPlaybookWorkbench';
 import {
+  getLinkedInCharacterLimit,
   humanizeLinkedInText,
   scoreLinkedInText,
   type ContentKind,
@@ -20,6 +22,7 @@ export function LinkedInContentStudio({
   const [draft, setDraft] = useState(initialDraft ?? '');
   const [cleaned, setCleaned] = useState('');
   const [notice, setNotice] = useState('');
+  const [view, setView] = useState<'draft' | 'playbooks'>('draft');
   useEffect(() => {
     if (initialDraft !== undefined) {
       setDraft(initialDraft);
@@ -48,9 +51,48 @@ export function LinkedInContentStudio({
     fontWeight: 700,
   };
   const checks = Object.entries(report.checks);
+  const characterLimit = getLinkedInCharacterLimit(kind);
+  const currentText = cleaned || draft;
+  const overCharacterLimit = characterLimit !== null && currentText.length > characterLimit;
 
   return (
     <section style={{ display: 'grid', gap: 14, maxWidth: 1100, margin: '0 auto' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+        <button
+          type="button"
+          style={{
+            ...button,
+            background: view === 'draft' ? 'rgba(249,115,22,.18)' : button.background,
+            color: view === 'draft' ? '#fdba74' : '#e2e8f0',
+          }}
+          onClick={() => setView('draft')}
+        >
+          Draft & Review
+        </button>
+        <button
+          type="button"
+          style={{
+            ...button,
+            background: view === 'playbooks' ? 'rgba(249,115,22,.18)' : button.background,
+            color: view === 'playbooks' ? '#fdba74' : '#e2e8f0',
+          }}
+          onClick={() => setView('playbooks')}
+        >
+          Playbook Workbench
+        </button>
+      </div>
+      {view === 'playbooks' ? (
+        <LinkedInPlaybookWorkbench
+          onUseDraft={(template) => {
+            setKind('post');
+            setDraft(template);
+            setCleaned('');
+            setNotice('Hook template loaded. Replace every placeholder with your own verified details.');
+            setView('draft');
+          }}
+        />
+      ) : (
+        <>
       <div style={panel}>
         <h3 style={{ margin: 0, color: '#f8fafc', fontSize: 16 }}>LinkedIn Content Studio</h3>
         <p style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.6 }}>
@@ -72,6 +114,7 @@ export function LinkedInContentStudio({
           <option value="comment">Comment</option>
           <option value="reply">Reply</option>
           <option value="dm">Direct message</option>
+          <option value="invite">Connection invite note</option>
         </select>
         <textarea
           value={draft}
@@ -95,17 +138,17 @@ export function LinkedInContentStudio({
             lineHeight: 1.6,
           }}
         />
-        {kind === 'dm' && (
+        {characterLimit !== null && (
           <p
             style={{
               margin: '6px 0 0',
-              color: (cleaned || draft).length > 300 ? '#fca5a5' : '#94a3b8',
+              color: overCharacterLimit ? '#fca5a5' : '#94a3b8',
               fontSize: 11,
               textAlign: 'right',
             }}
           >
-            {(cleaned || draft).length}/300 characters
-            {(cleaned || draft).length > 300 ? ' — over the current CareerOps DM target' : ''}
+            {currentText.length}/{characterLimit} characters
+            {overCharacterLimit ? ' — over the target for this message type' : ''}
           </p>
         )}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
@@ -113,7 +156,7 @@ export function LinkedInContentStudio({
             style={{ ...button, background: 'rgba(249,115,22,.18)', color: '#fdba74' }}
             onClick={() => {
               setCleaned(result.text);
-              setNotice('Formatting and wording cleanup applied. Review every change before use.');
+              setNotice('Cleanup suggestions applied. Check each replacement for meaning and grammar before using it.');
             }}
             disabled={!draft.trim()}
           >
@@ -166,6 +209,16 @@ export function LinkedInContentStudio({
           <p style={{ color: '#94a3b8', fontSize: 11 }}>
             Changes: {result.changes.length ? result.changes.join('; ') : 'No automatic changes.'}
           </p>
+          {!!result.replacements.length && (
+            <div style={{ display: 'grid', gap: 4, marginTop: 8 }}>
+              <strong style={{ color: '#fdba74', fontSize: 11 }}>Lexical suggestions to verify</strong>
+              {result.replacements.map((replacement) => (
+                <div key={replacement.find} style={{ color: '#cbd5e1', fontSize: 11 }}>
+                  “{replacement.find}” → “{replacement.replace}” ({replacement.count})
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <div style={panel}>
@@ -174,10 +227,8 @@ export function LinkedInContentStudio({
           <h4 style={{ margin: 0, color: '#f8fafc' }}>Writing quality review</h4>
         </div>
         <p style={{ color: '#94a3b8', fontSize: 11 }}>
-          Text: {report.wordCount} words · {report.contentKind} ·{' '}
-          {report.verdict === 'INSUFFICIENT_TEXT'
-            ? 'Insufficient sample'
-            : 'Manual review required'}
+          Text: {report.wordCount} words · {report.contentKind} · Heuristic result: {report.verdict}
+          {report.weakestCheck ? ` · Lowest signal: ${report.weakestCheck}` : ''}
         </p>
         <div
           style={{
@@ -208,11 +259,11 @@ export function LinkedInContentStudio({
           </div>
         )}
         <p style={{ color: '#94a3b8', fontSize: 10, lineHeight: 1.5 }}>
-          A high score does not prove human authorship or guarantee a third-party detector result.
-          Never add fake personal stories, numbers, credentials or engagement bait to improve a
-          score.
+          These scores are local writing heuristics, not an AI detector, authorship test or reach predictor. A PASS is not proof of human authorship. Never add fake personal stories, numbers, credentials or engagement bait to improve a score.
         </p>
       </div>
+        </>
+      )}
     </section>
   );
 }
