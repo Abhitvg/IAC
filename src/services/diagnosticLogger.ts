@@ -134,11 +134,14 @@ export class DiagnosticLoggerService {
    * explicitly unresolved rather than silently counted as failures/successes.
    */
   public getReliabilitySummary(): ReliabilitySummary {
-    const requests = new Map<string, {
-      latest: PipelineDiagnosticEvent;
-      provider: string;
-      model: string;
-    }>();
+    const requests = new Map<
+      string,
+      {
+        latest: PipelineDiagnosticEvent;
+        provider: string;
+        model: string;
+      }
+    >();
     const groups = new Map<string, ReliabilityGroupSummary>();
     const summary: ReliabilitySummary = {
       eventCount: this.events.length,
@@ -165,9 +168,14 @@ export class DiagnosticLoggerService {
         model: event.selectedModel || request?.model || 'unknown',
       });
       if (event.transcriptionOutcome) {
-        const key = event.transcriptionOutcome === 'SUCCESS' ? 'success'
-          : event.transcriptionOutcome === 'EMPTY' ? 'empty'
-          : event.transcriptionOutcome === 'FAILED' ? 'failed' : 'aborted';
+        const key =
+          event.transcriptionOutcome === 'SUCCESS'
+            ? 'success'
+            : event.transcriptionOutcome === 'EMPTY'
+              ? 'empty'
+              : event.transcriptionOutcome === 'FAILED'
+                ? 'failed'
+                : 'aborted';
         summary.transcription[key] += 1;
       }
       if (event.audioCaptureOutcome === 'STARTING') summary.audioCapture.started += 1;
@@ -181,7 +189,8 @@ export class DiagnosticLoggerService {
     for (const request of requests.values()) {
       summary.requestCount += 1;
       const outcome = request.latest.finalOutcome;
-      const isUnresolved = !outcome || outcome === 'UNCLASSIFIED' || outcome === 'CONFIRMATION_NEEDED';
+      const isUnresolved =
+        !outcome || outcome === 'UNCLASSIFIED' || outcome === 'CONFIRMATION_NEEDED';
       if (isUnresolved) summary.unresolvedRequestCount += 1;
       else {
         summary.terminalRequestCount += 1;
@@ -194,9 +203,16 @@ export class DiagnosticLoggerService {
 
       const key = `${request.provider}/${request.model}`;
       const group = groups.get(key) || {
-        provider: request.provider, model: request.model, requests: 0,
-        succeeded: 0, failed: 0, blocked: 0, aborted: 0, rateLimited: 0,
-        unresolved: 0, successRate: null,
+        provider: request.provider,
+        model: request.model,
+        requests: 0,
+        succeeded: 0,
+        failed: 0,
+        blocked: 0,
+        aborted: 0,
+        rateLimited: 0,
+        unresolved: 0,
+        successRate: null,
       };
       group.requests += 1;
       if (isUnresolved) group.unresolved += 1;
@@ -208,13 +224,17 @@ export class DiagnosticLoggerService {
       groups.set(key, group);
     }
 
-    summary.successRate = summary.terminalRequestCount > 0
-      ? summary.succeeded / summary.terminalRequestCount : null;
-    summary.byProviderModel = [...groups.values()].map((group) => ({
-      ...group,
-      successRate: group.requests - group.unresolved > 0
-        ? group.succeeded / (group.requests - group.unresolved) : null,
-    })).sort((a, b) => b.requests - a.requests);
+    summary.successRate =
+      summary.terminalRequestCount > 0 ? summary.succeeded / summary.terminalRequestCount : null;
+    summary.byProviderModel = [...groups.values()]
+      .map((group) => ({
+        ...group,
+        successRate:
+          group.requests - group.unresolved > 0
+            ? group.succeeded / (group.requests - group.unresolved)
+            : null,
+      }))
+      .sort((a, b) => b.requests - a.requests);
     return summary;
   }
 

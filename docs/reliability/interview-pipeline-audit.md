@@ -70,6 +70,7 @@ Several direct provider adapters issue fetch requests without a request signal o
 **Files:** generation, transcription, session and diagnostic services
 
 The pipeline records metadata-only events for capture, transcription, generation, and session persistence. This branch adds a deterministic aggregation API over the retained diagnostic window:
+
 - unique request counts with terminal versus unresolved separation;
 - success, failure, blocked, aborted, and rate-limited counts;
 - success rates that exclude unresolved requests from the denominator;

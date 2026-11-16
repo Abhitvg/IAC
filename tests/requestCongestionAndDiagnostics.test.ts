@@ -127,24 +127,25 @@ describe('Suite D: Request Congestion, Concurrency & Diagnostics (Phases 5 & 7)'
     expect(summary.transcription.empty).toBe(1);
     expect(summary.audioCapture.failed).toBe(1);
     expect(summary.sessionSave.success).toBe(1);
-    expect(summary.byProviderModel).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        provider: 'groq',
-        model: 'llama-3.3-70b',
-        requests: 2,
-        succeeded: 1,
-        unresolved: 1,
-        successRate: 1,
-      }),
-      expect.objectContaining({
-        provider: 'openai',
-        model: 'gpt-4.1',
-        requests: 1,
-        failed: 1,
-        successRate: 0,
-      }),
-    ]));
+    expect(summary.byProviderModel).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          provider: 'groq',
+          model: 'llama-3.3-70b',
+          requests: 2,
+          succeeded: 1,
+          unresolved: 1,
+          successRate: 1,
+        }),
+        expect.objectContaining({
+          provider: 'openai',
+          model: 'gpt-4.1',
+          requests: 1,
+          failed: 1,
+          successRate: 0,
+        }),
+      ])
+    );
     expect(logger.exportReliabilitySummaryAsJson()).toContain('"unresolvedRequestCount": 2');
   });
-
 });
