@@ -202,6 +202,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             connected: Boolean(tokenSet && tokenSet.expiresAt > Date.now()),
             expiresAt: tokenSet?.expiresAt ?? null,
             capabilities: getLinkedInCapabilities(tokenSet, integration.entitlements),
+            entitlements: integration.entitlements,
             requestId,
           });
           return;
