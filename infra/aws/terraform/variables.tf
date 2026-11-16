@@ -156,6 +156,9 @@ variable "deletion_protection" {
 }
 variable "allowed_ingress_cidrs" {
   type        = list(string)
-  description = "Public client CIDRs permitted to reach the ALB. Prefer restricted corporate/client ranges where feasible."
-  default     = ["0.0.0.0/0"]
+  description = "Explicit client CIDRs permitted to reach the public ALB. Use your public IP with /32 for staging smoke tests."
+  validation {
+    condition     = length(var.allowed_ingress_cidrs) > 0 && alltrue([for cidr in var.allowed_ingress_cidrs : can(cidrhost(cidr, 0))])
+    error_message = "Set at least one valid CIDR in allowed_ingress_cidrs. Prefer your public IP with /32 for staging."
+  }
 }
