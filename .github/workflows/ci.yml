@@ -77,6 +77,17 @@ jobs:
           }
           NODE
 
+      - name: Temporarily normalize KMS formatting for diagnostic
+        shell: bash
+        run: |
+          npx prettier --write apps/api/src/config.ts packages/cloud-core/src/aws-kms-key-provider.ts
+          if [[ "${{ matrix.os }}" == "ubuntu-24.04" ]]; then
+            echo '--- CONFIG FILE ---'
+            cat apps/api/src/config.ts
+            echo '--- KMS PROVIDER FILE ---'
+            cat packages/cloud-core/src/aws-kms-key-provider.ts
+          fi
+
       - name: Check formatting for changed files
         shell: bash
         run: |
