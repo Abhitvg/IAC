@@ -37,6 +37,7 @@ function makeWorker(overrides?: {
   memberships?: Array<{ tenantId: string; subject: string; role: string; status: string }>;
   publish?: () => Promise<{ id: string; status: number }>;
   token?: LinkedInTokenSet | null;
+  tokenError?: Error;
   getControls?: () => Promise<{
     tenantId: string;
     globalKillSwitch: boolean;
@@ -55,7 +56,11 @@ function makeWorker(overrides?: {
   const integration = {
     oauth: {
       getValidToken: vi.fn(async () =>
-        overrides?.token === null ? null : (overrides?.token ?? token)
+        overrides?.tokenError
+          ? Promise.reject(overrides.tokenError)
+          : overrides?.token === null
+            ? null
+            : (overrides?.token ?? token)
       ),
     },
     api: {
@@ -214,6 +219,21 @@ describe('LinkedIn scheduled post execution', () => {
 
     expect(reads).toBe(2);
     expect(store.defer).toHaveBeenCalledWith(scheduledPost, 60);
+    expect(integration.api.publishMemberTextPost).not.toHaveBeenCalled();
+  });
+
+  it('marks schedules failed when LinkedIn authorization must be renewed instead of retrying', async () => {
+    const { worker, store, integration } = makeWorker({
+      tokenError: new Error('LinkedIn access token expired; reconnect the account'),
+    });
+
+    await worker.runOnce();
+
+    expect(store.markFailed).toHaveBeenCalledWith(
+      scheduledPost,
+      'linkedin_reauthorization_required'
+    );
+    expect(store.defer).not.toHaveBeenCalled();
     expect(integration.api.publishMemberTextPost).not.toHaveBeenCalled();
   });
 
