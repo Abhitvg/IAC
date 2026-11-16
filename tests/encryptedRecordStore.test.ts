@@ -36,7 +36,10 @@ describe('EncryptedRecordStore', () => {
     await store.set('interview-sessions', 'session_123', secret);
 
     const directory = path.join(rootDir, 'records', 'interview-sessions');
-    const recordDigest = crypto.createHash('sha256').update('answer_1', 'utf8').digest('hex');
+    const recordDigest = crypto
+      .createHash('sha256')
+      .update('session_123', 'utf8')
+      .digest('hex');
     const file = path.join(directory, recordDigest + '.json');
     expect(fs.readFileSync(file, 'utf8')).not.toContain('private interview answer');
     await expect(store.get('interview-sessions', 'session_123')).resolves.toBe(secret);
@@ -102,14 +105,16 @@ describe('EncryptedRecordStore', () => {
     await expect(store.list('practice')).resolves.toEqual([]);
   });
 
-
   it('authenticates the namespace and identifier as associated data', async () => {
     const store = createStore();
     await store.set('candidate-vault', 'candidate_1', 'private');
     await expect(store.get('candidate-vault', 'candidate_2')).resolves.toBeNull();
 
     const directory = path.join(rootDir, 'records', 'candidate-vault');
-    const sourceDigest = crypto.createHash('sha256').update('candidate_1', 'utf8').digest('hex');
+    const sourceDigest = crypto
+      .createHash('sha256')
+      .update('candidate_1', 'utf8')
+      .digest('hex');
     const source = path.join(directory, sourceDigest + '.json');
     const targetDirectory = path.join(rootDir, 'records', 'practice');
     fs.mkdirSync(targetDirectory, { recursive: true });
@@ -123,7 +128,11 @@ describe('EncryptedRecordStore', () => {
     await store.set('practice', 'answer_1', 'private');
 
     const directory = path.join(rootDir, 'records', 'practice');
-    const file = path.join(directory, fs.readdirSync(directory)[0]);
+    const recordDigest = crypto
+      .createHash('sha256')
+      .update('answer_1', 'utf8')
+      .digest('hex');
+    const file = path.join(directory, recordDigest + '.json');
     const envelope = JSON.parse(fs.readFileSync(file, 'utf8'));
     envelope.ciphertext = Buffer.from('tampered').toString('base64');
     fs.writeFileSync(file, JSON.stringify(envelope));
