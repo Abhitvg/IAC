@@ -1,7 +1,7 @@
 import { createHash, createHmac } from 'node:crypto';
 import type { GeneratedDataKey, TenantKeyManagementService } from '../../../../packages/cloud-core/src/encryption';
 
-interface AwsCredentials {
+export interface AwsCredentials {
   accessKeyId: string;
   secretAccessKey: string;
   sessionToken?: string;
