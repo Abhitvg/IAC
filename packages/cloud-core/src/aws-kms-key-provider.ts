@@ -229,9 +229,10 @@ export class AwsKmsTenantKeyProvider implements TenantKeyProvider {
       headers['x-amz-security-token'] = credentials.sessionToken;
     }
 
-    const signedHeaderNames = Object.keys(headers).sort();
+    const canonicalHeaderValues = { ...headers, host };
+    const signedHeaderNames = Object.keys(canonicalHeaderValues).sort();
     const canonicalHeaders = signedHeaderNames
-      .map((name) => `${name}:${headers[name].trim()}\n`)
+      .map((name) => `${name}:${canonicalHeaderValues[name].trim()}\n`)
       .join('');
     const canonicalRequest = [
       'POST',
