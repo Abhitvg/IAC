@@ -166,8 +166,8 @@ describe('EncryptedRecordStore', () => {
     await expect(store.set('practice', '../escape', 'secret')).rejects.toThrow(
       'Invalid secure record'
     );
-    await expect(store.set('practice', 'large', 'x'.repeat(5 * 1024 * 1024 + 1))).rejects.toThrow(
-      '5 MiB'
-    );
+    await expect(
+      store.set('practice', 'large', 'x'.repeat(5 * 1024 * 1024 + 1))
+    ).rejects.toThrow('5 MiB');
   });
 });
