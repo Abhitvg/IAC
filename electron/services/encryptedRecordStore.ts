@@ -130,11 +130,13 @@ export class EncryptedRecordStore {
       }
     }
 
-    let available = false;
+    let available: boolean;
     try {
       available = await this.storage.isAsyncEncryptionAvailable();
     } catch {
-      available = false;
+      throw new Error(
+        'OS-backed secure storage is unavailable. Unlock or configure the system keyring before using encrypted records.'
+      );
     }
 
     if (!available) {
