@@ -60,7 +60,7 @@ function matchCase(source: string, replacement: string): string {
 
 function toJavaScriptRegex(source: string): string {
   // The vendored lexicon uses Python's (?i) and \\UXXXXXXXX syntax.
-  return source.replace(/\(\?i\)/g, '').replace(/\\U([0-9A-Fa-f]{8})/g, '\\\\u{$1}');
+  return source.replace(/\(\?i\)/g, '').replace(/\\U([0-9A-Fa-f]{8})/g, '\\u{$1}');
 }
 
 function structuralFlags(text: string): string[] {
@@ -114,7 +114,7 @@ export function humanizeLinkedInText(input: string): HumanizeResult {
     for (const entry of entries) {
       if (!entry.find) continue;
       const pattern = new RegExp(
-        '\\\\b' + entry.find.trim().split(/\s+/).map(escapeRegex).join('\\\\s+') + '\\\\b',
+        '\\b' + entry.find.trim().split(/\s+/).map(escapeRegex).join('\\s+') + '\\b',
         'giu'
       );
       part = part.replace(pattern, (match) => {
@@ -126,7 +126,7 @@ export function humanizeLinkedInText(input: string): HumanizeResult {
     return part
       .replace(/[ \t]{2,}/g, ' ')
       .replace(/\s+([,.;:!?])/g, '$1')
-      .replace(/\n{3,}/g, '\\n\\n');
+      .replace(/\n{3,}/g, '\n\n');
   });
 
   const flags = structuralFlags(text);
@@ -137,7 +137,7 @@ export function humanizeLinkedInText(input: string): HumanizeResult {
 }
 
 function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function words(text: string): string[] {
@@ -172,7 +172,7 @@ export function scoreLinkedInText(
 
   const stockCount = [...terms.words, ...terms.phrases].reduce((sum, entry) => {
     const pattern = new RegExp(
-      '\\\\b' + entry.find.trim().split(/\s+/).map(escapeRegex).join('\\\\s+') + '\\\\b',
+      '\\b' + entry.find.trim().split(/\s+/).map(escapeRegex).join('\\s+') + '\\b',
       'giu'
     );
     return sum + [...text.matchAll(pattern)].length;
