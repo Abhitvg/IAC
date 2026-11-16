@@ -164,6 +164,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('evidence:verify-audit', attestation),
   verifyInspectionSeal: (result: any) => ipcRenderer.invoke('evidence:verify-seal', result),
 
+  // Local, aggregate-only interview reliability history
+  getReliabilitySnapshots: () => ipcRenderer.invoke('diagnostics:reliability:get-snapshots'),
+  saveReliabilitySnapshot: (summary: unknown) =>
+    ipcRenderer.invoke('diagnostics:reliability:save-snapshot', summary),
+  clearReliabilitySnapshots: () => ipcRenderer.invoke('diagnostics:reliability:clear-snapshots'),
+
   // Clipboard
   copyToClipboard: (text: string) => ipcRenderer.invoke('clipboard:write-text', text),
   readClipboard: () => ipcRenderer.invoke('clipboard:read-text'),
