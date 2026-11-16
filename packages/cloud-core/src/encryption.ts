@@ -72,7 +72,9 @@ export class EnvironmentTenantKeyProvider implements TenantKeyProvider {
   ) {}
 
   static fromJson(raw: string): EnvironmentTenantKeyProvider {
-    if (!raw || raw.length > 32_768) throw new Error('Invalid application keyring configuration');
+    if (!raw || raw.length > 32_768) {
+      throw new Error('Invalid application keyring configuration');
+    }
     let parsed: KeyringDocument;
     try {
       parsed = JSON.parse(raw) as KeyringDocument;
@@ -103,7 +105,9 @@ export class EnvironmentTenantKeyProvider implements TenantKeyProvider {
       const key = Buffer.from(encoded, 'base64');
       if (key.length !== 32 || key.toString('base64') !== encoded) {
         key.fill(0);
-        throw new Error('Application keyring keys must be canonical base64-encoded 32-byte values');
+        throw new Error(
+          'Application keyring keys must be canonical base64-encoded 32-byte values'
+        );
       }
       keys.set(version, key);
     }
@@ -155,7 +159,11 @@ export class EnvironmentTenantKeyProvider implements TenantKeyProvider {
     }
     const wrappingKey = deriveWrappingKey(masterKey, tenantId, context, keyVersion);
     try {
-      const decipher = createDecipheriv('aes-256-gcm', wrappingKey, packed.subarray(0, 12));
+      const decipher = createDecipheriv(
+        'aes-256-gcm',
+        wrappingKey,
+        packed.subarray(0, 12)
+      );
       decipher.setAAD(associatedData(tenantId, context, keyVersion));
       decipher.setAuthTag(packed.subarray(12, 28));
       const plaintext = Buffer.concat([
@@ -228,7 +236,11 @@ export class TenantEnvelopeCipher {
       throw new Error('Key provider returned an invalid unwrapped key');
     }
     try {
-      const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(envelope.iv, 'base64'));
+      const decipher = createDecipheriv(
+        'aes-256-gcm',
+        key,
+        Buffer.from(envelope.iv, 'base64')
+      );
       decipher.setAAD(associatedData(expectedTenantId, expectedContext, envelope.keyVersion));
       decipher.setAuthTag(Buffer.from(envelope.authTag, 'base64'));
       return Buffer.concat([
