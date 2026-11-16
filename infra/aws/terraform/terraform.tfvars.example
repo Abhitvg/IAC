@@ -7,7 +7,12 @@ vpc_id                   = "vpc-0bc0cb5d78fb32a15"
 public_subnet_ids        = ["subnet-06d11260177d2cc26", "subnet-0442bc7a85c52a118"]
 private_subnet_ids       = ["subnet-094d092843afe015e", "subnet-0d1956f455dd5e05d"]
 private_route_table_ids  = ["rtb-024d3e164c8789f0a", "rtb-06cc31d3e822913e8"]
-database_subnet_ids      = ["subnet-094d092843afe015e", "subnet-0d1956f455dd5e05d"]
+
+# REQUIRED: replace with two real, dedicated DB subnets in separate AZs.
+# These must not be either application private subnet above. Their route
+# tables must have no default route to an Internet Gateway or NAT Gateway.
+database_subnet_ids      = ["subnet-REPLACE_WITH_DB_AZ_A", "subnet-REPLACE_WITH_DB_AZ_B"]
+
 allowed_ingress_cidrs    = ["REPLACE_WITH_YOUR_PUBLIC_IP/32"]
 kms_key_arn              = "arn:aws:kms:ap-southeast-2:165328640460:key/9dffb4cb-6a4a-40e7-b49e-40415ddb9bf7"
 container_image          = "165328640460.dkr.ecr.ap-southeast-2.amazonaws.com/careerops-staging:release-bootstrap"
