@@ -230,8 +230,9 @@ describe('LinkedIn cloud API security boundaries', () => {
       reauthorizationRequired: true,
       tokenRefreshError: true,
     });
-    expect(body.capabilities.find((item: { id: string }) => item.id === 'member_post_publish').status)
-      .not.toBe('available');
+    expect(
+      body.capabilities.find((item: { id: string }) => item.id === 'member_post_publish').status
+    ).not.toBe('available');
   });
 
   it('lists only the authenticated member tenant scheduled posts', async () => {
