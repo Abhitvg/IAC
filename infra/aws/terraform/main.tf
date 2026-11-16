@@ -355,3 +355,104 @@ resource "aws_appautoscaling_policy" "api_cpu" {
     }
   }
 }
+
+
+resource "aws_sns_topic" "operations_alerts" {
+  name              = "${local.name}-operations-alerts"
+  kms_master_key_id = "alias/aws/sns"
+  tags              = local.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "api_running_tasks" {
+  alarm_name          = "${local.name}-api-running-tasks-low"
+  alarm_description   = "Fewer than two CareerOps API tasks are running."
+  namespace           = "ECS/ContainerInsights"
+  metric_name         = "RunningTaskCount"
+  statistic           = "Average"
+  period              = 60
+  evaluation_periods  = 2
+  threshold           = 2
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "breaching"
+  dimensions = {
+    ClusterName = aws_ecs_cluster.api.name
+    ServiceName = aws_ecs_service.api.name
+  }
+  alarm_actions = [aws_sns_topic.operations_alerts.arn]
+  ok_actions    = [aws_sns_topic.operations_alerts.arn]
+  tags          = local.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
+  alarm_name          = "${local.name}-alb-5xx"
+  alarm_description   = "ALB generated five or more 5xx responses in a one-minute period."
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "HTTPCode_ELB_5XX_Count"
+  statistic           = "Sum"
+  period              = 60
+  evaluation_periods  = 2
+  threshold           = 5
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    LoadBalancer = aws_lb.api.arn_suffix
+  }
+  alarm_actions = [aws_sns_topic.operations_alerts.arn]
+  tags          = local.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "unhealthy_targets" {
+  alarm_name          = "${local.name}-unhealthy-targets"
+  alarm_description   = "At least one unhealthy CareerOps API target is registered."
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "UnHealthyHostCount"
+  statistic           = "Maximum"
+  period              = 60
+  evaluation_periods  = 2
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "breaching"
+  dimensions = {
+    LoadBalancer = aws_lb.api.arn_suffix
+    TargetGroup  = aws_lb_target_group.api.arn_suffix
+  }
+  alarm_actions = [aws_sns_topic.operations_alerts.arn]
+  ok_actions    = [aws_sns_topic.operations_alerts.arn]
+  tags          = local.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "database_cpu" {
+  alarm_name          = "${local.name}-database-cpu-high"
+  alarm_description   = "RDS CPU remains above 80 percent."
+  namespace           = "AWS/RDS"
+  metric_name         = "CPUUtilization"
+  statistic           = "Average"
+  period              = 300
+  evaluation_periods  = 3
+  threshold           = 80
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.database.id
+  }
+  alarm_actions = [aws_sns_topic.operations_alerts.arn]
+  tags          = local.tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "database_storage" {
+  alarm_name          = "${local.name}-database-free-storage-low"
+  alarm_description   = "RDS free storage is below 10 GiB."
+  namespace           = "AWS/RDS"
+  metric_name         = "FreeStorageSpace"
+  statistic           = "Minimum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 10737418240
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "breaching"
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.database.id
+  }
+  alarm_actions = [aws_sns_topic.operations_alerts.arn]
+  tags          = local.tags
+}
