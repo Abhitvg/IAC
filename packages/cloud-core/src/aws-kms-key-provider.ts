@@ -60,9 +60,7 @@ async function defaultCredentialsProvider(
     return {
       accessKeyId,
       secretAccessKey,
-      ...(environment.AWS_SESSION_TOKEN
-        ? { sessionToken: environment.AWS_SESSION_TOKEN }
-        : {}),
+      ...(environment.AWS_SESSION_TOKEN ? { sessionToken: environment.AWS_SESSION_TOKEN } : {}),
     };
   }
 
@@ -245,12 +243,7 @@ export class AwsKmsTenantKeyProvider implements TenantKeyProvider {
       payloadHash,
     ].join('\n');
     const scope = `${date}/${this.options.region}/kms/aws4_request`;
-    const stringToSign = [
-      'AWS4-HMAC-SHA256',
-      amzDate,
-      scope,
-      sha256(canonicalRequest),
-    ].join('\n');
+    const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, sha256(canonicalRequest)].join('\n');
     const signature = hmac(
       signingKey(credentials.secretAccessKey, date, this.options.region),
       stringToSign
