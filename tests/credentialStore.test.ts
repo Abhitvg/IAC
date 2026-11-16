@@ -154,9 +154,7 @@ describe('CredentialStore', () => {
   it('rejects Groq keys with valid-looking substrings surrounded by other text', async () => {
     const creds = new CredentialStore(mockStore, tempDir);
 
-    await expect(creds.setKey('groq', 'prefix gsk_valid_key_123')).rejects.toThrow(
-      /complete key/i
-    );
+    await expect(creds.setKey('groq', 'prefix gsk_valid_key_123')).rejects.toThrow(/complete key/i);
     await expect(creds.setKey('groq-secondary', 'gsk_valid_key_123 trailing')).rejects.toThrow(
       /complete key/i
     );
