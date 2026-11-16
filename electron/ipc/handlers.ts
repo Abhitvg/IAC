@@ -531,6 +531,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     }
 
     const allowedPaths = new Set([
+      '/v1/me',
       '/v1/linkedin/status',
       '/v1/linkedin/oauth/start',
       '/v1/linkedin/connection',
@@ -583,7 +584,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
 
     const method = input.method as 'GET' | 'POST' | 'DELETE';
     const routeMethodAllowed =
-      (apiUrl.pathname === '/v1/linkedin/status' && method === 'GET') ||
+      ((apiUrl.pathname === '/v1/linkedin/status' || apiUrl.pathname === '/v1/me') && method === 'GET') ||
       (apiUrl.pathname === '/v1/controls' && method === 'GET') ||
       (apiUrl.pathname === '/v1/linkedin/connection' && method === 'DELETE') ||
       (apiUrl.pathname.startsWith('/v1/linkedin/') &&
