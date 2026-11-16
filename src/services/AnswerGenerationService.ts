@@ -703,6 +703,7 @@ export class AnswerGenerationService {
             status: timedOut ? 'FAILED' : 'ABORTED',
             isValidated: false,
             cleanAnswer: '',
+            partialAnswer: recoveredPartial || undefined,
             error: timedOut
               ? timeoutMessage || 'Generation deadline exceeded'
               : 'Generation cancelled by user',
