@@ -52,6 +52,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (key: string, value: any) => ipcRenderer.invoke('settings:set', key, value),
 
+  linkedinApiRequest: (request: {
+    method: 'GET' | 'POST' | 'DELETE';
+    path: string;
+    body?: Record<string, unknown>;
+  }) => ipcRenderer.invoke('linkedin:api-request', request),
+
   // Secure credentials
   startCloudLLMStream: (request: {
     requestId: string;
