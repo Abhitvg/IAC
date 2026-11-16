@@ -126,7 +126,7 @@ resource "aws_db_instance" "database" {
   storage_encrypted          = true
   db_name                    = var.db_name
   username                   = var.db_master_username
-  password                   = var.db_master_password
+  manage_master_user_password = true
   port                       = 5432
   db_subnet_group_name       = aws_db_subnet_group.database.name
   parameter_group_name       = aws_db_parameter_group.database.name
