@@ -246,7 +246,7 @@ describe('LinkedIn cloud API security boundaries', () => {
       create: vi.fn(async () => scheduledPost),
       cancel: vi.fn(),
     };
-    const { scheduler: _unused, ...setup } = await start({ scheduler } as Parameters<typeof makeDependencies>[0]);
+    const { recordLinkedInAction } = await start({ scheduler });
     const scheduledAt = new Date(Date.now() + 10 * 60_000).toISOString();
     const response = await fetch(baseUrl + '/v1/linkedin/scheduled-posts', {
       method: 'POST',
@@ -270,7 +270,7 @@ describe('LinkedIn cloud API security boundaries', () => {
       scheduledAt: expect.any(String),
       idempotencyKey: 'schedule_key_1234',
     });
-    expect(setup.recordLinkedInAction).toHaveBeenCalledWith(
+    expect(recordLinkedInAction).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'linkedin.member.post.schedule.requested',
         tenantId,
