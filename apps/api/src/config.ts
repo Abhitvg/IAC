@@ -18,7 +18,7 @@ const CloudEnvironmentSchema = z
     AWS_REGION: z.string().regex(/^[a-z]{2}(-gov)?-[a-z]+-[0-9]+$/).optional(),
     CAREEROPS_KMS_KEY_ARN: z
       .string()
-      .regex(/^arn:(aws|aws-us-gov|aws-cn):kms:[a-z0-9-]+:[0-9]{12}:key\/[A-Za-z0-9-]+$/)
+      .regex(/^arn:(aws|aws-us-gov|aws-cn):kms:[a-z0-9-]+:[0-9]{12}:key[/][A-Za-z0-9-]+$/)
       .optional(),
     LINKEDIN_CLIENT_ID: z.string().default(''),
     LINKEDIN_CLIENT_SECRET: z.string().default(''),
