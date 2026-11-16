@@ -76,8 +76,8 @@ INSERT INTO tenant_controls (tenant_id) VALUES
   ('20000000-0000-4000-8000-000000000002');
 SQL
 
--- Seed two tenant-bound scheduled posts through the ordinary app role. One is due
--- so the separate worker role can claim it; one is in the future for RLS checks.
+# Seed two tenant-bound scheduled posts through the ordinary app role. One is due
+# so the separate worker role can claim it; one is in the future for RLS checks.
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 SET ROLE careerops_app;
 BEGIN;
