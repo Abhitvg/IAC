@@ -696,7 +696,13 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
               fontWeight: 700,
             }}
           >
-            {status?.connected ? 'Connected' : status?.reauthorizationRequired ? 'Reconnect required' : status?.tokenRefreshError ? 'Token refresh failed' : 'Not connected'}
+            {status?.connected
+              ? 'Connected'
+              : status?.reauthorizationRequired
+                ? 'Reconnect required'
+                : status?.tokenRefreshError
+                  ? 'Token refresh failed'
+                  : 'Not connected'}
           </span>
         </div>
 
@@ -841,7 +847,8 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
             )}
             {status.tokenRefreshError && !status.reauthorizationRequired && (
               <p style={{ margin: 0, color: '#fbbf24', fontSize: 11 }}>
-                Token renewal failed. Refresh the status again; reconnect only if LinkedIn reports that reauthorization is required.
+                Token renewal failed. Refresh the status again; reconnect only if LinkedIn reports
+                that reauthorization is required.
               </p>
             )}
             <div style={{ display: 'grid', gap: 7 }}>
