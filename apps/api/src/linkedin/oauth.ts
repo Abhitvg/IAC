@@ -15,7 +15,7 @@ const DEFAULT_STATE_TTL_MS = 10 * 60 * 1000;
 
 function requiredString(value: string, name: string): string {
   const normalized = value.trim();
-  if (!normalized) throw new Error(`LinkedIn ${name} is required`);
+  if (!normalized) throw new Error('LinkedIn ' + name + ' is required');
   return normalized;
 }
 
@@ -105,14 +105,52 @@ export class LinkedInOAuthService {
     if (!stored || stored.expiresAt <= Date.now()) {
       throw new Error('LinkedIn OAuth state is invalid, expired, or already used');
     }
+    this.assertStoredState(stored, input.identity);
+    return this.exchangeAuthorizationCode(code, input.identity);
+  }
+
+  /**
+   * Completes the public LinkedIn redirect. The state is a high-entropy,
+   * one-time credential bound to the tenant/member when it was created.
+   * No tenant ID or access token is accepted from the browser callback.
+   */
+  async completeAuthorizationCallback(input: {
+    code: string;
+    state: string;
+  }): Promise<{ connected: true; scopes: string[]; expiresAt: number }> {
+    const code = requiredString(input.code, 'authorization code');
+    const state = requiredString(input.state, 'state');
+    const stored = await this.states.consumeCallback(state);
+    if (!stored || stored.expiresAt <= Date.now()) {
+      throw new Error('LinkedIn OAuth state is invalid, expired, or already used');
+    }
+    this.assertStoredState(stored, stored.identity);
+    return this.exchangeAuthorizationCode(code, stored.identity);
+  }
+
+  async cancelAuthorizationCallback(state: string): Promise<boolean> {
+    const normalized = requiredString(state, 'state');
+    const stored = await this.states.consumeCallback(normalized);
+    return Boolean(stored && stored.expiresAt > Date.now());
+  }
+
+  private assertStoredState(
+    stored: { identity: LinkedInConnectionIdentity; redirectUri: string },
+    expected: LinkedInConnectionIdentity
+  ): void {
     if (
-      !safeEqual(stored.identity.tenantId, input.identity.tenantId) ||
-      !safeEqual(stored.identity.subject, input.identity.subject) ||
+      !safeEqual(stored.identity.tenantId, expected.tenantId) ||
+      !safeEqual(stored.identity.subject, expected.subject) ||
       stored.redirectUri !== this.config.redirectUri
     ) {
       throw new Error('LinkedIn OAuth state does not match the authenticated member');
     }
+  }
 
+  private async exchangeAuthorizationCode(
+    code: string,
+    identity: LinkedInConnectionIdentity
+  ): Promise<{ connected: true; scopes: string[]; expiresAt: number }> {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -128,7 +166,7 @@ export class LinkedInOAuthService {
     });
     if (!response.ok) {
       // Never include the response body: OAuth errors can echo sensitive request data.
-      throw new Error(`LinkedIn token exchange failed with HTTP ${response.status}`);
+      throw new Error('LinkedIn token exchange failed with HTTP ' + response.status);
     }
 
     const payload = (await response.json()) as Record<string, unknown>;
@@ -152,11 +190,11 @@ export class LinkedInOAuthService {
 
     const identityResponse = await this.fetcher('https://api.linkedin.com/v2/userinfo', {
       method: 'GET',
-      headers: { authorization: `Bearer ${accessToken}` },
+      headers: { authorization: 'Bearer ' + accessToken },
       signal: AbortSignal.timeout(10_000),
     });
     if (!identityResponse.ok) {
-      throw new Error(`LinkedIn identity verification failed with HTTP ${identityResponse.status}`);
+      throw new Error('LinkedIn identity verification failed with HTTP ' + identityResponse.status);
     }
     const identityPayload = (await identityResponse.json()) as Record<string, unknown>;
     const memberId = typeof identityPayload.sub === 'string' ? identityPayload.sub.trim() : '';
@@ -178,7 +216,7 @@ export class LinkedInOAuthService {
         ? { refreshTokenExpiresAt: Date.now() + refreshExpiresIn * 1000 }
         : {}),
     };
-    await this.tokens.put(input.identity, tokenSet);
+    await this.tokens.put(identity, tokenSet);
     return { connected: true, scopes: grantedScopes, expiresAt: tokenSet.expiresAt };
   }
 
