@@ -18,8 +18,7 @@ show exactly which prerequisite is missing.
   analytics. Requires relevant approved products and scopes; `r_member_social_feed` is restricted.
 - **Official export import:** Parse member-provided LinkedIn PDF / data archive. Requires a
   user-provided export, not an API scope.
-- **Member post publishing:** Publish text, images, video, documents, and supported post types.
-  Requires `w_member_social` and relevant Posts API product access.
+- **Member post publishing:** Text and native poll posts are implemented with `w_member_social`. Image, video, document, multi-image and other media publishing require additional upload work and applicable Posts API access.
 - **Organization publishing:** Publish for an organization Page. Requires
   `w_organization_social`, approved product access, and the required Page role.
 - **Comments and reactions:** Create member comments and reactions through the Comments and Reactions APIs. Requires Community Management API access and `w_member_social_feed`; organization actions require `w_organization_social_feed` and an eligible Page role.
@@ -27,8 +26,7 @@ show exactly which prerequisite is missing.
   read scopes; member read permissions may be restricted.
 - **Editorial calendar:** Plan, draft, queue, and schedule content. Planning is local; publishing
   additionally requires write access.
-- **Carousel / media:** Prepare carousel assets and publish supported media formats. Requires
-  media upload and post API access; API format limitations apply.
+- **Carousel / media:** Planned. Media upload, multi-image and document/video post flows are not implemented in this branch; sponsored-only carousel constraints also apply.
 - **Repurposing:** Turn user-provided material into posts and campaigns. Available locally.
 - **Inbox triage:** Classify and draft replies from permitted message data. Requires official
   Communications/Messages API partner access and applicable authorization.
