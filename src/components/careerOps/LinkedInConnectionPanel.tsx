@@ -322,7 +322,7 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
     try {
       const scopes = ['openid', 'profile', 'email', 'w_member_social'];
       if (status?.entitlements?.communityManagementApproved) {
-        scopes.push('w_organization_social');
+        scopes.push('w_member_social_feed', 'w_organization_social', 'w_organization_social_feed');
       }
       const result = await apiRequest<{ authorizationUrl: string }>(
         'POST',
@@ -967,7 +967,7 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
               Member comments and reactions
             </h4>
             <p style={{ margin: 0, color: '#94a3b8', fontSize: 10 }}>
-              Requires the appropriate LinkedIn API product and granted `w_member_social` scope. Paste URNs from an authorized source; CareerOps does not scrape feeds.
+              Requires Community Management API access and the granted `w_member_social_feed` scope. Paste URNs from an authorized source; CareerOps does not scrape feeds.
             </p>
             <input
               value={commentTarget}
