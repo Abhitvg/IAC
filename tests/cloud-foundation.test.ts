@@ -19,6 +19,7 @@ import {
   type TenantKeyProvider,
 } from '../packages/cloud-core/src/encryption';
 import { resolveTenantContext, type TenantMembership } from '../packages/cloud-core/src/tenant';
+import { AwsKmsTenantKeyProvider } from '../packages/cloud-core/src/aws-kms-key-provider';
 import { createCloudApiServer } from '../apps/api/src/server';
 import { loadCloudEnvironment } from '../apps/api/src/config';
 import type { CloudApiDependencies } from '../apps/api/src/ports';
@@ -588,6 +589,68 @@ describe('M0 cloud security foundation', () => {
     expect(
       (await rotatedCipher.decrypt(legacyEnvelope, 'tenant-a', 'resume:legacy')).toString()
     ).toBe('legacy');
+  });
+
+
+  it('uses AWS KMS GenerateDataKey and Decrypt with tenant-bound encryption context', async () => {
+    const keyArn = 'arn:aws:kms:ap-south-1:123456789012:key/11111111-2222-3333-4444-555555555555';
+    const dataKey = randomBytes(32);
+    const calls: Array<{ target: string; body: Record<string, unknown>; headers: Headers }> = [];
+    const fetcher: typeof fetch = async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      const target = headers.get('x-amz-target') ?? '';
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      calls.push({ target, body, headers });
+      const response = target.endsWith('GenerateDataKey')
+        ? {
+            Plaintext: dataKey.toString('base64'),
+            CiphertextBlob: Buffer.from('kms-wrapped-data-key').toString('base64'),
+            KeyId: keyArn,
+          }
+        : { Plaintext: dataKey.toString('base64'), KeyId: keyArn };
+      return new Response(JSON.stringify(response), { status: 200 });
+    };
+    const provider = new AwsKmsTenantKeyProvider({
+      region: 'ap-south-1',
+      keyArn,
+      fetcher,
+      credentialsProvider: async () => ({
+        accessKeyId: 'ASIATESTACCESSKEY',
+        secretAccessKey: 'test-secret',
+        sessionToken: 'test-session-token',
+      }),
+    });
+    const cipher = new TenantEnvelopeCipher(provider);
+    const envelope = await cipher.encrypt(
+      'tenant-123',
+      'linkedin-token:member-1',
+      Buffer.from('oauth access token')
+    );
+    expect(envelope.keyVersion).toBe(keyArn);
+    expect(
+      (await cipher.decrypt(envelope, 'tenant-123', 'linkedin-token:member-1')).toString()
+    ).toBe('oauth access token');
+    expect(calls).toHaveLength(2);
+    expect(calls[0].target).toBe('TrentService.GenerateDataKey');
+    expect(calls[0].body).toMatchObject({
+      KeyId: keyArn,
+      KeySpec: 'AES_256',
+      EncryptionContext: {
+        'careerops:application': 'careerops',
+        'careerops:tenant_id': 'tenant-123',
+        'careerops:data_context': 'linkedin-token:member-1',
+      },
+    });
+    expect(calls[1].target).toBe('TrentService.Decrypt');
+    expect(calls[1].body).toMatchObject({
+      KeyId: keyArn,
+      EncryptionContext: calls[0].body.EncryptionContext,
+    });
+    expect(calls[0].headers.get('authorization')).toContain('AWS4-HMAC-SHA256');
+    expect(calls[0].headers.get('x-amz-security-token')).toBe('test-session-token');
+    await expect(
+      cipher.decrypt(envelope, 'other-tenant', 'linkedin-token:member-1')
+    ).rejects.toThrow('mismatch');
   });
 
   it('scopes PostgreSQL membership lookup to the verified subject in a transaction', async () => {
