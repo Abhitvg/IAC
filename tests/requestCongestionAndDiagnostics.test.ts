@@ -79,4 +79,72 @@ describe('Suite D: Request Congestion, Concurrency & Diagnostics (Phases 5 & 7)'
     // Generation ID must not increment because duplicate was ignored
     expect(useAppStore.getState().generationId).toBe(initialGen);
   });
+  it('aggregates terminal outcomes by provider/model and keeps unresolved requests separate', () => {
+    const logger = DiagnosticLoggerService.getInstance();
+    logger.recordEvent({
+      requestId: 'req_success',
+      pipelineStage: 'generating',
+      selectedProvider: 'groq',
+      selectedModel: 'llama-3.3-70b',
+    });
+    logger.recordEvent({
+      requestId: 'req_success',
+      pipelineStage: 'answer_ready',
+      finalOutcome: 'SUCCESS',
+    });
+    logger.recordEvent({
+      requestId: 'req_failed',
+      pipelineStage: 'generating',
+      selectedProvider: 'openai',
+      selectedModel: 'gpt-4.1',
+    });
+    logger.recordEvent({
+      requestId: 'req_failed',
+      pipelineStage: 'failed',
+      finalOutcome: 'FAILED',
+    });
+    logger.recordEvent({
+      requestId: 'req_pending',
+      pipelineStage: 'streaming',
+      selectedProvider: 'groq',
+      selectedModel: 'llama-3.3-70b',
+    });
+    logger.recordEvent({
+      requestId: 'req_stt',
+      pipelineStage: 'transcript_received',
+      transcriptionOutcome: 'EMPTY',
+      audioCaptureOutcome: 'FAILED',
+      sessionSaveOutcome: 'SUCCESS',
+    });
+
+    const summary = logger.getReliabilitySummary();
+    expect(summary.requestCount).toBe(4);
+    expect(summary.terminalRequestCount).toBe(2);
+    expect(summary.unresolvedRequestCount).toBe(2);
+    expect(summary.succeeded).toBe(1);
+    expect(summary.failed).toBe(1);
+    expect(summary.successRate).toBe(0.5);
+    expect(summary.transcription.empty).toBe(1);
+    expect(summary.audioCapture.failed).toBe(1);
+    expect(summary.sessionSave.success).toBe(1);
+    expect(summary.byProviderModel).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        provider: 'groq',
+        model: 'llama-3.3-70b',
+        requests: 2,
+        succeeded: 1,
+        unresolved: 1,
+        successRate: 1,
+      }),
+      expect.objectContaining({
+        provider: 'openai',
+        model: 'gpt-4.1',
+        requests: 1,
+        failed: 1,
+        successRate: 0,
+      }),
+    ]));
+    expect(logger.exportReliabilitySummaryAsJson()).toContain('"unresolvedRequestCount": 2');
+  });
+
 });
