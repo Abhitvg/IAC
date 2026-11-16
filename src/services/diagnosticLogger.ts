@@ -134,7 +134,11 @@ export class DiagnosticLoggerService {
    * explicitly unresolved rather than silently counted as failures/successes.
    */
   public getReliabilitySummary(): ReliabilitySummary {
-    const latestByRequest = new Map<string, PipelineDiagnosticEvent>();
+    const requests = new Map<string, {
+      latest: PipelineDiagnosticEvent;
+      provider: string;
+      model: string;
+    }>();
     const groups = new Map<string, ReliabilityGroupSummary>();
     const summary: ReliabilitySummary = {
       eventCount: this.events.length,
@@ -154,16 +158,17 @@ export class DiagnosticLoggerService {
     };
 
     for (const event of this.events) {
-      const previous = latestByRequest.get(event.requestId);
-      if (!previous || event.timestamp >= previous.timestamp) {
-        latestByRequest.set(event.requestId, event);
-      }
+      const request = requests.get(event.requestId);
+      requests.set(event.requestId, {
+        latest: !request || event.timestamp >= request.latest.timestamp ? event : request.latest,
+        provider: event.selectedProvider || request?.provider || 'unknown',
+        model: event.selectedModel || request?.model || 'unknown',
+      });
       if (event.transcriptionOutcome) {
-        summary.transcription[
-          event.transcriptionOutcome === 'SUCCESS' ? 'success' :
-          event.transcriptionOutcome === 'EMPTY' ? 'empty' :
-          event.transcriptionOutcome === 'FAILED' ? 'failed' : 'aborted'
-        ] += 1;
+        const key = event.transcriptionOutcome === 'SUCCESS' ? 'success'
+          : event.transcriptionOutcome === 'EMPTY' ? 'empty'
+          : event.transcriptionOutcome === 'FAILED' ? 'failed' : 'aborted';
+        summary.transcription[key] += 1;
       }
       if (event.audioCaptureOutcome === 'STARTING') summary.audioCapture.started += 1;
       if (event.audioCaptureOutcome === 'STOPPED') summary.audioCapture.stopped += 1;
@@ -173,29 +178,29 @@ export class DiagnosticLoggerService {
       if (event.sessionSaveOutcome === 'FAILED') summary.sessionSave.failed += 1;
     }
 
-    for (const event of latestByRequest.values()) {
+    for (const request of requests.values()) {
       summary.requestCount += 1;
-      const outcome = event.finalOutcome;
-      if (!outcome || outcome === 'UNCLASSIFIED' || outcome === 'CONFIRMATION_NEEDED') {
-        summary.unresolvedRequestCount += 1;
-        continue;
+      const outcome = request.latest.finalOutcome;
+      const isUnresolved = !outcome || outcome === 'UNCLASSIFIED' || outcome === 'CONFIRMATION_NEEDED';
+      if (isUnresolved) summary.unresolvedRequestCount += 1;
+      else {
+        summary.terminalRequestCount += 1;
+        if (outcome === 'SUCCESS') summary.succeeded += 1;
+        else if (outcome === 'FAILED') summary.failed += 1;
+        else if (outcome === 'BLOCKED') summary.blocked += 1;
+        else if (outcome === 'ABORTED') summary.aborted += 1;
+        else if (outcome === 'RATE_LIMITED') summary.rateLimited += 1;
       }
-      summary.terminalRequestCount += 1;
-      if (outcome === 'SUCCESS') summary.succeeded += 1;
-      else if (outcome === 'FAILED') summary.failed += 1;
-      else if (outcome === 'BLOCKED') summary.blocked += 1;
-      else if (outcome === 'ABORTED') summary.aborted += 1;
-      else if (outcome === 'RATE_LIMITED') summary.rateLimited += 1;
 
-      const provider = event.selectedProvider || 'unknown';
-      const model = event.selectedModel || 'unknown';
-      const key = `${provider}/${model}`;
+      const key = `${request.provider}/${request.model}`;
       const group = groups.get(key) || {
-        provider, model, requests: 0, succeeded: 0, failed: 0, blocked: 0,
-        aborted: 0, rateLimited: 0, unresolved: 0, successRate: null,
+        provider: request.provider, model: request.model, requests: 0,
+        succeeded: 0, failed: 0, blocked: 0, aborted: 0, rateLimited: 0,
+        unresolved: 0, successRate: null,
       };
       group.requests += 1;
-      if (outcome === 'SUCCESS') group.succeeded += 1;
+      if (isUnresolved) group.unresolved += 1;
+      else if (outcome === 'SUCCESS') group.succeeded += 1;
       else if (outcome === 'FAILED') group.failed += 1;
       else if (outcome === 'BLOCKED') group.blocked += 1;
       else if (outcome === 'ABORTED') group.aborted += 1;
@@ -203,11 +208,12 @@ export class DiagnosticLoggerService {
       groups.set(key, group);
     }
 
-    const terminal = summary.terminalRequestCount;
-    summary.successRate = terminal > 0 ? summary.succeeded / terminal : null;
+    summary.successRate = summary.terminalRequestCount > 0
+      ? summary.succeeded / summary.terminalRequestCount : null;
     summary.byProviderModel = [...groups.values()].map((group) => ({
       ...group,
-      successRate: group.requests > 0 ? group.succeeded / group.requests : null,
+      successRate: group.requests - group.unresolved > 0
+        ? group.succeeded / (group.requests - group.unresolved) : null,
     })).sort((a, b) => b.requests - a.requests);
     return summary;
   }
