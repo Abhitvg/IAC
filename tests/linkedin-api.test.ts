@@ -242,10 +242,9 @@ describe('LinkedIn API client', () => {
         })
       )
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ owner: 'urn:li:organization:99999', status: 'AVAILABLE' }),
-          { status: 200 }
-        )
+        new Response(JSON.stringify({ owner: 'urn:li:organization:99999', status: 'AVAILABLE' }), {
+          status: 200,
+        })
       );
     const client = new LinkedInApiClient({ fetcher });
     const token = makeToken(['openid', 'profile', 'w_organization_social']);

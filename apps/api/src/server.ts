@@ -612,7 +612,8 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             )
           ) {
             sendJson(response, 400, {
-              error: 'Expected organizationUrn, 1–3000 character commentary, imageUrn and 1–120 character altText',
+              error:
+                'Expected organizationUrn, 1–3000 character commentary, imageUrn and 1–120 character altText',
               requestId,
             });
             return;
@@ -631,21 +632,18 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           }
           if (!tokenSet.grantedScopes.includes('w_organization_social')) {
             sendJson(response, 403, {
-              error: 'LinkedIn organization image publishing requires the w_organization_social scope',
+              error:
+                'LinkedIn organization image publishing requires the w_organization_social scope',
               requestId,
             });
             return;
           }
-          await auditLinkedIn(
-            'linkedin.organization.image_post.publish.requested',
-            body.imageUrn,
-            {
-              organizationUrn: body.organizationUrn,
-              commentaryLength: body.commentary.length,
-              altTextLength: body.altText.length,
-              postFormat: 'image',
-            }
-          );
+          await auditLinkedIn('linkedin.organization.image_post.publish.requested', body.imageUrn, {
+            organizationUrn: body.organizationUrn,
+            commentaryLength: body.commentary.length,
+            altTextLength: body.altText.length,
+            postFormat: 'image',
+          });
           const result = await integration.api.publishOrganizationImagePost(
             tokenSet,
             body.organizationUrn,
@@ -1129,7 +1127,9 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           ? 400
           : /LinkedIn writes are disabled|LinkedIn channel is paused/i.test(message)
             ? 423
-            : /active Sprint Contract must be revoked|reviewed fact is immutable|LinkedIn image asset is not AVAILABLE/i.test(message)
+            : /active Sprint Contract must be revoked|reviewed fact is immutable|LinkedIn image asset is not AVAILABLE/i.test(
+                  message
+                )
               ? 409
               : /Only the fact contributor/i.test(message)
                 ? 403

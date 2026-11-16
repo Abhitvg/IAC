@@ -324,18 +324,15 @@ export class LinkedInApiClient {
 
     // A write grant is not treated as proof that processing has finished. Verify the
     // exact asset, its owner and its AVAILABLE state before creating a public post.
-    const imageResponse = await this.fetcher(
-      `${REST_BASE}/images/${encodeURIComponent(imageId)}`,
-      {
-        method: 'GET',
-        headers: {
-          authorization: `Bearer ${token.accessToken}`,
-          'x-restli-protocol-version': '2.0.0',
-          'linkedin-version': this.apiVersion,
-        },
-        signal: AbortSignal.timeout(20_000),
-      }
-    );
+    const imageResponse = await this.fetcher(`${REST_BASE}/images/${encodeURIComponent(imageId)}`, {
+      method: 'GET',
+      headers: {
+        authorization: `Bearer ${token.accessToken}`,
+        'x-restli-protocol-version': '2.0.0',
+        'linkedin-version': this.apiVersion,
+      },
+      signal: AbortSignal.timeout(20_000),
+    });
     if (!imageResponse.ok) {
       const retryAfter = Number(imageResponse.headers.get('retry-after'));
       throw new LinkedInApiError(
@@ -356,17 +353,11 @@ export class LinkedInApiClient {
     }
     const imageRecord = image as Record<string, unknown>;
     if (imageRecord.owner !== organizationUrn) {
-      throw new LinkedInApiError(
-        'LinkedIn image asset owner does not match the organization',
-        403
-      );
+      throw new LinkedInApiError('LinkedIn image asset owner does not match the organization', 403);
     }
     if (imageRecord.status !== 'AVAILABLE') {
-      const currentStatus =
-        typeof imageRecord.status === 'string' ? imageRecord.status : 'unknown';
-      throw new Error(
-        `LinkedIn image asset is not AVAILABLE (current status: ${currentStatus})`
-      );
+      const currentStatus = typeof imageRecord.status === 'string' ? imageRecord.status : 'unknown';
+      throw new Error(`LinkedIn image asset is not AVAILABLE (current status: ${currentStatus})`);
     }
 
     const response = await this.fetcher(`${REST_BASE}/posts`, {

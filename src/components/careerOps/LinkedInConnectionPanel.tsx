@@ -636,9 +636,7 @@ export function LinkedInConnectionPanel({ initialDraft = '' }: LinkedInConnectio
       );
     } catch (publishError) {
       setError(
-        publishError instanceof Error
-          ? publishError.message
-          : 'Organization image post failed.'
+        publishError instanceof Error ? publishError.message : 'Organization image post failed.'
       );
     } finally {
       setBusy(false);

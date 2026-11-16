@@ -31,7 +31,10 @@ function makeIntegration() {
     api: {
       publishMemberTextPost: vi.fn(async () => ({ id: 'urn:li:share:published', status: 201 })),
       publishMemberPoll: vi.fn(async () => ({ id: 'urn:li:share:poll', status: 201 })),
-      publishOrganizationImagePost: vi.fn(async () => ({ id: 'urn:li:share:image-post', status: 201 })),
+      publishOrganizationImagePost: vi.fn(async () => ({
+        id: 'urn:li:share:image-post',
+        status: 201,
+      })),
     },
     entitlements: {
       communityManagementApproved: false,
