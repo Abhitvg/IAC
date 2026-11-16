@@ -65,3 +65,22 @@ A follow-up trace of `src/store/useAppStore.ts` confirms these are plaintext bro
 The Practice store writes serialized active sessions, session history, behavioral stories, feedback records, company preparation plans, weakness plans, explainer attempts and concept cards through generic `localStorage` helpers. Those payloads can contain user answers and resume-derived information, so they must be treated as sensitive until field-level classification proves otherwise.
 
 This makes the desktop persistence migration a first-class blocker, not an optional hardening task. Server-side KMS encryption alone cannot protect plaintext that remains in browser storage on the user's device.
+
+
+## Additional verified storage paths and security caveats
+
+Further source inspection confirmed:
+
+- `src/services/session.ts` serializes complete interview sessions (questions and answers) to JSON files via `electronAPI.writeFile` in the user-data sessions directory. Loading reads those JSON files back as plaintext. The atomic file-write helper protects integrity against partial writes, not confidentiality.
+- `src/services/knowledgeVault/knowledgeVaultService.ts` serializes the candidate knowledge vault to `iac_candidate_knowledge_vault_v2` in browser `localStorage`. The vault includes profile PII, source/evidence snippets, employment, projects and technologies.
+- `src/services/practice/security/FeedbackStorageEncryption.ts` derives its default key from a public constant based on the Electron platform (or a fixed browser string) and a hard-coded salt. That is not a secret and does not provide meaningful at-rest confidentiality against an attacker who can read the application bundle and storage. Do not enable this helper with its default key source; replace it with a main-process OS-backed key service or remove it from active use. A caller-supplied passphrase has different properties but still needs explicit lifecycle, entropy, recovery and UX design.
+- `electron/services/credentialStore.ts` already uses Electron `safeStorage` for provider API keys and refuses insecure Linux `basic_text` fallback. This is a useful pattern for device-local secrets, but its existing API only handles a narrow allowlist of provider credentials; it is not a general-purpose encrypted document/session store.
+- The preload bridge currently exposes generic plaintext `readFile`/`writeFile` IPC operations and does not expose a dedicated encrypted-data API. Any such API must validate a strict logical record identifier and keep key operations in the main process; it must not accept arbitrary caller-selected filesystem paths or expose raw key material to the renderer.
+
+## Refined desktop/local data-at-rest priorities
+
+1. P0: disable/rework the deterministic-default `FeedbackStorageEncryption` helper before treating its output as protected.
+2. P0: add a main-process, OS-backed encrypted file-store abstraction with authenticated encryption, versioned envelopes, strict logical namespaces, atomic writes, safe migration and no key export to renderer.
+3. P0: migrate interview session JSON files and localStorage stores (Candidate Vault, Knowledge Vault, CareerOps, Practice, workspaces/resume/JD) using read-verify-write-verify-cleanup sequencing. Do not delete plaintext until the encrypted copy is durably verified and a recovery strategy exists.
+4. P1: define multi-device sync and cloud backup separately; a device-bound safeStorage key cannot decrypt data on another device and must not be reused as a cloud tenant key.
+5. P1: define behavior on Linux without a secure keyring: either require configuration, or require an explicit user-managed passphrase with a documented recovery model. Never silently fall back to a public constant.
