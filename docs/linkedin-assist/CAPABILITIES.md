@@ -97,7 +97,7 @@ show exactly which prerequisite is missing.
 ### Not implemented or not entitled by default
 
 - Optional background scheduling for member text posts is implemented behind `LINKEDIN_SCHEDULER_ENABLED` (default off). It requires a dedicated `CAREEROPS_SCHEDULER_DATABASE_URL` login granted membership in `careerops_scheduler`; `careerops_app` cannot claim or transition cross-tenant rows. Media scheduling, bulk campaigns and autonomous content generation/publication are not implemented.
-- Media uploads, documents, video and carousel creation.
+- Image, document and video uploads; multi-image posts; and carousel creation. Native member polls are implemented, but other media formats are not.
 - Member feed, profile activity and inbox reads.
 - Direct messages, invitations and communications execution. These are partner-restricted and remain unavailable until LinkedIn approves the exact application and CareerOps implements the required API clients.
 - Analytics, reporting and profile import through member read APIs.
