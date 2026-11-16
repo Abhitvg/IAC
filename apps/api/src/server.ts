@@ -102,16 +102,27 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           sendHtml(response, 405, 'This callback only accepts a browser redirect.');
           return;
         }
-        const state = url.searchParams.get('state') ?? '';
-        const code = url.searchParams.get('code');
-        const providerError = url.searchParams.get('error');
-        const allowedParams = providerError
+        const stateValues = url.searchParams.getAll('state');
+        const codeValues = url.searchParams.getAll('code');
+        const errorValues = url.searchParams.getAll('error');
+        const descriptionValues = url.searchParams.getAll('error_description');
+        const state = stateValues[0] ?? '';
+        const code = codeValues[0] ?? null;
+        const providerError = errorValues[0] ?? null;
+        const hasProviderError = url.searchParams.has('error');
+        const allowedParams = hasProviderError
           ? ['state', 'error', 'error_description']
           : ['state', 'code'];
         if (
+          stateValues.length !== 1 ||
+          codeValues.length > 1 ||
+          errorValues.length > 1 ||
+          descriptionValues.length > 1 ||
           !/^[A-Za-z0-9_-]{40,64}$/.test(state) ||
           [...url.searchParams.keys()].some((key) => !allowedParams.includes(key)) ||
-          (providerError ? Boolean(code) : !code || code.length > 4096)
+          (hasProviderError
+            ? !providerError?.trim() || Boolean(code)
+            : !code || code.length > 4096)
         ) {
           sendHtml(
             response,
@@ -121,7 +132,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           return;
         }
         try {
-          if (providerError) {
+          if (hasProviderError) {
             const cancelled = await integration.oauth.cancelAuthorizationCallback(state);
             sendHtml(
               response,
