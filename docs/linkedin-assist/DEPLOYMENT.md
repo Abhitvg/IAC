@@ -76,10 +76,16 @@ Refresh tokens are used only when LinkedIn returns one for the approved applicat
 
 Scheduled member text publishing is implemented but disabled by default. To enable it:
 
-1. Apply `apps/api/migrations/0008_linkedin_scheduled_posts.sql` with the migration role. It creates a tenant/subject RLS table and narrowly scoped worker functions. The application role does not receive `BYPASSRLS` or membership in the no-login worker function role.
-2. Set `LINKEDIN_SCHEDULER_ENABLED=true` on the API service and optionally configure `LINKEDIN_SCHEDULER_POLL_MS`.
-3. Confirm the Share on LinkedIn product and `w_member_social` scope are approved and granted.
-4. Run a staging schedule, pause the tenant, cancel a pending post, and test worker restart / ambiguous outcomes before enabling production traffic.
+1. Apply `apps/api/migrations/0008_linkedin_scheduled_posts.sql` with the migration role. It creates a tenant/subject RLS table, a no-login function-owner role, a no-login `careerops_scheduler` execution group, and narrowly scoped worker functions. The application role does not receive `BYPASSRLS`, membership in the scheduler group, or execute permission on the cross-tenant claim / transition functions.
+2. Provision a dedicated LOGIN role for the worker and grant it membership in `careerops_scheduler`. For example (use your secret manager to supply the password):
+   ```sql
+   CREATE ROLE careerops_scheduler_login LOGIN PASSWORD '<managed-secret>';
+   GRANT careerops_scheduler TO careerops_scheduler_login;
+   ```
+   Set `CAREEROPS_SCHEDULER_DATABASE_URL` to this login. Do not reuse the `careerops_app` connection URL. The worker pool only calls the restricted claim / transition functions; it does not need direct table grants.
+3. Set `LINKEDIN_SCHEDULER_ENABLED=true` on the API service and optionally configure `LINKEDIN_SCHEDULER_POLL_MS`.
+4. Confirm the Share on LinkedIn product and `w_member_social` scope are approved and granted.
+5. Run a staging schedule, pause the tenant, cancel a pending post, and test worker restart / ambiguous outcomes before enabling production traffic.
 
 The queue supports text-only member posts. It does not retry ambiguous external outcomes: the row becomes `unknown_outcome` to avoid publishing duplicates. A worker outage that misses a scheduled time by over one hour results in `needs_review` rather than a late public post.
 
