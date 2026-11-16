@@ -46,6 +46,42 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
   return createServer(async (request, response) => {
     const requestId = randomUUID();
     response.setHeader('x-request-id', requestId);
+    response.setHeader('vary', 'Origin');
+    const origin = request.headers.origin;
+    const allowedOrigins = new Set(dependencies.config.allowedOrigins ?? []);
+    const originAllowed = typeof origin === 'string' && allowedOrigins.has(origin);
+    if (originAllowed) {
+      response.setHeader('access-control-allow-origin', origin);
+    }
+
+    // The API uses bearer tokens, not browser cookies. Never enable credentialed CORS.
+    if (request.method === 'OPTIONS') {
+      const requestedMethod = request.headers['access-control-request-method'];
+      const requestedHeaders = (request.headers['access-control-request-headers'] ?? '')
+        .split(',')
+        .map((header) => header.trim().toLowerCase())
+        .filter(Boolean);
+      const allowedMethods = new Set(['GET', 'POST', 'DELETE']);
+      const allowedHeaders = new Set(['authorization', 'content-type', 'x-tenant-id']);
+      if (
+        !originAllowed ||
+        typeof requestedMethod !== 'string' ||
+        !allowedMethods.has(requestedMethod.toUpperCase()) ||
+        requestedHeaders.some((header) => !allowedHeaders.has(header))
+      ) {
+        sendJson(response, 403, { error: 'CORS preflight rejected', requestId });
+        return;
+      }
+      response.writeHead(204, {
+        'access-control-allow-origin': origin!,
+        'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+        'access-control-allow-headers': 'Authorization, Content-Type, X-Tenant-ID',
+        'access-control-max-age': '600',
+        'cache-control': 'no-store',
+      });
+      response.end();
+      return;
+    }
 
     try {
       const url = new URL(request.url ?? '/', 'http://localhost');
