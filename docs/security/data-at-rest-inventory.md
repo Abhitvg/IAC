@@ -80,3 +80,13 @@ Further source inspection confirmed:
 3. P0: migrate interview session JSON files and localStorage stores (Candidate Vault, Knowledge Vault, CareerOps, Practice, workspaces/resume/JD) using read-verify-write-verify-cleanup sequencing. Do not delete plaintext until the encrypted copy is durably verified and a recovery strategy exists.
 4. P1: define multi-device sync and cloud backup separately; a device-bound safeStorage key cannot decrypt data on another device and must not be reused as a cloud tenant key.
 5. P1: define behavior on Linux without a secure keyring: either require configuration, or require an explicit user-managed passphrase with a documented recovery model. Never silently fall back to a public constant.
+
+
+## Implementation status update (2026-11-16)
+
+- The Electron secure-record store now maintains an authenticated encrypted namespace index and exposes trusted IPC enumeration. The index is itself encrypted and binds to the namespace through AES-GCM AAD.
+- The interview-session service now writes new session records through the Electron encrypted-record API. It reads existing legacy session files for continuity but does not migrate or delete them automatically.
+- The separate `useAppStore` interview-history writer no longer writes new session history to plaintext localStorage or generic filesystem paths. Legacy localStorage history remains readable for manual export; explicit deletion removes the selected item.
+- Browser-wide encrypted storage is **not implemented**. The browser design and release gates are documented in `docs/security/browser-encrypted-storage-design.md`. Sensitive browser writes must remain disabled/fail-closed until the passphrase unlock flow and IndexedDB adapter are implemented and tested.
+- Candidate vault, Knowledge Vault, practice history, CareerOps pipeline/discovery data, and other previously inventoried stores still require migration. This work must not be represented as complete encryption of all local data.
+- The user's selected migration policy is manual: no automatic plaintext migration or source deletion. A user-facing export/backup and verified import workflow is still a release blocker.
