@@ -351,7 +351,21 @@ export class LinkedInScheduledPostWorker {
         return;
       }
 
-      const tokenSet = await this.integration.oauth.getValidToken(identity);
+      let tokenSet;
+      try {
+        tokenSet = await this.integration.oauth.getValidToken(identity);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        if (
+          /reconnect the account|refresh token expired|token refresh failed with HTTP (400|401)/i.test(
+            message
+          )
+        ) {
+          await this.store.markFailed(post, 'linkedin_reauthorization_required');
+          return;
+        }
+        throw error;
+      }
       if (!tokenSet) {
         await this.store.markFailed(post, 'linkedin_connection_missing');
         return;
