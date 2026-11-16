@@ -7,4 +7,9 @@ CREATE POLICY linkedin_oauth_states_callback_consume
   FOR DELETE
   USING (current_setting('app.linkedin_oauth_callback', true) = 'true');
 
+CREATE POLICY linkedin_oauth_states_callback_returning
+  ON linkedin_oauth_states
+  FOR SELECT
+  USING (current_setting('app.linkedin_oauth_callback', true) = 'true');
+
 COMMIT;
