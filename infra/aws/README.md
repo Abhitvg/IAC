@@ -2,7 +2,7 @@
 
 ## Selected deployment profile
 
-The current deployment profile is pinned to AWS account `165328640460` and region `ap-southeast-2` (Sydney). This supersedes the earlier `ap-south-1` draft. The account ARN `arn:aws:account::165328640460:account` identifies the account; it is **not** a KMS key ARN. Supply the existing customer-managed KMS key ARN separately in the form `arn:aws:kms:ap-southeast-2:165328640460:key/KEY-ID`. The example tfvars deliberately contains a placeholder rather than inventing a key ID.
+The current deployment profile is pinned to AWS account `165328640460` and region `ap-southeast-2` (Sydney). This supersedes the earlier `ap-south-1` draft. The existing customer-managed KMS key is confirmed as `arn:aws:kms:ap-southeast-2:165328640460:key/9dffb4cb-6a4a-40e7-b49e-40415ddb9bf7`. The account ARN `arn:aws:account::165328640460:account` identifies the account; it is not a KMS key ARN.
 
 Initial capacity profile: two API tasks across at least two AZs, 0.5 vCPU / 1 GiB per task, autoscaling capped at four tasks, RDS PostgreSQL `db.t4g.medium` Multi-AZ with 50 GiB gp3 storage, seven-day automated backups, and 30-day application log retention. Deletion protection stays enabled. This is a starting profile, not a price quote; validate actual regional pricing and expected request/job volume before applying.
 
@@ -29,7 +29,7 @@ CareerOps calls AWS KMS directly from the API runtime using SigV4-signed KMS JSO
 
 Sensitive LinkedIn OAuth tokens are encrypted with AES-256-GCM using a fresh data key from KMS `GenerateDataKey`. Only the encrypted data key is stored with the envelope. Reads call KMS `Decrypt` with the exact same encryption context. The context binds `application=careerops`, the authenticated `tenant_id`, and the `data_context` purpose. The API task role receives only `kms:GenerateDataKey` and `kms:Decrypt` on the configured key ARN, conditioned on the application context. It does not receive `kms:*`, key administration, key deletion, or key-policy permissions.
 
-The configured KMS key must be in the selected account and `ap-southeast-2`. The configured KMS key must have a key policy that permits IAM delegation for the account (the account-root statement in the policy you supplied does this) or explicitly grants the CareerOps task role the two crypto actions. Keep key administrators separate from the application role. Enable automatic key rotation and retain access to old KMS keys until envelopes encrypted under them have been migrated.
+The configured KMS key is `arn:aws:kms:ap-southeast-2:165328640460:key/9dffb4cb-6a4a-40e7-b49e-40415ddb9bf7`. The supplied key policy includes account-root IAM delegation, allowing the ECS task role's scoped IAM policy to authorize the two crypto actions, subject to the key remaining enabled and the role being assumed successfully. Keep key administrators separate from the application role. Enable automatic key rotation and retain access to old KMS keys until envelopes encrypted under them have been migrated.
 
 The API uses the existing key ARN supplied as `kms_key_arn`; Terraform does not create, replace, or rewrite your existing key policy. Add a KMS interface VPC endpoint (`com.amazonaws.<region>.kms`) or NAT egress for private ECS tasks.
 
