@@ -40,6 +40,25 @@ describe('EncryptedRecordStore', () => {
     await expect(store.get('interview-sessions', 'session_123')).resolves.toBe(secret);
   });
 
+  it('lists only authenticated records and removes deleted identifiers', async () => {
+    const store = createStore();
+    await store.set('interview-sessions', 'session_a', 'first');
+    await store.set('interview-sessions', 'session_b', 'second');
+    expect(await store.list('interview-sessions')).toEqual(['session_a', 'session_b']);
+    await store.delete('interview-sessions', 'session_a');
+    expect(await store.list('interview-sessions')).toEqual(['session_b']);
+  });
+
+  it('preserves concurrent record identifiers in the encrypted index', async () => {
+    const store = createStore();
+    await Promise.all(
+      Array.from({ length: 12 }, (_, index) =>
+        store.set('practice', 'answer_' + index, 'value_' + index)
+      )
+    );
+    expect(await store.list('practice')).toHaveLength(12);
+  });
+
   it('authenticates the namespace and identifier as associated data', async () => {
     const store = createStore();
     await store.set('candidate-vault', 'candidate_1', 'private');
