@@ -45,6 +45,14 @@ variable "private_subnet_ids" {
     error_message = "At least two private application subnets are required."
   }
 }
+variable "private_route_table_ids" {
+  type        = list(string)
+  description = "Existing private route table IDs, ordered to match private_subnet_ids."
+  validation {
+    condition     = length(var.private_route_table_ids) == 2 && length(distinct(var.private_route_table_ids)) == 2
+    error_message = "Provide exactly two distinct existing private route table IDs, one for each private subnet."
+  }
+}
 variable "database_subnet_ids" {
   type = list(string)
   validation {
