@@ -594,6 +594,62 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           return;
         }
 
+        if (request.method === 'POST' && url.pathname === '/v1/linkedin/organization/image-posts') {
+          const body = await readJson(request, maxBytes);
+          if (
+            typeof body.organizationUrn !== 'string' ||
+            !/^urn:li:organization:\\d+$/.test(body.organizationUrn) ||
+            typeof body.commentary !== 'string' ||
+            !body.commentary.trim() ||
+            body.commentary.trim().length > 3000 ||
+            typeof body.imageUrn !== 'string' ||
+            !/^urn:li:image:[A-Za-z0-9_-]+$/.test(body.imageUrn) ||
+            typeof body.altText !== 'string' ||
+            !body.altText.trim() ||
+            body.altText.trim().length > 120 ||
+            Object.keys(body).some(
+              (key) => !['organizationUrn', 'commentary', 'imageUrn', 'altText'].includes(key)
+            )
+          ) {
+            sendJson(response, 400, {
+              error: 'Expected organizationUrn, 1–3000 character commentary, imageUrn and 1–120 character altText',
+              requestId,
+            });
+            return;
+          }
+          if (!integration.entitlements.communityManagementApproved) {
+            sendJson(response, 403, {
+              error: 'LinkedIn Community Management API approval is required',
+              requestId,
+            });
+            return;
+          }
+          const tokenSet = await integration.oauth.getValidToken(linkedInIdentity);
+          if (!tokenSet) {
+            sendJson(response, 409, { error: 'Connect LinkedIn before publishing', requestId });
+            return;
+          }
+          await auditLinkedIn(
+            'linkedin.organization.image_post.publish.requested',
+            body.imageUrn,
+            {
+              organizationUrn: body.organizationUrn,
+              commentaryLength: body.commentary.length,
+              altTextLength: body.altText.length,
+              postFormat: 'image',
+            }
+          );
+          const result = await integration.api.publishOrganizationImagePost(
+            tokenSet,
+            body.organizationUrn,
+            body.commentary,
+            body.imageUrn,
+            body.altText
+          );
+          sendJson(response, 201, { postId: result.id, status: result.status, requestId });
+          return;
+        }
+
         if (request.method === 'POST' && url.pathname === '/v1/linkedin/organization/comments') {
           const body = await readJson(request, maxBytes);
           if (
@@ -1066,7 +1122,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           ? 400
           : /LinkedIn writes are disabled|LinkedIn channel is paused/i.test(message)
             ? 423
-            : /active Sprint Contract must be revoked|reviewed fact is immutable/i.test(message)
+            : /active Sprint Contract must be revoked|reviewed fact is immutable|LinkedIn image asset is not AVAILABLE/i.test(message)
               ? 409
               : /Only the fact contributor/i.test(message)
                 ? 403
