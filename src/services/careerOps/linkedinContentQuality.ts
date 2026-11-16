@@ -36,10 +36,14 @@ function matchCase(source: string, replacement: string): string {
   if (/^\p{Lu}/u.test(source)) return replacement[0].toLocaleUpperCase() + replacement.slice(1);
   return replacement;
 }
+function toJavaScriptRegex(source: string): string {
+  // The vendored lexicon uses Python's (?i) and \\UXXXXXXXX syntax.
+  return source.replace(/\\(\?i\)/g, '').replace(/\\\\U([0-9A-Fa-f]{8})/g, '\\\\u{$1}');
+}
 function structuralFlags(text: string): string[] {
   const flags: string[] = [];
   for (const item of terms.structures) {
-    try { if (new RegExp(item.regex, 'gim').test(text)) flags.push(item.name); } catch { /* ignore invalid lexicon pattern */ }
+    try { if (new RegExp(toJavaScriptRegex(item.regex), 'gimu').test(text)) flags.push(item.name); } catch { /* ignore invalid lexicon pattern */ }
   }
   const bullets = text.match(/^\s*[-*•]\s+.+$/gm) ?? [];
   if (bullets.length >= 3) {
@@ -64,12 +68,12 @@ export function humanizeLinkedInText(input: string): HumanizeResult {
     for (const entry of entries) {
       if (!entry.find) continue;
       const pattern = new RegExp('\\b' + entry.find.trim().split(/\s+/).map(escapeRegex).join('\\s+') + '\\b', 'giu');
-      part = part.replace(pattern, (match) => matchCase(match, entry.replace));
+      part = part.replace(pattern, (match) => { lexicalChanged = true; return matchCase(match, entry.replace); });
     }
     return part.replace(/[ \t]{2,}/g, ' ').replace(/\s+([,.;:!?])/g, '$1').replace(/\n{3,}/g, '\n\n');
   });
   const flags = structuralFlags(text);
-  if (text !== input && !changes.includes('Replaced stock phrases with plainer wording')) changes.push('Replaced stock phrases with plainer wording');
+  if (lexicalChanged) changes.push('Replaced stock phrases with plainer wording');
   return { text: text.trim(), changes: [...new Set(changes)], structuralFlags: flags };
 }
 function escapeRegex(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
@@ -96,7 +100,7 @@ export function scoreLinkedInText(text: string, contentKind: ContentKind = 'post
   const flags = structuralFlags(text);
   const checks = {
     readability: { score: cv === null || sentenceList.length < 2 ? null : Math.round(scaled(cv,0.55,0.12)), detail: cv === null ? 'Need at least two complete sentences.' : `Sentence-length variation: ${cv.toFixed(2)}.` },
-    specificity: { score: enough ? Math.round(Math.min(100, (text.match(/\b\d+(?:[.,]\d+)?%?\b/g) ?? []).length * 12)) : null, detail: enough ? 'Checks for concrete figures; verify names, examples and claims manually.' : `Need at least ${shortLimit} words for this content type.` },
+    specificity: { score: enough ? Math.round(Math.min(100, (text.match(/\b\d+(?:[.,]\d+)?%?\b/g) ?? []).length * 12)) : null, detail: enough ? 'Counts numeric references only; verify names, examples and claims manually. This is not a measure of truth or writing quality.' : `Need at least ${shortLimit} words for this content type.` },
     stockLanguage: { score: tokens.length ? Math.round(scaled(stockCount*100/tokens.length,0,4)) : null, detail: `${stockCount} stock-lexicon matches.` },
     typography: { score: Math.round(scaled(typography*1000/Math.max(text.length,1),0,12)), detail: `${invisible} invisible characters, ${hardSpaces} nonstandard spaces, ${typography} weighted typography markers.` },
     voice: { score: enough ? Math.round(Math.max(0,Math.min(100,50 + contractions*8 + pronouns*2 - flags.length*8))) : null, detail: enough ? `${contractions} contractions and ${pronouns} personal pronouns; review flags rather than adding them artificially.` : `Need at least ${shortLimit} words for this content type.` },
