@@ -66,6 +66,16 @@ const CloudEnvironmentSchema = z
       values.LINKEDIN_KMS_KEY_ID,
       values.AWS_REGION,
     ];
+    if (
+      values.LINKEDIN_SCHEDULER_ENABLED &&
+      values.CAREEROPS_SCHEDULER_DATABASE_URL === values.CAREEROPS_DATABASE_URL
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['CAREEROPS_SCHEDULER_DATABASE_URL'],
+        message: 'The scheduler database URL must not reuse the application database login',
+      });
+    }
     if (values.LINKEDIN_SCHEDULER_ENABLED && !values.CAREEROPS_SCHEDULER_DATABASE_URL) {
       context.addIssue({
         code: 'custom',
@@ -91,7 +101,10 @@ const CloudEnvironmentSchema = z
     }
     if (values.LINKEDIN_ENABLED && values.LINKEDIN_REDIRECT_URI) {
       const redirect = new URL(values.LINKEDIN_REDIRECT_URI);
-      if (redirect.protocol !== 'https:' && redirect.hostname !== 'localhost') {
+      const isLocalDevelopmentRedirect =
+        redirect.protocol === 'http:' &&
+        ['localhost', '127.0.0.1', '[::1]'].includes(redirect.hostname);
+      if (redirect.protocol !== 'https:' && !isLocalDevelopmentRedirect) {
         context.addIssue({
           code: 'custom',
           path: ['LINKEDIN_REDIRECT_URI'],
