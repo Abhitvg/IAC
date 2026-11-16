@@ -235,6 +235,24 @@ resource "aws_iam_role" "task" {
   tags               = local.tags
 }
 
+data "aws_iam_policy_document" "kms_data_key" {
+  statement {
+    actions   = ["kms:GenerateDataKey", "kms:Decrypt"]
+    resources = [var.kms_key_arn]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:EncryptionContext:careerops:application"
+      values   = ["careerops"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "kms_data_key" {
+  name   = "${local.name}-kms-envelope-encryption"
+  role   = aws_iam_role.task.id
+  policy = data.aws_iam_policy_document.kms_data_key.json
+}
+
 resource "aws_ecs_cluster" "api" {
   name = local.name
   setting {
@@ -264,7 +282,9 @@ resource "aws_ecs_task_definition" "api" {
     environment = [
       { name = "NODE_ENV", value = "production" },
       { name = "PORT", value = "3000" },
-      { name = "HOST", value = "0.0.0.0" }
+      { name = "HOST", value = "0.0.0.0" },
+      { name = "AWS_REGION", value = var.aws_region },
+      { name = "CAREEROPS_KMS_KEY_ARN", value = var.kms_key_arn }
     ]
     secrets = [
       { name = "CAREEROPS_DATABASE_URL", valueFrom = "${var.app_secrets_arn}:CAREEROPS_DATABASE_URL::" },
@@ -272,7 +292,10 @@ resource "aws_ecs_task_definition" "api" {
       { name = "CAREEROPS_JWT_AUDIENCE", valueFrom = "${var.app_secrets_arn}:CAREEROPS_JWT_AUDIENCE::" },
       { name = "CAREEROPS_JWKS_URL", valueFrom = "${var.app_secrets_arn}:CAREEROPS_JWKS_URL::" },
       { name = "CAREEROPS_CONSENT_SIGNING_SECRET", valueFrom = "${var.app_secrets_arn}:CAREEROPS_CONSENT_SIGNING_SECRET::" },
-      { name = "CAREEROPS_RATE_LIMIT_HASH_SECRET", valueFrom = "${var.app_secrets_arn}:CAREEROPS_RATE_LIMIT_HASH_SECRET::" }
+      { name = "CAREEROPS_RATE_LIMIT_HASH_SECRET", valueFrom = "${var.app_secrets_arn}:CAREEROPS_RATE_LIMIT_HASH_SECRET::" },
+      { name = "LINKEDIN_CLIENT_ID", valueFrom = "${var.app_secrets_arn}:LINKEDIN_CLIENT_ID::" },
+      { name = "LINKEDIN_CLIENT_SECRET", valueFrom = "${var.app_secrets_arn}:LINKEDIN_CLIENT_SECRET::" },
+      { name = "LINKEDIN_REDIRECT_URI", valueFrom = "${var.app_secrets_arn}:LINKEDIN_REDIRECT_URI::" }
     ]
     logConfiguration = {
       logDriver = "awslogs"
@@ -307,7 +330,7 @@ resource "aws_ecs_service" "api" {
     container_name   = "careerops-api"
     container_port   = 3000
   }
-  depends_on = [aws_lb_listener.https, aws_iam_role_policy_attachment.execution_managed, aws_iam_role_policy.read_app_secret]
+  depends_on = [aws_lb_listener.https, aws_iam_role_policy_attachment.execution_managed, aws_iam_role_policy.read_app_secret, aws_iam_role_policy.kms_data_key]
   tags = local.tags
 }
 
