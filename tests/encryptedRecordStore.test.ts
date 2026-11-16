@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -47,6 +48,22 @@ describe('EncryptedRecordStore', () => {
     expect(await store.list('interview-sessions')).toEqual(['session_a', 'session_b']);
     await store.delete('interview-sessions', 'session_a');
     expect(await store.list('interview-sessions')).toEqual(['session_b']);
+  });
+
+  it('repairs stale identifiers when indexed record files are missing', async () => {
+    const store = createStore();
+    await store.set('practice', 'answer_missing', 'first');
+    await store.set('practice', 'answer_present', 'second');
+
+    const directory = path.join(rootDir, 'records', 'practice');
+    const missingDigest = crypto
+      .createHash('sha256')
+      .update('answer_missing', 'utf8')
+      .digest('hex');
+    fs.unlinkSync(path.join(directory, missingDigest + '.json'));
+
+    await expect(store.list('practice')).resolves.toEqual(['answer_present']);
+    await expect(store.list('practice')).resolves.toEqual(['answer_present']);
   });
 
   it('preserves concurrent record identifiers in the encrypted index', async () => {
