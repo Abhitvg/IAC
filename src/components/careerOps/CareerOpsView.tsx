@@ -2276,7 +2276,7 @@ export function CareerOpsView() {
                     <button
                       onClick={() => {
                         const draft = activeJob.outreachNote?.match(
-                          /=== LINKEDIN RECRUITER \(<= 300 chars\) ===\\s*([\\s\\S]*?)(?=\\n\\n===|$)/
+                          /=== LINKEDIN RECRUITER \(<= 300 chars\) ===\s*([\s\S]*?)(?=\n\n===|$)/
                         )?.[1]?.trim();
                         if (draft) {
                           setLinkedinStudioDraft(draft);
@@ -2301,7 +2301,7 @@ export function CareerOpsView() {
                     <button
                       onClick={() => {
                         const draft = activeJob.outreachNote?.match(
-                          /=== LINKEDIN HIRING MANAGER \(<= 300 chars\) ===\\s*([\\s\\S]*?)(?=\\n\\n===|$)/
+                          /=== LINKEDIN HIRING MANAGER \(<= 300 chars\) ===\s*([\s\S]*?)(?=\n\n===|$)/
                         )?.[1]?.trim();
                         if (draft) {
                           setLinkedinStudioDraft(draft);
