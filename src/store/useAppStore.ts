@@ -1197,6 +1197,31 @@ export const useAppStore = create<InterviewState>((set, get) => ({
 
     if (
       typeof window !== 'undefined' &&
+      window.electronAPI?.secureRecordList &&
+      window.electronAPI?.secureRecordDelete
+    ) {
+      try {
+        const secureSessionIds = await window.electronAPI.secureRecordList('interview-sessions');
+        for (const sessionId of secureSessionIds) {
+          try {
+            const removed = await window.electronAPI.secureRecordDelete(
+              'interview-sessions',
+              sessionId
+            );
+            if (removed === false) failedStores.push(`secure-session:${sessionId}`);
+          } catch (error) {
+            console.error('[AppStore] Failed to delete encrypted interview session:', sessionId, error);
+            failedStores.push(`secure-session:${sessionId}`);
+          }
+        }
+      } catch (error) {
+        console.error('[AppStore] Failed to enumerate encrypted interview sessions during wipe:', error);
+        failedStores.push('secure-session-history');
+      }
+    }
+
+    if (
+      typeof window !== 'undefined' &&
       window.electronAPI?.getSessionsDir &&
       window.electronAPI?.listDir &&
       window.electronAPI?.deleteFile
