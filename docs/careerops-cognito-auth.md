@@ -13,6 +13,7 @@ CareerOps uses Cognito User Pools with the OAuth 2.0 authorization-code flow and
 ## Cognito app client settings
 
 Configure a public app client with:
+
 - OAuth grant: Authorization code grant
 - PKCE: required / S256
 - Scopes: `openid`, `email`, `profile`

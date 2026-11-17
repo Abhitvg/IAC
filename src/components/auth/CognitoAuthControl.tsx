@@ -55,7 +55,11 @@ export function CognitoAuthControl() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      {message && <span role="status" style={{ color: '#F1A3A3', fontSize: 10 }}>{message}</span>}
+      {message && (
+        <span role="status" style={{ color: '#F1A3A3', fontSize: 10 }}>
+          {message}
+        </span>
+      )}
       {signedIn ? (
         <>
           <span style={{ color: apiConnected ? '#86D6A5' : '#E5B86A', fontSize: 10 }}>

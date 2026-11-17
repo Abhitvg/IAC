@@ -37,8 +37,7 @@ async function sha256Base64Url(value: string): Promise<string> {
 function normalizeHttpsUrl(value: string, label: string): URL {
   const url = new URL(value);
   const localDevelopment =
-    url.protocol === 'http:' &&
-    (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
+    url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
   if (url.protocol !== 'https:' && !localDevelopment) {
     throw new Error(`${label} must use HTTPS outside localhost development`);
   }
@@ -114,11 +113,7 @@ export class CognitoAuthClient {
       cache: 'no-store',
     });
     const tokens = (await response.json().catch(() => ({}))) as TokenResponse;
-    if (
-      !response.ok ||
-      !tokens.access_token ||
-      tokens.token_type?.toLowerCase() !== 'bearer'
-    ) {
+    if (!response.ok || !tokens.access_token || tokens.token_type?.toLowerCase() !== 'bearer') {
       throw new Error('Cognito token exchange failed');
     }
     accessToken = tokens.access_token;

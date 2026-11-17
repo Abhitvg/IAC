@@ -228,4 +228,3 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({ currentTitle }) => {
     </header>
   );
 };
-

@@ -8,7 +8,10 @@ export interface CareerOpsApiClientOptions {
 }
 
 export class CareerOpsApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
     super(message);
     this.name = 'CareerOpsApiError';
   }
@@ -23,17 +26,12 @@ function normalizeBaseUrl(value: string): string {
   }
 
   const localDevelopment =
-    url.protocol === 'http:' &&
-    (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
+    url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
   if (url.protocol !== 'https:' && !localDevelopment) {
-    throw new Error(
-      'CareerOps API must use HTTPS outside localhost development'
-    );
+    throw new Error('CareerOps API must use HTTPS outside localhost development');
   }
   if (url.username || url.password || url.search || url.hash) {
-    throw new Error(
-      'CareerOps API base URL must not contain credentials, query, or fragment'
-    );
+    throw new Error('CareerOps API base URL must not contain credentials, query, or fragment');
   }
   return url.toString().replace(/\/$/, '');
 }
@@ -48,14 +46,8 @@ export function createCareerOpsApiClient(options: CareerOpsApiClientOptions) {
       method?: CareerOpsApiMethod;
     } = {}
   ): Promise<T> {
-    if (
-      !path.startsWith('/v1/') ||
-      path.startsWith('//') ||
-      path.split('/').includes('..')
-    ) {
-      throw new Error(
-        'CareerOps API requests must target a relative /v1/ endpoint'
-      );
+    if (!path.startsWith('/v1/') || path.startsWith('//') || path.split('/').includes('..')) {
+      throw new Error('CareerOps API requests must target a relative /v1/ endpoint');
     }
 
     const method = init.method ?? 'GET';
@@ -89,9 +81,7 @@ export function createCareerOpsApiClient(options: CareerOpsApiClientOptions) {
 
     if (response.status === 204) return undefined as T;
 
-    const payload = (await response.json().catch(() => null)) as
-      | { error?: unknown }
-      | null;
+    const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
     if (!response.ok) {
       const message =
         payload && typeof payload.error === 'string'

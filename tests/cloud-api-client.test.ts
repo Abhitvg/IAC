@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  CareerOpsApiError,
-  createCareerOpsApiClient,
-} from '../src/services/cloudApi/client';
+import { CareerOpsApiError, createCareerOpsApiClient } from '../src/services/cloudApi/client';
 
 describe('CareerOps cloud API client', () => {
   it('sends bearer auth and tenant context without cookies or redirect forwarding', async () => {
@@ -19,9 +16,9 @@ describe('CareerOps cloud API client', () => {
       fetchImpl,
     });
 
-    await expect(
-      client.request<{ subject: string }>('/v1/me')
-    ).resolves.toEqual({ subject: 'user-1' });
+    await expect(client.request<{ subject: string }>('/v1/me')).resolves.toEqual({
+      subject: 'user-1',
+    });
     const [url, init] = fetchImpl.mock.calls[0];
     expect(String(url)).toBe('https://api.example.com/v1/me');
     const headers = new Headers(init?.headers);
@@ -56,20 +53,17 @@ describe('CareerOps cloud API client', () => {
       baseUrl: 'https://api.example.com',
       getAccessToken: async () => 'token',
     });
-    await expect(
-      client.request('https://attacker.example/steal')
-    ).rejects.toThrow('relative /v1/ endpoint');
+    await expect(client.request('https://attacker.example/steal')).rejects.toThrow(
+      'relative /v1/ endpoint'
+    );
   });
 
   it('surfaces API status codes without leaking response payloads', async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(
-        JSON.stringify({ error: 'Unauthorized', secret: 'do-not-surface' }),
-        {
-          status: 401,
-          headers: { 'content-type': 'application/json' },
-        }
-      )
+      new Response(JSON.stringify({ error: 'Unauthorized', secret: 'do-not-surface' }), {
+        status: 401,
+        headers: { 'content-type': 'application/json' },
+      })
     );
     const client = createCareerOpsApiClient({
       baseUrl: 'https://api.example.com',

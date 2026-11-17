@@ -220,16 +220,12 @@ export class OidcJwksVerifier {
       throw new Error('Access token audience or Cognito client_id is invalid');
     }
 
-    const audience =
-      isCognitoAccessToken
-        ? [claims.client_id as string]
-        : typeof claims.aud === 'string'
-          ? [claims.aud]
-          : (claims.aud as string[]);
-    if (
-      audience.length > 1 &&
-      claims.azp !== this.config.audience
-    ) {
+    const audience = isCognitoAccessToken
+      ? [claims.client_id as string]
+      : typeof claims.aud === 'string'
+        ? [claims.aud]
+        : (claims.aud as string[]);
+    if (audience.length > 1 && claims.azp !== this.config.audience) {
       throw new Error('Access token authorized party is invalid');
     }
     if (claims.azp !== undefined && claims.azp !== this.config.audience) {
