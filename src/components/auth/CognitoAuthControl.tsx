@@ -78,7 +78,11 @@ export function CognitoAuthControl() {
           type="button"
           style={style}
           disabled={inElectron}
-          title={inElectron ? 'Web Cognito callback is not configured for the desktop app yet' : 'Sign in to CareerOps Cloud'}
+          title={
+            inElectron
+              ? 'Web Cognito callback is not configured for the desktop app yet'
+              : 'Sign in to CareerOps Cloud'
+          }
           onClick={() => {
             setMessage('');
             void client.signIn().catch(() => setMessage('Could not start Cognito sign-in.'));
