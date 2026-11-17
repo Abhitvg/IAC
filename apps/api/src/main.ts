@@ -22,20 +22,25 @@ async function start(): Promise<void> {
     console.error('CareerOps PostgreSQL idle-client error:', error.message);
   });
 
-  const envelopeKeyProvider = environment.LINKEDIN_CLIENT_ID
-    ? (() => {
-        const masterKeys = JSON.parse(
-          environment.CAREEROPS_ENVELOPE_MASTER_KEYS
-        ) as Record<string, string>;
-        const provider = new MasterKeyTenantKeyProvider({
-          masterKeys,
-          currentKeyVersion: environment.CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION,
-        });
-        environment.CAREEROPS_ENVELOPE_MASTER_KEYS = '';
-        delete process.env.CAREEROPS_ENVELOPE_MASTER_KEYS;
-        return provider;
-      })()
-    : undefined;
+  let envelopeKeyRingJson = environment.CAREEROPS_ENVELOPE_MASTER_KEYS;
+  environment.CAREEROPS_ENVELOPE_MASTER_KEYS = '';
+  delete process.env.CAREEROPS_ENVELOPE_MASTER_KEYS;
+
+  let envelopeKeyProvider: MasterKeyTenantKeyProvider | undefined;
+  if (environment.LINKEDIN_CLIENT_ID) {
+    const masterKeys = JSON.parse(envelopeKeyRingJson) as Record<string, string>;
+    envelopeKeyRingJson = '';
+    try {
+      envelopeKeyProvider = new MasterKeyTenantKeyProvider({
+        masterKeys,
+        currentKeyVersion: environment.CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION,
+      });
+    } finally {
+      for (const version of Object.keys(masterKeys)) masterKeys[version] = '';
+    }
+  } else {
+    envelopeKeyRingJson = '';
+  }
   const linkedin = envelopeKeyProvider
     ? createLinkedInCloudIntegration(
         pool,
