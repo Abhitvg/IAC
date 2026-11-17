@@ -23,10 +23,18 @@ async function start(): Promise<void> {
   });
 
   const envelopeKeyProvider = environment.LINKEDIN_CLIENT_ID
-    ? new MasterKeyTenantKeyProvider({
-        masterKeys: JSON.parse(environment.CAREEROPS_ENVELOPE_MASTER_KEYS) as Record<string, string>,
-        currentKeyVersion: environment.CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION,
-      })
+    ? (() => {
+        const masterKeys = JSON.parse(
+          environment.CAREEROPS_ENVELOPE_MASTER_KEYS
+        ) as Record<string, string>;
+        const provider = new MasterKeyTenantKeyProvider({
+          masterKeys,
+          currentKeyVersion: environment.CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION,
+        });
+        environment.CAREEROPS_ENVELOPE_MASTER_KEYS = '';
+        delete process.env.CAREEROPS_ENVELOPE_MASTER_KEYS;
+        return provider;
+      })()
     : undefined;
   const linkedin = envelopeKeyProvider
     ? createLinkedInCloudIntegration(
