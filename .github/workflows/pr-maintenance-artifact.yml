@@ -1,0 +1,59 @@
+name: PR maintenance artifact
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  maintenance:
+    if: github.event.pull_request.number == 232
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Update Vite to the patched 6.4.6 release
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund --save-dev vite@6.4.6
+      - name: Format PR maintenance files
+        run: |
+          npx prettier --write \
+            docs/careerops-cognito-auth.md \
+            packages/cloud-core/src/auth.ts \
+            src/components/auth/CognitoAuthControl.tsx \
+            src/screens/AppTopBar.tsx \
+            src/services/auth/cognito.ts \
+            src/services/cloudApi/client.ts \
+            tests/cloud-api-client.test.ts \
+            package.json package-lock.json
+      - name: Collect updated files
+        run: |
+          mkdir -p /tmp/maintenance
+          for file in \
+            docs/careerops-cognito-auth.md \
+            packages/cloud-core/src/auth.ts \
+            src/components/auth/CognitoAuthControl.tsx \
+            src/screens/AppTopBar.tsx \
+            src/services/auth/cognito.ts \
+            src/services/cloudApi/client.ts \
+            tests/cloud-api-client.test.ts \
+            package.json package-lock.json; do
+            mkdir -p "/tmp/maintenance/$(dirname "$file")"
+            cp "$file" "/tmp/maintenance/$file"
+          done
+      - name: Upload maintenance files
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-232-maintenance-files
+          path: /tmp/maintenance/
+          if-no-files-found: error
