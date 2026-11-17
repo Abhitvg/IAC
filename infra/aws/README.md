@@ -67,7 +67,7 @@ For clarity, the Secrets Manager secret stores the key ring as an escaped JSON s
 
 Generate each 32-byte master key outside the repository with `openssl rand -base64 32`. Store the value only in Secrets Manager. Never put it in Git, Terraform variables/state, Amplify build variables, logs, or client-side code. The API validates that every key decodes to exactly 32 bytes and that the configured current version exists.
 
-The existing customer-managed KMS key `arn:aws:kms:ap-southeast-2:165328640460:key/9dffb4cb-6a4a-40e7-b49e-40415ddb9bf7` is used by Secrets Manager to encrypt the configuration secret at rest. The ECS **execution role**, not the API task role, receives `kms:Decrypt` only for this secret, constrained by `kms:ViaService = secretsmanager.ap-southeast-2.amazonaws.com` and `kms:EncryptionContext:SecretARN = <app_secrets_arn>`. The task role receives no KMS permissions. The application process receives the decrypted key ring from ECS secret injection and performs only local cryptographic operations.
+Terraform reads the existing secret metadata with `secretsmanager:DescribeSecret` during planning and rejects a plan if its `kms_key_id` does not match `kms_key_arn`. This is a control-plane metadata check; it does not retrieve or expose the secret value. The existing customer-managed KMS key `arn:aws:kms:ap-southeast-2:165328640460:key/9dffb4cb-6a4a-40e7-b49e-40415ddb9bf7` is used by Secrets Manager to encrypt the configuration secret at rest. The ECS **execution role**, not the API task role, receives `kms:Decrypt` only for this secret, constrained by `kms:ViaService = secretsmanager.ap-southeast-2.amazonaws.com` and `kms:EncryptionContext:SecretARN = <app_secrets_arn>`. The task role receives no KMS permissions. The application process receives the decrypted key ring from ECS secret injection and performs only local cryptographic operations.
 
 For rotation, add a new versioned 32-byte key to the secret, set it as the current version, and retain all old versions until every envelope that references them has been re-encrypted or retired. Removing an old key too early makes its existing envelopes unreadable. Maintain backups of the secret and verify restore/decrypt procedures before rotation. This design deliberately avoids direct KMS SDK or SigV4 calls from CareerOps code.
 
@@ -92,7 +92,7 @@ For rotation, add a new versioned 32-byte key to the secret, set it as the curre
   - `LINKEDIN_CLIENT_SECRET` (empty string if LinkedIn OAuth is not enabled)
   - `LINKEDIN_REDIRECT_URI` (empty string if LinkedIn OAuth is not enabled; HTTPS when enabled)
 - The database URL must use the non-owner `careerops_app` role. Provision that role and apply migrations using a separate privileged migration identity. Do not give the API the master database credentials.
-- Terraform 1.9+ and AWS provider credentials for provisioning only.
+- Terraform 1.9+ and AWS provider credentials for provisioning only. The planning identity also needs `secretsmanager:DescribeSecret` on the application config secret so Terraform can verify that its KMS key matches `kms_key_arn`; the ECS execution role separately receives only the runtime secret-read/decrypt permissions.
 
 The RDS master password and application secret values must never be committed. Use a remote Terraform backend with encryption, locking, and restricted access. Do not use local state for production.
 
