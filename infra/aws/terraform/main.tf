@@ -254,10 +254,14 @@ resource "aws_iam_role_policy_attachment" "execution_managed" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+data "aws_secretsmanager_secret" "app_config" {
+  arn = var.app_secrets_arn
+}
+
 data "aws_iam_policy_document" "read_app_secret" {
   statement {
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = [var.app_secrets_arn]
+    resources = [data.aws_secretsmanager_secret.app_config.arn]
   }
 
   # Secrets Manager decrypts the config secret using the CMK on behalf of
@@ -275,7 +279,7 @@ data "aws_iam_policy_document" "read_app_secret" {
     condition {
       test     = "StringEquals"
       variable = "kms:EncryptionContext:SecretARN"
-      values   = [var.app_secrets_arn]
+      values   = [data.aws_secretsmanager_secret.app_config.arn]
     }
   }
 }
@@ -284,6 +288,13 @@ resource "aws_iam_role_policy" "read_app_secret" {
   name   = "${local.name}-read-app-secret"
   role   = aws_iam_role.execution.id
   policy = data.aws_iam_policy_document.read_app_secret.json
+
+  lifecycle {
+    precondition {
+      condition     = data.aws_secretsmanager_secret.app_config.kms_key_id == var.kms_key_arn
+      error_message = "The application Secrets Manager secret must be encrypted with kms_key_arn; configure that key on the secret before planning."
+    }
+  }
 }
 
 resource "aws_iam_role" "task" {
