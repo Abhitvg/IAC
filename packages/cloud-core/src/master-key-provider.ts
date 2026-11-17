@@ -83,21 +83,25 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
       throw new Error('Envelope master-key ring must contain between one and eight versions');
     }
 
-    for (const [version, encodedKey] of entries) {
-      if (!KEY_VERSION_PATTERN.test(version) || typeof encodedKey !== 'string') {
-        throw new Error('Envelope master-key ring contains an invalid version');
+    try {
+      for (const [version, encodedKey] of entries) {
+        if (!KEY_VERSION_PATTERN.test(version) || typeof encodedKey !== 'string') {
+          throw new Error('Envelope master-key ring contains an invalid version');
+        }
+        this.masterKeys.set(version, decodeBase64(encodedKey, version, 32));
       }
-      this.masterKeys.set(version, decodeBase64(encodedKey, version, 32));
-    }
 
-    if (
-      !KEY_VERSION_PATTERN.test(options.currentKeyVersion) ||
-      !this.masterKeys.has(options.currentKeyVersion)
-    ) {
+      if (
+        !KEY_VERSION_PATTERN.test(options.currentKeyVersion) ||
+        !this.masterKeys.has(options.currentKeyVersion)
+      ) {
+        throw new Error('Current envelope master-key version is missing from the key ring');
+      }
+      this.currentKeyVersion = options.currentKeyVersion;
+    } catch (error) {
       this.destroy();
-      throw new Error('Current envelope master-key version is missing from the key ring');
+      throw error;
     }
-    this.currentKeyVersion = options.currentKeyVersion;
   }
 
   async generateDataKey(tenantId: string, context: string): Promise<GeneratedDataKey> {
