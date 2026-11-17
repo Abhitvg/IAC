@@ -125,7 +125,12 @@ export class CognitoAuthClient {
       cache: 'no-store',
     });
     const tokens = (await response.json().catch(() => ({}))) as TokenResponse;
-    if (!response.ok || !tokens.access_token || !tokens.id_token) {
+    if (
+      !response.ok ||
+      !tokens.access_token ||
+      !tokens.id_token ||
+      tokens.token_type?.toLowerCase() !== 'bearer'
+    ) {
       throw new Error('Cognito token exchange failed');
     }
     const idClaims = decodeJwtPayload(tokens.id_token);
@@ -154,7 +159,6 @@ export class CognitoAuthClient {
 
   signOut(): void {
     accessToken = null;
-    refreshToken = null;
     accessTokenExpiresAt = 0;
     sessionStorage.removeItem('careerops.cognito.pending');
     const url = new URL('/logout', this.domain);
