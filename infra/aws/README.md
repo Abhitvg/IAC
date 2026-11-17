@@ -63,6 +63,8 @@ The existing customer-managed KMS key `arn:aws:kms:ap-southeast-2:165328640460:k
 
 For rotation, add a new versioned 32-byte key to the secret, set it as the current version, and retain all old versions until every envelope that references them has been re-encrypted or retired. Removing an old key too early makes its existing envelopes unreadable. Maintain backups of the secret and verify restore/decrypt procedures before rotation. This design deliberately avoids direct KMS SDK or SigV4 calls from CareerOps code.
 
+**Envelope format compatibility:** this local key-ring provider writes version labels such as `v1` and cannot decrypt envelopes written by the earlier direct-KMS provider, whose key version is a KMS key ARN and whose wrapped key is a KMS ciphertext blob. Before deploying this provider to any environment, confirm that no persisted records use the earlier format. If such records exist, stop and plan a separate, controlled migration before switching providers; do not delete the old wrapping keys or assume the new provider can read those envelopes. This PR has not deployed the earlier direct-KMS implementation or run any data migration.
+
 ## Prerequisites
 
 - An existing VPC with at least two public subnets and two private application subnets across availability zones.
