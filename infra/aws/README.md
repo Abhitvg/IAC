@@ -18,7 +18,9 @@ Amplify must be configured with the API base URL as a non-secret `VITE_*` build 
 
 ## HTTP-only staging when you do not own a domain
 
-A public ACM certificate cannot be issued for the AWS-generated ALB DNS hostname. The example tfvars therefore defaults to a **staging-only HTTP configuration** (`environment = "staging"`, `enable_https = false`) and does not require an ACM certificate. After deployment, use the ALB's AWS-generated DNS name for temporary smoke tests.
+The checked-in staging example currently enables HTTPS and references the ACM certificate ARN supplied for this account and region. The certificate status was reported as Issued, but its SAN/domain coverage must still be verified against the intended hostname before applying. The ALB certificate is separate from Amplify-managed HTTPS.
+
+When no domain-matched ACM certificate is available, staging may be switched to a **temporary HTTP-only smoke-test mode** by setting `enable_https = false`. A public ACM certificate cannot be issued for the AWS-generated ALB DNS hostname, so this mode uses the ALB-generated DNS name and must remain strictly non-sensitive. Do not use HTTP-only mode for production.
 
 This mode is strictly for non-sensitive testing:
 
@@ -33,9 +35,9 @@ To switch staging to HTTPS later, set `enable_https = true` and supply an ACM ce
 
 ## Implementation plan (no resources provisioned by this change)
 
-1. **Account and region guardrails:** use account `165328640460` and `ap-southeast-2`; the existing KMS key ARN is configured. For HTTP-only staging, no ACM certificate is required. Obtain the Secrets Manager ARN, VPC ID, and subnet IDs. The tfvars sample is prefilled with account/region but retains explicit placeholders for unknown infrastructure.
+1. **Account and region guardrails:** use account `165328640460` and `ap-southeast-2`; the existing customer-managed KMS key is used by Secrets Manager to encrypt the application config secret. Confirm the ACM certificate SAN covers the chosen ALB hostname before using the current HTTPS staging example. Obtain the Secrets Manager ARN, VPC ID, and subnet IDs. The tfvars sample is prefilled with account/region but retains explicit placeholders for unknown infrastructure.
 2. **Network readiness:** verify public ALB subnets and private ECS/database subnets span at least two AZs. Confirm private task egress to ECR, S3, CloudWatch Logs, Secrets Manager, KMS, and the configured external OIDC/JWKS issuer. Prefer interface/gateway VPC endpoints for AWS services; choose redundant NAT egress where required.
-3. **Identity and encryption:** verify the existing KMS key policy allows same-account IAM delegation or explicitly grants the ECS task role. Keep key administration separate. Let RDS manage the master password in its AWS-managed Secrets Manager secret; use a separate non-owner PostgreSQL runtime role for the API. Never put database passwords in tfvars or Git.
+3. **Identity and encryption:** verify the existing KMS key policy allows the ECS execution role to decrypt the application config secret through Secrets Manager only. The application task role must not receive KMS permissions. Keep key administration separate. Let RDS manage the master password in its AWS-managed Secrets Manager secret; use a separate non-owner PostgreSQL runtime role for the API. Never put database passwords or envelope master keys in tfvars or Git.
 4. **Terraform review:** initialize with an encrypted remote backend and state locking, run `terraform fmt -check`, `terraform validate`, and a reviewed `terraform plan`. Confirm the plan targets only the intended account/region and contains no unexpected replacement or deletion. Do not use `-target` as the normal deployment workflow.
 5. **First controlled deployment (future operator action):** create ECR, publish a uniquely tagged ARM64 image, then apply the reviewed full plan. Run migrations under a separate migration identity, verify tenant isolation, readiness, TLS, KMS encrypt/decrypt, and rollback.
 6. **Reliability instrumentation:** subscribe the provisioned SNS operations-alert topic to an on-call email or incident platform and confirm the subscription. Terraform now defines ALB 5xx/unhealthy-target alarms, ECS running-task alarms, and RDS CPU/free-storage alarms; add RDS connection and synthetic endpoint checks as a follow-up. Test alarm delivery rather than treating log retention as monitoring.
@@ -44,22 +46,26 @@ To switch staging to HTTPS later, set `enable_https = true` and supply an ACM ce
 
 The changes in this PR update configuration and Terraform source only. They do not run Terraform, create AWS resources, modify the existing KMS key policy, deploy an image, or change production traffic.
 
-This Terraform stack deploys the existing CareerOps API to ECS Fargate behind an Application Load Balancer (HTTPS for production; optional HTTP-only staging) and provisions a private RDS PostgreSQL database, ECR repository, CloudWatch log group, and scoped ECS execution role.
+This Terraform stack deploys the CareerOps API to ECS Fargate behind an Application Load Balancer (HTTPS by default; optional HTTP-only staging smoke tests) and provisions a private RDS PostgreSQL database, ECR repository, CloudWatch log group, and scoped ECS execution/task roles.
 
-## AWS KMS envelope encryption
+## Secrets Manager-protected envelope keys (no direct KMS API calls)
 
-CareerOps calls AWS KMS directly from the API runtime using SigV4-signed KMS JSON requests. The provider uses the ECS task-role credential endpoint in production; no long-lived AWS access keys are stored in the image or application secret. Local development may use temporary AWS environment credentials.
+CareerOps application code does **not** call AWS KMS. The API generates a fresh random 256-bit data key for each encrypted token payload and wraps that data key locally with AES-256-GCM using a versioned 256-bit master-key ring injected through ECS from the existing Secrets Manager configuration secret. The wrapped data key, nonce, authentication tag, ciphertext, tenant ID, purpose context, and key version are stored in the envelope. The AAD binds the application, authenticated tenant, data purpose, and master-key version.
 
-Sensitive LinkedIn OAuth tokens are encrypted with AES-256-GCM using a fresh data key from KMS `GenerateDataKey`. Only the encrypted data key is stored with the envelope. Reads call KMS `Decrypt` with the exact same encryption context. The context binds `application=careerops`, the authenticated `tenant_id`, and the `data_context` purpose. The API task role receives only `kms:GenerateDataKey` and `kms:Decrypt` on the configured key ARN, conditioned on the application context. It does not receive `kms:*`, key administration, key deletion, or key-policy permissions.
+The Secrets Manager JSON secret must contain:
+- `CAREEROPS_ENVELOPE_MASTER_KEYS`: a JSON object of one to eight version-to-base64-key entries, for example `{"v1":"<base64-encoded-32-byte-key>"}`.
+- `CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION`: the version used for new envelopes, for example `v1`.
 
-The configured KMS key is `arn:aws:kms:ap-southeast-2:165328640460:key/9dffb4cb-6a4a-40e7-b49e-40415ddb9bf7`. The supplied key policy includes account-root IAM delegation, allowing the ECS task role's scoped IAM policy to authorize the two crypto actions, subject to the key remaining enabled and the role being assumed successfully. Keep key administrators separate from the application role. Enable automatic key rotation and retain access to old KMS keys until envelopes encrypted under them have been migrated.
+Generate each 32-byte master key outside the repository with `openssl rand -base64 32`. Store the value only in Secrets Manager. Never put it in Git, Terraform variables/state, Amplify build variables, logs, or client-side code. The API validates that every key decodes to exactly 32 bytes and that the configured current version exists.
 
-The API uses the existing key ARN supplied as `kms_key_arn`; Terraform does not create, replace, or rewrite your existing key policy. Add a KMS interface VPC endpoint (`com.amazonaws.<region>.kms`) or NAT egress for private ECS tasks.
+The existing customer-managed KMS key `arn:aws:kms:ap-southeast-2:165328640460:key/9dffb4cb-6a4a-40e7-b49e-40415ddb9bf7` is used by Secrets Manager to encrypt the configuration secret at rest. The ECS **execution role**, not the API task role, receives `kms:Decrypt` only for this secret, constrained by `kms:ViaService = secretsmanager.ap-southeast-2.amazonaws.com` and `kms:EncryptionContext:SecretARN = <app_secrets_arn>`. The task role receives no KMS permissions. The application process receives the decrypted key ring from ECS secret injection and performs only local cryptographic operations.
+
+For rotation, add a new versioned 32-byte key to the secret, set it as the current version, and retain all old versions until every envelope that references them has been re-encrypted or retired. Removing an old key too early makes its existing envelopes unreadable. Maintain backups of the secret and verify restore/decrypt procedures before rotation. This design deliberately avoids direct KMS SDK or SigV4 calls from CareerOps code.
 
 ## Prerequisites
 
 - An existing VPC with at least two public subnets and two private application subnets across availability zones.
-- Private application subnets need outbound access through NAT or appropriate VPC endpoints for ECR (API and Docker), CloudWatch Logs, Secrets Manager, and the external OIDC/JWKS endpoint. Without this, Fargate tasks may fail to pull images, load secrets, publish logs, or validate tokens.
+- Private application subnets need outbound access through NAT or appropriate VPC endpoints for ECR (API and Docker), CloudWatch Logs, Secrets Manager, and the external OIDC/JWKS endpoint. The application process does not need a KMS VPC endpoint. Without required egress/endpoints, Fargate tasks may fail to pull images, load secrets, publish logs, or validate tokens.
 - Two isolated database subnets. The database subnets must not have a public route.
 - An ACM certificate in the same region as the ALB only when `enable_https = true`. It is mandatory for production; staging HTTP-only smoke tests may omit it.
 - A Secrets Manager JSON secret containing:
@@ -68,6 +74,8 @@ The API uses the existing key ARN supplied as `kms_key_arn`; Terraform does not 
   - `CAREEROPS_JWKS_URL`
   - `CAREEROPS_CONSENT_SIGNING_SECRET`
   - `CAREEROPS_RATE_LIMIT_HASH_SECRET`
+  - `CAREEROPS_ENVELOPE_MASTER_KEYS` (JSON key ring of 32-byte base64 keys; required when LinkedIn OAuth is enabled)
+  - `CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION` (must match a key-ring entry)
   - `CAREEROPS_DATABASE_URL`
   - `LINKEDIN_CLIENT_ID` (empty string if LinkedIn OAuth is not enabled)
   - `LINKEDIN_CLIENT_SECRET` (empty string if LinkedIn OAuth is not enabled)
@@ -79,8 +87,8 @@ The RDS master password and application secret values must never be committed. U
 
 ## Deploy
 
-1. Copy `terraform/terraform.tfvars.example` to a private local `terraform.tfvars`. It is preconfigured for staging-only HTTP; never use it as a production configuration.
-2. Set the VPC/subnet IDs, region, existing KMS key ARN, and application secret ARN. RDS generates and manages its master password in Secrets Manager; do not add a database password to tfvars. The checked-in example is staging-only HTTP (`enable_https = false`) and intentionally has no ACM certificate. Replace the `allowed_ingress_cidrs` placeholder with your public IP `/32`; the example will not validate until you do.
+1. Copy `terraform/terraform.tfvars.example` to a private local `terraform.tfvars`. It is a staging configuration with HTTPS enabled and a supplied ACM certificate ARN; verify certificate domain coverage before use. Do not reuse the staging state or credentials for production.
+2. Set the VPC/subnet IDs, region, existing Secrets Manager KMS key ARN, and application secret ARN. Confirm the secret contains the required envelope master-key ring when LinkedIn OAuth is enabled. RDS generates and manages its master password in Secrets Manager; do not add a database password to tfvars. Replace the `allowed_ingress_cidrs` placeholder with your public IP `/32`; the example will not validate until you do.
 3. **One-time bootstrap exception:** the ECS service needs an image to start, so create only the ECR repository before the first image push. This is the sole documented use of `-target`; do not use targeted applies for routine infrastructure changes. First configure an encrypted remote backend with state locking, then run:
 
 ```bash
