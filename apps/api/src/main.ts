@@ -1,7 +1,7 @@
 import { createPostgresPool } from './postgres-pool';
 import { loadCloudEnvironment } from './config';
 import { createCloudApiRuntime } from './runtime';
-import { AwsKmsTenantKeyProvider } from '../../../packages/cloud-core/src/aws-kms-key-provider';
+import { MasterKeyTenantKeyProvider } from '../../../packages/cloud-core/src/master-key-provider';
 import { createLinkedInCloudIntegration } from './linkedin/create-integration';
 
 function readPort(value: string | undefined): number {
@@ -25,9 +25,9 @@ async function start(): Promise<void> {
   const linkedin = environment.LINKEDIN_CLIENT_ID
     ? createLinkedInCloudIntegration(
         pool,
-        new AwsKmsTenantKeyProvider({
-          region: environment.AWS_REGION!,
-          keyArn: environment.CAREEROPS_KMS_KEY_ARN!,
+        new MasterKeyTenantKeyProvider({
+          masterKeys: JSON.parse(environment.CAREEROPS_ENVELOPE_MASTER_KEYS) as Record<string, string>,
+          currentKeyVersion: environment.CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION,
         }),
         {
           oauth: {
