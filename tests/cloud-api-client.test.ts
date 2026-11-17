@@ -19,7 +19,9 @@ describe('CareerOps cloud API client', () => {
       fetchImpl,
     });
 
-    await expect(client.request<{ subject: string }>('/v1/me')).resolves.toEqual({ subject: 'user-1' });
+    await expect(
+      client.request<{ subject: string }>('/v1/me')
+    ).resolves.toEqual({ subject: 'user-1' });
     const [url, init] = fetchImpl.mock.calls[0];
     expect(String(url)).toBe('https://api.example.com/v1/me');
     const headers = new Headers(init?.headers);
@@ -39,9 +41,7 @@ describe('CareerOps cloud API client', () => {
       getAccessToken: async () => null,
       fetchImpl,
     });
-    await expect(client.request('/v1/me')).rejects.toThrow(
-      'A valid access token is required'
-    );
+    await expect(client.request('/v1/me')).rejects.toThrow('A valid access token is required');
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
