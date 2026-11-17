@@ -46,8 +46,26 @@ export function createCareerOpsApiClient(options: CareerOpsApiClientOptions) {
       method?: CareerOpsApiMethod;
     } = {}
   ): Promise<T> {
-    if (!path.startsWith('/v1/') || path.startsWith('//') || path.split('/').includes('..')) {
+    const rawPath = path.split(/[?#]/, 1)[0] ?? '';
+    if (
+      !path.startsWith('/v1/') ||
+      path.startsWith('//') ||
+      rawPath.includes('\\') ||
+      rawPath.split('/').some((segment) => segment === '.' || segment === '..') ||
+      /%(?:2e|2f|5c|25)/i.test(rawPath)
+    ) {
       throw new Error('CareerOps API requests must target a relative /v1/ endpoint');
+    }
+
+    const targetUrl = new URL(path, `${baseUrl}/`);
+    const baseOrigin = new URL(baseUrl).origin;
+    if (
+      targetUrl.origin !== baseOrigin ||
+      !targetUrl.pathname.startsWith('/v1/') ||
+      targetUrl.pathname.includes('//') ||
+      targetUrl.hash
+    ) {
+      throw new Error('CareerOps API requests must remain within the /v1/ namespace');
     }
 
     const method = init.method ?? 'GET';
@@ -70,7 +88,7 @@ export function createCareerOpsApiClient(options: CareerOpsApiClientOptions) {
     const tenantId = options.getTenantId?.();
     if (tenantId) headers.set('x-tenant-id', tenantId);
 
-    const response = await fetchImpl(new URL(path, `${baseUrl}/`), {
+    const response = await fetchImpl(targetUrl, {
       ...init,
       method,
       headers,
