@@ -201,20 +201,39 @@ export class OidcJwksVerifier {
     )
       throw new Error('Access token claims are invalid or expired');
 
-    const audience =
-      typeof claims.aud === 'string'
-        ? [claims.aud]
+    // Cognito access tokens use client_id + token_use=access rather than aud.
+    // Never accept Cognito ID tokens as API bearer credentials.
+    const isCognitoAccessToken =
+      claims.token_use === 'access' &&
+      typeof claims.client_id === 'string' &&
+      claims.client_id === this.config.audience;
+    const isGenericOidcAccessToken =
+      claims.token_use === undefined &&
+      (typeof claims.aud === 'string'
+        ? claims.aud === this.config.audience
         : Array.isArray(claims.aud) &&
-            claims.aud.length > 0 &&
-            claims.aud.every((value) => typeof value === 'string')
-          ? (claims.aud as string[])
-          : [];
+          claims.aud.length > 0 &&
+          claims.aud.every((value) => typeof value === 'string') &&
+          claims.aud.includes(this.config.audience));
+
+    if (claims.token_use === 'id' || (!isCognitoAccessToken && !isGenericOidcAccessToken)) {
+      throw new Error('Access token audience or Cognito client_id is invalid');
+    }
+
+    const audience =
+      isCognitoAccessToken
+        ? [claims.client_id as string]
+        : typeof claims.aud === 'string'
+          ? [claims.aud]
+          : (claims.aud as string[]);
     if (
-      !audience.includes(this.config.audience) ||
-      (audience.length > 1 && claims.azp !== this.config.audience) ||
-      (claims.azp !== undefined && claims.azp !== this.config.audience)
+      audience.length > 1 &&
+      claims.azp !== this.config.audience
     ) {
-      throw new Error('Access token audience or authorized party is invalid');
+      throw new Error('Access token authorized party is invalid');
+    }
+    if (claims.azp !== undefined && claims.azp !== this.config.audience) {
+      throw new Error('Access token authorized party is invalid');
     }
 
     return { subject: claims.sub, issuer: this.config.issuer, audience, expiresAt: exp as number };
