@@ -226,6 +226,47 @@ describe('M0 cloud security foundation', () => {
     ).toThrow(/exact HTTPS origins/);
   });
 
+  it('requires a valid injected master-key ring when LinkedIn token encryption is enabled', () => {
+    const base = {
+      NODE_ENV: 'test',
+      CAREEROPS_JWT_ISSUER: authConfig.issuer,
+      CAREEROPS_JWT_AUDIENCE: authConfig.audience,
+      CAREEROPS_JWKS_URL: authConfig.jwksUrl,
+      CAREEROPS_CONSENT_SIGNING_SECRET: secret,
+      CAREEROPS_RATE_LIMIT_HASH_SECRET: rateSecret,
+      LINKEDIN_CLIENT_ID: 'linkedin-client',
+      LINKEDIN_CLIENT_SECRET: 'linkedin-secret',
+      LINKEDIN_REDIRECT_URI: 'https://app.example.com/linkedin/callback',
+    };
+    expect(() => loadCloudEnvironment(base as NodeJS.ProcessEnv)).toThrow(
+      /requires a JSON key ring/
+    );
+
+    const validKeyRing = JSON.stringify({ v1: randomBytes(32).toString('base64') });
+    const configured = loadCloudEnvironment({
+      ...base,
+      CAREEROPS_ENVELOPE_MASTER_KEYS: validKeyRing,
+      CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: 'v1',
+    } as NodeJS.ProcessEnv);
+    expect(configured.CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION).toBe('v1');
+
+    expect(() =>
+      loadCloudEnvironment({
+        ...base,
+        CAREEROPS_ENVELOPE_MASTER_KEYS: JSON.stringify({ v1: Buffer.from('short').toString('base64') }),
+        CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: 'v1',
+      } as NodeJS.ProcessEnv)
+    ).toThrow(/requires a JSON key ring/);
+
+    expect(() =>
+      loadCloudEnvironment({
+        ...base,
+        CAREEROPS_ENVELOPE_MASTER_KEYS: validKeyRing,
+        CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: 'v2',
+      } as NodeJS.ProcessEnv)
+    ).toThrow(/requires a JSON key ring/);
+  });
+
   it('requires HTTPS issuer/JWKS endpoints and a separate consent signing secret', () => {
     expect(() =>
       loadCloudEnvironment({
