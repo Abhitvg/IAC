@@ -31,7 +31,7 @@ The supplied Cognito managed-login domain is `https://ap-southeast-2fhknkz871.au
 Set these variables in Amplify app build settings:
 
 ```text
-VITE_COGNITO_DOMAIN=https://<your-cognito-domain>
+VITE_COGNITO_DOMAIN=https://ap-southeast-2fhknkz871.auth.ap-southeast-2.amazoncognito.com
 VITE_COGNITO_CLIENT_ID=3pjaus5ndmnhvp1mo4i6o0keu8
 VITE_COGNITO_ISSUER=https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_fhknKz871
 VITE_COGNITO_REDIRECT_URI=https://main.d37etc5h2drv5h.amplifyapp.com/auth/callback
