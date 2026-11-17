@@ -41,7 +41,9 @@ describe('CareerOps cloud API client', () => {
       getAccessToken: async () => null,
       fetchImpl,
     });
-    await expect(client.request('/v1/me')).rejects.toThrow('A valid access token is required');
+    await expect(client.request('/v1/me')).rejects.toThrow(
+      'A valid access token is required'
+    );
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -56,17 +58,20 @@ describe('CareerOps cloud API client', () => {
       baseUrl: 'https://api.example.com',
       getAccessToken: async () => 'token',
     });
-    await expect(client.request('https://attacker.example/steal')).rejects.toThrow(
-      'relative /v1/ endpoint'
-    );
+    await expect(
+      client.request('https://attacker.example/steal')
+    ).rejects.toThrow('relative /v1/ endpoint');
   });
 
   it('surfaces API status codes without leaking response payloads', async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ error: 'Unauthorized', secret: 'do-not-surface' }), {
-        status: 401,
-        headers: { 'content-type': 'application/json' },
-      })
+      new Response(
+        JSON.stringify({ error: 'Unauthorized', secret: 'do-not-surface' }),
+        {
+          status: 401,
+          headers: { 'content-type': 'application/json' },
+        }
+      )
     );
     const client = createCareerOpsApiClient({
       baseUrl: 'https://api.example.com',
