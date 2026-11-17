@@ -38,3 +38,9 @@ Other suggested audit remediations include major-version changes (for example Ta
 3. Do not expose the Vite development server with `--host` on an untrusted network.
 4. Do not accept glob patterns from untrusted users in build or tooling paths without a separate review and bounded-input strategy.
 5. Re-run the full audit and update this register when upstream fixes or safe compatible upgrades become available.
+
+## Application encryption key boundary
+
+The CareerOps runtime was reviewed against the repository's no-direct-KMS application constraint. The API uses per-record AES-256-GCM data keys wrapped locally by a versioned 32-byte master-key ring injected by ECS from the Secrets Manager configuration secret. The application code does not call KMS or implement SigV4 KMS requests.
+
+The existing customer-managed KMS key protects the Secrets Manager configuration secret at rest. Only the ECS execution role receives `kms:Decrypt`, constrained to Secrets Manager via `kms:ViaService` and the exact secret ARN through `kms:EncryptionContext:SecretARN`. The API task role receives no KMS permissions. Keep all master-key versions needed for existing envelopes in the Secrets Manager key ring until those envelopes have been re-encrypted or retired.
