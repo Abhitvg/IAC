@@ -22,9 +22,11 @@ function decodeBase64(value: string, label: string, expectedLength?: number): Bu
   }
   const decoded = Buffer.from(value, 'base64');
   if (decoded.toString('base64') !== value) {
+    decoded.fill(0);
     throw new Error(`Non-canonical base64 value for ${label}`);
   }
   if (expectedLength !== undefined && decoded.length !== expectedLength) {
+    decoded.fill(0);
     throw new Error(`Invalid byte length for ${label}`);
   }
   return decoded;
