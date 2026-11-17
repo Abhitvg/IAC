@@ -37,8 +37,9 @@ jobs:
       - name: Verify KMS permissions stay least-privilege
         run: bash scripts/check-kms-policy.sh
 
-      - name: Report dependency security advisories
+      - name: Report all dependency security advisories (including development tools)
         if: matrix.os == 'ubuntu-24.04'
+        continue-on-error: true
         shell: bash
         run: |
           npm audit --json > /tmp/npm-audit.json || true
@@ -77,6 +78,10 @@ jobs:
             process.exitCode = 1;
           }
           NODE
+
+      - name: Enforce production dependency security audit
+        if: matrix.os == 'ubuntu-24.04'
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Check formatting for changed files
         shell: bash
