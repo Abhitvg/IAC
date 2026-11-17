@@ -8,10 +8,7 @@ export interface CareerOpsApiClientOptions {
 }
 
 export class CareerOpsApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number
-  ) {
+  constructor(message: string, readonly status: number) {
     super(message);
     this.name = 'CareerOpsApiError';
   }
