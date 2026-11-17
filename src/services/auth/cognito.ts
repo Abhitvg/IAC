@@ -22,7 +22,6 @@ interface PendingAuth {
 
 let accessToken: string | null = null;
 let accessTokenExpiresAt = 0;
-let refreshToken: string | null = null;
 
 function randomBase64Url(byteLength = 32): string {
   const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
@@ -139,7 +138,6 @@ export class CognitoAuthClient {
     }
     accessToken = tokens.access_token;
     accessTokenExpiresAt = Date.now() + Math.max(60, tokens.expires_in ?? 3600) * 1000;
-    refreshToken = null;
     window.history.replaceState({}, document.title, url.pathname);
   }
 
@@ -150,7 +148,6 @@ export class CognitoAuthClient {
   async getAccessToken(): Promise<string | null> {
     if (accessToken && Date.now() < accessTokenExpiresAt - 30_000) return accessToken;
     accessToken = null;
-    refreshToken = null;
     accessTokenExpiresAt = 0;
     return null;
   }
