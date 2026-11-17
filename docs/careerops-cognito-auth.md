@@ -24,7 +24,7 @@ The sample CloudFront URL in the AWS tutorial is not a CareerOps callback. Regis
 
 ## Cognito hosted UI domain is still required
 
-Set the actual Cognito managed-login domain (or a verified custom domain) as `VITE_COGNITO_DOMAIN`, for example `https://your-prefix.auth.ap-southeast-2.amazoncognito.com`. Do not guess the prefix from the user-pool ID.
+The supplied Cognito managed-login domain is `https://ap-southeast-2fhknkz871.auth.ap-southeast-2.amazoncognito.com`. Set this exact value as `VITE_COGNITO_DOMAIN`. The OIDC issuer and JWKS remain the separate `cognito-idp` endpoints listed above.
 
 ## Amplify build environment
 
