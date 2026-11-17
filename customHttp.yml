@@ -1,0 +1,5 @@
+customHeaders: []
+redirects:
+  - source: /auth/callback
+    target: /index.html
+    status: '200'
