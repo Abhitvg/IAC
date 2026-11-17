@@ -14,6 +14,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import { CognitoAuthControl } from '../components/auth/CognitoAuthControl';
 import { isSoundMuted, toggleSoundMuted } from '../utils/soundEffects';
 
 interface AppTopBarProps {
@@ -74,6 +75,7 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({ currentTitle }) => {
 
       {/* Right Controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <CognitoAuthControl />
         {/* Audio Recording Toggle */}
         <button
           type="button"
