@@ -62,9 +62,16 @@ describe('CareerOps cloud API client', () => {
     );
     await expect(client.request('/v1/..\\admin')).rejects.toThrow('relative /v1/ endpoint');
     await expect(client.request('/v1/%252e%252e/admin')).rejects.toThrow('relative /v1/ endpoint');
-    await expect(client.request('/v1/me?cursor=%2F')).rejects.toThrow(
+    const fetchImpl = vi.fn<typeof fetch>();
+    const noTokenClient = createCareerOpsApiClient({
+      baseUrl: 'https://api.example.com',
+      getAccessToken: async () => null,
+      fetchImpl,
+    });
+    await expect(noTokenClient.request('/v1/me?cursor=%2F')).rejects.toThrow(
       'A valid access token is required'
     );
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it('surfaces API status codes without leaking response payloads', async () => {
