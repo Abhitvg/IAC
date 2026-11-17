@@ -19,7 +19,9 @@ function isValidEnvelopeMasterKeyRing(raw: string, currentVersion: string): bool
         return false;
       }
       const decoded = Buffer.from(encodedKey, 'base64');
-      if (decoded.length !== 32 || decoded.toString('base64') !== encodedKey) return false;
+      const valid = decoded.length === 32 && decoded.toString('base64') === encodedKey;
+      decoded.fill(0);
+      if (!valid) return false;
     }
     return (
       MASTER_KEY_VERSION_PATTERN.test(currentVersion) &&
