@@ -22,13 +22,16 @@ async function start(): Promise<void> {
     console.error('CareerOps PostgreSQL idle-client error:', error.message);
   });
 
-  const linkedin = environment.LINKEDIN_CLIENT_ID
+  const envelopeKeyProvider = environment.LINKEDIN_CLIENT_ID
+    ? new MasterKeyTenantKeyProvider({
+        masterKeys: JSON.parse(environment.CAREEROPS_ENVELOPE_MASTER_KEYS) as Record<string, string>,
+        currentKeyVersion: environment.CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION,
+      })
+    : undefined;
+  const linkedin = envelopeKeyProvider
     ? createLinkedInCloudIntegration(
         pool,
-        new MasterKeyTenantKeyProvider({
-          masterKeys: JSON.parse(environment.CAREEROPS_ENVELOPE_MASTER_KEYS) as Record<string, string>,
-          currentKeyVersion: environment.CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION,
-        }),
+        envelopeKeyProvider,
         {
           oauth: {
             clientId: environment.LINKEDIN_CLIENT_ID,
@@ -43,13 +46,16 @@ async function start(): Promise<void> {
 
   let shutdown: Promise<void> | undefined;
   const stop = () => {
-    shutdown ??= runtime.close().catch((error: unknown) => {
-      console.error(
-        'CareerOps API shutdown failed:',
-        error instanceof Error ? error.message : 'Unknown shutdown error'
-      );
-      process.exitCode = 1;
-    });
+    shutdown = runtime
+      .close()
+      .catch((error: unknown) => {
+        console.error(
+          'CareerOps API shutdown failed:',
+          error instanceof Error ? error.message : 'Unknown shutdown error'
+        );
+        process.exitCode = 1;
+      })
+      .finally(() => envelopeKeyProvider?.destroy());
     return shutdown;
   };
 
