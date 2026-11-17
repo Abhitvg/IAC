@@ -17,7 +17,6 @@ interface TokenResponse {
 interface PendingAuth {
   state: string;
   verifier: string;
-  nonce: string;
 }
 
 let accessToken: string | null = null;
@@ -35,17 +34,6 @@ async function sha256Base64Url(value: string): Promise<string> {
   let binary = '';
   for (const byte of new Uint8Array(digest)) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-}
-
-function decodeJwtPayload(token: string): Record<string, unknown> {
-  const payload = token.split('.')[1];
-  if (!payload) throw new Error('Invalid identity token');
-  const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-  const decoded = JSON.parse(atob(normalized)) as unknown;
-  if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded)) {
-    throw new Error('Invalid identity token');
-  }
-  return decoded as Record<string, unknown>;
 }
 
 function normalizeHttpsUrl(value: string, label: string): URL {
@@ -77,7 +65,6 @@ export class CognitoAuthClient {
     const pending: PendingAuth = {
       state: randomBase64Url(),
       verifier,
-      nonce: randomBase64Url(),
     };
     sessionStorage.setItem('careerops.cognito.pending', JSON.stringify(pending));
     const challenge = await sha256Base64Url(verifier);
@@ -88,7 +75,6 @@ export class CognitoAuthClient {
       scope: this.scopes.join(' '),
       redirect_uri: this.redirectUri,
       state: pending.state,
-      nonce: pending.nonce,
       code_challenge: challenge,
       code_challenge_method: 'S256',
     }).toString();
@@ -128,26 +114,13 @@ export class CognitoAuthClient {
     if (
       !response.ok ||
       !tokens.access_token ||
-      !tokens.id_token ||
       tokens.token_type?.toLowerCase() !== 'bearer'
     ) {
       throw new Error('Cognito token exchange failed');
     }
-    const idClaims = decodeJwtPayload(tokens.id_token);
-    if (
-      idClaims.nonce !== pending.nonce ||
-      idClaims.iss !== this.configIssuer ||
-      idClaims.aud !== this.config.clientId
-    ) {
-      throw new Error('Cognito identity token validation failed');
-    }
     accessToken = tokens.access_token;
     accessTokenExpiresAt = Date.now() + Math.max(60, tokens.expires_in ?? 3600) * 1000;
     window.history.replaceState({}, document.title, url.pathname);
-  }
-
-  private get configIssuer(): string {
-    return import.meta.env.VITE_COGNITO_ISSUER;
   }
 
   async getAccessToken(): Promise<string | null> {
