@@ -63,8 +63,8 @@ const CloudEnvironmentSchema = z
         'CORS origins must be exact HTTPS origins without paths or trailing slashes'
       ),
     CAREEROPS_DATABASE_URL: z.string().url().optional(),
-    CAREEROPS_ENVELOPE_MASTER_KEYS: z.string().default(''),
-    CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: z.string().default('v1'),
+    CAREEROPS_ENVELOPE_MASTER_KEYS: z.string().max(4096).default(''),
+    CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: z.string().max(64).default('v1'),
     LINKEDIN_CLIENT_ID: z.string().default(''),
     LINKEDIN_CLIENT_SECRET: z.string().default(''),
     LINKEDIN_REDIRECT_URI: z.string().default(''),
