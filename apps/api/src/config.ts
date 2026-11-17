@@ -1,5 +1,32 @@
 import { z } from 'zod';
 
+const MASTER_KEY_VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+function isValidEnvelopeMasterKeyRing(raw: string, currentVersion: string): boolean {
+  if (!raw) return false;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+    const entries = Object.entries(parsed);
+    if (entries.length < 1 || entries.length > 8) return false;
+    for (const [version, encodedKey] of entries) {
+      if (
+        !MASTER_KEY_VERSION_PATTERN.test(version) ||
+        typeof encodedKey !== 'string' ||
+        !BASE64_PATTERN.test(encodedKey)
+      ) {
+        return false;
+      }
+      const decoded = Buffer.from(encodedKey, 'base64');
+      if (decoded.length !== 32 || decoded.toString('base64') !== encodedKey) return false;
+    }
+    return MASTER_KEY_VERSION_PATTERN.test(currentVersion) && entries.some(([version]) => version === currentVersion);
+  } catch {
+    return false;
+  }
+}
+
 const CloudEnvironmentSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']),
@@ -36,14 +63,8 @@ const CloudEnvironmentSchema = z
         'CORS origins must be exact HTTPS origins without paths or trailing slashes'
       ),
     CAREEROPS_DATABASE_URL: z.string().url().optional(),
-    AWS_REGION: z
-      .string()
-      .regex(/^[a-z]{2}(-gov)?-[a-z]+-[0-9]+$/)
-      .optional(),
-    CAREEROPS_KMS_KEY_ARN: z
-      .string()
-      .regex(/^arn:(aws|aws-us-gov|aws-cn):kms:[a-z0-9-]+:[0-9]{12}:key[/][A-Za-z0-9-]+$/)
-      .optional(),
+    CAREEROPS_ENVELOPE_MASTER_KEYS: z.string().default(''),
+    CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: z.string().default('v1'),
     LINKEDIN_CLIENT_ID: z.string().default(''),
     LINKEDIN_CLIENT_SECRET: z.string().default(''),
     LINKEDIN_REDIRECT_URI: z.string().default(''),
@@ -69,11 +90,18 @@ const CloudEnvironmentSchema = z
         message: 'LinkedIn OAuth requires client ID, client secret, and redirect URI together',
       });
     }
-    if (linkedinConfigured && (!values.AWS_REGION || !values.CAREEROPS_KMS_KEY_ARN)) {
+    if (
+      linkedinConfigured &&
+      !isValidEnvelopeMasterKeyRing(
+        values.CAREEROPS_ENVELOPE_MASTER_KEYS,
+        values.CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION
+      )
+    ) {
       context.addIssue({
         code: 'custom',
-        path: ['CAREEROPS_KMS_KEY_ARN'],
-        message: 'LinkedIn token encryption requires AWS_REGION and CAREEROPS_KMS_KEY_ARN',
+        path: ['CAREEROPS_ENVELOPE_MASTER_KEYS'],
+        message:
+          'LinkedIn token encryption requires a JSON key ring containing one to eight canonical base64 32-byte keys and the configured current key version',
       });
     }
     if (values.LINKEDIN_REDIRECT_URI && !values.LINKEDIN_REDIRECT_URI.startsWith('https://')) {
