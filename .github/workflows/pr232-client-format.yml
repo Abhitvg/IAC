@@ -5,6 +5,7 @@ on:
     branches:
       - feat/careerops-aws-production-foundation
     paths:
+      - .github/workflows/pr232-client-format.yml
       - src/services/cloudApi/client.ts
       - tests/cloud-api-client.test.ts
 
