@@ -8,10 +8,8 @@ export interface CognitoAuthConfig {
 
 interface TokenResponse {
   access_token?: string;
-  id_token?: string;
   expires_in?: number;
   token_type?: string;
-  error?: string;
 }
 
 interface PendingAuth {
@@ -91,7 +89,7 @@ export class CognitoAuthClient {
     sessionStorage.removeItem('careerops.cognito.pending');
     if (!code || !state || !rawPending) throw new Error('Missing Cognito authorization response');
     const pending = JSON.parse(rawPending) as PendingAuth;
-    if (!pending.state || state !== pending.state || !pending.verifier || !pending.nonce) {
+    if (!pending.state || state !== pending.state || !pending.verifier) {
       throw new Error('Cognito authorization state validation failed');
     }
 
