@@ -14,12 +14,27 @@ const CloudEnvironmentSchema = z
       .refine((value) => value.startsWith('https://'), 'JWKS URL must use HTTPS'),
     CAREEROPS_CONSENT_SIGNING_SECRET: z.string().min(32),
     CAREEROPS_RATE_LIMIT_HASH_SECRET: z.string().min(32),
-    CAREEROPS_CORS_ALLOWED_ORIGINS: z.string().default('').transform((value) =>
-      value.split(',').map((origin) => origin.trim()).filter(Boolean)
-    ).refine((origins) => origins.every((origin) => {
-      try { const parsed = new URL(origin); return parsed.protocol === 'https:' && parsed.origin === origin; }
-      catch { return false; }
-    }), 'CORS origins must be exact HTTPS origins without paths or trailing slashes'),
+    CAREEROPS_CORS_ALLOWED_ORIGINS: z
+      .string()
+      .default('')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter(Boolean)
+      )
+      .refine(
+        (origins) =>
+          origins.every((origin) => {
+            try {
+              const parsed = new URL(origin);
+              return parsed.protocol === 'https:' && parsed.origin === origin;
+            } catch {
+              return false;
+            }
+          }),
+        'CORS origins must be exact HTTPS origins without paths or trailing slashes'
+      ),
     CAREEROPS_DATABASE_URL: z.string().url().optional(),
     AWS_REGION: z
       .string()
@@ -77,7 +92,12 @@ const CloudEnvironmentSchema = z
     }
   });
 
-export type CloudEnvironment = Omit<z.infer<typeof CloudEnvironmentSchema>, 'CAREEROPS_CORS_ALLOWED_ORIGINS'> & { CAREEROPS_CORS_ALLOWED_ORIGINS: string[] };
+export type CloudEnvironment = Omit<
+  z.infer<typeof CloudEnvironmentSchema>,
+  'CAREEROPS_CORS_ALLOWED_ORIGINS'
+> & {
+  CAREEROPS_CORS_ALLOWED_ORIGINS: string[];
+};
 
 export function loadCloudEnvironment(
   environment: NodeJS.ProcessEnv = process.env
