@@ -74,8 +74,8 @@ For rotation, add a new versioned 32-byte key to the secret, set it as the curre
   - `CAREEROPS_JWKS_URL`
   - `CAREEROPS_CONSENT_SIGNING_SECRET`
   - `CAREEROPS_RATE_LIMIT_HASH_SECRET`
-  - `CAREEROPS_ENVELOPE_MASTER_KEYS` (JSON key ring of 32-byte base64 keys; required when LinkedIn OAuth is enabled)
-  - `CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION` (must match a key-ring entry)
+  - `CAREEROPS_ENVELOPE_MASTER_KEYS` (JSON key ring of 32-byte base64 keys; required by the ECS task definition)
+  - `CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION` (must match a key-ring entry; required by the ECS task definition)
   - `CAREEROPS_DATABASE_URL`
   - `LINKEDIN_CLIENT_ID` (empty string if LinkedIn OAuth is not enabled)
   - `LINKEDIN_CLIENT_SECRET` (empty string if LinkedIn OAuth is not enabled)
