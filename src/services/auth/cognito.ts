@@ -36,10 +36,15 @@ async function sha256Base64Url(value: string): Promise<string> {
 
 function normalizeHttpsUrl(value: string, label: string): URL {
   const url = new URL(value);
-  if (url.protocol !== 'https:' && url.hostname !== 'localhost') {
-    throw new Error(`${label} must use HTTPS`);
+  const localDevelopment =
+    url.protocol === 'http:' &&
+    (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
+  if (url.protocol !== 'https:' && !localDevelopment) {
+    throw new Error(`${label} must use HTTPS outside localhost development`);
   }
-  if (url.username || url.password || url.hash) throw new Error(`${label} is invalid`);
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error(`${label} is invalid`);
+  }
   return url;
 }
 
