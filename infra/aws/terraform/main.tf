@@ -259,6 +259,25 @@ data "aws_iam_policy_document" "read_app_secret" {
     actions   = ["secretsmanager:GetSecretValue"]
     resources = [var.app_secrets_arn]
   }
+
+  # Secrets Manager decrypts the config secret using the CMK on behalf of
+  # the ECS execution role. The application task role receives no KMS access.
+  statement {
+    actions   = ["kms:Decrypt"]
+    resources = [var.kms_key_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["secretsmanager.${var.aws_region}.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:EncryptionContext:SecretARN"
+      values   = [var.app_secrets_arn]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "read_app_secret" {
@@ -271,24 +290,6 @@ resource "aws_iam_role" "task" {
   name               = "${local.name}-task"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
   tags               = local.tags
-}
-
-data "aws_iam_policy_document" "kms_data_key" {
-  statement {
-    actions   = ["kms:GenerateDataKey", "kms:Decrypt"]
-    resources = [var.kms_key_arn]
-    condition {
-      test     = "StringEquals"
-      variable = "kms:EncryptionContext:application"
-      values   = ["careerops"]
-    }
-  }
-}
-
-resource "aws_iam_role_policy" "kms_data_key" {
-  name   = "${local.name}-kms-envelope-encryption"
-  role   = aws_iam_role.task.id
-  policy = data.aws_iam_policy_document.kms_data_key.json
 }
 
 resource "aws_ecs_cluster" "api" {
@@ -321,8 +322,6 @@ resource "aws_ecs_task_definition" "api" {
       { name = "NODE_ENV", value = "production" },
       { name = "PORT", value = "3000" },
       { name = "HOST", value = "0.0.0.0" },
-      { name = "AWS_REGION", value = var.aws_region },
-      { name = "CAREEROPS_KMS_KEY_ARN", value = var.kms_key_arn },
       { name = "CAREEROPS_CORS_ALLOWED_ORIGINS", value = join(",", var.api_allowed_origins) }
     ]
     secrets = [
@@ -332,6 +331,8 @@ resource "aws_ecs_task_definition" "api" {
       { name = "CAREEROPS_JWKS_URL", valueFrom = "${var.app_secrets_arn}:CAREEROPS_JWKS_URL::" },
       { name = "CAREEROPS_CONSENT_SIGNING_SECRET", valueFrom = "${var.app_secrets_arn}:CAREEROPS_CONSENT_SIGNING_SECRET::" },
       { name = "CAREEROPS_RATE_LIMIT_HASH_SECRET", valueFrom = "${var.app_secrets_arn}:CAREEROPS_RATE_LIMIT_HASH_SECRET::" },
+      { name = "CAREEROPS_ENVELOPE_MASTER_KEYS", valueFrom = "${var.app_secrets_arn}:CAREEROPS_ENVELOPE_MASTER_KEYS::" },
+      { name = "CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION", valueFrom = "${var.app_secrets_arn}:CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION::" },
       { name = "LINKEDIN_CLIENT_ID", valueFrom = "${var.app_secrets_arn}:LINKEDIN_CLIENT_ID::" },
       { name = "LINKEDIN_CLIENT_SECRET", valueFrom = "${var.app_secrets_arn}:LINKEDIN_CLIENT_SECRET::" },
       { name = "LINKEDIN_REDIRECT_URI", valueFrom = "${var.app_secrets_arn}:LINKEDIN_REDIRECT_URI::" }
@@ -369,7 +370,7 @@ resource "aws_ecs_service" "api" {
     container_name   = "careerops-api"
     container_port   = 3000
   }
-  depends_on = [aws_lb_listener.http, aws_iam_role_policy_attachment.execution_managed, aws_iam_role_policy.read_app_secret, aws_iam_role_policy.kms_data_key, aws_route.private_egress]
+  depends_on = [aws_lb_listener.http, aws_iam_role_policy_attachment.execution_managed, aws_iam_role_policy.read_app_secret, aws_route.private_egress]
   tags       = local.tags
 }
 
