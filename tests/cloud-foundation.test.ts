@@ -348,6 +348,41 @@ describe('M0 cloud security foundation', () => {
         1_900_000_000
       )
     ).rejects.toThrow('authorized party');
+
+    const cognitoIssuer =
+      'https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_fhknKz871';
+    const cognitoClientId = '3pjaus5ndmnhvp1mo4i6o0keu8';
+    const cognitoVerifier = new OidcJwksVerifier(
+      {
+        issuer: cognitoIssuer,
+        audience: cognitoClientId,
+        jwksUrl: `${cognitoIssuer}/.well-known/jwks.json`,
+      },
+      fetcher as typeof fetch
+    );
+    const cognitoAccessToken = signClaims({
+      sub: 'cognito-user-1',
+      iss: cognitoIssuer,
+      client_id: cognitoClientId,
+      token_use: 'access',
+      exp: 2_000_000_000,
+      iat: 1_900_000_000,
+    });
+    expect((await cognitoVerifier.verify(cognitoAccessToken, 1_900_000_000)).subject).toBe(
+      'cognito-user-1'
+    );
+    await expect(
+      cognitoVerifier.verify(
+        signClaims({
+          sub: 'cognito-user-1',
+          iss: cognitoIssuer,
+          aud: cognitoClientId,
+          token_use: 'id',
+          exp: 2_000_000_000,
+        }),
+        1_900_000_000
+      )
+    ).rejects.toThrow('Cognito client_id');
     const [headerPart, payloadPart, signaturePart] = token.split('.');
     const tamperedSignature = `${signaturePart[0] === 'A' ? 'B' : 'A'}${signaturePart.slice(1)}`;
     await expect(
