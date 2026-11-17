@@ -1,10 +1,12 @@
 import React from 'react';
 import { getCognitoAuthClient } from '../../services/auth/cognito';
+import { careerOpsCloudApi } from '../../services/cloudApi/careerOpsClient';
 
 export function CognitoAuthControl() {
   const client = getCognitoAuthClient();
   const [signedIn, setSignedIn] = React.useState(false);
   const [message, setMessage] = React.useState('');
+  const [apiConnected, setApiConnected] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
@@ -14,9 +16,17 @@ export function CognitoAuthControl() {
         if (window.location.pathname === '/auth/callback') {
           await client.completeCallback();
           if (active) setSignedIn(true);
+          if (careerOpsCloudApi) {
+            await careerOpsCloudApi.request('/v1/me');
+            if (active) setApiConnected(true);
+          }
         } else {
           const token = await client.getAccessToken();
           if (active) setSignedIn(Boolean(token));
+          if (token && careerOpsCloudApi) {
+            await careerOpsCloudApi.request('/v1/me');
+            if (active) setApiConnected(true);
+          }
         }
       } catch {
         if (active) setMessage('Sign-in could not be completed. Please try again.');
@@ -48,8 +58,18 @@ export function CognitoAuthControl() {
       {message && <span role="status" style={{ color: '#F1A3A3', fontSize: 10 }}>{message}</span>}
       {signedIn ? (
         <>
-          <span style={{ color: '#86D6A5', fontSize: 10 }}>Cloud connected</span>
-          <button type="button" style={style} onClick={() => client.signOut()}>
+          <span style={{ color: apiConnected ? '#86D6A5' : '#E5B86A', fontSize: 10 }}>
+            {apiConnected ? 'Cloud connected' : 'Signed in · API not verified'}
+          </span>
+          <button
+            type="button"
+            style={style}
+            onClick={() => {
+              setApiConnected(false);
+              setSignedIn(false);
+              client.signOut();
+            }}
+          >
             Sign out
           </button>
         </>
