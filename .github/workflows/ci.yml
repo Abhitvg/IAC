@@ -6,6 +6,12 @@ on:
     branches: [main, 'fix/**', 'feat/**', 'security/**']
   pull_request:
 
+# A branch push and its pull_request event are the same code revision.
+# Share a concurrency key so newer commits supersede stale validation runs.
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     name: Test & Build (${{ matrix.os }})
