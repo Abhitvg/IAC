@@ -56,18 +56,12 @@ describe('CareerOps cloud API client', () => {
     await expect(client.request('https://attacker.example/steal')).rejects.toThrow(
       'relative /v1/ endpoint'
     );
-    await expect(client.request('/v1/%2e%2e/admin')).rejects.toThrow(
-      'relative /v1/ endpoint'
-    );
+    await expect(client.request('/v1/%2e%2e/admin')).rejects.toThrow('relative /v1/ endpoint');
     await expect(client.request('/v1/%2F%2fattacker.example/steal')).rejects.toThrow(
       'relative /v1/ endpoint'
     );
-    await expect(client.request('/v1/..\\admin')).rejects.toThrow(
-      'relative /v1/ endpoint'
-    );
-    await expect(client.request('/v1/%252e%252e/admin')).rejects.toThrow(
-      'relative /v1/ endpoint'
-    );
+    await expect(client.request('/v1/..\\admin')).rejects.toThrow('relative /v1/ endpoint');
+    await expect(client.request('/v1/%252e%252e/admin')).rejects.toThrow('relative /v1/ endpoint');
     await expect(client.request('/v1/me?cursor=%2F')).rejects.toThrow(
       'A valid access token is required'
     );
