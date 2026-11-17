@@ -58,6 +58,7 @@ The Secrets Manager JSON secret must contain:
 - `CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION`: the version used for new envelopes, for example `v1`.
 
 For clarity, the Secrets Manager secret stores the key ring as an escaped JSON string (not as a nested object):
+
 ```json
 {
   "CAREEROPS_ENVELOPE_MASTER_KEYS": "{\"v1\":\"<base64-encoded-32-byte-key>\"}",
