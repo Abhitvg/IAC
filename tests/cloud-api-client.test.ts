@@ -45,7 +45,7 @@ describe('CareerOps cloud API client', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('rejects non-HTTPS remote endpoints and paths outside the API namespace', () => {
+  it('rejects non-HTTPS remote endpoints and paths outside the API namespace', async () => {
     expect(() =>
       createCareerOpsApiClient({
         baseUrl: 'http://api.example.com',
@@ -56,7 +56,7 @@ describe('CareerOps cloud API client', () => {
       baseUrl: 'https://api.example.com',
       getAccessToken: async () => 'token',
     });
-    expect(client.request('https://attacker.example/steal')).rejects.toThrow(
+    await expect(client.request('https://attacker.example/steal')).rejects.toThrow(
       'relative /v1/ endpoint'
     );
   });
