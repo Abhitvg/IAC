@@ -253,7 +253,9 @@ describe('M0 cloud security foundation', () => {
     expect(() =>
       loadCloudEnvironment({
         ...base,
-        CAREEROPS_ENVELOPE_MASTER_KEYS: JSON.stringify({ v1: Buffer.from('short').toString('base64') }),
+        CAREEROPS_ENVELOPE_MASTER_KEYS: JSON.stringify({
+          v1: Buffer.from('short').toString('base64'),
+        }),
         CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: 'v1',
       } as NodeJS.ProcessEnv)
     ).toThrow(/requires a JSON key ring/);

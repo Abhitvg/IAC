@@ -53,6 +53,7 @@ This Terraform stack deploys the CareerOps API to ECS Fargate behind an Applicat
 CareerOps application code does **not** call AWS KMS. The API generates a fresh random 256-bit data key for each encrypted token payload and wraps that data key locally with AES-256-GCM using a versioned 256-bit master-key ring injected through ECS from the existing Secrets Manager configuration secret. The wrapped data key, nonce, authentication tag, ciphertext, tenant ID, purpose context, and key version are stored in the envelope. The AAD binds the application, authenticated tenant, data purpose, and master-key version.
 
 The Secrets Manager JSON secret must contain:
+
 - `CAREEROPS_ENVELOPE_MASTER_KEYS`: a JSON object of one to eight version-to-base64-key entries, for example `{"v1":"<base64-encoded-32-byte-key>"}`.
 - `CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION`: the version used for new envelopes, for example `v1`.
 

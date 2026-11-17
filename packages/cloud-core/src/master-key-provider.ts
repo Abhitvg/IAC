@@ -44,11 +44,7 @@ function validateContext(tenantId: string, context: string, keyVersion: string):
   }
 }
 
-function wrappingAssociatedData(
-  tenantId: string,
-  context: string,
-  keyVersion: string
-): Buffer {
+function wrappingAssociatedData(tenantId: string, context: string, keyVersion: string): Buffer {
   return Buffer.from(
     JSON.stringify({
       application: 'careerops',
@@ -141,7 +137,8 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
   ): Promise<Buffer> {
     validateContext(tenantId, context, keyVersion);
     const masterKey = this.masterKeys.get(keyVersion);
-    if (!masterKey) throw new Error('Encrypted envelope references an unavailable master-key version');
+    if (!masterKey)
+      throw new Error('Encrypted envelope references an unavailable master-key version');
     if (!wrappedKey || wrappedKey.length > 16_384) {
       throw new Error('Invalid wrapped envelope data key');
     }

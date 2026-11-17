@@ -42,18 +42,14 @@ async function start(): Promise<void> {
     envelopeKeyRingJson = '';
   }
   const linkedin = envelopeKeyProvider
-    ? createLinkedInCloudIntegration(
-        pool,
-        envelopeKeyProvider,
-        {
-          oauth: {
-            clientId: environment.LINKEDIN_CLIENT_ID,
-            clientSecret: environment.LINKEDIN_CLIENT_SECRET,
-            redirectUri: environment.LINKEDIN_REDIRECT_URI,
-          },
-          entitlements: {},
-        }
-      )
+    ? createLinkedInCloudIntegration(pool, envelopeKeyProvider, {
+        oauth: {
+          clientId: environment.LINKEDIN_CLIENT_ID,
+          clientSecret: environment.LINKEDIN_CLIENT_SECRET,
+          redirectUri: environment.LINKEDIN_REDIRECT_URI,
+        },
+        entitlements: {},
+      })
     : undefined;
   const runtime = createCloudApiRuntime(pool, environment, linkedin);
 
