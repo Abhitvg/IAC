@@ -3,7 +3,7 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches: [main, 'fix/**', 'feat/**', 'security/**']
+    branches: [main]
   pull_request:
 
 # A branch push and its pull_request event are the same code revision.
