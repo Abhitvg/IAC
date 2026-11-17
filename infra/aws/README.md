@@ -54,8 +54,16 @@ CareerOps application code does **not** call AWS KMS. The API generates a fresh 
 
 The Secrets Manager JSON secret must contain:
 
-- `CAREEROPS_ENVELOPE_MASTER_KEYS`: a JSON object of one to eight version-to-base64-key entries, for example `{"v1":"<base64-encoded-32-byte-key>"}`.
+- `CAREEROPS_ENVELOPE_MASTER_KEYS`: a **string containing JSON**, with one to eight version-to-base64-key entries.
 - `CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION`: the version used for new envelopes, for example `v1`.
+
+For clarity, the Secrets Manager secret stores the key ring as an escaped JSON string (not as a nested object):
+```json
+{
+  "CAREEROPS_ENVELOPE_MASTER_KEYS": "{\"v1\":\"<base64-encoded-32-byte-key>\"}",
+  "CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION": "v1"
+}
+```
 
 Generate each 32-byte master key outside the repository with `openssl rand -base64 32`. Store the value only in Secrets Manager. Never put it in Git, Terraform variables/state, Amplify build variables, logs, or client-side code. The API validates that every key decodes to exactly 32 bytes and that the configured current version exists.
 
