@@ -94,7 +94,7 @@ For rotation, add a new versioned 32-byte key to the secret, set it as the curre
   - `LINKEDIN_CLIENT_SECRET` (empty string if LinkedIn OAuth is not enabled)
   - `LINKEDIN_REDIRECT_URI` (empty string if LinkedIn OAuth is not enabled; HTTPS when enabled)
 - The database URL must use the non-owner `careerops_app` role. Provision that role and apply migrations using a separate privileged migration identity. Do not give the API the master database credentials.
-- Terraform 1.9+ and AWS provider credentials for provisioning only. The planning identity also needs `secretsmanager:DescribeSecret` on the application config secret so Terraform can verify that its KMS key matches `kms_key_arn`, plus `ec2:DescribeSubnets` for the read-only VPC/AZ validation of the supplied subnets. The ECS execution role separately receives only the runtime secret-read/decrypt permissions.
+- Terraform 1.9+ and AWS provider credentials for provisioning only. The planning identity also needs `secretsmanager:DescribeSecret` on the application config secret so Terraform can verify that its KMS key matches `kms_key_arn`, plus `ec2:DescribeSubnets` and `ec2:DescribeRouteTables` for read-only VPC/AZ checks, private-subnet route-table association checks, and database-route isolation checks. The ECS execution role separately receives only the runtime secret-read/decrypt permissions.
 
 The RDS master password and application secret values must never be committed. Use a remote Terraform backend with encryption, locking, and restricted access. Do not use local state for production.
 
