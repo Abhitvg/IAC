@@ -7,6 +7,23 @@ locals {
   }
 }
 
+# Read-only lookups let Terraform fail before resource creation if supplied
+# subnet IDs do not match the two-AZ network contract.
+data "aws_subnet" "public" {
+  for_each = toset(var.public_subnet_ids)
+  id       = each.value
+}
+
+data "aws_subnet" "application" {
+  for_each = toset(var.private_subnet_ids)
+  id       = each.value
+}
+
+data "aws_subnet" "database" {
+  for_each = toset(var.database_subnet_ids)
+  id       = each.value
+}
+
 # Reuse the existing public/private subnets and route tables. No VPC, subnet,
 # Internet Gateway, or S3 endpoint resources are created or modified here.
 # Staging uses one NAT Gateway; production uses one NAT Gateway per AZ.
@@ -128,6 +145,17 @@ resource "aws_db_subnet_group" "database" {
   name       = "${local.name}-db"
   subnet_ids = var.database_subnet_ids
   tags       = local.tags
+
+  lifecycle {
+    precondition {
+      condition = alltrue([
+        for subnet in values(data.aws_subnet.database) : subnet.vpc_id == var.vpc_id
+      ]) && length(distinct([
+        for subnet in values(data.aws_subnet.database) : subnet.availability_zone
+      ])) >= 2
+      error_message = "Database subnets must exist in the configured VPC and span at least two availability zones."
+    }
+  }
 }
 
 resource "aws_db_parameter_group" "database" {
@@ -178,6 +206,17 @@ resource "aws_lb" "api" {
   drop_invalid_header_fields = true
   enable_deletion_protection = var.deletion_protection
   tags                       = local.tags
+
+  lifecycle {
+    precondition {
+      condition = alltrue([
+        for subnet in values(data.aws_subnet.public) : subnet.vpc_id == var.vpc_id
+      ]) && length(distinct([
+        for subnet in values(data.aws_subnet.public) : subnet.availability_zone
+      ])) == 2
+      error_message = "Public ALB subnets must exist in the configured VPC and occupy two different availability zones."
+    }
+  }
 }
 
 resource "aws_lb_target_group" "api" {
@@ -385,6 +424,17 @@ resource "aws_ecs_service" "api" {
   }
   depends_on = [aws_lb_listener.http, aws_iam_role_policy_attachment.execution_managed, aws_iam_role_policy.read_app_secret, aws_route.private_egress]
   tags       = local.tags
+
+  lifecycle {
+    precondition {
+      condition = alltrue([
+        for subnet in values(data.aws_subnet.application) : subnet.vpc_id == var.vpc_id
+      ]) && length(distinct([
+        for subnet in values(data.aws_subnet.application) : subnet.availability_zone
+      ])) == 2
+      error_message = "Application private subnets must exist in the configured VPC and occupy two different availability zones."
+    }
+  }
 }
 
 resource "aws_appautoscaling_target" "api" {
