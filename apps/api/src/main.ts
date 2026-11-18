@@ -58,7 +58,11 @@ async function start(): Promise<void> {
     : undefined;
   const careerGraphEnvelopeVerifier = careerGraphCipher
     ? {
-        verify: async (envelope: Parameters<TenantEnvelopeCipher['decrypt']>[0], tenantId: string, context: string) => {
+        verify: async (
+          envelope: Parameters<TenantEnvelopeCipher['decrypt']>[0],
+          tenantId: string,
+          context: string
+        ) => {
           const plaintext = await careerGraphCipher.decrypt(envelope, tenantId, context);
           plaintext.fill(0);
         },
