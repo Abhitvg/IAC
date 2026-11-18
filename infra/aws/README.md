@@ -4,7 +4,7 @@
 
 The current deployment profile is pinned to AWS account `165328640460` and region `ap-southeast-2` (Sydney). This supersedes the earlier `ap-south-1` draft. The existing customer-managed KMS key is confirmed as `arn:aws:kms:ap-southeast-2:165328640460:key/9dffb4cb-6a4a-40e7-b49e-40415ddb9bf7`. The account ARN `arn:aws:account::165328640460:account` identifies the account; it is not a KMS key ARN.
 
-Initial capacity profile: two API tasks across at least two AZs, 0.5 vCPU / 1 GiB per task, autoscaling capped at four tasks, RDS PostgreSQL `db.t4g.medium` Multi-AZ with 50 GiB gp3 storage, seven-day automated backups, and 30-day application log retention. Deletion protection stays enabled. This is a starting profile, not a price quote; validate actual regional pricing and expected request/job volume before applying.
+Initial capacity profile: two API tasks across at least two AZs, 0.5 vCPU / 1 GiB per task, autoscaling capped at four tasks, RDS PostgreSQL 16 on `db.t4g.medium` Multi-AZ with 50 GiB gp3 storage, seven-day automated backups, and 30-day application log retention. The database major version is pinned to 16 to match the `postgres16` parameter-group family and the PostgreSQL 16 CI service; minor upgrades remain managed by RDS. Deletion protection stays enabled. This is a starting profile, not a price quote; validate actual regional pricing and expected request/job volume before applying.
 
 Availability objective: 99.9% monthly service availability (about 43.8 minutes of error budget in a 30-day month). This is a design objective, not a guarantee or an established SLO. It requires two healthy API tasks across AZs, Multi-AZ RDS, ALB health checks, deployment rollback, monitoring/alert routing, tested restore procedures, and resilient outbound connectivity. A single NAT gateway is a cost-saving single-AZ dependency; use one NAT gateway per AZ or appropriate VPC endpoints plus redundant egress if the 99.9% target is contractual.
 
@@ -139,7 +139,7 @@ The image runs as the non-root Node user and starts `dist-api/apps/api/src/main.
 
 ## GitHub Actions deployment
 
-The manual deployment workflow uses GitHub OIDC. Configure repository variable `AWS_REGION`, secret `AWS_ROLE_TO_ASSUME`, and variables `ECR_REPOSITORY`, `ECS_CLUSTER`, `ECS_SERVICE`, and `ECS_TASK_FAMILY`. The assumed role must be restricted to this repository and branch/environment, and permit only ECR push plus updating the named ECS service/task family.
+The manual deployment workflow uses GitHub OIDC and refuses to run unless it was dispatched from `main`. It checks that the assumed identity belongs to account `165328640460`, that the region is `ap-southeast-2`, and that the ECR repository belongs to that same account/region. Configure repository variable `AWS_REGION`, secret `AWS_ROLE_TO_ASSUME`, and variables `ECR_REPOSITORY`, `ECS_CLUSTER`, `ECS_SERVICE`, and `ECS_TASK_FAMILY`. The assumed role must be restricted to this repository and the protected production environment, and permit only ECR push plus updating the named ECS service/task family.
 
 ## OIDC deployment role
 
@@ -147,7 +147,7 @@ Create an IAM OIDC provider for `token.actions.githubusercontent.com` and a role
 
 The deployment role needs ECR push actions on this repository, `ecs:DescribeTaskDefinition`, `ecs:RegisterTaskDefinition`, `ecs:UpdateService`, `ecs:DescribeServices`, and `iam:PassRole` for only the ECS execution and task roles created by this stack. Configure GitHub repository variables/secrets as described above.
 
-The workflow builds a Linux ARM64 image, pushes an immutable `release-<commit-sha>` tag, registers a new task-definition revision with that exact image, updates the service, and waits for ECS stability. The ECS deployment circuit breaker is configured to roll back failed deployments.
+The workflow builds a Linux ARM64 image, pushes an immutable `release-<commit-sha>` tag, registers a new task-definition revision with that exact image, updates the service, and waits for ECS stability. It then verifies that the service is actually running the requested task-definition revision with all desired tasks healthy; a stable rollback to the old revision is treated as a failed deployment. The ECS deployment circuit breaker is configured to roll back failed deployments. Configure the GitHub `production` environment to allow only the `main` branch and require an explicit reviewer before the deployment role's secret is released.
 
 ## Not included yet
 
