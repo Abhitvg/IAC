@@ -6,6 +6,8 @@ subnets, Internet Gateway, or S3 Gateway VPC endpoint.
 
 ## Existing network inputs
 
+This Terraform profile expects exactly two public ALB subnets and exactly two private application subnets, each pair spanning two different Availability Zones. The two private route table IDs must be listed in the same order as the private application subnet IDs. This exact two-AZ shape matches the module's NAT Gateway and route-table mapping; do not append extra application subnets without extending that mapping first.
+
 - VPC: `vpc-0bc0cb5d78fb32a15`
 - Public AZ-a: `subnet-06d11260177d2cc26` (`10.0.0.0/20`)
 - Public AZ-b: `subnet-0442bc7a85c52a118` (`10.0.16.0/20`)
