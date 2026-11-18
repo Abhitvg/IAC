@@ -14,6 +14,8 @@ The browser frontend is a Vite/React static application; Electron is a separate 
 
 The staging Amplify origin is configured as `https://main.d37etc5h2drv5h.amplifyapp.com` in the example Terraform variables. Terraform passes `api_allowed_origins` to the ECS API as `CAREEROPS_CORS_ALLOWED_ORIGINS`. The API accepts only exact HTTPS origins and handles preflight requests for the supported bearer-token headers/methods; it does not enable cookie credentials or wildcard origins. For another Amplify branch or a production custom domain, set a separate exact origin in that environment's private tfvars.
 
+The sample `allowed_ingress_cidrs` value is a single developer `/32` and is appropriate only for a restricted staging smoke test. For a public multi-tenant production API, the ALB security group must admit the intended user networks; browser requests to the API originate from each user's network, not from Amplify's hosting servers. A `/32` will block everyone outside that address. Choose production ingress deliberately and put an appropriate WAF/rate-limiting layer in front of public endpoints where needed.
+
 Amplify must be configured with the API base URL as a non-secret `VITE_*` build variable only after the API has a reachable HTTPS endpoint. Do not put JWT signing secrets, database credentials, OAuth client secrets, or other credentials in Amplify build variables. Add the Amplify SPA fallback rewrite in the Amplify app's Rewrites and redirects settings: source `/<*>`, target `/index.html`, status `200`. The managed `amplifyapp.com` hostname uses Amplify-managed HTTPS; the ALB ACM certificate is a separate certificate boundary.
 
 ## HTTP-only staging when you do not own a domain
