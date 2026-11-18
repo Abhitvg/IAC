@@ -159,10 +159,22 @@ resource "aws_db_subnet_group" "database" {
   lifecycle {
     precondition {
       condition = alltrue([
-        for subnet in values(data.aws_subnet.database) : subnet.vpc_id == var.vpc_id
-      ]) && length(distinct([
-        for subnet in values(data.aws_subnet.database) : subnet.availability_zone
-      ])) >= 2 && alltrue([
+        for subnet in values(data.aws_subnet.database) :
+        subnet.vpc_id == var.vpc_id
+      ])
+      error_message = "All database subnets must belong to the configured VPC."
+    }
+
+    precondition {
+      condition = length(distinct([
+        for subnet in values(data.aws_subnet.database) :
+        subnet.availability_zone
+      ])) >= 2
+      error_message = "Database subnets must span at least two availability zones."
+    }
+
+    precondition {
+      condition = alltrue([
         for route_table in values(data.aws_route_table.database) : alltrue([
           for route in route_table.routes : !(
             route.cidr_block == "0.0.0.0/0" && (
@@ -172,7 +184,7 @@ resource "aws_db_subnet_group" "database" {
           )
         ])
       ])
-      error_message = "Database subnets must exist in the configured VPC, span at least two availability zones, and have no IPv4 default route to an Internet Gateway or NAT Gateway."
+      error_message = "Database subnet route tables must not have an IPv4 default route to an Internet Gateway or NAT Gateway."
     }
   }
 }
@@ -229,11 +241,18 @@ resource "aws_lb" "api" {
   lifecycle {
     precondition {
       condition = alltrue([
-        for subnet in values(data.aws_subnet.public) : subnet.vpc_id == var.vpc_id
-      ]) && length(distinct([
-        for subnet in values(data.aws_subnet.public) : subnet.availability_zone
+        for subnet in values(data.aws_subnet.public) :
+        subnet.vpc_id == var.vpc_id
+      ])
+      error_message = "All public ALB subnets must belong to the configured VPC."
+    }
+
+    precondition {
+      condition = length(distinct([
+        for subnet in values(data.aws_subnet.public) :
+        subnet.availability_zone
       ])) == 2
-      error_message = "Public ALB subnets must exist in the configured VPC and occupy two different availability zones."
+      error_message = "Public ALB subnets must occupy two different availability zones."
     }
   }
 }
@@ -447,14 +466,26 @@ resource "aws_ecs_service" "api" {
   lifecycle {
     precondition {
       condition = alltrue([
-        for subnet in values(data.aws_subnet.application) : subnet.vpc_id == var.vpc_id
-      ]) && length(distinct([
-        for subnet in values(data.aws_subnet.application) : subnet.availability_zone
-      ])) == 2 && alltrue([
+        for subnet in values(data.aws_subnet.application) :
+        subnet.vpc_id == var.vpc_id
+      ])
+      error_message = "All application private subnets must belong to the configured VPC."
+    }
+
+    precondition {
+      condition = length(distinct([
+        for subnet in values(data.aws_subnet.application) :
+        subnet.availability_zone
+      ])) == 2
+      error_message = "Application private subnets must occupy two different availability zones."
+    }
+
+    precondition {
+      condition = alltrue([
         for index, subnet_id in var.private_subnet_ids :
         data.aws_route_table.application[subnet_id].id == var.private_route_table_ids[index]
       ])
-      error_message = "Application private subnets must exist in the configured VPC, occupy two different availability zones, and map in order to their actual associated private route tables."
+      error_message = "Each application private subnet must be associated with its corresponding configured route table."
     }
   }
 }
