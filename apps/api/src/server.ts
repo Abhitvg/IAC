@@ -593,7 +593,10 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
             `career-graph:${input.factKey}`
           );
         } catch {
-          sendJson(response, 400, { error: 'Career Graph encrypted envelope authentication failed', requestId });
+          sendJson(response, 400, {
+            error: 'Career Graph encrypted envelope authentication failed',
+            requestId,
+          });
           return;
         }
         const fact = await dependencies.careerGraph.createFact(
