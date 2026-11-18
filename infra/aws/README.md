@@ -77,7 +77,7 @@ For rotation, add a new versioned 32-byte key to the secret, set it as the curre
 
 ## Prerequisites
 
-- An existing VPC with at least two public subnets and two private application subnets across availability zones.
+- An existing VPC with exactly two public ALB subnets and exactly two private application subnets across two Availability Zones. The module validates the subnet VPC IDs and AZ spread at plan time.
 - Private application subnets need outbound access through NAT or appropriate VPC endpoints for ECR (API and Docker), CloudWatch Logs, Secrets Manager, and the external OIDC/JWKS endpoint. The application process does not need a KMS VPC endpoint. Without required egress/endpoints, Fargate tasks may fail to pull images, load secrets, publish logs, or validate tokens.
 - Two isolated database subnets. The database subnets must not have a public route.
 - An ACM certificate in the same region as the ALB when `enable_https = true`. It is mandatory for production. The current staging example also enables HTTPS and references the supplied certificate; verify its SAN/domain coverage before applying. Only temporary non-sensitive HTTP staging smoke tests may omit it.
@@ -94,7 +94,7 @@ For rotation, add a new versioned 32-byte key to the secret, set it as the curre
   - `LINKEDIN_CLIENT_SECRET` (empty string if LinkedIn OAuth is not enabled)
   - `LINKEDIN_REDIRECT_URI` (empty string if LinkedIn OAuth is not enabled; HTTPS when enabled)
 - The database URL must use the non-owner `careerops_app` role. Provision that role and apply migrations using a separate privileged migration identity. Do not give the API the master database credentials.
-- Terraform 1.9+ and AWS provider credentials for provisioning only. The planning identity also needs `secretsmanager:DescribeSecret` on the application config secret so Terraform can verify that its KMS key matches `kms_key_arn`; the ECS execution role separately receives only the runtime secret-read/decrypt permissions.
+- Terraform 1.9+ and AWS provider credentials for provisioning only. The planning identity also needs `secretsmanager:DescribeSecret` on the application config secret so Terraform can verify that its KMS key matches `kms_key_arn`, plus `ec2:DescribeSubnets` for the read-only VPC/AZ validation of the supplied subnets. The ECS execution role separately receives only the runtime secret-read/decrypt permissions.
 
 The RDS master password and application secret values must never be committed. Use a remote Terraform backend with encryption, locking, and restricted access. Do not use local state for production.
 
