@@ -453,6 +453,25 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   tags          = local.tags
 }
 
+resource "aws_cloudwatch_metric_alarm" "api_target_5xx" {
+  alarm_name          = "${local.name}-api-target-5xx"
+  alarm_description   = "CareerOps API targets returned five or more 5xx responses in a one-minute period."
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "HTTPCode_Target_5XX_Count"
+  statistic           = "Sum"
+  period              = 60
+  evaluation_periods  = 2
+  threshold           = 5
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    LoadBalancer = aws_lb.api.arn_suffix
+    TargetGroup  = aws_lb_target_group.api.arn_suffix
+  }
+  alarm_actions = [aws_sns_topic.operations_alerts.arn]
+  tags          = local.tags
+}
+
 resource "aws_cloudwatch_metric_alarm" "unhealthy_targets" {
   alarm_name          = "${local.name}-unhealthy-targets"
   alarm_description   = "At least one unhealthy CareerOps API target is registered."
