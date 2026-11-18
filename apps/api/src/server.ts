@@ -12,20 +12,21 @@ import type { CloudApiDependencies } from './ports';
 import { LinkedInApiError } from './linkedin/client';
 
 export function resolveClientIp(request: IncomingMessage, trustProxy = false): string {
-  if (trustProxy) {
-    const forwardedHeader = request.headers['x-forwarded-for'];
-    const forwarded = Array.isArray(forwardedHeader)
-      ? forwardedHeader.join(',')
-      : forwardedHeader;
-    if (typeof forwarded === 'string') {
-      const lastComma = forwarded.lastIndexOf(',');
-      const candidate = forwarded.slice(lastComma + 1).trim();
-      // The ALB is configured to append the actual client IP and not its port.
-      // Ignore malformed/oversized values rather than trusting earlier client-supplied hops.
-      if (candidate.length <= 45 && isIP(candidate) !== 0) return candidate;
-    }
+  const remoteAddress = request.socket.remoteAddress ?? 'unknown';
+  if (!trustProxy) return remoteAddress;
+
+  const forwardedHeader = request.headers['x-forwarded-for'];
+  const forwarded = Array.isArray(forwardedHeader) ? forwardedHeader.join(',') : forwardedHeader;
+  if (typeof forwarded !== 'string') return remoteAddress;
+
+  const forwardedAddresses = forwarded.split(',');
+  const candidate = forwardedAddresses[forwardedAddresses.length - 1]?.trim() ?? '';
+  // The ALB appends the actual client IP and does not add a client port.
+  // Ignore malformed/oversized values rather than trusting earlier client-supplied hops.
+  if (candidate.length > 0 && candidate.length <= 45 && isIP(candidate) !== 0) {
+    return candidate;
   }
-  return request.socket.remoteAddress ?? 'unknown';
+  return remoteAddress;
 }
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
