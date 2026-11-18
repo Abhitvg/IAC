@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 import { readBearerToken } from '../../../packages/cloud-core/src/auth';
 import { createConsentRecord } from '../../../packages/cloud-core/src/contract';
 import {
@@ -9,6 +10,23 @@ import {
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
 import { LinkedInApiError } from './linkedin/client';
+
+export function resolveClientIp(request: IncomingMessage, trustProxy = false): string {
+  if (trustProxy) {
+    const forwardedHeader = request.headers['x-forwarded-for'];
+    const forwarded = Array.isArray(forwardedHeader)
+      ? forwardedHeader.join(',')
+      : forwardedHeader;
+    if (typeof forwarded === 'string') {
+      const lastComma = forwarded.lastIndexOf(',');
+      const candidate = forwarded.slice(lastComma + 1).trim();
+      // The ALB is configured to append the actual client IP and not its port.
+      // Ignore malformed/oversized values rather than trusting earlier client-supplied hops.
+      if (candidate.length <= 45 && isIP(candidate) !== 0) return candidate;
+    }
+  }
+  return request.socket.remoteAddress ?? 'unknown';
+}
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, {
@@ -99,7 +117,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
-      const ipKey = `ip:${request.socket.remoteAddress ?? 'unknown'}`;
+      const ipKey = `ip:${resolveClientIp(request, dependencies.config.trustProxy)}`;
       if (!(await dependencies.rateLimiter.consume(ipKey, 60, 60_000))) {
         sendJson(response, 429, { error: 'Rate limit exceeded', requestId });
         return;
