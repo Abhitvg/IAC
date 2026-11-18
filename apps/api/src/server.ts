@@ -579,6 +579,23 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       if (request.method === 'POST' && url.pathname === '/v1/career-graph/facts') {
         const body = await readJson(request, maxBytes);
         const input = validateCareerGraphFact(tenant.tenantId, tenant.subject, body);
+        if (!dependencies.careerGraphEnvelopeVerifier) {
+          sendJson(response, 503, {
+            error: 'Career Graph encryption verification is not configured',
+            requestId,
+          });
+          return;
+        }
+        try {
+          await dependencies.careerGraphEnvelopeVerifier.verify(
+            input.valueEnvelope,
+            tenant.tenantId,
+            `career-graph:${input.factKey}`
+          );
+        } catch {
+          sendJson(response, 400, { error: 'Career Graph encrypted envelope authentication failed', requestId });
+          return;
+        }
         const fact = await dependencies.careerGraph.createFact(
           tenant.tenantId,
           tenant.subject,
