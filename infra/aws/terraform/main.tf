@@ -241,6 +241,9 @@ resource "aws_lb" "api" {
   subnets                    = var.public_subnet_ids
   drop_invalid_header_fields = true
   enable_deletion_protection = var.deletion_protection
+  # The API trusts only the rightmost client IP appended by this load balancer.
+  xff_header_processing_mode = "append"
+  enable_xff_client_port      = false
   tags                       = local.tags
 
   lifecycle {
@@ -428,6 +431,7 @@ resource "aws_ecs_task_definition" "api" {
       { name = "NODE_ENV", value = "production" },
       { name = "PORT", value = "3000" },
       { name = "HOST", value = "0.0.0.0" },
+      { name = "CAREEROPS_TRUST_PROXY", value = "true" },
       { name = "CAREEROPS_CORS_ALLOWED_ORIGINS", value = join(",", var.api_allowed_origins) }
     ]
     secrets = [
