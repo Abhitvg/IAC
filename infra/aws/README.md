@@ -92,10 +92,34 @@ For rotation, add a new versioned 32-byte key to the secret, set it as the curre
   - `LINKEDIN_CLIENT_ID` (empty string if LinkedIn OAuth is not enabled)
   - `LINKEDIN_CLIENT_SECRET` (empty string if LinkedIn OAuth is not enabled)
   - `LINKEDIN_REDIRECT_URI` (empty string if LinkedIn OAuth is not enabled; HTTPS when enabled)
-- The database URL must use the non-owner `careerops_app` role. Provision that role and apply migrations using a separate privileged migration identity. Do not give the API the master database credentials.
+- The `careerops_app` and `careerops_provisioner` roles created by the migrations are non-login permission bundles. The API database URL must use a separate `careerops_runtime` login that inherits `careerops_app`; tenant bootstrap uses a separate `careerops_tenant_provisioner` login granted membership in `careerops_provisioner`. The API must never use the RDS master or migration credentials.
 - Terraform 1.9+ and AWS provider credentials for provisioning only. The planning identity also needs `secretsmanager:DescribeSecret` on the application config secret so Terraform can verify that its KMS key matches `kms_key_arn`, plus `ec2:DescribeSubnets` and `ec2:DescribeRouteTables` for read-only VPC/AZ checks, private-subnet route-table association checks, and database-route isolation checks. The ECS execution role separately receives only the runtime secret-read/decrypt permissions.
 
 The RDS master password and application secret values must never be committed. Use a remote Terraform backend with encryption, locking, and restricted access. Do not use local state for production.
+
+## PostgreSQL role setup and migration sequence
+
+The migrations create `careerops_app` and `careerops_provisioner` as **NOLOGIN** permission-bundle roles. They are not connection usernames. After the RDS instance exists:
+
+1. Run `npm run migrate:cloud` once using a securely handled, privileged migration connection derived from the RDS-managed master secret. Set `NODE_ENV=production` and `CAREEROPS_MIGRATION_DATABASE_URL` only in the one-off migration process. Do not put the master/migration URL in the API's application config secret or ECS task definition.
+2. Connect to PostgreSQL as the RDS master/admin user and create separate login roles:
+
+```sql
+CREATE ROLE careerops_runtime LOGIN INHERIT
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+GRANT careerops_app TO careerops_runtime;
+
+CREATE ROLE careerops_tenant_provisioner LOGIN INHERIT
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+GRANT careerops_provisioner TO careerops_tenant_provisioner;
+```
+
+3. In interactive `psql`, set each login password with `\\password careerops_runtime` and `\\password careerops_tenant_provisioner`. This avoids placing plaintext passwords in SQL files, shell history, or command-line arguments. Store only the runtime connection URL in the Secrets Manager field `CAREEROPS_DATABASE_URL`; keep the tenant-provisioner credential separate and use it only for explicit tenant-bootstrap operations.
+4. Provision the first tenant and owner membership with `scripts/provision-careerops-tenant.sh`, using `careerops_tenant_provisioner` as its `DATABASE_URL` and the owner's exact Cognito `sub` as `OWNER_SUBJECT`. The script sets the non-login `careerops_provisioner` role for the transaction and leaves the global kill switch enabled.
+5. Start the API with the `careerops_runtime` connection. It inherits only the table privileges granted to `careerops_app`, remains subject to forced tenant RLS, and does not own the schema or bypass RLS.
+
+The LinkedIn migration pair `0006_linkedin_oauth.sql` / `0007_linkedin_runtime_grants.sql` creates the RLS-protected token/state tables and grants the minimum SELECT/INSERT/UPDATE/DELETE privileges used by the LinkedIn store. Keep LinkedIn OAuth disabled until its HTTPS callback and credentials are separately configured.
+
 
 ## Deploy
 
