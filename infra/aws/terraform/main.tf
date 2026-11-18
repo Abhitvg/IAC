@@ -14,6 +14,11 @@ data "aws_subnet" "public" {
   id       = each.value
 }
 
+data "aws_route_table" "public" {
+  for_each  = toset(var.public_subnet_ids)
+  subnet_id = each.value
+}
+
 data "aws_subnet" "application" {
   for_each = toset(var.private_subnet_ids)
   id       = each.value
@@ -253,6 +258,17 @@ resource "aws_lb" "api" {
         subnet.availability_zone
       ])) == 2
       error_message = "Public ALB subnets must occupy two different availability zones."
+    }
+ 
+    precondition {
+      condition = alltrue([
+        for route_table in values(data.aws_route_table.public) : anytrue([
+          for route in route_table.routes :
+          route.cidr_block == "0.0.0.0/0" &&
+          try(startswith(route.gateway_id, "igw-"), false)
+        ])
+      ])
+      error_message = "Each public ALB subnet must be associated with a route table that has an IPv4 default route to an Internet Gateway."
     }
   }
 }
