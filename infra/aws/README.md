@@ -114,7 +114,7 @@ CREATE ROLE careerops_tenant_provisioner LOGIN INHERIT
 GRANT careerops_provisioner TO careerops_tenant_provisioner;
 ```
 
-3. In interactive `psql`, set each login password with `\\password careerops_runtime` and `\\password careerops_tenant_provisioner`. This avoids placing plaintext passwords in SQL files, shell history, or command-line arguments. Store only the runtime connection URL in the Secrets Manager field `CAREEROPS_DATABASE_URL`; keep the tenant-provisioner credential separate and use it only for explicit tenant-bootstrap operations.
+3. In interactive `psql`, set each login password with `\password careerops_runtime` and `\password careerops_tenant_provisioner`. This avoids placing plaintext passwords in SQL files, shell history, or command-line arguments. Store only the runtime connection URL in the Secrets Manager field `CAREEROPS_DATABASE_URL`; keep the tenant-provisioner credential separate and use it only for explicit tenant-bootstrap operations.
 4. Provision the first tenant and owner membership with `scripts/provision-careerops-tenant.sh`, using `careerops_tenant_provisioner` as its `DATABASE_URL` and the owner's exact Cognito `sub` as `OWNER_SUBJECT`. The script sets the non-login `careerops_provisioner` role for the transaction and leaves the global kill switch enabled.
 5. Start the API with the `careerops_runtime` connection. It inherits only the table privileges granted to `careerops_app`, remains subject to forced tenant RLS, and does not own the schema or bypass RLS.
 
