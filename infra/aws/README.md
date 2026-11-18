@@ -123,15 +123,39 @@ GRANT careerops_provisioner TO careerops_tenant_provisioner;
 The LinkedIn migrations `0006_linkedin_oauth.sql`, `0007_linkedin_runtime_grants.sql`, and `0008_linkedin_subject_isolation.sql` create the RLS-protected token/state tables, grant the minimum SELECT/INSERT/UPDATE/DELETE privileges used by the LinkedIn store, and bind row visibility to both the tenant ID and authenticated subject. Keep LinkedIn OAuth disabled until its HTTPS callback and credentials are separately configured.
 
 
+## Remote Terraform state (required)
+
+The Terraform root declares an S3 backend with partial configuration, so it will not silently initialize a local state file. Before running `terraform init`, identify an existing state bucket with versioning enabled, server-side encryption, public access blocked, and tightly scoped IAM access. Also identify an existing DynamoDB lock table with a string partition key named `LockID`. This PR does not create either backend resource.
+
+Copy the appropriate example file and replace the placeholders with the real bucket and lock-table names:
+
+```bash
+cd infra/aws/terraform
+cp backend-staging.hcl.example backend-staging.hcl
+# Edit backend-staging.hcl with the existing bucket and lock-table names.
+terraform init -backend-config=backend-staging.hcl
+```
+
+For production, use the separate state key:
+
+```bash
+cp backend-production.hcl.example backend-production.hcl
+# Edit backend-production.hcl with the same secured bucket/lock table or the
+# separately governed production backend that your operations policy requires.
+terraform init -backend-config=backend-production.hcl
+```
+
+The examples use distinct keys: `careerops/staging/terraform.tfstate` and `careerops/production/terraform.tfstate`. Keep the filled `backend-*.hcl` files and `terraform.tfvars` private; they are git-ignored. The Terraform runner needs scoped S3 list/get/put permissions for the selected state object and DynamoDB describe/get/put/delete permissions for the lock table. Do not run `terraform init` without the selected backend config, and do not copy state between environments.
+
 ## Deploy
 
 1. Copy `terraform/terraform.tfvars.example` to a private local `terraform.tfvars`. It is a staging configuration with HTTPS enabled and a supplied ACM certificate ARN; verify certificate domain coverage before use. Do not reuse the staging state or credentials for production.
 2. Set the VPC/subnet IDs, region, existing Secrets Manager KMS key ARN, and application secret ARN. Confirm the secret contains the required envelope master-key ring when LinkedIn OAuth is enabled. RDS generates and manages its master password in Secrets Manager; do not add a database password to tfvars. Replace the `allowed_ingress_cidrs` placeholder with your public IP `/32`; the example will not validate until you do.
-3. **One-time bootstrap exception:** the ECS service needs an image to start, so create only the ECR repository before the first image push. This is the sole documented use of `-target`; do not use targeted applies for routine infrastructure changes. First configure an encrypted remote backend with state locking, then run:
+3. **One-time bootstrap exception:** the ECS service needs an image to start, so create only the ECR repository before the first image push. This is the sole documented use of `-target`; do not use targeted applies for routine infrastructure changes. First configure the S3 backend described above, then run:
 
 ```bash
 cd infra/aws/terraform
-terraform init
+terraform init -backend-config=backend-staging.hcl
 terraform apply -target=aws_ecr_repository.api
 ```
 
