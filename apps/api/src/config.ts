@@ -46,6 +46,10 @@ const CloudEnvironmentSchema = z
       .refine((value) => value.startsWith('https://'), 'JWKS URL must use HTTPS'),
     CAREEROPS_CONSENT_SIGNING_SECRET: z.string().min(32),
     CAREEROPS_RATE_LIMIT_HASH_SECRET: z.string().min(32),
+    CAREEROPS_TRUST_PROXY: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
     CAREEROPS_CORS_ALLOWED_ORIGINS: z
       .string()
       .default('')
