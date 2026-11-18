@@ -122,7 +122,6 @@ GRANT careerops_provisioner TO careerops_tenant_provisioner;
 
 The LinkedIn migrations `0006_linkedin_oauth.sql`, `0007_linkedin_runtime_grants.sql`, and `0008_linkedin_subject_isolation.sql` create the RLS-protected token/state tables, grant the minimum SELECT/INSERT/UPDATE/DELETE privileges used by the LinkedIn store, and bind row visibility to both the tenant ID and authenticated subject. Keep LinkedIn OAuth disabled until its HTTPS callback and credentials are separately configured.
 
-
 ## Remote Terraform state (required)
 
 The Terraform root declares an S3 backend with partial configuration, so it will not silently initialize a local state file. Before running `terraform init`, identify an existing state bucket with versioning enabled, server-side encryption, public access blocked, and tightly scoped IAM access. Also identify an existing DynamoDB lock table with a string partition key named `LockID`. This PR does not create either backend resource.
