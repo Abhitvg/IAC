@@ -212,7 +212,7 @@ describe('Career Graph API routes', () => {
     expect(valid.status).toBe(201);
 
     const tamperedTag = Buffer.from(envelope.authTag, 'base64');
-    tamperedTag[0] ^= 1;
+    tamperedTag[0] = (tamperedTag[0] ?? 0) ^ 1;
     const tampered = await fetch(`${baseUrl}/v1/career-graph/facts`, {
       method: 'POST',
       headers,
