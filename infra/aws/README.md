@@ -120,7 +120,7 @@ GRANT careerops_provisioner TO careerops_tenant_provisioner;
 4. Provision the first tenant and owner membership with `scripts/provision-careerops-tenant.sh`, using `careerops_tenant_provisioner` as its `DATABASE_URL` and the owner's exact Cognito `sub` as `OWNER_SUBJECT`. The script sets the non-login `careerops_provisioner` role for the transaction and leaves the global kill switch enabled.
 5. Start the API with the `careerops_runtime` connection. It inherits only the table privileges granted to `careerops_app`, remains subject to forced tenant RLS, and does not own the schema or bypass RLS.
 
-The LinkedIn migration pair `0006_linkedin_oauth.sql` / `0007_linkedin_runtime_grants.sql` creates the RLS-protected token/state tables and grants the minimum SELECT/INSERT/UPDATE/DELETE privileges used by the LinkedIn store. Keep LinkedIn OAuth disabled until its HTTPS callback and credentials are separately configured.
+The LinkedIn migrations `0006_linkedin_oauth.sql`, `0007_linkedin_runtime_grants.sql`, and `0008_linkedin_subject_isolation.sql` create the RLS-protected token/state tables, grant the minimum SELECT/INSERT/UPDATE/DELETE privileges used by the LinkedIn store, and bind row visibility to both the tenant ID and authenticated subject. Keep LinkedIn OAuth disabled until its HTTPS callback and credentials are separately configured.
 
 
 ## Deploy
