@@ -19,7 +19,7 @@ import {
 } from '../packages/cloud-core/src/encryption';
 import { resolveTenantContext, type TenantMembership } from '../packages/cloud-core/src/tenant';
 import { MasterKeyTenantKeyProvider } from '../packages/cloud-core/src/master-key-provider';
-import { createCloudApiServer } from '../apps/api/src/server';
+import { createCloudApiServer, resolveClientIp } from '../apps/api/src/server';
 import { loadCloudEnvironment } from '../apps/api/src/config';
 import type { CloudApiDependencies } from '../apps/api/src/ports';
 import {
@@ -29,6 +29,29 @@ import {
 } from '../apps/api/src/postgres-repository';
 import { PostgresCloudRateLimiter } from '../apps/api/src/postgres-rate-limiter';
 import { createCloudApiRuntime } from '../apps/api/src/runtime';
+
+describe('trusted proxy client IP resolution', () => {
+  const request = (forwarded: string | undefined, remoteAddress = '10.0.1.25') =>
+    ({
+      headers: forwarded === undefined ? {} : { 'x-forwarded-for': forwarded },
+      socket: { remoteAddress },
+    }) as never;
+
+  it('uses the rightmost valid address appended by a trusted ALB', () => {
+    expect(resolveClientIp(request('198.51.100.99, 203.0.113.17'), true)).toBe('203.0.113.17');
+    expect(resolveClientIp(request('2001:db8::1'), true)).toBe('2001:db8::1');
+  });
+
+  it('does not trust forwarded headers when proxy trust is disabled', () => {
+    expect(resolveClientIp(request('203.0.113.17', '10.0.1.25'), false)).toBe('10.0.1.25');
+  });
+
+  it('falls back to the socket peer when the rightmost forwarded value is invalid', () => {
+    expect(resolveClientIp(request('203.0.113.17, not-an-ip', '10.0.1.25'), true)).toBe(
+      '10.0.1.25'
+    );
+  });
+});
 
 const secret = 'test-only-secret-that-is-at-least-32-characters';
 const rateSecret = 'test-only-rate-limit-secret-that-is-different';
