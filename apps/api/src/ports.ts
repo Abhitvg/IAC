@@ -80,6 +80,7 @@ export interface CloudApiConfig {
   consentSigningSecret: string;
   maxRequestBytes?: number;
   allowedOrigins?: readonly string[];
+  trustProxy?: boolean;
 }
 
 export interface CloudRateLimiter {
