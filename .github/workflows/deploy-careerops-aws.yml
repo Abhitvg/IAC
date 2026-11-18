@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   id-token: write
 
@@ -19,6 +20,7 @@ jobs:
     timeout-minutes: 45
     environment: production
     permissions:
+      actions: read
       contents: read
       id-token: write
     steps:
@@ -43,6 +45,19 @@ jobs:
               exit 1
             fi
           done
+
+      - name: Require successful CI for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUNS_JSON="$(gh run list --commit "$GITHUB_SHA" --workflow CI --json status,conclusion --limit 20)"
+          printf '%s\n' "$RUNS_JSON"
+          if ! jq -e 'any(.[]; .status == "completed" and .conclusion == "success")' <<< "$RUNS_JSON" >/dev/null; then
+            echo "Refusing deployment: no successful CI run exists for this exact main commit."
+            exit 1
+          fi
 
       - name: Configure AWS credentials through GitHub OIDC
         uses: aws-actions/configure-aws-credentials@v4
