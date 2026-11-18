@@ -56,10 +56,11 @@ Terraform variable validation rejects duplicate database subnet IDs and any
 database subnet ID that overlaps either the public or application-private
 subnet IDs. Read-only AWS lookups verify that supplied public, application,
 and database subnets belong to the configured VPC and that each required
-subnet group spans the necessary Availability Zones. Terraform also verifies
-that each application subnet is actually associated with the route table
-listed at the same index, and that database subnet route tables have no IPv4
-default route to an Internet Gateway or NAT Gateway. The planning identity
+subnet group spans the necessary Availability Zones. Terraform verifies
+that each public ALB subnet is associated with a route table that has an IPv4
+default route to an Internet Gateway, each application subnet is associated
+with the route table listed at the same index, and database subnet route tables
+have no IPv4 default route to an Internet Gateway or NAT Gateway. The planning identity
 therefore needs `ec2:DescribeSubnets` and `ec2:DescribeRouteTables` for the
 supplied IDs. Review IPv6 routes and any other custom routing requirements
 separately; the guard specifically checks IPv4 default routes to IGW/NAT.
