@@ -243,7 +243,7 @@ resource "aws_lb" "api" {
   enable_deletion_protection = var.deletion_protection
   # The API trusts only the rightmost client IP appended by this load balancer.
   xff_header_processing_mode = "append"
-  enable_xff_client_port      = false
+  enable_xff_client_port     = false
   tags                       = local.tags
 
   lifecycle {
@@ -262,7 +262,7 @@ resource "aws_lb" "api" {
       ])) == 2
       error_message = "Public ALB subnets must occupy two different availability zones."
     }
- 
+
     precondition {
       condition = alltrue([
         for route_table in values(data.aws_route_table.public) : anytrue([
