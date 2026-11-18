@@ -52,12 +52,17 @@ route tables must not contain a default route to a NAT Gateway or Internet
 Gateway. The application private subnets are intentionally NAT-routed for ECS
 task egress and are not acceptable database subnet inputs.
 
-Terraform variable validation now rejects duplicate database subnet IDs and
-any database subnet ID that overlaps `private_subnet_ids`. This is a
-fail-closed guard against the previous example configuration, which reused
-the application subnets. It does not inspect the actual route tables associated
-with the supplied database subnet IDs; verify those route tables independently
-before any plan or apply.
+Terraform variable validation rejects duplicate database subnet IDs and any
+database subnet ID that overlaps either the public or application-private
+subnet IDs. Read-only AWS lookups verify that supplied public, application,
+and database subnets belong to the configured VPC and that each required
+subnet group spans the necessary Availability Zones. Terraform also verifies
+that each application subnet is actually associated with the route table
+listed at the same index, and that database subnet route tables have no IPv4
+default route to an Internet Gateway or NAT Gateway. The planning identity
+therefore needs `ec2:DescribeSubnets` and `ec2:DescribeRouteTables` for the
+supplied IDs. Review IPv6 routes and any other custom routing requirements
+separately; the guard specifically checks IPv4 default routes to IGW/NAT.
 
 The example tfvars therefore contains explicit placeholder database subnet
 IDs. They are not real AWS resources and must be replaced with verified,
