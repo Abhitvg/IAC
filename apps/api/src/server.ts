@@ -776,19 +776,18 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         if (error.retryAfterSeconds) {
           response.setHeader('retry-after', String(error.retryAfterSeconds));
         }
-        sendJson(response, status, {
-          error:
-            status === 401
-              ? 'LinkedIn authorization expired; reconnect the account'
-              : status === 403
-                ? 'LinkedIn denied this action; verify product approval, granted scopes, and Page role'
-                : status === 429
-                  ? 'LinkedIn rate limit reached; retry after the indicated delay'
-                  : status === 502
-                    ? 'LinkedIn API is temporarily unavailable'
-                    : 'LinkedIn rejected the requested operation',
-          requestId,
-        });
+        let publicMessage = 'LinkedIn rejected the requested operation';
+        if (status === 401) {
+          publicMessage = 'LinkedIn authorization expired; reconnect the account';
+        } else if (status === 403) {
+          publicMessage =
+            'LinkedIn denied this action; verify product approval, granted scopes, and Page role';
+        } else if (status === 429) {
+          publicMessage = 'LinkedIn rate limit reached; retry after the indicated delay';
+        } else if (status === 502) {
+          publicMessage = 'LinkedIn API is temporarily unavailable';
+        }
+        sendJson(response, status, { error: publicMessage, requestId });
         return;
       }
       const status =
