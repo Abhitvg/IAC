@@ -165,7 +165,7 @@ The image runs as the non-root Node user and starts `dist-api/apps/api/src/main.
 
 ## GitHub Actions deployment
 
-The manual deployment workflow uses GitHub OIDC and refuses to run unless it was dispatched from `main`. It checks that the assumed identity belongs to account `165328640460`, that the region is `ap-southeast-2`, and that the ECR repository belongs to that same account/region. Configure repository variable `AWS_REGION`, secret `AWS_ROLE_TO_ASSUME`, and variables `ECR_REPOSITORY`, `ECS_CLUSTER`, `ECS_SERVICE`, and `ECS_TASK_FAMILY`. The assumed role must be restricted to this repository and the protected production environment, and permit only ECR push plus updating the named ECS service/task family.
+The manual deployment workflow uses GitHub OIDC and refuses to run unless it was dispatched from `main`. Before requesting AWS credentials, it requires a successful CI workflow run for the exact commit being deployed. It then checks that the assumed identity belongs to account `165328640460`, that the region is `ap-southeast-2`, and that the ECR repository belongs to that same account/region. Configure repository variable `AWS_REGION`, secret `AWS_ROLE_TO_ASSUME`, and variables `ECR_REPOSITORY`, `ECS_CLUSTER`, `ECS_SERVICE`, and `ECS_TASK_FAMILY`. The assumed role must be restricted to this repository and the protected production environment, and permit only ECR push plus updating the named ECS service/task family.
 
 ## OIDC deployment role
 
