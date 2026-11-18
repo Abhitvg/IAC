@@ -201,8 +201,8 @@ resource "aws_db_parameter_group" "database" {
 }
 
 resource "aws_db_instance" "database" {
-  identifier                  = local.name
-  engine                      = "postgres"
+  identifier = local.name
+  engine     = "postgres"
   # Keep the RDS engine major aligned with the postgres16 parameter group and CI image.
   engine_version              = "16"
   instance_class              = var.db_instance_class
