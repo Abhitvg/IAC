@@ -24,7 +24,6 @@ When no domain-matched ACM certificate is available, staging may be switched to 
 
 This mode is strictly for non-sensitive testing. Because the Amplify frontend is served over HTTPS, browsers will block direct calls from that page to an HTTP ALB API as mixed content; HTTP-only staging therefore supports direct smoke tests (for example, with curl), not full browser-to-API integration. Full web integration requires an HTTPS API hostname with a matching certificate or a separately designed HTTPS proxy/front door.
 
-
 - Do not send production traffic, passwords, session cookies, OAuth authorization codes, access tokens, or other sensitive data over this endpoint.
 - Keep LinkedIn OAuth disabled: leave `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, and `LINKEDIN_REDIRECT_URI` empty. OAuth redirect flows must wait until a real HTTPS hostname and certificate are configured.
 - Set `allowed_ingress_cidrs` to your current public IP with `/32`. The example intentionally contains a placeholder and Terraform validation will reject it until you replace it. Use `0.0.0.0/0` only if you deliberately accept an internet-accessible HTTP test endpoint.
