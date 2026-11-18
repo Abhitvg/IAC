@@ -82,6 +82,7 @@ function createDependencies(): CloudApiDependencies {
       setGlobalKillSwitchWithAudit: async () => undefined,
     },
     careerGraph: { createFact, listFacts, reviewFact },
+    careerGraphEnvelopeVerifier: { verify: async () => undefined },
   };
   return dependencies;
 }
@@ -142,6 +143,39 @@ describe('Career Graph API routes', () => {
       headers: { authorization: 'Bearer test-token' },
     });
     expect(invalidLimit.status).toBe(400);
+  });
+
+  it('rejects unauthenticated or tampered envelopes before persistence', async () => {
+    const dependencies = await startServer();
+    const headers = {
+      authorization: 'Bearer test-token',
+      'content-type': 'application/json',
+    };
+
+    dependencies.careerGraphEnvelopeVerifier = {
+      verify: async () => {
+        throw new Error('authentication tag mismatch');
+      },
+    };
+    const tampered = await fetch(`${baseUrl}/v1/career-graph/facts`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(validInput),
+    });
+    expect(tampered.status).toBe(400);
+    expect(await tampered.json()).toMatchObject({
+      error: 'Career Graph encrypted envelope authentication failed',
+    });
+    expect(dependencies.careerGraph.createFact).not.toHaveBeenCalled();
+
+    dependencies.careerGraphEnvelopeVerifier = undefined;
+    const unconfigured = await fetch(`${baseUrl}/v1/career-graph/facts`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(validInput),
+    });
+    expect(unconfigured.status).toBe(503);
+    expect(dependencies.careerGraph.createFact).not.toHaveBeenCalled();
   });
 
   it('routes confirmation through the authenticated contributor identity', async () => {
