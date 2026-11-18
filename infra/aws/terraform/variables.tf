@@ -41,17 +41,26 @@ variable "api_allowed_origins" {
 }
 variable "vpc_id" { type = string }
 variable "public_subnet_ids" {
-  type = list(string)
+  type        = list(string)
+  description = "Exactly two existing public subnets in separate availability zones."
   validation {
-    condition     = length(var.public_subnet_ids) >= 2
-    error_message = "At least two public subnets in separate availability zones are required."
+    condition     = length(var.public_subnet_ids) == 2 && length(distinct(var.public_subnet_ids)) == 2
+    error_message = "Exactly two distinct public subnet IDs are required for the configured two-AZ ALB and NAT layout."
   }
 }
 variable "private_subnet_ids" {
-  type = list(string)
+  type        = list(string)
+  description = "Exactly two existing private application subnets, ordered to match private_route_table_ids."
   validation {
-    condition     = length(var.private_subnet_ids) >= 2
-    error_message = "At least two private application subnets are required."
+    condition     = length(var.private_subnet_ids) == 2 && length(distinct(var.private_subnet_ids)) == 2
+    error_message = "Exactly two distinct private application subnet IDs are required to match the two configured private route tables."
+  }
+  validation {
+    condition = length(setintersection(
+      toset(var.private_subnet_ids),
+      toset(var.public_subnet_ids)
+    )) == 0
+    error_message = "Public and private application subnet IDs must not overlap."
   }
 }
 variable "private_route_table_ids" {
@@ -75,6 +84,13 @@ variable "database_subnet_ids" {
       toset(var.private_subnet_ids)
     )) == 0
     error_message = "Database subnets must not overlap application private subnets. Use dedicated database subnets with isolated route tables."
+  }
+  validation {
+    condition = length(setintersection(
+      toset(var.database_subnet_ids),
+      toset(var.public_subnet_ids)
+    )) == 0
+    error_message = "Database subnets must not overlap public subnets. Use dedicated isolated database subnets."
   }
 }
 variable "enable_https" {
