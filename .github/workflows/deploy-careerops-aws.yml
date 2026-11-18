@@ -81,7 +81,7 @@ jobs:
         shell: bash
         env:
           ECR_URI: ${{ steps.ecr.outputs.uri }}
-          IMAGE_TAG: release-${{ github.sha }}
+          IMAGE_TAG: release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
           docker buildx build --platform linux/arm64 --push \
@@ -93,7 +93,7 @@ jobs:
         shell: bash
         env:
           TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
-          IMAGE: ${{ steps.ecr.outputs.uri }}:release-${{ github.sha }}
+          IMAGE: ${{ steps.ecr.outputs.uri }}:release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
           aws ecs describe-task-definition --task-definition "$TASK_FAMILY" \
