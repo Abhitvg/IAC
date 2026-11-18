@@ -2,6 +2,7 @@ import { createPostgresPool } from './postgres-pool';
 import { loadCloudEnvironment } from './config';
 import { createCloudApiRuntime } from './runtime';
 import { MasterKeyTenantKeyProvider } from '../../../packages/cloud-core/src/master-key-provider';
+import { TenantEnvelopeCipher } from '../../../packages/cloud-core/src/encryption';
 import { createLinkedInCloudIntegration } from './linkedin/create-integration';
 
 function readPort(value: string | undefined): number {
@@ -27,7 +28,7 @@ async function start(): Promise<void> {
   delete process.env.CAREEROPS_ENVELOPE_MASTER_KEYS;
 
   let envelopeKeyProvider: MasterKeyTenantKeyProvider | undefined;
-  if (environment.LINKEDIN_CLIENT_ID) {
+  if (envelopeKeyRingJson) {
     const masterKeys = JSON.parse(envelopeKeyRingJson) as Record<string, string>;
     envelopeKeyRingJson = '';
     try {
@@ -41,17 +42,34 @@ async function start(): Promise<void> {
   } else {
     envelopeKeyRingJson = '';
   }
-  const linkedin = envelopeKeyProvider
-    ? createLinkedInCloudIntegration(pool, envelopeKeyProvider, {
-        oauth: {
-          clientId: environment.LINKEDIN_CLIENT_ID,
-          clientSecret: environment.LINKEDIN_CLIENT_SECRET,
-          redirectUri: environment.LINKEDIN_REDIRECT_URI,
-        },
-        entitlements: {},
-      })
+  const linkedin =
+    envelopeKeyProvider && environment.LINKEDIN_CLIENT_ID
+      ? createLinkedInCloudIntegration(pool, envelopeKeyProvider, {
+          oauth: {
+            clientId: environment.LINKEDIN_CLIENT_ID,
+            clientSecret: environment.LINKEDIN_CLIENT_SECRET,
+            redirectUri: environment.LINKEDIN_REDIRECT_URI,
+          },
+          entitlements: {},
+        })
+      : undefined;
+  const careerGraphCipher = envelopeKeyProvider
+    ? new TenantEnvelopeCipher(envelopeKeyProvider)
     : undefined;
-  const runtime = createCloudApiRuntime(pool, environment, linkedin);
+  const careerGraphEnvelopeVerifier = careerGraphCipher
+    ? {
+        verify: async (envelope: Parameters<TenantEnvelopeCipher['decrypt']>[0], tenantId: string, context: string) => {
+          const plaintext = await careerGraphCipher.decrypt(envelope, tenantId, context);
+          plaintext.fill(0);
+        },
+      }
+    : undefined;
+  const runtime = createCloudApiRuntime(
+    pool,
+    environment,
+    linkedin,
+    careerGraphEnvelopeVerifier
+  );
 
   let shutdown: Promise<void> | undefined;
   const stop = () => {
