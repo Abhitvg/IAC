@@ -17,8 +17,8 @@ This includes authenticated API and PostgreSQL persistence workflows. It is not 
 
 ## Security and rollout constraints
 
-1. A real cloud KMS adapter must generate and unwrap data keys before this storage can be used by a hosted service. The existing envelope cipher is an interface-based primitive; test-only key management is not production KMS.
-2. The API derives tenant and actor from verified identity/membership. The create endpoint rejects client-supplied tenant/actor fields. The API routes are `GET/POST /v1/career-graph/facts` and `POST /v1/career-graph/facts/:id/review`.
+1. The hosted API now requires a configured envelope verifier before accepting writes. The verifier unwraps the data key and authenticates the AES-256-GCM tag using the configured backend key provider; when no provider is configured, writes fail closed with HTTP 503. The current production-capable provider in this branch is the versioned local master-key ring, not a KMS GenerateDataKey adapter. Direct KMS integration remains an allowed provider implementation.
+2. The API derives tenant and actor from verified identity/membership. The create endpoint rejects client-supplied tenant/actor fields and authenticates the envelope against the expected tenant and `career-graph:<fact_key>` context before persistence. Invalid tags, wrapped keys, or context bindings are rejected; raw cryptographic errors are not returned. The API routes are `GET/POST /v1/career-graph/facts` and `POST /v1/career-graph/facts/:id/review`.
 3. Fact creation and review append a tenant audit event in the same PostgreSQL transaction. Fact version allocation takes the same tenant/fact-key advisory lock as the database trigger before reading `MAX(version)`.
 4. Reads must return encrypted envelopes unless the caller passes an explicit authorization and KMS-backed decryption boundary.
 5. Resume tailoring, default answers, and application forms must use only facts with an explicit `confirmed` review and an accepted Sprint Contract allow-list.
@@ -26,4 +26,4 @@ This includes authenticated API and PostgreSQL persistence workflows. It is not 
 
 ## Verification
 
-The domain and API tests cover envelope-only input, tenant/context binding, stable fact keys, bounded provenance, verified-identity binding, route validation, version-lock ordering, transaction/audit atomicity, and contributor-only review. PostgreSQL migration/RLS integration remains a required CI gate before merge.
+The domain and API tests cover envelope-only input, tenant/context binding, stable fact keys, bounded provenance, verified-identity binding, real AES-GCM authentication and tamper rejection, fail-closed behavior without a verifier, route validation, version-lock ordering, transaction/audit atomicity, and contributor-only review. PostgreSQL migration/RLS integration remains a required CI gate before merge.
