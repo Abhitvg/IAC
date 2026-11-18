@@ -35,6 +35,7 @@ export function createCloudApiRuntime(
       consentSigningSecret: environment.CAREEROPS_CONSENT_SIGNING_SECRET,
       maxRequestBytes: environment.CAREEROPS_MAX_REQUEST_BYTES,
       allowedOrigins: environment.CAREEROPS_CORS_ALLOWED_ORIGINS,
+      trustProxy: environment.CAREEROPS_TRUST_PROXY,
     },
     ...(linkedin ? { linkedin } : {}),
   });
