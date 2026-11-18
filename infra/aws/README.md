@@ -22,7 +22,8 @@ The checked-in staging example currently enables HTTPS and references the ACM ce
 
 When no domain-matched ACM certificate is available, staging may be switched to a **temporary HTTP-only smoke-test mode** by setting `enable_https = false`. A public ACM certificate cannot be issued for the AWS-generated ALB DNS hostname, so this mode uses the ALB-generated DNS name and must remain strictly non-sensitive. Do not use HTTP-only mode for production.
 
-This mode is strictly for non-sensitive testing:
+This mode is strictly for non-sensitive testing. Because the Amplify frontend is served over HTTPS, browsers will block direct calls from that page to an HTTP ALB API as mixed content; HTTP-only staging therefore supports direct smoke tests (for example, with curl), not full browser-to-API integration. Full web integration requires an HTTPS API hostname with a matching certificate or a separately designed HTTPS proxy/front door.
+
 
 - Do not send production traffic, passwords, session cookies, OAuth authorization codes, access tokens, or other sensitive data over this endpoint.
 - Keep LinkedIn OAuth disabled: leave `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, and `LINKEDIN_REDIRECT_URI` empty. OAuth redirect flows must wait until a real HTTPS hostname and certificate are configured.
