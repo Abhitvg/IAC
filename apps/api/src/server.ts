@@ -617,19 +617,18 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           body
         );
         const context = `career-graph:${requestInput.factKey}`;
+        const plaintext = Buffer.from(JSON.stringify(requestInput.value), 'utf8');
         let valueEnvelope;
         try {
-          valueEnvelope = await crypto.encrypt(
-            tenant.tenantId,
-            context,
-            Buffer.from(JSON.stringify(requestInput.value), 'utf8')
-          );
+          valueEnvelope = await crypto.encrypt(tenant.tenantId, context, plaintext);
         } catch {
           sendJson(response, 503, {
             error: 'Career Graph encryption is temporarily unavailable',
             requestId,
           });
           return;
+        } finally {
+          plaintext.fill(0);
         }
         const input = validateCareerGraphFact(tenant.tenantId, tenant.subject, {
           factKey: requestInput.factKey,
@@ -641,18 +640,8 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           tenant.subject,
           input
         );
-        const plaintext = await crypto.decrypt(
-          fact.valueEnvelope,
-          tenant.tenantId,
-          context
-        );
-        try {
-          const value: unknown = JSON.parse(plaintext.toString('utf8'));
-          const { valueEnvelope: _valueEnvelope, ...metadata } = fact;
-          sendJson(response, 201, { fact: { ...metadata, value }, requestId });
-        } finally {
-          plaintext.fill(0);
-        }
+        const { valueEnvelope: _valueEnvelope, ...metadata } = fact;
+        sendJson(response, 201, { fact: { ...metadata, value: requestInput.value }, requestId });
         return;
       }
 
