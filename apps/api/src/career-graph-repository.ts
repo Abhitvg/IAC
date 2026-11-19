@@ -136,7 +136,12 @@ export class PostgresCareerGraphRepository {
     }
 
     return inTenantTransaction(this.pool, input.tenantId, input.actorSubject, async (client) => {
-      // Serialize all rotation workers for a tenant and target key version.
+      // Acquire the tenant audit lock before fact row locks, matching review/audit lock order.
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        [input.tenantId]
+      );
+      // Serialize all rotation workers for a tenant across key versions.
       await client.query(
         'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
         [`career-graph-envelope-rotation:${input.tenantId}`]
