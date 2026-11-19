@@ -186,3 +186,20 @@ The allocator may optimize within the Sprint Contract; it cannot change the cont
 M0 cloud foundation → M1 Career Graph/Contract → M2 tracker/feed → M3 discovery → M4 evaluation/truth gate → M5 ATS apply → M6 mail/calendar/inbound → M7 people/outreach → M8 LinkedIn Assist Queue → M9 Sprint orchestrator/forecast → M10 analytics/billing/polish.
 
 Each milestone ships with migrations, tests, demo script, known gaps and explicit STOP.
+
+
+## Current envelope-encryption implementation gate
+
+The architecture above is the target, not a statement that KMS-backed production encryption is already active. The current API composition root still constructs the local `MasterKeyTenantKeyProvider`; it does not yet construct an AWS SDK KMS client or a `KmsTenantKeyProvider`.
+
+Until that composition is implemented and validated:
+
+- API startup in `NODE_ENV=production` is intentionally blocked by `assertEnvelopeEncryptionRuntimeReady`.
+- Supplying either KMS environment variable also fails closed; the API must not silently fall back to local master keys when an operator believes KMS is configured.
+- Local key-ring versions and KMS versions occupy disjoint namespaces. Local versions must not use the reserved `kms-vN` form; KMS envelope versions use that form.
+- The current KMS provider is configured for one key ARN and one `kms-vN` version. AWS automatic backing-material rotation for that key ARN is distinct from migrating ciphertext to a different KMS key ARN. A multi-key ARN migration requires an explicit keyring/provider routing design and a resumable re-encryption procedure.
+- The existing Career Graph rotation command currently uses the local master-key provider. It is not a KMS migration tool and must not be described or run as one.
+- The AWS SDK KMS adapter is only a command adapter. The API composition root must create the SDK client with the ECS task-role credential provider chain, bounded connection/request timeouts, retry policy and explicit shutdown ownership before KMS can be enabled.
+- Runtime IAM must permit only the required data-key operations on the dedicated application key and constrain calls with the agreed encryption context. It must not grant key-administration permissions to the API task role.
+
+Production activation acceptance requires all of the following: a real SDK dependency and lockfile; API startup/shutdown wiring; integration tests against an injected KMS client; legacy-envelope read compatibility; a tested, resumable migration for each encrypted data store; successful CI and Terraform validation; and an operational rollback/recovery procedure. A green unit-test suite alone is not sufficient.
