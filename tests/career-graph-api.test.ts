@@ -448,7 +448,10 @@ describe('Postgres Career Graph repository', () => {
       query: async (sql: string) => {
         statements.push(sql);
         if (sql.includes('SELECT last_fact_id, rotated_count, status')) {
-          return { rows: [{ last_fact_id: null, rotated_count: 0, status: 'running' }], rowCount: 1 };
+          return {
+            rows: [{ last_fact_id: null, rotated_count: 0, status: 'running' }],
+            rowCount: 1,
+          };
         }
         if (sql.includes('SELECT f.id, f.fact_key')) {
           return {
