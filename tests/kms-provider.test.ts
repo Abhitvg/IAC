@@ -4,7 +4,7 @@ import {
   KmsTenantKeyProvider,
   type KmsDataKeyOperations,
 } from '../packages/cloud-core/src/kms-key-provider';
-import type { TenantKeyProvider } from '../packages/cloud-core/src/encryption';
+import { TenantEnvelopeCipher, type TenantKeyProvider } from '../packages/cloud-core/src/encryption';
 
 const keyArn = 'arn:aws:kms:ap-southeast-2:165328640460:key/11111111-2222-3333-4444-555555555555';
 const tenantId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -85,6 +85,32 @@ describe('KMS tenant envelope key provider', () => {
       'Invalid KMS encrypted data key'
     );
     expect(decrypt).not.toHaveBeenCalled();
+  });
+
+  it('round-trips a complete AES-GCM envelope through the KMS provider', async () => {
+    const dataKey = Buffer.alloc(32, 31);
+    const ciphertextBlob = Buffer.from('opaque-kms-data-key');
+    const client: KmsDataKeyOperations = {
+      generateDataKey: async () => ({
+        Plaintext: Buffer.from(dataKey),
+        CiphertextBlob: Buffer.from(ciphertextBlob),
+        KeyId: keyArn,
+      }),
+      decrypt: async (input) => {
+        expect(input.EncryptionContext.tenant_id).toBe(tenantId);
+        expect(input.EncryptionContext.data_context).toBe(context);
+        return { Plaintext: Buffer.from(dataKey), KeyId: keyArn };
+      },
+    };
+    const provider = new KmsTenantKeyProvider({ client, keyArn, keyVersion: 'kms-v1' });
+    const cipher = new TenantEnvelopeCipher(provider);
+    const original = Buffer.from('sensitive career graph value');
+    const envelope = await cipher.encrypt(tenantId, context, original);
+    expect(envelope.keyVersion).toBe('kms-v1');
+    const recovered = await cipher.decrypt(envelope, tenantId, context);
+    expect(recovered).toEqual(original);
+    recovered.fill(0);
+    dataKey.fill(0);
   });
 
   it('dual-reads legacy envelopes while directing all new writes to KMS', async () => {
