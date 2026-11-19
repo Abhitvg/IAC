@@ -120,9 +120,9 @@ export class TenantEnvelopeCipher {
       generated?.plaintextKey?.fill(0);
       throw new Error('Key provider returned an invalid data key');
     }
-    const aad = associatedData(tenantId, context, generated.keyVersion);
     const iv = randomBytes(12);
     try {
+      const aad = associatedData(tenantId, context, generated.keyVersion);
       const cipher = createCipheriv('aes-256-gcm', generated.plaintextKey, iv);
       cipher.setAAD(aad);
       const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
@@ -160,26 +160,23 @@ export class TenantEnvelopeCipher {
     expectedContext: string
   ): Promise<Buffer> {
     const decoded = validateEnvelope(envelope, expectedTenantId, expectedContext);
-    const key = await this.keyProvider.unwrapDataKey(
-      expectedTenantId,
-      envelope.wrappedKey,
-      envelope.keyVersion,
-      expectedContext
-    );
-    if (!Buffer.isBuffer(key) || key.length !== 32) {
-      key?.fill?.(0);
-      decoded.iv.fill(0);
-      decoded.authTag.fill(0);
-      decoded.ciphertext.fill(0);
-      throw new Error('Key provider returned an invalid unwrapped key');
-    }
+    let key: Buffer | undefined;
     try {
+      key = await this.keyProvider.unwrapDataKey(
+        expectedTenantId,
+        envelope.wrappedKey,
+        envelope.keyVersion,
+        expectedContext
+      );
+      if (!Buffer.isBuffer(key) || key.length !== 32) {
+        throw new Error('Key provider returned an invalid unwrapped key');
+      }
       const decipher = createDecipheriv('aes-256-gcm', key, decoded.iv);
       decipher.setAAD(associatedData(expectedTenantId, expectedContext, envelope.keyVersion));
       decipher.setAuthTag(decoded.authTag);
       return Buffer.concat([decipher.update(decoded.ciphertext), decipher.final()]);
     } finally {
-      key.fill(0);
+      key?.fill(0);
       decoded.iv.fill(0);
       decoded.authTag.fill(0);
       decoded.ciphertext.fill(0);
