@@ -119,8 +119,8 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
         CiphertextBlob: ciphertext,
         EncryptionContext: encryptionContext(tenantId, context),
       });
-      assertKeyId(result.KeyId, this.keyArn);
       sdkPlaintext = result.Plaintext;
+      assertKeyId(result.KeyId, this.keyArn);
       plaintext = result.Plaintext ? Buffer.from(result.Plaintext) : undefined;
       if (!plaintext || plaintext.length !== 32) throw new Error('KMS returned an invalid Decrypt response');
       return Buffer.from(plaintext);
