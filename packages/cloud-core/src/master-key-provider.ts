@@ -112,12 +112,16 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
     const iv = randomBytes(12);
     let aad: Buffer | undefined;
     let ciphertext: Buffer | undefined;
+    let updateOutput: Buffer | undefined;
+    let finalOutput: Buffer | undefined;
     let authTag: Buffer | undefined;
     try {
       const cipher = createCipheriv('aes-256-gcm', masterKey, iv);
       aad = wrappingAssociatedData(tenantId, context, keyVersion);
       cipher.setAAD(aad);
-      ciphertext = Buffer.concat([cipher.update(plaintextKey), cipher.final()]);
+      updateOutput = cipher.update(plaintextKey);
+      finalOutput = cipher.final();
+      ciphertext = Buffer.concat([updateOutput, finalOutput]);
       authTag = cipher.getAuthTag();
       const wrapped: WrappedDataKey = {
         version: 1,
@@ -137,6 +141,8 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
       iv.fill(0);
       aad?.fill(0);
       ciphertext?.fill(0);
+      updateOutput?.fill(0);
+      finalOutput?.fill(0);
       authTag?.fill(0);
     }
   }
