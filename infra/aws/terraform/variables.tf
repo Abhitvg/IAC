@@ -117,7 +117,7 @@ variable "acm_certificate_arn" {
 }
 variable "kms_key_arn" {
   type        = string
-  description = "Existing customer-managed KMS key ARN used by Secrets Manager to encrypt the application config secret; CareerOps code never calls KMS directly."
+  description = "Existing customer-managed KMS key ARN used by Secrets Manager to encrypt the application config secret. A separate dedicated application data-encryption KMS key is the target architecture."
   validation {
     condition     = can(regex("^arn:aws:kms:ap-southeast-2:${var.aws_account_id}:key/[A-Za-z0-9-]+$", var.kms_key_arn))
     error_message = "kms_key_arn must be a customer-managed KMS key ARN in ap-southeast-2 and aws_account_id."
