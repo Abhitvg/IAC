@@ -15,9 +15,11 @@ export interface CreateLinkedInIntegrationOptions {
 }
 
 /**
- * Builds the API integration using the deployment's configured tenant key provider.
- * This abstraction does not call AWS KMS; production callers must inject a securely
- * provisioned provider and retain old key versions until encrypted tokens are rewrapped.
+ * Builds the API integration using the trusted backend's configured tenant key provider.
+ * The provider may use the legacy local master-key ring during migration or AWS KMS
+ * GenerateDataKey/Decrypt once the dual-read provider is implemented. Never expose
+ * provider credentials or plaintext data keys to renderer/browser code. Retain every
+ * legacy key version until LinkedIn token envelopes have been migrated and verified.
  */
 export function createLinkedInCloudIntegration(
   pool: LinkedInSqlPool,
