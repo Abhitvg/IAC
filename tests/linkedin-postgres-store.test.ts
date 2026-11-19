@@ -169,6 +169,57 @@ describe('LinkedInPostgresStore envelope rotation', () => {
     )).toBe(false);
   });
 
+  it('appends subsequent OAuth token writes after an existing revision', async () => {
+    const statements: Array<{ sql: string; values?: unknown[] }> = [];
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        statements.push({ sql, values });
+        if (sql.includes('SELECT tenant_id FROM linkedin_connections')) {
+          return { rows: [{ tenant_id: 'tenant-1' }] };
+        }
+        if (sql.includes('SELECT COALESCE(MAX(revision), 1) AS revision')) {
+          return { rows: [{ revision: 2 }] };
+        }
+        return { rows: [], rowCount: 1 };
+      }),
+      release: vi.fn(),
+    };
+    const database = { connect: vi.fn(async () => client) } as unknown as LinkedInSqlPool;
+    const encrypted: EncryptedEnvelope = {
+      ...baseEnvelope,
+      keyVersion: 'kms-v1',
+      wrappedKey: 'new-kms-wrapped-key',
+    };
+    const cipher = {
+      encrypt: vi.fn(async () => encrypted),
+    } as unknown as TenantEnvelopeCipher;
+    const store = new LinkedInPostgresStore(database, cipher);
+
+    await store.put(
+      { tenantId: 'tenant-1', subject: 'subject-1' },
+      {
+        accessToken: 'rotated-access-token',
+        memberId: 'member_1',
+        tokenType: 'Bearer',
+        grantedScopes: ['openid', 'profile'],
+        expiresAt: Date.now() + 120_000,
+      }
+    );
+
+    const insert = statements.find((entry) =>
+      entry.sql.includes('INSERT INTO linkedin_connection_envelope_revisions')
+    );
+    expect(insert?.values?.[2]).toBe(3);
+    expect(statements.some((entry) =>
+      entry.sql.includes('UPDATE linkedin_connections') &&
+      entry.sql.includes('token_envelope =')
+    )).toBe(false);
+    expect(statements.some((entry) =>
+      entry.sql.includes('UPDATE linkedin_connections') &&
+      entry.sql.includes('granted_scopes =')
+    )).toBe(true);
+  });
+
   it('rejects a rotation actor that does not match the subject RLS identity', async () => {
     const { database } = rotationPool();
     const store = new LinkedInPostgresStore(database, {} as TenantEnvelopeCipher);
