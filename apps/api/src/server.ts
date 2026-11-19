@@ -581,22 +581,31 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           tenant.subject,
           limit
         );
-        const facts = await Promise.all(
-          storedFacts.map(async (fact) => {
-            const plaintext = await crypto.decrypt(
-              fact.valueEnvelope,
-              tenant.tenantId,
-              `career-graph:${fact.factKey}`
-            );
-            try {
-              const value: unknown = JSON.parse(plaintext.toString('utf8'));
-              const { valueEnvelope: _valueEnvelope, ...metadata } = fact;
-              return { ...metadata, value };
-            } finally {
-              plaintext.fill(0);
-            }
-          })
-        );
+        let facts;
+        try {
+          facts = await Promise.all(
+            storedFacts.map(async (fact) => {
+              const plaintext = await crypto.decrypt(
+                fact.valueEnvelope,
+                tenant.tenantId,
+                `career-graph:${fact.factKey}`
+              );
+              try {
+                const value: unknown = JSON.parse(plaintext.toString('utf8'));
+                const { valueEnvelope: _valueEnvelope, ...metadata } = fact;
+                return { ...metadata, value };
+              } finally {
+                plaintext.fill(0);
+              }
+            })
+          );
+        } catch {
+          sendJson(response, 503, {
+            error: 'Career Graph decryption is temporarily unavailable',
+            requestId,
+          });
+          return;
+        }
         sendJson(response, 200, { facts, requestId });
         return;
       }
@@ -665,11 +674,20 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           factReviewMatch[1],
           review
         );
-        const plaintext = await crypto.decrypt(
-          fact.valueEnvelope,
-          tenant.tenantId,
-          `career-graph:${fact.factKey}`
-        );
+        let plaintext: Buffer;
+        try {
+          plaintext = await crypto.decrypt(
+            fact.valueEnvelope,
+            tenant.tenantId,
+            `career-graph:${fact.factKey}`
+          );
+        } catch {
+          sendJson(response, 503, {
+            error: 'Career Graph decryption is temporarily unavailable',
+            requestId,
+          });
+          return;
+        }
         try {
           const value: unknown = JSON.parse(plaintext.toString('utf8'));
           const { valueEnvelope: _valueEnvelope, ...metadata } = fact;
