@@ -1056,3 +1056,57 @@ describe('encrypted envelope strict decoding', () => {
     expect(unwrapDataKey).not.toHaveBeenCalled();
   });
 });
+
+
+describe('local envelope master-key lifecycle', () => {
+  it('zeroizes every retained master key and rejects use after destroy', async () => {
+    const first = randomBytes(32);
+    const second = randomBytes(32);
+    const provider = new MasterKeyTenantKeyProvider({
+      masterKeys: {
+        v1: first.toString('base64'),
+        v2: second.toString('base64'),
+      },
+      currentKeyVersion: 'v2',
+    });
+    const retainedKeys = (provider as unknown as {
+      masterKeys: Map<string, Buffer>;
+    }).masterKeys;
+    const firstRetained = retainedKeys.get('v1');
+    const secondRetained = retainedKeys.get('v2');
+    expect(firstRetained).toBeDefined();
+    expect(secondRetained).toBeDefined();
+
+    provider.destroy();
+
+    expect(firstRetained?.every((byte) => byte === 0)).toBe(true);
+    expect(secondRetained?.every((byte) => byte === 0)).toBe(true);
+    expect(retainedKeys.size).toBe(0);
+    await expect(provider.generateDataKey('tenant-1', 'career-graph:profile'))
+      .rejects.toThrow('master key is unavailable');
+    await expect(provider.unwrapDataKey(
+      'tenant-1',
+      Buffer.from('opaque').toString('base64'),
+      'v1',
+      'career-graph:profile'
+    )).rejects.toThrow('unavailable master-key version');
+
+    first.fill(0);
+    second.fill(0);
+  });
+
+  it('zeroizes already-imported keys when a later key-ring entry is invalid', () => {
+    const validKey = randomBytes(32);
+    const ring = {
+      v1: validKey.toString('base64'),
+      v2: 'not-canonical-base64!',
+    };
+    // Constructor failure must not leave a usable provider. The valid source
+    // buffer is caller-owned; provider-owned copies are cleared on failure.
+    expect(() => new MasterKeyTenantKeyProvider({
+      masterKeys: ring,
+      currentKeyVersion: 'v1',
+    })).toThrow('Invalid base64 value');
+    validKey.fill(0);
+  });
+});
