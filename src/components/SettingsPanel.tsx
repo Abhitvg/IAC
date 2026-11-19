@@ -69,7 +69,11 @@ export default function SettingsPanel() {
     try {
       const result = await migratePracticeDataToEncryptedStorage();
       setMigrationMessage(
-        `Practice data: ${result.migrated.length} copied, ${result.verified.length} verified, ${result.conflicts.length} conflicts, ${result.failed.length} failures. Legacy source retained.`
+        [
+          `Practice migration: ${result.migrated.length} copied;`,
+          `${result.verified.length} verified; ${result.conflicts.length} conflicts;`,
+          `${result.failed.length} failures. Legacy source retained.`,
+        ].join(' ')
       );
     } catch (error) {
       setMigrationMessage(
@@ -88,7 +92,7 @@ export default function SettingsPanel() {
       const result = await migrateKnowledgeVaultToEncryptedStorage();
       setMigrationMessage(
         result.conflict
-          ? 'Knowledge Vault migration stopped: a different encrypted vault already exists. No data was overwritten.'
+          ? 'Conflict: a different encrypted vault exists; nothing was overwritten.'
           : result.failed
             ? result.reason || 'Knowledge Vault migration failed. Legacy source retained.'
             : result.migrated
