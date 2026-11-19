@@ -117,6 +117,7 @@ export class PostgresCareerGraphRepository {
     tenantId: string;
     actorSubject: string;
     targetKeyVersion: string;
+    sourceKeyVersions: string[];
     limit: number;
     reencrypt: (
       envelope: EncryptedFactEnvelope,
@@ -133,6 +134,13 @@ export class PostgresCareerGraphRepository {
       !input.tenantId ||
       !input.actorSubject ||
       !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(input.targetKeyVersion) ||
+      !Array.isArray(input.sourceKeyVersions) ||
+      input.sourceKeyVersions.length > 7 ||
+      input.sourceKeyVersions.some(
+        (version) =>
+          version === input.targetKeyVersion ||
+          !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(version)
+      ) ||
       !Number.isInteger(input.limit) ||
       input.limit < 1 ||
       input.limit > 100
@@ -199,11 +207,11 @@ export class PostgresCareerGraphRepository {
            ) er ON TRUE
           WHERE f.tenant_id = $1
             AND ($2::uuid IS NULL OR f.id > $2::uuid)
-            AND COALESCE(er.value_envelope, f.value_envelope)->>'keyVersion' <> $3
+            AND COALESCE(er.value_envelope, f.value_envelope)->>'keyVersion' = ANY($3::text[])
           ORDER BY f.id ASC
           LIMIT $4
           FOR UPDATE OF f`,
-        [input.tenantId, job.last_fact_id, input.targetKeyVersion, input.limit + 1]
+        [input.tenantId, job.last_fact_id, input.sourceKeyVersions, input.limit + 1]
       );
 
       const hasMore = candidates.rows.length > input.limit;
