@@ -168,6 +168,12 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
            VALUES ($1, $2, $3, $4::jsonb, $5)`,
           [identity.tenantId, identity.subject, nextRevision, JSON.stringify(envelope), identity.subject]
         );
+        await client.query(
+          `UPDATE linkedin_connections
+              SET granted_scopes = $3, token_expires_at = $4, updated_at = now()
+            WHERE tenant_id = $1 AND subject = $2`,
+          [identity.tenantId, identity.subject, tokens.grantedScopes, new Date(tokens.expiresAt).toISOString()]
+        );
       } else {
         await client.query(
           `UPDATE linkedin_connections
