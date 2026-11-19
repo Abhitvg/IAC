@@ -207,6 +207,59 @@ SELECT tenant_id, id, 'confirmed', 'user-a'
   FROM career_graph_facts
  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
    AND fact_key = 'profile.current_role' AND version = 1;
+
+-- Envelope rotation appends a tenant-scoped revision without mutating the fact row.
+INSERT INTO career_graph_fact_envelope_revisions (
+  tenant_id, fact_id, revision, value_envelope, rotated_by
+)
+SELECT
+  tenant_id,
+  id,
+  2,
+  jsonb_build_object(
+    'algorithm', 'A256GCM',
+    'wrappedKey', 'd3JhcHBlZC1rZXktdjI=',
+    'keyVersion', 'test-key-v2',
+    'iv', 'AAAAAAAAAAAAAAAA',
+    'authTag', 'AAAAAAAAAAAAAAAAAAAAAA==',
+    'ciphertext', 'Y2lwaGVydGV4dA==',
+    'tenantId', tenant_id::text,
+    'context', 'career-graph:profile.current_role'
+  ),
+  'user-a'
+FROM career_graph_facts
+WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+  AND fact_key = 'profile.current_role' AND version = 1;
+
+INSERT INTO career_graph_envelope_rotation_jobs (
+  tenant_id, target_key_version, last_fact_id, rotated_count, status, created_by, updated_by
+)
+SELECT tenant_id, 'test-key-v2', id, 1, 'running', 'user-a', 'user-a'
+  FROM career_graph_facts
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND fact_key = 'profile.current_role' AND version = 1;
+
+UPDATE career_graph_envelope_rotation_jobs
+   SET status = 'completed', updated_by = 'user-a', updated_at = now()
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND target_key_version = 'test-key-v2';
+
+DO $rotation_rls$
+DECLARE
+  visible_revisions integer;
+  visible_jobs integer;
+  current_key_version text;
+BEGIN
+  SELECT count(*) INTO visible_revisions FROM career_graph_fact_envelope_revisions;
+  SELECT count(*) INTO visible_jobs FROM career_graph_envelope_rotation_jobs;
+  SELECT value_envelope->>'keyVersion' INTO current_key_version
+    FROM career_graph_fact_envelope_revisions
+   WHERE tenant_id = '10000000-0000-4000-8000-000000000001';
+  IF visible_revisions <> 1 OR visible_jobs <> 1 OR current_key_version <> 'test-key-v2' THEN
+    RAISE EXCEPTION 'Career Graph envelope revision or rotation-job RLS failed';
+  END IF;
+END
+$rotation_rls$;
 COMMIT;
 SQL
 
