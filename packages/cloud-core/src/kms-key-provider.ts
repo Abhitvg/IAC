@@ -64,6 +64,7 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
   private readonly client: KmsDataKeyOperations;
   private readonly keyArn: string;
   private readonly keyVersion: string;
+  private destroyed = false;
 
   constructor(options: KmsTenantKeyProviderOptions) {
     if (
@@ -80,10 +81,13 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
   }
 
   destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
     this.client.destroy?.();
   }
 
   async generateDataKey(tenantId: string, context: string): Promise<GeneratedDataKey> {
+    if (this.destroyed) throw new Error('KMS tenant key provider has been destroyed');
     validate(tenantId, context, this.keyVersion);
     const result = await this.client.generateDataKey({
       KeyId: this.keyArn,
@@ -113,6 +117,7 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
   async unwrapDataKey(
     tenantId: string, wrappedKey: string, keyVersion: string, context: string
   ): Promise<Buffer> {
+    if (this.destroyed) throw new Error('KMS tenant key provider has been destroyed');
     validate(tenantId, context, keyVersion);
     if (keyVersion !== this.keyVersion) {
       throw new Error('Encrypted envelope references an unavailable KMS key version');
@@ -141,24 +146,33 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
 
 /** New writes use KMS; reads retain compatibility with legacy local-key envelopes. */
 export class DualReadTenantKeyProvider implements TenantKeyProvider {
+  private destroyed = false;
+
   constructor(
     private readonly kmsProvider: KmsTenantKeyProvider,
     private readonly legacyProvider: TenantKeyProvider
   ) {}
 
   generateDataKey(tenantId: string, context: string): Promise<GeneratedDataKey> {
+    if (this.destroyed) throw new Error('Dual-read tenant key provider has been destroyed');
     return this.kmsProvider.generateDataKey(tenantId, context);
   }
 
   unwrapDataKey(tenantId: string, wrappedKey: string, keyVersion: string, context: string): Promise<Buffer> {
+    if (this.destroyed) throw new Error('Dual-read tenant key provider has been destroyed');
     return KMS_VERSION.test(keyVersion)
       ? this.kmsProvider.unwrapDataKey(tenantId, wrappedKey, keyVersion, context)
       : this.legacyProvider.unwrapDataKey(tenantId, wrappedKey, keyVersion, context);
   }
 
   destroy(): void {
-    this.kmsProvider.destroy();
+    if (this.destroyed) return;
+    this.destroyed = true;
     const legacy = this.legacyProvider as TenantKeyProvider & { destroy?: () => void };
-    legacy.destroy?.();
+    try {
+      this.kmsProvider.destroy();
+    } finally {
+      legacy.destroy?.();
+    }
   }
 }
