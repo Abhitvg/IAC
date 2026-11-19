@@ -210,7 +210,9 @@ export class PostgresCareerGraphRepository {
           replacement.keyVersion !== input.targetKeyVersion ||
           replacement.algorithm !== 'A256GCM'
         ) {
-          throw new Error('Rotation provider returned an envelope with an unexpected context or key version');
+          throw new Error(
+            'Rotation provider returned an envelope with an unexpected context or key version'
+          );
         }
 
         const latest = await client.query<{ next_revision: number }>(
