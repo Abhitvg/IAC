@@ -117,7 +117,7 @@ describe('LinkedInPostgresStore envelope rotation', () => {
     const replacement: EncryptedEnvelope = {
       ...baseEnvelope,
       keyVersion: 'kms-v1',
-      wrappedKey: 'kms-wrapped-key',
+      wrappedKey: 'a21zLXdyYXBwZWQta2V5',
     };
     const reencrypt = vi.fn(async () => replacement);
 
@@ -152,7 +152,7 @@ describe('LinkedInPostgresStore envelope rotation', () => {
     const current: EncryptedEnvelope = {
       ...baseEnvelope,
       keyVersion: 'kms-v1',
-      wrappedKey: 'kms-wrapped-key',
+      wrappedKey: 'a21zLXdyYXBwZWQta2V5',
     };
     const { database, statements } = rotationPool({ current, revision: 3 });
     const store = new LinkedInPostgresStore(database, {} as TenantEnvelopeCipher);
@@ -176,7 +176,7 @@ describe('LinkedInPostgresStore envelope rotation', () => {
     const latest: EncryptedEnvelope = {
       ...baseEnvelope,
       keyVersion: 'kms-v1',
-      wrappedKey: 'latest-kms-wrapped-key',
+      wrappedKey: 'latest-a21zLXdyYXBwZWQta2V5',
     };
     const statements: string[] = [];
     const client = {
@@ -235,7 +235,7 @@ describe('LinkedInPostgresStore envelope rotation', () => {
     const encrypted: EncryptedEnvelope = {
       ...baseEnvelope,
       keyVersion: 'kms-v1',
-      wrappedKey: 'new-kms-wrapped-key',
+      wrappedKey: 'new-a21zLXdyYXBwZWQta2V5',
     };
     const cipher = {
       encrypt: vi.fn(async () => encrypted),
@@ -273,7 +273,7 @@ describe('LinkedInPostgresStore envelope rotation', () => {
     const malformed: EncryptedEnvelope = {
       ...baseEnvelope,
       keyVersion: 'kms-v1',
-      wrappedKey: 'kms-wrapped-key',
+      wrappedKey: 'a21zLXdyYXBwZWQta2V5',
       iv: 'not-base64',
     };
 
