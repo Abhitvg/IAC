@@ -22,7 +22,10 @@ describe('practice data migration', () => {
       ai_practice_feedback_v1: '[{"id":"feedback-1"}]',
       ai_practice_stories_v1: '[]',
     });
-    vi.stubGlobal('window', { localStorage, electronAPI: { secureRecordGet: vi.fn(), secureRecordSet: vi.fn() } });
+    vi.stubGlobal('window', {
+      localStorage,
+      electronAPI: { secureRecordGet: vi.fn(), secureRecordSet: vi.fn() },
+    });
 
     const preview = previewPracticeDataMigration();
 
