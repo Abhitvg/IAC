@@ -31,7 +31,9 @@ describe('KnowledgeVaultService encrypted persistence', () => {
     });
   });
 
-  it('persists vault updates to encrypted storage and never writes plaintext localStorage', async () => {
+  it(
+    'persists vault updates to encrypted storage and never writes plaintext localStorage',
+    async () => {
     const service = KnowledgeVaultService.getInstance();
     const updated = {
       ...createInitialVault(),
@@ -50,7 +52,9 @@ describe('KnowledgeVaultService encrypted persistence', () => {
     expect(localStorage.setItem).not.toHaveBeenCalled();
   });
 
-  it('stores an encrypted empty-vault tombstone on reset without deleting the legacy source', async () => {
+  it(
+    'stores an encrypted empty-vault tombstone on reset without deleting the legacy source',
+    async () => {
     const legacy = '{"schemaVersion":2,"profile":{"email":"legacy@example.test"}}';
     localStorage.getItem.mockReturnValue(legacy);
     const service = KnowledgeVaultService.getInstance();
