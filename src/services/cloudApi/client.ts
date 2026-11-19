@@ -1,5 +1,40 @@
 export type CareerOpsApiMethod = 'GET' | 'POST' | 'DELETE';
 
+export interface CareerGraphFactSource {
+  kind: 'user_input' | 'document' | 'integration' | 'import';
+  reference?: string;
+  evidenceSha256?: string;
+}
+
+export interface CareerGraphFactCreateInput {
+  factKey: string;
+  value:
+    | string
+    | number
+    | boolean
+    | null
+    | string[]
+    | Record<string, string | number | boolean | null>;
+  source: CareerGraphFactSource;
+}
+
+export interface CareerGraphFactResponse {
+  id: string;
+  tenantId: string;
+  factKey: string;
+  version: number;
+  value: CareerGraphFactCreateInput['value'];
+  source: CareerGraphFactSource;
+  createdBy: string;
+  createdAt: string;
+  review: {
+    decision: 'confirmed' | 'rejected';
+    reason?: string;
+    reviewedBy: string;
+    reviewedAt: string;
+  } | null;
+}
+
 export interface CareerOpsApiClientOptions {
   baseUrl: string;
   getAccessToken: () => Promise<string | null>;
@@ -110,5 +145,40 @@ export function createCareerOpsApiClient(options: CareerOpsApiClientOptions) {
     return payload as T;
   }
 
-  return { request };
+  async function createCareerGraphFact(input: CareerGraphFactCreateInput) {
+    return request<{ fact: CareerGraphFactResponse; requestId: string }>(
+      '/v1/career-graph/facts',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    );
+  }
+
+  async function listCareerGraphFacts(limit = 50) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new Error('Career Graph limit must be an integer between 1 and 100');
+    }
+    return request<{ facts: CareerGraphFactResponse[]; requestId: string }>(
+      `/v1/career-graph/facts?limit=${limit}`
+    );
+  }
+
+  async function reviewCareerGraphFact(
+    factId: string,
+    input: { decision: 'confirmed' | 'rejected'; reason?: string }
+  ) {
+    if (!/^[0-9a-f-]{36}$/i.test(factId)) {
+      throw new Error('Career Graph fact ID must be a UUID');
+    }
+    return request<{ fact: CareerGraphFactResponse; requestId: string }>(
+      `/v1/career-graph/facts/${encodeURIComponent(factId)}/review`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    );
+  }
+
+  return { request, createCareerGraphFact, listCareerGraphFacts, reviewCareerGraphFact };
 }
