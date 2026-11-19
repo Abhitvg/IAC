@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 const MASTER_KEY_VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const KMS_KEY_ARN_PATTERN = /^arn:(?:aws|aws-us-gov|aws-cn|aws-iso|aws-iso-b):kms:[a-z0-9-]+:\d{12}:key\/[A-Fa-f0-9-]{36}$/;
+const KMS_KEY_VERSION_PATTERN = /^kms-v[1-9][0-9]{0,2}$/;
 
 function isValidEnvelopeMasterKeyRing(raw: string, currentVersion: string): boolean {
   if (!raw) return false;
@@ -74,6 +76,8 @@ const CloudEnvironmentSchema = z
     CAREEROPS_DATABASE_URL: z.string().url().optional(),
     CAREEROPS_ENVELOPE_MASTER_KEYS: z.string().max(4096).default(''),
     CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: z.string().max(64).default('v1'),
+    CAREEROPS_KMS_KEY_ARN: z.string().optional(),
+    CAREEROPS_KMS_KEY_VERSION: z.string().optional(),
     LINKEDIN_CLIENT_ID: z.string().default(''),
     LINKEDIN_CLIENT_SECRET: z.string().default(''),
     LINKEDIN_REDIRECT_URI: z.string().default(''),
@@ -86,6 +90,20 @@ const CloudEnvironmentSchema = z
       .default(16 * 1024),
   })
   .superRefine((values, context) => {
+    const kmsConfigured = Boolean(values.CAREEROPS_KMS_KEY_ARN || values.CAREEROPS_KMS_KEY_VERSION);
+    if (
+      kmsConfigured &&
+      (!values.CAREEROPS_KMS_KEY_ARN ||
+        !KMS_KEY_ARN_PATTERN.test(values.CAREEROPS_KMS_KEY_ARN) ||
+        !values.CAREEROPS_KMS_KEY_VERSION ||
+        !KMS_KEY_VERSION_PATTERN.test(values.CAREEROPS_KMS_KEY_VERSION))
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['CAREEROPS_KMS_KEY_ARN'],
+        message: 'KMS envelope encryption requires a canonical key ARN and a kms-vN key version together',
+      });
+    }
     const linkedinValues = [
       values.LINKEDIN_CLIENT_ID,
       values.LINKEDIN_CLIENT_SECRET,
