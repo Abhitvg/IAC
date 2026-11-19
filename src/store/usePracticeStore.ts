@@ -180,8 +180,7 @@ function persist<T>(key: string, data: T): Promise<boolean> {
   const next = previous
     .catch(() => false)
     .then(async () => {
-      const written = await api.secureRecordSet('practice', key, serialized);
-      if (!written) throw new Error('Encrypted storage did not confirm the write.');
+      await api.secureRecordSet('practice', key, serialized);
 
       const roundTrip = await api.secureRecordGet('practice', key);
       if (roundTrip !== serialized) {
