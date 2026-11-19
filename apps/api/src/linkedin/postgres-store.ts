@@ -119,11 +119,16 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
 
   async put(identity: LinkedInConnectionIdentity, tokens: LinkedInTokenSet): Promise<void> {
     const context = tokenContext(identity.subject);
-    const envelope = await this.cipher.encrypt(
-      identity.tenantId,
-      context,
-      Buffer.from(JSON.stringify(tokens), 'utf8')
-    );
+    // The serialized OAuth token payload is plaintext secret material. Keep its
+    // lifetime explicit and wipe the backing buffer even if encryption or the
+    // subsequent database write fails.
+    const plaintext = Buffer.from(JSON.stringify(tokens), 'utf8');
+    let envelope: EncryptedEnvelope;
+    try {
+      envelope = await this.cipher.encrypt(identity.tenantId, context, plaintext);
+    } finally {
+      plaintext.fill(0);
+    }
     await inTenant(this.pool, identity.tenantId, identity.subject, async (client) => {
       await client.query(
         `INSERT INTO linkedin_connections
