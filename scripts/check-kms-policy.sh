@@ -8,7 +8,7 @@ if git grep -n -I -E '"kms:\*"' -- 'infra/aws/terraform/**'; then
   exit 1
 fi
 
-if git grep -n -I -E 'AwsKmsTenantKeyProvider|TrentService\.(GenerateDataKey|Decrypt)|kms:GenerateDataKey' -- 'apps/**' 'packages/**'; then
+if git grep -n -I -E 'AwsKmsTenantKeyProvider|TrentService\.(GenerateDataKey|Decrypt)|kms:GenerateDataKey|@aws-sdk/client-kms|KMSClient|GenerateDataKeyCommand|DecryptCommand|GenerateDataKey|kms\.decrypt\(' -- 'apps/**' 'packages/**' 'scripts/**'; then
   echo "Direct KMS API calls from application code are forbidden." >&2
   exit 1
 fi
