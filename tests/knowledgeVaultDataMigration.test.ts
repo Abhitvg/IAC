@@ -42,9 +42,7 @@ describe('Knowledge Vault encrypted migration', () => {
     expect(localStorage.removeItem).not.toHaveBeenCalled();
   });
 
-  it(
-    'copies, reads back, and journals the vault while preserving the plaintext source',
-    async () => {
+  it('copies and verifies the vault while preserving the plaintext source', async () => {
     const source = '{"schemaVersion":2,"profile":{"email":"private@example.test"}}';
     const localStorage = createStorage({ [KNOWLEDGE_VAULT_LEGACY_STORAGE_KEY]: source });
     const records = new Map<string, string>();
