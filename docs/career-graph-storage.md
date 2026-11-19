@@ -26,4 +26,4 @@ This includes authenticated API and PostgreSQL persistence workflows. It is not 
 
 ## Verification
 
-The domain and API tests cover bounded plaintext input, tenant/context binding, stable fact keys, bounded provenance, verified-identity binding, API-side AES-GCM encryption/decryption, ciphertext-only persistence, envelope omission from responses, fail-closed behavior without a key provider, route validation, version-lock ordering, transaction/audit atomicity, and contributor-only review. PostgreSQL migration/RLS integration remains a required CI gate before merge.
+The domain and API tests cover bounded plaintext input, tenant/context binding, stable fact keys, bounded provenance, verified-identity binding, API-side AES-GCM encryption/decryption, ciphertext-only persistence, envelope omission from responses, fail-closed behavior without a key provider, versioned master-key rotation and re-encryption, route validation, version-lock ordering, transaction/audit atomicity, and contributor-only review. PostgreSQL migration/RLS integration remains a required CI gate before merge.
