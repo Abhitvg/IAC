@@ -74,6 +74,56 @@ describe('CareerOps cloud API client', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it('provides typed Career Graph create, list, and review operations', async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ fact: { id: '20000000-0000-4000-8000-000000000002' } }), {
+          status: 201,
+          headers: { 'content-type': 'application/json' },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ facts: [] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ fact: { id: '20000000-0000-4000-8000-000000000002' } }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      );
+    const client = createCareerOpsApiClient({
+      baseUrl: 'https://api.example.com',
+      getAccessToken: async () => 'token',
+      fetchImpl,
+    });
+
+    await client.createCareerGraphFact({
+      factKey: 'profile.current_role',
+      value: 'Software Engineer',
+      source: { kind: 'user_input' },
+    });
+    await client.listCareerGraphFacts(25);
+    await client.reviewCareerGraphFact('20000000-0000-4000-8000-000000000002', {
+      decision: 'confirmed',
+    });
+
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toBe('https://api.example.com/v1/career-graph/facts');
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
+      factKey: 'profile.current_role',
+      value: 'Software Engineer',
+    });
+    expect(String(fetchImpl.mock.calls[1]?.[0])).toBe(
+      'https://api.example.com/v1/career-graph/facts?limit=25'
+    );
+    expect(String(fetchImpl.mock.calls[2]?.[0])).toBe(
+      'https://api.example.com/v1/career-graph/facts/20000000-0000-4000-8000-000000000002/review'
+    );
+  });
+
   it('surfaces API status codes without leaking response payloads', async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ error: 'Unauthorized', secret: 'do-not-surface' }), {
