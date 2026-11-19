@@ -348,6 +348,22 @@ SET ROLE careerops_app;
 BEGIN;
 SELECT set_config('app.user_subject', 'user-a', true);
 SELECT set_config('app.tenant_id', '10000000-0000-4000-8000-000000000001', true);
+UPDATE career_graph_envelope_rotation_jobs
+   SET status = 'running', updated_by = 'user-a', updated_at = now()
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND target_key_version = 'test-key-v2';
+COMMIT;
+SQL
+then
+  echo "Expected completed Career Graph rotation job to remain terminal, but it reopened."
+  exit 1
+fi
+
+if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+SET ROLE careerops_app;
+BEGIN;
+SELECT set_config('app.user_subject', 'user-a', true);
+SELECT set_config('app.tenant_id', '10000000-0000-4000-8000-000000000001', true);
 UPDATE career_graph_fact_envelope_revisions
    SET rotated_by = 'tampered'
  WHERE tenant_id = '10000000-0000-4000-8000-000000000001';
