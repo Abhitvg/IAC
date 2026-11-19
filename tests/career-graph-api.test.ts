@@ -397,7 +397,9 @@ describe('Postgres Career Graph repository', () => {
         if (sql.includes('COALESCE(MAX(revision), 1)')) {
           return { rows: [{ next_revision: 2 }], rowCount: 1 };
         }
-        if (sql.includes('UPDATE career_graph_envelope_rotation_jobs')) return { rows: [], rowCount: 1 };
+        if (sql.includes('UPDATE career_graph_envelope_rotation_jobs')) {
+          return { rows: [], rowCount: 1 };
+        }
         if (sql.includes('INSERT INTO career_graph_fact_envelope_revisions')) {
           expect(values?.[2]).toBe(2);
           expect(JSON.parse(String(values?.[3])).keyVersion).toBe('test-key-v2');
@@ -463,7 +465,7 @@ describe('Postgres Career Graph repository', () => {
         tenantId,
         actorSubject: subject,
         targetKeyVersion: 'test-key-v2',
-          limit: 10,
+        limit: 10,
         reencrypt: async () => {
           throw new Error('old key unavailable');
         },
