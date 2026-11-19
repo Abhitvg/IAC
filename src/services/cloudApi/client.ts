@@ -8,13 +8,7 @@ export interface CareerGraphFactSource {
 
 export interface CareerGraphFactCreateInput {
   factKey: string;
-  value:
-    | string
-    | number
-    | boolean
-    | null
-    | string[]
-    | Record<string, string | number | boolean | null>;
+  value: string | number | boolean | null | string[] | Record<string, string | number | boolean | null>;
   source: CareerGraphFactSource;
 }
 
@@ -146,13 +140,10 @@ export function createCareerOpsApiClient(options: CareerOpsApiClientOptions) {
   }
 
   async function createCareerGraphFact(input: CareerGraphFactCreateInput) {
-    return request<{ fact: CareerGraphFactResponse; requestId: string }>(
-      '/v1/career-graph/facts',
-      {
-        method: 'POST',
-        body: JSON.stringify(input),
-      }
-    );
+    return request<{ fact: CareerGraphFactResponse; requestId: string }>('/v1/career-graph/facts', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   }
 
   async function listCareerGraphFacts(limit = 50) {

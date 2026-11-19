@@ -90,7 +90,6 @@ Further source inspection confirmed:
 - Candidate vault, Knowledge Vault, practice history, CareerOps pipeline/discovery data, and other previously inventoried stores still require migration. This work must not be represented as complete encryption of all local data.
 - The user's selected migration policy is manual: no automatic plaintext migration or source deletion. A user-facing export/backup and verified import workflow is still a release blocker.
 
-
 ## Key-provider and Career Graph audit update (2026-11-19)
 
 - The current application key provider and the infrastructure KMS key serve different purposes. The Terraform execution role uses KMS Decrypt through Secrets Manager to inject the application configuration secret. The API's current `MasterKeyTenantKeyProvider` uses key material from that secret to wrap data keys locally.

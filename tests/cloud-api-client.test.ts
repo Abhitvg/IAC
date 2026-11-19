@@ -78,13 +78,10 @@ describe('CareerOps cloud API client', () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ fact: { id: '20000000-0000-4000-8000-000000000002' } }),
-          {
-            status: 201,
-            headers: { 'content-type': 'application/json' },
-          }
-        )
+        new Response(JSON.stringify({ fact: { id: '20000000-0000-4000-8000-000000000002' } }), {
+          status: 201,
+          headers: { 'content-type': 'application/json' },
+        })
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ facts: [] }), {
@@ -93,13 +90,10 @@ describe('CareerOps cloud API client', () => {
         })
       )
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ fact: { id: '20000000-0000-4000-8000-000000000002' } }),
-          {
-            status: 200,
-            headers: { 'content-type': 'application/json' },
-          }
-        )
+        new Response(JSON.stringify({ fact: { id: '20000000-0000-4000-8000-000000000002' } }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
       );
     const client = createCareerOpsApiClient({
       baseUrl: 'https://api.example.com',

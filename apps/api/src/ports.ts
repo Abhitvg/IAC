@@ -21,16 +21,8 @@ export interface LinkedInCloudIntegration {
 }
 
 export interface CareerGraphCrypto {
-  encrypt(
-    tenantId: string,
-    context: string,
-    plaintext: Buffer
-  ): Promise<EncryptedFactEnvelope>;
-  decrypt(
-    envelope: EncryptedFactEnvelope,
-    tenantId: string,
-    context: string
-  ): Promise<Buffer>;
+  encrypt(tenantId: string, context: string, plaintext: Buffer): Promise<EncryptedFactEnvelope>;
+  decrypt(envelope: EncryptedFactEnvelope, tenantId: string, context: string): Promise<Buffer>;
 }
 
 export interface CareerGraphRepository {
