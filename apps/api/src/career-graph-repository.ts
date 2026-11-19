@@ -1,6 +1,7 @@
 import { appendAuditEvent, type AuditRecord } from '../../../packages/cloud-core/src/audit';
 import {
   assertReviewAllowed,
+  EncryptedFactEnvelopeSchema,
   type CareerGraphFact,
   type CareerGraphFactInput,
   type CareerGraphFactReview,
@@ -202,6 +203,7 @@ export class PostgresCareerGraphRepository {
       for (const row of page) {
         const context = `career-graph:${row.fact_key}`;
         const replacement = await input.reencrypt(row.value_envelope, input.tenantId, context);
+        EncryptedFactEnvelopeSchema.parse(replacement);
         if (
           replacement.tenantId !== input.tenantId ||
           replacement.context !== context ||
