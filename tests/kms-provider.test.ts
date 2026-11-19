@@ -14,6 +14,7 @@ describe('KMS tenant envelope key provider', () => {
   it('uses AES_256 GenerateDataKey and binds tenant and purpose in KMS context', async () => {
     const plaintext = Buffer.alloc(32, 7);
     const ciphertext = Buffer.from('kms-ciphertext');
+    const expectedWrappedKey = ciphertext.toString('base64');
     const generateDataKey = vi.fn(async () => ({
       Plaintext: plaintext,
       CiphertextBlob: ciphertext,
@@ -29,7 +30,7 @@ describe('KMS tenant envelope key provider', () => {
     const generated = await provider.generateDataKey(tenantId, context);
     expect(generated.plaintextKey).toEqual(Buffer.alloc(32, 7));
     expect(generated.keyVersion).toBe('kms-v1');
-    expect(Buffer.from(generated.wrappedKey, 'base64')).toEqual(ciphertext);
+    expect(generated.wrappedKey).toBe(expectedWrappedKey);
     expect(generateDataKey).toHaveBeenCalledWith({
       KeyId: keyArn,
       KeySpec: 'AES_256',
