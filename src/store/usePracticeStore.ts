@@ -701,9 +701,7 @@ async function hydrateEncryptedPracticeRecords(): Promise<void> {
         console.error('[PracticeStore] Encrypted active session failed schema validation.');
         continue;
       }
-      (usePracticeStore.setState as (state: Record<string, unknown>) => void)({
-        [stateKey]: value,
-      });
+      usePracticeStore.setState({ [stateKey]: value } as Partial<PracticeState>);
     } catch {
       // Keep the last known in-memory/legacy value; never erase encrypted source data.
       console.error('[PracticeStore] Unable to hydrate an encrypted practice record.', {
