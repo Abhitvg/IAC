@@ -74,6 +74,37 @@ CREATE POLICY career_graph_envelope_rotation_jobs_tenant_isolation
     AND updated_by = NULLIF(current_setting('app.user_subject', true), '')
   );
 
+CREATE OR REPLACE FUNCTION enforce_career_graph_rotation_job_progress()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+BEGIN
+  IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
+     OR NEW.target_key_version IS DISTINCT FROM OLD.target_key_version
+     OR NEW.created_by IS DISTINCT FROM OLD.created_by THEN
+    RAISE EXCEPTION 'Career Graph rotation job identity is immutable';
+  END IF;
+  IF OLD.status = 'completed' AND NEW.status <> 'completed' THEN
+    RAISE EXCEPTION 'Completed Career Graph rotation jobs cannot be reopened';
+  END IF;
+  IF NEW.rotated_count < OLD.rotated_count THEN
+    RAISE EXCEPTION 'Career Graph rotation count cannot decrease';
+  END IF;
+  IF OLD.last_fact_id IS NOT NULL
+     AND (NEW.last_fact_id IS NULL OR NEW.last_fact_id < OLD.last_fact_id) THEN
+    RAISE EXCEPTION 'Career Graph rotation cursor cannot move backwards';
+  END IF;
+  IF NEW.updated_by IS DISTINCT FROM NULLIF(current_setting('app.user_subject', true), '') THEN
+    RAISE EXCEPTION 'Career Graph rotation job actor mismatch';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+CREATE TRIGGER career_graph_rotation_job_progress
+BEFORE UPDATE ON career_graph_envelope_rotation_jobs
+FOR EACH ROW EXECUTE FUNCTION enforce_career_graph_rotation_job_progress();
+
 CREATE OR REPLACE FUNCTION enforce_career_graph_envelope_revision_context()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -124,6 +155,8 @@ BEFORE TRUNCATE ON career_graph_fact_envelope_revisions
 FOR EACH STATEMENT EXECUTE FUNCTION reject_career_graph_envelope_revision_mutation();
 
 GRANT SELECT, INSERT ON career_graph_fact_envelope_revisions TO careerops_app;
-GRANT SELECT, INSERT, UPDATE ON career_graph_envelope_rotation_jobs TO careerops_app;
+GRANT SELECT, INSERT ON career_graph_envelope_rotation_jobs TO careerops_app;
+GRANT UPDATE (last_fact_id, rotated_count, status, updated_by, updated_at)
+  ON career_graph_envelope_rotation_jobs TO careerops_app;
 
 COMMIT;
