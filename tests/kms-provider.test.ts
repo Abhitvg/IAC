@@ -103,6 +103,29 @@ describe('KMS tenant envelope key provider', () => {
     expect(sdkPlaintext.every((byte) => byte === 0)).toBe(true);
   });
 
+  it('rejects KMS responses that omit the configured key identifier', async () => {
+    const plaintext = Buffer.alloc(32, 8);
+    const provider = new KmsTenantKeyProvider({
+      keyArn,
+      keyVersion: 'kms-v1',
+      client: {
+        generateDataKey: async () => ({
+          Plaintext: plaintext,
+          CiphertextBlob: Buffer.from('wrapped'),
+        }),
+        decrypt: async () => ({ Plaintext: Buffer.alloc(32, 8) }),
+      },
+    });
+
+    await expect(provider.generateDataKey(tenantId, context)).rejects.toThrow(
+      'unexpected key identifier'
+    );
+    expect(plaintext.every((byte) => byte === 0)).toBe(true);
+    await expect(
+      provider.unwrapDataKey(tenantId, Buffer.from('wrapped').toString('base64'), 'kms-v1', context)
+    ).rejects.toThrow('unexpected key identifier');
+  });
+
   it('uses AES_256 GenerateDataKey and binds tenant and purpose in KMS context', async () => {
     const plaintext = Buffer.alloc(32, 7);
     const ciphertext = Buffer.from('kms-ciphertext');
@@ -213,8 +236,9 @@ describe('KMS tenant envelope key provider', () => {
         generateDataKey: async () => ({
           Plaintext: Buffer.alloc(32, 1),
           CiphertextBlob: Buffer.from('kms'),
+          KeyId: keyArn,
         }),
-        decrypt: async () => ({ Plaintext: Buffer.alloc(32, 1) }),
+        decrypt: async () => ({ Plaintext: Buffer.alloc(32, 1), KeyId: keyArn }),
       },
     });
     const legacyUnwrap = vi.fn(async () => Buffer.alloc(32, 2));
