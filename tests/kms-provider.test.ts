@@ -251,6 +251,46 @@ describe('KMS tenant envelope key provider', () => {
     expect(generatedKey.every((byte) => byte === 0)).toBe(true);
   });
 
+  it('zeroizes malformed Uint8Array key material returned by a provider', async () => {
+    const generatedBytes = new Uint8Array(32).fill(0x2a);
+    const generatedProvider = {
+      generateDataKey: async () => ({
+        plaintextKey: generatedBytes,
+        wrappedKey: Buffer.from('wrapped').toString('base64'),
+        keyVersion: 'kms-v1',
+      }),
+      unwrapDataKey: async () => new Uint8Array(32).fill(0x3b),
+    } as unknown as TenantKeyProvider;
+    const generatedCipher = new TenantEnvelopeCipher(generatedProvider);
+    await expect(generatedCipher.encrypt(tenantId, context, Buffer.from('secret')))
+      .rejects.toThrow('invalid data key');
+    expect(generatedBytes.every((byte) => byte === 0)).toBe(true);
+
+    const validEnvelope = {
+      algorithm: 'A256GCM' as const,
+      keyVersion: 'kms-v1',
+      wrappedKey: Buffer.from('wrapped').toString('base64'),
+      iv: Buffer.alloc(12).toString('base64'),
+      authTag: Buffer.alloc(16).toString('base64'),
+      ciphertext: Buffer.alloc(0).toString('base64'),
+      tenantId,
+      context,
+    };
+    const unwrappedBytes = new Uint8Array(32).fill(0x4c);
+    const unwrapProvider = {
+      generateDataKey: async () => ({
+        plaintextKey: Buffer.alloc(32),
+        wrappedKey: Buffer.from('wrapped').toString('base64'),
+        keyVersion: 'kms-v1',
+      }),
+      unwrapDataKey: async () => unwrappedBytes,
+    } as unknown as TenantKeyProvider;
+    const unwrapCipher = new TenantEnvelopeCipher(unwrapProvider);
+    await expect(unwrapCipher.decrypt(validEnvelope, tenantId, context))
+      .rejects.toThrow('invalid unwrapped key');
+    expect(unwrappedBytes.every((byte) => byte === 0)).toBe(true);
+  });
+
   it('zeroizes generated data keys after successful envelope encryption', async () => {
     const generatedKey = Buffer.alloc(32, 0x6b);
     const provider: TenantKeyProvider = {
