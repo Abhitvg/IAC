@@ -87,6 +87,22 @@ BEGIN
   IF OLD.status = 'completed' AND NEW.status <> 'completed' THEN
     RAISE EXCEPTION 'Completed Career Graph rotation jobs cannot be reopened';
   END IF;
+  IF NEW.status = 'completed' AND EXISTS (
+    SELECT 1
+      FROM career_graph_facts f
+      LEFT JOIN LATERAL (
+        SELECT value_envelope
+          FROM career_graph_fact_envelope_revisions
+         WHERE tenant_id = f.tenant_id AND fact_id = f.id
+         ORDER BY revision DESC
+         LIMIT 1
+      ) er ON TRUE
+     WHERE f.tenant_id = NEW.tenant_id
+       AND COALESCE(er.value_envelope, f.value_envelope)->>'keyVersion'
+           <> NEW.target_key_version
+  ) THEN
+    RAISE EXCEPTION 'Career Graph rotation job cannot complete while old-key envelopes remain';
+  END IF;
   IF NEW.rotated_count < OLD.rotated_count THEN
     RAISE EXCEPTION 'Career Graph rotation count cannot decrease';
   END IF;
