@@ -17,6 +17,8 @@ import {
   globalShortcut,
   Tray,
   nativeImage,
+  desktopCapturer,
+  screen,
 } from 'electron';
 import { execFile } from 'child_process';
 import { randomUUID } from 'crypto';
@@ -827,6 +829,44 @@ ipcMain.on('window:toggle-content-protection', (event) => {
   }
 });
 
+async function captureScreenToFile(mode: 'fullscreen' | 'snip', outputPath: string): Promise<void> {
+  if (mode === 'fullscreen') {
+    try {
+      const primaryDisplay = screen.getPrimaryDisplay();
+      const { width, height } = primaryDisplay.size;
+      const scaleFactor = primaryDisplay.scaleFactor || 1;
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: {
+          width: Math.round(width * scaleFactor),
+          height: Math.round(height * scaleFactor),
+        },
+      });
+
+      if (sources && sources.length > 0) {
+        const displaySource =
+          sources.find((s) => s.display_id === String(primaryDisplay.id)) || sources[0];
+        const img = displaySource.thumbnail;
+        if (!img.isEmpty()) {
+          const buffer = img.toJPEG(90);
+          if (buffer && buffer.length > 0) {
+            fs.writeFileSync(outputPath, buffer);
+            return;
+          }
+        }
+      }
+    } catch (dcErr) {
+      console.warn('[Electron] desktopCapturer fullscreen capture failed, attempting CLI fallback:', dcErr);
+    }
+  }
+
+  // Native CLI fallback (or for 'snip' mode where interactive crosshair selection is needed)
+  await runNativeCommandFallback(
+    getScreenCaptureCommands(process.platform, mode, outputPath),
+    execFileAsync
+  );
+}
+
 // Screen Capture & Neural OCR
 ipcMain.handle(
   'screen:capture-and-ocr',
@@ -838,17 +878,7 @@ ipcMain.handle(
     const ocrBin = resolveOcrBinaryPath();
 
     try {
-      if (isMac) {
-        await runNativeCommandFallback(
-          getScreenCaptureCommands(process.platform, mode, tmpImg),
-          execFileAsync
-        );
-      } else {
-        await runNativeCommandFallback(
-          getScreenCaptureCommands(process.platform, mode, tmpImg),
-          execFileAsync
-        );
-      }
+      await captureScreenToFile(mode, tmpImg);
 
       if (!fs.existsSync(tmpImg)) {
         return {
@@ -898,6 +928,19 @@ ipcMain.handle(
       } catch {
         // ignore
       }
+      const isPermissionErr =
+        String(err?.message || err).includes('could not create image from display') ||
+        String(err?.stderr || '').includes('could not create image from display');
+      if (isPermissionErr && process.platform === 'darwin') {
+        shell
+          .openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+          .catch(() => {});
+        return {
+          success: false,
+          error:
+            'Screen Recording permission required. Please toggle AI-Interview-Assistant in System Settings → Privacy & Security → Screen Recording, then restart.',
+        };
+      }
       return { success: false, error: err.message || String(err) };
     }
   }
@@ -925,17 +968,7 @@ ipcMain.handle(
     const ocrBin = resolveOcrBinaryPath();
 
     try {
-      if (isMac) {
-        await runNativeCommandFallback(
-          getScreenCaptureCommands(process.platform, mode, tmpImg),
-          execFileAsync
-        );
-      } else {
-        await runNativeCommandFallback(
-          getScreenCaptureCommands(process.platform, mode, tmpImg),
-          execFileAsync
-        );
-      }
+      await captureScreenToFile(mode, tmpImg);
 
       if (!fs.existsSync(tmpImg)) {
         return {
@@ -983,6 +1016,19 @@ ipcMain.handle(
         if (fs.existsSync(tmpImg)) fs.unlinkSync(tmpImg);
       } catch {
         // ignore
+      }
+      const isPermissionErr =
+        String(err?.message || err).includes('could not create image from display') ||
+        String(err?.stderr || '').includes('could not create image from display');
+      if (isPermissionErr && process.platform === 'darwin') {
+        shell
+          .openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+          .catch(() => {});
+        return {
+          success: false,
+          error:
+            'Screen Recording permission required. Please toggle AI-Interview-Assistant in System Settings → Privacy & Security → Screen Recording, then restart.',
+        };
       }
       return { success: false, error: err.message || String(err) };
     }

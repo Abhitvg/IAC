@@ -9,8 +9,16 @@
  */
 
 import { JobApplication, NetworkContact } from './types';
+import { LinkedInHumanizerService } from './linkedinHumanizerService';
 
 export type EmployeeTier = 'hiring_manager' | 'recruiter' | 'peer';
+
+export interface DmSequence {
+  inviteNote: string; // Under 200 chars, no ask
+  day1Acceptance: string; // 2-4 sentences, value-first, continuity from note
+  day4FollowUp: string; // Technical asset / insight (no "just bumping")
+  day10CloseTheLoop: string; // Graceful close out (removes pressure)
+}
 
 export interface CompanyEmployeeTarget {
   tier: EmployeeTier;
@@ -18,10 +26,13 @@ export interface CompanyEmployeeTarget {
   defaultTitle: string;
   searchKeywords: string;
   linkedinSearchUrl: string;
-  connectionNote: string; // Guaranteed <= 300 characters
+  connectionNote: string; // Guaranteed <= 300 characters, humanized
   inmailDraft: string;
   emailSubject: string;
   emailBody: string;
+  dmSequence: DmSequence;
+  humanScore: number; // 0 - 100
+  slopHitsCount: number;
 }
 
 export interface CompanyOutreachPlan {
@@ -81,11 +92,76 @@ export function generateLinkedInConnectionNote(params: {
   }
 
   // Strict LinkedIn Guardrail: Must never exceed 298 characters
+  note = LinkedInHumanizerService.getInstance().humanize(note).cleanText;
   if (note.length > 298) {
     note = note.slice(0, 295) + '...';
   }
 
   return note;
+}
+
+/**
+ * Generates the 3-step high-conversion DM sequence from avi691/linkedin-agent-skill (li-dm)
+ * Step 0: Invite Note (< 200 chars, no ask)
+ * Step 1: Day +1 First Message (2-4 sentences, value-first, continuity from note)
+ * Step 2: Day +4 Follow-up (new technical asset / insight, never "just bumping")
+ * Step 3: Day +10 Close-the-loop (graceful close that removes pressure)
+ */
+export function generateLinkedInDmSequence(params: {
+  tier: EmployeeTier;
+  company: string;
+  role: string;
+  personName?: string;
+  techHook?: string;
+}): DmSequence {
+  const { tier, company, role, personName, techHook } = params;
+  const firstName = personName ? personName.trim().split(' ')[0] : '';
+  const cleanCompany = company.trim();
+  const cleanRole = role.trim();
+  const hook = techHook || 'distributed systems and production architecture';
+  const humanizer = LinkedInHumanizerService.getInstance();
+
+  let inviteNote: string;
+  let day1Acceptance: string;
+  let day4FollowUp: string;
+  let day10CloseTheLoop: string;
+
+  if (tier === 'hiring_manager') {
+    inviteNote = firstName
+      ? `Saw your team's work scaling ${cleanCompany}. Applied for ${cleanRole} with background in ${hook}. Would like to follow along.`
+      : `Following ${cleanCompany}'s engineering milestones. Applied for ${cleanRole} with background in ${hook}. Would like to follow along.`;
+
+    day1Acceptance = `Hi ${firstName || 'there'}, thanks for connecting! I applied for the ${cleanRole} opening and put together a short architectural breakdown on how I approach ${hook}. Happy to send over the GitHub repo if of interest. Either way, excited to follow your team's roadmap.`;
+
+    day4FollowUp = `Hi ${firstName || 'there'}, thought of your team after seeing recent updates at ${cleanCompany}. I recently documented how we mitigated concurrency bottlenecks under high traffic in a similar stack. Thought it might be a useful data point: [Architecture Link]. Hope the week is treating you well!`;
+
+    day10CloseTheLoop = `Hi ${firstName || 'there'}, wanted to close the loop here. I know priorities shift rapidly and bandwidth is precious, so I will stop following up. If ${cleanCompany} ever looks to add depth to the ${cleanRole} team down the line, I would welcome connecting then. Wishing you all the best!`;
+  } else if (tier === 'recruiter') {
+    inviteNote = firstName
+      ? `Saw you recruit for ${cleanCompany}'s technical roles. Applied for ${cleanRole} with focus on ${hook}. Would like to connect.`
+      : `Applied for ${cleanRole} at ${cleanCompany} with production focus on ${hook}. Would like to connect.`;
+
+    day1Acceptance = `Hi ${firstName || 'there'}, thanks for connecting! I recently submitted my application for ${cleanRole} at ${cleanCompany}. With verified production experience in ${hook}, I wanted to confirm if interviews are active. Resume is attached for convenience!`;
+
+    day4FollowUp = `Hi ${firstName || 'there'}, hope your week is off to a strong start. Just checking in with a direct link to my verified code samples and technical portfolio for the ${cleanRole} opening: [Portfolio Link]. Happy to jump on a quick 10-minute screening call if there is a match.`;
+
+    day10CloseTheLoop = `Hi ${firstName || 'there'}, closing the loop on the ${cleanRole} role at ${cleanCompany}. Appreciate your guidance, and I will keep an eye on future openings as your teams expand!`;
+  } else {
+    inviteNote = `Follow ${cleanCompany}'s engineering blog closely. Fellow engineer focused on ${hook} and recently applied for ${cleanRole}. Would love to connect.`;
+
+    day1Acceptance = `Hi ${firstName || 'there'}, thanks for connecting! I have been looking into ${cleanCompany}'s engineering practices for the ${cleanRole} role. As an engineer working with ${hook}, I'd love to ask: what is the most rewarding engineering challenge your team tackled recently?`;
+
+    day4FollowUp = `Hi ${firstName || 'there'}, hope the sprint is going smoothly! Just wanted to share a quick open-source tool we built for benchmarking pipeline latency that might resonate with your stack: [Repo Link]. Enjoy the rest of your week!`;
+
+    day10CloseTheLoop = `Hi ${firstName || 'there'}, closing the loop here! Best of luck with upcoming releases at ${cleanCompany}.`;
+  }
+
+  return {
+    inviteNote: humanizer.humanize(inviteNote).cleanText.slice(0, 198),
+    day1Acceptance: humanizer.humanize(day1Acceptance).cleanText,
+    day4FollowUp: humanizer.humanize(day4FollowUp).cleanText,
+    day10CloseTheLoop: humanizer.humanize(day10CloseTheLoop).cleanText,
+  };
 }
 
 /**
@@ -188,6 +264,22 @@ I would welcome the opportunity to discuss how my background aligns with your te
 
 Best regards,
 ${candidateName || 'Candidate'}`,
+      dmSequence: generateLinkedInDmSequence({
+        tier: 'hiring_manager',
+        company: cleanCompany,
+        role: cleanRole,
+        techHook: hook,
+      }),
+      humanScore: LinkedInHumanizerService.getInstance().scoreHumanText(
+        generateLinkedInConnectionNote({
+          tier: 'hiring_manager',
+          company: cleanCompany,
+          role: cleanRole,
+          candidateName,
+          techHook: hook,
+        })
+      ).overallScore,
+      slopHitsCount: 0,
     },
     {
       tier: 'recruiter',
@@ -220,6 +312,22 @@ My resume and verified portfolio are available for review. I would appreciate th
 
 Best regards,
 ${candidateName || 'Candidate'}`,
+      dmSequence: generateLinkedInDmSequence({
+        tier: 'recruiter',
+        company: cleanCompany,
+        role: cleanRole,
+        techHook: hook,
+      }),
+      humanScore: LinkedInHumanizerService.getInstance().scoreHumanText(
+        generateLinkedInConnectionNote({
+          tier: 'recruiter',
+          company: cleanCompany,
+          role: cleanRole,
+          candidateName,
+          techHook: hook,
+        })
+      ).overallScore,
+      slopHitsCount: 0,
     },
     {
       tier: 'peer',
@@ -250,6 +358,22 @@ I recently applied for the ${cleanRole} role at ${cleanCompany} and admire your 
 
 Best,
 ${candidateName || 'Candidate'}`,
+      dmSequence: generateLinkedInDmSequence({
+        tier: 'peer',
+        company: cleanCompany,
+        role: cleanRole,
+        techHook: hook,
+      }),
+      humanScore: LinkedInHumanizerService.getInstance().scoreHumanText(
+        generateLinkedInConnectionNote({
+          tier: 'peer',
+          company: cleanCompany,
+          role: cleanRole,
+          candidateName,
+          techHook: hook,
+        })
+      ).overallScore,
+      slopHitsCount: 0,
     },
   ];
 

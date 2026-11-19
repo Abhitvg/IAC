@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "electron:dev": "env -u ELECTRON_RUN_AS_NODE tsc -p tsconfig.electron.json && env -u ELECTRON_RUN_AS_NODE vite",
     "electron:build": "npm run build && electron-builder",
+    "electron:pack": "npm run build && electron-builder --dir && (codesign --force --deep --sign - release/mac-arm64/AI-Interview-Assistant.app 2>/dev/null || true)",
     "lint": "eslint electron/ src/",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
     "format": "prettier --write .",
@@ -95,7 +96,12 @@
       "target": [
         "dmg",
         "zip"
-      ]
+      ],
+      "extendInfo": {
+        "NSScreenCaptureUsageDescription": "AI-Interview-Assistant requires screen recording access to capture interview questions for real-time analysis.",
+        "NSCameraUsageDescription": "AI-Interview-Assistant requires camera access for interview monitoring.",
+        "NSMicrophoneUsageDescription": "AI-Interview-Assistant requires microphone access for audio interview capture."
+      }
     },
     "win": {
       "target": [

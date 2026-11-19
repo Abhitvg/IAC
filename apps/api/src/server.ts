@@ -164,7 +164,14 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
-      if (url.pathname.startsWith('/v1/linkedin/')) {
+      const isLegacyOrExtensionRoute =
+        url.pathname === '/v1/linkedin/oauth/token' ||
+        url.pathname === '/v1/linkedin/import-export' ||
+        url.pathname === '/v1/linkedin/profile-audit' ||
+        url.pathname === '/v1/linkedin/report-restriction' ||
+        url.pathname.startsWith('/v1/linkedin/extension');
+
+      if (url.pathname.startsWith('/v1/linkedin/') && !isLegacyOrExtensionRoute) {
         const integration = dependencies.linkedin;
         if (!integration) {
           sendJson(response, 503, {
