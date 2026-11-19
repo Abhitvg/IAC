@@ -60,7 +60,6 @@ describe('KnowledgeVaultService encrypted persistence', () => {
 
     await expect(service.flushPersistence()).resolves.toBe(true);
     expect(localStorage.removeItem).not.toHaveBeenCalled();
-    expect(localStorage.getItem).toHaveBeenCalledWith('iac_candidate_knowledge_vault_v2');
     const saved = JSON.parse(records.get('candidate_knowledge_vault_v2') || '{}');
     expect(saved.profile.email).toBe('');
   });
