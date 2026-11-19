@@ -27,26 +27,104 @@ export interface EncryptedEnvelope {
   context: string;
 }
 
+const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const KEY_VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+
+function decodeCanonicalBase64(
+  value: string,
+  label: string,
+  expectedLength?: number,
+  maxLength = 1_400_000
+): Buffer {
+  if (
+    typeof value !== 'string' ||
+    value.length > maxLength ||
+    !BASE64_PATTERN.test(value)
+  ) {
+    throw new Error(`Invalid base64 encoding for encrypted envelope ${label}`);
+  }
+  const decoded = Buffer.from(value, 'base64');
+  if (
+    decoded.toString('base64') !== value ||
+    (expectedLength !== undefined && decoded.length !== expectedLength)
+  ) {
+    decoded.fill(0);
+    throw new Error(`Invalid encrypted envelope ${label}`);
+  }
+  return decoded;
+}
+
 function associatedData(tenantId: string, context: string, keyVersion: string): Buffer {
-  if (!tenantId || !context || tenantId.length > 128 || context.length > 256) {
+  if (
+    typeof tenantId !== 'string' ||
+    !tenantId ||
+    tenantId.length > 128 ||
+    !/^[A-Za-z0-9._:@/-]+$/.test(tenantId) ||
+    typeof context !== 'string' ||
+    !context ||
+    context.length > 256 ||
+    !/^[A-Za-z0-9._:@/-]+$/.test(context) ||
+    typeof keyVersion !== 'string' ||
+    !KEY_VERSION_PATTERN.test(keyVersion)
+  ) {
     throw new Error('Invalid encryption context');
   }
   return Buffer.from(`careerops:v1|${tenantId}|${context}|${keyVersion}`, 'utf8');
+}
+
+function validateEnvelope(
+  envelope: EncryptedEnvelope,
+  expectedTenantId: string,
+  expectedContext: string
+): { iv: Buffer; authTag: Buffer; ciphertext: Buffer } {
+  if (
+    !envelope ||
+    typeof envelope !== 'object' ||
+    envelope.algorithm !== 'A256GCM' ||
+    envelope.tenantId !== expectedTenantId ||
+    envelope.context !== expectedContext ||
+    typeof envelope.wrappedKey !== 'string' ||
+    envelope.wrappedKey.length === 0 ||
+    envelope.wrappedKey.length > 16_384
+  ) {
+    throw new Error('Encrypted envelope tenant, context, or format mismatch');
+  }
+
+  // Validate the same context constraints used when authenticating AAD before
+  // invoking a key provider. This prevents malformed persisted data reaching it.
+  associatedData(expectedTenantId, expectedContext, envelope.keyVersion);
+
+  return {
+    iv: decodeCanonicalBase64(envelope.iv, 'IV', 12, 32),
+    authTag: decodeCanonicalBase64(envelope.authTag, 'authentication tag', 16, 32),
+    ciphertext: decodeCanonicalBase64(envelope.ciphertext, 'ciphertext'),
+  };
 }
 
 export class TenantEnvelopeCipher {
   constructor(private readonly keyProvider: TenantKeyProvider) {}
 
   async encrypt(tenantId: string, context: string, plaintext: Buffer): Promise<EncryptedEnvelope> {
+    if (!Buffer.isBuffer(plaintext)) throw new Error('Plaintext must be a Buffer');
     const generated = await this.keyProvider.generateDataKey(tenantId, context);
-    if (generated.plaintextKey.length !== 32 || !generated.wrappedKey || !generated.keyVersion) {
-      generated.plaintextKey.fill(0);
+    if (
+      !generated ||
+      !Buffer.isBuffer(generated.plaintextKey) ||
+      generated.plaintextKey.length !== 32 ||
+      typeof generated.wrappedKey !== 'string' ||
+      !generated.wrappedKey ||
+      generated.wrappedKey.length > 16_384 ||
+      typeof generated.keyVersion !== 'string' ||
+      !KEY_VERSION_PATTERN.test(generated.keyVersion)
+    ) {
+      generated?.plaintextKey?.fill(0);
       throw new Error('Key provider returned an invalid data key');
     }
+    const aad = associatedData(tenantId, context, generated.keyVersion);
     const iv = randomBytes(12);
     try {
       const cipher = createCipheriv('aes-256-gcm', generated.plaintextKey, iv);
-      cipher.setAAD(associatedData(tenantId, context, generated.keyVersion));
+      cipher.setAAD(aad);
       const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
       return {
         algorithm: 'A256GCM',
@@ -81,33 +159,30 @@ export class TenantEnvelopeCipher {
     expectedTenantId: string,
     expectedContext: string
   ): Promise<Buffer> {
-    if (
-      envelope.algorithm !== 'A256GCM' ||
-      envelope.tenantId !== expectedTenantId ||
-      envelope.context !== expectedContext
-    ) {
-      throw new Error('Encrypted envelope tenant or context mismatch');
-    }
+    const decoded = validateEnvelope(envelope, expectedTenantId, expectedContext);
     const key = await this.keyProvider.unwrapDataKey(
       expectedTenantId,
       envelope.wrappedKey,
       envelope.keyVersion,
       expectedContext
     );
-    if (key.length !== 32) {
-      key.fill(0);
+    if (!Buffer.isBuffer(key) || key.length !== 32) {
+      key?.fill?.(0);
+      decoded.iv.fill(0);
+      decoded.authTag.fill(0);
+      decoded.ciphertext.fill(0);
       throw new Error('Key provider returned an invalid unwrapped key');
     }
     try {
-      const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(envelope.iv, 'base64'));
+      const decipher = createDecipheriv('aes-256-gcm', key, decoded.iv);
       decipher.setAAD(associatedData(expectedTenantId, expectedContext, envelope.keyVersion));
-      decipher.setAuthTag(Buffer.from(envelope.authTag, 'base64'));
-      return Buffer.concat([
-        decipher.update(Buffer.from(envelope.ciphertext, 'base64')),
-        decipher.final(),
-      ]);
+      decipher.setAuthTag(decoded.authTag);
+      return Buffer.concat([decipher.update(decoded.ciphertext), decipher.final()]);
     } finally {
       key.fill(0);
+      decoded.iv.fill(0);
+      decoded.authTag.fill(0);
+      decoded.ciphertext.fill(0);
     }
   }
 }
