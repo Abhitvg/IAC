@@ -20,8 +20,13 @@ export interface LinkedInCloudIntegration {
   entitlements: LinkedInProductEntitlements;
 }
 
-export interface CareerGraphEnvelopeVerifier {
-  verify(envelope: EncryptedFactEnvelope, tenantId: string, context: string): Promise<void>;
+export interface CareerGraphCrypto {
+  encrypt(tenantId: string, context: string, plaintext: Buffer): Promise<EncryptedFactEnvelope>;
+  decrypt(
+    envelope: EncryptedFactEnvelope,
+    tenantId: string,
+    context: string
+  ): Promise<Buffer>;
 }
 
 export interface CareerGraphRepository {
@@ -103,5 +108,5 @@ export interface CloudApiDependencies {
   rateLimiter: CloudRateLimiter;
   config: CloudApiConfig;
   linkedin?: LinkedInCloudIntegration;
-  careerGraphEnvelopeVerifier?: CareerGraphEnvelopeVerifier;
+  careerGraphCrypto?: CareerGraphCrypto;
 }
