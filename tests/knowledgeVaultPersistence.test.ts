@@ -23,7 +23,6 @@ describe('KnowledgeVaultService encrypted persistence', () => {
     };
     secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
-      return true;
     });
     secureRecordGet = vi.fn(async (_namespace: string, id: string) => records.get(id) ?? null);
     vi.stubGlobal('window', {
