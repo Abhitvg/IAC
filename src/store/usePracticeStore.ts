@@ -160,12 +160,10 @@ function persist<T>(key: string, data: T) {
     return;
   }
 
-  void window.electronAPI
-    .secureRecordSet('practice', key, JSON.stringify(data))
-    .catch(() => {
-      // Never include candidate answers, feedback, or other record content in diagnostics.
-      console.error('[PracticeStore] Encrypted persistence failed.', { key });
-    });
+  void window.electronAPI.secureRecordSet('practice', key, JSON.stringify(data)).catch(() => {
+    // Never include candidate answers, feedback, or other record content in diagnostics.
+    console.error('[PracticeStore] Encrypted persistence failed.', { key });
+  });
 }
 
 function isValidMockSessionState(data: any): data is MockSessionState {
