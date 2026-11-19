@@ -172,6 +172,50 @@ describe('LinkedInPostgresStore envelope rotation', () => {
     )).toBe(false);
   });
 
+  it('decrypts the latest revision rather than the legacy base envelope', async () => {
+    const latest: EncryptedEnvelope = {
+      ...baseEnvelope,
+      keyVersion: 'kms-v1',
+      wrappedKey: 'latest-kms-wrapped-key',
+    };
+    const statements: string[] = [];
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        statements.push(sql);
+        if (sql.includes('COALESCE(revision.token_envelope, connection.token_envelope)')) {
+          return { rows: [{ token_envelope: latest }] };
+        }
+        return { rows: [], rowCount: 1 };
+      }),
+      release: vi.fn(),
+    };
+    const database = { connect: vi.fn(async () => client) } as unknown as LinkedInSqlPool;
+    const tokens = {
+      accessToken: 'latest-access-token',
+      memberId: 'member_1',
+      tokenType: 'Bearer' as const,
+      grantedScopes: ['openid'],
+      expiresAt: Date.now() + 60_000,
+    };
+    const cipher = {
+      decrypt: vi.fn(async () => Buffer.from(JSON.stringify(tokens), 'utf8')),
+    } as unknown as TenantEnvelopeCipher;
+    const store = new LinkedInPostgresStore(database, cipher);
+
+    await expect(
+      store.get({ tenantId: 'tenant-1', subject: 'subject-1' })
+    ).resolves.toEqual(tokens);
+
+    expect(statements.some((sql) =>
+      sql.includes('COALESCE(revision.token_envelope, connection.token_envelope)')
+    )).toBe(true);
+    expect(cipher.decrypt).toHaveBeenCalledWith(
+      latest,
+      'tenant-1',
+      'linkedin-token:subject-1'
+    );
+  });
+
   it('appends subsequent OAuth token writes after an existing revision', async () => {
     const statements: Array<{ sql: string; values?: unknown[] }> = [];
     const client = {
