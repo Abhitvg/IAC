@@ -94,7 +94,7 @@ describe('Career Graph fact integrity', () => {
     ).toThrow();
   });
 
-  it('decrypts old envelopes during master-key rotation and encrypts new ones with the current version', async () => {
+  it('decrypts old envelopes and re-encrypts with the current master-key version', async () => {
     const keyV1 = Buffer.alloc(32, 7).toString('base64');
     const keyV2 = Buffer.alloc(32, 8).toString('base64');
     const tenantId = '40000000-0000-4000-8000-000000000004';
