@@ -36,7 +36,7 @@ The repository rotation primitive processes at most 100 facts per transaction. I
 
 Operational requirements before enabling rotation:
 - Run migration 0009 before invoking the rotation repository method.
-- Supply a trusted backend key provider that can unwrap every retained old key version and encrypt with the target current version. Do not expose key material to the renderer or browser.
+- Supply a trusted backend key provider that can unwrap every retained prior key version and encrypt with the target current version. The worker only selects source versions present in the supplied key ring; an unknown or unsupported envelope version prevents the database from marking the rotation complete. Do not expose key material to the renderer or browser.
 - Invoke rotation using the same stable service subject that created the job; tenant RLS binds the job and envelope revisions to that subject.
 - Run small batches first, monitor audit events and key-provider failures, and verify all envelopes decrypt under the new key before retiring old key versions.
 - Run the controlled worker with `npm run build:api` followed by `npm run rotate:career-graph-keys` in a dedicated, short-lived production maintenance task. Supply `CAREEROPS_ROTATION_DATABASE_URL` (TLS-verified production PostgreSQL URL), `CAREEROPS_ROTATION_TENANT_ID`, `CAREEROPS_ENVELOPE_MASTER_KEYS`, and `CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION`. The worker uses the fixed audit actor `system:careerops-key-rotation`; grant this execution path only to an operator-approved maintenance task, never to the public API or renderer. Optional `CAREEROPS_ROTATION_BATCH_SIZE` defaults to 50 and is bounded to 1–100.
