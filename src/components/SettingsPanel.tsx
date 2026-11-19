@@ -992,7 +992,7 @@ export default function SettingsPanel() {
                     : true;
                 if (!confirmed) return;
 
-                const practiceResult = deleteAllFeedbackAndPracticeData();
+                const practiceResult = await deleteAllFeedbackAndPracticeData();
                 const interviewResult = await clearAllData();
                 const failures = [
                   ...practiceResult.failedKeys.map((key) => `practice:${key}`),
