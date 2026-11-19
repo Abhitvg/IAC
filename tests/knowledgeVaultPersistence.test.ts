@@ -55,7 +55,7 @@ describe('KnowledgeVaultService encrypted persistence', () => {
     localStorage.getItem.mockReturnValue(legacy);
     const service = KnowledgeVaultService.getInstance();
 
-    service.resetVault();
+    await expect(service.resetVault()).resolves.toBe(true);
 
     await expect(service.flushPersistence()).resolves.toBe(true);
     expect(localStorage.removeItem).not.toHaveBeenCalled();
