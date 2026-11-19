@@ -88,6 +88,16 @@ BEGIN
   IF NOT FOUND OR NEW.value_envelope->>'context' IS DISTINCT FROM expected_context THEN
     RAISE EXCEPTION 'Career Graph envelope revision context does not match its fact';
   END IF;
+  IF NOT EXISTS (
+    SELECT 1
+      FROM career_graph_envelope_rotation_jobs
+     WHERE tenant_id = NEW.tenant_id
+       AND target_key_version = NEW.value_envelope->>'keyVersion'
+       AND created_by = NEW.rotated_by
+       AND status = 'running'
+  ) THEN
+    RAISE EXCEPTION 'Career Graph envelope revision requires an active matching rotation job';
+  END IF;
   RETURN NEW;
 END;
 $$;
