@@ -32,7 +32,7 @@ The domain and API tests cover bounded plaintext input, tenant/context binding, 
 
 Migration `0009_career_graph_envelope_revisions.sql` adds append-only ciphertext revisions and tenant-scoped rotation-job state. The original fact row, source evidence, version, and review remain immutable. Reads resolve the newest envelope revision while preserving the original fact identity.
 
-The repository rotation primitive processes at most 100 facts per transaction. It serializes workers per tenant/target key version, locks candidate fact rows, validates the replacement envelope's tenant/context/key version, appends a new envelope revision, advances the persisted job cursor, and appends a hash-chained audit event in the same transaction. A failed decrypt, encrypt, insert, or audit write rolls back the entire page and leaves the cursor unchanged. Repeating a completed job is a no-op.
+The repository rotation primitive processes at most 100 facts per transaction. It serializes all rotation workers per tenant, locks candidate fact rows, validates replacement envelopes, appends new revisions, advances the persisted job cursor, and appends a hash-chained audit event in the same transaction. Database triggers enforce immutable job identity, monotonic cursor/count progress, an active matching job for every revision, and complete tenant coverage before a job can finish. A failed decrypt, encrypt, insert, or audit write rolls back the entire page and leaves the cursor unchanged. Repeating a completed job is a no-op.
 
 Operational requirements before enabling rotation:
 - Run migration 0009 before invoking the rotation repository method.
