@@ -103,7 +103,7 @@ The RDS master password and application secret values must never be committed. U
 
 The migrations create `careerops_app` and `careerops_provisioner` as **NOLOGIN** permission-bundle roles. They are not connection usernames. After the RDS instance exists:
 
-1. Run `npm run migrate:cloud` once using a securely handled, privileged migration connection derived from the RDS-managed master secret. Set `NODE_ENV=production` and `CAREEROPS_MIGRATION_DATABASE_URL` only in the one-off migration process. Do not put the master/migration URL in the API's application config secret or ECS task definition.
+1. Run `npm run build:api`, then `npm run migrate:cloud` using a securely handled, privileged migration connection derived from the RDS-managed master secret. This applies migrations through `0009_career_graph_envelope_revisions.sql`, including append-only envelope revisions and tenant-scoped rotation-job state. Set `NODE_ENV=production` and `CAREEROPS_MIGRATION_DATABASE_URL` only in the one-off migration process. Do not put the master/migration URL in the API's application config secret or ECS task definition.
 2. Connect to PostgreSQL as the RDS master/admin user and create separate login roles:
 
 ```sql
