@@ -438,6 +438,12 @@ describe('Postgres Career Graph repository', () => {
     expect(statements.some((sql) => sql.includes('career_graph_fact_envelope_revisions'))).toBe(
       true
     );
+    const tenantAuditLock = statements.findIndex((sql) =>
+      sql.includes('pg_advisory_xact_lock')
+    );
+    const candidateLock = statements.findIndex((sql) => sql.includes('SELECT f.id, f.fact_key'));
+    expect(tenantAuditLock).toBeGreaterThan(-1);
+    expect(tenantAuditLock).toBeLessThan(candidateLock);
     expect(statements).toContain('COMMIT');
     expect(statements.at(-1)).toBe('RELEASE');
   });
