@@ -17,7 +17,7 @@ export interface MasterKeyTenantKeyProviderOptions {
 }
 
 function decodeBase64(value: string, label: string, expectedLength?: number): Buffer {
-  if (!value || !BASE64_PATTERN.test(value)) {
+  if (typeof value !== 'string' || !value || !BASE64_PATTERN.test(value)) {
     throw new Error(`Invalid base64 value for ${label}`);
   }
   const decoded = Buffer.from(value, 'base64');
@@ -110,14 +110,19 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
 
     const plaintextKey = randomBytes(32);
     const iv = randomBytes(12);
+    let aad: Buffer | undefined;
+    let ciphertext: Buffer | undefined;
+    let authTag: Buffer | undefined;
     try {
       const cipher = createCipheriv('aes-256-gcm', masterKey, iv);
-      cipher.setAAD(wrappingAssociatedData(tenantId, context, keyVersion));
-      const ciphertext = Buffer.concat([cipher.update(plaintextKey), cipher.final()]);
+      aad = wrappingAssociatedData(tenantId, context, keyVersion);
+      cipher.setAAD(aad);
+      ciphertext = Buffer.concat([cipher.update(plaintextKey), cipher.final()]);
+      authTag = cipher.getAuthTag();
       const wrapped: WrappedDataKey = {
         version: 1,
         iv: iv.toString('base64'),
-        authTag: cipher.getAuthTag().toString('base64'),
+        authTag: authTag.toString('base64'),
         ciphertext: ciphertext.toString('base64'),
       };
       return {
@@ -128,6 +133,11 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
     } catch (error) {
       plaintextKey.fill(0);
       throw error;
+    } finally {
+      iv.fill(0);
+      aad?.fill(0);
+      ciphertext?.fill(0);
+      authTag?.fill(0);
     }
   }
 
@@ -149,6 +159,9 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
     let iv: Buffer | undefined;
     let authTag: Buffer | undefined;
     let ciphertext: Buffer | undefined;
+    let aad: Buffer | undefined;
+    let updateOutput: Buffer | undefined;
+    let finalOutput: Buffer | undefined;
     try {
       let wrapped: unknown;
       try {
@@ -170,9 +183,12 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
       authTag = decodeBase64(payload.authTag, 'wrapped key authentication tag', 16);
       ciphertext = decodeBase64(payload.ciphertext, 'wrapped key ciphertext', 32);
       const decipher = createDecipheriv('aes-256-gcm', masterKey, iv);
-      decipher.setAAD(wrappingAssociatedData(tenantId, context, keyVersion));
+      aad = wrappingAssociatedData(tenantId, context, keyVersion);
+      decipher.setAAD(aad);
       decipher.setAuthTag(authTag);
-      const plaintextKey = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+      updateOutput = decipher.update(ciphertext);
+      finalOutput = decipher.final();
+      const plaintextKey = Buffer.concat([updateOutput, finalOutput]);
       if (plaintextKey.length !== 32) {
         plaintextKey.fill(0);
         throw new Error('Unwrapped envelope data key has an invalid length');
@@ -183,6 +199,9 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
       iv?.fill(0);
       authTag?.fill(0);
       ciphertext?.fill(0);
+      aad?.fill(0);
+      updateOutput?.fill(0);
+      finalOutput?.fill(0);
     }
   }
 
