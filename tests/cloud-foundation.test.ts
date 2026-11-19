@@ -1,6 +1,6 @@
 import { createHmac, generateKeyPairSync, randomBytes, sign as signJwt } from 'node:crypto';
 import { once } from 'node:events';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { OidcJwksVerifier, verifyAccessToken } from '../packages/cloud-core/src/auth';
 import {
   createConsentRecord,
