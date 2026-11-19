@@ -54,7 +54,9 @@ function decodeCiphertext(value: string): Buffer {
 }
 
 function assertKeyId(actual: string | undefined, expected: string): void {
-  if (actual && actual !== expected) throw new Error('KMS returned an unexpected key identifier');
+  // KMS returns KeyId for both operations. Treat an omitted identifier exactly
+  // like a mismatched one; accepting it weakens the configured-key boundary.
+  if (actual !== expected) throw new Error('KMS returned an unexpected key identifier');
 }
 
 /** KMS protects per-record AES-256 data keys; TenantEnvelopeCipher encrypts payloads locally. */
