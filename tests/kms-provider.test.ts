@@ -54,7 +54,13 @@ describe('KMS tenant envelope key provider', () => {
     expect(decrypted.KeyId).toBe(keyArn);
     expect(send.mock.calls[1]?.[0]).toBeInstanceOf(DecryptCommand);
     adapter.destroy();
+    adapter.destroy();
     expect(destroy).toHaveBeenCalledOnce();
+    await expect(adapter.generateDataKey({
+      KeyId: keyArn,
+      KeySpec: 'AES_256',
+      EncryptionContext: context,
+    })).rejects.toThrow('has been destroyed');
   });
 
   it('accepts canonical AWS key ARNs and rejects malformed key configuration', () => {
