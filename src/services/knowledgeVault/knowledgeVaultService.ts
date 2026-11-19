@@ -201,12 +201,12 @@ export class KnowledgeVaultService {
    * Legacy localStorage is intentionally retained for recovery; an encrypted
    * empty vault takes precedence on subsequent launches.
    */
-  public resetVault(): boolean {
+  public async resetVault(): Promise<boolean> {
     this.currentVault = createInitialVault();
     this.hasLocalChanges = true;
     this.queueEncryptedSave(JSON.stringify(this.currentVault));
     this.notify();
-    return true;
+    return this.flushPersistence();
   }
 
   private loadFromStorage(): CandidateKnowledgeVault {
