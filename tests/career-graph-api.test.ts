@@ -418,7 +418,7 @@ describe('Postgres Career Graph repository', () => {
     const reencrypt = vi.fn(async (envelope: typeof fact.valueEnvelope) => ({
       ...envelope,
       keyVersion: 'test-key-v2',
-      wrappedKey: 'wrapped-key-v2',
+      wrappedKey: 'd3JhcHBlZC1rZXktdjI=',
     }));
 
     const result = await repository.rotateEnvelopeBatch({
