@@ -380,7 +380,10 @@ describe('Postgres Career Graph repository', () => {
       query: async (sql: string, values?: unknown[]) => {
         statements.push(sql);
         if (sql.includes('SELECT last_fact_id, rotated_count, status')) {
-          return { rows: [{ last_fact_id: null, rotated_count: 0, status: 'running' }], rowCount: 1 };
+          return {
+            rows: [{ last_fact_id: null, rotated_count: 0, status: 'running' }],
+            rowCount: 1,
+          };
         }
         if (sql.includes('SELECT f.id, f.fact_key')) {
           return {
@@ -449,7 +452,13 @@ describe('Postgres Career Graph repository', () => {
         }
         if (sql.includes('SELECT f.id, f.fact_key')) {
           return {
-            rows: [{ id: factId, fact_key: 'profile.current_role', value_envelope: fact.valueEnvelope }],
+            rows: [
+              {
+                id: factId,
+                fact_key: 'profile.current_role',
+                value_envelope: fact.valueEnvelope,
+              },
+            ],
             rowCount: 1,
           };
         }
