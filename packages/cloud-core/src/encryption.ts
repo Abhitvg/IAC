@@ -92,7 +92,8 @@ function validateEnvelope(
 
   // Validate the same context constraints used when authenticating AAD before
   // invoking a key provider. This prevents malformed persisted data reaching it.
-  associatedData(expectedTenantId, expectedContext, envelope.keyVersion);
+  const validationAad = associatedData(expectedTenantId, expectedContext, envelope.keyVersion);
+  validationAad.fill(0);
 
   let iv: Buffer | undefined;
   let authTag: Buffer | undefined;
@@ -130,23 +131,37 @@ export class TenantEnvelopeCipher {
       throw new Error('Key provider returned an invalid data key');
     }
     const iv = randomBytes(12);
+    let aad: Buffer | undefined;
+    let ciphertext: Buffer | undefined;
+    let updateOutput: Buffer | undefined;
+    let finalOutput: Buffer | undefined;
+    let authTag: Buffer | undefined;
     try {
-      const aad = associatedData(tenantId, context, generated.keyVersion);
+      aad = associatedData(tenantId, context, generated.keyVersion);
       const cipher = createCipheriv('aes-256-gcm', generated.plaintextKey, iv);
       cipher.setAAD(aad);
-      const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+      updateOutput = cipher.update(plaintext);
+      finalOutput = cipher.final();
+      ciphertext = Buffer.concat([updateOutput, finalOutput]);
+      authTag = cipher.getAuthTag();
       return {
         algorithm: 'A256GCM',
         keyVersion: generated.keyVersion,
         wrappedKey: generated.wrappedKey,
         iv: iv.toString('base64'),
-        authTag: cipher.getAuthTag().toString('base64'),
+        authTag: authTag.toString('base64'),
         ciphertext: ciphertext.toString('base64'),
         tenantId,
         context,
       };
     } finally {
       generated.plaintextKey.fill(0);
+      aad?.fill(0);
+      iv.fill(0);
+      ciphertext?.fill(0);
+      updateOutput?.fill(0);
+      finalOutput?.fill(0);
+      authTag?.fill(0);
     }
   }
 
@@ -170,6 +185,9 @@ export class TenantEnvelopeCipher {
   ): Promise<Buffer> {
     const decoded = validateEnvelope(envelope, expectedTenantId, expectedContext);
     let key: Buffer | undefined;
+    let aad: Buffer | undefined;
+    let updateOutput: Buffer | undefined;
+    let finalOutput: Buffer | undefined;
     try {
       key = await this.keyProvider.unwrapDataKey(
         expectedTenantId,
@@ -181,11 +199,17 @@ export class TenantEnvelopeCipher {
         throw new Error('Key provider returned an invalid unwrapped key');
       }
       const decipher = createDecipheriv('aes-256-gcm', key, decoded.iv);
-      decipher.setAAD(associatedData(expectedTenantId, expectedContext, envelope.keyVersion));
+      aad = associatedData(expectedTenantId, expectedContext, envelope.keyVersion);
+      decipher.setAAD(aad);
       decipher.setAuthTag(decoded.authTag);
-      return Buffer.concat([decipher.update(decoded.ciphertext), decipher.final()]);
+      updateOutput = decipher.update(decoded.ciphertext);
+      finalOutput = decipher.final();
+      return Buffer.concat([updateOutput, finalOutput]);
     } finally {
       key?.fill(0);
+      aad?.fill(0);
+      updateOutput?.fill(0);
+      finalOutput?.fill(0);
       decoded.iv.fill(0);
       decoded.authTag.fill(0);
       decoded.ciphertext.fill(0);
