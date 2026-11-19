@@ -119,6 +119,16 @@ describe('Career Graph fact integrity', () => {
     expect(JSON.parse(oldPlaintext.toString('utf8'))).toBe('Software Engineer');
     oldPlaintext.fill(0);
 
+    const reencryptedEnvelope = await rotatedCipher.reencrypt(oldEnvelope, tenantId, context);
+    expect(reencryptedEnvelope.keyVersion).toBe('master-v2');
+    const reencryptedPlaintext = await rotatedCipher.decrypt(
+      reencryptedEnvelope,
+      tenantId,
+      context
+    );
+    expect(JSON.parse(reencryptedPlaintext.toString('utf8'))).toBe('Software Engineer');
+    reencryptedPlaintext.fill(0);
+
     const newEnvelope = await rotatedCipher.encrypt(
       tenantId,
       context,
