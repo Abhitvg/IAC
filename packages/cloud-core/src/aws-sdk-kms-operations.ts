@@ -14,6 +14,7 @@ interface AwsSdkKmsClient {
     CiphertextBlob?: Uint8Array;
     KeyId?: string;
   }>;
+  destroy?(): void;
 }
 
 export interface AwsSdkKmsCommandSet {
@@ -42,6 +43,10 @@ export class AwsSdkKmsDataKeyOperations implements KmsDataKeyOperations {
     if (!client || typeof client.send !== 'function' || !commands?.GenerateDataKeyCommand || !commands?.DecryptCommand) {
       throw new Error('Invalid AWS SDK KMS adapter configuration');
     }
+  }
+
+  destroy(): void {
+    this.client.destroy?.();
   }
 
   async generateDataKey(input: {
