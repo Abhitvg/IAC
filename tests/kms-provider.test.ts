@@ -234,6 +234,41 @@ describe('KMS tenant envelope key provider', () => {
     dataKey.fill(0);
   });
 
+  it('zeroizes generated data keys when envelope encryption rejects invalid context', async () => {
+    const generatedKey = Buffer.alloc(32, 0x5a);
+    const provider: TenantKeyProvider = {
+      generateDataKey: async () => ({
+        plaintextKey: generatedKey,
+        wrappedKey: Buffer.from('wrapped').toString('base64'),
+        keyVersion: 'kms-v1',
+      }),
+      unwrapDataKey: async () => Buffer.alloc(32),
+    };
+    const cipher = new TenantEnvelopeCipher(provider);
+
+    await expect(cipher.encrypt(tenantId, 'invalid context with spaces', Buffer.from('secret')))
+      .rejects.toThrow('Invalid encryption context');
+    expect(generatedKey.every((byte) => byte === 0)).toBe(true);
+  });
+
+  it('zeroizes generated data keys after successful envelope encryption', async () => {
+    const generatedKey = Buffer.alloc(32, 0x6b);
+    const provider: TenantKeyProvider = {
+      generateDataKey: async () => ({
+        plaintextKey: generatedKey,
+        wrappedKey: Buffer.from('wrapped').toString('base64'),
+        keyVersion: 'kms-v1',
+      }),
+      unwrapDataKey: async () => Buffer.alloc(32),
+    };
+    const cipher = new TenantEnvelopeCipher(provider);
+
+    const envelope = await cipher.encrypt(tenantId, context, Buffer.from('secret'));
+
+    expect(envelope.ciphertext).not.toBe('');
+    expect(generatedKey.every((byte) => byte === 0)).toBe(true);
+  });
+
   it('destroys the KMS client at most once and rejects use after shutdown', async () => {
     const destroy = vi.fn();
     const generateDataKey = vi.fn(async () => ({
