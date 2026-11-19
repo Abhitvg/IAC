@@ -1182,3 +1182,38 @@ describe('local envelope master-key rotation and shutdown', () => {
     key.fill(0);
   });
 });
+
+
+describe('envelope encryption runtime activation gate', () => {
+  it('blocks production startup until KMS is wired into the API composition root', async () => {
+    const { assertEnvelopeEncryptionRuntimeReady } = await import('../apps/api/src/config');
+    expect(() => assertEnvelopeEncryptionRuntimeReady({
+      NODE_ENV: 'production',
+      CAREEROPS_KMS_KEY_ARN: undefined,
+      CAREEROPS_KMS_KEY_VERSION: undefined,
+    })).toThrow('Production API startup is blocked');
+  });
+
+  it('fails closed when KMS configuration is present but runtime wiring is absent', async () => {
+    const { assertEnvelopeEncryptionRuntimeReady } = await import('../apps/api/src/config');
+    expect(() => assertEnvelopeEncryptionRuntimeReady({
+      NODE_ENV: 'test',
+      CAREEROPS_KMS_KEY_ARN: 'arn:aws:kms:ap-southeast-2:165328640460:key/11111111-2222-3333-4444-555555555555',
+      CAREEROPS_KMS_KEY_VERSION: 'kms-v1',
+    })).toThrow('AWS SDK client is not wired');
+  });
+
+  it('allows local-key development and test environments only when KMS is not configured', async () => {
+    const { assertEnvelopeEncryptionRuntimeReady } = await import('../apps/api/src/config');
+    expect(() => assertEnvelopeEncryptionRuntimeReady({
+      NODE_ENV: 'development',
+      CAREEROPS_KMS_KEY_ARN: undefined,
+      CAREEROPS_KMS_KEY_VERSION: undefined,
+    })).not.toThrow();
+    expect(() => assertEnvelopeEncryptionRuntimeReady({
+      NODE_ENV: 'test',
+      CAREEROPS_KMS_KEY_ARN: undefined,
+      CAREEROPS_KMS_KEY_VERSION: undefined,
+    })).not.toThrow();
+  });
+});
