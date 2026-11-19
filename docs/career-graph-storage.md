@@ -17,7 +17,7 @@ This includes authenticated API and PostgreSQL persistence workflows. It is not 
 
 ## Security and rollout constraints
 
-1. The hosted API requires a configured encryption provider for Career Graph reads and writes. It encrypts submitted values before persistence and decrypts only after verified tenant membership; missing keys fail closed with HTTP 503. The current provider is the versioned local master-key ring, not a KMS GenerateDataKey adapter. Direct KMS integration remains an allowed provider implementation.
+1. The hosted API requires a configured encryption provider for Career Graph reads and writes. It encrypts submitted values before persistence and decrypts only after verified tenant membership; missing keys fail closed with HTTP 503. The current provider is the versioned local master-key ring, not a KMS GenerateDataKey adapter. Direct KMS integration is prohibited in all CareerOps application processes.
 2. The API derives tenant and actor from verified identity/membership. The create endpoint rejects client-supplied tenant/actor fields, validates a bounded JSON value, and encrypts it with the expected `career-graph:<fact_key>` context. Reads and review responses decrypt only after tenant authorization. The API routes are `GET/POST /v1/career-graph/facts` and `POST /v1/career-graph/facts/:id/review`.
 3. Fact creation and review append a tenant audit event in the same PostgreSQL transaction. Fact version allocation takes the same tenant/fact-key advisory lock as the database trigger before reading `MAX(version)`.
 4. Database repositories return encrypted envelopes only to the trusted API process. The public API never returns envelope metadata, wrapped keys, or ciphertext.
