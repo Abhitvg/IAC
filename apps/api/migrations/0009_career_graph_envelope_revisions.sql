@@ -40,6 +40,37 @@ CREATE POLICY career_graph_fact_envelope_revisions_tenant_isolation
   );
 
 
+
+CREATE TABLE career_graph_envelope_rotation_jobs (
+  tenant_id uuid NOT NULL REFERENCES tenants(id),
+  target_key_version text NOT NULL CHECK (length(target_key_version) BETWEEN 1 AND 64),
+  last_fact_id uuid,
+  rotated_count bigint NOT NULL DEFAULT 0 CHECK (rotated_count >= 0),
+  status text NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'completed')),
+  created_by text NOT NULL CHECK (length(created_by) BETWEEN 1 AND 255),
+  updated_by text NOT NULL CHECK (length(updated_by) BETWEEN 1 AND 255),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, target_key_version),
+  FOREIGN KEY (tenant_id, last_fact_id) REFERENCES career_graph_facts(tenant_id, id)
+);
+
+ALTER TABLE career_graph_envelope_rotation_jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE career_graph_envelope_rotation_jobs FORCE ROW LEVEL SECURITY;
+CREATE POLICY career_graph_envelope_rotation_jobs_tenant_isolation
+  ON career_graph_envelope_rotation_jobs
+  USING (
+    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+    AND created_by = NULLIF(current_setting('app.user_subject', true), '')
+  )
+  WITH CHECK (
+    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+    AND created_by = NULLIF(current_setting('app.user_subject', true), '')
+    AND updated_by = NULLIF(current_setting('app.user_subject', true), '')
+  );
+
+GRANT SELECT, INSERT, UPDATE ON career_graph_envelope_rotation_jobs TO careerops_app;
+
 CREATE OR REPLACE FUNCTION enforce_career_graph_envelope_revision_context()
 RETURNS trigger
 LANGUAGE plpgsql
