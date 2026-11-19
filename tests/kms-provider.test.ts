@@ -228,6 +228,58 @@ describe('KMS tenant envelope key provider', () => {
     dataKey.fill(0);
   });
 
+  it('destroys the KMS client at most once and rejects use after shutdown', async () => {
+    const destroy = vi.fn();
+    const generateDataKey = vi.fn(async () => ({
+      Plaintext: Buffer.alloc(32, 1),
+      CiphertextBlob: Buffer.from('wrapped'),
+      KeyId: keyArn,
+    }));
+    const provider = new KmsTenantKeyProvider({
+      keyArn,
+      keyVersion: 'kms-v1',
+      client: {
+        generateDataKey,
+        decrypt: async () => ({ Plaintext: Buffer.alloc(32, 1), KeyId: keyArn }),
+        destroy,
+      },
+    });
+
+    provider.destroy();
+    provider.destroy();
+
+    expect(destroy).toHaveBeenCalledOnce();
+    await expect(provider.generateDataKey(tenantId, context)).rejects.toThrow('has been destroyed');
+    expect(generateDataKey).not.toHaveBeenCalled();
+  });
+
+  it('destroys both dual-read providers once, even when shutdown is repeated', async () => {
+    const kmsDestroy = vi.fn();
+    const legacyDestroy = vi.fn();
+    const kms = new KmsTenantKeyProvider({
+      keyArn,
+      keyVersion: 'kms-v1',
+      client: {
+        generateDataKey: async () => ({}),
+        decrypt: async () => ({}),
+        destroy: kmsDestroy,
+      },
+    });
+    const legacy: TenantKeyProvider & { destroy: () => void } = {
+      generateDataKey: async () => { throw new Error('legacy writes must not be used'); },
+      unwrapDataKey: async () => Buffer.alloc(32),
+      destroy: legacyDestroy,
+    };
+    const provider = new DualReadTenantKeyProvider(kms, legacy);
+
+    provider.destroy();
+    provider.destroy();
+
+    expect(kmsDestroy).toHaveBeenCalledOnce();
+    expect(legacyDestroy).toHaveBeenCalledOnce();
+    expect(() => provider.generateDataKey(tenantId, context)).toThrow('has been destroyed');
+  });
+
   it('dual-reads legacy envelopes while directing all new writes to KMS', async () => {
     const kms = new KmsTenantKeyProvider({
       keyArn,
