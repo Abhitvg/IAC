@@ -3,7 +3,6 @@ import { loadCloudEnvironment } from './config';
 import { createCloudApiRuntime } from './runtime';
 import { MasterKeyTenantKeyProvider } from '../../../packages/cloud-core/src/master-key-provider';
 import { TenantEnvelopeCipher } from '../../../packages/cloud-core/src/encryption';
-import type { EncryptedFactEnvelope } from '../../../packages/cloud-core/src/career-graph';
 import { createLinkedInCloudIntegration } from './linkedin/create-integration';
 
 function readPort(value: string | undefined): number {
@@ -54,27 +53,10 @@ async function start(): Promise<void> {
           entitlements: {},
         })
       : undefined;
-  const careerGraphCipher = envelopeKeyProvider
+  const careerGraphCrypto = envelopeKeyProvider
     ? new TenantEnvelopeCipher(envelopeKeyProvider)
     : undefined;
-  const careerGraphEnvelopeVerifier = careerGraphCipher
-    ? {
-        verify: async (
-          envelope: EncryptedFactEnvelope,
-          tenantId: string,
-          context: string
-        ) => {
-          const plaintext = await careerGraphCipher.decrypt(envelope, tenantId, context);
-          plaintext.fill(0);
-        },
-      }
-    : undefined;
-  const runtime = createCloudApiRuntime(
-    pool,
-    environment,
-    linkedin,
-    careerGraphEnvelopeVerifier
-  );
+  const runtime = createCloudApiRuntime(pool, environment, linkedin, careerGraphCrypto);
 
   let shutdown: Promise<void> | undefined;
   const stop = () => {
