@@ -65,7 +65,7 @@ describe('KnowledgeVaultService encrypted persistence', () => {
   });
 
   it('reports encrypted persistence failure instead of claiming a durable save', async () => {
-    secureRecordSet.mockResolvedValue(false);
+    secureRecordSet.mockRejectedValue(new Error('secure storage unavailable'));
     const service = KnowledgeVaultService.getInstance();
 
     service.saveVault(createInitialVault());
