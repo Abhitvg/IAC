@@ -203,7 +203,10 @@ function persist<T>(key: string, data: T): Promise<boolean> {
 async function flushPracticePersistence(): Promise<boolean> {
   const results = await Promise.all(practiceWriteQueues.values());
   const statuses = Object.values(usePracticeStore.getState().persistenceStatus);
-  return results.every(Boolean) && !statuses.some((status) => status === 'error' || status === 'unavailable');
+  return (
+    results.every(Boolean) &&
+    !statuses.some((status) => status === 'error' || status === 'unavailable')
+  );
 }
 
 function isValidMockSessionState(data: any): data is MockSessionState {
