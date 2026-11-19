@@ -292,6 +292,38 @@ describe('M0 cloud security foundation', () => {
     ).toThrow(/requires a JSON key ring/);
   });
 
+  it('validates optional KMS key ARN and version as an all-or-nothing pair', () => {
+    const base = {
+      NODE_ENV: 'test',
+      CAREEROPS_JWT_ISSUER: authConfig.issuer,
+      CAREEROPS_JWT_AUDIENCE: authConfig.audience,
+      CAREEROPS_JWKS_URL: authConfig.jwksUrl,
+      CAREEROPS_CONSENT_SIGNING_SECRET: secret,
+      CAREEROPS_RATE_LIMIT_HASH_SECRET: rateSecret,
+    };
+    const keyArn =
+      'arn:aws:kms:ap-southeast-2:165328640460:key/11111111-2222-3333-4444-555555555555';
+
+    expect(loadCloudEnvironment(base as NodeJS.ProcessEnv).CAREEROPS_KMS_KEY_ARN).toBeUndefined();
+    expect(loadCloudEnvironment({
+      ...base,
+      CAREEROPS_KMS_KEY_ARN: keyArn,
+      CAREEROPS_KMS_KEY_VERSION: 'kms-v1',
+    } as NodeJS.ProcessEnv).CAREEROPS_KMS_KEY_VERSION).toBe('kms-v1');
+
+    for (const invalid of [
+      { CAREEROPS_KMS_KEY_ARN: keyArn },
+      { CAREEROPS_KMS_KEY_VERSION: 'kms-v1' },
+      { CAREEROPS_KMS_KEY_ARN: 'arn:aws:kms:ap-southeast-2:123:key/not-a-key', CAREEROPS_KMS_KEY_VERSION: 'kms-v1' },
+      { CAREEROPS_KMS_KEY_ARN: keyArn, CAREEROPS_KMS_KEY_VERSION: 'v1' },
+    ]) {
+      expect(() => loadCloudEnvironment({
+        ...base,
+        ...invalid,
+      } as NodeJS.ProcessEnv)).toThrow(/canonical key ARN and a kms-vN key version together/);
+    }
+  });
+
   it('requires HTTPS issuer/JWKS endpoints and a separate consent signing secret', () => {
     expect(() =>
       loadCloudEnvironment({
