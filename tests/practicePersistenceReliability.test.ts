@@ -64,7 +64,7 @@ describe('practice encrypted persistence reliability', () => {
 
     usePracticeStore.getState().startMockSession('behavioral');
 
-    await expect(usePracticeStore.getState().flushPersistence()).resolves.toBe(true);
+    await expect(usePracticeStore.getState().flushPersistence()).resolves.toBe(false);
     expect(
       usePracticeStore.getState().persistenceStatus['ai_practice_active_session_v1']
     ).toBe('unavailable');
