@@ -70,7 +70,7 @@ async function rotate(): Promise<void> {
         reencrypt: (envelope, scopedTenantId, context) =>
           cipher.reencrypt(envelope, scopedTenantId, context),
       });
-      totalRotated += batch.rotated;
+      totalRotated = batch.totalRotated;
       hasMore = batch.hasMore;
       console.info(
         JSON.stringify({
