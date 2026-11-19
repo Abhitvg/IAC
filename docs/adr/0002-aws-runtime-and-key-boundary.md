@@ -5,7 +5,7 @@
 
 ## Context
 
-CareerOps needs a production hosting path for its cloud API, PostgreSQL repositories, OIDC verification, tenant isolation, audit records, and Electron client. Application-level encryption is required for sensitive tenant records. Direct AWS KMS integration from trusted CareerOps backend code is an allowed architecture option; it is not prohibited by a product constraint. KMS credentials and key operations must never be shipped to the Electron renderer or browser.
+CareerOps needs a production hosting path for its cloud API, PostgreSQL repositories, OIDC verification, tenant isolation, audit records, and Electron client. Application-level encryption is required for sensitive tenant records. Direct AWS KMS API calls from any CareerOps application process are prohibited, including trusted backend services and maintenance workers. AWS KMS may be used only by AWS-managed services such as Secrets Manager to protect the application configuration secret; the ECS execution role handles that secret retrieval path. The CareerOps task role and application code must not call KMS.
 
 ## AWS runtime baseline
 
@@ -24,10 +24,9 @@ Use AWS as the hosting and managed infrastructure platform:
 
 The current branch implementation uses `TenantEnvelopeCipher` with `MasterKeyTenantKeyProvider` for LinkedIn token envelopes. It creates per-record random AES-256 data keys and wraps them locally using a versioned 256-bit master-key ring injected through the Secrets Manager configuration secret. The master key ring is not a KMS GenerateDataKey implementation. Secrets Manager uses the configured KMS key to protect the configuration secret at rest; this does not make the application envelope provider KMS-backed.
 
-Direct AWS KMS envelope encryption remains an allowed alternative and should be evaluated before declaring the application key architecture final:
+Direct AWS KMS envelope encryption is explicitly prohibited by the project constraint and must not be implemented in CareerOps application code:
 
-- **KMS-backed provider:** call KMS GenerateDataKey and Decrypt from the trusted API backend using the ECS task role. Restrict permissions to the exact key and encryption context. Do not expose credentials or KMS calls to renderer/browser code.
-- **Locally wrapped provider:** retain the current versioned master-key ring and local AES-256-GCM wrapping. Keep the key ring only in the secret manager, tightly control rotation and recovery, and document the additional operational responsibility of managing application master keys.
+- **Required local provider:** retain the current versioned master-key ring and local AES-256-GCM wrapping. Keep the key ring only in Secrets Manager, tightly control rotation and recovery, and document the operational responsibility of managing application master keys.
 
 Before selecting or migrating providers, inventory existing envelopes and persisted data. Envelopes from one provider are not automatically decryptable by the other. Any migration must be explicit, resumable, tenant-scoped, verified, and reversible until completion.
 
