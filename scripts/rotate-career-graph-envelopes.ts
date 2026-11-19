@@ -34,16 +34,28 @@ async function rotate(): Promise<void> {
   try {
     const masterKeys = JSON.parse(keyRingJson) as Record<string, string>;
     keyRingJson = '';
-    provider = new MasterKeyTenantKeyProvider({ masterKeys, currentKeyVersion: targetKeyVersion });
-    for (const version of Object.keys(masterKeys)) masterKeys[version] = '';
+    try {
+      provider = new MasterKeyTenantKeyProvider({
+        masterKeys,
+        currentKeyVersion: targetKeyVersion,
+      });
+    } finally {
+      for (const version of Object.keys(masterKeys)) masterKeys[version] = '';
+    }
 
-    const databaseUrl = required('CAREEROPS_ROTATION_DATABASE_URL');
+    let databaseUrl = required('CAREEROPS_ROTATION_DATABASE_URL');
+    delete process.env.CAREEROPS_ROTATION_DATABASE_URL;
     const configuredBatchSize = Number(process.env.CAREEROPS_ROTATION_BATCH_SIZE ?? 50);
-    if (!Number.isInteger(configuredBatchSize) || configuredBatchSize < 1 || configuredBatchSize > 100) {
+    if (
+      !Number.isInteger(configuredBatchSize) ||
+      configuredBatchSize < 1 ||
+      configuredBatchSize > 100
+    ) {
       throw new Error('CAREEROPS_ROTATION_BATCH_SIZE must be an integer from 1 to 100');
     }
 
     pool = createPostgresPoolFromUrl(databaseUrl, 'production', 2);
+    databaseUrl = '';
     const repository = new PostgresCareerGraphRepository(pool);
     const cipher = new TenantEnvelopeCipher(provider);
     let totalRotated = 0;
