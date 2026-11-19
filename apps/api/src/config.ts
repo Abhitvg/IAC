@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const MASTER_KEY_VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const MASTER_KEY_VERSION_PATTERN = /^(?!kms-v[1-9][0-9]{0,2}$)[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const KMS_KEY_ARN_PATTERN = /^arn:(?:aws|aws-us-gov|aws-cn|aws-iso|aws-iso-b):kms:[a-z0-9-]+:\d{12}:key\/[A-Fa-f0-9-]{36}$/;
 const KMS_KEY_VERSION_PATTERN = /^kms-v[1-9][0-9]{0,2}$/;
