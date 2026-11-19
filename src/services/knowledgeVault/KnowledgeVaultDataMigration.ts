@@ -80,7 +80,9 @@ export function previewKnowledgeVaultMigration(): KnowledgeVaultMigrationPreview
  * as successful until the encrypted record is read back byte-for-byte.
  * Conflicting encrypted data is never overwritten; legacy source is retained.
  */
-export async function migrateKnowledgeVaultToEncryptedStorage(): Promise<KnowledgeVaultMigrationResult> {
+export async function migrateKnowledgeVaultToEncryptedStorage(): Promise<
+  KnowledgeVaultMigrationResult
+> {
   const api = getSecureApi();
   if (typeof window.localStorage === 'undefined') {
     throw new Error('Legacy browser storage is unavailable.');
