@@ -10,7 +10,6 @@ describe('practice encrypted persistence reliability', () => {
     records = new Map();
     secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
-      return true;
     });
     secureRecordGet = vi.fn(async (_namespace: string, id: string) => records.get(id) ?? null);
     vi.stubGlobal('window', {
@@ -75,7 +74,6 @@ describe('practice encrypted persistence reliability', () => {
     secureRecordSet.mockImplementation(async (_namespace: string, id: string, data: string) => {
       writeOrder.push(data);
       records.set(id, data);
-      return true;
     });
 
     const store = usePracticeStore.getState();
