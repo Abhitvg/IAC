@@ -139,7 +139,7 @@ export class PostgresCareerGraphRepository {
       // Serialize all rotation workers for a tenant and target key version.
       await client.query(
         'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
-        [`career-graph-envelope-rotation:${input.tenantId}:${input.targetKeyVersion}`]
+        [`career-graph-envelope-rotation:${input.tenantId}`]
       );
 
       await client.query(
