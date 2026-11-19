@@ -635,19 +635,24 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
 
     // Remove encrypted copies as well as legacy browser records. A plaintext-only
     // wipe would leave interview answers recoverable from the secure record store.
-    if (!api?.secureRecordGet || !api?.secureRecordDelete) {
+    if (!api?.secureRecordGet || !api?.secureRecordDelete || !api?.secureRecordList) {
       failedKeys.push('encrypted-storage-unavailable');
     } else {
-      for (const key of [...Object.values(STORAGE_KEYS), 'practice_migration_v1']) {
-        try {
-          const existing = await api.secureRecordGet('practice', key);
-          if (existing === null) continue;
-          const deleted = await api.secureRecordDelete('practice', key);
-          const remaining = await api.secureRecordGet('practice', key);
-          if (!deleted || remaining !== null) failedKeys.push(`encrypted:${key}`);
-        } catch {
-          failedKeys.push(`encrypted:${key}`);
+      try {
+        const encryptedIds = await api.secureRecordList('practice');
+        for (const key of encryptedIds) {
+          try {
+            const existing = await api.secureRecordGet('practice', key);
+            if (existing === null) continue;
+            const deleted = await api.secureRecordDelete('practice', key);
+            const remaining = await api.secureRecordGet('practice', key);
+            if (!deleted || remaining !== null) failedKeys.push(`encrypted:${key}`);
+          } catch {
+            failedKeys.push(`encrypted:${key}`);
+          }
         }
+      } catch {
+        failedKeys.push('encrypted:namespace');
       }
     }
 
