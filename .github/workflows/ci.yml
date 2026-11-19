@@ -89,6 +89,24 @@ jobs:
         if: matrix.os == 'ubuntu-24.04'
         run: npm audit --omit=dev --audit-level=high
 
+      - name: Diagnose Prettier output for Career Graph changes
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx prettier --write \
+            apps/api/src/ports.ts \
+            docs/security/data-at-rest-inventory.md \
+            packages/cloud-core/src/career-graph.ts \
+            src/services/cloudApi/client.ts \
+            tests/cloud-api-client.test.ts
+          git diff -- \
+            apps/api/src/ports.ts \
+            docs/security/data-at-rest-inventory.md \
+            packages/cloud-core/src/career-graph.ts \
+            src/services/cloudApi/client.ts \
+            tests/cloud-api-client.test.ts
+
       - name: Check formatting for changed files
         shell: bash
         run: |
