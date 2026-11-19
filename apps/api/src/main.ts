@@ -65,7 +65,7 @@ async function start(): Promise<void> {
 
   let shutdown: Promise<void> | undefined;
   const stop = () => {
-    shutdown = runtime
+    shutdown ??= runtime
       .close()
       .catch((error: unknown) => {
         console.error(
