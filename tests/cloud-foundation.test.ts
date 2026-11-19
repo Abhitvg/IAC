@@ -953,3 +953,74 @@ describe('M0 cloud security foundation', () => {
     }
   });
 });
+
+describe('encrypted envelope strict decoding', () => {
+  const key = randomBytes(32);
+  const provider: TenantKeyProvider = {
+    generateDataKey: async () => ({
+      plaintextKey: randomBytes(32),
+      wrappedKey: Buffer.from('wrapped-key').toString('base64'),
+      keyVersion: 'v1',
+    }),
+    unwrapDataKey: async () => Buffer.from(key),
+  };
+
+  it('round-trips empty and non-empty plaintext using canonical encodings', async () => {
+    const cipher = new TenantEnvelopeCipher(provider);
+    const empty = await cipher.encrypt('tenant-1', 'career-graph:profile', Buffer.alloc(0));
+    await expect(
+      cipher.decrypt(empty, 'tenant-1', 'career-graph:profile')
+    ).resolves.toEqual(Buffer.alloc(0));
+
+    const value = await cipher.encrypt(
+      'tenant-1',
+      'career-graph:profile',
+      Buffer.from('private fact')
+    );
+    await expect(
+      cipher.decrypt(value, 'tenant-1', 'career-graph:profile')
+    ).resolves.toEqual(Buffer.from('private fact'));
+  });
+
+  it('rejects non-canonical IV, tag, ciphertext and invalid key versions before unwrap', async () => {
+    const unwrapDataKey = vi.fn(provider.unwrapDataKey);
+    const cipher = new TenantEnvelopeCipher({ ...provider, unwrapDataKey });
+    const valid = await cipher.encrypt(
+      'tenant-1',
+      'career-graph:profile',
+      Buffer.from('private fact')
+    );
+
+    await expect(
+      cipher.decrypt({ ...valid, iv: '!!!!' }, 'tenant-1', 'career-graph:profile')
+    ).rejects.toThrow('base64');
+    await expect(
+      cipher.decrypt({ ...valid, authTag: 'AA==' }, 'tenant-1', 'career-graph:profile')
+    ).rejects.toThrow();
+    await expect(
+      cipher.decrypt({ ...valid, ciphertext: 'YQ' }, 'tenant-1', 'career-graph:profile')
+    ).rejects.toThrow();
+    await expect(
+      cipher.decrypt({ ...valid, keyVersion: '../v1' }, 'tenant-1', 'career-graph:profile')
+    ).rejects.toThrow('context');
+    expect(unwrapDataKey).not.toHaveBeenCalled();
+  });
+
+  it('rejects cross-tenant and cross-context envelopes before key unwrap', async () => {
+    const unwrapDataKey = vi.fn(provider.unwrapDataKey);
+    const cipher = new TenantEnvelopeCipher({ ...provider, unwrapDataKey });
+    const envelope = await cipher.encrypt(
+      'tenant-1',
+      'career-graph:profile',
+      Buffer.from('private fact')
+    );
+
+    await expect(cipher.decrypt(envelope, 'tenant-2', 'career-graph:profile')).rejects.toThrow(
+      'mismatch'
+    );
+    await expect(cipher.decrypt(envelope, 'tenant-1', 'career-graph:resume')).rejects.toThrow(
+      'mismatch'
+    );
+    expect(unwrapDataKey).not.toHaveBeenCalled();
+  });
+});
