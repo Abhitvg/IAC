@@ -23,7 +23,6 @@ const securePracticeRecords = new Map<string, string>();
   electronAPI: {
     secureRecordSet: async (_namespace: string, id: string, data: string) => {
       securePracticeRecords.set(id, data);
-      return true;
     },
     secureRecordGet: async (_namespace: string, id: string) =>
       securePracticeRecords.get(id) ?? null,
