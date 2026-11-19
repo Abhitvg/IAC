@@ -39,6 +39,29 @@ CREATE POLICY career_graph_fact_envelope_revisions_tenant_isolation
     AND rotated_by = NULLIF(current_setting('app.user_subject', true), '')
   );
 
+
+CREATE OR REPLACE FUNCTION enforce_career_graph_envelope_revision_context()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+DECLARE
+  expected_context text;
+BEGIN
+  SELECT 'career-graph:' || fact_key
+    INTO expected_context
+    FROM career_graph_facts
+   WHERE tenant_id = NEW.tenant_id AND id = NEW.fact_id;
+  IF NOT FOUND OR NEW.value_envelope->>'context' IS DISTINCT FROM expected_context THEN
+    RAISE EXCEPTION 'Career Graph envelope revision context does not match its fact';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+CREATE TRIGGER career_graph_envelope_revision_context
+BEFORE INSERT ON career_graph_fact_envelope_revisions
+FOR EACH ROW EXECUTE FUNCTION enforce_career_graph_envelope_revision_context();
+
 CREATE OR REPLACE FUNCTION reject_career_graph_envelope_revision_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
