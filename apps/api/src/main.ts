@@ -22,12 +22,6 @@ async function start(): Promise<void> {
   }
   const port = readPort(process.env.PORT);
   const host = process.env.HOST ?? '0.0.0.0';
-  const pool = createPostgresPool(environment);
-  pool.on('error', (error: Error) => {
-    // Never log connection strings, query parameters, or SQL values.
-    console.error('CareerOps PostgreSQL idle-client error:', error.message);
-  });
-
   let envelopeKeyRingJson = environment.CAREEROPS_ENVELOPE_MASTER_KEYS;
   environment.CAREEROPS_ENVELOPE_MASTER_KEYS = '';
   delete process.env.CAREEROPS_ENVELOPE_MASTER_KEYS;
@@ -47,21 +41,37 @@ async function start(): Promise<void> {
   } else {
     envelopeKeyRingJson = '';
   }
-  const linkedin =
-    envelopeKeyProvider && environment.LINKEDIN_CLIENT_ID
-      ? createLinkedInCloudIntegration(pool, envelopeKeyProvider, {
-          oauth: {
-            clientId: environment.LINKEDIN_CLIENT_ID,
-            clientSecret: environment.LINKEDIN_CLIENT_SECRET,
-            redirectUri: environment.LINKEDIN_REDIRECT_URI,
-          },
-          entitlements: {},
-        })
+
+  // Validate and construct the local key provider before opening database resources.
+  // A malformed key ring must not leave a PostgreSQL pool running during failed startup.
+  const pool = createPostgresPool(environment);
+  pool.on('error', (error: Error) => {
+    // Never log connection strings, query parameters, or SQL values.
+    console.error('CareerOps PostgreSQL idle-client error:', error.message);
+  });
+  try {
+    const linkedin =
+      envelopeKeyProvider && environment.LINKEDIN_CLIENT_ID
+        ? createLinkedInCloudIntegration(pool, envelopeKeyProvider, {
+            oauth: {
+              clientId: environment.LINKEDIN_CLIENT_ID,
+              clientSecret: environment.LINKEDIN_CLIENT_SECRET,
+              redirectUri: environment.LINKEDIN_REDIRECT_URI,
+            },
+            entitlements: {},
+          })
+        : undefined;
+    const careerGraphCrypto = envelopeKeyProvider
+      ? new TenantEnvelopeCipher(envelopeKeyProvider)
       : undefined;
-  const careerGraphCrypto = envelopeKeyProvider
-    ? new TenantEnvelopeCipher(envelopeKeyProvider)
-    : undefined;
-  const runtime = createCloudApiRuntime(pool, environment, linkedin, careerGraphCrypto);
+    const runtime = createCloudApiRuntime(pool, environment, linkedin, careerGraphCrypto);
+  
+  } catch (error) {
+    // Startup may fail after the pool/provider exist but before runtime owns them.
+    await pool.end().catch(() => undefined);
+    envelopeKeyProvider?.destroy();
+    throw error;
+  }
 
   let shutdown: Promise<void> | undefined;
   const stop = () => {
