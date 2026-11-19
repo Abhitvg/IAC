@@ -97,7 +97,9 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
       };
     } finally {
       plaintext?.fill(0);
+      result.Plaintext?.fill(0);
       ciphertext?.fill(0);
+      result.CiphertextBlob?.fill(0);
     }
   }
 
@@ -110,6 +112,7 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
     }
     const ciphertext = decodeCiphertext(wrappedKey);
     let plaintext: Buffer | undefined;
+    let sdkPlaintext: Uint8Array | undefined;
     try {
       const result = await this.client.decrypt({
         KeyId: this.keyArn,
@@ -117,12 +120,14 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
         EncryptionContext: encryptionContext(tenantId, context),
       });
       assertKeyId(result.KeyId, this.keyArn);
+      sdkPlaintext = result.Plaintext;
       plaintext = result.Plaintext ? Buffer.from(result.Plaintext) : undefined;
       if (!plaintext || plaintext.length !== 32) throw new Error('KMS returned an invalid Decrypt response');
       return Buffer.from(plaintext);
     } finally {
       ciphertext.fill(0);
       plaintext?.fill(0);
+      sdkPlaintext?.fill(0);
     }
   }
 }
