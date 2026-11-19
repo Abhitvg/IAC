@@ -163,11 +163,19 @@ export async function migrateKnowledgeVaultToEncryptedStorage(): Promise<Knowled
   };
 
   try {
+    const serializedJournal = JSON.stringify(journal);
     await api.secureRecordSet(
       'knowledge-vault',
       KNOWLEDGE_VAULT_MIGRATION_JOURNAL_ID,
-      JSON.stringify(journal)
+      serializedJournal
     );
+    const verifiedJournal = await api.secureRecordGet(
+      'knowledge-vault',
+      KNOWLEDGE_VAULT_MIGRATION_JOURNAL_ID
+    );
+    if (verifiedJournal !== serializedJournal) {
+      throw new Error('Knowledge Vault migration journal verification failed.');
+    }
   } catch {
     return {
       ...result,
