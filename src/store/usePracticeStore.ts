@@ -110,7 +110,7 @@ interface PracticeState {
   updateFeedbackRecord: (record: FeedbackRecord) => void;
   deleteFeedbackRecord: (id: string) => void;
   clearAllFeedback: () => void;
-  deleteAllFeedbackAndPracticeData: () => { success: boolean; failedKeys: string[] };
+  deleteAllFeedbackAndPracticeData: () => Promise<{ success: boolean; failedKeys: string[] }>;
   weaknessPlan: WeaknessPracticePlan | null;
   setWeaknessPlan: (plan: WeaknessPracticePlan) => void;
   seedSchedulerFromWeaknesses: () => void;
@@ -617,23 +617,42 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     set({ feedbackRecords: [] });
   },
 
-  deleteAllFeedbackAndPracticeData: () => {
+  deleteAllFeedbackAndPracticeData: async () => {
     const failedKeys: string[] = [];
+    const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
 
-    if (typeof localStorage !== 'undefined') {
+    // This action is invoked only after the user confirms the destructive wipe.
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
       for (const key of Object.values(STORAGE_KEYS)) {
         try {
-          localStorage.removeItem(key);
-          if (localStorage.getItem(key) !== null) failedKeys.push(key);
-        } catch (error) {
-          console.error('[PracticeStore] Failed to remove persisted data key:', key, error);
+          window.localStorage.removeItem(key);
+          if (window.localStorage.getItem(key) !== null) failedKeys.push(key);
+        } catch {
           failedKeys.push(key);
         }
       }
     }
 
+    // Remove encrypted copies as well as legacy browser records. A plaintext-only
+    // wipe would leave interview answers recoverable from the secure record store.
+    if (!api?.secureRecordGet || !api?.secureRecordDelete) {
+      failedKeys.push('encrypted-storage-unavailable');
+    } else {
+      for (const key of [...Object.values(STORAGE_KEYS), 'practice_migration_v1']) {
+        try {
+          const existing = await api.secureRecordGet('practice', key);
+          if (existing === null) continue;
+          const deleted = await api.secureRecordDelete('practice', key);
+          const remaining = await api.secureRecordGet('practice', key);
+          if (!deleted || remaining !== null) failedKeys.push(`encrypted:${key}`);
+        } catch {
+          failedKeys.push(`encrypted:${key}`);
+        }
+      }
+    }
+
     // Always clear sensitive in-memory state; the caller must not report full success
-    // while a persisted key remains.
+    // while any plaintext or encrypted record remains.
     set({
       activeSession: null,
       sessionHistory: [],
