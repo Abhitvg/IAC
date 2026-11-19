@@ -46,7 +46,9 @@ describe('Knowledge Vault encrypted migration', () => {
     const source = '{"schemaVersion":2,"profile":{"email":"private@example.test"}}';
     const localStorage = createStorage({ [KNOWLEDGE_VAULT_LEGACY_STORAGE_KEY]: source });
     const records = new Map<string, string>();
-    const secureRecordGet = vi.fn(async (_namespace: string, id: string) => records.get(id) ?? null);
+    const secureRecordGet = vi.fn(
+      async (_namespace: string, id: string) => records.get(id) ?? null
+    );
     const secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
       return true;
