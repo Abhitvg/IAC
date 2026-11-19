@@ -41,7 +41,11 @@ function tokenContext(subject: string): string {
   return `linkedin-token:${subject}`;
 }
 
-function isCanonicalBase64(value: unknown, minLength: number, maxLength: number): value is string {
+function isCanonicalBase64(
+  value: unknown,
+  minLength: number,
+  maxLength: number
+): value is string {
   return (
     typeof value === 'string' &&
     value.length >= minLength &&
