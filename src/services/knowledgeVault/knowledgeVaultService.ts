@@ -168,6 +168,7 @@ export class KnowledgeVaultService {
         ENCRYPTED_STORAGE_NAMESPACE,
         ENCRYPTED_STORAGE_ID
       );
+      if (this.hasLocalChanges) return;
       if (raw === null) {
         this.persistenceState = 'legacy';
         return;
