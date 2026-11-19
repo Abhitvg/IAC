@@ -108,15 +108,14 @@ export class PostgresCareerGraphRepository {
   constructor(private readonly pool: SqlPool) {}
 
   /**
-   * Re-encrypt a bounded tenant-scoped page of facts and append envelope revisions.
-   * A tenant advisory lock serializes workers; the caller persists nextCursor after
-   * each committed batch and can safely resume after process interruption.
+   * Re-encrypt a bounded tenant-scoped page and append immutable envelope revisions.
+   * The job cursor is committed in the same transaction as the ciphertext revisions,
+   * so a restarted worker resumes without skipping or duplicating committed work.
    */
   async rotateEnvelopeBatch(input: {
     tenantId: string;
     actorSubject: string;
     targetKeyVersion: string;
-    afterId: string | null;
     limit: number;
     reencrypt: (
       envelope: EncryptedFactEnvelope,
@@ -127,7 +126,7 @@ export class PostgresCareerGraphRepository {
     if (
       !input.tenantId ||
       !input.actorSubject ||
-      !input.targetKeyVersion ||
+      !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(input.targetKeyVersion) ||
       !Number.isInteger(input.limit) ||
       input.limit < 1 ||
       input.limit > 100
@@ -136,11 +135,40 @@ export class PostgresCareerGraphRepository {
     }
 
     return inTenantTransaction(this.pool, input.tenantId, input.actorSubject, async (client) => {
-      // One worker per tenant prevents cursor races and duplicate revision allocation.
+      // Serialize all rotation workers for a tenant and target key version.
       await client.query(
         'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
-        [`career-graph-envelope-rotation:${input.tenantId}`]
+        [`career-graph-envelope-rotation:${input.tenantId}:${input.targetKeyVersion}`]
       );
+
+      await client.query(
+        `INSERT INTO career_graph_envelope_rotation_jobs
+          (tenant_id, target_key_version, created_by, updated_by)
+         VALUES ($1, $2, $3, $3)
+         ON CONFLICT (tenant_id, target_key_version) DO NOTHING`,
+        [input.tenantId, input.targetKeyVersion, input.actorSubject]
+      );
+
+      const jobResult = await client.query<{
+        last_fact_id: string | null;
+        rotated_count: number;
+        status: 'running' | 'completed';
+      }>(
+        `SELECT last_fact_id, rotated_count, status
+           FROM career_graph_envelope_rotation_jobs
+          WHERE tenant_id = $1 AND target_key_version = $2
+          FOR UPDATE`,
+        [input.tenantId, input.targetKeyVersion]
+      );
+      const job = jobResult.rows[0];
+      if (!job) throw new Error('Career Graph rotation job is unavailable to this actor');
+      if (job.status === 'completed') {
+        return {
+          rotated: 0,
+          nextCursor: job.last_fact_id,
+          hasMore: false,
+        };
+      }
 
       const candidates = await client.query<{
         id: string;
@@ -163,13 +191,13 @@ export class PostgresCareerGraphRepository {
           ORDER BY f.id ASC
           LIMIT $4
           FOR UPDATE OF f`,
-        [input.tenantId, input.afterId, input.targetKeyVersion, input.limit + 1]
+        [input.tenantId, job.last_fact_id, input.targetKeyVersion, input.limit + 1]
       );
 
       const hasMore = candidates.rows.length > input.limit;
       const page = candidates.rows.slice(0, input.limit);
       let rotated = 0;
-      let nextCursor = input.afterId;
+      let nextCursor = job.last_fact_id;
 
       for (const row of page) {
         const context = `career-graph:${row.fact_key}`;
@@ -193,8 +221,7 @@ export class PostgresCareerGraphRepository {
         const inserted = await client.query(
           `INSERT INTO career_graph_fact_envelope_revisions
             (tenant_id, fact_id, revision, value_envelope, rotated_by)
-           VALUES ($1, $2, $3, $4::jsonb, $5)
-           ON CONFLICT (tenant_id, fact_id, revision) DO NOTHING`,
+           VALUES ($1, $2, $3, $4::jsonb, $5)`,
           [input.tenantId, row.id, revision, JSON.stringify(replacement), input.actorSubject]
         );
         if (inserted.rowCount !== 1) {
@@ -203,6 +230,25 @@ export class PostgresCareerGraphRepository {
         rotated += 1;
         nextCursor = row.id;
       }
+
+      const updated = await client.query(
+        `UPDATE career_graph_envelope_rotation_jobs
+            SET last_fact_id = $3,
+                rotated_count = rotated_count + $4,
+                status = $5,
+                updated_by = $6,
+                updated_at = now()
+          WHERE tenant_id = $1 AND target_key_version = $2`,
+        [
+          input.tenantId,
+          input.targetKeyVersion,
+          nextCursor,
+          rotated,
+          hasMore ? 'running' : 'completed',
+          input.actorSubject,
+        ]
+      );
+      if (updated.rowCount !== 1) throw new Error('Career Graph rotation cursor was not persisted');
 
       if (rotated > 0) {
         await this.appendAudit(client, {
