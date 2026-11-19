@@ -248,14 +248,21 @@ DO $rotation_rls$
 DECLARE
   visible_revisions integer;
   visible_jobs integer;
+  cross_tenant_revisions integer;
+  cross_tenant_jobs integer;
   current_key_version text;
 BEGIN
   SELECT count(*) INTO visible_revisions FROM career_graph_fact_envelope_revisions;
   SELECT count(*) INTO visible_jobs FROM career_graph_envelope_rotation_jobs;
+  SELECT count(*) INTO cross_tenant_revisions FROM career_graph_fact_envelope_revisions
+   WHERE tenant_id = '20000000-0000-4000-8000-000000000002';
+  SELECT count(*) INTO cross_tenant_jobs FROM career_graph_envelope_rotation_jobs
+   WHERE tenant_id = '20000000-0000-4000-8000-000000000002';
   SELECT value_envelope->>'keyVersion' INTO current_key_version
     FROM career_graph_fact_envelope_revisions
    WHERE tenant_id = '10000000-0000-4000-8000-000000000001';
-  IF visible_revisions <> 1 OR visible_jobs <> 1 OR current_key_version <> 'test-key-v2' THEN
+  IF visible_revisions <> 1 OR visible_jobs <> 1 OR cross_tenant_revisions <> 0
+     OR cross_tenant_jobs <> 0 OR current_key_version <> 'test-key-v2' THEN
     RAISE EXCEPTION 'Career Graph envelope revision or rotation-job RLS failed';
   END IF;
 END
@@ -333,6 +340,21 @@ COMMIT;
 SQL
 then
   echo "Expected cross-tenant Career Graph insert to be rejected, but it succeeded."
+  exit 1
+fi
+
+if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+SET ROLE careerops_app;
+BEGIN;
+SELECT set_config('app.user_subject', 'user-a', true);
+SELECT set_config('app.tenant_id', '10000000-0000-4000-8000-000000000001', true);
+UPDATE career_graph_fact_envelope_revisions
+   SET rotated_by = 'tampered'
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001';
+COMMIT;
+SQL
+then
+  echo "Expected append-only Career Graph envelope revision update to be rejected, but it succeeded."
   exit 1
 fi
 
