@@ -88,7 +88,7 @@ function mapFact(row: FactRow): CareerGraphFact {
 }
 
 const FACT_SELECT = `
-  SELECT f.id, f.tenant_id, f.fact_key, f.version, f.value_envelope,
+  SELECT f.id, f.tenant_id, f.fact_key, f.version,
          f.source_kind, f.source_reference, f.evidence_sha256, f.created_by, f.created_at,
          COALESCE(er.value_envelope, f.value_envelope) AS value_envelope,
          r.decision, r.reason, r.reviewed_by, r.reviewed_at
