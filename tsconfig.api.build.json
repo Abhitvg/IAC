@@ -6,11 +6,14 @@
     "noEmit": false,
     "outDir": "dist-api",
     "rootDir": ".",
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "apps/api/src/**/*.ts",
     "packages/cloud-core/src/**/*.ts",
-    "scripts/run-cloud-migrations.ts"
+    "scripts/run-cloud-migrations.ts",
+    "scripts/rotate-career-graph-envelopes.ts"
   ]
 }
