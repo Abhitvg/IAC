@@ -25,7 +25,8 @@ const securePracticeRecords = new Map<string, string>();
       securePracticeRecords.set(id, data);
       return true;
     },
-    secureRecordGet: async (_namespace: string, id: string) => securePracticeRecords.get(id) ?? null,
+    secureRecordGet: async (_namespace: string, id: string) =>
+      securePracticeRecords.get(id) ?? null,
   },
 };
 
