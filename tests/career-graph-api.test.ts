@@ -379,7 +379,10 @@ describe('Postgres Career Graph repository', () => {
     const client = {
       query: async (sql: string, values?: unknown[]) => {
         statements.push(sql);
-        if (sql.includes('SELECT last_fact_id, rotated_count, status')) {\n          return { rows: [{ last_fact_id: null, rotated_count: 0, status: 'running' }], rowCount: 1 };\n        }\n        if (sql.includes('SELECT f.id, f.fact_key')) {
+        if (sql.includes('SELECT last_fact_id, rotated_count, status')) {
+          return { rows: [{ last_fact_id: null, rotated_count: 0, status: 'running' }], rowCount: 1 };
+        }
+        if (sql.includes('SELECT f.id, f.fact_key')) {
           return {
             rows: [
               {
@@ -394,7 +397,8 @@ describe('Postgres Career Graph repository', () => {
         if (sql.includes('COALESCE(MAX(revision), 1)')) {
           return { rows: [{ next_revision: 2 }], rowCount: 1 };
         }
-        if (sql.includes('UPDATE career_graph_envelope_rotation_jobs')) return { rows: [], rowCount: 1 };\n        if (sql.includes('INSERT INTO career_graph_fact_envelope_revisions')) {
+        if (sql.includes('UPDATE career_graph_envelope_rotation_jobs')) return { rows: [], rowCount: 1 };
+        if (sql.includes('INSERT INTO career_graph_fact_envelope_revisions')) {
           expect(values?.[2]).toBe(2);
           expect(JSON.parse(String(values?.[3])).keyVersion).toBe('test-key-v2');
           return { rows: [], rowCount: 1 };
@@ -416,7 +420,6 @@ describe('Postgres Career Graph repository', () => {
       tenantId,
       actorSubject: subject,
       targetKeyVersion: 'test-key-v2',
-      afterId: null,
       limit: 10,
       reencrypt,
     });
@@ -439,7 +442,10 @@ describe('Postgres Career Graph repository', () => {
     const client = {
       query: async (sql: string) => {
         statements.push(sql);
-        if (sql.includes('SELECT last_fact_id, rotated_count, status')) {\n          return { rows: [{ last_fact_id: null, rotated_count: 0, status: 'running' }], rowCount: 1 };\n        }\n        if (sql.includes('SELECT f.id, f.fact_key')) {
+        if (sql.includes('SELECT last_fact_id, rotated_count, status')) {
+          return { rows: [{ last_fact_id: null, rotated_count: 0, status: 'running' }], rowCount: 1 };
+        }
+        if (sql.includes('SELECT f.id, f.fact_key')) {
           return {
             rows: [{ id: factId, fact_key: 'profile.current_role', value_envelope: fact.valueEnvelope }],
             rowCount: 1,
@@ -457,8 +463,7 @@ describe('Postgres Career Graph repository', () => {
         tenantId,
         actorSubject: subject,
         targetKeyVersion: 'test-key-v2',
-        afterId: null,
-        limit: 10,
+          limit: 10,
         reencrypt: async () => {
           throw new Error('old key unavailable');
         },
