@@ -41,6 +41,33 @@ function tokenContext(subject: string): string {
   return `linkedin-token:${subject}`;
 }
 
+function isCanonicalBase64(value: unknown, minLength: number, maxLength: number): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length >= minLength &&
+    value.length <= maxLength &&
+    /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)
+  );
+}
+
+function isValidRotatedEnvelope(
+  envelope: EncryptedEnvelope,
+  tenantId: string,
+  context: string,
+  targetKeyVersion: string
+): boolean {
+  return (
+    envelope.algorithm === 'A256GCM' &&
+    envelope.tenantId === tenantId &&
+    envelope.context === context &&
+    envelope.keyVersion === targetKeyVersion &&
+    isCanonicalBase64(envelope.wrappedKey, 4, 16_384) &&
+    isCanonicalBase64(envelope.iv, 16, 16) &&
+    isCanonicalBase64(envelope.authTag, 24, 24) &&
+    isCanonicalBase64(envelope.ciphertext, 4, 1_000_000)
+  );
+}
+
 async function inTenant<T>(
   pool: LinkedInSqlPool,
   tenantId: string,
@@ -283,14 +310,7 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
       if (currentEnvelope.keyVersion === targetKeyVersion) return 'already_current';
 
       const replacement = await input.reencrypt(currentEnvelope, identity.tenantId, context);
-      if (
-        replacement.algorithm !== 'A256GCM' ||
-        replacement.tenantId !== identity.tenantId ||
-        replacement.context !== context ||
-        replacement.keyVersion !== targetKeyVersion ||
-        typeof replacement.wrappedKey !== 'string' ||
-        !replacement.wrappedKey
-      ) {
+      if (!isValidRotatedEnvelope(replacement, identity.tenantId, context, targetKeyVersion)) {
         throw new Error('LinkedIn token rotation returned an envelope with invalid metadata');
       }
 
