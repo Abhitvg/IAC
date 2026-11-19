@@ -40,11 +40,11 @@ Use a stable, bounded key-version label mapped to a configured KMS key ARN; do n
 
 ## Compatibility and migration
 
-The current branch still contains `MasterKeyTenantKeyProvider`, which locally wraps data keys using a master-key ring. It is not KMS-backed. Do not remove it or its key material until a dual-read migration is implemented and completed.
+The current branch contains both `MasterKeyTenantKeyProvider` and a new SDK-independent `KmsTenantKeyProvider`/`DualReadTenantKeyProvider` core. The KMS provider accepts a narrow adapter interface; the AWS SDK v3 adapter, dependency/lockfile, runtime wiring, and migration worker are not yet implemented. The API still instantiates the legacy provider. Do not remove it or its key material until a dual-read migration is implemented and completed.
 
 Required migration sequence:
 
-1. Add a KMS-backed `TenantKeyProvider` and a composite/dual-read provider. New writes use KMS; reads dispatch by envelope key-version/provider prefix to KMS or the legacy local provider.
+1. Complete the AWS SDK v3 adapter with `KMSClient`, `GenerateDataKeyCommand`, and `DecryptCommand`; configure bounded connection/request timeouts and standard retries. Inject it into the existing KMS provider and wire `DualReadTenantKeyProvider` into trusted API startup only after tests pass. The provider core and key-version dispatch now exist; the SDK adapter and runtime wiring remain pending.
 2. Preserve all current envelope fields and existing local key-version labels. Add explicit provider/key-version metadata only through a backward-compatible schema evolution.
 3. Migrate **all encrypted stores**, not just Career Graph facts: Career Graph fact revisions, LinkedIn token envelopes, and any future encrypted payload tables. Add append-only revisions and resumable tenant-scoped jobs where mutable records currently exist.
 4. Verify each migrated envelope by decrypting it through the production read path, checking tenant/context binding, and recording counts and audit evidence. Test interruption, retry, old-key unavailability, KMS throttling, and rollback.
@@ -66,4 +66,4 @@ Use the AWS SDK v3 KMS client with bounded timeouts, standard retry mode with ji
 
 ## Consequences
 
-The local master-key implementation remains the current code path until the KMS provider, dependency lockfile, IAM policy, tests, and dual-read migration are implemented. This ADR defines the target, not a claim that KMS encryption is already wired or deployed. No AWS resources are provisioned and no Terraform apply or deployment is performed by this decision.
+The local master-key implementation remains the current API code path until the AWS SDK v3 adapter and dependency lockfile are available, the dual-read provider is wired and tested, and all encrypted stores are migrated. The SDK-independent KMS provider core and focused unit tests have been added, but they have not yet been executed in CI. This ADR defines the target, not a claim that KMS encryption is already wired or deployed. No AWS resources are provisioned and no Terraform apply or deployment is performed by this decision.
