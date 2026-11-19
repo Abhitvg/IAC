@@ -203,7 +203,8 @@ function persist<T>(key: string, data: T): Promise<boolean> {
 
 async function flushPracticePersistence(): Promise<boolean> {
   const results = await Promise.all(practiceWriteQueues.values());
-  return results.every(Boolean);
+  const statuses = Object.values(usePracticeStore.getState().persistenceStatus);
+  return results.every(Boolean) && !statuses.some((status) => status === 'error' || status === 'unavailable');
 }
 
 function isValidMockSessionState(data: any): data is MockSessionState {
@@ -702,7 +703,15 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
 
     for (const key of Object.values(STORAGE_KEYS)) {
       dirtyPracticeKeys.add(key);
-      updatePracticePersistenceStatus(key, failedKeys.some((item) => item.includes(key)) ? 'error' : 'saved');
+      const keyFailed = failedKeys.some((item) => item.includes(key));
+      updatePracticePersistenceStatus(
+        key,
+        keyFailed
+          ? 'error'
+          : !api?.secureRecordList || !api?.secureRecordDelete
+            ? 'unavailable'
+            : 'saved'
+      );
     }
 
     // Always clear sensitive in-memory state; the caller must not report full success
