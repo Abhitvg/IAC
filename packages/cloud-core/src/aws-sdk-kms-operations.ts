@@ -36,6 +36,8 @@ export interface AwsSdkKmsCommandSet {
  * pass the SDK command constructors here. No AWS credentials are accepted.
  */
 export class AwsSdkKmsDataKeyOperations implements KmsDataKeyOperations {
+  private destroyed = false;
+
   constructor(
     private readonly client: AwsSdkKmsClient,
     private readonly commands: AwsSdkKmsCommandSet
@@ -46,6 +48,8 @@ export class AwsSdkKmsDataKeyOperations implements KmsDataKeyOperations {
   }
 
   destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
     this.client.destroy?.();
   }
 
@@ -54,6 +58,7 @@ export class AwsSdkKmsDataKeyOperations implements KmsDataKeyOperations {
     KeySpec: 'AES_256';
     EncryptionContext: Record<string, string>;
   }): Promise<{ Plaintext?: Uint8Array; CiphertextBlob?: Uint8Array; KeyId?: string }> {
+    if (this.destroyed) throw new Error('AWS SDK KMS operations adapter has been destroyed');
     return this.client.send(new this.commands.GenerateDataKeyCommand(input));
   }
 
@@ -62,6 +67,7 @@ export class AwsSdkKmsDataKeyOperations implements KmsDataKeyOperations {
     CiphertextBlob: Uint8Array;
     EncryptionContext: Record<string, string>;
   }): Promise<{ Plaintext?: Uint8Array; KeyId?: string }> {
+    if (this.destroyed) throw new Error('AWS SDK KMS operations adapter has been destroyed');
     return this.client.send(new this.commands.DecryptCommand(input));
   }
 }
