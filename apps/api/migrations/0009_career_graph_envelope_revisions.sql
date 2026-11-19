@@ -74,7 +74,7 @@ GRANT SELECT, INSERT, UPDATE ON career_graph_envelope_rotation_jobs TO careerops
 CREATE OR REPLACE FUNCTION enforce_career_graph_envelope_revision_context()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+AS $$
 DECLARE
   expected_context text;
 BEGIN
@@ -87,7 +87,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$$;
 
 CREATE TRIGGER career_graph_envelope_revision_context
 BEFORE INSERT ON career_graph_fact_envelope_revisions
