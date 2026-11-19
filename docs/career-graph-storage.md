@@ -27,3 +27,16 @@ This includes authenticated API and PostgreSQL persistence workflows. It is not 
 ## Verification
 
 The domain and API tests cover bounded plaintext input, tenant/context binding, stable fact keys, bounded provenance, verified-identity binding, API-side AES-GCM encryption/decryption, ciphertext-only persistence, envelope omission from responses, fail-closed behavior without a key provider, versioned master-key rotation and re-encryption, route validation, version-lock ordering, transaction/audit atomicity, and contributor-only review. PostgreSQL migration/RLS integration remains a required CI gate before merge.
+
+## Envelope key rotation
+
+Migration `0009_career_graph_envelope_revisions.sql` adds append-only ciphertext revisions and tenant-scoped rotation-job state. The original fact row, source evidence, version, and review remain immutable. Reads resolve the newest envelope revision while preserving the original fact identity.
+
+The repository rotation primitive processes at most 100 facts per transaction. It serializes workers per tenant/target key version, locks candidate fact rows, validates the replacement envelope's tenant/context/key version, appends a new envelope revision, advances the persisted job cursor, and appends a hash-chained audit event in the same transaction. A failed decrypt, encrypt, insert, or audit write rolls back the entire page and leaves the cursor unchanged. Repeating a completed job is a no-op.
+
+Operational requirements before enabling rotation:
+- Run migration 0009 before invoking the rotation repository method.
+- Supply a trusted backend key provider that can unwrap every retained old key version and encrypt with the target current version. Do not expose key material to the renderer or browser.
+- Invoke rotation using the same stable service subject that created the job; tenant RLS binds the job and envelope revisions to that subject.
+- Run small batches first, monitor audit events and key-provider failures, and verify all envelopes decrypt under the new key before retiring old key versions.
+- The repository primitive is not a public HTTP endpoint and is not automatically scheduled. A separately authenticated maintenance command/worker and operational runbook are still required before production key rotation.
