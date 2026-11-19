@@ -6,6 +6,7 @@ import { createConsentRecord } from '../../../packages/cloud-core/src/contract';
 import {
   CareerGraphFactReviewSchema,
   validateCareerGraphFact,
+  validateCareerGraphFactCreateRequest,
 } from '../../../packages/cloud-core/src/career-graph';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
 import type { CloudApiDependencies } from './ports';
@@ -558,6 +559,14 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       }
 
       if (request.method === 'GET' && url.pathname === '/v1/career-graph/facts') {
+        const crypto = dependencies.careerGraphCrypto;
+        if (!crypto) {
+          sendJson(response, 503, {
+            error: 'Career Graph encryption is not configured',
+            requestId,
+          });
+          return;
+        }
         const rawLimit = url.searchParams.get('limit');
         const limit = rawLimit === null ? 50 : Number(rawLimit);
         if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
@@ -567,44 +576,83 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           });
           return;
         }
-        const facts = await dependencies.careerGraph.listFacts(
+        const storedFacts = await dependencies.careerGraph.listFacts(
           tenant.tenantId,
           tenant.subject,
           limit
+        );
+        const facts = await Promise.all(
+          storedFacts.map(async (fact) => {
+            const plaintext = await crypto.decrypt(
+              fact.valueEnvelope,
+              tenant.tenantId,
+              `career-graph:${fact.factKey}`
+            );
+            try {
+              const value: unknown = JSON.parse(plaintext.toString('utf8'));
+              const { valueEnvelope: _valueEnvelope, ...metadata } = fact;
+              return { ...metadata, value };
+            } finally {
+              plaintext.fill(0);
+            }
+          })
         );
         sendJson(response, 200, { facts, requestId });
         return;
       }
 
       if (request.method === 'POST' && url.pathname === '/v1/career-graph/facts') {
-        const body = await readJson(request, maxBytes);
-        const input = validateCareerGraphFact(tenant.tenantId, tenant.subject, body);
-        if (!dependencies.careerGraphEnvelopeVerifier) {
+        const crypto = dependencies.careerGraphCrypto;
+        if (!crypto) {
           sendJson(response, 503, {
-            error: 'Career Graph encryption verification is not configured',
+            error: 'Career Graph encryption is not configured',
             requestId,
           });
           return;
         }
+        const body = await readJson(request, maxBytes);
+        const requestInput = validateCareerGraphFactCreateRequest(
+          tenant.tenantId,
+          tenant.subject,
+          body
+        );
+        const context = `career-graph:${requestInput.factKey}`;
+        let valueEnvelope;
         try {
-          await dependencies.careerGraphEnvelopeVerifier.verify(
-            input.valueEnvelope,
+          valueEnvelope = await crypto.encrypt(
             tenant.tenantId,
-            `career-graph:${input.factKey}`
+            context,
+            Buffer.from(JSON.stringify(requestInput.value), 'utf8')
           );
         } catch {
-          sendJson(response, 400, {
-            error: 'Career Graph encrypted envelope authentication failed',
+          sendJson(response, 503, {
+            error: 'Career Graph encryption is temporarily unavailable',
             requestId,
           });
           return;
         }
+        const input = validateCareerGraphFact(tenant.tenantId, tenant.subject, {
+          factKey: requestInput.factKey,
+          valueEnvelope,
+          source: requestInput.source,
+        });
         const fact = await dependencies.careerGraph.createFact(
           tenant.tenantId,
           tenant.subject,
           input
         );
-        sendJson(response, 201, { fact, requestId });
+        const plaintext = await crypto.decrypt(
+          fact.valueEnvelope,
+          tenant.tenantId,
+          context
+        );
+        try {
+          const value: unknown = JSON.parse(plaintext.toString('utf8'));
+          const { valueEnvelope: _valueEnvelope, ...metadata } = fact;
+          sendJson(response, 201, { fact: { ...metadata, value }, requestId });
+        } finally {
+          plaintext.fill(0);
+        }
         return;
       }
 
@@ -612,6 +660,14 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         /^\/v1\/career-graph\/facts\/([0-9a-f-]{36})\/review$/i
       );
       if (request.method === 'POST' && factReviewMatch) {
+        const crypto = dependencies.careerGraphCrypto;
+        if (!crypto) {
+          sendJson(response, 503, {
+            error: 'Career Graph encryption is not configured',
+            requestId,
+          });
+          return;
+        }
         const body = await readJson(request, maxBytes);
         const review = CareerGraphFactReviewSchema.parse(body);
         const fact = await dependencies.careerGraph.reviewFact(
@@ -620,7 +676,18 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           factReviewMatch[1],
           review
         );
-        sendJson(response, 200, { fact, requestId });
+        const plaintext = await crypto.decrypt(
+          fact.valueEnvelope,
+          tenant.tenantId,
+          `career-graph:${fact.factKey}`
+        );
+        try {
+          const value: unknown = JSON.parse(plaintext.toString('utf8'));
+          const { valueEnvelope: _valueEnvelope, ...metadata } = fact;
+          sendJson(response, 200, { fact: { ...metadata, value }, requestId });
+        } finally {
+          plaintext.fill(0);
+        }
         return;
       }
 
