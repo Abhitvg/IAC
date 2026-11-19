@@ -9,6 +9,7 @@ import {
   validateCareerGraphFactCreateRequest,
 } from '../../../packages/cloud-core/src/career-graph';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
+import type { EncryptedFactEnvelope } from '../../../packages/cloud-core/src/career-graph';
 import type { CloudApiDependencies } from './ports';
 import { LinkedInApiError } from './linkedin/client';
 
@@ -627,7 +628,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         );
         const context = `career-graph:${requestInput.factKey}`;
         const plaintext = Buffer.from(JSON.stringify(requestInput.value), 'utf8');
-        let valueEnvelope;
+        let valueEnvelope: EncryptedFactEnvelope;
         try {
           valueEnvelope = await crypto.encrypt(tenant.tenantId, context, plaintext);
         } catch {
