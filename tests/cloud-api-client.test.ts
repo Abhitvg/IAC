@@ -111,7 +111,9 @@ describe('CareerOps cloud API client', () => {
       decision: 'confirmed',
     });
 
-    expect(String(fetchImpl.mock.calls[0]?.[0])).toBe('https://api.example.com/v1/career-graph/facts');
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toBe(
+      'https://api.example.com/v1/career-graph/facts'
+    );
     expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
       factKey: 'profile.current_role',
       value: 'Software Engineer',
