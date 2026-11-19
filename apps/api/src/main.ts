@@ -15,6 +15,11 @@ function readPort(value: string | undefined): number {
 
 async function start(): Promise<void> {
   const environment = loadCloudEnvironment();
+  if (environment.CAREEROPS_KMS_KEY_ARN || environment.CAREEROPS_KMS_KEY_VERSION) {
+    throw new Error(
+      'KMS configuration is present, but the AWS SDK client is not wired into API startup; refusing to fall back to local envelope encryption'
+    );
+  }
   const port = readPort(process.env.PORT);
   const host = process.env.HOST ?? '0.0.0.0';
   const pool = createPostgresPool(environment);
