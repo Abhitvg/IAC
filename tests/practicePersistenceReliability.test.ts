@@ -37,6 +37,7 @@ describe('practice encrypted persistence reliability', () => {
     ).toBe('pending');
 
     const flush = usePracticeStore.getState().flushPersistence();
+    await Promise.resolve();
     releaseWrite?.();
     await expect(flush).resolves.toBe(true);
     expect(
