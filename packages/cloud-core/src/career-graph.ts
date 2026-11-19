@@ -54,7 +54,12 @@ const CareerGraphFactValueSchema = z.union([
   z
     .record(
       z.string().max(120),
-      z.union([z.string().max(4_000), z.number().finite(), z.boolean(), z.null()])
+      z.union([
+        z.string().max(4_000),
+        z.number().finite(),
+        z.boolean(),
+        z.null(),
+      ])
     )
     .refine(
       (value) => Object.keys(value).length <= 50,
