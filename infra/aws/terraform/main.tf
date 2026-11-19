@@ -401,6 +401,63 @@ resource "aws_iam_role" "task" {
   tags               = local.tags
 }
 
+# Dedicated application envelope key. Keep this separate from the CMK
+# protecting the Secrets Manager configuration secret.
+resource "aws_kms_key" "application_envelope" {
+  description             = "CareerOps application envelope data-key encryption"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+  key_usage               = "ENCRYPT_DECRYPT"
+  customer_master_key_spec = "SYMMETRIC_DEFAULT"
+  tags = merge(local.tags, {
+    Purpose = "application-envelope-encryption"
+  })
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_kms_alias" "application_envelope" {
+  name          = "alias/${local.name}/application-envelope"
+  target_key_id = aws_kms_key.application_envelope.key_id
+}
+
+data "aws_iam_policy_document" "application_envelope_kms" {
+  statement {
+    sid       = "GenerateAndDecryptTenantDataKeys"
+    actions   = ["kms:GenerateDataKey", "kms:Decrypt"]
+    resources = [aws_kms_key.application_envelope.arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:EncryptionContext:application"
+      values   = ["careerops"]
+    }
+
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "kms:EncryptionContextKeys"
+      values   = ["application", "tenant_id", "data_context", "envelope_version"]
+    }
+
+    dynamic "condition" {
+      for_each = toset(["tenant_id", "data_context", "envelope_version"])
+      content {
+        test     = "Null"
+        variable = "kms:EncryptionContext:${condition.value}"
+        values   = ["false"]
+      }
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "application_envelope_kms" {
+  name   = "${local.name}-application-envelope-kms"
+  role   = aws_iam_role.task.id
+  policy = data.aws_iam_policy_document.application_envelope_kms.json
+}
+
 resource "aws_ecs_cluster" "api" {
   name = local.name
   setting {
@@ -433,6 +490,8 @@ resource "aws_ecs_task_definition" "api" {
       { name = "HOST", value = "0.0.0.0" },
       { name = "CAREEROPS_TRUST_PROXY", value = "true" },
       { name = "CAREEROPS_CORS_ALLOWED_ORIGINS", value = join(",", var.api_allowed_origins) }
+      { name = "CAREEROPS_KMS_KEY_ARN", value = aws_kms_key.application_envelope.arn },
+      { name = "CAREEROPS_KMS_KEY_VERSION", value = "kms-v1" }
     ]
     secrets = [
       { name = "CAREEROPS_DATABASE_URL", valueFrom = "${var.app_secrets_arn}:CAREEROPS_DATABASE_URL::" },
