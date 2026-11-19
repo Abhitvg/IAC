@@ -429,7 +429,7 @@ describe('Postgres Career Graph repository', () => {
       reencrypt,
     });
 
-    expect(result).toEqual({ rotated: 1, nextCursor: factId, hasMore: false });
+    expect(result).toEqual({ rotated: 1, totalRotated: 1, nextCursor: factId, hasMore: false });
     expect(reencrypt).toHaveBeenCalledWith(
       fact.valueEnvelope,
       tenantId,
