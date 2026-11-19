@@ -23,7 +23,11 @@ describe('practice data wipe', () => {
         getItem: (key: string) => legacyRecords.get(key) ?? null,
         removeItem: (key: string) => legacyRecords.delete(key),
       },
-      electronAPI: { secureRecordGet, secureRecordDelete },
+      electronAPI: {
+        secureRecordGet,
+        secureRecordDelete,
+        secureRecordList: async () => Array.from(encryptedRecords.keys()),
+      },
     });
   });
 
