@@ -21,7 +21,8 @@ import {
 } from '../services/models/modelRegistry';
 
 export default function SettingsPanel() {
-  const { deleteAllFeedbackAndPracticeData } = usePracticeStore();
+  const { deleteAllFeedbackAndPracticeData, persistenceStatus, flushPersistence } =
+    usePracticeStore();
   const {
     settings,
     updateSetting,
@@ -57,6 +58,8 @@ export default function SettingsPanel() {
   );
   const [migrationBusy, setMigrationBusy] = useState(false);
   const [migrationMessage, setMigrationMessage] = useState<string | null>(null);
+  const [persistenceMessage, setPersistenceMessage] = useState<string | null>(null);
+  const [persistenceBusy, setPersistenceBusy] = useState(false);
 
   const refreshMigrationPreviews = () => {
     setPracticeMigrationPreview(previewPracticeDataMigration());
@@ -1054,6 +1057,34 @@ export default function SettingsPanel() {
               encrypted record store. The original records are retained; this step does not delete
               or overwrite legacy data.
             </p>
+            <div className="field__hint" role="status" aria-live="polite">
+              Practice persistence: {Object.values(persistenceStatus).filter((status) => status === 'saved').length}{' '}
+              saved, {Object.values(persistenceStatus).filter((status) => status === 'pending').length}{' '}
+              pending, {Object.values(persistenceStatus).filter((status) => status === 'error').length}{' '}
+              failed, {Object.values(persistenceStatus).filter((status) => status === 'unavailable').length}{' '}
+              unavailable.
+              {persistenceMessage ? ` ${persistenceMessage}` : ''}
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button
+                type="button"
+                className="action-btn"
+                disabled={persistenceBusy}
+                onClick={async () => {
+                  setPersistenceBusy(true);
+                  setPersistenceMessage(null);
+                  const saved = await flushPersistence();
+                  setPersistenceMessage(
+                    saved
+                      ? 'All queued practice writes were verified.'
+                      : 'Some practice data could not be verified as durably saved. Check the status above.'
+                  );
+                  setPersistenceBusy(false);
+                }}
+              >
+                {persistenceBusy ? 'Checking…' : 'Verify pending practice saves'}
+              </button>
+            </div>
             <div className="field__hint" role="status">
               Practice records: {practiceMigrationPreview.totalRecords} (
               {practiceMigrationPreview.totalBytes.toLocaleString()} bytes). Knowledge Vault:{' '}
