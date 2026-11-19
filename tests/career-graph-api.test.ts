@@ -39,6 +39,12 @@ const validRequest = {
   source: { kind: 'user_input' as const },
 };
 
+const validInput = {
+  factKey: 'profile.current_role',
+  valueEnvelope: fact.valueEnvelope,
+  source: { kind: 'user_input' as const },
+};
+
 function createDependencies(): CloudApiDependencies {
   const createFact = vi.fn(async () => fact);
   const listFacts = vi.fn(async () => [fact]);
@@ -184,10 +190,12 @@ describe('Career Graph API routes', () => {
     });
     const cipher = new TenantEnvelopeCipher(provider);
     dependencies.careerGraphCrypto = cipher;
-    dependencies.careerGraph.createFact = vi.fn(async (_tenant, _actor, input) => ({
-      ...fact,
-      valueEnvelope: input.valueEnvelope,
-    }));
+    vi.mocked(dependencies.careerGraph.createFact).mockImplementation(
+      async (_tenant, _actor, input) => ({
+        ...fact,
+        valueEnvelope: input.valueEnvelope,
+      })
+    );
     dependencies.careerGraph.listFacts = vi.fn(async () => [
       {
         ...fact,
