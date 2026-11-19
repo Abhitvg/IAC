@@ -489,9 +489,9 @@ resource "aws_ecs_task_definition" "api" {
       { name = "PORT", value = "3000" },
       { name = "HOST", value = "0.0.0.0" },
       { name = "CAREEROPS_TRUST_PROXY", value = "true" },
-      { name = "CAREEROPS_CORS_ALLOWED_ORIGINS", value = join(",", var.api_allowed_origins) }
-      { name = "CAREEROPS_KMS_KEY_ARN", value = aws_kms_key.application_envelope.arn },
-      { name = "CAREEROPS_KMS_KEY_VERSION", value = "kms-v1" }
+      { name = "CAREEROPS_CORS_ALLOWED_ORIGINS", value = join(",", var.api_allowed_origins) },
+      # Keep KMS configuration out of the task until the SDK client and API
+      # startup composition are wired. The key and IAM policy remain staged.
     ]
     secrets = [
       { name = "CAREEROPS_DATABASE_URL", valueFrom = "${var.app_secrets_arn}:CAREEROPS_DATABASE_URL::" },
