@@ -159,3 +159,26 @@ export function loadCloudEnvironment(
 ): CloudEnvironment {
   return CloudEnvironmentSchema.parse(environment);
 }
+
+/**
+ * The local master-key provider is a migration fallback, not an acceptable
+ * production encryption boundary. Until the AWS SDK KMS client is composed
+ * into API startup, production must not start with local envelope keys.
+ */
+export function assertEnvelopeEncryptionRuntimeReady(
+  environment: Pick<
+    CloudEnvironment,
+    'NODE_ENV' | 'CAREEROPS_KMS_KEY_ARN' | 'CAREEROPS_KMS_KEY_VERSION'
+  >
+): void {
+  if (environment.NODE_ENV === 'production') {
+    throw new Error(
+      'Production API startup is blocked until KMS-backed envelope encryption is wired into the runtime'
+    );
+  }
+  if (environment.CAREEROPS_KMS_KEY_ARN || environment.CAREEROPS_KMS_KEY_VERSION) {
+    throw new Error(
+      'KMS configuration is present, but the AWS SDK client is not wired into API startup; refusing to fall back to local envelope encryption'
+    );
+  }
+}
