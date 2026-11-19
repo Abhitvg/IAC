@@ -65,9 +65,11 @@ The codebase contains 525 tracked files, including 202 under `src/`, 172 tests, 
 ## 5. Ten-phase delivery plan
 
 ### Phase 1 — Audit closure, product contract and threat model
+
 **Objective:** Convert the current source baseline into an owned, testable production specification.
 
 **Work**
+
 - Complete a write/read inventory for every PII-bearing store, file, cache, export, log, crash report and backup.
 - Map trust boundaries: renderer, Electron main, preload/IPC, browser extension, API, PostgreSQL, AWS services, LLM/STT vendors and future workers.
 - Produce STRIDE-style threat models and abuse cases for account takeover, tenant escape, prompt injection, malicious job pages, SSRF, data exfiltration, replay, quota abuse and destructive migration.
@@ -79,9 +81,11 @@ The codebase contains 525 tracked files, including 202 under `src/`, 172 tests, 
 **Exit gate:** every P0 finding has an owner, implementation issue and testable acceptance criterion; no unresolved critical threat is accepted without explicit risk approval.
 
 ### Phase 2 — Local data security and migration foundation
+
 **Objective:** Protect existing desktop data without breaking local-first interview functionality.
 
 **Work**
+
 - Route Candidate Vault, CareerOps, practice/session history, interview workspace and knowledge-vault persistence through the encrypted record store or an equivalent reviewed OS-backed design.
 - Trace every persistence path; remove accidental plaintext mirrors, debug dumps and unsafe exports.
 - Implement schema-versioned, resumable migrations with dry-run, per-record checksums, counts, failure journal and rollback.
@@ -93,9 +97,11 @@ The codebase contains 525 tracked files, including 202 under `src/`, 172 tests, 
 **Exit gate:** tests prove no new sensitive plaintext writes; interrupted migration resumes safely; corrupted ciphertext fails closed; restore works on clean machines for macOS, Windows and Linux.
 
 ### Phase 3 — Identity, tenant isolation and API hardening
+
 **Objective:** Make the cloud API safe for multi-tenant production traffic.
 
 **Work**
+
 - Harden OIDC/JWKS validation, issuer/audience/algorithm/key-rotation handling, clock skew, token expiry and revocation/session lifecycle.
 - Review tenant resolution and every repository query; enforce RLS on every tenant-owned table and tenant-scoped foreign keys.
 - Add authorization matrices and negative tests for cross-tenant read/write, object-ID substitution, replay, privilege escalation and missing tenant context.
@@ -108,9 +114,11 @@ The codebase contains 525 tracked files, including 202 under `src/`, 172 tests, 
 **Exit gate:** all endpoint authorization tests pass; tenant-isolation tests run against PostgreSQL in CI; no production route relies only on client-supplied tenant identity.
 
 ### Phase 4 — Encryption, secrets and data lifecycle
+
 **Objective:** Deliver verifiable confidentiality and recoverability across cloud and local data.
 
 **Work**
+
 - Select and document the production key provider. Evaluate a trusted-backend KMS envelope provider against the existing local master-key-ring provider; never expose keys to the desktop.
 - Implement tenant/context-bound envelope encryption for every sensitive field and object; classify metadata that can remain searchable.
 - Build resumable tenant-scoped re-encryption with checkpoints, dry-run, throughput limits, verification, rollback strategy and old-key retention.
@@ -123,9 +131,11 @@ The codebase contains 525 tracked files, including 202 under `src/`, 172 tests, 
 **Exit gate:** tamper/context substitution tests pass; key rotation can be interrupted and resumed; recovery is demonstrated; deletion propagation is verified; no sensitive plaintext is found in cloud storage/logs.
 
 ### Phase 5 — Durable CareerOps domain and sync
+
 **Objective:** Turn the local CareerOps prototype into a reliable cloud-backed product without losing offline use.
 
 **Work**
+
 - Complete tenant-scoped APIs and schemas for candidate profile, confirmed career facts, job sources, job postings, evaluations, application tracker, generated documents and user-approved actions.
 - Add explicit sync preview, user-selected record scope, conflict resolution, last-sync cursor, retry queue, idempotency and audit history.
 - Preserve local interview capability when the cloud is unavailable; define conflict and offline queue semantics.
@@ -137,9 +147,11 @@ The codebase contains 525 tracked files, including 202 under `src/`, 172 tests, 
 **Exit gate:** repeated sync is idempotent; offline/online transitions do not lose or duplicate records; user can inspect exactly what will upload; no unconfirmed fact is used for outbound claims.
 
 ### Phase 6 — Durable orchestration, connectors and safe automation
+
 **Objective:** Make scheduled work recoverable, bounded and policy-controlled.
 
 **Work**
+
 - Introduce Temporal or a justified equivalent for durable workflows; add isolated workers with least-privilege scoped credentials.
 - Implement Discovery, Evaluate/Prepare, Interview Prep, Assist Queue, Inbox Watch and DSAR workflows with activity-level timeouts, retries, idempotency and compensation.
 - Create connector contracts and certification harnesses for job sources/ATSs; capture provenance, rate limits, terms, freshness and connector health.
@@ -152,9 +164,11 @@ The codebase contains 525 tracked files, including 202 under `src/`, 172 tests, 
 **Exit gate:** worker crash/restart and duplicate-delivery tests pass; no side effect can bypass revoked consent; retries do not duplicate submissions; unsupported cases route to human review.
 
 ### Phase 7 — AI quality, truthfulness and interview reliability
+
 **Objective:** Make AI behavior measurable, explainable and recoverable.
 
 **Work**
+
 - Centralize model access behind a versioned LLM/STT gateway with provider routing, budgets, timeouts, cancellation, fallback policy and structured outputs.
 - Build golden datasets for coding, system design, behavioral answers, resume facts, job fit and adversarial prompts.
 - Evaluate factual grounding, evidence quote validity, unsupported claims, hallucinations, refusal behavior, prompt injection, bias and multilingual performance.
@@ -167,9 +181,11 @@ The codebase contains 525 tracked files, including 202 under `src/`, 172 tests, 
 **Exit gate:** release candidates meet agreed benchmark thresholds with no critical truthfulness/security regression; every request reaches a visible terminal state; no unsupported “100% accuracy” claim.
 
 ### Phase 8 — AWS infrastructure, deployment and release engineering
+
 **Objective:** Operate a secure, repeatable, reversible production deployment.
 
 **Work**
+
 - Complete staging/production Terraform separation, remote state encryption/locking, reviewed plans and drift detection.
 - Verify existing VPC/subnets/route tables/S3 endpoint and database isolation; document required ACM/domain inputs before production HTTPS.
 - Harden ECS task roles, execution roles, security groups, ALB, RDS, ECR, Secrets Manager, autoscaling, health checks and image provenance.
@@ -183,9 +199,11 @@ The codebase contains 525 tracked files, including 202 under `src/`, 172 tests, 
 **Exit gate:** staging deployment and rollback are demonstrated; production plan reviewed; HTTPS verified; RDS restore tested; deployment is tied to exact immutable artifact and successful CI commit.
 
 ### Phase 9 — Observability, performance and resilience
+
 **Objective:** Prove the service meets user-facing availability and latency objectives under realistic failure.
 
 **Work**
+
 - Add structured, redacted logs; distributed traces; metrics for API, DB, workflows, queue age, provider latency/errors, sync, connector freshness and desktop crash rate.
 - Define SLOs/SLIs and error budgets, initially targeting 99.9% monthly API availability only if the team can operate the required redundancy.
 - Add dashboards, paging thresholds, runbooks, on-call ownership and tenant-safe support diagnostics.
@@ -198,9 +216,11 @@ The codebase contains 525 tracked files, including 202 under `src/`, 172 tests, 
 **Exit gate:** SLOs are met in staging load/soak tests; no unbounded queue or retry amplification; incidents are detectable and diagnosable without leaking user data.
 
 ### Phase 10 — Independent assurance, controlled launch and continuous improvement
+
 **Objective:** Launch with evidence, not assumptions, and sustain quality as the system evolves.
 
 **Work**
+
 - Conduct independent penetration test and targeted review of Electron IPC, API auth/RLS, encryption, file import, SSRF, extension channel and workflow workers.
 - Complete privacy review, vendor DPAs/retention review, terms/compliance review for each connector and user-facing data processing disclosures.
 - Perform accessibility, keyboard, screen-reader, responsive, localization and full task-based acceptance testing across supported platforms.
