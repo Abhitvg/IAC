@@ -8,7 +8,8 @@ export interface CareerGraphFactSource {
 
 export interface CareerGraphFactCreateInput {
   factKey: string;
-  value: string | number | boolean | null | string[] | Record<string, string | number | boolean | null>;
+  value:
+    string | number | boolean | null | string[] | Record<string, string | number | boolean | null>;
   source: CareerGraphFactSource;
 }
 
