@@ -133,12 +133,11 @@ export class KnowledgeVaultService {
           return;
         }
 
-        const written = await api.secureRecordSet(
+        await api.secureRecordSet(
           ENCRYPTED_STORAGE_NAMESPACE,
           ENCRYPTED_STORAGE_ID,
           snapshot
         );
-        if (!written) throw new Error('Encrypted storage did not confirm the write.');
 
         const roundTrip = await api.secureRecordGet(
           ENCRYPTED_STORAGE_NAMESPACE,
