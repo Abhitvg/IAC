@@ -133,12 +133,11 @@ export async function migrateKnowledgeVaultToEncryptedStorage(): Promise<Knowled
     } else if (existing === source) {
       result = { ...result, verified: true };
     } else {
-      const written = await api.secureRecordSet(
+      await api.secureRecordSet(
         'knowledge-vault',
         KNOWLEDGE_VAULT_ENCRYPTED_RECORD_ID,
         source
       );
-      if (!written) throw new Error('Encrypted storage did not confirm the write.');
 
       const roundTrip = await api.secureRecordGet(
         'knowledge-vault',
@@ -164,12 +163,11 @@ export async function migrateKnowledgeVaultToEncryptedStorage(): Promise<Knowled
   };
 
   try {
-    const saved = await api.secureRecordSet(
+    await api.secureRecordSet(
       'knowledge-vault',
       KNOWLEDGE_VAULT_MIGRATION_JOURNAL_ID,
       JSON.stringify(journal)
     );
-    if (!saved) throw new Error('Journal write was not confirmed.');
   } catch {
     return {
       ...result,
