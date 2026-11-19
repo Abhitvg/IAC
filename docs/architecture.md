@@ -203,3 +203,21 @@ Until that composition is implemented and validated:
 - Runtime IAM must permit only the required data-key operations on the dedicated application key and constrain calls with the agreed encryption context. It must not grant key-administration permissions to the API task role.
 
 Production activation acceptance requires all of the following: a real SDK dependency and lockfile; API startup/shutdown wiring; integration tests against an injected KMS client; legacy-envelope read compatibility; a tested, resumable migration for each encrypted data store; successful CI and Terraform validation; and an operational rollback/recovery procedure. A green unit-test suite alone is not sufficient.
+
+
+## Encrypted-store inventory and migration acceptance
+
+This inventory records the encrypted persistence paths confirmed in the current branch. It is intentionally scoped to code inspected in this change; it is not a claim that every future product module or external provider has been audited.
+
+| Store | Persisted encrypted value | Encryption context | Existing migration coverage | KMS rollout requirement |
+|---|---|---|---|---|
+| Career Graph | `career_graph_facts.value_envelope`, with newer ciphertext in append-only `career_graph_fact_envelope_revisions.value_envelope` | `career-graph:<fact_key>` plus tenant binding in the envelope | `rotate:career-graph-keys` uses the local master-key ring and writes revision rows with a tenant-scoped resumable cursor | Add a KMS-aware worker/provider path; preserve revision history, verify every fact envelope and cursor completion, and prove rollback/restore |
+| LinkedIn OAuth | `linkedin_connections.token_envelope` JSONB | `linkedin-token:<subject>` plus tenant binding in the envelope | No token-envelope re-encryption worker is present in the inspected branch; reconnect/delete is not equivalent to a verified migration | Add a separate bounded, resumable tenant-and-subject-scoped migration; verify token decrypt and OAuth refresh behavior before retiring legacy keys |
+
+Additional boundaries:
+
+- `linkedin_oauth_states.state_hash` stores a SHA-256 digest of the one-time OAuth state, not a reversible encrypted token envelope. It expires and is consumed by deletion. It does not belong in the envelope re-encryption job.
+- LinkedIn access/refresh token JSON is serialized into a temporary plaintext buffer before envelope encryption. The buffer is now explicitly zeroized in a `finally` block after encryption succeeds or fails; regression tests assert both paths.
+- The inspected API composition root shares one configured tenant key provider between Career Graph and LinkedIn token storage. That does not make the existing Career Graph rotation command a general-purpose migration: it queries only Career Graph fact tables and uses the local master-key provider.
+- Object storage, resume/audio/artifact encryption, and additional future stores are target-architecture requirements, not evidence of implemented encrypted stores in this inventory. Before production activation, search each shipped persistence adapter and migration for encrypted or sensitive payload columns, document whether encryption is application-level or storage-managed, and assign an independent migration/deletion/recovery procedure.
+- Do not remove a legacy key based only on a completed Career Graph job. Retirement requires zero remaining legacy envelopes across every active store, independent decrypt verification, backup-restore verification, and evidence that no old API task can still write with the retired version.
