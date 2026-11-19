@@ -15,7 +15,7 @@ A worker that loops over tenant IDs from a queue, or sets arbitrary tenant GUCs 
 
 ## Decision
 
-Fleet rotation will use a dedicated operator workload and a dedicated database identity. It will not reuse careerops_app, the tenant-provisioning identity, a developer credential, or any role with BYPASSRLS.
+Fleet rotation will use a dedicated operator workload and a dedicated database identity. It will not reuse the careerops_runtime login, its careerops_app NOLOGIN permission bundle, the careerops_tenant_provisioner login, a developer credential, or any role with BYPASSRLS.
 
 The operator is a separately deployed maintenance workload, has no public API, and is not callable by ordinary tenant requests. Its database credential is delivered only to that workload, rotated independently, and absent from API/Electron environments.
 
