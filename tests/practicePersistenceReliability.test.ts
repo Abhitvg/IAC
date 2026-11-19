@@ -46,7 +46,7 @@ describe('practice encrypted persistence reliability', () => {
   });
 
   it('marks a rejected or unverified encrypted write as an error', async () => {
-    secureRecordSet.mockResolvedValue(false);
+    secureRecordSet.mockRejectedValue(new Error('secure storage unavailable'));
 
     usePracticeStore.getState().startMockSession('behavioral');
 
