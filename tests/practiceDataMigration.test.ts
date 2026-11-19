@@ -45,7 +45,6 @@ describe('practice data migration', () => {
     );
     const secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
-      return true;
     });
     vi.stubGlobal('window', { localStorage, electronAPI: { secureRecordGet, secureRecordSet } });
 
@@ -68,7 +67,6 @@ describe('practice data migration', () => {
     );
     const secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
-      return true;
     });
     vi.stubGlobal('window', { localStorage, electronAPI: { secureRecordGet, secureRecordSet } });
 
@@ -87,7 +85,6 @@ describe('practice data migration', () => {
     );
     const secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
-      return true;
     });
     vi.stubGlobal('window', { localStorage, electronAPI: { secureRecordGet, secureRecordSet } });
 
