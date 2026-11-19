@@ -162,10 +162,15 @@ export async function migratePracticeDataToEncryptedStorage(): Promise<PracticeM
 
     journal.updatedAt = new Date().toISOString();
     try {
-      await api.secureRecordSet('practice', JOURNAL_ID, JSON.stringify(journal));
+      const serializedJournal = JSON.stringify(journal);
+      await api.secureRecordSet('practice', JOURNAL_ID, serializedJournal);
+      const verifiedJournal = await api.secureRecordGet('practice', JOURNAL_ID);
+      if (verifiedJournal !== serializedJournal) {
+        throw new Error('Practice migration journal verification failed.');
+      }
     } catch {
-      // The record write itself remains verified; a later run safely rechecks it.
-      result.failed.push({ key: JOURNAL_ID, reason: 'Migration journal could not be saved.' });
+      // The copied record remains verified; a later run safely rechecks it.
+      result.failed.push({ key: JOURNAL_ID, reason: 'Migration journal could not be verified.' });
     }
   }
 
