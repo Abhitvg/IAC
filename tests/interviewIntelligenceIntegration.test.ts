@@ -18,6 +18,17 @@ if (typeof (globalThis as any).localStorage === 'undefined') {
   (globalThis as any).localStorage = localStorageMock;
 }
 
+const securePracticeRecords = new Map<string, string>();
+(globalThis as any).window = {
+  electronAPI: {
+    secureRecordSet: async (_namespace: string, id: string, data: string) => {
+      securePracticeRecords.set(id, data);
+      return true;
+    },
+    secureRecordGet: async (_namespace: string, id: string) => securePracticeRecords.get(id) ?? null,
+  },
+};
+
 import { MockInterviewerEngine } from '../src/services/practice/MockInterviewerEngine';
 import { InterviewerService } from '../src/services/practice/InterviewerService';
 import { CodingEvaluationService } from '../src/services/practice/CodingEvaluationService';
@@ -29,6 +40,7 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
   beforeEach(() => {
     CompetencyProfileService.getInstance().resetProfile();
     localStorage.clear();
+    securePracticeRecords.clear();
   });
 
   describe('1. Topic and Difficulty Selection (P1)', () => {
@@ -239,7 +251,7 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
         'intermediate'
       );
 
-      const savedJson = localStorage.getItem('ai_practice_active_session_v1');
+      const savedJson = securePracticeRecords.get('ai_practice_active_session_v1') ?? null;
       expect(savedJson).not.toBeNull();
       const parsed = JSON.parse(savedJson!);
       expect(parsed.selectedTopicId).toBe('cs_networking');
@@ -253,7 +265,7 @@ describe('Phase Integration & Post-Remediation Release Gate Tests', () => {
 
       store.discardActiveSession();
       expect(usePracticeStore.getState().activeSession).toBeNull();
-      expect(localStorage.getItem('ai_practice_active_session_v1')).toBe('null');
+      expect(securePracticeRecords.get('ai_practice_active_session_v1')).toBe('null');
     });
 
     it('safely recovers from malformed stored session data by discarding it', () => {
