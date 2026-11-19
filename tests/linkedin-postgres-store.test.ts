@@ -143,6 +143,9 @@ describe('LinkedInPostgresStore envelope rotation', () => {
       entry.sql.includes('UPDATE linkedin_connections') &&
       entry.sql.includes('token_envelope =')
     )).toBe(false);
+    expect(statements.some((entry) =>
+      entry.sql.includes('INSERT INTO audit_events')
+    )).toBe(true);
   });
 
   it('is idempotent when the latest revision already uses the target key version', async () => {
