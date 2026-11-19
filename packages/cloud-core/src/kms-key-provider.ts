@@ -68,7 +68,7 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
       typeof options.client.generateDataKey !== 'function' ||
       typeof options.client.decrypt !== 'function' ||
       typeof options.keyArn !== 'string' ||
-      !/^arn:aws[a-zA-Z-]*:kms:[a-z0-9-]+:\\d{12}:key\\/[A-Za-z0-9-]+$/.test(options.keyArn) ||
+      !/^arn:(?:aws|aws-us-gov|aws-cn|aws-iso|aws-iso-b):kms:[a-z0-9-]+:\d{12}:key\/[A-Fa-f0-9-]{36}$/.test(options.keyArn) ||
       !KMS_VERSION.test(options.keyVersion)
     ) throw new Error('Invalid KMS tenant key provider configuration');
     this.client = options.client;
