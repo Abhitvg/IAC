@@ -212,9 +212,9 @@ export class TenantEnvelopeCipher {
       return Buffer.concat([updateOutput, finalOutput]);
     } finally {
       zeroizeBytes(key);
-      aad?.fill(0);
-      updateOutput?.fill(0);
-      finalOutput?.fill(0);
+      zeroizeBytes(aad);
+      zeroizeBytes(updateOutput);
+      zeroizeBytes(finalOutput);
       zeroizeBytes(decoded.iv);
       zeroizeBytes(decoded.authTag);
       zeroizeBytes(decoded.ciphertext);
