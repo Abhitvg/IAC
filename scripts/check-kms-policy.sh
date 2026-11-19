@@ -24,6 +24,6 @@ git grep -q -I 'kms:EncryptionContext:application' -- 'infra/aws/terraform/main.
 git grep -q -I 'kms:EncryptionContextKeys' -- 'infra/aws/terraform/main.tf'
 git grep -q -I 'role   = aws_iam_role.task.id' -- 'infra/aws/terraform/main.tf'
 git grep -q -I 'prevent_destroy = true' -- 'infra/aws/terraform/main.tf'
-git grep -q -I 'aws_iam_role_policy.application_envelope_kms' -- 'infra/aws/terraform/main.tf'
+git grep -q -I 'aws_iam_role_policy.application_envelope_kms, aws_route.private_egress' -- 'infra/aws/terraform/main.tf'
 
 echo "KMS calls are permitted for trusted backend code; IAM must remain key-scoped and separate runtime use from key administration."
