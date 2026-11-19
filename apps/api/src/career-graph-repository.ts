@@ -4,6 +4,7 @@ import {
   type CareerGraphFact,
   type CareerGraphFactInput,
   type CareerGraphFactReview,
+  type EncryptedFactEnvelope,
 } from '../../../packages/cloud-core/src/career-graph';
 import type { SqlPool } from './postgres-repository';
 
@@ -89,14 +90,139 @@ function mapFact(row: FactRow): CareerGraphFact {
 const FACT_SELECT = `
   SELECT f.id, f.tenant_id, f.fact_key, f.version, f.value_envelope,
          f.source_kind, f.source_reference, f.evidence_sha256, f.created_by, f.created_at,
+         COALESCE(er.value_envelope, f.value_envelope) AS value_envelope,
          r.decision, r.reason, r.reviewed_by, r.reviewed_at
     FROM career_graph_facts f
+    LEFT JOIN LATERAL (
+      SELECT value_envelope
+        FROM career_graph_fact_envelope_revisions
+       WHERE tenant_id = f.tenant_id AND fact_id = f.id
+       ORDER BY revision DESC
+       LIMIT 1
+    ) er ON TRUE
     LEFT JOIN career_graph_fact_reviews r
       ON r.tenant_id = f.tenant_id AND r.fact_id = f.id
 `;
 
 export class PostgresCareerGraphRepository {
   constructor(private readonly pool: SqlPool) {}
+
+  /**
+   * Re-encrypt a bounded tenant-scoped page of facts and append envelope revisions.
+   * A tenant advisory lock serializes workers; the caller persists nextCursor after
+   * each committed batch and can safely resume after process interruption.
+   */
+  async rotateEnvelopeBatch(input: {
+    tenantId: string;
+    actorSubject: string;
+    targetKeyVersion: string;
+    afterId: string | null;
+    limit: number;
+    reencrypt: (
+      envelope: EncryptedFactEnvelope,
+      tenantId: string,
+      context: string
+    ) => Promise<EncryptedFactEnvelope>;
+  }): Promise<{ rotated: number; nextCursor: string | null; hasMore: boolean }> {
+    if (
+      !input.tenantId ||
+      !input.actorSubject ||
+      !input.targetKeyVersion ||
+      !Number.isInteger(input.limit) ||
+      input.limit < 1 ||
+      input.limit > 100
+    ) {
+      throw new Error('Invalid Career Graph envelope rotation batch');
+    }
+
+    return inTenantTransaction(this.pool, input.tenantId, input.actorSubject, async (client) => {
+      // One worker per tenant prevents cursor races and duplicate revision allocation.
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        [`career-graph-envelope-rotation:${input.tenantId}`]
+      );
+
+      const candidates = await client.query<{
+        id: string;
+        fact_key: string;
+        value_envelope: EncryptedFactEnvelope;
+      }>(
+        `SELECT f.id, f.fact_key,
+                COALESCE(er.value_envelope, f.value_envelope) AS value_envelope
+           FROM career_graph_facts f
+           LEFT JOIN LATERAL (
+             SELECT value_envelope
+               FROM career_graph_fact_envelope_revisions
+              WHERE tenant_id = f.tenant_id AND fact_id = f.id
+              ORDER BY revision DESC
+              LIMIT 1
+           ) er ON TRUE
+          WHERE f.tenant_id = $1
+            AND ($2::uuid IS NULL OR f.id > $2::uuid)
+            AND COALESCE(er.value_envelope, f.value_envelope)->>'keyVersion' <> $3
+          ORDER BY f.id ASC
+          LIMIT $4
+          FOR UPDATE OF f`,
+        [input.tenantId, input.afterId, input.targetKeyVersion, input.limit + 1]
+      );
+
+      const hasMore = candidates.rows.length > input.limit;
+      const page = candidates.rows.slice(0, input.limit);
+      let rotated = 0;
+      let nextCursor = input.afterId;
+
+      for (const row of page) {
+        const context = `career-graph:${row.fact_key}`;
+        const replacement = await input.reencrypt(row.value_envelope, input.tenantId, context);
+        if (
+          replacement.tenantId !== input.tenantId ||
+          replacement.context !== context ||
+          replacement.keyVersion !== input.targetKeyVersion ||
+          replacement.algorithm !== 'A256GCM'
+        ) {
+          throw new Error('Rotation provider returned an envelope with an unexpected context or key version');
+        }
+
+        const latest = await client.query<{ next_revision: number }>(
+          `SELECT COALESCE(MAX(revision), 1) + 1 AS next_revision
+             FROM career_graph_fact_envelope_revisions
+            WHERE tenant_id = $1 AND fact_id = $2`,
+          [input.tenantId, row.id]
+        );
+        const revision = Number(latest.rows[0]?.next_revision ?? 2);
+        const inserted = await client.query(
+          `INSERT INTO career_graph_fact_envelope_revisions
+            (tenant_id, fact_id, revision, value_envelope, rotated_by)
+           VALUES ($1, $2, $3, $4::jsonb, $5)
+           ON CONFLICT (tenant_id, fact_id, revision) DO NOTHING`,
+          [input.tenantId, row.id, revision, JSON.stringify(replacement), input.actorSubject]
+        );
+        if (inserted.rowCount !== 1) {
+          throw new Error('Career Graph envelope revision was not persisted');
+        }
+        rotated += 1;
+        nextCursor = row.id;
+      }
+
+      if (rotated > 0) {
+        await this.appendAudit(client, {
+          tenantId: input.tenantId,
+          actorSubject: input.actorSubject,
+          action: 'career_graph.envelopes.rotated',
+          entityType: 'career_graph_envelope_batch',
+          entityId: input.tenantId,
+          occurredAt: new Date().toISOString(),
+          metadata: {
+            rotated,
+            targetKeyVersion: input.targetKeyVersion,
+            lastFactId: nextCursor,
+          },
+        });
+      }
+
+      return { rotated, nextCursor, hasMore };
+    });
+  }
 
   async createFact(
     tenantId: string,
