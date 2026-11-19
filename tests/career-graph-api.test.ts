@@ -401,6 +401,9 @@ describe('Postgres Career Graph repository', () => {
           return { rows: [{ next_revision: 2 }], rowCount: 1 };
         }
         if (sql.includes('UPDATE career_graph_envelope_rotation_jobs')) {
+          expect(values?.[2]).toBe(factId);
+          expect(values?.[3]).toBe(1);
+          expect(values?.[4]).toBe('completed');
           return { rows: [], rowCount: 1 };
         }
         if (sql.includes('INSERT INTO career_graph_fact_envelope_revisions')) {
