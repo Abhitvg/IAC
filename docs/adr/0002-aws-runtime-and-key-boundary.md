@@ -1,64 +1,69 @@
 # ADR 0002: AWS runtime and application key management
 
-- **Status:** Accepted — local master-key ring; direct application KMS calls prohibited
+- **Status:** Accepted target architecture — AWS KMS envelope encryption; implementation and migration pending
 - **Date:** 2026-11-19
 
 ## Context
 
-CareerOps needs a production hosting path for its cloud API, PostgreSQL repositories, OIDC verification, tenant isolation, audit records, and Electron client. Application-level encryption is required for sensitive tenant records. Direct AWS KMS API calls from any CareerOps application process are prohibited, including trusted backend services and maintenance workers. AWS KMS may be used only by AWS-managed services such as Secrets Manager to protect the application configuration secret; the ECS execution role handles that secret retrieval path. The CareerOps task role and application code must not call KMS.
+CareerOps needs production-grade encryption for sensitive tenant records, including Career Graph facts and LinkedIn OAuth tokens. The project permits direct AWS KMS calls from trusted backend services and maintenance workers. KMS credentials and plaintext data keys must never be exposed to Electron, renderer, browser, or client storage.
 
 ## AWS runtime baseline
 
-Use AWS as the hosting and managed infrastructure platform:
+- ECS Fargate runs the stateless API in private application subnets.
+- The ALB is the only public ingress and terminates HTTPS with a matching ACM certificate.
+- RDS PostgreSQL is private, encrypted at rest, backed up, and protected from accidental deletion.
+- Secrets Manager injects application configuration through the ECS execution role.
+- The ECS task role uses short-lived task credentials through the AWS SDK default credential provider chain. No long-lived AWS credentials are embedded in images, source, or task environment variables.
+- PostgreSQL forced RLS remains the tenant-isolation boundary.
 
-- ECS Fargate runs the stateless CareerOps API in private application subnets.
-- Application Load Balancer terminates HTTPS using a region-local ACM certificate whose SANs cover the API hostname.
-- RDS for PostgreSQL is private, encrypted at rest, backed up, and protected from accidental deletion.
-- ECR stores release images with image scanning.
-- CloudWatch Logs stores bounded-retention application logs.
-- Secrets Manager injects application configuration into the ECS task at startup.
-- OIDC remains an explicit external identity-provider contract. Configure issuer, audience, and JWKS URL for the selected provider.
-- ECS tasks use task-role credentials where backend AWS API access is selected; no long-lived AWS credentials are embedded in images or source.
+## Application envelope-encryption decision
 
-## Application key-management decision
+**Target:** use AWS KMS `GenerateDataKey` and `Decrypt` from trusted CareerOps backend processes, with a dedicated symmetric customer-managed KMS key for application data encryption. Do not reuse the Secrets Manager configuration-secret key for application payload encryption; separate keys provide independent policy, rotation, audit, and blast-radius boundaries.
 
-The current branch implementation uses `TenantEnvelopeCipher` with `MasterKeyTenantKeyProvider` for LinkedIn token envelopes. It creates per-record random AES-256 data keys and wraps them locally using a versioned 256-bit master-key ring injected through the Secrets Manager configuration secret. The master key ring is not a KMS GenerateDataKey implementation. Secrets Manager uses the configured KMS key to protect the configuration secret at rest; this does not make the application envelope provider KMS-backed.
+For every encrypted record:
 
-Direct AWS KMS envelope encryption is explicitly prohibited by the project constraint and must not be implemented in CareerOps application code:
+1. The API calls KMS `GenerateDataKey` with `KeySpec=AES_256` and a canonical encryption context containing `application=careerops`, the authenticated `tenant_id`, a stable `data_context` (for example `career-graph:profile.current_role` or `linkedin-token:<subject>`), and an envelope schema version.
+2. The API encrypts the payload locally with AES-256-GCM using the returned 32-byte plaintext data key. The plaintext key is zeroized in a `finally` block immediately after use.
+3. PostgreSQL stores only the KMS-encrypted data key (ciphertext blob), AES-GCM IV/tag/ciphertext, algorithm, key-version label, tenant ID, and data context.
+4. Reads verify tenant/context binding before KMS access, call KMS `Decrypt` with the exact same encryption context and an explicit configured key ARN, then decrypt locally. The plaintext data key is zeroized regardless of success or failure.
 
-- **Required local provider:** retain the current versioned master-key ring and local AES-256-GCM wrapping. Keep the key ring only in Secrets Manager, tightly control rotation and recovery, and document the operational responsibility of managing application master keys.
+Use a stable, bounded key-version label mapped to a configured KMS key ARN; do not put a full ARN in the current 64-character `keyVersion` field. Retain mappings for old key versions until all envelopes have been migrated and independently verified. KMS automatic key-material rotation on the same KMS key does not require rewriting every envelope; KMS retains historical key material for decryption. Moving to a different KMS key is an explicit envelope rewrap migration.
 
-Before selecting or migrating providers, inventory existing envelopes and persisted data. Envelopes from one provider are not automatically decryptable by the other. Any migration must be explicit, resumable, tenant-scoped, verified, and reversible until completion.
+## IAM and key policy
+
+- The ECS **task role** receives only `kms:GenerateDataKey` and `kms:Decrypt` on the dedicated application data key(s).
+- Restrict calls with encryption-context conditions: require `application=careerops`, require the expected context keys, and reject missing required context fields. Tenant IDs and data contexts are validated by the application and included in every KMS request.
+- Do not grant `kms:*`, `kms:CreateKey`, `kms:PutKeyPolicy`, `kms:ScheduleKeyDeletion`, or key-administration rights to the task role.
+- Key administration and deletion are separate operator roles with MFA/change control. Enable automatic rotation, a 30-day deletion window, CloudTrail management/data-event visibility where supported, and alerts for policy changes, disablement, deletion scheduling, and unusual decrypt volume.
+- The ECS **execution role** retains its separate, narrowly scoped `kms:Decrypt` permission through Secrets Manager for the application configuration secret only. It does not receive application data-key permissions.
+- The API uses the ECS task role via the AWS SDK credential provider chain. Never inject static AWS access keys.
+
+## Compatibility and migration
+
+The current branch still contains `MasterKeyTenantKeyProvider`, which locally wraps data keys using a master-key ring. It is not KMS-backed. Do not remove it or its key material until a dual-read migration is implemented and completed.
+
+Required migration sequence:
+
+1. Add a KMS-backed `TenantKeyProvider` and a composite/dual-read provider. New writes use KMS; reads dispatch by envelope key-version/provider prefix to KMS or the legacy local provider.
+2. Preserve all current envelope fields and existing local key-version labels. Add explicit provider/key-version metadata only through a backward-compatible schema evolution.
+3. Migrate **all encrypted stores**, not just Career Graph facts: Career Graph fact revisions, LinkedIn token envelopes, and any future encrypted payload tables. Add append-only revisions and resumable tenant-scoped jobs where mutable records currently exist.
+4. Verify each migrated envelope by decrypting it through the production read path, checking tenant/context binding, and recording counts and audit evidence. Test interruption, retry, old-key unavailability, KMS throttling, and rollback.
+5. Keep legacy keys and KMS old-key mappings until a complete inventory, zero remaining legacy-envelope count, independent decrypt sampling/full verification, and backup-restore drill are all satisfied.
+6. Remove legacy key material only in a separately reviewed change after the above gates pass.
+
+## Reliability and performance
+
+Use the AWS SDK v3 KMS client with bounded timeouts, standard retry mode with jitter, and explicit handling for throttling, access denied, disabled/pending-deletion keys, and regional service failures. Do not cache plaintext data keys by default. Monitor KMS request count, throttles, latency, errors, and per-tenant rotation progress. Confirm account/region KMS quotas and expected request volume before production rollout. A KMS outage must fail closed for new writes and reads; never silently fall back to local encryption for a KMS-version envelope.
 
 ## Security invariants
 
-- No AWS credentials, KMS key material, or broad AWS permissions in Electron, renderer code, browser storage, or a shipped desktop binary.
-- The ECS task role receives only the AWS permissions required by the selected backend integrations. If KMS-backed application encryption is selected, scope GenerateDataKey/Decrypt to the configured key and authenticated encryption context.
-- The ECS execution role retrieves only the named application secret and receives only the KMS permissions required for Secrets Manager secret decryption.
-- Never commit master keys, place plaintext key material in Terraform variables/state, expose it as Vite/browser variables, or log it.
-- CI deployment uses GitHub OIDC and a narrowly scoped role rather than long-lived access keys.
-- ECS tasks run as non-root and without public IPs.
-- Database access is limited to the application security group and a non-owner runtime database role.
-- PostgreSQL RLS remains the tenant-isolation boundary; infrastructure networking does not replace it.
-- The ALB is the only public ingress. RDS and ECS tasks are private.
-- Production Terraform state uses remote storage with encryption, locking, and tightly restricted access.
-- Backups, restore drills, image rollback, key rotation, and data-key rewrapping are operational requirements.
-
-## Explicit non-goals for this deployment slice
-
-S3 document storage, SQS job dispatch, EventBridge scheduling, SES delivery, and full CareerOps product workflows are not wired merely by creating infrastructure. They require application ports, authorization rules, lifecycle behavior, and integration tests before being enabled. LinkedIn OAuth remains disabled until its HTTPS callback and OAuth credentials are configured.
-
-## Rollout prerequisites
-
-1. Verify the existing VPC, public/application/database subnets, route-table associations, and S3 endpoint. Supply two dedicated isolated database subnets; do not reuse NAT-routed application subnets.
-2. Create and populate the Secrets Manager JSON configuration secret with database, OIDC, signing, rate-limit, and (when enabled) LinkedIn OAuth values. Keep any application master-key ring only in Secrets Manager if the local provider remains selected.
-3. Verify the ACM certificate's SAN coverage for the chosen API hostname.
-4. Configure separate encrypted/locked staging and production Terraform backends. Review plans and apply only after the relevant change is explicitly approved.
-5. Build and push the API image to the expected ECR release tag.
-6. Deploy the ECS service and verify ALB health checks.
-7. Apply database migrations using a separate migration identity.
-8. Run tenant-isolation, restore, key-rotation, and rollback checks before production traffic.
+- No plaintext data key, KMS credentials, or decrypted payload in logs, traces, metrics, browser storage, or client responses.
+- All AES-GCM envelopes authenticate tenant, data context, and key-version metadata.
+- KMS encryption context is deterministic and validated before both GenerateDataKey and Decrypt.
+- Database RLS and authenticated tenant membership are enforced before encrypted records are accessed.
+- KMS IAM is least-privilege and separated from key administration.
+- Backups, restore drills, key disablement recovery, rotation, and migration rollback are operational requirements.
 
 ## Consequences
 
-The AWS runtime baseline is defined, but the application key-management provider is not final. The current local master-key provider must not be described as KMS-backed. Career Graph API writes now accept bounded JSON fact values and encrypt them inside the trusted API before persistence. Reads and review responses decrypt only after tenant authorization, and public API responses omit envelope metadata. The runtime shares the versioned local master-key provider between LinkedIn token storage and Career Graph encryption, even when LinkedIn OAuth is disabled. Reads and writes fail closed when no key provider is configured. Typed client methods are available; application UI/store integration and provider rotation/recovery remain to be completed.
+The local master-key implementation remains the current code path until the KMS provider, dependency lockfile, IAM policy, tests, and dual-read migration are implemented. This ADR defines the target, not a claim that KMS encryption is already wired or deployed. No AWS resources are provisioned and no Terraform apply or deployment is performed by this decision.
