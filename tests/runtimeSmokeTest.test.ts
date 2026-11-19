@@ -18,6 +18,17 @@ if (typeof (globalThis as any).localStorage === 'undefined') {
   (globalThis as any).localStorage = localStorageMock;
 }
 
+const securePracticeRecords = new Map<string, string>();
+(globalThis as any).window = {
+  electronAPI: {
+    secureRecordSet: async (_namespace: string, id: string, data: string) => {
+      securePracticeRecords.set(id, data);
+      return true;
+    },
+    secureRecordGet: async (_namespace: string, id: string) => securePracticeRecords.get(id) ?? null,
+  },
+};
+
 import { MockInterviewerEngine } from '../src/services/practice/MockInterviewerEngine';
 import { CompetencyProfileService } from '../src/services/practice/CompetencyProfileService';
 import { InterviewReportGenerator } from '../src/services/practice/InterviewReportGenerator';
@@ -27,6 +38,7 @@ describe('Real Runtime Application Smoke Test Suite', () => {
   beforeEach(() => {
     CompetencyProfileService.getInstance().resetProfile();
     localStorage.clear();
+    securePracticeRecords.clear();
   });
 
   it('1. End-to-end DSA session with coding evaluation', async () => {
@@ -180,12 +192,12 @@ describe('Real Runtime Application Smoke Test Suite', () => {
     const store = usePracticeStore.getState();
     store.startMockSession('core_cs', 'strict_big_tech', false, 'normal', 'cs_networking', 3);
 
-    const saved = localStorage.getItem('ai_practice_active_session_v1');
+    const saved = securePracticeRecords.get('ai_practice_active_session_v1') ?? null;
     expect(saved).not.toBeNull();
 
     // Verify discarding removes the active session and leaves storage clean
     store.discardActiveSession();
     expect(usePracticeStore.getState().activeSession).toBeNull();
-    expect(localStorage.getItem('ai_practice_active_session_v1')).toBe('null');
+    expect(securePracticeRecords.get('ai_practice_active_session_v1')).toBe('null');
   });
 });
