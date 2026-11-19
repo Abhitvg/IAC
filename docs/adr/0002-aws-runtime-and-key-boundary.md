@@ -1,6 +1,6 @@
 # ADR 0002: AWS runtime and application key management
 
-- **Status:** Proposed — application key-management provider decision remains open
+- **Status:** Accepted — local master-key ring; direct application KMS calls prohibited
 - **Date:** 2026-11-19
 
 ## Context
