@@ -28,6 +28,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0005_career
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0006_linkedin_oauth.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0007_linkedin_runtime_grants.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0008_linkedin_subject_isolation.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0009_career_graph_envelope_revisions.sql"
 
 DATABASE_URL="$DATABASE_URL" \
 TENANT_ID="30000000-0000-4000-8000-000000000003" \
