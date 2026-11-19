@@ -1110,3 +1110,75 @@ describe('local envelope master-key lifecycle', () => {
     validKey.fill(0);
   });
 });
+
+
+describe('local envelope master-key rotation and shutdown', () => {
+  it('reads envelopes from retained key versions while writing with the current version', async () => {
+    const oldKey = randomBytes(32);
+    const currentKey = randomBytes(32);
+    const oldProvider = new MasterKeyTenantKeyProvider({
+      masterKeys: { v1: oldKey.toString('base64') },
+      currentKeyVersion: 'v1',
+    });
+    const oldCipher = new TenantEnvelopeCipher(oldProvider);
+    const oldEnvelope = await oldCipher.encrypt(
+      'tenant-rotation',
+      'career-graph:profile',
+      Buffer.from('legacy encrypted profile')
+    );
+
+    const rotatedProvider = new MasterKeyTenantKeyProvider({
+      masterKeys: {
+        v1: oldKey.toString('base64'),
+        v2: currentKey.toString('base64'),
+      },
+      currentKeyVersion: 'v2',
+    });
+    const rotatedCipher = new TenantEnvelopeCipher(rotatedProvider);
+    try {
+      await expect(
+        rotatedCipher.decrypt(oldEnvelope, 'tenant-rotation', 'career-graph:profile')
+      ).resolves.toEqual(Buffer.from('legacy encrypted profile'));
+
+      const newEnvelope = await rotatedCipher.encrypt(
+        'tenant-rotation',
+        'career-graph:profile',
+        Buffer.from('new profile')
+      );
+      expect(newEnvelope.keyVersion).toBe('v2');
+      await expect(
+        rotatedCipher.decrypt(newEnvelope, 'tenant-rotation', 'career-graph:profile')
+      ).resolves.toEqual(Buffer.from('new profile'));
+    } finally {
+      oldProvider.destroy();
+      rotatedProvider.destroy();
+      oldKey.fill(0);
+      currentKey.fill(0);
+    }
+  });
+
+  it('makes destroy idempotent and rejects all future local key operations', async () => {
+    const key = randomBytes(32);
+    const provider = new MasterKeyTenantKeyProvider({
+      masterKeys: { v1: key.toString('base64') },
+      currentKeyVersion: 'v1',
+    });
+    const retained = (provider as unknown as {
+      masterKeys: Map<string, Buffer>;
+    }).masterKeys.get('v1');
+
+    provider.destroy();
+    provider.destroy();
+
+    expect(retained?.every((byte) => byte === 0)).toBe(true);
+    await expect(provider.generateDataKey('tenant-1', 'career-graph:profile'))
+      .rejects.toThrow('master key is unavailable');
+    await expect(provider.unwrapDataKey(
+      'tenant-1',
+      Buffer.from('opaque').toString('base64'),
+      'v1',
+      'career-graph:profile'
+    )).rejects.toThrow('unavailable master-key version');
+    key.fill(0);
+  });
+});
