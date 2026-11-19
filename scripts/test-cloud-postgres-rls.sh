@@ -212,11 +212,12 @@ SELECT tenant_id, id, 'confirmed', 'user-a'
 INSERT INTO career_graph_envelope_rotation_jobs (
   tenant_id, target_key_version, last_fact_id, rotated_count, status, created_by, updated_by
 )
-SELECT tenant_id, 'test-key-v2', MAX(id), 2, 'running', 'user-a', 'user-a'
+SELECT tenant_id, 'test-key-v2', id, 2, 'running', 'user-a', 'user-a'
   FROM career_graph_facts
  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
    AND fact_key = 'profile.current_role'
- GROUP BY tenant_id;
+ ORDER BY id DESC
+ LIMIT 1;
 
 INSERT INTO career_graph_fact_envelope_revisions (
   tenant_id, fact_id, revision, value_envelope, rotated_by
