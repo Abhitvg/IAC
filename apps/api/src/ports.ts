@@ -4,6 +4,7 @@ import type {
   CareerGraphFact,
   CareerGraphFactInput,
   CareerGraphFactReview,
+  EncryptedFactEnvelope,
 } from '../../../packages/cloud-core/src/career-graph';
 import type { TenantControlState } from '../../../packages/cloud-core/src/controls';
 import type { TenantMembershipRepository } from '../../../packages/cloud-core/src/tenant';
@@ -17,6 +18,11 @@ export interface LinkedInCloudIntegration {
   tokens: LinkedInTokenVault;
   api: LinkedInApiClient;
   entitlements: LinkedInProductEntitlements;
+}
+
+export interface CareerGraphCrypto {
+  encrypt(tenantId: string, context: string, plaintext: Buffer): Promise<EncryptedFactEnvelope>;
+  decrypt(envelope: EncryptedFactEnvelope, tenantId: string, context: string): Promise<Buffer>;
 }
 
 export interface CareerGraphRepository {
@@ -79,6 +85,8 @@ export interface CloudApiConfig {
   jwksUrl: string;
   consentSigningSecret: string;
   maxRequestBytes?: number;
+  allowedOrigins?: readonly string[];
+  trustProxy?: boolean;
 }
 
 export interface CloudRateLimiter {
@@ -96,4 +104,5 @@ export interface CloudApiDependencies {
   rateLimiter: CloudRateLimiter;
   config: CloudApiConfig;
   linkedin?: LinkedInCloudIntegration;
+  careerGraphCrypto?: CareerGraphCrypto;
 }

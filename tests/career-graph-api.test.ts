@@ -4,6 +4,8 @@ import type { CareerGraphFact } from '../packages/cloud-core/src/career-graph';
 import type { CloudApiDependencies } from '../apps/api/src/ports';
 import { createCloudApiServer } from '../apps/api/src/server';
 import { PostgresCareerGraphRepository } from '../apps/api/src/career-graph-repository';
+import { TenantEnvelopeCipher } from '../packages/cloud-core/src/encryption';
+import { MasterKeyTenantKeyProvider } from '../packages/cloud-core/src/master-key-provider';
 import type { SqlPool } from '../apps/api/src/postgres-repository';
 
 const tenantId = '10000000-0000-4000-8000-000000000001';
@@ -29,6 +31,12 @@ const fact: CareerGraphFact = {
   createdBy: subject,
   createdAt: '2026-11-11T00:00:00.000Z',
   review: null,
+};
+
+const validRequest = {
+  factKey: 'profile.current_role',
+  value: 'Software Engineer',
+  source: { kind: 'user_input' as const },
 };
 
 const validInput = {
@@ -82,6 +90,10 @@ function createDependencies(): CloudApiDependencies {
       setGlobalKillSwitchWithAudit: async () => undefined,
     },
     careerGraph: { createFact, listFacts, reviewFact },
+    careerGraphCrypto: {
+      encrypt: async () => fact.valueEnvelope,
+      decrypt: async () => Buffer.from(JSON.stringify('Software Engineer')),
+    },
   };
   return dependencies;
 }
@@ -119,7 +131,7 @@ describe('Career Graph API routes', () => {
     const forged = await fetch(`${baseUrl}/v1/career-graph/facts`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ ...validInput, tenantId: '30000000-0000-4000-8000-000000000003' }),
+      body: JSON.stringify({ ...validRequest, tenantId: '30000000-0000-4000-8000-000000000003' }),
     });
     expect(forged.status).toBe(400);
     expect(dependencies.careerGraph.createFact).not.toHaveBeenCalled();
@@ -127,10 +139,14 @@ describe('Career Graph API routes', () => {
     const created = await fetch(`${baseUrl}/v1/career-graph/facts`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(validInput),
+      body: JSON.stringify(validRequest),
     });
     expect(created.status).toBe(201);
-    expect(dependencies.careerGraph.createFact).toHaveBeenCalledWith(tenantId, subject, validInput);
+    expect(dependencies.careerGraph.createFact).toHaveBeenCalledWith(tenantId, subject, {
+      factKey: validRequest.factKey,
+      valueEnvelope: fact.valueEnvelope,
+      source: validRequest.source,
+    });
 
     const listed = await fetch(`${baseUrl}/v1/career-graph/facts?limit=25`, {
       headers: { authorization: 'Bearer test-token' },
@@ -142,6 +158,95 @@ describe('Career Graph API routes', () => {
       headers: { authorization: 'Bearer test-token' },
     });
     expect(invalidLimit.status).toBe(400);
+  });
+
+  it('fails closed when Career Graph encryption is unavailable', async () => {
+    const dependencies = await startServer();
+    dependencies.careerGraphCrypto = undefined;
+    const headers = {
+      authorization: 'Bearer test-token',
+      'content-type': 'application/json',
+    };
+    const created = await fetch(`${baseUrl}/v1/career-graph/facts`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(validRequest),
+    });
+    expect(created.status).toBe(503);
+    expect(dependencies.careerGraph.createFact).not.toHaveBeenCalled();
+
+    const listed = await fetch(`${baseUrl}/v1/career-graph/facts`, {
+      headers: { authorization: 'Bearer test-token' },
+    });
+    expect(listed.status).toBe(503);
+    expect(dependencies.careerGraph.listFacts).not.toHaveBeenCalled();
+  });
+
+  it('encrypts submitted values and returns decrypted tenant-authorized facts', async () => {
+    const dependencies = await startServer();
+    const provider = new MasterKeyTenantKeyProvider({
+      masterKeys: { 'test-key-v1': Buffer.alloc(32, 7).toString('base64') },
+      currentKeyVersion: 'test-key-v1',
+    });
+    const cipher = new TenantEnvelopeCipher(provider);
+    dependencies.careerGraphCrypto = cipher;
+    vi.mocked(dependencies.careerGraph.createFact).mockImplementation(
+      async (_tenant, _actor, input) => ({
+        ...fact,
+        valueEnvelope: input.valueEnvelope,
+      })
+    );
+    dependencies.careerGraph.listFacts = vi.fn(async () => [
+      {
+        ...fact,
+        valueEnvelope: await cipher.encrypt(
+          tenantId,
+          'career-graph:profile.current_role',
+          Buffer.from(JSON.stringify('Software Engineer'))
+        ),
+      },
+    ]);
+
+    const headers = {
+      authorization: 'Bearer test-token',
+      'content-type': 'application/json',
+    };
+    const created = await fetch(`${baseUrl}/v1/career-graph/facts`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(validRequest),
+    });
+    expect(created.status).toBe(201);
+    const createdPayload = await created.json();
+    expect(createdPayload).toMatchObject({
+      fact: { factKey: 'profile.current_role', value: 'Software Engineer' },
+    });
+    expect(createdPayload.fact).not.toHaveProperty('valueEnvelope');
+
+    const storedInput = vi.mocked(dependencies.careerGraph.createFact).mock.calls[0]?.[2];
+    expect(storedInput?.valueEnvelope).toMatchObject({
+      algorithm: 'A256GCM',
+      tenantId,
+      context: 'career-graph:profile.current_role',
+    });
+    expect(storedInput?.valueEnvelope.ciphertext).not.toContain('Software Engineer');
+
+    const listed = await fetch(`${baseUrl}/v1/career-graph/facts`, {
+      headers: { authorization: 'Bearer test-token' },
+    });
+    expect(listed.status).toBe(200);
+    expect(await listed.json()).toMatchObject({
+      facts: [{ factKey: 'profile.current_role', value: 'Software Engineer' }],
+    });
+
+    const corrupted = {
+      ...storedInput!.valueEnvelope,
+      authTag: Buffer.alloc(16, 0).toString('base64'),
+    };
+    await expect(
+      cipher.decrypt(corrupted, tenantId, 'career-graph:profile.current_role')
+    ).rejects.toThrow();
+    provider.destroy();
   });
 
   it('routes confirmation through the authenticated contributor identity', async () => {

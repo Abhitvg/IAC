@@ -157,14 +157,18 @@ export function analyzePerformance(questions: SessionQuestion[]): SessionPerform
  * temporary file and atomic rename, so a failed write cannot leave a truncated
  * session or mismatched session/questions/performance sidecars.
  */
-export async function saveSession(session: InterviewSession, sessionsDir: string): Promise<void> {
-  const sessionDir = `${sessionsDir}/${session.date}`;
-  const sessionData = JSON.stringify(session, null, 2);
+export async function saveSession(session: InterviewSession, _sessionsDir: string): Promise<void> {
+  const sessionData = JSON.stringify(session);
   const requestId = `session_save_${session.id}`;
   const startedAt = Date.now();
 
   try {
-    await window.electronAPI.writeFile(`${sessionDir}/session_${session.id}.json`, sessionData);
+    if (!window.electronAPI?.secureRecordSet) {
+      throw new Error(
+        'Secure session storage is unavailable in this browser. Session data was not written in plaintext.'
+      );
+    }
+    await window.electronAPI.secureRecordSet('interview-sessions', session.id, sessionData);
     DiagnosticLoggerService.getInstance().recordEvent({
       requestId,
       pipelineStage: 'ready',
@@ -172,7 +176,7 @@ export async function saveSession(session: InterviewSession, sessionsDir: string
       sessionQuestionCount: session.questions.length,
       sessionSaveOutcome: 'SUCCESS',
       finalOutcome: 'SUCCESS',
-      message: 'Interview session saved successfully.',
+      message: 'Interview session saved to encrypted storage.',
     });
   } catch (error) {
     DiagnosticLoggerService.getInstance().recordEvent({
@@ -189,45 +193,78 @@ export async function saveSession(session: InterviewSession, sessionsDir: string
 }
 
 /**
- * Load all sessions from local storage
+ * Load encrypted sessions and retain legacy plaintext sessions for user-directed
+ * export/migration. Legacy files are deliberately not modified or deleted.
  */
 export async function loadSessions(sessionsDir: string): Promise<InterviewSession[]> {
-  const sessions: InterviewSession[] = [];
+  const sessionsById = new Map<string, InterviewSession>();
 
   try {
-    const dirs = await window.electronAPI.listDir(sessionsDir);
+    if (window.electronAPI?.secureRecordList && window.electronAPI?.secureRecordGet) {
+      const ids = await window.electronAPI.secureRecordList('interview-sessions');
+      for (const id of ids) {
+        try {
+          const raw = await window.electronAPI.secureRecordGet('interview-sessions', id);
+          if (!raw) continue;
+          const session = JSON.parse(raw) as InterviewSession;
+          if (session && session.id === id && Array.isArray(session.questions)) {
+            sessionsById.set(id, session);
+          }
+        } catch (error) {
+          console.error(
+            'Failed to decrypt an interview session; encrypted data was retained.',
+            error
+          );
+        }
+      }
+    }
 
-    for (const dir of dirs) {
-      if (!dir.isDirectory) continue;
-
-      const files = await window.electronAPI.listDir(dir.path);
-      for (const file of files) {
-        if (file.name.startsWith('session_') && file.name.endsWith('.json')) {
+    // Legacy data remains readable but is never silently migrated or removed.
+    if (window.electronAPI?.listDir && window.electronAPI?.readFile) {
+      const dirs = await window.electronAPI.listDir(sessionsDir);
+      for (const dir of dirs) {
+        if (!dir.isDirectory) continue;
+        const files = await window.electronAPI.listDir(dir.path);
+        for (const file of files) {
+          if (!file.name.startsWith('session_') || !file.name.endsWith('.json')) continue;
           try {
             const buffer = await window.electronAPI.readFile(file.path);
-            const text = new TextDecoder().decode(buffer);
-            const session = JSON.parse(text) as InterviewSession;
-            sessions.push(session);
-          } catch (e) {
-            console.error(`Failed to load session: ${file.path}`, e);
+            const session = JSON.parse(new TextDecoder().decode(buffer)) as InterviewSession;
+            if (session?.id && Array.isArray(session.questions) && !sessionsById.has(session.id)) {
+              sessionsById.set(session.id, session);
+            }
+          } catch (error) {
+            console.error('Failed to read a legacy session; source file was retained.', error);
           }
         }
       }
     }
-  } catch (e) {
-    console.error('Failed to load sessions:', e);
+  } catch (error) {
+    console.error('Failed to load interview sessions:', error);
   }
 
-  return sessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+  return Array.from(sessionsById.values()).sort(
+    (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+  );
 }
 
 /**
- * Delete all session data
+ * Delete encrypted and legacy session records only when the user explicitly
+ * invokes the existing clear-history action.
  */
 export async function clearAllSessions(sessionsDir: string): Promise<void> {
   try {
-    await window.electronAPI.deleteFile(sessionsDir);
-  } catch (e) {
-    console.error('Failed to clear sessions:', e);
+    if (window.electronAPI?.secureRecordList && window.electronAPI?.secureRecordDelete) {
+      const ids = await window.electronAPI.secureRecordList('interview-sessions');
+      for (const id of ids) {
+        await window.electronAPI.secureRecordDelete('interview-sessions', id);
+      }
+    }
+    if (window.electronAPI?.deleteFile) {
+      await window.electronAPI.deleteFile(sessionsDir);
+    }
+  } catch (error) {
+    console.error('Failed to clear sessions:', error);
+    throw error;
   }
 }

@@ -1,0 +1,161 @@
+name: Deploy CareerOps API to AWS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: careerops-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # A manual dispatch from any other ref must never use the production role.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: production
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deployment configuration
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+          ECS_TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
+          AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$AWS_REGION" == "ap-southeast-2" ]] || { echo "AWS_REGION must be ap-southeast-2."; exit 1; }
+          for name in ECR_REPOSITORY ECS_CLUSTER ECS_SERVICE ECS_TASK_FAMILY AWS_ROLE_TO_ASSUME; do
+            if [[ -z "${!name}" ]]; then
+              echo "Required GitHub environment value is missing: $name"
+              exit 1
+            fi
+          done
+
+      - name: Require successful CI for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUNS_JSON="$(gh run list --commit "$GITHUB_SHA" --workflow CI --json status,conclusion --limit 20)"
+          printf '%s\n' "$RUNS_JSON"
+          if ! jq -e 'any(.[]; .status == "completed" and .conclusion == "success")' <<< "$RUNS_JSON" >/dev/null; then
+            echo "Refusing deployment: no successful CI run exists for this exact main commit."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials through GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify the assumed AWS account
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          if [[ "$ACCOUNT_ID" != "165328640460" ]]; then
+            echo "Refusing deployment: OIDC role resolved to unexpected AWS account."
+            exit 1
+          fi
+
+      - name: Resolve ECR repository
+        id: ecr
+        env:
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          URI="$(aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" --query 'repositories[0].repositoryUri' --output text)"
+          case "$URI" in
+            165328640460.dkr.ecr.ap-southeast-2.amazonaws.com/*) ;;
+            *) echo "Refusing to push: ECR repository is outside the configured AWS account/region."; exit 1 ;;
+          esac
+          echo "uri=$URI" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push immutable ARM64 image
+        shell: bash
+        env:
+          ECR_URI: ${{ steps.ecr.outputs.uri }}
+          IMAGE_TAG: release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          docker buildx build --platform linux/arm64 --push \
+            --tag "$ECR_URI:$IMAGE_TAG" \
+            --file Dockerfile.api .
+
+      - name: Register task definition with the new image
+        id: task
+        shell: bash
+        env:
+          TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
+          IMAGE: ${{ steps.ecr.outputs.uri }}:release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition --task-definition "$TASK_FAMILY" \
+            --query taskDefinition > /tmp/current-task-definition.json
+          jq -e --arg family "$TASK_FAMILY" '.family == $family' \
+            /tmp/current-task-definition.json >/dev/null
+          jq --arg image "$IMAGE" '
+            if any(.containerDefinitions[]?; .name == "careerops-api") then
+              .containerDefinitions |= map(
+                if .name == "careerops-api" then .image = $image else . end
+              )
+            else
+              error("Task definition does not contain the careerops-api container")
+            end
+            | del(
+                .taskDefinitionArn, .revision, .status, .requiresAttributes,
+                .compatibilities, .registeredAt, .registeredBy, .deregisteredAt
+              )
+          ' /tmp/current-task-definition.json > /tmp/next-task-definition.json
+          ARN="$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/next-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text)"
+          test -n "$ARN"
+          echo "arn=$ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy, wait for stability, and verify the requested revision is running
+        env:
+          CLUSTER: ${{ vars.ECS_CLUSTER }}
+          SERVICE: ${{ vars.ECS_SERVICE }}
+          TASK_DEFINITION: ${{ steps.task.outputs.arn }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
+            --task-definition "$TASK_DEFINITION" >/dev/null
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+            --output json > /tmp/deployed-service.json
+          if ! jq -e --arg task "$TASK_DEFINITION" '
+            (.failures | length) == 0 and
+            (.services | length) == 1 and
+            .services[0].status == "ACTIVE" and
+            .services[0].taskDefinition == $task and
+            .services[0].runningCount >= .services[0].desiredCount
+          ' /tmp/deployed-service.json >/dev/null; then
+            echo "ECS did not stabilize on the requested task definition; deployment may have rolled back or remained unhealthy."
+            jq '.failures, .services[]? | {status, desiredCount, runningCount, taskDefinition, deployments}' /tmp/deployed-service.json
+            exit 1
+          fi
+          jq '.services[0] | {status, desiredCount, runningCount, taskDefinition}' /tmp/deployed-service.json

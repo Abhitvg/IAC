@@ -144,12 +144,26 @@ function loadStored<T>(key: string, fallback: T): T {
   }
 }
 
+const dirtyPracticeKeys = new Set<string>();
+const warnedMissingSecureStorage = new Set<string>();
+
 function persist<T>(key: string, data: T) {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (e) {
-    console.error('Storage persist error for', key, e);
+  dirtyPracticeKeys.add(key);
+  if (typeof window === 'undefined' || !window.electronAPI?.secureRecordSet) {
+    if (!warnedMissingSecureStorage.has(key)) {
+      warnedMissingSecureStorage.add(key);
+      console.warn(
+        '[PracticeStore] Encrypted desktop storage is unavailable; sensitive practice data was not persisted.',
+        { key }
+      );
+    }
+    return;
   }
+
+  void window.electronAPI.secureRecordSet('practice', key, JSON.stringify(data)).catch(() => {
+    // Never include candidate answers, feedback, or other record content in diagnostics.
+    console.error('[PracticeStore] Encrypted persistence failed.', { key });
+  });
 }
 
 function isValidMockSessionState(data: any): data is MockSessionState {
@@ -170,8 +184,7 @@ function loadStoredSession(): MockSessionState | null {
   const loaded = loadStored<any>(STORAGE_KEYS.ACTIVE_SESSION, null);
   if (!loaded) return null;
   if (!isValidMockSessionState(loaded)) {
-    console.warn('Corrupted or malformed active session state detected. Discarding.');
-    persist(STORAGE_KEYS.ACTIVE_SESSION, null);
+    console.warn('Corrupted or malformed active session state detected. Legacy source retained.');
     return null;
   }
   return loaded;
@@ -652,3 +665,50 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
     }
   },
 }));
+/**
+ * Hydrate records previously written to encrypted desktop storage. Legacy
+ * localStorage is still read by the synchronous initializer for compatibility,
+ * but it is never used as a new persistence destination.
+ */
+const PRACTICE_STATE_BY_STORAGE_KEY: Record<string, keyof PracticeState> = {
+  [STORAGE_KEYS.ACTIVE_SESSION]: 'activeSession',
+  [STORAGE_KEYS.SESSIONS]: 'sessionHistory',
+  [STORAGE_KEYS.STORIES]: 'storyBank',
+  [STORAGE_KEYS.TOPICS]: 'topicMasteries',
+  [STORAGE_KEYS.PLANS]: 'companyPlans',
+  [STORAGE_KEYS.FEEDBACK]: 'feedbackRecords',
+  [STORAGE_KEYS.WEAKNESS_PLAN]: 'weaknessPlan',
+  [STORAGE_KEYS.EXPLAINER_ATTEMPTS]: 'explainerAttempts',
+  [STORAGE_KEYS.CONCEPT_CARDS]: 'conceptCards',
+};
+
+async function hydrateEncryptedPracticeRecords(): Promise<void> {
+  if (typeof window === 'undefined' || !window.electronAPI?.secureRecordGet) return;
+
+  for (const [storageKey, stateKey] of Object.entries(PRACTICE_STATE_BY_STORAGE_KEY)) {
+    if (dirtyPracticeKeys.has(storageKey)) continue;
+
+    try {
+      const raw = await window.electronAPI.secureRecordGet('practice', storageKey);
+      if (raw === null || dirtyPracticeKeys.has(storageKey)) continue;
+
+      const value: unknown = JSON.parse(raw);
+      if (
+        storageKey === STORAGE_KEYS.ACTIVE_SESSION &&
+        value !== null &&
+        !isValidMockSessionState(value)
+      ) {
+        console.error('[PracticeStore] Encrypted active session failed schema validation.');
+        continue;
+      }
+      usePracticeStore.setState({ [stateKey]: value } as Partial<PracticeState>);
+    } catch {
+      // Keep the last known in-memory/legacy value; never erase encrypted source data.
+      console.error('[PracticeStore] Unable to hydrate an encrypted practice record.', {
+        key: storageKey,
+      });
+    }
+  }
+}
+
+void hydrateEncryptedPracticeRecords();

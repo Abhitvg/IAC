@@ -6,7 +6,7 @@ export interface GeneratedDataKey {
   keyVersion: string;
 }
 
-export interface TenantKeyManagementService {
+export interface TenantKeyProvider {
   generateDataKey(tenantId: string, context: string): Promise<GeneratedDataKey>;
   unwrapDataKey(
     tenantId: string,
@@ -35,13 +35,13 @@ function associatedData(tenantId: string, context: string, keyVersion: string): 
 }
 
 export class TenantEnvelopeCipher {
-  constructor(private readonly kms: TenantKeyManagementService) {}
+  constructor(private readonly keyProvider: TenantKeyProvider) {}
 
   async encrypt(tenantId: string, context: string, plaintext: Buffer): Promise<EncryptedEnvelope> {
-    const generated = await this.kms.generateDataKey(tenantId, context);
+    const generated = await this.keyProvider.generateDataKey(tenantId, context);
     if (generated.plaintextKey.length !== 32 || !generated.wrappedKey || !generated.keyVersion) {
       generated.plaintextKey.fill(0);
-      throw new Error('KMS returned an invalid data key');
+      throw new Error('Key provider returned an invalid data key');
     }
     const iv = randomBytes(12);
     try {
@@ -63,6 +63,19 @@ export class TenantEnvelopeCipher {
     }
   }
 
+  async reencrypt(
+    envelope: EncryptedEnvelope,
+    expectedTenantId: string,
+    expectedContext: string
+  ): Promise<EncryptedEnvelope> {
+    const plaintext = await this.decrypt(envelope, expectedTenantId, expectedContext);
+    try {
+      return await this.encrypt(expectedTenantId, expectedContext, plaintext);
+    } finally {
+      plaintext.fill(0);
+    }
+  }
+
   async decrypt(
     envelope: EncryptedEnvelope,
     expectedTenantId: string,
@@ -75,7 +88,7 @@ export class TenantEnvelopeCipher {
     ) {
       throw new Error('Encrypted envelope tenant or context mismatch');
     }
-    const key = await this.kms.unwrapDataKey(
+    const key = await this.keyProvider.unwrapDataKey(
       expectedTenantId,
       envelope.wrappedKey,
       envelope.keyVersion,
@@ -83,7 +96,7 @@ export class TenantEnvelopeCipher {
     );
     if (key.length !== 32) {
       key.fill(0);
-      throw new Error('KMS returned an invalid unwrapped key');
+      throw new Error('Key provider returned an invalid unwrapped key');
     }
     try {
       const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(envelope.iv, 'base64'));

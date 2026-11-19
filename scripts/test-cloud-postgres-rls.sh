@@ -25,6 +25,9 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0002_runtim
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0003_sprint_contract_revisions.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0004_shared_rate_limits.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0005_career_graph_facts.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0006_linkedin_oauth.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0007_linkedin_runtime_grants.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < "$ROOT/apps/api/migrations/0008_linkedin_subject_isolation.sql"
 
 DATABASE_URL="$DATABASE_URL" \
 TENANT_ID="30000000-0000-4000-8000-000000000003" \
@@ -72,6 +75,22 @@ INSERT INTO tenant_controls (tenant_id) VALUES
   ('10000000-0000-4000-8000-000000000001'),
   ('20000000-0000-4000-8000-000000000002');
 SQL
+
+if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+SET ROLE careerops_app;
+BEGIN;
+SELECT set_config('app.user_subject', 'user-a', true);
+SELECT set_config('app.tenant_id', '10000000-0000-4000-8000-000000000001', true);
+INSERT INTO linkedin_connections
+  (tenant_id, subject, token_envelope, granted_scopes, token_expires_at)
+VALUES
+  ('10000000-0000-4000-8000-000000000001', 'user-other', '{"ciphertext":"unauthorized"}', ARRAY['openid'], now() + interval '1 hour');
+COMMIT;
+SQL
+then
+  echo "Expected LinkedIn subject policy to reject cross-user token insertion, but it succeeded."
+  exit 1
+fi
 
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 SET ROLE careerops_app;
@@ -291,4 +310,74 @@ then
   exit 1
 fi
 
-echo "PostgreSQL tenant RLS, Career Graph integrity, and append-only integration checks passed."
+# Seed both tenants with LinkedIn integration rows; runtime access must remain tenant-scoped.
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO linkedin_oauth_states (state_hash, tenant_id, subject, redirect_uri, expires_at)
+VALUES
+  (repeat('a', 64), '10000000-0000-4000-8000-000000000001', 'user-a', 'https://app.example.com/callback', now() + interval '10 minutes'),
+  (repeat('c', 64), '10000000-0000-4000-8000-000000000001', 'user-other', 'https://app.example.com/callback', now() + interval '10 minutes'),
+  (repeat('b', 64), '20000000-0000-4000-8000-000000000002', 'user-b', 'https://app.example.com/callback', now() + interval '10 minutes');
+
+INSERT INTO linkedin_connections (tenant_id, subject, token_envelope, granted_scopes, token_expires_at)
+VALUES
+  ('10000000-0000-4000-8000-000000000001', 'user-a', '{"ciphertext":"tenant-a-user-a"}', ARRAY['openid'], now() + interval '1 hour'),
+  ('10000000-0000-4000-8000-000000000001', 'user-other', '{"ciphertext":"tenant-a-other-user"}', ARRAY['openid'], now() + interval '1 hour'),
+  ('20000000-0000-4000-8000-000000000002', 'user-b', '{"ciphertext":"tenant-b"}', ARRAY['openid'], now() + interval '1 hour');
+SQL
+
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+SET ROLE careerops_app;
+BEGIN;
+SELECT set_config('app.user_subject', 'user-a', true);
+SELECT set_config('app.tenant_id', '10000000-0000-4000-8000-000000000001', true);
+DO $linkedin_rls$
+DECLARE
+  visible_states integer;
+  visible_connections integer;
+  cross_tenant_states integer;
+  cross_tenant_connections integer;
+  other_subject_states integer;
+  other_subject_connections integer;
+BEGIN
+  SELECT count(*) INTO visible_states FROM linkedin_oauth_states;
+  SELECT count(*) INTO visible_connections FROM linkedin_connections;
+  SELECT count(*) INTO cross_tenant_states FROM linkedin_oauth_states WHERE tenant_id = '20000000-0000-4000-8000-000000000002';
+  SELECT count(*) INTO cross_tenant_connections FROM linkedin_connections WHERE tenant_id = '20000000-0000-4000-8000-000000000002';
+  SELECT count(*) INTO other_subject_states FROM linkedin_oauth_states WHERE subject = 'user-other';
+  SELECT count(*) INTO other_subject_connections FROM linkedin_connections WHERE subject = 'user-other';
+  IF visible_states <> 1 OR visible_connections <> 1 THEN
+    RAISE EXCEPTION 'LinkedIn runtime grants/subject RLS failed: expected one row per current subject';
+  END IF;
+  IF cross_tenant_states <> 0 OR cross_tenant_connections <> 0 THEN
+    RAISE EXCEPTION 'LinkedIn tenant RLS exposed another tenant''s records';
+  END IF;
+  IF other_subject_states <> 0 OR other_subject_connections <> 0 THEN
+    RAISE EXCEPTION 'LinkedIn subject RLS exposed another member''s records within the same tenant';
+  END IF;
+END
+$linkedin_rls$;
+
+-- Exercise the same INSERT/ON CONFLICT UPDATE and DELETE ... RETURNING permissions used by the store.
+INSERT INTO linkedin_connections
+  (tenant_id, subject, token_envelope, granted_scopes, token_expires_at)
+VALUES
+  ('10000000-0000-4000-8000-000000000001', 'user-a', '{"ciphertext":"rotated"}', ARRAY['openid','profile'], now() + interval '2 hours')
+ON CONFLICT (tenant_id, subject) DO UPDATE SET
+  token_envelope = EXCLUDED.token_envelope,
+  granted_scopes = EXCLUDED.granted_scopes,
+  token_expires_at = EXCLUDED.token_expires_at,
+  updated_at = now();
+
+DELETE FROM linkedin_oauth_states
+ WHERE state_hash = repeat('a', 64)
+   AND tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND subject = 'user-a'
+ RETURNING state_hash;
+DELETE FROM linkedin_connections
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND subject = 'user-a';
+COMMIT;
+RESET ROLE;
+SQL
+
+echo "PostgreSQL tenant RLS, LinkedIn grants/RLS, Career Graph integrity, and append-only integration checks passed."

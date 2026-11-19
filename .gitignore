@@ -36,3 +36,11 @@ test-results/
 playwright-report/
 .machine_secret
 dist-api
+
+# Terraform local state and private environment/backend configuration
+**/.terraform/
+*.tfstate
+*.tfstate.*
+infra/aws/terraform/terraform.tfvars
+infra/aws/terraform/backend-*.hcl
+!infra/aws/terraform/backend-*.hcl.example

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { saveSession } from '../src/services/session';
+import { saveSession, loadSessions } from '../src/services/session';
 import type { InterviewSession } from '../src/types';
 import { DiagnosticLoggerService } from '../src/services/diagnosticLogger';
 
@@ -7,9 +7,9 @@ describe('session persistence', () => {
   beforeEach(() => DiagnosticLoggerService.getInstance().clear());
   afterEach(() => vi.unstubAllGlobals());
 
-  it('writes one canonical session record instead of independently writing sidecars', async () => {
-    const writeFile = vi.fn().mockResolvedValue(true);
-    vi.stubGlobal('window', { electronAPI: { writeFile } });
+  it('writes one canonical encrypted session record', async () => {
+    const secureRecordSet = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal('window', { electronAPI: { secureRecordSet } });
 
     const session: InterviewSession = {
       id: 'session-123',
@@ -38,10 +38,11 @@ describe('session persistence', () => {
 
     await saveSession(session, '/user-data/sessions');
 
-    expect(writeFile).toHaveBeenCalledTimes(1);
-    expect(writeFile).toHaveBeenCalledWith(
-      '/user-data/sessions/2026-11-16/session_session-123.json',
-      JSON.stringify(session, null, 2)
+    expect(secureRecordSet).toHaveBeenCalledTimes(1);
+    expect(secureRecordSet).toHaveBeenCalledWith(
+      'interview-sessions',
+      'session-123',
+      JSON.stringify(session)
     );
     const saveEvent = DiagnosticLoggerService.getInstance()
       .getEventsForRequest('session_save_session-123')
@@ -51,9 +52,24 @@ describe('session persistence', () => {
     expect(saveEvent?.message).not.toContain('What is a hash map?');
   });
 
+  it('refuses plaintext persistence when secure storage is unavailable', async () => {
+    vi.stubGlobal('window', { electronAPI: {} });
+    await expect(
+      saveSession(
+        {
+          id: 'session-plain-fallback',
+          date: '2026-11-16',
+          startTime: '2026-11-16T00:00:00.000Z',
+          questions: [],
+        },
+        '/user-data/sessions'
+      )
+    ).rejects.toThrow('was not written in plaintext');
+  });
+
   it('propagates persistence failures so callers cannot report a false save success', async () => {
-    const writeFile = vi.fn().mockRejectedValue(new Error('disk full'));
-    vi.stubGlobal('window', { electronAPI: { writeFile } });
+    const secureRecordSet = vi.fn().mockRejectedValue(new Error('disk full'));
+    vi.stubGlobal('window', { electronAPI: { secureRecordSet } });
 
     await expect(
       saveSession(

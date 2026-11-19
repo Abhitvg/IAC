@@ -1,0 +1,6 @@
+# Copy to backend-staging.hcl (git-ignored/private) and replace both placeholders.
+bucket         = "REPLACE_WITH_EXISTING_VERSIONED_STATE_BUCKET"
+key            = "careerops/staging/terraform.tfstate"
+region         = "ap-southeast-2"
+encrypt        = true
+dynamodb_table = "REPLACE_WITH_EXISTING_TERRAFORM_LOCK_TABLE"

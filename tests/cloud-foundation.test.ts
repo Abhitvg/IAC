@@ -15,10 +15,11 @@ import {
 } from '../packages/cloud-core/src/audit';
 import {
   TenantEnvelopeCipher,
-  type TenantKeyManagementService,
+  type TenantKeyProvider,
 } from '../packages/cloud-core/src/encryption';
 import { resolveTenantContext, type TenantMembership } from '../packages/cloud-core/src/tenant';
-import { createCloudApiServer } from '../apps/api/src/server';
+import { MasterKeyTenantKeyProvider } from '../packages/cloud-core/src/master-key-provider';
+import { createCloudApiServer, resolveClientIp } from '../apps/api/src/server';
 import { loadCloudEnvironment } from '../apps/api/src/config';
 import type { CloudApiDependencies } from '../apps/api/src/ports';
 import {
@@ -28,6 +29,29 @@ import {
 } from '../apps/api/src/postgres-repository';
 import { PostgresCloudRateLimiter } from '../apps/api/src/postgres-rate-limiter';
 import { createCloudApiRuntime } from '../apps/api/src/runtime';
+
+describe('trusted proxy client IP resolution', () => {
+  const request = (forwarded: string | undefined, remoteAddress = '10.0.1.25') =>
+    ({
+      headers: forwarded === undefined ? {} : { 'x-forwarded-for': forwarded },
+      socket: { remoteAddress },
+    }) as never;
+
+  it('uses the rightmost valid address appended by a trusted ALB', () => {
+    expect(resolveClientIp(request('198.51.100.99, 203.0.113.17'), true)).toBe('203.0.113.17');
+    expect(resolveClientIp(request('2001:db8::1'), true)).toBe('2001:db8::1');
+  });
+
+  it('does not trust forwarded headers when proxy trust is disabled', () => {
+    expect(resolveClientIp(request('203.0.113.17', '10.0.1.25'), false)).toBe('10.0.1.25');
+  });
+
+  it('falls back to the socket peer when the rightmost forwarded value is invalid', () => {
+    expect(resolveClientIp(request('203.0.113.17, not-an-ip', '10.0.1.25'), true)).toBe(
+      '10.0.1.25'
+    );
+  });
+});
 
 const secret = 'test-only-secret-that-is-at-least-32-characters';
 const rateSecret = 'test-only-rate-limit-secret-that-is-different';
@@ -195,6 +219,79 @@ describe('M0 cloud security foundation', () => {
     ).toThrow();
   });
 
+  it('accepts only exact HTTPS CORS origins from environment configuration', () => {
+    const base = {
+      NODE_ENV: 'test',
+      CAREEROPS_JWT_ISSUER: authConfig.issuer,
+      CAREEROPS_JWT_AUDIENCE: authConfig.audience,
+      CAREEROPS_JWKS_URL: authConfig.jwksUrl,
+      CAREEROPS_CONSENT_SIGNING_SECRET: secret,
+      CAREEROPS_RATE_LIMIT_HASH_SECRET: rateSecret,
+    };
+    expect(
+      loadCloudEnvironment({
+        ...base,
+        CAREEROPS_CORS_ALLOWED_ORIGINS:
+          'https://main.d37etc5h2drv5h.amplifyapp.com, https://app.example.com',
+      } as NodeJS.ProcessEnv).CAREEROPS_CORS_ALLOWED_ORIGINS
+    ).toEqual(['https://main.d37etc5h2drv5h.amplifyapp.com', 'https://app.example.com']);
+    expect(() =>
+      loadCloudEnvironment({
+        ...base,
+        CAREEROPS_CORS_ALLOWED_ORIGINS: 'http://app.example.com',
+      } as NodeJS.ProcessEnv)
+    ).toThrow(/exact HTTPS origins/);
+    expect(() =>
+      loadCloudEnvironment({
+        ...base,
+        CAREEROPS_CORS_ALLOWED_ORIGINS: 'https://app.example.com/path',
+      } as NodeJS.ProcessEnv)
+    ).toThrow(/exact HTTPS origins/);
+  });
+
+  it('requires a valid injected master-key ring when LinkedIn token encryption is enabled', () => {
+    const base = {
+      NODE_ENV: 'test',
+      CAREEROPS_JWT_ISSUER: authConfig.issuer,
+      CAREEROPS_JWT_AUDIENCE: authConfig.audience,
+      CAREEROPS_JWKS_URL: authConfig.jwksUrl,
+      CAREEROPS_CONSENT_SIGNING_SECRET: secret,
+      CAREEROPS_RATE_LIMIT_HASH_SECRET: rateSecret,
+      LINKEDIN_CLIENT_ID: 'linkedin-client',
+      LINKEDIN_CLIENT_SECRET: 'linkedin-secret',
+      LINKEDIN_REDIRECT_URI: 'https://app.example.com/linkedin/callback',
+    };
+    expect(() => loadCloudEnvironment(base as NodeJS.ProcessEnv)).toThrow(
+      /requires a JSON key ring/
+    );
+
+    const validKeyRing = JSON.stringify({ v1: randomBytes(32).toString('base64') });
+    const configured = loadCloudEnvironment({
+      ...base,
+      CAREEROPS_ENVELOPE_MASTER_KEYS: validKeyRing,
+      CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: 'v1',
+    } as NodeJS.ProcessEnv);
+    expect(configured.CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION).toBe('v1');
+
+    expect(() =>
+      loadCloudEnvironment({
+        ...base,
+        CAREEROPS_ENVELOPE_MASTER_KEYS: JSON.stringify({
+          v1: Buffer.from('short').toString('base64'),
+        }),
+        CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: 'v1',
+      } as NodeJS.ProcessEnv)
+    ).toThrow(/requires a JSON key ring/);
+
+    expect(() =>
+      loadCloudEnvironment({
+        ...base,
+        CAREEROPS_ENVELOPE_MASTER_KEYS: validKeyRing,
+        CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: 'v2',
+      } as NodeJS.ProcessEnv)
+    ).toThrow(/requires a JSON key ring/);
+  });
+
   it('requires HTTPS issuer/JWKS endpoints and a separate consent signing secret', () => {
     expect(() =>
       loadCloudEnvironment({
@@ -317,6 +414,41 @@ describe('M0 cloud security foundation', () => {
         1_900_000_000
       )
     ).rejects.toThrow('authorized party');
+
+    const cognitoIssuer =
+      'https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_fhknKz871';
+    const cognitoClientId = '3pjaus5ndmnhvp1mo4i6o0keu8';
+    const cognitoVerifier = new OidcJwksVerifier(
+      {
+        issuer: cognitoIssuer,
+        audience: cognitoClientId,
+        jwksUrl: `${cognitoIssuer}/.well-known/jwks.json`,
+      },
+      fetcher as typeof fetch
+    );
+    const cognitoAccessToken = signClaims({
+      sub: 'cognito-user-1',
+      iss: cognitoIssuer,
+      client_id: cognitoClientId,
+      token_use: 'access',
+      exp: 2_000_000_000,
+      iat: 1_900_000_000,
+    });
+    expect((await cognitoVerifier.verify(cognitoAccessToken, 1_900_000_000)).subject).toBe(
+      'cognito-user-1'
+    );
+    await expect(
+      cognitoVerifier.verify(
+        signClaims({
+          sub: 'cognito-user-1',
+          iss: cognitoIssuer,
+          aud: cognitoClientId,
+          token_use: 'id',
+          exp: 2_000_000_000,
+        }),
+        1_900_000_000
+      )
+    ).rejects.toThrow('Cognito client_id');
     const [headerPart, payloadPart, signaturePart] = token.split('.');
     const tamperedSignature = `${signaturePart[0] === 'A' ? 'B' : 'A'}${signaturePart.slice(1)}`;
     await expect(
@@ -514,7 +646,7 @@ describe('M0 cloud security foundation', () => {
 
   it('encrypts with tenant/context binding and rejects cross-tenant or modified ciphertext', async () => {
     const keys = new Map<string, Buffer>();
-    const kms: TenantKeyManagementService = {
+    const keyProvider: TenantKeyProvider = {
       generateDataKey: async (tenantId, context) => {
         const key = randomBytes(32);
         const id = `${tenantId}|${context}`;
@@ -527,11 +659,11 @@ describe('M0 cloud security foundation', () => {
       },
       unwrapDataKey: async (tenantId, wrappedKey, _version, context) => {
         const id = Buffer.from(wrappedKey, 'base64').toString('utf8');
-        if (id !== `${tenantId}|${context}`) throw new Error('KMS context mismatch');
+        if (id !== `${tenantId}|${context}`) throw new Error('Key context mismatch');
         return Buffer.from(keys.get(id)!);
       },
     };
-    const cipher = new TenantEnvelopeCipher(kms);
+    const cipher = new TenantEnvelopeCipher(keyProvider);
     const envelope = await cipher.encrypt('tenant-1', 'resume:abc', Buffer.from('private resume'));
     expect((await cipher.decrypt(envelope, 'tenant-1', 'resume:abc')).toString()).toBe(
       'private resume'
@@ -544,6 +676,62 @@ describe('M0 cloud security foundation', () => {
         'resume:abc'
       )
     ).rejects.toThrow();
+  });
+
+  it('wraps tenant data keys locally and supports envelope master-key rotation', async () => {
+    const versionOneKey = randomBytes(32);
+    const versionTwoKey = randomBytes(32);
+    const originalProvider = new MasterKeyTenantKeyProvider({
+      masterKeys: { v1: versionOneKey.toString('base64') },
+      currentKeyVersion: 'v1',
+    });
+    const originalCipher = new TenantEnvelopeCipher(originalProvider);
+    const originalEnvelope = await originalCipher.encrypt(
+      'tenant-123',
+      'linkedin-token:member-1',
+      Buffer.from('oauth access token')
+    );
+    expect(originalEnvelope.keyVersion).toBe('v1');
+
+    const rotatedProvider = new MasterKeyTenantKeyProvider({
+      masterKeys: {
+        v1: versionOneKey.toString('base64'),
+        v2: versionTwoKey.toString('base64'),
+      },
+      currentKeyVersion: 'v2',
+    });
+    const rotatedCipher = new TenantEnvelopeCipher(rotatedProvider);
+    try {
+      await expect(
+        rotatedCipher.decrypt(originalEnvelope, 'tenant-123', 'linkedin-token:member-1')
+      ).resolves.toEqual(Buffer.from('oauth access token'));
+
+      const rotatedEnvelope = await rotatedCipher.encrypt(
+        'tenant-123',
+        'linkedin-token:member-1',
+        Buffer.from('rotated oauth token')
+      );
+      expect(rotatedEnvelope.keyVersion).toBe('v2');
+      await expect(
+        rotatedCipher.decrypt(rotatedEnvelope, 'tenant-123', 'linkedin-token:member-1')
+      ).resolves.toEqual(Buffer.from('rotated oauth token'));
+      await expect(
+        rotatedCipher.decrypt(originalEnvelope, 'other-tenant', 'linkedin-token:member-1')
+      ).rejects.toThrow('mismatch');
+
+      const tamperedEnvelope = {
+        ...originalEnvelope,
+        wrappedKey: Buffer.from('tampered').toString('base64'),
+      };
+      await expect(
+        rotatedCipher.decrypt(tamperedEnvelope, 'tenant-123', 'linkedin-token:member-1')
+      ).rejects.toThrow();
+    } finally {
+      originalProvider.destroy();
+      rotatedProvider.destroy();
+      versionOneKey.fill(0);
+      versionTwoKey.fill(0);
+    }
   });
 
   it('scopes PostgreSQL membership lookup to the verified subject in a transaction', async () => {
@@ -616,6 +804,7 @@ describe('M0 cloud security foundation', () => {
         audience: authConfig.audience,
         jwksUrl: authConfig.jwksUrl,
         consentSigningSecret: secret,
+        allowedOrigins: ['https://main.d37etc5h2drv5h.amplifyapp.com'],
       },
       identityVerifier: {
         verify: async (token) =>
@@ -669,6 +858,30 @@ describe('M0 cloud security foundation', () => {
     const address = server.address();
     if (!address || typeof address === 'string') throw new Error('Expected TCP address');
     try {
+      const preflight = await fetch(`http://127.0.0.1:${address.port}/v1/me`, {
+        method: 'OPTIONS',
+        headers: {
+          origin: 'https://main.d37etc5h2drv5h.amplifyapp.com',
+          'access-control-request-method': 'GET',
+          'access-control-request-headers': 'authorization, content-type, x-tenant-id',
+        },
+      });
+      expect(preflight.status).toBe(204);
+      expect(preflight.headers.get('access-control-allow-origin')).toBe(
+        'https://main.d37etc5h2drv5h.amplifyapp.com'
+      );
+      expect(preflight.headers.get('access-control-allow-credentials')).toBeNull();
+
+      const rejectedPreflight = await fetch(`http://127.0.0.1:${address.port}/v1/me`, {
+        method: 'OPTIONS',
+        headers: {
+          origin: 'https://attacker.example',
+          'access-control-request-method': 'GET',
+        },
+      });
+      expect(rejectedPreflight.status).toBe(403);
+      expect(rejectedPreflight.headers.get('access-control-allow-origin')).toBeNull();
+
       const health = await fetch(`http://127.0.0.1:${address.port}/health/live`);
       expect(health.status).toBe(200);
       const ready = await fetch(`http://127.0.0.1:${address.port}/health/ready`);

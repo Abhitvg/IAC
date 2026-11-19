@@ -1,14 +1,35 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 import { readBearerToken } from '../../../packages/cloud-core/src/auth';
 import { createConsentRecord } from '../../../packages/cloud-core/src/contract';
 import {
   CareerGraphFactReviewSchema,
   validateCareerGraphFact,
+  validateCareerGraphFactCreateRequest,
 } from '../../../packages/cloud-core/src/career-graph';
 import { resolveTenantContext } from '../../../packages/cloud-core/src/tenant';
+import type { EncryptedFactEnvelope } from '../../../packages/cloud-core/src/career-graph';
 import type { CloudApiDependencies } from './ports';
 import { LinkedInApiError } from './linkedin/client';
+
+export function resolveClientIp(request: IncomingMessage, trustProxy = false): string {
+  const remoteAddress = request.socket.remoteAddress ?? 'unknown';
+  if (!trustProxy) return remoteAddress;
+
+  const forwardedHeader = request.headers['x-forwarded-for'];
+  const forwarded = Array.isArray(forwardedHeader) ? forwardedHeader.join(',') : forwardedHeader;
+  if (typeof forwarded !== 'string') return remoteAddress;
+
+  const forwardedAddresses = forwarded.split(',');
+  const candidate = forwardedAddresses[forwardedAddresses.length - 1]?.trim() ?? '';
+  // The ALB appends the actual client IP and does not add a client port.
+  // Ignore malformed/oversized values rather than trusting earlier client-supplied hops.
+  if (candidate.length > 0 && candidate.length <= 45 && isIP(candidate) !== 0) {
+    return candidate;
+  }
+  return remoteAddress;
+}
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, {
@@ -46,6 +67,42 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
   return createServer(async (request, response) => {
     const requestId = randomUUID();
     response.setHeader('x-request-id', requestId);
+    response.setHeader('vary', 'Origin');
+    const origin = request.headers.origin;
+    const allowedOrigins = new Set(dependencies.config.allowedOrigins ?? []);
+    const originAllowed = typeof origin === 'string' && allowedOrigins.has(origin);
+    if (originAllowed) {
+      response.setHeader('access-control-allow-origin', origin);
+    }
+
+    // The API uses bearer tokens, not browser cookies. Never enable credentialed CORS.
+    if (request.method === 'OPTIONS') {
+      const requestedMethod = request.headers['access-control-request-method'];
+      const requestedHeaders = (request.headers['access-control-request-headers'] ?? '')
+        .split(',')
+        .map((header) => header.trim().toLowerCase())
+        .filter(Boolean);
+      const allowedMethods = new Set(['GET', 'POST', 'DELETE']);
+      const allowedHeaders = new Set(['authorization', 'content-type', 'x-tenant-id']);
+      if (
+        !originAllowed ||
+        typeof requestedMethod !== 'string' ||
+        !allowedMethods.has(requestedMethod.toUpperCase()) ||
+        requestedHeaders.some((header) => !allowedHeaders.has(header))
+      ) {
+        sendJson(response, 403, { error: 'CORS preflight rejected', requestId });
+        return;
+      }
+      response.writeHead(204, {
+        'access-control-allow-origin': origin!,
+        'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+        'access-control-allow-headers': 'Authorization, Content-Type, X-Tenant-ID',
+        'access-control-max-age': '600',
+        'cache-control': 'no-store',
+      });
+      response.end();
+      return;
+    }
 
     try {
       const url = new URL(request.url ?? '/', 'http://localhost');
@@ -63,7 +120,7 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         return;
       }
 
-      const ipKey = `ip:${request.socket.remoteAddress ?? 'unknown'}`;
+      const ipKey = `ip:${resolveClientIp(request, dependencies.config.trustProxy)}`;
       if (!(await dependencies.rateLimiter.consume(ipKey, 60, 60_000))) {
         sendJson(response, 429, { error: 'Rate limit exceeded', requestId });
         return;
@@ -503,6 +560,14 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
       }
 
       if (request.method === 'GET' && url.pathname === '/v1/career-graph/facts') {
+        const crypto = dependencies.careerGraphCrypto;
+        if (!crypto) {
+          sendJson(response, 503, {
+            error: 'Career Graph encryption is not configured',
+            requestId,
+          });
+          return;
+        }
         const rawLimit = url.searchParams.get('limit');
         const limit = rawLimit === null ? 50 : Number(rawLimit);
         if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
@@ -512,24 +577,81 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           });
           return;
         }
-        const facts = await dependencies.careerGraph.listFacts(
+        const storedFacts = await dependencies.careerGraph.listFacts(
           tenant.tenantId,
           tenant.subject,
           limit
         );
+        let facts;
+        try {
+          facts = await Promise.all(
+            storedFacts.map(async (fact) => {
+              const plaintext = await crypto.decrypt(
+                fact.valueEnvelope,
+                tenant.tenantId,
+                `career-graph:${fact.factKey}`
+              );
+              try {
+                const value: unknown = JSON.parse(plaintext.toString('utf8'));
+                const { valueEnvelope: _valueEnvelope, ...metadata } = fact;
+                return { ...metadata, value };
+              } finally {
+                plaintext.fill(0);
+              }
+            })
+          );
+        } catch {
+          sendJson(response, 503, {
+            error: 'Career Graph decryption is temporarily unavailable',
+            requestId,
+          });
+          return;
+        }
         sendJson(response, 200, { facts, requestId });
         return;
       }
 
       if (request.method === 'POST' && url.pathname === '/v1/career-graph/facts') {
+        const crypto = dependencies.careerGraphCrypto;
+        if (!crypto) {
+          sendJson(response, 503, {
+            error: 'Career Graph encryption is not configured',
+            requestId,
+          });
+          return;
+        }
         const body = await readJson(request, maxBytes);
-        const input = validateCareerGraphFact(tenant.tenantId, tenant.subject, body);
+        const requestInput = validateCareerGraphFactCreateRequest(
+          tenant.tenantId,
+          tenant.subject,
+          body
+        );
+        const context = `career-graph:${requestInput.factKey}`;
+        const plaintext = Buffer.from(JSON.stringify(requestInput.value), 'utf8');
+        let valueEnvelope: EncryptedFactEnvelope;
+        try {
+          valueEnvelope = await crypto.encrypt(tenant.tenantId, context, plaintext);
+        } catch {
+          sendJson(response, 503, {
+            error: 'Career Graph encryption is temporarily unavailable',
+            requestId,
+          });
+          return;
+        } finally {
+          plaintext.fill(0);
+        }
+        const input = validateCareerGraphFact(tenant.tenantId, tenant.subject, {
+          factKey: requestInput.factKey,
+          valueEnvelope,
+          source: requestInput.source,
+        });
         const fact = await dependencies.careerGraph.createFact(
           tenant.tenantId,
           tenant.subject,
           input
         );
-        sendJson(response, 201, { fact, requestId });
+        const { valueEnvelope: _valueEnvelope, ...metadata } = fact;
+        sendJson(response, 201, { fact: { ...metadata, value: requestInput.value }, requestId });
         return;
       }
 
@@ -537,6 +659,14 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         /^\/v1\/career-graph\/facts\/([0-9a-f-]{36})\/review$/i
       );
       if (request.method === 'POST' && factReviewMatch) {
+        const crypto = dependencies.careerGraphCrypto;
+        if (!crypto) {
+          sendJson(response, 503, {
+            error: 'Career Graph encryption is not configured',
+            requestId,
+          });
+          return;
+        }
         const body = await readJson(request, maxBytes);
         const review = CareerGraphFactReviewSchema.parse(body);
         const fact = await dependencies.careerGraph.reviewFact(
@@ -545,7 +675,27 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
           factReviewMatch[1],
           review
         );
-        sendJson(response, 200, { fact, requestId });
+        let plaintext: Buffer;
+        try {
+          plaintext = await crypto.decrypt(
+            fact.valueEnvelope,
+            tenant.tenantId,
+            `career-graph:${fact.factKey}`
+          );
+        } catch {
+          sendJson(response, 503, {
+            error: 'Career Graph decryption is temporarily unavailable',
+            requestId,
+          });
+          return;
+        }
+        try {
+          const value: unknown = JSON.parse(plaintext.toString('utf8'));
+          const { valueEnvelope: _valueEnvelope, ...metadata } = fact;
+          sendJson(response, 200, { fact: { ...metadata, value }, requestId });
+        } finally {
+          plaintext.fill(0);
+        }
         return;
       }
 
@@ -722,19 +872,18 @@ export function createCloudApiServer(dependencies: CloudApiDependencies) {
         if (error.retryAfterSeconds) {
           response.setHeader('retry-after', String(error.retryAfterSeconds));
         }
-        sendJson(response, status, {
-          error:
-            status === 401
-              ? 'LinkedIn authorization expired; reconnect the account'
-              : status === 403
-                ? 'LinkedIn denied this action; verify product approval, granted scopes, and Page role'
-                : status === 429
-                  ? 'LinkedIn rate limit reached; retry after the indicated delay'
-                  : status === 502
-                    ? 'LinkedIn API is temporarily unavailable'
-                    : 'LinkedIn rejected the requested operation',
-          requestId,
-        });
+        let publicMessage = 'LinkedIn rejected the requested operation';
+        if (status === 401) {
+          publicMessage = 'LinkedIn authorization expired; reconnect the account';
+        } else if (status === 403) {
+          publicMessage =
+            'LinkedIn denied this action; verify product approval, granted scopes, and Page role';
+        } else if (status === 429) {
+          publicMessage = 'LinkedIn rate limit reached; retry after the indicated delay';
+        } else if (status === 502) {
+          publicMessage = 'LinkedIn API is temporarily unavailable';
+        }
+        sendJson(response, status, { error: publicMessage, requestId });
         return;
       }
       const status =

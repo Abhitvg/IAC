@@ -40,6 +40,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeFile: (path: string, data: any) => ipcRenderer.invoke('fs:write-file', path, data),
   listDir: (path: string) => ipcRenderer.invoke('fs:list-dir', path),
   deleteFile: (path: string) => ipcRenderer.invoke('fs:delete', path),
+  secureRecordSet: (namespace: string, id: string, data: string) =>
+    ipcRenderer.invoke('secure-records:set', { namespace, id, data }),
+  secureRecordGet: (namespace: string, id: string) =>
+    ipcRenderer.invoke('secure-records:get', { namespace, id }),
+  secureRecordDelete: (namespace: string, id: string) =>
+    ipcRenderer.invoke('secure-records:delete', { namespace, id }),
+  secureRecordList: (namespace: string) => ipcRenderer.invoke('secure-records:list', { namespace }),
 
   // Network / SSRF verification
   resolveDns: (hostname: string) => ipcRenderer.invoke('net:resolve-dns', hostname),

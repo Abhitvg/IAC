@@ -12,11 +12,12 @@ import {
 } from '../services/security';
 import fs from 'fs';
 import path from 'path';
-import { ipcMain, BrowserWindow, clipboard } from 'electron';
+import { app, ipcMain, BrowserWindow, clipboard, safeStorage } from 'electron';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
 import { CredentialStore, parseGroqApiKeyFromEnvContent } from '../services/credentialStore';
+import { EncryptedRecordStore } from '../services/encryptedRecordStore';
 import {
   transcribeCloudAudio,
   type CloudTranscriptionRequest,
@@ -285,6 +286,11 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
   });
 
   const credentialStore = new CredentialStore(store);
+  const encryptedRecordStore = new EncryptedRecordStore({
+    rootDir: path.join(app.getPath('userData'), 'encrypted-records'),
+    storage: safeStorage,
+    platform: process.platform,
+  });
 
   // Check and log configured credentials locally without unprompted remote network calls
   credentialStore.hasKey('groq').then((has) => {
@@ -489,6 +495,80 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
   ipcMain.handle('credentials:list', async (event) => {
     if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
     return credentialStore.listConfigured();
+  });
+
+  // Encrypted device-local records. The encryption key remains in the main process.
+  ipcMain.handle('secure-records:set', async (event, request: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error('Unauthorized IPC sender');
+    }
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+      throw new Error('Invalid secure record request');
+    }
+    const value = request as Record<string, unknown>;
+    if (
+      Object.keys(value).some((key) => !['namespace', 'id', 'data'].includes(key)) ||
+      typeof value.namespace !== 'string' ||
+      typeof value.id !== 'string' ||
+      typeof value.data !== 'string'
+    ) {
+      throw new Error('Invalid secure record request');
+    }
+    await encryptedRecordStore.set(value.namespace as any, value.id, value.data);
+    return true;
+  });
+
+  ipcMain.handle('secure-records:get', async (event, request: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error('Unauthorized IPC sender');
+    }
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+      throw new Error('Invalid secure record request');
+    }
+    const value = request as Record<string, unknown>;
+    if (
+      Object.keys(value).some((key) => !['namespace', 'id'].includes(key)) ||
+      typeof value.namespace !== 'string' ||
+      typeof value.id !== 'string'
+    ) {
+      throw new Error('Invalid secure record request');
+    }
+    return encryptedRecordStore.get(value.namespace as any, value.id);
+  });
+
+  ipcMain.handle('secure-records:delete', async (event, request: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error('Unauthorized IPC sender');
+    }
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+      throw new Error('Invalid secure record request');
+    }
+    const value = request as Record<string, unknown>;
+    if (
+      Object.keys(value).some((key) => !['namespace', 'id'].includes(key)) ||
+      typeof value.namespace !== 'string' ||
+      typeof value.id !== 'string'
+    ) {
+      throw new Error('Invalid secure record request');
+    }
+    return encryptedRecordStore.delete(value.namespace as any, value.id);
+  });
+
+  ipcMain.handle('secure-records:list', async (event, request: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) {
+      throw new Error('Unauthorized IPC sender');
+    }
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+      throw new Error('Invalid secure record request');
+    }
+    const value = request as Record<string, unknown>;
+    if (
+      Object.keys(value).some((key) => key !== 'namespace') ||
+      typeof value.namespace !== 'string'
+    ) {
+      throw new Error('Invalid secure record request');
+    }
+    return encryptedRecordStore.list(value.namespace as any);
   });
 
   // Secure WebSocket server for Chrome extension

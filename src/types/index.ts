@@ -254,6 +254,10 @@ export interface ElectronAPI {
   writeFile: (path: string, data: any) => Promise<boolean>;
   listDir: (path: string) => Promise<Array<{ name: string; isDirectory: boolean; path: string }>>;
   deleteFile: (path: string) => Promise<boolean>;
+  secureRecordSet: (namespace: string, id: string, data: string) => Promise<boolean>;
+  secureRecordGet: (namespace: string, id: string) => Promise<string | null>;
+  secureRecordDelete: (namespace: string, id: string) => Promise<boolean>;
+  secureRecordList: (namespace: string) => Promise<string[]>;
   resolveDns?: (hostname: string) => Promise<Array<{ address: string; family: number }>>;
   safeFetchPinned?: (options: any) => Promise<any>;
   openExternal: (url: string) => Promise<void>;

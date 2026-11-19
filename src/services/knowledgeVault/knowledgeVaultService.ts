@@ -21,6 +21,8 @@ import { IngestionResult } from '../ingestion/types';
 import { CrawledPage } from '../website/websiteIngestionTypes';
 
 const STORAGE_KEY = 'iac_candidate_knowledge_vault_v2';
+const ENCRYPTED_STORAGE_NAMESPACE = 'knowledge-vault';
+const ENCRYPTED_STORAGE_ID = 'candidate_knowledge_vault_v2';
 const SCHEMA_VERSION = 2;
 
 function createEmptyProfile(): CandidateProfile {
@@ -51,13 +53,35 @@ export function createInitialVault(): CandidateKnowledgeVault {
   };
 }
 
+
+function isCandidateKnowledgeVault(value: unknown): value is CandidateKnowledgeVault {
+  if (!value || typeof value !== 'object') return false;
+  const vault = value as CandidateKnowledgeVault;
+  return (
+    vault.schemaVersion === SCHEMA_VERSION &&
+    !!vault.profile &&
+    typeof vault.profile === 'object' &&
+    Array.isArray(vault.sources) &&
+    Array.isArray(vault.experiences) &&
+    Array.isArray(vault.projects) &&
+    Array.isArray(vault.technologies) &&
+    Array.isArray(vault.evidenceRecords) &&
+    Array.isArray(vault.relationships) &&
+    Array.isArray(vault.unreviewedClaims)
+  );
+}
+
 export class KnowledgeVaultService {
   private static instance: KnowledgeVaultService | null = null;
   private currentVault: CandidateKnowledgeVault;
   private listeners: Array<(vault: CandidateKnowledgeVault) => void> = [];
+  private persistenceQueue: Promise<void> = Promise.resolve();
+  private persistenceState: 'legacy' | 'pending' | 'saved' | 'unavailable' | 'error' = 'legacy';
+  private hasLocalChanges = false;
 
   private constructor() {
     this.currentVault = this.loadFromStorage();
+    void this.hydrateEncryptedVault();
   }
 
   public static getInstance(): KnowledgeVaultService {
@@ -88,48 +112,117 @@ export class KnowledgeVaultService {
     }
   }
 
+  public getPersistenceStatus(): {
+    state: 'legacy' | 'pending' | 'saved' | 'unavailable' | 'error';
+  } {
+    return { state: this.persistenceState };
+  }
+
+  /** Wait for queued encrypted writes; useful for explicit save/close workflows. */
+  public async flushPersistence(): Promise<boolean> {
+    await this.persistenceQueue;
+    return this.persistenceState === 'saved';
+  }
+
+  private queueEncryptedSave(snapshot: string): void {
+    this.persistenceState = 'pending';
+    this.persistenceQueue = this.persistenceQueue
+      .then(async () => {
+        const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
+        if (!api?.secureRecordSet || !api?.secureRecordGet) {
+          this.persistenceState = 'unavailable';
+          return;
+        }
+
+        const written = await api.secureRecordSet(
+          ENCRYPTED_STORAGE_NAMESPACE,
+          ENCRYPTED_STORAGE_ID,
+          snapshot
+        );
+        if (!written) throw new Error('Encrypted storage did not confirm the write.');
+
+        const roundTrip = await api.secureRecordGet(
+          ENCRYPTED_STORAGE_NAMESPACE,
+          ENCRYPTED_STORAGE_ID
+        );
+        if (roundTrip !== snapshot) {
+          throw new Error('Encrypted Knowledge Vault read-back verification failed.');
+        }
+        this.persistenceState = 'saved';
+      })
+      .catch(() => {
+        this.persistenceState = 'error';
+        console.error('[KnowledgeVault] Encrypted persistence failed; vault content was not logged.');
+      });
+  }
+
+  private async hydrateEncryptedVault(): Promise<void> {
+    const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
+    if (!api?.secureRecordGet) {
+      this.persistenceState = 'unavailable';
+      return;
+    }
+
+    try {
+      const raw = await api.secureRecordGet(
+        ENCRYPTED_STORAGE_NAMESPACE,
+        ENCRYPTED_STORAGE_ID
+      );
+      if (raw === null) {
+        this.persistenceState = 'legacy';
+        return;
+      }
+
+      const parsed: unknown = JSON.parse(raw);
+      if (!isCandidateKnowledgeVault(parsed)) {
+        throw new Error('Encrypted Knowledge Vault schema validation failed.');
+      }
+      if (this.hasLocalChanges) return;
+
+      this.currentVault = parsed;
+      this.persistenceState = 'saved';
+      this.notify();
+    } catch {
+      this.persistenceState = 'error';
+      console.error('[KnowledgeVault] Encrypted vault hydration failed; stored data was retained.');
+    }
+  }
+
   public saveVault(vault: CandidateKnowledgeVault): void {
     this.currentVault = {
       ...vault,
       lastSavedAt: Date.now(),
     };
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentVault));
-      } catch (e) {
-        console.error('[KnowledgeVault] Failed to save to localStorage:', e);
-      }
-    }
+    this.hasLocalChanges = true;
+    this.queueEncryptedSave(JSON.stringify(this.currentVault));
     this.notify();
   }
 
+  /**
+   * Reset in-memory state and persist an encrypted empty-vault tombstone.
+   * Legacy localStorage is intentionally retained for recovery; an encrypted
+   * empty vault takes precedence on subsequent launches.
+   */
   public resetVault(): boolean {
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-      } catch (e) {
-        console.error('[KnowledgeVault] Reset failed:', e);
-        return false;
-      }
-    }
-
     this.currentVault = createInitialVault();
+    this.hasLocalChanges = true;
+    this.queueEncryptedSave(JSON.stringify(this.currentVault));
     this.notify();
     return true;
   }
 
   private loadFromStorage(): CandidateKnowledgeVault {
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = window.localStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && parsed.schemaVersion === SCHEMA_VERSION) {
+          const parsed: unknown = JSON.parse(raw);
+          if (isCandidateKnowledgeVault(parsed)) {
             return parsed;
           }
         }
-      } catch (e) {
-        console.warn('[KnowledgeVault] Failed to parse vault from storage:', e);
+      } catch {
+        console.warn('[KnowledgeVault] Failed to parse legacy vault from storage.');
       }
     }
     return createInitialVault();

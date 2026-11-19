@@ -1,9 +1,16 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main, 'fix/**', 'feat/**', 'security/**']
+    branches: [main]
   pull_request:
+
+# A branch push and its pull_request event are the same code revision.
+# Share a concurrency key so newer commits supersede stale validation runs.
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -33,8 +40,12 @@ jobs:
       - name: Scan tracked source for committed secrets
         run: npm run security:source
 
-      - name: Report dependency security advisories
+      - name: Verify KMS permissions stay least-privilege
+        run: bash scripts/check-kms-policy.sh
+
+      - name: Report all dependency security advisories (including development tools)
         if: matrix.os == 'ubuntu-24.04'
+        continue-on-error: true
         shell: bash
         run: |
           npm audit --json > /tmp/npm-audit.json || true
@@ -74,6 +85,10 @@ jobs:
           }
           NODE
 
+      - name: Enforce production dependency security audit
+        if: matrix.os == 'ubuntu-24.04'
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Check formatting for changed files
         shell: bash
         run: |
@@ -84,7 +99,15 @@ jobs:
             git diff --name-only --diff-filter=ACMR HEAD^ HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' > /tmp/changed-files.txt
           fi
           if [[ -s /tmp/changed-files.txt ]]; then
-            xargs -r npx prettier --check < /tmp/changed-files.txt
+            if ! xargs -r npx prettier --check < /tmp/changed-files.txt; then
+            while IFS= read -r file; do
+              [[ -f "$file" ]] || continue
+              echo "::group::Prettier diff: $file"
+              npx prettier "$file" | diff -u "$file" - || true
+              echo "::endgroup::"
+            done < /tmp/changed-files.txt
+            exit 1
+          fi
           else
             echo "No supported files changed; skipping formatting check."
           fi
@@ -183,3 +206,20 @@ jobs:
           fi
           export POSTGRES_CONTAINER_ID
           bash scripts/test-cloud-postgres-rls.sh
+
+  terraform-validate:
+    name: Terraform formatting & validation (no AWS credentials)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - name: Check Terraform formatting
+        run: terraform fmt -check -diff -recursive infra/aws/terraform
+      - name: Initialize providers without backend
+        run: terraform -chdir=infra/aws/terraform init -backend=false -input=false
+      - name: Validate Terraform configuration
+        run: terraform -chdir=infra/aws/terraform validate -no-color

@@ -912,100 +912,96 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   },
   loadSessionHistory: async () => {
     try {
-      const sessions: any[] = [];
+      const sessionsById = new Map<string, any>();
       if (
         typeof window !== 'undefined' &&
-        window.electronAPI?.getSessionsDir &&
-        window.electronAPI?.listDir &&
-        window.electronAPI?.readFile
+        window.electronAPI?.secureRecordList &&
+        window.electronAPI?.secureRecordGet
       ) {
+        const ids = await window.electronAPI.secureRecordList('interview-sessions');
+        for (const id of ids) {
+          try {
+            const raw = await window.electronAPI.secureRecordGet('interview-sessions', id);
+            if (!raw) continue;
+            const value = JSON.parse(raw);
+            if (value?.id === id) sessionsById.set(id, value);
+          } catch (error) {
+            console.error(
+              'Unable to decrypt interview history record; encrypted source retained.',
+              error
+            );
+          }
+        }
+      }
+
+      // Legacy plaintext history remains readable for manual export. It is never auto-migrated.
+      if (typeof localStorage !== 'undefined') {
         try {
-          const sessionsDir = await window.electronAPI.getSessionsDir();
-          const entries = await window.electronAPI.listDir(sessionsDir);
-          if (Array.isArray(entries)) {
-            for (const entry of entries) {
-              if (entry.name.endsWith('.json') && !entry.isDirectory) {
-                try {
-                  const buffer = await window.electronAPI.readFile(entry.path);
-                  const str = new TextDecoder().decode(buffer);
-                  const sessionData = JSON.parse(str);
-                  if (sessionData && sessionData.id) {
-                    sessions.push(sessionData);
-                  }
-                } catch {}
+          const raw = localStorage.getItem('iac_session_history');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              for (const item of parsed) {
+                if (item?.id && !sessionsById.has(item.id)) sessionsById.set(item.id, item);
               }
             }
           }
-        } catch {}
+        } catch (error) {
+          console.error('Unable to read legacy interview history; source retained.', error);
+        }
       }
 
-      if (sessions.length === 0 && typeof localStorage !== 'undefined') {
-        try {
-          const local = localStorage.getItem('iac_session_history');
-          if (local) {
-            const parsed = JSON.parse(local);
-            if (Array.isArray(parsed)) {
-              sessions.push(...parsed);
-            }
-          }
-        } catch {}
-      }
-
-      sessions.sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
+      const sessions = Array.from(sessionsById.values());
+      sessions.sort(
+        (a, b) => new Date(b.startTime || 0).getTime() - new Date(a.startTime || 0).getTime()
+      );
       set({ sessionHistory: sessions });
-    } catch {}
+    } catch (error) {
+      console.error('Unable to load secure interview history.', error);
+    }
   },
 
   saveSession: async (session: any) => {
-    if (!session || !session.id) return;
-    try {
-      const current = get().sessionHistory;
-      const updated = [session, ...current.filter((s) => s.id !== session.id)].slice(0, 50);
-      set({ sessionHistory: updated });
-
-      if (typeof localStorage !== 'undefined') {
-        try {
-          localStorage.setItem('iac_session_history', JSON.stringify(updated));
-        } catch {}
-      }
-
-      if (
-        typeof window !== 'undefined' &&
-        window.electronAPI?.getSessionsDir &&
-        window.electronAPI?.writeFile
-      ) {
-        try {
-          const sessionsDir = await window.electronAPI.getSessionsDir();
-          const sessionPath = `${sessionsDir}/${session.id}.json`;
-          const data = JSON.stringify(session, null, 2);
-          await window.electronAPI.writeFile(sessionPath, data);
-        } catch {}
-      }
-    } catch {}
+    if (!session || typeof session.id !== 'string') return;
+    if (typeof window === 'undefined' || !window.electronAPI?.secureRecordSet) {
+      throw new Error('Secure session storage is unavailable. No plaintext fallback was used.');
+    }
+    await window.electronAPI.secureRecordSet(
+      'interview-sessions',
+      session.id,
+      JSON.stringify(session)
+    );
+    const updated = [
+      session,
+      ...get().sessionHistory.filter((item) => item.id !== session.id),
+    ].slice(0, 50);
+    set({ sessionHistory: updated });
   },
 
   deleteSession: async (sessionId: string) => {
-    try {
-      const updated = get().sessionHistory.filter((s) => s.id !== sessionId);
-      set({ sessionHistory: updated });
-
-      if (typeof localStorage !== 'undefined') {
-        try {
-          localStorage.setItem('iac_session_history', JSON.stringify(updated));
-        } catch {}
+    if (typeof window !== 'undefined' && window.electronAPI?.secureRecordDelete) {
+      await window.electronAPI.secureRecordDelete('interview-sessions', sessionId);
+    }
+    // Deletion is an explicit user action; remove the same item from the legacy export cache too.
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('iac_session_history');
+        if (raw) {
+          const legacy = JSON.parse(raw);
+          if (Array.isArray(legacy)) {
+            const remaining = legacy.filter((item) => item?.id !== sessionId);
+            if (remaining.length)
+              localStorage.setItem('iac_session_history', JSON.stringify(remaining));
+            else localStorage.removeItem('iac_session_history');
+          }
+        }
+      } catch (error) {
+        console.error('Unable to update legacy session history after explicit deletion.', error);
       }
-
-      if (
-        typeof window !== 'undefined' &&
-        window.electronAPI?.getSessionsDir &&
-        window.electronAPI?.deleteFile
-      ) {
-        try {
-          const sessionsDir = await window.electronAPI.getSessionsDir();
-          await window.electronAPI.deleteFile(`${sessionsDir}/${sessionId}.json`);
-        } catch {}
-      }
-    } catch {}
+    }
+    set({
+      sessionHistory: get().sessionHistory.filter((item) => item.id !== sessionId),
+    });
   },
 
   copyAnswer: async () => {
@@ -1199,33 +1195,61 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       }
     }
 
-    if (
-      typeof window !== 'undefined' &&
-      window.electronAPI?.getSessionsDir &&
-      window.electronAPI?.listDir &&
-      window.electronAPI?.deleteFile
-    ) {
-      try {
-        const dir = await window.electronAPI.getSessionsDir();
-        const files = await window.electronAPI.listDir(dir);
-        if (!Array.isArray(files)) {
-          failedStores.push('session-files:directory-list');
-        } else {
-          for (const file of files) {
-            if (!file.isDirectory && file.name.endsWith('.json')) {
-              try {
-                const removed = await window.electronAPI.deleteFile(file.path);
-                if (removed === false) failedStores.push(`session-file:${file.name}`);
-              } catch (error) {
-                console.error('[AppStore] Failed to delete session file:', file.name, error);
-                failedStores.push(`session-file:${file.name}`);
+    const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
+
+    if (electronAPI) {
+      if (electronAPI.secureRecordList && electronAPI.secureRecordDelete) {
+        try {
+          const secureSessionIds = await electronAPI.secureRecordList('interview-sessions');
+          for (const sessionId of secureSessionIds) {
+            try {
+              const removed = await electronAPI.secureRecordDelete('interview-sessions', sessionId);
+              if (removed === false) failedStores.push(`secure-session:${sessionId}`);
+            } catch (error) {
+              console.error(
+                '[AppStore] Failed to delete encrypted interview session:',
+                sessionId,
+                error
+              );
+              failedStores.push(`secure-session:${sessionId}`);
+            }
+          }
+        } catch (error) {
+          console.error(
+            '[AppStore] Failed to enumerate encrypted interview sessions during wipe:',
+            error
+          );
+          failedStores.push('secure-session-history');
+        }
+      } else {
+        failedStores.push('secure-session-history:api-unavailable');
+      }
+
+      if (electronAPI.getSessionsDir && electronAPI.listDir && electronAPI.deleteFile) {
+        try {
+          const dir = await electronAPI.getSessionsDir();
+          const files = await electronAPI.listDir(dir);
+          if (!Array.isArray(files)) {
+            failedStores.push('session-files:directory-list');
+          } else {
+            for (const file of files) {
+              if (!file.isDirectory && file.name.endsWith('.json')) {
+                try {
+                  const removed = await electronAPI.deleteFile(file.path);
+                  if (removed === false) failedStores.push(`session-file:${file.name}`);
+                } catch (error) {
+                  console.error('[AppStore] Failed to delete session file:', file.name, error);
+                  failedStores.push(`session-file:${file.name}`);
+                }
               }
             }
           }
+        } catch (error) {
+          console.error('[AppStore] Failed to enumerate session files during wipe:', error);
+          failedStores.push('session-files:directory-access');
         }
-      } catch (error) {
-        console.error('[AppStore] Failed to enumerate session files during wipe:', error);
-        failedStores.push('session-files:directory-access');
+      } else {
+        failedStores.push('session-files:api-unavailable');
       }
     }
 

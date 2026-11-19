@@ -10,6 +10,10 @@ const mockElectronAPI = {
   readFile: vi.fn(),
   writeFile: vi.fn().mockResolvedValue(true),
   deleteFile: vi.fn().mockResolvedValue(true),
+  secureRecordSet: vi.fn().mockResolvedValue(true),
+  secureRecordGet: vi.fn().mockResolvedValue(null),
+  secureRecordDelete: vi.fn().mockResolvedValue(true),
+  secureRecordList: vi.fn().mockResolvedValue([]),
   getSettings: vi.fn().mockResolvedValue({}),
   getApiKey: vi.fn().mockResolvedValue('gsk_test12345'),
 };
@@ -35,8 +39,12 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
   });
 
   it('handles START_LISTENING and STOP_LISTENING idempotently', async () => {
-    const audioSpyStart = vi.spyOn(AudioRecorder.getInstance(), 'start').mockImplementation(async () => {});
-    const audioSpyStop = vi.spyOn(AudioRecorder.getInstance(), 'stop').mockImplementation(async () => {});
+    const audioSpyStart = vi
+      .spyOn(AudioRecorder.getInstance(), 'start')
+      .mockImplementation(async () => {});
+    const audioSpyStop = vi
+      .spyOn(AudioRecorder.getInstance(), 'stop')
+      .mockImplementation(async () => {});
 
     await InterviewEngine.handleEvent({ type: 'START_LISTENING' });
     expect(useAppStore.getState().status).toBe('listening');
@@ -80,6 +88,34 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
     expect(state.sessionHistory).toEqual([]);
   });
 
+  it('reports failure when Electron persistence APIs are unavailable during a data wipe', async () => {
+    const originalSecureRecordList = mockElectronAPI.secureRecordList;
+    const originalSecureRecordDelete = mockElectronAPI.secureRecordDelete;
+    const originalGetSessionsDir = mockElectronAPI.getSessionsDir;
+    const originalListDir = mockElectronAPI.listDir;
+    const originalDeleteFile = mockElectronAPI.deleteFile;
+
+    mockElectronAPI.secureRecordList = undefined as never;
+    mockElectronAPI.secureRecordDelete = undefined as never;
+    mockElectronAPI.getSessionsDir = undefined as never;
+    mockElectronAPI.listDir = undefined as never;
+    mockElectronAPI.deleteFile = undefined as never;
+
+    try {
+      const result = await useAppStore.getState().clearAllData();
+
+      expect(result.success).toBe(false);
+      expect(result.failedStores).toContain('secure-session-history:api-unavailable');
+      expect(result.failedStores).toContain('session-files:api-unavailable');
+    } finally {
+      mockElectronAPI.secureRecordList = originalSecureRecordList;
+      mockElectronAPI.secureRecordDelete = originalSecureRecordDelete;
+      mockElectronAPI.getSessionsDir = originalGetSessionsDir;
+      mockElectronAPI.listDir = originalListDir;
+      mockElectronAPI.deleteFile = originalDeleteFile;
+    }
+  });
+
   it('saves and deletes sessions correctly in session history', async () => {
     const mockSession = {
       id: 'session_test_1',
@@ -93,7 +129,9 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
     expect(useAppStore.getState().sessionHistory.some((s) => s.id === 'session_test_1')).toBe(true);
 
     await useAppStore.getState().deleteSession('session_test_1');
-    expect(useAppStore.getState().sessionHistory.some((s) => s.id === 'session_test_1')).toBe(false);
+    expect(useAppStore.getState().sessionHistory.some((s) => s.id === 'session_test_1')).toBe(
+      false
+    );
   });
 
   it('preserves question undo/redo stack on history restoration', () => {
