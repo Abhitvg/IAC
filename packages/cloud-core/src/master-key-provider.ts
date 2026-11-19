@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import type { GeneratedDataKey, TenantKeyProvider } from './encryption';
 
-const KEY_VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const KEY_VERSION_PATTERN = /^(?!kms-v[1-9][0-9]{0,2}$)[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 interface WrappedDataKey {
@@ -84,7 +84,7 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
     try {
       for (const [version, encodedKey] of entries) {
         if (!KEY_VERSION_PATTERN.test(version) || typeof encodedKey !== 'string') {
-          throw new Error('Envelope master-key ring contains an invalid version');
+          throw new Error('Envelope master-key ring contains an invalid or reserved KMS version');
         }
         this.masterKeys.set(version, decodeBase64(encodedKey, version, 32));
       }
