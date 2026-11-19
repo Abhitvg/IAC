@@ -16,8 +16,12 @@ describe('practice data wipe', () => {
       ['ai_practice_active_session_v1', '{"answer":"encrypted answer"}'],
       ['practice_migration_v1', '{"version":1}'],
     ]);
-    secureRecordGet = vi.fn(async (_namespace: string, id: string) => encryptedRecords.get(id) ?? null);
-    secureRecordDelete = vi.fn(async (_namespace: string, id: string) => encryptedRecords.delete(id));
+    secureRecordGet = vi.fn(
+      async (_namespace: string, id: string) => encryptedRecords.get(id) ?? null
+    );
+    secureRecordDelete = vi.fn(
+      async (_namespace: string, id: string) => encryptedRecords.delete(id)
+    );
     vi.stubGlobal('window', {
       localStorage: {
         getItem: (key: string) => legacyRecords.get(key) ?? null,
