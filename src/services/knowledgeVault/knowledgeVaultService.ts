@@ -53,7 +53,6 @@ export function createInitialVault(): CandidateKnowledgeVault {
   };
 }
 
-
 function isCandidateKnowledgeVault(value: unknown): value is CandidateKnowledgeVault {
   if (!value || typeof value !== 'object') return false;
   const vault = value as CandidateKnowledgeVault;
@@ -152,7 +151,9 @@ export class KnowledgeVaultService {
       })
       .catch(() => {
         this.persistenceState = 'error';
-        console.error('[KnowledgeVault] Encrypted persistence failed; vault content was not logged.');
+        console.error(
+          '[KnowledgeVault] Encrypted persistence failed; vault content was not logged.'
+        );
       });
   }
 
@@ -164,10 +165,7 @@ export class KnowledgeVaultService {
     }
 
     try {
-      const raw = await api.secureRecordGet(
-        ENCRYPTED_STORAGE_NAMESPACE,
-        ENCRYPTED_STORAGE_ID
-      );
+      const raw = await api.secureRecordGet(ENCRYPTED_STORAGE_NAMESPACE, ENCRYPTED_STORAGE_ID);
       if (this.hasLocalChanges) return;
       if (raw === null) {
         this.persistenceState = 'legacy';
