@@ -408,7 +408,7 @@ resource "aws_kms_key" "application_envelope" {
   deletion_window_in_days = 30
   enable_key_rotation     = true
   key_usage               = "ENCRYPT_DECRYPT"
-  customer_master_key_spec = "SYMMETRIC_DEFAULT"
+  key_spec                 = "SYMMETRIC_DEFAULT"
   tags = merge(local.tags, {
     Purpose = "application-envelope-encryption"
   })
