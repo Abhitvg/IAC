@@ -5,12 +5,55 @@ import {
   type KmsDataKeyOperations,
 } from '../packages/cloud-core/src/kms-key-provider';
 import { TenantEnvelopeCipher, type TenantKeyProvider } from '../packages/cloud-core/src/encryption';
+import { AwsSdkKmsDataKeyOperations } from '../packages/cloud-core/src/aws-sdk-kms-operations';
 
 const keyArn = 'arn:aws:kms:ap-southeast-2:165328640460:key/11111111-2222-3333-4444-555555555555';
 const tenantId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const context = 'career-graph:profile.current_role';
 
 describe('KMS tenant envelope key provider', () => {
+  it('adapts AWS SDK v3 command constructors to the narrow data-key interface', async () => {
+    class GenerateDataKeyCommand {
+      constructor(readonly input: {
+        KeyId: string;
+        KeySpec: 'AES_256';
+        EncryptionContext: Record<string, string>;
+      }) {}
+    }
+    class DecryptCommand {
+      constructor(readonly input: {
+        KeyId: string;
+        CiphertextBlob: Uint8Array;
+        EncryptionContext: Record<string, string>;
+      }) {}
+    }
+    const send = vi.fn(async (command: { input: Record<string, unknown> }) => {
+      if ('KeySpec' in command.input) {
+        return { Plaintext: Buffer.alloc(32, 5), CiphertextBlob: Buffer.from('wrapped'), KeyId: keyArn };
+      }
+      return { Plaintext: Buffer.alloc(32, 6), KeyId: keyArn };
+    });
+    const adapter = new AwsSdkKmsDataKeyOperations(
+      { send },
+      { GenerateDataKeyCommand, DecryptCommand }
+    );
+    const context = { application: 'careerops', tenant_id: tenantId, data_context: 'profile' };
+    const generated = await adapter.generateDataKey({
+      KeyId: keyArn,
+      KeySpec: 'AES_256',
+      EncryptionContext: context,
+    });
+    expect(generated.KeyId).toBe(keyArn);
+    expect(send.mock.calls[0]?.[0]).toBeInstanceOf(GenerateDataKeyCommand);
+    const decrypted = await adapter.decrypt({
+      KeyId: keyArn,
+      CiphertextBlob: Buffer.from('wrapped'),
+      EncryptionContext: context,
+    });
+    expect(decrypted.KeyId).toBe(keyArn);
+    expect(send.mock.calls[1]?.[0]).toBeInstanceOf(DecryptCommand);
+  });
+
   it('accepts canonical AWS key ARNs and rejects malformed key configuration', () => {
     expect(() => new KmsTenantKeyProvider({
       client: { generateDataKey: async () => ({}), decrypt: async () => ({}) },
