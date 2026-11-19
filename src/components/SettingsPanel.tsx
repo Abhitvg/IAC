@@ -60,6 +60,13 @@ export default function SettingsPanel() {
   const [migrationMessage, setMigrationMessage] = useState<string | null>(null);
   const [persistenceMessage, setPersistenceMessage] = useState<string | null>(null);
   const [persistenceBusy, setPersistenceBusy] = useState(false);
+  const persistenceCounts = {
+    saved: Object.values(persistenceStatus).filter((status) => status === 'saved').length,
+    pending: Object.values(persistenceStatus).filter((status) => status === 'pending').length,
+    failed: Object.values(persistenceStatus).filter((status) => status === 'error').length,
+    unavailable: Object.values(persistenceStatus).filter((status) => status === 'unavailable')
+      .length,
+  };
 
   const refreshMigrationPreviews = () => {
     setPracticeMigrationPreview(previewPracticeDataMigration());
@@ -1058,10 +1065,8 @@ export default function SettingsPanel() {
               or overwrite legacy data.
             </p>
             <div className="field__hint" role="status" aria-live="polite">
-              Practice persistence: {Object.values(persistenceStatus).filter((status) => status === 'saved').length}{' '}
-              saved, {Object.values(persistenceStatus).filter((status) => status === 'pending').length}{' '}
-              pending, {Object.values(persistenceStatus).filter((status) => status === 'error').length}{' '}
-              failed, {Object.values(persistenceStatus).filter((status) => status === 'unavailable').length}{' '}
+              Practice persistence: {persistenceCounts.saved} saved, {persistenceCounts.pending}{' '}
+              pending, {persistenceCounts.failed} failed, {persistenceCounts.unavailable}{' '}
               unavailable.
               {persistenceMessage ? ` ${persistenceMessage}` : ''}
             </div>
