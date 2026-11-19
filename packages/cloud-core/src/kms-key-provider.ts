@@ -97,6 +97,7 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
     const plaintext = result.Plaintext ? Buffer.from(result.Plaintext) : undefined;
     const ciphertext = result.CiphertextBlob ? Buffer.from(result.CiphertextBlob) : undefined;
     try {
+      if (this.destroyed) throw new Error('KMS tenant key provider has been destroyed');
       assertKeyId(result.KeyId, this.keyArn);
       if (!plaintext || plaintext.length !== 32 || !ciphertext?.length) {
         throw new Error('KMS returned an invalid GenerateDataKey response');
@@ -132,6 +133,7 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
         EncryptionContext: encryptionContext(tenantId, context),
       });
       sdkPlaintext = result.Plaintext;
+      if (this.destroyed) throw new Error('KMS tenant key provider has been destroyed');
       assertKeyId(result.KeyId, this.keyArn);
       plaintext = result.Plaintext ? Buffer.from(result.Plaintext) : undefined;
       if (!plaintext || plaintext.length !== 32) throw new Error('KMS returned an invalid Decrypt response');
