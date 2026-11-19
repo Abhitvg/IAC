@@ -4,6 +4,7 @@ const KMS_VERSION = /^kms-v[1-9][0-9]{0,2}$/;
 const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 export interface KmsDataKeyOperations {
+  destroy?(): void;
   generateDataKey(input: {
     KeyId: string;
     KeySpec: 'AES_256';
@@ -74,6 +75,10 @@ export class KmsTenantKeyProvider implements TenantKeyProvider {
     this.client = options.client;
     this.keyArn = options.keyArn;
     this.keyVersion = options.keyVersion;
+  }
+
+  destroy(): void {
+    this.client.destroy?.();
   }
 
   async generateDataKey(tenantId: string, context: string): Promise<GeneratedDataKey> {
@@ -150,6 +155,7 @@ export class DualReadTenantKeyProvider implements TenantKeyProvider {
   }
 
   destroy(): void {
+    this.kmsProvider.destroy();
     const legacy = this.legacyProvider as TenantKeyProvider & { destroy?: () => void };
     legacy.destroy?.();
   }
