@@ -1065,7 +1065,7 @@ export default function SettingsPanel() {
               or overwrite legacy data.
             </p>
             <div className="field__hint" role="status" aria-live="polite">
-              Practice persistence: {persistenceCounts.saved} saved, {persistenceCounts.pending}{' '}
+              Practice saves: {persistenceCounts.saved} saved, {persistenceCounts.pending}{' '}
               pending, {persistenceCounts.failed} failed, {persistenceCounts.unavailable}{' '}
               unavailable.
               {persistenceMessage ? ` ${persistenceMessage}` : ''}
