@@ -294,6 +294,72 @@ describe('KMS tenant envelope key provider', () => {
     expect(generateDataKey).not.toHaveBeenCalled();
   });
 
+  it('does not release a generated data key when shutdown races an in-flight KMS call', async () => {
+    let resolveGenerate!: (value: {
+      Plaintext: Uint8Array;
+      CiphertextBlob: Uint8Array;
+      KeyId: string;
+    }) => void;
+    const pending = new Promise<{
+      Plaintext: Uint8Array;
+      CiphertextBlob: Uint8Array;
+      KeyId: string;
+    }>((resolve) => { resolveGenerate = resolve; });
+    const sdkPlaintext = Buffer.alloc(32, 0x4c);
+    const sdkCiphertext = Buffer.from('wrapped');
+    const destroy = vi.fn();
+    const provider = new KmsTenantKeyProvider({
+      keyArn,
+      keyVersion: 'kms-v1',
+      client: {
+        generateDataKey: async () => pending,
+        decrypt: async () => ({}),
+        destroy,
+      },
+    });
+
+    const operation = provider.generateDataKey(tenantId, context);
+    provider.destroy();
+    resolveGenerate({
+      Plaintext: sdkPlaintext,
+      CiphertextBlob: sdkCiphertext,
+      KeyId: keyArn,
+    });
+
+    await expect(operation).rejects.toThrow('has been destroyed');
+    expect(sdkPlaintext.every((byte) => byte === 0)).toBe(true);
+    expect(sdkCiphertext.every((byte) => byte === 0)).toBe(true);
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  it('does not release an unwrapped data key when shutdown races an in-flight KMS decrypt', async () => {
+    let resolveDecrypt!: (value: { Plaintext: Uint8Array; KeyId: string }) => void;
+    const pending = new Promise<{ Plaintext: Uint8Array; KeyId: string }>((resolve) => {
+      resolveDecrypt = resolve;
+    });
+    const sdkPlaintext = Buffer.alloc(32, 0x3d);
+    const provider = new KmsTenantKeyProvider({
+      keyArn,
+      keyVersion: 'kms-v1',
+      client: {
+        generateDataKey: async () => ({}),
+        decrypt: async () => pending,
+      },
+    });
+
+    const operation = provider.unwrapDataKey(
+      tenantId,
+      Buffer.from('wrapped').toString('base64'),
+      'kms-v1',
+      context
+    );
+    provider.destroy();
+    resolveDecrypt({ Plaintext: sdkPlaintext, KeyId: keyArn });
+
+    await expect(operation).rejects.toThrow('has been destroyed');
+    expect(sdkPlaintext.every((byte) => byte === 0)).toBe(true);
+  });
+
   it('destroys both dual-read providers once, even when shutdown is repeated', async () => {
     const kmsDestroy = vi.fn();
     const legacyDestroy = vi.fn();
