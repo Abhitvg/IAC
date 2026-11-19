@@ -21,7 +21,8 @@
     "security:source": "node scripts/verify-source-secrets.js",
     "build:api": "tsc --project tsconfig.api.build.json",
     "start:api": "node dist-api/apps/api/src/main.js",
-    "migrate:cloud": "node dist-api/scripts/run-cloud-migrations.js"
+    "migrate:cloud": "node dist-api/scripts/run-cloud-migrations.js",
+    "rotate:career-graph-keys": "node dist-api/scripts/rotate-career-graph-envelopes.js"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
