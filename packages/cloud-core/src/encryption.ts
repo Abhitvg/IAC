@@ -94,11 +94,20 @@ function validateEnvelope(
   // invoking a key provider. This prevents malformed persisted data reaching it.
   associatedData(expectedTenantId, expectedContext, envelope.keyVersion);
 
-  return {
-    iv: decodeCanonicalBase64(envelope.iv, 'IV', 12, 32),
-    authTag: decodeCanonicalBase64(envelope.authTag, 'authentication tag', 16, 32),
-    ciphertext: decodeCanonicalBase64(envelope.ciphertext, 'ciphertext'),
-  };
+  let iv: Buffer | undefined;
+  let authTag: Buffer | undefined;
+  let ciphertext: Buffer | undefined;
+  try {
+    iv = decodeCanonicalBase64(envelope.iv, 'IV', 12, 32);
+    authTag = decodeCanonicalBase64(envelope.authTag, 'authentication tag', 16, 32);
+    ciphertext = decodeCanonicalBase64(envelope.ciphertext, 'ciphertext');
+    return { iv, authTag, ciphertext };
+  } catch (error) {
+    iv?.fill(0);
+    authTag?.fill(0);
+    ciphertext?.fill(0);
+    throw error;
+  }
 }
 
 export class TenantEnvelopeCipher {
