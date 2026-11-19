@@ -373,4 +373,100 @@ describe('Postgres Career Graph repository', () => {
     expect(statements).toContain('ROLLBACK');
     expect(statements.at(-1)).toBe('RELEASE');
   });
+}
+  it('rotates bounded tenant facts by appending resumable envelope revisions', async () => {
+    const statements: string[] = [];
+    const client = {
+      query: async (sql: string, values?: unknown[]) => {
+        statements.push(sql);
+        if (sql.includes('SELECT f.id, f.fact_key')) {
+          return {
+            rows: [
+              {
+                id: factId,
+                fact_key: 'profile.current_role',
+                value_envelope: fact.valueEnvelope,
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('COALESCE(MAX(revision), 1)')) {
+          return { rows: [{ next_revision: 2 }], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO career_graph_fact_envelope_revisions')) {
+          expect(values?.[2]).toBe(2);
+          expect(JSON.parse(String(values?.[3])).keyVersion).toBe('test-key-v2');
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('SELECT event_hash')) return { rows: [] };
+        return { rows: [], rowCount: 1 };
+      },
+      release: () => statements.push('RELEASE'),
+    };
+    const pool = { connect: async () => client } as unknown as SqlPool;
+    const repository = new PostgresCareerGraphRepository(pool);
+    const reencrypt = vi.fn(async (envelope: typeof fact.valueEnvelope) => ({
+      ...envelope,
+      keyVersion: 'test-key-v2',
+      wrappedKey: 'wrapped-key-v2',
+    }));
+
+    const result = await repository.rotateEnvelopeBatch({
+      tenantId,
+      actorSubject: subject,
+      targetKeyVersion: 'test-key-v2',
+      afterId: null,
+      limit: 10,
+      reencrypt,
+    });
+
+    expect(result).toEqual({ rotated: 1, nextCursor: factId, hasMore: false });
+    expect(reencrypt).toHaveBeenCalledWith(
+      fact.valueEnvelope,
+      tenantId,
+      'career-graph:profile.current_role'
+    );
+    expect(statements.some((sql) => sql.includes('career_graph_fact_envelope_revisions'))).toBe(
+      true
+    );
+    expect(statements).toContain('COMMIT');
+    expect(statements.at(-1)).toBe('RELEASE');
+  });
+
+  it('rolls back the entire rotation batch when re-encryption fails', async () => {
+    const statements: string[] = [];
+    const client = {
+      query: async (sql: string) => {
+        statements.push(sql);
+        if (sql.includes('SELECT f.id, f.fact_key')) {
+          return {
+            rows: [{ id: factId, fact_key: 'profile.current_role', value_envelope: fact.valueEnvelope }],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 1 };
+      },
+      release: () => statements.push('RELEASE'),
+    };
+    const pool = { connect: async () => client } as unknown as SqlPool;
+    const repository = new PostgresCareerGraphRepository(pool);
+
+    await expect(
+      repository.rotateEnvelopeBatch({
+        tenantId,
+        actorSubject: subject,
+        targetKeyVersion: 'test-key-v2',
+        afterId: null,
+        limit: 10,
+        reencrypt: async () => {
+          throw new Error('old key unavailable');
+        },
+      })
+    ).rejects.toThrow('old key unavailable');
+
+    expect(statements).toContain('ROLLBACK');
+    expect(statements).not.toContain('COMMIT');
+    expect(statements.at(-1)).toBe('RELEASE');
+  });
 });
