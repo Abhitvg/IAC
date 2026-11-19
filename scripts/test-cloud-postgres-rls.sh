@@ -212,10 +212,11 @@ SELECT tenant_id, id, 'confirmed', 'user-a'
 INSERT INTO career_graph_envelope_rotation_jobs (
   tenant_id, target_key_version, last_fact_id, rotated_count, status, created_by, updated_by
 )
-SELECT tenant_id, 'test-key-v2', id, 1, 'running', 'user-a', 'user-a'
+SELECT tenant_id, 'test-key-v2', MAX(id), 2, 'running', 'user-a', 'user-a'
   FROM career_graph_facts
  WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
-   AND fact_key = 'profile.current_role' AND version = 1;
+   AND fact_key = 'profile.current_role'
+ GROUP BY tenant_id;
 
 INSERT INTO career_graph_fact_envelope_revisions (
   tenant_id, fact_id, revision, value_envelope, rotated_by
@@ -237,7 +238,7 @@ SELECT
   'user-a'
 FROM career_graph_facts
 WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
-  AND fact_key = 'profile.current_role' AND version = 1;
+  AND fact_key = 'profile.current_role';
 
 UPDATE career_graph_envelope_rotation_jobs
    SET status = 'completed', updated_by = 'user-a', updated_at = now()
@@ -258,10 +259,10 @@ BEGIN
    WHERE tenant_id = '20000000-0000-4000-8000-000000000002';
   SELECT count(*) INTO cross_tenant_jobs FROM career_graph_envelope_rotation_jobs
    WHERE tenant_id = '20000000-0000-4000-8000-000000000002';
-  SELECT value_envelope->>'keyVersion' INTO current_key_version
+  SELECT min(value_envelope->>'keyVersion') INTO current_key_version
     FROM career_graph_fact_envelope_revisions
    WHERE tenant_id = '10000000-0000-4000-8000-000000000001';
-  IF visible_revisions <> 1 OR visible_jobs <> 1 OR cross_tenant_revisions <> 0
+  IF visible_revisions <> 2 OR visible_jobs <> 1 OR cross_tenant_revisions <> 0
      OR cross_tenant_jobs <> 0 OR current_key_version <> 'test-key-v2' THEN
     RAISE EXCEPTION 'Career Graph envelope revision or rotation-job RLS failed';
   END IF;
