@@ -115,6 +115,7 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
     let updateOutput: Buffer | undefined;
     let finalOutput: Buffer | undefined;
     let authTag: Buffer | undefined;
+    let serializedEnvelope: Buffer | undefined;
     try {
       const cipher = createCipheriv('aes-256-gcm', masterKey, iv);
       aad = wrappingAssociatedData(tenantId, context, keyVersion);
@@ -129,9 +130,10 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
         authTag: authTag.toString('base64'),
         ciphertext: ciphertext.toString('base64'),
       };
+      serializedEnvelope = Buffer.from(JSON.stringify(wrapped), 'utf8');
       return {
         plaintextKey,
-        wrappedKey: Buffer.from(JSON.stringify(wrapped), 'utf8').toString('base64'),
+        wrappedKey: serializedEnvelope.toString('base64'),
         keyVersion,
       };
     } catch (error) {
@@ -144,6 +146,7 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
       updateOutput?.fill(0);
       finalOutput?.fill(0);
       authTag?.fill(0);
+      serializedEnvelope?.fill(0);
     }
   }
 
