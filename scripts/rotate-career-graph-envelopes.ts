@@ -34,11 +34,15 @@ async function rotate(): Promise<void> {
   try {
     const masterKeys = JSON.parse(keyRingJson) as Record<string, string>;
     keyRingJson = '';
+    const sourceKeyVersions = Object.keys(masterKeys).filter(
+      (version) => version !== targetKeyVersion
+    );
     try {
-      provider = new MasterKeyTenantKeyProvider({
+      const keyProvider = new MasterKeyTenantKeyProvider({
         masterKeys,
         currentKeyVersion: targetKeyVersion,
       });
+      provider = keyProvider;
     } finally {
       for (const version of Object.keys(masterKeys)) masterKeys[version] = '';
     }
@@ -57,6 +61,7 @@ async function rotate(): Promise<void> {
     pool = createPostgresPoolFromUrl(databaseUrl, 'production', 2);
     databaseUrl = '';
     const repository = new PostgresCareerGraphRepository(pool);
+    if (!provider) throw new Error('Envelope key provider initialization failed');
     const cipher = new TenantEnvelopeCipher(provider);
     let totalRotated = 0;
     let hasMore = true;
@@ -66,6 +71,7 @@ async function rotate(): Promise<void> {
         tenantId,
         actorSubject,
         targetKeyVersion,
+        sourceKeyVersions,
         limit: configuredBatchSize,
         reencrypt: (envelope, scopedTenantId, context) =>
           cipher.reencrypt(envelope, scopedTenantId, context),
