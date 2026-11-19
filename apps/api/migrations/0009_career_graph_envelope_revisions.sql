@@ -77,7 +77,7 @@ CREATE POLICY career_graph_envelope_rotation_jobs_tenant_isolation
 CREATE OR REPLACE FUNCTION enforce_career_graph_rotation_job_progress()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+AS $$
 BEGIN
   IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
      OR NEW.target_key_version IS DISTINCT FROM OLD.target_key_version
@@ -99,7 +99,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$$;
 
 CREATE TRIGGER career_graph_rotation_job_progress
 BEFORE UPDATE ON career_graph_envelope_rotation_jobs
