@@ -38,14 +38,15 @@ describe('KMS tenant envelope key provider', () => {
     })).toThrow('Invalid KMS tenant key provider configuration');
   });
 
-  it('fails closed when KMS decrypt reports a different key ARN', async () => {
+  it('fails closed and zeroizes plaintext when KMS decrypt reports a different key ARN', async () => {
+    const sdkPlaintext = Buffer.alloc(32, 4);
     const provider = new KmsTenantKeyProvider({
       keyArn,
       keyVersion: 'kms-v1',
       client: {
         generateDataKey: async () => ({}),
         decrypt: async () => ({
-          Plaintext: Buffer.alloc(32, 4),
+          Plaintext: sdkPlaintext,
           KeyId: 'arn:aws:kms:ap-southeast-2:165328640460:key/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
         }),
       },
@@ -53,6 +54,7 @@ describe('KMS tenant envelope key provider', () => {
     await expect(
       provider.unwrapDataKey(tenantId, Buffer.from('opaque').toString('base64'), 'kms-v1', context)
     ).rejects.toThrow('unexpected key identifier');
+    expect(sdkPlaintext.every((byte) => byte === 0)).toBe(true);
   });
 
   it('uses AES_256 GenerateDataKey and binds tenant and purpose in KMS context', async () => {
