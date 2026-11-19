@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { appendAuditEvent, type AuditRecord } from '../../../../packages/cloud-core/src/audit';
 import type {
   EncryptedEnvelope,
   TenantEnvelopeCipher,
@@ -293,6 +294,7 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
         throw new Error('LinkedIn token rotation returned an envelope with invalid metadata');
       }
 
+      const nextRevision = currentRevision + 1;
       await client.query(
         `INSERT INTO linkedin_connection_envelope_revisions
           (tenant_id, subject, revision, token_envelope, rotated_by)
@@ -300,10 +302,54 @@ export class LinkedInPostgresStore implements LinkedInOAuthStateStore, LinkedInT
         [
           identity.tenantId,
           identity.subject,
-          currentRevision + 1,
+          nextRevision,
           JSON.stringify(replacement),
           actorSubject,
         ]
+      );
+
+      // Keep the tenant audit hash chain serialized exactly like Career Graph events.
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+        identity.tenantId,
+      ]);
+      const previous = await client.query<{ event_hash: string }>(
+        `SELECT event_hash FROM audit_events
+          WHERE tenant_id = $1
+          ORDER BY sequence_id DESC LIMIT 1`,
+        [identity.tenantId]
+      );
+      await appendAuditEvent(
+        {
+          append: async (record: AuditRecord) => {
+            await client.query(
+              `INSERT INTO audit_events
+                (tenant_id, actor_subject, action, entity_type, entity_id, occurred_at,
+                 metadata, previous_hash, event_hash)
+               VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
+              [
+                record.tenantId,
+                record.actorSubject,
+                record.action,
+                record.entityType,
+                record.entityId,
+                record.occurredAt,
+                JSON.stringify(record.metadata ?? {}),
+                record.previousHash,
+                record.eventHash,
+              ]
+            );
+          },
+        },
+        {
+          tenantId: identity.tenantId,
+          actorSubject,
+          action: 'linkedin.token.envelope.rotated',
+          entityType: 'linkedin_connection',
+          entityId: createHash('sha256').update(identity.subject, 'utf8').digest('hex'),
+          occurredAt: new Date().toISOString(),
+          metadata: { targetKeyVersion, revision: nextRevision },
+        },
+        previous.rows[0]?.event_hash ?? null
       );
       return 'rotated';
     });
