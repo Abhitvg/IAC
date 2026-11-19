@@ -48,12 +48,12 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  RAISE EXCEPTION 'LinkedIn token envelope revisions are append-only';
+  RAISE EXCEPTION 'LinkedIn token envelope revisions cannot be updated or truncated';
 END;
 $$;
 
 CREATE TRIGGER linkedin_envelope_revisions_no_update_delete
-BEFORE UPDATE OR DELETE ON linkedin_connection_envelope_revisions
+BEFORE UPDATE ON linkedin_connection_envelope_revisions
 FOR EACH ROW EXECUTE FUNCTION reject_linkedin_envelope_revision_mutation();
 
 CREATE TRIGGER linkedin_envelope_revisions_no_truncate
