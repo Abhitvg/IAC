@@ -539,7 +539,7 @@ resource "aws_ecs_service" "api" {
     container_name   = "careerops-api"
     container_port   = 3000
   }
-  depends_on = [aws_lb_listener.http, aws_iam_role_policy_attachment.execution_managed, aws_iam_role_policy.read_app_secret, aws_route.private_egress]
+  depends_on = [aws_lb_listener.http, aws_iam_role_policy_attachment.execution_managed, aws_iam_role_policy.read_app_secret, aws_iam_role_policy.application_envelope_kms, aws_route.private_egress]
   tags       = local.tags
 
   lifecycle {
