@@ -22,6 +22,8 @@ async function start(): Promise<void> {
   }
   const port = readPort(process.env.PORT);
   const host = process.env.HOST ?? '0.0.0.0';
+
+  // Parse and validate key material before opening database resources.
   let envelopeKeyRingJson = environment.CAREEROPS_ENVELOPE_MASTER_KEYS;
   environment.CAREEROPS_ENVELOPE_MASTER_KEYS = '';
   delete process.env.CAREEROPS_ENVELOPE_MASTER_KEYS;
@@ -42,13 +44,13 @@ async function start(): Promise<void> {
     envelopeKeyRingJson = '';
   }
 
-  // Validate and construct the local key provider before opening database resources.
-  // A malformed key ring must not leave a PostgreSQL pool running during failed startup.
   const pool = createPostgresPool(environment);
   pool.on('error', (error: Error) => {
     // Never log connection strings, query parameters, or SQL values.
     console.error('CareerOps PostgreSQL idle-client error:', error.message);
   });
+
+  let runtime: ReturnType<typeof createCloudApiRuntime>;
   try {
     const linkedin =
       envelopeKeyProvider && environment.LINKEDIN_CLIENT_ID
@@ -64,10 +66,9 @@ async function start(): Promise<void> {
     const careerGraphCrypto = envelopeKeyProvider
       ? new TenantEnvelopeCipher(envelopeKeyProvider)
       : undefined;
-    const runtime = createCloudApiRuntime(pool, environment, linkedin, careerGraphCrypto);
-  
+    runtime = createCloudApiRuntime(pool, environment, linkedin, careerGraphCrypto);
   } catch (error) {
-    // Startup may fail after the pool/provider exist but before runtime owns them.
+    // If composition fails, the runtime has not taken ownership of the pool.
     await pool.end().catch(() => undefined);
     envelopeKeyProvider?.destroy();
     throw error;
