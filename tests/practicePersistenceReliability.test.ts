@@ -22,10 +22,10 @@ describe('practice encrypted persistence reliability', () => {
     let releaseWrite: (() => void) | undefined;
     secureRecordSet.mockImplementation(
       async (_namespace: string, id: string, data: string) =>
-        new Promise<boolean>((resolve) => {
+        new Promise<void>((resolve) => {
           releaseWrite = () => {
             records.set(id, data);
-            resolve(true);
+            resolve();
           };
         })
     );
