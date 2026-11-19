@@ -27,6 +27,7 @@ describe('KMS tenant envelope key provider', () => {
         EncryptionContext: Record<string, string>;
       }) {}
     }
+    const destroy = vi.fn();
     const send = vi.fn(async (command: { input: Record<string, unknown> }) => {
       if ('KeySpec' in command.input) {
         return { Plaintext: Buffer.alloc(32, 5), CiphertextBlob: Buffer.from('wrapped'), KeyId: keyArn };
@@ -34,7 +35,7 @@ describe('KMS tenant envelope key provider', () => {
       return { Plaintext: Buffer.alloc(32, 6), KeyId: keyArn };
     });
     const adapter = new AwsSdkKmsDataKeyOperations(
-      { send },
+      { send, destroy },
       { GenerateDataKeyCommand, DecryptCommand }
     );
     const context = { application: 'careerops', tenant_id: tenantId, data_context: 'profile' };
@@ -52,6 +53,8 @@ describe('KMS tenant envelope key provider', () => {
     });
     expect(decrypted.KeyId).toBe(keyArn);
     expect(send.mock.calls[1]?.[0]).toBeInstanceOf(DecryptCommand);
+    adapter.destroy();
+    expect(destroy).toHaveBeenCalledOnce();
   });
 
   it('accepts canonical AWS key ARNs and rejects malformed key configuration', () => {
