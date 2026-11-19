@@ -6,6 +6,14 @@ import { X, Save, AlertTriangle, Volume2, VolumeX, CheckCircle, ShieldAlert } fr
 import { isSoundMuted, toggleSoundMuted } from '../utils/soundEffects';
 import { DiagnosticLoggerService, ReliabilitySummary } from '../services/diagnosticLogger';
 import {
+  migratePracticeDataToEncryptedStorage,
+  previewPracticeDataMigration,
+} from '../services/practice/security/PracticeDataMigration';
+import {
+  migrateKnowledgeVaultToEncryptedStorage,
+  previewKnowledgeVaultMigration,
+} from '../services/knowledgeVault/KnowledgeVaultDataMigration';
+import {
   getActiveModelsForProvider,
   getDefaultModelForProvider,
   validateModelPreflight,
@@ -41,6 +49,63 @@ export default function SettingsPanel() {
   }>({ running: false });
   const [noticeDismissed, setNoticeDismissed] = useState(false);
   const [reliabilitySummary, setReliabilitySummary] = useState<ReliabilitySummary | null>(null);
+  const [practiceMigrationPreview, setPracticeMigrationPreview] = useState(() =>
+    previewPracticeDataMigration()
+  );
+  const [vaultMigrationPreview, setVaultMigrationPreview] = useState(() =>
+    previewKnowledgeVaultMigration()
+  );
+  const [migrationBusy, setMigrationBusy] = useState(false);
+  const [migrationMessage, setMigrationMessage] = useState<string | null>(null);
+
+  const refreshMigrationPreviews = () => {
+    setPracticeMigrationPreview(previewPracticeDataMigration());
+    setVaultMigrationPreview(previewKnowledgeVaultMigration());
+  };
+
+  const migratePracticeData = async () => {
+    setMigrationBusy(true);
+    setMigrationMessage(null);
+    try {
+      const result = await migratePracticeDataToEncryptedStorage();
+      setMigrationMessage(
+        `Practice data: ${result.migrated.length} copied, ${result.verified.length} verified, ${result.conflicts.length} conflicts, ${result.failed.length} failures. Legacy source retained.`
+      );
+    } catch (error) {
+      setMigrationMessage(
+        error instanceof Error ? error.message : 'Practice data migration could not be completed.'
+      );
+    } finally {
+      refreshMigrationPreviews();
+      setMigrationBusy(false);
+    }
+  };
+
+  const migrateVaultData = async () => {
+    setMigrationBusy(true);
+    setMigrationMessage(null);
+    try {
+      const result = await migrateKnowledgeVaultToEncryptedStorage();
+      setMigrationMessage(
+        result.conflict
+          ? 'Knowledge Vault migration stopped: a different encrypted vault already exists. No data was overwritten.'
+          : result.failed
+            ? result.reason || 'Knowledge Vault migration failed. Legacy source retained.'
+            : result.migrated
+              ? 'Knowledge Vault copied and verified in encrypted storage. Legacy source retained.'
+              : result.verified
+                ? 'Knowledge Vault already matches the encrypted copy. Legacy source retained.'
+                : result.reason || 'No legacy Knowledge Vault record was found.'
+      );
+    } catch (error) {
+      setMigrationMessage(
+        error instanceof Error ? error.message : 'Knowledge Vault migration could not be completed.'
+      );
+    } finally {
+      refreshMigrationPreviews();
+      setMigrationBusy(false);
+    }
+  };
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -974,6 +1039,74 @@ export default function SettingsPanel() {
               real people when possible. Language models can miss nuanced engineering context,
               non-standard system designs, or delivery subtleties. Treat these rubric scores as
               iterative coaching benchmarks rather than definitive hiring decisions.
+            </p>
+          </div>
+
+          <div className="settings-section" data-testid="local-data-encryption-migration">
+            <h3 className="settings-section__title">Local Data Encryption Migration</h3>
+            <p className="field__hint">
+              Existing practice records and the Candidate Knowledge Vault may still exist in
+              browser storage. Run these migrations explicitly to copy them into the Electron
+              encrypted record store. The original records are retained; this step does not delete
+              or overwrite legacy data.
+            </p>
+            <div className="field__hint" role="status">
+              Practice records: {practiceMigrationPreview.totalRecords} (
+              {practiceMigrationPreview.totalBytes.toLocaleString()} bytes). Knowledge Vault:{' '}
+              {vaultMigrationPreview.recordPresent
+                ? `${vaultMigrationPreview.bytes.toLocaleString()} bytes`
+                : 'not found'}
+              .
+              {!practiceMigrationPreview.available || !vaultMigrationPreview.available
+                ? ' Encrypted desktop storage API is unavailable in this session.'
+                : ''}
+              {vaultMigrationPreview.exceedsEncryptedRecordLimit
+                ? ' The Knowledge Vault exceeds the 5 MiB encrypted-record limit.'
+                : ''}
+            </div>
+            {migrationMessage && (
+              <p className="field__hint" role="status" aria-live="polite">
+                {migrationMessage}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button
+                type="button"
+                className="action-btn"
+                onClick={migratePracticeData}
+                disabled={
+                  migrationBusy ||
+                  !practiceMigrationPreview.available ||
+                  practiceMigrationPreview.totalRecords === 0
+                }
+              >
+                {migrationBusy ? 'Working…' : 'Migrate practice records'}
+              </button>
+              <button
+                type="button"
+                className="action-btn"
+                onClick={migrateVaultData}
+                disabled={
+                  migrationBusy ||
+                  !vaultMigrationPreview.available ||
+                  !vaultMigrationPreview.recordPresent ||
+                  vaultMigrationPreview.exceedsEncryptedRecordLimit
+                }
+              >
+                {migrationBusy ? 'Working…' : 'Migrate Knowledge Vault'}
+              </button>
+              <button
+                type="button"
+                className="action-btn"
+                onClick={refreshMigrationPreviews}
+                disabled={migrationBusy}
+              >
+                Refresh inventory
+              </button>
+            </div>
+            <p className="field__hint mt-2">
+              Migration is a copy-and-verify operation. Delete legacy browser data only through a
+              separate, deliberate cleanup action after confirming the encrypted copy.
             </p>
           </div>
 
