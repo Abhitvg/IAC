@@ -81,6 +81,8 @@ interface PracticeState {
   discardActiveSession: () => void;
   isEvaluatingAnswer: boolean;
   evaluationError: string | null;
+  persistenceStatus: Record<string, 'pending' | 'saved' | 'unavailable' | 'error'>;
+  flushPersistence: () => Promise<boolean>;
 
   // Story bank actions
   loadStoryBankFromResume: (resumeText: string) => void;
@@ -146,10 +148,22 @@ function loadStored<T>(key: string, fallback: T): T {
 
 const dirtyPracticeKeys = new Set<string>();
 const warnedMissingSecureStorage = new Set<string>();
+const practiceWriteQueues = new Map<string, Promise<boolean>>();
 
-function persist<T>(key: string, data: T) {
+function updatePracticePersistenceStatus(
+  key: string,
+  status: 'pending' | 'saved' | 'unavailable' | 'error'
+): void {
+  usePracticeStore.setState((state) => ({
+    persistenceStatus: { ...state.persistenceStatus, [key]: status },
+  }));
+}
+
+function persist<T>(key: string, data: T): Promise<boolean> {
   dirtyPracticeKeys.add(key);
-  if (typeof window === 'undefined' || !window.electronAPI?.secureRecordSet) {
+  const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
+  if (!api?.secureRecordSet || !api?.secureRecordGet) {
+    updatePracticePersistenceStatus(key, 'unavailable');
     if (!warnedMissingSecureStorage.has(key)) {
       warnedMissingSecureStorage.add(key);
       console.warn(
@@ -157,13 +171,39 @@ function persist<T>(key: string, data: T) {
         { key }
       );
     }
-    return;
+    return Promise.resolve(false);
   }
 
-  void window.electronAPI.secureRecordSet('practice', key, JSON.stringify(data)).catch(() => {
-    // Never include candidate answers, feedback, or other record content in diagnostics.
-    console.error('[PracticeStore] Encrypted persistence failed.', { key });
-  });
+  const serialized = JSON.stringify(data);
+  updatePracticePersistenceStatus(key, 'pending');
+  const previous = practiceWriteQueues.get(key) ?? Promise.resolve(true);
+  const next = previous
+    .catch(() => false)
+    .then(async () => {
+      const written = await api.secureRecordSet('practice', key, serialized);
+      if (!written) throw new Error('Encrypted storage did not confirm the write.');
+
+      const roundTrip = await api.secureRecordGet('practice', key);
+      if (roundTrip !== serialized) {
+        throw new Error('Encrypted storage read-back verification failed.');
+      }
+      updatePracticePersistenceStatus(key, 'saved');
+      return true;
+    })
+    .catch(() => {
+      // Never include candidate answers, feedback, or other record content in diagnostics.
+      updatePracticePersistenceStatus(key, 'error');
+      console.error('[PracticeStore] Encrypted persistence failed.', { key });
+      return false;
+    });
+
+  practiceWriteQueues.set(key, next);
+  return next;
+}
+
+async function flushPracticePersistence(): Promise<boolean> {
+  const results = await Promise.all(practiceWriteQueues.values());
+  return results.every(Boolean);
 }
 
 function isValidMockSessionState(data: any): data is MockSessionState {
@@ -196,6 +236,8 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   activeSession: loadStoredSession(),
   isEvaluatingAnswer: false,
   evaluationError: null,
+  persistenceStatus: {},
+  flushPersistence: flushPracticePersistence,
   sessionHistory: loadStored<MockSessionState[]>(STORAGE_KEYS.SESSIONS, []),
   storyBank: loadStored<BehavioralStory[]>(STORAGE_KEYS.STORIES, []),
   topicMasteries: loadStored<TopicMastery[]>(
@@ -619,6 +661,8 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
 
   deleteAllFeedbackAndPracticeData: async () => {
     const failedKeys: string[] = [];
+    const pendingWritesSaved = await flushPracticePersistence();
+    if (!pendingWritesSaved) failedKeys.push('pending-encrypted-writes');
     const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
 
     // This action is invoked only after the user confirms the destructive wipe.
@@ -654,6 +698,11 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       } catch {
         failedKeys.push('encrypted:namespace');
       }
+    }
+
+    for (const key of Object.values(STORAGE_KEYS)) {
+      dirtyPracticeKeys.add(key);
+      updatePracticePersistenceStatus(key, failedKeys.some((item) => item.includes(key)) ? 'error' : 'saved');
     }
 
     // Always clear sensitive in-memory state; the caller must not report full success
