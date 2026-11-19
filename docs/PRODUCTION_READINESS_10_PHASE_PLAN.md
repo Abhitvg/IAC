@@ -10,7 +10,7 @@
 
 The repository has meaningful safeguards: TypeScript, Zod validation, Electron context isolation and sandboxing, constrained IPC, OS-backed credential storage, encrypted device-local record primitives, bounded document ingestion, SSRF-aware fetching, authenticated cloud API, tenant context, PostgreSQL RLS tests, encrypted Career Graph API payloads, rate limiting, cross-platform CI, packaged-app smoke tests, Terraform validation, secret scans, and a manual AWS deployment workflow.
 
-The current branch's latest recorded CI run passed Ubuntu, macOS and Windows validation, PostgreSQL tenant-isolation tests, and Terraform formatting/validation. This proves the tested commit passes those automated checks; it does not prove production deployment, real AWS health, disaster recovery, workload capacity, external-provider behavior, or operational readiness.
+At the audit baseline, the recorded CI run passed Ubuntu, macOS and Windows validation, PostgreSQL tenant-isolation tests, and Terraform formatting/validation. A later run on PR #232 head `6c2ca685c974e530f6ce2fdb2393456a796cc067` (run [44482069371](https://github.com/Abhitvg/IAC/actions/runs/44482069371), 2026-11-19) failed the Prettier check on this document across macOS, Ubuntu and Windows. Terraform validation, PostgreSQL tenant-isolation, secret scanning, KMS permission checks and the production dependency audit passed. Lint, TypeScript checks, unit/integration tests, builds and packaged-app smoke tests were skipped after the formatting failure. Therefore, the latest commit has not yet passed full application CI and is not production-certified. Neither CI run proves live AWS health, disaster recovery, workload capacity, external-provider behavior, or operational readiness.
 
 The codebase contains 525 tracked files, including 202 under `src/`, 172 tests, 24 API/migration files, 21 Electron files, 31 documentation files and a nine-file Terraform root. This is a broad source inventory and architecture review, not a claim that every line received a manual security review or that live cloud resources were exercised.
 
@@ -226,12 +226,12 @@ A phase is not complete because code was merged. It is complete only when the ev
 
 ## 7. Suggested sequencing and priority
 
-| Priority | Phases | Why |
-|---|---|---|
-| Critical foundation | 1–4 | Close data, identity, encryption and lifecycle risks before broad production use. |
-| Product completion | 5–7 | Make cloud sync, workflows and AI behavior dependable and auditable. |
-| Operationalization | 8–9 | Deploy safely and prove reliability/capacity with real environments. |
-| Launch assurance | 10 | Independent verification, controlled rollout and continuous governance. |
+| Priority            | Phases | Why                                                                               |
+| ------------------- | ------ | --------------------------------------------------------------------------------- |
+| Critical foundation | 1–4    | Close data, identity, encryption and lifecycle risks before broad production use. |
+| Product completion  | 5–7    | Make cloud sync, workflows and AI behavior dependable and auditable.              |
+| Operationalization  | 8–9    | Deploy safely and prove reliability/capacity with real environments.              |
+| Launch assurance    | 10     | Independent verification, controlled rollout and continuous governance.           |
 
 A realistic sequence is to run Phase 1 first, then overlap Phase 2–4 only where their interfaces are agreed. Phases 5–7 depend on the tenant, encryption and contract foundations. Phase 8 can build staging infrastructure in parallel after network and identity inputs are verified. Phase 9 requires a deployed staging system. Phase 10 is the final launch gate, not a paperwork exercise.
 
