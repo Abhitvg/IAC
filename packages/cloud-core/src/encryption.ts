@@ -127,16 +127,17 @@ export class TenantEnvelopeCipher {
       typeof generated.keyVersion !== 'string' ||
       !KEY_VERSION_PATTERN.test(generated.keyVersion)
     ) {
-      generated?.plaintextKey?.fill(0);
+      if (Buffer.isBuffer(generated?.plaintextKey)) generated.plaintextKey.fill(0);
       throw new Error('Key provider returned an invalid data key');
     }
-    const iv = randomBytes(12);
+    let iv: Buffer | undefined;
     let aad: Buffer | undefined;
     let ciphertext: Buffer | undefined;
     let updateOutput: Buffer | undefined;
     let finalOutput: Buffer | undefined;
     let authTag: Buffer | undefined;
     try {
+      iv = randomBytes(12);
       aad = associatedData(tenantId, context, generated.keyVersion);
       const cipher = createCipheriv('aes-256-gcm', generated.plaintextKey, iv);
       cipher.setAAD(aad);
@@ -157,7 +158,7 @@ export class TenantEnvelopeCipher {
     } finally {
       generated.plaintextKey.fill(0);
       aad?.fill(0);
-      iv.fill(0);
+      iv?.fill(0);
       ciphertext?.fill(0);
       updateOutput?.fill(0);
       finalOutput?.fill(0);
@@ -206,7 +207,7 @@ export class TenantEnvelopeCipher {
       finalOutput = decipher.final();
       return Buffer.concat([updateOutput, finalOutput]);
     } finally {
-      key?.fill(0);
+      if (Buffer.isBuffer(key)) key.fill(0);
       aad?.fill(0);
       updateOutput?.fill(0);
       finalOutput?.fill(0);
