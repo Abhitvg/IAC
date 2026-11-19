@@ -44,14 +44,15 @@ async function start(): Promise<void> {
     envelopeKeyRingJson = '';
   }
 
-  const pool = createPostgresPool(environment);
-  pool.on('error', (error: Error) => {
-    // Never log connection strings, query parameters, or SQL values.
-    console.error('CareerOps PostgreSQL idle-client error:', error.message);
-  });
-
+  let pool: ReturnType<typeof createPostgresPool> | undefined;
   let runtime: ReturnType<typeof createCloudApiRuntime>;
   try {
+    pool = createPostgresPool(environment);
+    pool.on('error', (error: Error) => {
+      // Never log connection strings, query parameters, or SQL values.
+      console.error('CareerOps PostgreSQL idle-client error:', error.message);
+    });
+
     const linkedin =
       envelopeKeyProvider && environment.LINKEDIN_CLIENT_ID
         ? createLinkedInCloudIntegration(pool, envelopeKeyProvider, {
@@ -69,7 +70,7 @@ async function start(): Promise<void> {
     runtime = createCloudApiRuntime(pool, environment, linkedin, careerGraphCrypto);
   } catch (error) {
     // If composition fails, the runtime has not taken ownership of the pool.
-    await pool.end().catch(() => undefined);
+    await pool?.end().catch(() => undefined);
     envelopeKeyProvider?.destroy();
     throw error;
   }
