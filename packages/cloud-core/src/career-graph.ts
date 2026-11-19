@@ -56,7 +56,10 @@ const CareerGraphFactValueSchema = z.union([
       z.string().max(120),
       z.union([z.string().max(4_000), z.number().finite(), z.boolean(), z.null()])
     )
-    .refine((value) => Object.keys(value).length <= 50, 'Fact objects may contain at most 50 fields'),
+    .refine(
+      (value) => Object.keys(value).length <= 50,
+      'Fact objects may contain at most 50 fields'
+    ),
 ]);
 
 export const CareerGraphFactCreateRequestSchema = z
