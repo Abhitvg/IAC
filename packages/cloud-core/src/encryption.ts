@@ -30,6 +30,10 @@ export interface EncryptedEnvelope {
 const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const KEY_VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
+function zeroizeBytes(value: unknown): void {
+  if (value instanceof Uint8Array) value.fill(0);
+}
+
 function decodeCanonicalBase64(
   value: string,
   label: string,
@@ -48,7 +52,7 @@ function decodeCanonicalBase64(
     decoded.toString('base64') !== value ||
     (expectedLength !== undefined && decoded.length !== expectedLength)
   ) {
-    decoded.fill(0);
+    zeroizeBytes(decoded);
     throw new Error(`Invalid encrypted envelope ${label}`);
   }
   return decoded;
@@ -93,7 +97,7 @@ function validateEnvelope(
   // Validate the same context constraints used when authenticating AAD before
   // invoking a key provider. This prevents malformed persisted data reaching it.
   const validationAad = associatedData(expectedTenantId, expectedContext, envelope.keyVersion);
-  validationAad.fill(0);
+  zeroizeBytes(validationAad);
 
   let iv: Buffer | undefined;
   let authTag: Buffer | undefined;
@@ -104,9 +108,9 @@ function validateEnvelope(
     ciphertext = decodeCanonicalBase64(envelope.ciphertext, 'ciphertext');
     return { iv, authTag, ciphertext };
   } catch (error) {
-    iv?.fill(0);
-    authTag?.fill(0);
-    ciphertext?.fill(0);
+    zeroizeBytes(iv);
+    zeroizeBytes(authTag);
+    zeroizeBytes(ciphertext);
     throw error;
   }
 }
@@ -127,7 +131,7 @@ export class TenantEnvelopeCipher {
       typeof generated.keyVersion !== 'string' ||
       !KEY_VERSION_PATTERN.test(generated.keyVersion)
     ) {
-      if (Buffer.isBuffer(generated?.plaintextKey)) generated.plaintextKey.fill(0);
+      zeroizeBytes(generated?.plaintextKey);
       throw new Error('Key provider returned an invalid data key');
     }
     let iv: Buffer | undefined;
@@ -156,13 +160,13 @@ export class TenantEnvelopeCipher {
         context,
       };
     } finally {
-      generated.plaintextKey.fill(0);
-      aad?.fill(0);
-      iv?.fill(0);
-      ciphertext?.fill(0);
-      updateOutput?.fill(0);
-      finalOutput?.fill(0);
-      authTag?.fill(0);
+      zeroizeBytes(generated.plaintextKey);
+      zeroizeBytes(aad);
+      zeroizeBytes(iv);
+      zeroizeBytes(ciphertext);
+      zeroizeBytes(updateOutput);
+      zeroizeBytes(finalOutput);
+      zeroizeBytes(authTag);
     }
   }
 
@@ -207,13 +211,13 @@ export class TenantEnvelopeCipher {
       finalOutput = decipher.final();
       return Buffer.concat([updateOutput, finalOutput]);
     } finally {
-      if (Buffer.isBuffer(key)) key.fill(0);
+      zeroizeBytes(key);
       aad?.fill(0);
       updateOutput?.fill(0);
       finalOutput?.fill(0);
-      decoded.iv.fill(0);
-      decoded.authTag.fill(0);
-      decoded.ciphertext.fill(0);
+      zeroizeBytes(decoded.iv);
+      zeroizeBytes(decoded.authTag);
+      zeroizeBytes(decoded.ciphertext);
     }
   }
 }
