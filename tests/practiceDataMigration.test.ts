@@ -40,7 +40,9 @@ describe('practice data migration', () => {
     const source = '{"answer":"private interview response"}';
     const localStorage = createStorage({ ai_practice_feedback_v1: source });
     const records = new Map<string, string>();
-    const secureRecordGet = vi.fn(async (_namespace: string, id: string) => records.get(id) ?? null);
+    const secureRecordGet = vi.fn(
+      async (_namespace: string, id: string) => records.get(id) ?? null
+    );
     const secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
       return true;
@@ -61,7 +63,9 @@ describe('practice data migration', () => {
     const source = '{"version":1}';
     const localStorage = createStorage({ ai_practice_topics_v1: source });
     const records = new Map([['ai_practice_topics_v1', source]]);
-    const secureRecordGet = vi.fn(async (_namespace: string, id: string) => records.get(id) ?? null);
+    const secureRecordGet = vi.fn(
+      async (_namespace: string, id: string) => records.get(id) ?? null
+    );
     const secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
       return true;
@@ -78,7 +82,9 @@ describe('practice data migration', () => {
   it('never overwrites a conflicting encrypted record', async () => {
     const localStorage = createStorage({ ai_practice_feedback_v1: 'legacy' });
     const records = new Map([['ai_practice_feedback_v1', 'newer-encrypted-value']]);
-    const secureRecordGet = vi.fn(async (_namespace: string, id: string) => records.get(id) ?? null);
+    const secureRecordGet = vi.fn(
+      async (_namespace: string, id: string) => records.get(id) ?? null
+    );
     const secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
       return true;
