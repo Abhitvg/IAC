@@ -428,6 +428,7 @@ describe('Postgres Career Graph repository', () => {
       tenantId,
       actorSubject: subject,
       targetKeyVersion: 'test-key-v2',
+      sourceKeyVersions: ['test-key-v1'],
       limit: 10,
       reencrypt,
     });
@@ -486,6 +487,7 @@ describe('Postgres Career Graph repository', () => {
         tenantId,
         actorSubject: subject,
         targetKeyVersion: 'test-key-v2',
+        sourceKeyVersions: ['test-key-v1'],
         limit: 10,
         reencrypt: async () => {
           throw new Error('old key unavailable');
