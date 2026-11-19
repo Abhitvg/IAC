@@ -63,6 +63,19 @@ export class TenantEnvelopeCipher {
     }
   }
 
+  async reencrypt(
+    envelope: EncryptedEnvelope,
+    expectedTenantId: string,
+    expectedContext: string
+  ): Promise<EncryptedEnvelope> {
+    const plaintext = await this.decrypt(envelope, expectedTenantId, expectedContext);
+    try {
+      return await this.encrypt(expectedTenantId, expectedContext, plaintext);
+    } finally {
+      plaintext.fill(0);
+    }
+  }
+
   async decrypt(
     envelope: EncryptedEnvelope,
     expectedTenantId: string,
