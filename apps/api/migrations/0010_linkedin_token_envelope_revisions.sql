@@ -19,10 +19,10 @@ CREATE TABLE linkedin_connection_envelope_revisions (
     AND token_envelope->>'keyVersion' ~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
     AND token_envelope->>'iv' IS NOT NULL
     AND token_envelope->>'iv' ~ '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'
-    AND COALESCE(octet_length(decode(token_envelope->>'iv', 'base64')) = 12, false)
+    AND length(token_envelope->>'iv') = 16
     AND token_envelope->>'authTag' IS NOT NULL
     AND token_envelope->>'authTag' ~ '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'
-    AND COALESCE(octet_length(decode(token_envelope->>'authTag', 'base64')) = 16, false)
+    AND length(token_envelope->>'authTag') = 24
     AND token_envelope->>'ciphertext' IS NOT NULL
     AND length(token_envelope->>'ciphertext') BETWEEN 4 AND 1000000
     AND token_envelope->>'ciphertext' ~ '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'
