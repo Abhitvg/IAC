@@ -51,7 +51,6 @@ describe('Knowledge Vault encrypted migration', () => {
     );
     const secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
-      return true;
     });
     vi.stubGlobal('window', { localStorage, electronAPI: { secureRecordGet, secureRecordSet } });
 
@@ -72,7 +71,6 @@ describe('Knowledge Vault encrypted migration', () => {
     const records = new Map([[KNOWLEDGE_VAULT_ENCRYPTED_RECORD_ID, source]]);
     const secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
-      return true;
     });
     vi.stubGlobal('window', {
       localStorage,
@@ -99,7 +97,6 @@ describe('Knowledge Vault encrypted migration', () => {
     const records = new Map([[KNOWLEDGE_VAULT_ENCRYPTED_RECORD_ID, 'newer-encrypted-vault']]);
     const secureRecordSet = vi.fn(async (_namespace: string, id: string, data: string) => {
       records.set(id, data);
-      return true;
     });
     vi.stubGlobal('window', {
       localStorage,
