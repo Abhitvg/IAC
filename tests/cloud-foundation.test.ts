@@ -1217,3 +1217,23 @@ describe('envelope encryption runtime activation gate', () => {
     })).not.toThrow();
   });
 });
+
+
+describe('legacy master-key version namespace', () => {
+  it('rejects reserved KMS version labels in local master-key rings', () => {
+    for (const version of ['kms-v1', 'kms-v2', 'kms-v999']) {
+      expect(() => new MasterKeyTenantKeyProvider({
+        masterKeys: { [version]: randomBytes(32).toString('base64') },
+        currentKeyVersion: version,
+      })).toThrow(/invalid or reserved KMS version/);
+    }
+  });
+
+  it('continues to accept non-reserved legacy key versions', () => {
+    const provider = new MasterKeyTenantKeyProvider({
+      masterKeys: { v1: randomBytes(32).toString('base64'), legacy_2025: randomBytes(32).toString('base64') },
+      currentKeyVersion: 'legacy_2025',
+    });
+    provider.destroy();
+  });
+});
