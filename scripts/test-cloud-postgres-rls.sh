@@ -209,6 +209,14 @@ SELECT tenant_id, id, 'confirmed', 'user-a'
    AND fact_key = 'profile.current_role' AND version = 1;
 
 -- Envelope rotation appends a tenant-scoped revision without mutating the fact row.
+INSERT INTO career_graph_envelope_rotation_jobs (
+  tenant_id, target_key_version, last_fact_id, rotated_count, status, created_by, updated_by
+)
+SELECT tenant_id, 'test-key-v2', id, 1, 'running', 'user-a', 'user-a'
+  FROM career_graph_facts
+ WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
+   AND fact_key = 'profile.current_role' AND version = 1;
+
 INSERT INTO career_graph_fact_envelope_revisions (
   tenant_id, fact_id, revision, value_envelope, rotated_by
 )
@@ -230,14 +238,6 @@ SELECT
 FROM career_graph_facts
 WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
   AND fact_key = 'profile.current_role' AND version = 1;
-
-INSERT INTO career_graph_envelope_rotation_jobs (
-  tenant_id, target_key_version, last_fact_id, rotated_count, status, created_by, updated_by
-)
-SELECT tenant_id, 'test-key-v2', id, 1, 'running', 'user-a', 'user-a'
-  FROM career_graph_facts
- WHERE tenant_id = '10000000-0000-4000-8000-000000000001'
-   AND fact_key = 'profile.current_role' AND version = 1;
 
 UPDATE career_graph_envelope_rotation_jobs
    SET status = 'completed', updated_by = 'user-a', updated_at = now()
