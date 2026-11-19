@@ -267,33 +267,41 @@ describe('LinkedInPostgresStore envelope rotation', () => {
     )).toBe(true);
   });
 
-  it('rejects malformed replacement envelope fields before inserting a revision', async () => {
-    const { database, statements } = rotationPool();
-    const store = new LinkedInPostgresStore(database, {} as TenantEnvelopeCipher);
-    const malformed: EncryptedEnvelope = {
-      ...baseEnvelope,
-      keyVersion: 'kms-v1',
-      wrappedKey: 'a21zLXdyYXBwZWQta2V5',
-      iv: 'not-base64',
-    };
+  it.each([
+    ['wrappedKey', 'not-base64'],
+    ['iv', 'not-base64'],
+    ['authTag', 'not-base64'],
+    ['ciphertext', 'not-base64'],
+  ] as const)(
+    'rejects malformed %s before inserting a revision',
+    async (field, invalidValue) => {
+      const { database, statements } = rotationPool();
+      const store = new LinkedInPostgresStore(database, {} as TenantEnvelopeCipher);
+      const malformed = {
+        ...baseEnvelope,
+        keyVersion: 'kms-v1',
+        wrappedKey: 'a21zLXdyYXBwZWQta2V5',
+        [field]: invalidValue,
+      } as EncryptedEnvelope;
 
-    await expect(
-      store.rotateTokenEnvelope({
-        identity: { tenantId: 'tenant-1', subject: 'subject-1' },
-        actorSubject: 'subject-1',
-        targetKeyVersion: 'kms-v1',
-        reencrypt: vi.fn(async () => malformed),
-      })
-    ).rejects.toThrow('LinkedIn token rotation returned an envelope with invalid metadata');
+      await expect(
+        store.rotateTokenEnvelope({
+          identity: { tenantId: 'tenant-1', subject: 'subject-1' },
+          actorSubject: 'subject-1',
+          targetKeyVersion: 'kms-v1',
+          reencrypt: vi.fn(async () => malformed),
+        })
+      ).rejects.toThrow('LinkedIn token rotation returned an envelope with invalid metadata');
 
-    expect(statements.some((entry) =>
-      entry.sql.includes('INSERT INTO linkedin_connection_envelope_revisions')
-    )).toBe(false);
-    expect(statements.some((entry) =>
-      entry.sql.includes('INSERT INTO audit_events')
-    )).toBe(false);
-    expect(statements.some((entry) => entry.sql === 'ROLLBACK')).toBe(true);
-  });
+      expect(statements.some((entry) =>
+        entry.sql.includes('INSERT INTO linkedin_connection_envelope_revisions')
+      )).toBe(false);
+      expect(statements.some((entry) =>
+        entry.sql.includes('INSERT INTO audit_events')
+      )).toBe(false);
+      expect(statements.some((entry) => entry.sql === 'ROLLBACK')).toBe(true);
+    }
+  );
 
   it('rejects a rotation actor that does not match the subject RLS identity', async () => {
     const { database } = rotationPool();
