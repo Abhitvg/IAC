@@ -123,7 +123,12 @@ export class PostgresCareerGraphRepository {
       tenantId: string,
       context: string
     ) => Promise<EncryptedFactEnvelope>;
-  }): Promise<{ rotated: number; nextCursor: string | null; hasMore: boolean }> {
+  }): Promise<{
+    rotated: number;
+    totalRotated: number;
+    nextCursor: string | null;
+    hasMore: boolean;
+  }> {
     if (
       !input.tenantId ||
       !input.actorSubject ||
@@ -171,6 +176,7 @@ export class PostgresCareerGraphRepository {
       if (job.status === 'completed') {
         return {
           rotated: 0,
+          totalRotated: Number(job.rotated_count),
           nextCursor: job.last_fact_id,
           hasMore: false,
         };
@@ -275,7 +281,12 @@ export class PostgresCareerGraphRepository {
         });
       }
 
-      return { rotated, nextCursor, hasMore };
+      return {
+        rotated,
+        totalRotated: Number(job.rotated_count) + rotated,
+        nextCursor,
+        hasMore,
+      };
     });
   }
 
