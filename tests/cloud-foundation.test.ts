@@ -1083,7 +1083,7 @@ describe('local envelope master-key lifecycle', () => {
     expect(secondRetained?.every((byte) => byte === 0)).toBe(true);
     expect(retainedKeys.size).toBe(0);
     await expect(provider.generateDataKey('tenant-1', 'career-graph:profile'))
-      .rejects.toThrow('master key is unavailable');
+      .rejects.toThrow('Current envelope master key is unavailable');
     await expect(provider.unwrapDataKey(
       'tenant-1',
       Buffer.from('opaque').toString('base64'),
@@ -1227,6 +1227,24 @@ describe('legacy master-key version namespace', () => {
         currentKeyVersion: version,
       })).toThrow(/invalid or reserved KMS version/);
     }
+  });
+
+
+  it('rejects KMS-reserved versions in environment-provided local key rings', () => {
+    const base = {
+      NODE_ENV: 'test',
+      CAREEROPS_JWT_ISSUER: authConfig.issuer,
+      CAREEROPS_JWT_AUDIENCE: authConfig.audience,
+      CAREEROPS_JWKS_URL: authConfig.jwksUrl,
+      CAREEROPS_CONSENT_SIGNING_SECRET: secret,
+      CAREEROPS_RATE_LIMIT_HASH_SECRET: rateSecret,
+    };
+    const key = randomBytes(32).toString('base64');
+    expect(() => loadCloudEnvironment({
+      ...base,
+      CAREEROPS_ENVELOPE_MASTER_KEYS: JSON.stringify({ 'kms-v1': key }),
+      CAREEROPS_ENVELOPE_CURRENT_KEY_VERSION: 'kms-v1',
+    } as NodeJS.ProcessEnv)).toThrow(/canonical base64 32-byte keys/);
   });
 
   it('continues to accept non-reserved legacy key versions', () => {
