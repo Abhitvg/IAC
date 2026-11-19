@@ -11,6 +11,50 @@ const tenantId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const context = 'career-graph:profile.current_role';
 
 describe('KMS tenant envelope key provider', () => {
+  it('accepts canonical AWS key ARNs and rejects malformed key configuration', () => {
+    expect(() => new KmsTenantKeyProvider({
+      client: { generateDataKey: async () => ({}), decrypt: async () => ({}) },
+      keyArn,
+      keyVersion: 'kms-v1',
+    })).not.toThrow();
+
+    for (const invalidArn of [
+      'arn:aws:kms:ap-southeast-2:12345678901:key/11111111-2222-3333-4444-555555555555',
+      'arn:aws:kms:ap-southeast-2:123456789012:alias/application-envelope',
+      'arn:aws:kms:ap-southeast-2:123456789012:key/not-a-key-id',
+      'arn:aws:kms:ap-southeast-2:123456789012:key/11111111-2222-3333-4444-555555555555:extra',
+    ]) {
+      expect(() => new KmsTenantKeyProvider({
+        client: { generateDataKey: async () => ({}), decrypt: async () => ({}) },
+        keyArn: invalidArn,
+        keyVersion: 'kms-v1',
+      })).toThrow('Invalid KMS tenant key provider configuration');
+    }
+
+    expect(() => new KmsTenantKeyProvider({
+      client: { generateDataKey: async () => ({}), decrypt: async () => ({}) },
+      keyArn,
+      keyVersion: 'v1',
+    })).toThrow('Invalid KMS tenant key provider configuration');
+  });
+
+  it('fails closed when KMS decrypt reports a different key ARN', async () => {
+    const provider = new KmsTenantKeyProvider({
+      keyArn,
+      keyVersion: 'kms-v1',
+      client: {
+        generateDataKey: async () => ({}),
+        decrypt: async () => ({
+          Plaintext: Buffer.alloc(32, 4),
+          KeyId: 'arn:aws:kms:ap-southeast-2:165328640460:key/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        }),
+      },
+    });
+    await expect(
+      provider.unwrapDataKey(tenantId, Buffer.from('opaque').toString('base64'), 'kms-v1', context)
+    ).rejects.toThrow('unexpected key identifier');
+  });
+
   it('uses AES_256 GenerateDataKey and binds tenant and purpose in KMS context', async () => {
     const plaintext = Buffer.alloc(32, 7);
     const ciphertext = Buffer.from('kms-ciphertext');
