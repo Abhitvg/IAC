@@ -33,9 +33,9 @@ const fact: CareerGraphFact = {
   review: null,
 };
 
-const validInput = {
+const validRequest = {
   factKey: 'profile.current_role',
-  valueEnvelope: fact.valueEnvelope,
+  value: 'Software Engineer',
   source: { kind: 'user_input' as const },
 };
 
@@ -84,7 +84,10 @@ function createDependencies(): CloudApiDependencies {
       setGlobalKillSwitchWithAudit: async () => undefined,
     },
     careerGraph: { createFact, listFacts, reviewFact },
-    careerGraphEnvelopeVerifier: { verify: async () => undefined },
+    careerGraphCrypto: {
+      encrypt: async () => fact.valueEnvelope,
+      decrypt: async () => Buffer.from(JSON.stringify('Software Engineer')),
+    },
   };
   return dependencies;
 }
@@ -122,7 +125,7 @@ describe('Career Graph API routes', () => {
     const forged = await fetch(`${baseUrl}/v1/career-graph/facts`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ ...validInput, tenantId: '30000000-0000-4000-8000-000000000003' }),
+      body: JSON.stringify({ ...validRequest, tenantId: '30000000-0000-4000-8000-000000000003' }),
     });
     expect(forged.status).toBe(400);
     expect(dependencies.careerGraph.createFact).not.toHaveBeenCalled();
@@ -130,10 +133,14 @@ describe('Career Graph API routes', () => {
     const created = await fetch(`${baseUrl}/v1/career-graph/facts`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(validInput),
+      body: JSON.stringify(validRequest),
     });
     expect(created.status).toBe(201);
-    expect(dependencies.careerGraph.createFact).toHaveBeenCalledWith(tenantId, subject, validInput);
+    expect(dependencies.careerGraph.createFact).toHaveBeenCalledWith(tenantId, subject, {
+      factKey: validRequest.factKey,
+      valueEnvelope: fact.valueEnvelope,
+      source: validRequest.source,
+    });
 
     const listed = await fetch(`${baseUrl}/v1/career-graph/facts?limit=25`, {
       headers: { authorization: 'Bearer test-token' },
@@ -147,83 +154,90 @@ describe('Career Graph API routes', () => {
     expect(invalidLimit.status).toBe(400);
   });
 
-  it('rejects unauthenticated or tampered envelopes before persistence', async () => {
+  it('fails closed when Career Graph encryption is unavailable', async () => {
     const dependencies = await startServer();
+    dependencies.careerGraphCrypto = undefined;
     const headers = {
       authorization: 'Bearer test-token',
       'content-type': 'application/json',
     };
-
-    dependencies.careerGraphEnvelopeVerifier = {
-      verify: async () => {
-        throw new Error('authentication tag mismatch');
-      },
-    };
-    const tampered = await fetch(`${baseUrl}/v1/career-graph/facts`, {
+    const created = await fetch(`${baseUrl}/v1/career-graph/facts`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(validInput),
+      body: JSON.stringify(validRequest),
     });
-    expect(tampered.status).toBe(400);
-    expect(await tampered.json()).toMatchObject({
-      error: 'Career Graph encrypted envelope authentication failed',
-    });
+    expect(created.status).toBe(503);
     expect(dependencies.careerGraph.createFact).not.toHaveBeenCalled();
 
-    dependencies.careerGraphEnvelopeVerifier = undefined;
-    const unconfigured = await fetch(`${baseUrl}/v1/career-graph/facts`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(validInput),
+    const listed = await fetch(`${baseUrl}/v1/career-graph/facts`, {
+      headers: { authorization: 'Bearer test-token' },
     });
-    expect(unconfigured.status).toBe(503);
-    expect(dependencies.careerGraph.createFact).not.toHaveBeenCalled();
+    expect(listed.status).toBe(503);
+    expect(dependencies.careerGraph.listFacts).not.toHaveBeenCalled();
   });
 
-  it('authenticates real AES-GCM envelopes with the configured key provider', async () => {
+  it('encrypts submitted values and returns decrypted tenant-authorized facts', async () => {
     const dependencies = await startServer();
     const provider = new MasterKeyTenantKeyProvider({
       masterKeys: { 'test-key-v1': Buffer.alloc(32, 7).toString('base64') },
       currentKeyVersion: 'test-key-v1',
     });
     const cipher = new TenantEnvelopeCipher(provider);
-    const context = 'career-graph:profile.current_role';
-    const envelope = await cipher.encrypt(tenantId, context, Buffer.from('Software Engineer'));
-    dependencies.careerGraphEnvelopeVerifier = {
-      verify: async (candidate, expectedTenantId, expectedContext) => {
-        const plaintext = await cipher.decrypt(candidate, expectedTenantId, expectedContext);
-        plaintext.fill(0);
+    dependencies.careerGraphCrypto = cipher;
+    dependencies.careerGraph.createFact = vi.fn(async (_tenant, _actor, input) => ({
+      ...fact,
+      valueEnvelope: input.valueEnvelope,
+    }));
+    dependencies.careerGraph.listFacts = vi.fn(async () => [
+      {
+        ...fact,
+        valueEnvelope: await cipher.encrypt(
+          tenantId,
+          'career-graph:profile.current_role',
+          Buffer.from(JSON.stringify('Software Engineer'))
+        ),
       },
-    };
+    ]);
 
     const headers = {
       authorization: 'Bearer test-token',
       'content-type': 'application/json',
     };
-    const valid = await fetch(`${baseUrl}/v1/career-graph/facts`, {
+    const created = await fetch(`${baseUrl}/v1/career-graph/facts`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        factKey: 'profile.current_role',
-        valueEnvelope: envelope,
-        source: { kind: 'user_input' },
-      }),
+      body: JSON.stringify(validRequest),
     });
-    expect(valid.status).toBe(201);
+    expect(created.status).toBe(201);
+    const createdPayload = await created.json();
+    expect(createdPayload).toMatchObject({
+      fact: { factKey: 'profile.current_role', value: 'Software Engineer' },
+    });
+    expect(createdPayload.fact).not.toHaveProperty('valueEnvelope');
 
-    const tamperedTag = Buffer.from(envelope.authTag, 'base64');
-    tamperedTag[0] = (tamperedTag[0] ?? 0) ^ 1;
-    const tampered = await fetch(`${baseUrl}/v1/career-graph/facts`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        factKey: 'profile.current_role',
-        valueEnvelope: { ...envelope, authTag: tamperedTag.toString('base64') },
-        source: { kind: 'user_input' },
-      }),
+    const storedInput = vi.mocked(dependencies.careerGraph.createFact).mock.calls[0]?.[2];
+    expect(storedInput?.valueEnvelope).toMatchObject({
+      algorithm: 'A256GCM',
+      tenantId,
+      context: 'career-graph:profile.current_role',
     });
-    expect(tampered.status).toBe(400);
-    expect(dependencies.careerGraph.createFact).toHaveBeenCalledTimes(1);
+    expect(storedInput?.valueEnvelope.ciphertext).not.toContain('Software Engineer');
+
+    const listed = await fetch(`${baseUrl}/v1/career-graph/facts`, {
+      headers: { authorization: 'Bearer test-token' },
+    });
+    expect(listed.status).toBe(200);
+    expect(await listed.json()).toMatchObject({
+      facts: [{ factKey: 'profile.current_role', value: 'Software Engineer' }],
+    });
+
+    const corrupted = {
+      ...storedInput!.valueEnvelope,
+      authTag: Buffer.alloc(16, 0).toString('base64'),
+    };
+    await expect(
+      cipher.decrypt(corrupted, tenantId, 'career-graph:profile.current_role')
+    ).rejects.toThrow();
     provider.destroy();
   });
 
