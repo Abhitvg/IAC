@@ -146,34 +146,44 @@ export class MasterKeyTenantKeyProvider implements TenantKeyProvider {
     }
 
     const encoded = decodeBase64(wrappedKey, 'wrapped envelope data key');
-    let wrapped: unknown;
+    let iv: Buffer | undefined;
+    let authTag: Buffer | undefined;
+    let ciphertext: Buffer | undefined;
     try {
-      wrapped = JSON.parse(encoded.toString('utf8')) as unknown;
-    } catch {
-      throw new Error('Malformed wrapped envelope data key');
-    }
-    if (
-      !wrapped ||
-      typeof wrapped !== 'object' ||
-      (wrapped as WrappedDataKey).version !== 1 ||
-      Object.keys(wrapped).sort().join(',') !== 'authTag,ciphertext,iv,version'
-    ) {
-      throw new Error('Unsupported wrapped envelope data key');
-    }
+      let wrapped: unknown;
+      try {
+        wrapped = JSON.parse(encoded.toString('utf8')) as unknown;
+      } catch {
+        throw new Error('Malformed wrapped envelope data key');
+      }
+      if (
+        !wrapped ||
+        typeof wrapped !== 'object' ||
+        (wrapped as WrappedDataKey).version !== 1 ||
+        Object.keys(wrapped).sort().join(',') !== 'authTag,ciphertext,iv,version'
+      ) {
+        throw new Error('Unsupported wrapped envelope data key');
+      }
 
-    const payload = wrapped as WrappedDataKey;
-    const iv = decodeBase64(payload.iv, 'wrapped key IV', 12);
-    const authTag = decodeBase64(payload.authTag, 'wrapped key authentication tag', 16);
-    const ciphertext = decodeBase64(payload.ciphertext, 'wrapped key ciphertext', 32);
-    const decipher = createDecipheriv('aes-256-gcm', masterKey, iv);
-    decipher.setAAD(wrappingAssociatedData(tenantId, context, keyVersion));
-    decipher.setAuthTag(authTag);
-    const plaintextKey = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-    if (plaintextKey.length !== 32) {
-      plaintextKey.fill(0);
-      throw new Error('Unwrapped envelope data key has an invalid length');
+      const payload = wrapped as WrappedDataKey;
+      iv = decodeBase64(payload.iv, 'wrapped key IV', 12);
+      authTag = decodeBase64(payload.authTag, 'wrapped key authentication tag', 16);
+      ciphertext = decodeBase64(payload.ciphertext, 'wrapped key ciphertext', 32);
+      const decipher = createDecipheriv('aes-256-gcm', masterKey, iv);
+      decipher.setAAD(wrappingAssociatedData(tenantId, context, keyVersion));
+      decipher.setAuthTag(authTag);
+      const plaintextKey = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+      if (plaintextKey.length !== 32) {
+        plaintextKey.fill(0);
+        throw new Error('Unwrapped envelope data key has an invalid length');
+      }
+      return plaintextKey;
+    } finally {
+      encoded.fill(0);
+      iv?.fill(0);
+      authTag?.fill(0);
+      ciphertext?.fill(0);
     }
-    return plaintextKey;
   }
 
   destroy(): void {
