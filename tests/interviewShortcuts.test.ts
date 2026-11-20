@@ -75,10 +75,7 @@ describe('live interview shortcut bindings', () => {
       true
     );
     expect(
-      matchesInterviewShortcut(
-        keyboardEvent({ key: ' ', code: 'Space', ctrlKey: true }),
-        'Space'
-      )
+      matchesInterviewShortcut(keyboardEvent({ key: ' ', code: 'Space', ctrlKey: true }), 'Space')
     ).toBe(false);
   });
 
