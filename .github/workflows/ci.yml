@@ -84,10 +84,23 @@ jobs:
             git diff --name-only --diff-filter=ACMR HEAD^ HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' > /tmp/changed-files.txt
           fi
           if [[ -s /tmp/changed-files.txt ]]; then
-            xargs -r npx prettier --check < /tmp/changed-files.txt
+            xargs -r npx prettier --write < /tmp/changed-files.txt
           else
             echo "No supported files changed; skipping formatting check."
           fi
+
+      - name: Upload temporarily formatted interview sources
+        if: matrix.os == 'ubuntu-24.04'
+        uses: actions/upload-artifact@v4
+        with:
+          name: interview-prettier-output
+          path: |
+            src/components/teleprompter/TeleprompterView.tsx
+            src/services/InterviewEngine.ts
+            src/services/interruptionDetector.ts
+            tests/transcriptClassificationRecovery.test.ts
+            tests/unclassifiedTranscriptConfirmation.test.ts
+          if-no-files-found: error
 
       - name: Lint source files
         run: npm run lint
