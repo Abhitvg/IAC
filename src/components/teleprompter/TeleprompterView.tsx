@@ -1741,8 +1741,17 @@ export default function TeleprompterView() {
         }
       }
     };
+    const handleGlobalBionicToggle = () => {
+      const scrollElement = conversationScrollRef.current;
+      if (scrollElement) conversationScrollTopRef.current = scrollElement.scrollTop;
+      setIsBionicGazeMode((value) => !value);
+    };
+    window.addEventListener('toggle-bionic-hud', handleGlobalBionicToggle);
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('toggle-bionic-hud', handleGlobalBionicToggle);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [
     currentAnswer,
     doneAnswering,
