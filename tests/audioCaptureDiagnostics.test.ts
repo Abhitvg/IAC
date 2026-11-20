@@ -82,6 +82,53 @@ describe('audio capture diagnostics', () => {
     expect(recorder.getCaptureState()).toBe('stopped');
   });
 
+
+  it('cleans up a pending AudioContext resume after Stop without activating capture', async () => {
+    let resolveResume: (() => void) | undefined;
+    const resume = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveResume = resolve;
+        })
+    );
+    const close = vi.fn(async () => undefined);
+    const stopTrack = vi.fn();
+    const stream = {
+      getTracks: () => [{ stop: stopTrack }],
+    } as unknown as MediaStream;
+
+    class DeferredAudioContext {
+      state: AudioContextState = 'suspended';
+      destination = {} as AudioDestinationNode;
+      resume = resume;
+      close = close;
+      createMediaStreamSource = vi.fn();
+      createScriptProcessor = vi.fn();
+      createGain = vi.fn();
+    }
+
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+    vi.stubGlobal('window', { AudioContext: DeferredAudioContext });
+
+    const recorder = new AudioRecorder();
+    const startup = recorder.start(() => undefined);
+    await vi.waitFor(() => expect(resume).toHaveBeenCalledTimes(1));
+
+    await recorder.stop();
+    expect(recorder.getCaptureState()).toBe('stopped');
+
+    resolveResume?.();
+    await startup;
+
+    expect(stopTrack).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(recorder.getCaptureState()).toBe('stopped');
+    expect(DiagnosticLoggerService.getInstance().getEvents().map((event) => event.audioCaptureOutcome))
+      .toEqual(['STARTING', 'STOPPED']);
+  });
+
   it('records microphone setup failure without logging microphone or transcript content', async () => {
     vi.stubGlobal('navigator', { mediaDevices: undefined });
     const recorder = new AudioRecorder();

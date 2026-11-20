@@ -232,8 +232,11 @@ export class AudioRecorder {
       stopPendingStream();
       await closePendingContext();
       // A synchronous graph-connect failure can happen after ownership moved to
-      // instance fields. Release those as well before reporting the setup error.
-      await this.releaseCaptureResources();
+      // instance fields. Release those as well before reporting the setup error,
+      // but never tear down resources belonging to a newer capture generation.
+      if (isCurrentStartup()) {
+        await this.releaseCaptureResources();
+      }
 
       // Stop or a newer start owns the state now. A cancelled permission request
       // must not surface as a microphone failure or overwrite the replacement state.
