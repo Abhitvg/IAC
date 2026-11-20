@@ -120,7 +120,13 @@ export class AudioRecorder {
     const isCurrentStartup = () =>
       generation === this.captureGeneration && this.captureState === 'starting';
     const stopPendingStream = () => {
-      pendingStream?.getTracks().forEach((track) => track.stop());
+      try {
+        pendingStream?.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch {}
+        });
+      } catch {}
       pendingStream = null;
     };
     const closePendingContext = async () => {
@@ -290,7 +296,13 @@ export class AudioRecorder {
 
     const stream = this.mediaStream;
     this.mediaStream = null;
-    stream?.getTracks().forEach((track) => track.stop());
+    try {
+      stream?.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {}
+      });
+    } catch {}
 
     const context = this.audioContext;
     this.audioContext = null;

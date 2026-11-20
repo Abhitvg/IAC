@@ -130,6 +130,60 @@ describe('audio capture diagnostics', () => {
     ).toEqual(['STARTING', 'STOPPED']);
   });
 
+
+  it('activates a valid microphone capture and releases it on Stop', async () => {
+    const trackStop = vi.fn();
+    const stream = {
+      getTracks: () => [{ stop: trackStop }],
+    } as unknown as MediaStream;
+    const sourceNode = { connect: vi.fn(), disconnect: vi.fn() };
+    const processorNode = {
+      onaudioprocess: null as ((event: AudioProcessingEvent) => void) | null,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    const gainNode = {
+      gain: { value: 1 },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+
+    class ActiveAudioContext {
+      state: AudioContextState = 'running';
+      sampleRate = 48000;
+      destination = {} as AudioDestinationNode;
+      resume = vi.fn(async () => undefined);
+      close = vi.fn(async () => {
+        this.state = 'closed';
+      });
+      createMediaStreamSource = vi.fn(() => sourceNode);
+      createScriptProcessor = vi.fn(() => processorNode);
+      createGain = vi.fn(() => gainNode);
+    }
+
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+    vi.stubGlobal('window', { AudioContext: ActiveAudioContext });
+
+    const recorder = new AudioRecorder();
+    await recorder.start(() => undefined);
+
+    expect(recorder.getCaptureState()).toBe('active');
+    expect(sourceNode.connect).toHaveBeenCalledWith(processorNode);
+    expect(processorNode.connect).toHaveBeenCalledWith(gainNode);
+    expect(gainNode.gain.value).toBe(0);
+    expect(DiagnosticLoggerService.getInstance().getEvents().map((event) => event.audioCaptureOutcome))
+      .toEqual(['STARTING', 'ACTIVE']);
+
+    await recorder.stop();
+
+    expect(trackStop).toHaveBeenCalledTimes(1);
+    expect(recorder.getCaptureState()).toBe('stopped');
+    expect(DiagnosticLoggerService.getInstance().getEvents().map((event) => event.audioCaptureOutcome))
+      .toEqual(['STARTING', 'ACTIVE', 'STOPPED']);
+  });
+
   it('records microphone setup failure without logging microphone or transcript content', async () => {
     vi.stubGlobal('navigator', { mediaDevices: undefined });
     const recorder = new AudioRecorder();
