@@ -1861,17 +1861,12 @@ export default function TeleprompterView() {
             </select>
           )}
 
-          <button type="button" onClick={toggleBionicHud} title="Return to minimal interview chat (⌘⇧B)" style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(99,102,241,0.22)', color: '#c7d2fe', border: '1px solid rgba(129,140,248,0.5)', borderRadius: 4, padding: '3px 8px', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}><EyeOff size={12}/> Chat</button>
           {/* Bionic Prompter Gaze HUD Toggle */}
           <button
             onClick={() => {
               const next = !isBionicGazeMode;
               setIsBionicGazeMode(next);
-              setToast(
-                next
-                  ? '👁️ Bionic Gaze HUD Activated: Centered triggers & metrics anchored near webcam.'
-                  : '👁️ Bionic Gaze HUD Deactivated: Returned to full script view.'
-              );
+              setToast(next ? 'Bionic HUD answer mode enabled.' : 'Returned to minimal chat mode.');
             }}
             title="Toggle Bionic Gaze HUD: Glanceable 3-6 word centered anchors to maintain natural camera eye-contact"
             style={{
