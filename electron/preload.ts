@@ -52,6 +52,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (key: string, value: any) => ipcRenderer.invoke('settings:set', key, value),
 
+  // OS-keyring-backed encrypted application persistence
+  securePersistenceGet: (namespace: 'candidate-profile') =>
+    ipcRenderer.invoke('secure-persistence:get', namespace),
+  securePersistenceSet: (namespace: 'candidate-profile', value: string) =>
+    ipcRenderer.invoke('secure-persistence:set', namespace, value),
+  securePersistenceRemove: (namespace: 'candidate-profile') =>
+    ipcRenderer.invoke('secure-persistence:remove', namespace),
+
   // Secure credentials
   startCloudLLMStream: (request: {
     requestId: string;

@@ -12,11 +12,12 @@ import {
 } from '../services/security';
 import fs from 'fs';
 import path from 'path';
-import { ipcMain, BrowserWindow, clipboard } from 'electron';
+import { app, ipcMain, BrowserWindow, clipboard } from 'electron';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import crypto from 'crypto';
 import { CredentialStore, parseGroqApiKeyFromEnvContent } from '../services/credentialStore';
+import { SecurePersistenceStore } from '../services/securePersistenceStore';
 import {
   transcribeCloudAudio,
   type CloudTranscriptionRequest,
@@ -285,6 +286,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
   });
 
   const credentialStore = new CredentialStore(store);
+  const securePersistenceStore = new SecurePersistenceStore(app.getPath('userData'));
 
   // Check and log configured credentials locally without unprompted remote network calls
   credentialStore.hasKey('groq').then((has) => {
@@ -468,6 +470,25 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
     if (!controller) return false;
     controller.abort();
     return true;
+  });
+
+  // Encrypted candidate data persistence. Values and decryption stay behind the main-process boundary.
+  ipcMain.handle('secure-persistence:get', async (event, namespace: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (typeof namespace !== 'string') throw new Error('Invalid secure persistence namespace');
+    return securePersistenceStore.get(namespace);
+  });
+
+  ipcMain.handle('secure-persistence:set', async (event, namespace: unknown, value: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (typeof namespace !== 'string') throw new Error('Invalid secure persistence namespace');
+    return securePersistenceStore.set(namespace, value);
+  });
+
+  ipcMain.handle('secure-persistence:remove', async (event, namespace: unknown) => {
+    if (!isTrustedSender(event, mainWindowRef)) throw new Error('Unauthorized IPC sender');
+    if (typeof namespace !== 'string') throw new Error('Invalid secure persistence namespace');
+    return securePersistenceStore.remove(namespace);
   });
 
   // Secure safeStorage credential handlers. Decrypted keys never cross IPC.
