@@ -1820,47 +1820,6 @@ export default function TeleprompterView() {
                 fontSize: 14,
               }}
             >
-              {draftAnswer && (
-                <div
-                  style={{
-                    marginBottom: 8,
-                    color: '#fbbf24',
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
-                >
-                  🛡️ Live Generation Draft — Grounding validation in progress
-                </div>
-              )}
-              {answerValidationStatus === 'BLOCKED' && (
-                <div
-                  role="alert"
-                  style={{
-                    marginBottom: 10,
-                    color: '#fca5a5',
-                    fontSize: 12,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  <div style={{ fontWeight: 700 }}>Candidate Recital Blocked (Factual Grounding Safety Gate)</div>
-                  {technicalGuidance && (
-                    <div style={{ marginTop: 8, color: '#cbd5e1' }}>
-                      <div style={{ color: '#93c5fd', fontWeight: 600 }}>Impersonal Technical Guidance</div>
-                      {technicalGuidance}
-                    </div>
-                  )}
-                </div>
-              )}
-              {isAnswerValidated && answerValidationStatus === 'VALIDATED' && (
-                <div style={{ marginBottom: 8, color: '#6ee7b7', fontSize: 11 }}>
-                  🛡️ Factual Grounding: Verified
-                </div>
-              )}
-              {answerValidationStatus === 'FLAGGED_BUT_QUALIFIED' && (
-                <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11 }}>
-                  ⚠️ Grounding: Qualified
-                </div>
-              )}
               {currentAnswer || draftAnswer || 'Preparing an answer…'}
               {blockedReason && (
                 <div role="alert" style={{ color: '#fca5a5', fontSize: 12, marginTop: 10 }}>
@@ -1892,6 +1851,39 @@ export default function TeleprompterView() {
                   Copy answer
                 </button>
               )}
+            </div>
+          )}
+          {draftAnswer && (
+            <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11, fontWeight: 600 }}>
+              🛡️ Live Generation Draft — Grounding validation in progress
+            </div>
+          )}
+          {answerValidationStatus === 'BLOCKED' && (
+            <div
+              role="alert"
+              style={{ marginBottom: 10, color: '#fca5a5', fontSize: 12, lineHeight: 1.5 }}
+            >
+              <div style={{ fontWeight: 700 }}>
+                Candidate Recital Blocked (Factual Grounding Safety Gate)
+              </div>
+              {technicalGuidance && (
+                <div style={{ marginTop: 8, color: '#cbd5e1' }}>
+                  <div style={{ color: '#93c5fd', fontWeight: 600 }}>
+                    Impersonal Technical Guidance
+                  </div>
+                  {technicalGuidance}
+                </div>
+              )}
+            </div>
+          )}
+          {isAnswerValidated && answerValidationStatus === 'VALIDATED' && (
+            <div style={{ marginBottom: 8, color: '#6ee7b7', fontSize: 11 }}>
+              🛡️ Factual Grounding: Verified
+            </div>
+          )}
+          {answerValidationStatus === 'FLAGGED_BUT_QUALIFIED' && (
+            <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11 }}>
+              ⚠️ Grounding: Qualified
             </div>
           )}
           {lastUnconfirmedTranscript && (
