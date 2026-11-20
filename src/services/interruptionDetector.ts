@@ -252,7 +252,6 @@ export function classifyUtterance(
   // Explicit question/interruption cues outrank similarity to the answer. Questions
   // naturally reuse technical nouns from the answer they are following up on.
 
-
   // First-person candidate narration is a stronger speaker cue than topical overlap.
   // Keep this rule narrow so ordinary declarative speech is not silently discarded.
   if (

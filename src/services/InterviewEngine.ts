@@ -433,8 +433,7 @@ export class InterviewEngine {
             });
             useAppStore.getState().updateDiagnostics({
               latestTranscript: candidateQuestion,
-              whisperStatus:
-                'Question-shaped speech held for confirmation; no answer generated.',
+              whisperStatus: 'Question-shaped speech held for confirmation; no answer generated.',
               questionMatched: false,
             });
             useAppStore

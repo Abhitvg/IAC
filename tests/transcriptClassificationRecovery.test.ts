@@ -41,7 +41,8 @@ describe('Suite A: Transcript Classification & Recovery', () => {
   });
 
   it('holds multi-sentence question-shaped speech for confirmation', () => {
-    const speech = 'So looking at your architecture, how does your service handle database failover under high load?';
+    const speech =
+      'So looking at your architecture, how does your service handle database failover under high load?';
     const result = classifyUtterance(speech, previousAnswer, [previousAnswer]);
 
     expect(result.type).toBe('UNCLASSIFIED');
@@ -76,7 +77,8 @@ describe('Suite A: Transcript Classification & Recovery', () => {
   });
 
   it('classifies candidate speaking/repeating their teleprompted answer as CANDIDATE_RECITAL', () => {
-    const candidateSpeech = 'distributed tracing with OpenTelemetry and Jaeger helps identify latency bottlenecks';
+    const candidateSpeech =
+      'distributed tracing with OpenTelemetry and Jaeger helps identify latency bottlenecks';
     const result = classifyUtterance(candidateSpeech, previousAnswer, [previousAnswer]);
 
     expect(result.type).toBe('CANDIDATE_RECITAL');
@@ -137,4 +139,3 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     expect(updated.currentQuestion).toBe(transcriptText);
   });
 });
-
