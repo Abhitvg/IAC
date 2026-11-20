@@ -82,7 +82,6 @@ describe('audio capture diagnostics', () => {
     expect(recorder.getCaptureState()).toBe('stopped');
   });
 
-
   it('cleans up a pending AudioContext resume after Stop without activating capture', async () => {
     let resolveResume: (() => void) | undefined;
     const resume = vi.fn(
@@ -125,8 +124,11 @@ describe('audio capture diagnostics', () => {
     expect(stopTrack).toHaveBeenCalledTimes(1);
     expect(close).toHaveBeenCalledTimes(1);
     expect(recorder.getCaptureState()).toBe('stopped');
-    expect(DiagnosticLoggerService.getInstance().getEvents().map((event) => event.audioCaptureOutcome))
-      .toEqual(['STARTING', 'STOPPED']);
+    expect(
+      DiagnosticLoggerService.getInstance()
+        .getEvents()
+        .map((event) => event.audioCaptureOutcome)
+    ).toEqual(['STARTING', 'STOPPED']);
   });
 
   it('records microphone setup failure without logging microphone or transcript content', async () => {
