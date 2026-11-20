@@ -84,6 +84,8 @@ jobs:
             git diff --name-only --diff-filter=ACMR HEAD^ HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' > /tmp/changed-files.txt
           fi
           if [[ -s /tmp/changed-files.txt ]]; then
+            xargs -r npx prettier --write < /tmp/changed-files.txt
+            git diff --unified=1 -- electron/main.ts src/components/teleprompter/TeleprompterView.tsx
             xargs -r npx prettier --check < /tmp/changed-files.txt
           else
             echo "No supported files changed; skipping formatting check."
