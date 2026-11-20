@@ -6,9 +6,7 @@ export interface BionicAnswerPresentation {
   fallbackText: string | null;
 }
 
-export const getBionicAnswerPresentation = (
-  prose: string
-): BionicAnswerPresentation => {
+export const getBionicAnswerPresentation = (prose: string): BionicAnswerPresentation => {
   const bullets = extractGlanceableGazeBullets(prose);
   return {
     bullets,
