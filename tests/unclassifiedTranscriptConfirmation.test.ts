@@ -112,6 +112,47 @@ describe('Ambiguous transcript confirmation flow', () => {
     }
   });
 
+  it('discards a late microphone transcript after a new question takes ownership', async () => {
+    let releaseTranscription: ((value: any) => void) | undefined;
+    let pendingTranscript: Promise<void> | undefined;
+    transcribeAudioMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseTranscription = resolve;
+        }) as any
+    );
+    const generationSpy = vi
+      .spyOn(AnswerGenerationService.getInstance(), 'generateAnswer')
+      .mockResolvedValue(undefined as any);
+
+    try {
+      pendingTranscript = InterviewEngine.handleEvent({
+        type: 'UTTERANCE_FINALIZED',
+        blob: new Blob([new Uint8Array(600)]),
+      });
+      await Promise.resolve();
+      expect(releaseTranscription).toBeDefined();
+
+      await InterviewEngine.handleEvent({
+        type: 'QUESTION_DETECTED',
+        text: 'How do you design idempotent APIs?',
+      });
+      expect(useAppStore.getState().currentQuestion).toBe('How do you design idempotent APIs?');
+      expect(useAppStore.getState().status).toBe('analyzing');
+
+      releaseTranscription?.({ text: 'What about retries?' });
+      await pendingTranscript;
+
+      expect(useAppStore.getState().lastUnconfirmedTranscript).toBeNull();
+      expect(useAppStore.getState().currentQuestion).toBe('How do you design idempotent APIs?');
+      expect(useAppStore.getState().status).toBe('analyzing');
+    } finally {
+      releaseTranscription?.({ text: 'What about retries?' });
+      if (pendingTranscript) await pendingTranscript;
+      generationSpy.mockRestore();
+    }
+  });
+
   it('does not transcribe further microphone segments while a question awaits confirmation', async () => {
     transcribeAudioMock.mockResolvedValue({ text: 'What about tomorrow?' });
 

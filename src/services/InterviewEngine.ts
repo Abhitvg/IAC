@@ -622,6 +622,13 @@ export class InterviewEngine {
               state.setPipelineStage('listening');
             }
           }
+        } finally {
+          if (activeTranscriptionRequestId === requestId) {
+            activeTranscriptionRequestId = null;
+          }
+          if (activeTranscriptionController === transcriptionController) {
+            activeTranscriptionController = null;
+          }
         }
         break;
       }
