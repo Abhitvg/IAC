@@ -1033,6 +1033,7 @@ export default function TeleprompterView() {
     try { return localStorage.getItem('interview_bionic_hud') === 'true'; } catch { return false; }
   });
   const conversationScrollRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollConversationRef = useRef(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showControlsPopover, setShowControlsPopover] = useState(false);
 
@@ -1043,9 +1044,10 @@ export default function TeleprompterView() {
   useEffect(() => {
     const element = conversationScrollRef.current;
     if (!element) return;
-    const nearBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 160;
-    if (nearBottom) element.scrollTo({ top: element.scrollHeight, behavior: 'auto' });
-  }, [currentQuestion, currentAnswer, draftAnswer, status]);
+    if (shouldAutoScrollConversationRef.current) {
+      element.scrollTo({ top: element.scrollHeight, behavior: 'auto' });
+    }
+  }, [currentQuestion, currentAnswer, draftAnswer, status, isBionicGazeMode]);
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' && window.innerWidth > 0 ? window.innerWidth : 900
   );
@@ -1340,6 +1342,11 @@ export default function TeleprompterView() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showShortcuts) {
+        e.preventDefault();
+        setShowShortcuts(false);
+        return;
+      }
       const target = e.target as HTMLElement | null;
       const isTyping = Boolean(target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable || target.closest('[contenteditable="true"], [role="textbox"]')));
       if (isTyping) return;
@@ -1462,7 +1469,7 @@ export default function TeleprompterView() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentAnswer, doneAnswering, restorePreviousQuestion, redoQuestion, markQuestionIncomplete]);
+  }, [currentAnswer, doneAnswering, restorePreviousQuestion, redoQuestion, markQuestionIncomplete, showShortcuts, toggleRecording]);
 
   
   const handleToggleCompactWindow = async () => {
@@ -1591,12 +1598,12 @@ export default function TeleprompterView() {
             <span style={{ fontSize: 11, color: '#8f9bad', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{status === 'generating' || status === 'analyzing' ? 'Preparing answer' : status === 'transcribing' ? 'Transcribing' : isListening ? 'Listening' : 'Paused'}</span>
           </div>
           <div className="teleprompter-nodrag" style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
-            <button type="button" onClick={toggleBionicHud} title="Switch to Bionic HUD answer presentation (⌘⇧B)" style={{ border: '1px solid rgba(129,140,248,0.55)', background: 'rgba(99,102,241,0.16)', color: '#c7d2fe', borderRadius: 7, padding: '6px 10px', fontSize: 11, cursor: 'pointer' }}><Eye size={13} style={{ verticalAlign: 'middle', marginRight: 5 }}/>Bionic HUD</button>
+            <button type="button" onClick={toggleBionicHud} title="Switch to Bionic HUD answer presentation (⌘⇧B)" style={{ border: '1px solid rgba(129,140,248,0.55)', background: 'rgba(99,102,241,0.16)', color: '#c7d2fe', borderRadius: 7, padding: '6px 10px', fontSize: 11, cursor: 'pointer' }}><Eye size={13} style={{ verticalAlign: 'middle', marginRight: 5 }}/>Bionic HUD · OFF</button>
             <button type="button" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts" style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: '#cbd5e1', borderRadius: 7, padding: '6px 9px', fontSize: 11, cursor: 'pointer' }}><Keyboard size={13}/></button>
             <button type="button" onClick={handleExit} title="Quit" style={{ border: '1px solid rgba(248,113,113,0.35)', background: 'rgba(127,29,29,0.22)', color: '#fecaca', borderRadius: 7, padding: '6px 9px', fontSize: 11, cursor: 'pointer' }}><Power size={13}/></button>
           </div>
         </header>
-        <div ref={conversationScrollRef} role="log" aria-live="polite" aria-label="Interview conversation" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '22px clamp(14px, 5vw, 56px)', display: 'flex', flexDirection: 'column', gap: 18, overscrollBehavior: 'contain' }}>
+        <div ref={conversationScrollRef} onScroll={(event) => { const element = event.currentTarget; shouldAutoScrollConversationRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 160; }} role="log" aria-live="polite" aria-label="Interview conversation" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '22px clamp(14px, 5vw, 56px)', display: 'flex', flexDirection: 'column', gap: 18, overscrollBehavior: 'contain' }}>
           {questionHistory.map((item, index) => (
             <React.Fragment key={item.timestamp || index}>
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}><div style={{ maxWidth: '88%', background: 'rgba(39,50,67,0.82)', border: '1px solid rgba(148,163,184,0.14)', borderRadius: '16px 16px 4px 16px', padding: '11px 14px', whiteSpace: 'pre-wrap', lineHeight: 1.55, fontSize: 14 }}>{item.question}</div></div>
@@ -1642,7 +1649,7 @@ export default function TeleprompterView() {
             <button type="button" onClick={handleExit} title="Quit" style={{ border: '1px solid rgba(248,113,113,0.35)', background: 'rgba(127,29,29,0.22)', color: '#fecaca', borderRadius: 7, padding: '6px 9px', fontSize: 11, cursor: 'pointer' }}><Power size={13}/></button>
           </div>
         </header>
-        <div ref={conversationScrollRef} role="log" aria-live="polite" aria-label="Interview conversation in Bionic answer mode" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '22px clamp(14px, 5vw, 56px)', display: 'flex', flexDirection: 'column', gap: 18, overscrollBehavior: 'contain' }}>
+        <div ref={conversationScrollRef} onScroll={(event) => { const element = event.currentTarget; shouldAutoScrollConversationRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 160; }} role="log" aria-live="polite" aria-label="Interview conversation in Bionic answer mode" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '22px clamp(14px, 5vw, 56px)', display: 'flex', flexDirection: 'column', gap: 18, overscrollBehavior: 'contain' }}>
           {questionHistory.map((item, index) => (
             <React.Fragment key={item.timestamp || index}>
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}><div style={{ maxWidth: '88%', background: 'rgba(39,50,67,0.82)', border: '1px solid rgba(148,163,184,0.14)', borderRadius: '16px 16px 4px 16px', padding: '11px 14px', whiteSpace: 'pre-wrap', lineHeight: 1.55, fontSize: 14 }}>{item.question}</div></div>
