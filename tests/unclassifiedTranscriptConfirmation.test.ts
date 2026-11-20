@@ -24,19 +24,20 @@ describe('Ambiguous transcript confirmation flow', () => {
     });
   });
 
-  it('uses the UNCLASSIFIED type for speech that cannot safely be attributed', () => {
+  it('does not treat a non-question statement as a question candidate', () => {
     const result = classifyUtterance(
-      'Possibly tomorrow',
+      'What about tomorrow?',
       'Distributed tracing helps identify latency bottlenecks across service boundaries.',
       []
     );
 
     expect(result.type).toBe('UNCLASSIFIED');
-    expect(result.questionText).toBe('Possibly tomorrow');
+    expect(result.needsConfirmation).toBe(false);
+    expect(result.questionText).toBe('What about tomorrow?');
   });
 
-  it('does not transcribe further microphone segments while a transcript awaits confirmation', async () => {
-    transcribeAudioMock.mockResolvedValue({ text: 'Possibly tomorrow' });
+  it('does not transcribe further microphone segments while a question awaits confirmation', async () => {
+    transcribeAudioMock.mockResolvedValue({ text: 'What about tomorrow?' });
 
     await InterviewEngine.handleEvent({
       type: 'UTTERANCE_FINALIZED',
@@ -48,11 +49,11 @@ describe('Ambiguous transcript confirmation flow', () => {
     });
 
     expect(transcribeAudioMock).toHaveBeenCalledTimes(1);
-    expect(useAppStore.getState().lastUnconfirmedTranscript?.text).toBe('Possibly tomorrow');
+    expect(useAppStore.getState().lastUnconfirmedTranscript?.text).toBe('What about tomorrow?');
   });
 
-  it('preserves ambiguous speech and exposes an actionable confirmation state', async () => {
-    transcribeAudioMock.mockResolvedValue({ text: 'Possibly tomorrow' });
+  it('preserves question-shaped speech and exposes an actionable confirmation state', async () => {
+    transcribeAudioMock.mockResolvedValue({ text: 'What about tomorrow?' });
 
     await InterviewEngine.handleEvent({
       type: 'UTTERANCE_FINALIZED',
@@ -64,15 +65,15 @@ describe('Ambiguous transcript confirmation flow', () => {
       expect.arrayContaining([
         expect.objectContaining({
           speaker: 'unknown',
-          classification: 'UNCLASSIFIED',
-          text: 'Possibly tomorrow',
+          classification: 'CONFIRMATION_REQUIRED',
+          text: 'What about tomorrow?',
         }),
       ])
     );
     expect(state.lastUnconfirmedTranscript).toEqual(
       expect.objectContaining({
-        text: 'Possibly tomorrow',
-        confidence: 0.35,
+        text: 'What about tomorrow?',
+        confidence: 0.55,
       })
     );
     expect(state.status).toBe('confirmation_required');
