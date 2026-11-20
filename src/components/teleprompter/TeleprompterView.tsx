@@ -18,6 +18,15 @@ import {
 } from '../../services/teleprompter/bionicPrompterService';
 import { getBionicAnswerPresentation } from '../../services/teleprompter/bionicAnswerPresentation';
 import {
+  DEFAULT_INTERVIEW_SHORTCUTS,
+  INTERVIEW_SHORTCUT_LABELS,
+  RESERVED_INTERVIEW_SHORTCUTS,
+  InterviewShortcutAction,
+  formatInterviewShortcut,
+  matchesInterviewShortcut,
+  resolveInterviewShortcutBindings,
+} from '../../services/teleprompter/interviewShortcuts';
+import {
   Play,
   Pause,
   RotateCcw,
@@ -328,51 +337,6 @@ type InterviewShortcutAction =
   | 'searchConversation'
   | 'finishAnswer';
 
-const DEFAULT_INTERVIEW_SHORTCUTS: Record<InterviewShortcutAction, string> = {
-  bionicHud: 'CmdOrCtrl+Shift+H',
-  listening: 'CmdOrCtrl+Shift+L',
-  solveScreen: 'CmdOrCtrl+Shift+S',
-  snipScreen: 'CmdOrCtrl+Shift+X',
-  searchConversation: 'CmdOrCtrl+K',
-  finishAnswer: 'Space',
-};
-
-const INTERVIEW_SHORTCUT_LABELS: Record<InterviewShortcutAction, string> = {
-  bionicHud: 'Toggle Bionic HUD',
-  listening: 'Pause / resume listening',
-  solveScreen: 'Solve current screen',
-  snipScreen: 'Snip screen region',
-  searchConversation: 'Search conversation',
-  finishAnswer: 'Finish current answer',
-};
-
-function matchesInterviewShortcut(event: KeyboardEvent, binding: string): boolean {
-  const parts = binding
-    .split('+')
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (!parts.length) return false;
-
-  const key = parts[parts.length - 1].toLowerCase();
-  const modifiers = new Set(parts.slice(0, -1).map((part) => part.toLowerCase()));
-  const wantsCommand = modifiers.has('cmdorctrl');
-  const wantsShift = modifiers.has('shift');
-  const wantsAlt = modifiers.has('alt');
-
-  if ((event.metaKey || event.ctrlKey) !== wantsCommand) return false;
-  if (event.shiftKey !== wantsShift || event.altKey !== wantsAlt) return false;
-  if (key === 'space') return event.code === 'Space';
-  return event.key.toLowerCase() === key;
-}
-
-function formatInterviewShortcut(binding: string): string {
-  const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
-  return binding
-    .replace(/CmdOrCtrl/gi, isMac ? '⌘' : 'Ctrl')
-    .replace(/Shift/gi, '⇧')
-    .replace(/Alt/gi, isMac ? '⌥' : 'Alt')
-    .replace(/Space/gi, 'Space');
-}
 
 function ShortcutSettings({
   bindings,
@@ -1399,33 +1363,13 @@ export default function TeleprompterView() {
   const [showControlsPopover, setShowControlsPopover] = useState(false);
   const [showConversationSearch, setShowConversationSearch] = useState(false);
   const [conversationSearchQuery, setConversationSearchQuery] = useState('');
-  const shortcutBindings = useMemo<Record<InterviewShortcutAction, string>>(() => {
-    const configured = settings?.shortcuts || {};
-    return Object.fromEntries(
-      Object.entries(DEFAULT_INTERVIEW_SHORTCUTS).map(([action, fallback]) => [
-        action,
-        typeof configured[action] === 'string' && configured[action].trim()
-          ? configured[action]
-          : fallback,
-      ])
-    ) as Record<InterviewShortcutAction, string>;
-  }, [settings?.shortcuts]);
+  const shortcutBindings = useMemo(
+    () => resolveInterviewShortcutBindings(settings?.shortcuts),
+    [settings?.shortcuts]
+  );
   const handleShortcutChange = useCallback(
     (action: InterviewShortcutAction, binding: string) => {
-      const reservedShortcuts = [
-        'CmdOrCtrl+Shift+Space',
-        'CmdOrCtrl+Backspace',
-        'CmdOrCtrl+Z',
-        'CmdOrCtrl+Shift+Z',
-        'CmdOrCtrl+Y',
-        'CmdOrCtrl+1',
-        'CmdOrCtrl+2',
-        'CmdOrCtrl+3',
-        'CmdOrCtrl+J',
-        'CmdOrCtrl+Backslash',
-        'Alt+C',
-      ];
-      if (reservedShortcuts.includes(binding)) {
+      if (RESERVED_INTERVIEW_SHORTCUTS.includes(binding as (typeof RESERVED_INTERVIEW_SHORTCUTS)[number])) {
         setToast('That shortcut is reserved by another interview control.');
         return;
       }
