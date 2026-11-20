@@ -32,7 +32,8 @@ describe('Suite A: Transcript Classification & Recovery', () => {
 
   it('holds follow-up questions containing answer words for confirmation', () => {
     // Has overlap on "distributed", "tracing", "OpenTelemetry"
-    const followUp = 'Can you explain how OpenTelemetry sampling affects distributed tracing overhead?';
+    const followUp =
+      'Can you explain how OpenTelemetry sampling affects distributed tracing overhead?';
     const result = classifyUtterance(followUp, previousAnswer, [previousAnswer]);
 
     expect(result.type).toBe('UNCLASSIFIED');
@@ -58,8 +59,16 @@ describe('Suite A: Transcript Classification & Recovery', () => {
   });
 
   it('holds Hindi and Hinglish questions for confirmation instead of guessing the speaker', () => {
-    const hindi = classifyUtterance('क्या आप बता सकते हैं कि database failover कैसे काम करता है?', null, []);
-    const hinglish = classifyUtterance('is system mein cache invalidation kaise handle karte ho?', null, []);
+    const hindi = classifyUtterance(
+      'क्या आप बता सकते हैं कि database failover कैसे काम करता है?',
+      null,
+      []
+    );
+    const hinglish = classifyUtterance(
+      'is system mein cache invalidation kaise handle karte ho?',
+      null,
+      []
+    );
     expect(hindi.type).toBe('UNCLASSIFIED');
     expect(hindi.needsConfirmation).toBe(true);
     expect(hinglish.type).toBe('UNCLASSIFIED');
