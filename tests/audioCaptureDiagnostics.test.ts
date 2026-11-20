@@ -16,6 +16,72 @@ describe('audio capture diagnostics', () => {
   beforeEach(() => DiagnosticLoggerService.getInstance().clear());
   afterEach(() => vi.unstubAllGlobals());
 
+
+  it('does not reactivate the microphone when permission resolves after Stop', async () => {
+    let resolvePermission: ((stream: MediaStream) => void) | undefined;
+    const stopTrack = vi.fn();
+    const stream = {
+      getTracks: () => [{ stop: stopTrack }],
+    } as unknown as MediaStream;
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise<MediaStream>((resolve) => {
+          resolvePermission = resolve;
+        })
+    );
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+
+    const recorder = new AudioRecorder();
+    const startup = recorder.start(() => undefined);
+
+    expect(recorder.getCaptureState()).toBe('starting');
+    await vi.waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(1));
+
+    await recorder.stop();
+    expect(recorder.getCaptureState()).toBe('stopped');
+
+    resolvePermission?.(stream);
+    await startup;
+
+    expect(stopTrack).toHaveBeenCalledTimes(1);
+    expect(recorder.getCaptureState()).toBe('stopped');
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(
+      DiagnosticLoggerService.getInstance()
+        .getEvents()
+        .map((event) => event.audioCaptureOutcome)
+    ).toEqual(['STARTING', 'STOPPED']);
+  });
+
+  it('shares one pending permission request when Start is triggered repeatedly', async () => {
+    let resolvePermission: ((stream: MediaStream) => void) | undefined;
+    const stopTrack = vi.fn();
+    const stream = {
+      getTracks: () => [{ stop: stopTrack }],
+    } as unknown as MediaStream;
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise<MediaStream>((resolve) => {
+          resolvePermission = resolve;
+        })
+    );
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+
+    const recorder = new AudioRecorder();
+    const firstStart = recorder.start(() => undefined);
+    const secondStart = recorder.start(() => undefined);
+
+    await vi.waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(1));
+    expect(recorder.getCaptureState()).toBe('starting');
+
+    await recorder.stop();
+    resolvePermission?.(stream);
+    await Promise.all([firstStart, secondStart]);
+
+    expect(stopTrack).toHaveBeenCalledTimes(1);
+    expect(recorder.getCaptureState()).toBe('stopped');
+  });
+
   it('records microphone setup failure without logging microphone or transcript content', async () => {
     vi.stubGlobal('navigator', { mediaDevices: undefined });
     const recorder = new AudioRecorder();
