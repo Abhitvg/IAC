@@ -18,14 +18,13 @@ import {
 } from '../../services/teleprompter/bionicPrompterService';
 import { getBionicAnswerPresentation } from '../../services/teleprompter/bionicAnswerPresentation';
 import {
-  DEFAULT_INTERVIEW_SHORTCUTS,
   INTERVIEW_SHORTCUT_LABELS,
   RESERVED_INTERVIEW_SHORTCUTS,
-  InterviewShortcutAction,
   formatInterviewShortcut,
   matchesInterviewShortcut,
   resolveInterviewShortcutBindings,
 } from '../../services/teleprompter/interviewShortcuts';
+import type { InterviewShortcutAction } from '../../services/teleprompter/interviewShortcuts';
 import {
   Play,
   Pause,
