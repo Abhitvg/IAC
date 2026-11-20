@@ -26,14 +26,30 @@ describe('Ambiguous transcript confirmation flow', () => {
 
   it('does not treat a non-question statement as a question candidate', () => {
     const result = classifyUtterance(
-      'What about tomorrow?',
+      'Possibly tomorrow',
       'Distributed tracing helps identify latency bottlenecks across service boundaries.',
       []
     );
 
     expect(result.type).toBe('UNCLASSIFIED');
     expect(result.needsConfirmation).toBe(false);
-    expect(result.questionText).toBe('What about tomorrow?');
+    expect(result.questionText).toBe('Possibly tomorrow');
+  });
+
+  it('ignores ordinary candidate speech instead of retaining it as a question', async () => {
+    transcribeAudioMock.mockResolvedValue({ text: 'The architecture uses distributed tracing for service boundaries.' });
+
+    await InterviewEngine.handleEvent({
+      type: 'UTTERANCE_FINALIZED',
+      blob: new Blob([new Uint8Array(600)]),
+    });
+
+    const state = useAppStore.getState();
+    expect(state.lastUnconfirmedTranscript).toBeNull();
+    expect(state.transcript).toHaveLength(0);
+    expect(state.status).toBe('listening');
+    expect(state.currentQuestion).toBe('How do you monitor distributed systems?');
+    expect(state.currentAnswer).toBe('Distributed tracing helps identify latency bottlenecks across service boundaries.');
   });
 
   it('does not transcribe further microphone segments while a question awaits confirmation', async () => {
