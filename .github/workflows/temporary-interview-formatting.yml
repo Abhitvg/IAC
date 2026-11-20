@@ -1,0 +1,37 @@
+name: Temporary interview formatting
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Format interview changes
+        run: |
+          npx prettier --write \
+            src/components/teleprompter/TeleprompterView.tsx \
+            src/services/InterviewEngine.ts \
+            src/services/interruptionDetector.ts \
+            tests/transcriptClassificationRecovery.test.ts \
+            tests/unclassifiedTranscriptConfirmation.test.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: interview-prettier-output
+          path: |
+            src/components/teleprompter/TeleprompterView.tsx
+            src/services/InterviewEngine.ts
+            src/services/interruptionDetector.ts
+            tests/transcriptClassificationRecovery.test.ts
+            tests/unclassifiedTranscriptConfirmation.test.ts
+          if-no-files-found: error
