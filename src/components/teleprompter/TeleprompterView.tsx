@@ -2,7 +2,7 @@ import { copyToClipboard } from '../../utils/clipboard';
 import { detectLanguageHint } from '../../services/screenSolver';
 import { readAndParseFile } from '../../services/resume';
 import { CandidateRagService } from '../../services/rag';
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
 import { InterviewEngine } from '../../services/InterviewEngine';
 import { DiagnosticLoggerService } from '../../services/diagnosticLogger';
@@ -1414,8 +1414,13 @@ export default function TeleprompterView() {
         return;
       }
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      target.setAttribute('data-search-highlight', 'true');
-      window.setTimeout(() => target.removeAttribute('data-search-highlight'), 1400);
+      const previousOutline = target.style.outline;
+      target.style.outline = '2px solid rgba(129, 140, 248, 0.9)';
+      target.style.outlineOffset = '5px';
+      window.setTimeout(() => {
+        target.style.outline = previousOutline;
+        target.style.outlineOffset = '';
+      }, 1400);
     });
   }, [setToast]);
 
