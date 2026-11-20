@@ -229,14 +229,18 @@ function setupTray() {
 
 function registerGlobalShortcuts() {
   const stealthShortcuts = [
+    'CommandOrControl+Shift+H',
     'CommandOrControl+Shift+Space',
     'CommandOrControl+\\',
     'Alt+H',
-    'Alt+Shift+H',
   ];
   stealthShortcuts.forEach((shortcut) => {
     try {
       globalShortcut.register(shortcut, () => {
+        if (shortcut === 'CommandOrControl+Shift+H') {
+          mainWindow?.webContents.send('toggle-bionic-hud');
+          return;
+        }
         toggleWindowVisibility();
       });
     } catch (err) {
