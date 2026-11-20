@@ -259,6 +259,13 @@ export class InterviewEngine {
       }
 
       case 'UTTERANCE_FINALIZED': {
+        // Once uncertain speech is awaiting confirmation, do not keep transcribing
+        // subsequent microphone segments into a queue of competing candidates.
+        if (store.lastUnconfirmedTranscript) {
+          store.updateDiagnostics({ whisperStatus: 'Microphone speech held until the pending segment is confirmed or dismissed.' });
+          return;
+        }
+
         // Guard: Stale or stopped session check
         if (store.status === 'idle') {
           return;
