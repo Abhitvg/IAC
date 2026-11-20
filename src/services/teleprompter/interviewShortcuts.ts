@@ -15,7 +15,6 @@ export const DEFAULT_INTERVIEW_SHORTCUTS: Record<InterviewShortcutAction, string
   finishAnswer: 'Space',
 };
 
-
 export function matchesInterviewShortcut(event: KeyboardEvent, binding: string): boolean {
   const parts = binding
     .split('+')
@@ -43,7 +42,6 @@ export function formatInterviewShortcut(binding: string): string {
     .replace(/Alt/gi, isMac ? '⌥' : 'Alt')
     .replace(/Space/gi, 'Space');
 }
-
 
 export const INTERVIEW_SHORTCUT_LABELS: Record<InterviewShortcutAction, string> = {
   bionicHud: 'Toggle Bionic HUD',
