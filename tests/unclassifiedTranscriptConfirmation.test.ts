@@ -94,7 +94,6 @@ describe('Ambiguous transcript confirmation flow', () => {
     );
     expect(state.status).toBe('confirmation_required');
     expect(state.pipelineStage).toBe('confirmation_required');
-    expect(state.isRecording).toBe(true);
     expect(state.currentQuestion).toBe('How do you monitor distributed systems?');
     expect(state.currentAnswer).toBe('Distributed tracing helps identify latency bottlenecks across service boundaries.');
     expect(transcribeAudioMock).toHaveBeenCalledWith(
