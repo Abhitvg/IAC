@@ -328,7 +328,6 @@ interface ConversationSearchResult {
   answer: string;
 }
 
-
 function ShortcutSettings({
   bindings,
   onChange,
@@ -2960,10 +2959,7 @@ export default function TeleprompterView() {
                 Select a shortcut and press a new key combination. Changes are saved to your app
                 settings.
               </p>
-              <ShortcutSettings
-                bindings={shortcutBindings}
-                onChange={handleShortcutChange}
-              />
+              <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
               <button
                 type="button"
                 onClick={() => setShowShortcuts(false)}
