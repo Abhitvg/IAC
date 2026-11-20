@@ -94,7 +94,8 @@ describe('Ambiguous transcript confirmation flow', () => {
     expect(state.lastUnconfirmedTranscript).toEqual(
       expect.objectContaining({
         text: 'What about tomorrow?',
-        confidence: 0.55,
+        confidence: 0.35,
+        reason: 'Speaker cannot be reliably attributed without audio diarization',
       })
     );
     expect(state.status).toBe('confirmation_required');
