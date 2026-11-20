@@ -97,14 +97,17 @@ describe('Ambiguous transcript confirmation flow', () => {
 
       generationCallbacks.onToken('generation-survived-microphone', generationRequestId);
       expect(useAppStore.getState().status).toBe('generating');
-      expect(useAppStore.getState().draftAnswer).toContain('generation-survived-microphone');
+      expect(useAppStore.getState().pipelineStage).toBe('streaming');
+      await vi.waitFor(() =>
+        expect(useAppStore.getState().draftAnswer).toContain('generation-survived-microphone')
+      );
     } finally {
       releaseGeneration?.({
         requestId: generationRequestId,
         status: 'ABORTED',
         cleanAnswer: '',
       });
-      await generationPromise;
+      if (generationPromise) await generationPromise;
       generationSpy.mockRestore();
     }
   });
