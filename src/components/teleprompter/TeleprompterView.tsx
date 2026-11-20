@@ -320,6 +320,7 @@ interface ConversationSearchResult {
   answer: string;
 }
 
+// prettier-ignore
 function ConversationSearchOverlay({
   query,
   onQueryChange,
@@ -1733,7 +1734,13 @@ export default function TeleprompterView() {
         return;
       }
 
-      if (e.code === 'Space' && currentAnswer) {
+      if (
+        e.code === 'Space' &&
+        currentAnswer &&
+        !showShortcuts &&
+        !showControlsPopover &&
+        !showConversationSearch
+      ) {
         const activeTag = document.activeElement?.tagName;
         if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
           e.preventDefault();
@@ -6325,7 +6332,7 @@ export default function TeleprompterView() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <button
                   onClick={clearAndResetToListen}
-                  title="Clear current answer and listen for new question (Shortcut: ⌘K)"
+                  title="Clear current answer and listen for a new question"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
