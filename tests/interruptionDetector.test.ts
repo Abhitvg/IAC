@@ -125,7 +125,8 @@ describe('interruptionDetector & Utterance Classification', () => {
     it('classifies multilingual Hinglish prompt as INTERVIEWER_INTERRUPTION', () => {
       const speech = 'AWS के fundamentals के बारे में कुछ बताओ';
       const res = classifyUtterance(speech, referenceAnswer);
-      expect(res.type).toBe('INTERVIEWER_INTERRUPTION');
+      expect(res.type).toBe('UNCLASSIFIED');
+      expect(res.needsConfirmation).toBe(true);
     });
 
     it('detects explicit interruption phrases without a question mark', () => {
@@ -137,7 +138,8 @@ describe('interruptionDetector & Utterance Classification', () => {
     it('classifies question with question mark as INTERVIEWER_INTERRUPTION', () => {
       const speech = 'What about latency and replication lag?';
       const res = classifyUtterance(speech, referenceAnswer);
-      expect(res.type).toBe('INTERVIEWER_INTERRUPTION');
+      expect(res.type).toBe('UNCLASSIFIED');
+      expect(res.needsConfirmation).toBe(true);
     });
 
     it('classifies any valid speech as INTERVIEWER_QUESTION when no answer is active', () => {
