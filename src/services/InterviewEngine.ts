@@ -282,9 +282,13 @@ export class InterviewEngine {
         });
 
         try {
+          const sttLanguage =
+            typeof store.settings?.language === 'string' && store.settings.language.trim()
+              ? store.settings.language.trim()
+              : undefined;
           const result = await transcribeAudio(
             event.blob,
-            store.settings,
+            { ...store.settings, language: sttLanguage },
             activeTranscriptionController.signal
           );
 
