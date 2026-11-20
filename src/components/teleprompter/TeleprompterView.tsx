@@ -2,16 +2,30 @@ import { copyToClipboard } from '../../utils/clipboard';
 import { detectLanguageHint } from '../../services/screenSolver';
 import { readAndParseFile } from '../../services/resume';
 import { CandidateRagService } from '../../services/rag';
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
 import { InterviewEngine } from '../../services/InterviewEngine';
 import { DiagnosticLoggerService } from '../../services/diagnosticLogger';
+import {
+  getConversationScrollTarget,
+  isConversationNearBottom,
+} from '../../services/teleprompter/conversationScroll';
 import { ApplicationAssistanceView } from './ApplicationAssistanceView';
 import {
   extractGlanceableGazeBullets,
   formatBionicWord,
   BionicGazeBullet,
 } from '../../services/teleprompter/bionicPrompterService';
+import { getBionicAnswerPresentation } from '../../services/teleprompter/bionicAnswerPresentation';
+import {
+  INTERVIEW_SHORTCUT_LABELS,
+  canonicalizeInterviewShortcut,
+  formatInterviewShortcut,
+  isReservedInterviewShortcut,
+  matchesInterviewShortcut,
+  resolveInterviewShortcutBindings,
+} from '../../services/teleprompter/interviewShortcuts';
+import type { InterviewShortcutAction } from '../../services/teleprompter/interviewShortcuts';
 import {
   Play,
   Pause,
@@ -180,11 +194,7 @@ function QuizAnswerCard({
 }
 
 // Bionic Glanceable Prompter & Eye-Contact HUD
-function BionicGazeHUD({
-  bullets,
-}: {
-  bullets: BionicGazeBullet[];
-}) {
+function BionicGazeHUD({ bullets }: { bullets: BionicGazeBullet[] }) {
   return (
     <div
       style={{
@@ -268,7 +278,14 @@ function BionicGazeHUD({
             </span>
 
             {/* Bionic Formatted Text */}
-            <span style={{ fontSize: '16px', lineHeight: 1.4, color: '#f8fafc', letterSpacing: '0.01em' }}>
+            <span
+              style={{
+                fontSize: '16px',
+                lineHeight: 1.4,
+                color: '#f8fafc',
+                letterSpacing: '0.01em',
+              }}
+            >
               {b.text.split(' ').map((word, wIdx) => {
                 const { bold, normal } = formatBionicWord(word);
                 return (
@@ -305,6 +322,287 @@ function BionicGazeHUD({
   );
 }
 
+interface ConversationSearchResult {
+  id: string;
+  label: string;
+  question: string;
+  answer: string;
+}
+
+function ShortcutSettings({
+  bindings,
+  onChange,
+}: {
+  bindings: Record<InterviewShortcutAction, string>;
+  onChange: (action: InterviewShortcutAction, binding: string) => void;
+}) {
+  const [capturing, setCapturing] = useState<InterviewShortcutAction | null>(null);
+  const [captureError, setCaptureError] = useState('');
+
+  useEffect(() => {
+    if (!capturing) return;
+
+    const handleCapture = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.key === 'Escape') {
+        setCapturing(null);
+        setCaptureError('');
+        return;
+      }
+      if (['Shift', 'Control', 'Meta', 'Alt'].includes(event.key)) return;
+
+      const modifiers: string[] = [];
+      if (event.metaKey || event.ctrlKey) modifiers.push('CmdOrCtrl');
+      if (event.altKey) modifiers.push('Alt');
+      if (event.shiftKey) modifiers.push('Shift');
+
+      if (!modifiers.length && event.code !== 'Space') {
+        setCaptureError('Use at least one modifier for letter/number shortcuts.');
+        return;
+      }
+
+      const key =
+        event.code === 'Space'
+          ? 'Space'
+          : event.key.length === 1
+            ? event.key.toUpperCase()
+            : event.key;
+      onChange(capturing, [...modifiers, key].join('+'));
+      setCapturing(null);
+      setCaptureError('');
+    };
+
+    window.addEventListener('keydown', handleCapture, true);
+    return () => window.removeEventListener('keydown', handleCapture, true);
+  }, [capturing, onChange]);
+
+  return (
+    <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+      {(Object.keys(INTERVIEW_SHORTCUT_LABELS) as InterviewShortcutAction[]).map((action) => (
+        <div
+          key={action}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+          }}
+        >
+          <span style={{ color: '#cbd5e1', fontSize: 12 }}>
+            {INTERVIEW_SHORTCUT_LABELS[action]}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setCaptureError('');
+              setCapturing(action);
+            }}
+            style={{
+              minWidth: 118,
+              border: '1px solid rgba(148,163,184,0.25)',
+              borderRadius: 7,
+              padding: '6px 9px',
+              background: capturing === action ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)',
+              color: '#e5eaf2',
+              cursor: 'pointer',
+              fontSize: 11,
+            }}
+          >
+            {capturing === action ? 'Press shortcut…' : formatInterviewShortcut(bindings[action])}
+          </button>
+        </div>
+      ))}
+      {capturing && (
+        <div style={{ color: '#a5b4fc', fontSize: 11 }}>
+          Press the key combination for {INTERVIEW_SHORTCUT_LABELS[capturing]}. Esc cancels.
+        </div>
+      )}
+      {captureError && (
+        <div role="status" style={{ color: '#fbbf24', fontSize: 11 }}>
+          {captureError}
+        </div>
+      )}
+    </div>
+  );
+}
+// prettier-ignore
+function ConversationSearchOverlay({
+  query,
+  onQueryChange,
+  results,
+  onClose,
+  onSelect,
+}: {
+  query: string;
+  onQueryChange: (value: string) => void;
+  results: ConversationSearchResult[];
+  onClose: () => void;
+  onSelect: (result: ConversationSearchResult) => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Search interview conversation"
+      onClick={onClose}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 100,
+        display: 'grid',
+        placeItems: 'start center',
+        padding: 24,
+        background: 'rgba(0,0,0,0.76)',
+        backdropFilter: 'blur(8px)',
+      }}
+    >
+      <div
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          width: 'min(100%, 620px)',
+          maxHeight: 'min(78vh, 680px)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: 12,
+          border: '1px solid rgba(148,163,184,0.22)',
+          background: '#0b111b',
+          color: '#e5eaf2',
+          boxShadow: '0 18px 60px rgba(0,0,0,0.55)',
+        }}
+      >
+        <div style={{ padding: 14, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <input
+            autoFocus
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="Search previous interview questions and answers…"
+            aria-label="Search conversation history"
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '11px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(148,163,184,0.25)',
+              outline: 'none',
+              background: 'rgba(255,255,255,0.06)',
+              color: '#f8fafc',
+              fontSize: 13,
+            }}
+          />
+          <div style={{ marginTop: 7, color: '#8290a3', fontSize: 11 }}>
+            {query.trim()
+              ? results.length + ' matching conversation item(s)'
+              : 'Recent conversation history'}{' '}
+            · Esc to close
+          </div>
+        </div>
+        <div
+          style={{
+            overflowY: 'auto',
+            padding: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 7,
+          }}
+        >
+          {results.length ? (
+            results.map((result) => (
+              <button
+                key={result.id}
+                type="button"
+                onClick={() => onSelect(result)}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  padding: 11,
+                  textAlign: 'left',
+                  borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.035)',
+                  color: '#e5eaf2',
+                  cursor: 'pointer',
+                }}
+                title="Jump to this question in the conversation"
+              >
+                <span
+                  style={{
+                    display: 'block',
+                    color: '#93a4ba',
+                    fontSize: 10,
+                    marginBottom: 5,
+                  }}
+                >
+                  {result.label} · jump to message
+                </span>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: 13,
+                    lineHeight: 1.45,
+                    fontWeight: 650,
+                  }}
+                >
+                  {result.question}
+                </span>
+                {result.answer && (
+                  <span
+                    style={{
+                      display: 'block',
+                      marginTop: 5,
+                      color: '#aab5c4',
+                      fontSize: 11,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {result.answer.slice(0, 240)}
+                    {result.answer.length > 240 ? '…' : ''}
+                  </span>
+                )}
+              </button>
+            ))
+          ) : (
+            <div
+              style={{
+                padding: 24,
+                textAlign: 'center',
+                color: '#8290a3',
+                fontSize: 12,
+              }}
+            >
+              No matching questions or answers found.
+            </div>
+          )}
+        </div>
+        <div
+          style={{
+            padding: '10px 14px',
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            textAlign: 'right',
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              border: 0,
+              borderRadius: 7,
+              padding: '7px 12px',
+              background: '#273449',
+              color: '#e5eaf2',
+              cursor: 'pointer',
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══ Layer 4.8: Factual Grounding Badge ═══ */
 function GroundingBadge({
   validationStatus,
@@ -314,7 +612,14 @@ function GroundingBadge({
   isGenerating,
   hasProviderError,
 }: {
-  validationStatus?: 'PENDING' | 'VALIDATED' | 'FLAGGED' | 'FLAGGED_BUT_QUALIFIED' | 'BLOCKED' | 'FAILED' | 'ABORTED';
+  validationStatus?:
+    | 'PENDING'
+    | 'VALIDATED'
+    | 'FLAGGED'
+    | 'FLAGGED_BUT_QUALIFIED'
+    | 'BLOCKED'
+    | 'FAILED'
+    | 'ABORTED';
   isValidated: boolean;
   score: number | null;
   violationsCount: number;
@@ -635,7 +940,10 @@ function extractChatExplanation(answer: string | null | undefined): string {
   return stripped;
 }
 
-function extractCodeBlocksFromAnswer(answer: string | null | undefined, defaultLang: string = 'Java') {
+function extractCodeBlocksFromAnswer(
+  answer: string | null | undefined,
+  defaultLang: string = 'Java'
+) {
   if (!answer) return [];
   const segments: Array<{ language: string; code: string }> = [];
   const codeBlockRegex = /```([a-zA-Z0-9_#+-]*)[^\n\r]*\r?\n([\s\S]*?)(?:```|$)/g;
@@ -766,14 +1074,14 @@ function CodeBlockCard({ language, code, index, onCopy, isCopied }: CodeBlockCar
                 typeStatus === 'counting' || typeStatus === 'typing'
                   ? 'rgba(234, 88, 12, 0.35)'
                   : typeStatus === 'done'
-                  ? 'rgba(16, 185, 129, 0.3)'
-                  : 'linear-gradient(135deg, rgba(6, 182, 212, 0.35), rgba(14, 165, 233, 0.45))',
+                    ? 'rgba(16, 185, 129, 0.3)'
+                    : 'linear-gradient(135deg, rgba(6, 182, 212, 0.35), rgba(14, 165, 233, 0.45))',
               color:
                 typeStatus === 'counting' || typeStatus === 'typing'
                   ? '#fdba74'
                   : typeStatus === 'done'
-                  ? '#6ee7b7'
-                  : '#e0f2fe',
+                    ? '#6ee7b7'
+                    : '#e0f2fe',
               border:
                 typeStatus === 'done'
                   ? '1px solid rgba(52, 211, 153, 0.7)'
@@ -1029,9 +1337,137 @@ export default function TeleprompterView() {
   };
 
   const [isScreenReading, setIsScreenReading] = useState(false);
-  const [isBionicGazeMode, setIsBionicGazeMode] = useState(false);
+  const [isBionicGazeMode, setIsBionicGazeMode] = useState(() => {
+    try {
+      return localStorage.getItem('interview_bionic_hud') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const conversationScrollRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollConversationRef = useRef(true);
+  const conversationScrollTopRef = useRef(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showControlsPopover, setShowControlsPopover] = useState(false);
+  const [showConversationSearch, setShowConversationSearch] = useState(false);
+  const [conversationSearchQuery, setConversationSearchQuery] = useState('');
+  const shortcutBindings = useMemo(
+    () => resolveInterviewShortcutBindings(settings?.shortcuts),
+    [settings?.shortcuts]
+  );
+  const handleShortcutChange = useCallback(
+    (action: InterviewShortcutAction, binding: string) => {
+      const canonical = canonicalizeInterviewShortcut(binding);
+      if (!canonical) {
+        setToast('That key combination is not supported. Choose a valid shortcut.');
+        return;
+      }
+      if (isReservedInterviewShortcut(canonical)) {
+        setToast('That shortcut is reserved by another application control.');
+        return;
+      }
+      const duplicate = (Object.keys(shortcutBindings) as InterviewShortcutAction[]).find(
+        (candidate) =>
+          candidate !== action &&
+          canonicalizeInterviewShortcut(shortcutBindings[candidate]) === canonical
+      );
+      if (duplicate) {
+        setToast(
+          'That shortcut is already assigned to ' + INTERVIEW_SHORTCUT_LABELS[duplicate] + '.'
+        );
+        return;
+      }
+      updateSetting('shortcuts', { ...(settings?.shortcuts || {}), [action]: canonical });
+      setToast(
+        INTERVIEW_SHORTCUT_LABELS[action] +
+          ' shortcut updated to ' +
+          formatInterviewShortcut(canonical) +
+          '.'
+      );
+    },
+    [shortcutBindings, settings?.shortcuts, updateSetting, setToast]
+  );
+  const conversationSearchResults = useMemo<ConversationSearchResult[]>(() => {
+    const entries: ConversationSearchResult[] = questionHistory.map((item, index) => ({
+      id: 'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index),
+      label: 'Previous answer ' + String(index + 1),
+      question: item.question,
+      answer: item.answer || '',
+    }));
+
+    if (currentQuestion) {
+      entries.push({
+        id: 'current-conversation',
+        label: 'Current question',
+        question: currentQuestion,
+        answer: currentAnswer || draftAnswer || '',
+      });
+    }
+
+    const normalizedQuery = conversationSearchQuery.trim().toLocaleLowerCase();
+    const matching = normalizedQuery
+      ? entries.filter((entry) =>
+          (entry.question + '\\n' + entry.answer).toLocaleLowerCase().includes(normalizedQuery)
+        )
+      : entries;
+
+    return matching.slice(-30).reverse();
+  }, [questionHistory, currentQuestion, currentAnswer, draftAnswer, conversationSearchQuery]);
+
+  const jumpToConversationResult = useCallback(
+    (result: ConversationSearchResult) => {
+      setShowConversationSearch(false);
+      window.requestAnimationFrame(() => {
+        const target = Array.from(
+          document.querySelectorAll<HTMLElement>('[data-conversation-id]')
+        ).find((element) => element.dataset.conversationId === result.id);
+        if (!target) {
+          setToast('That conversation item is no longer in the visible history.');
+          return;
+        }
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const previousOutline = target.style.outline;
+        target.style.outline = '2px solid rgba(129, 140, 248, 0.9)';
+        target.style.outlineOffset = '5px';
+        window.setTimeout(() => {
+          target.style.outline = previousOutline;
+          target.style.outlineOffset = '';
+        }, 1400);
+      });
+    },
+    [setToast]
+  );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('interview_bionic_hud', String(isBionicGazeMode));
+    } catch {
+      /* optional preference */
+    }
+  }, [isBionicGazeMode]);
+
+  useEffect(() => {
+    const element = conversationScrollRef.current;
+    if (!element) return;
+    if (shouldAutoScrollConversationRef.current) {
+      element.scrollTo({ top: element.scrollHeight, behavior: 'auto' });
+    }
+  }, [currentQuestion, currentAnswer, draftAnswer, status, isBionicGazeMode]);
+
+  // The two answer modes render different DOM trees. Preserve the reader's position
+  // when switching modes unless they were already following the newest content.
+  useEffect(() => {
+    const element = conversationScrollRef.current;
+    if (!element) return;
+    const target = getConversationScrollTarget(
+      element.scrollHeight,
+      conversationScrollTopRef.current,
+      shouldAutoScrollConversationRef.current
+    );
+    if (!shouldAutoScrollConversationRef.current) {
+      element.scrollTo({ top: target, behavior: 'auto' });
+    }
+  }, [isBionicGazeMode]);
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' && window.innerWidth > 0 ? window.innerWidth : 900
   );
@@ -1152,7 +1588,9 @@ export default function TeleprompterView() {
         return;
       }
 
-      setToast('🧩 Stitched 2-page question! Regenerating 100% verified solution with full constraints...');
+      setToast(
+        '🧩 Stitched 2-page question! Regenerating 100% verified solution with full constraints...'
+      );
       InterviewEngine.handleEvent({
         type: 'SCREEN_PROBLEM_DETECTED',
         rawText: res.text,
@@ -1178,9 +1616,7 @@ export default function TeleprompterView() {
 
     const preferred =
       codeBlocks.find(
-        (b) =>
-          b.code.split('\n').length <= 15 ||
-          /⚡|TYPEABLE|Shortest/i.test(b.code)
+        (b) => b.code.split('\n').length <= 15 || /⚡|TYPEABLE|Shortest/i.test(b.code)
       ) || codeBlocks[0];
 
     const cleanCode = preferred.code;
@@ -1326,20 +1762,40 @@ export default function TeleprompterView() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Instant Stealth Hide / Panic Shortcut: Escape or Cmd+Shift+H or Cmd+\ or Cmd+Shift+Space
+      if (e.key === 'Escape') {
+        if (showShortcuts || showControlsPopover || showConversationSearch) {
+          e.preventDefault();
+          setShowShortcuts(false);
+          setShowControlsPopover(false);
+          setShowConversationSearch(false);
+          return;
+        }
+      }
+      const target = e.target as HTMLElement | null;
+      const isTyping = Boolean(
+        target &&
+        (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+          target.isContentEditable ||
+          target.closest('[contenteditable="true"], [role="textbox"]'))
+      );
+      if (isTyping) return;
+      if (matchesInterviewShortcut(e, shortcutBindings.bionicHud)) {
+        e.preventDefault();
+        const scrollElement = conversationScrollRef.current;
+        if (scrollElement) conversationScrollTopRef.current = scrollElement.scrollTop;
+        setIsBionicGazeMode((value) => !value);
+        return;
+      }
+      if (matchesInterviewShortcut(e, shortcutBindings.listening)) {
+        e.preventDefault();
+        toggleRecording();
+        return;
+      }
+      // Panic stealth shortcuts remain separate from the Bionic HUD toggle.
       if (
-        e.key === 'Escape' ||
-        ((e.metaKey || e.ctrlKey) &&
-          e.shiftKey &&
-          (e.code === 'KeyH' || e.key.toLowerCase() === 'h')) ||
         ((e.metaKey || e.ctrlKey) && (e.code === 'Backslash' || e.key === '\\')) ||
         ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Space')
       ) {
-        const activeTag = document.activeElement?.tagName;
-        if (e.key === 'Escape' && (activeTag === 'INPUT' || activeTag === 'TEXTAREA')) {
-          (document.activeElement as HTMLElement)?.blur();
-          return;
-        }
         e.preventDefault();
         window.electronAPI?.toggleVisibility?.();
         return;
@@ -1349,7 +1805,10 @@ export default function TeleprompterView() {
       if (
         (e.metaKey || e.ctrlKey) &&
         !e.shiftKey &&
-        (e.code === 'KeyZ' || e.key.toLowerCase() === 'z' || e.code === 'BracketLeft' || e.key === '[')
+        (e.code === 'KeyZ' ||
+          e.key.toLowerCase() === 'z' ||
+          e.code === 'BracketLeft' ||
+          e.key === '[')
       ) {
         e.preventDefault();
         restorePreviousQuestion();
@@ -1358,8 +1817,14 @@ export default function TeleprompterView() {
 
       // Redo to Next Question (Cmd+Shift+Z or Cmd+Y or Cmd+])
       if (
-        ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.code === 'KeyZ' || e.key.toLowerCase() === 'z')) ||
-        ((e.metaKey || e.ctrlKey) && (e.code === 'KeyY' || e.key.toLowerCase() === 'y' || e.code === 'BracketRight' || e.key === ']'))
+        ((e.metaKey || e.ctrlKey) &&
+          e.shiftKey &&
+          (e.code === 'KeyZ' || e.key.toLowerCase() === 'z')) ||
+        ((e.metaKey || e.ctrlKey) &&
+          (e.code === 'KeyY' ||
+            e.key.toLowerCase() === 'y' ||
+            e.code === 'BracketRight' ||
+            e.key === ']'))
       ) {
         e.preventDefault();
         redoQuestion();
@@ -1373,20 +1838,28 @@ export default function TeleprompterView() {
         return;
       }
 
-      // Clear / Next Question Shortcut: Cmd+K or Cmd+Backspace
-      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'k' || e.key === 'Backspace')) {
+      // Search retained interview history; do not mutate the active question or answer.
+      if (matchesInterviewShortcut(e, shortcutBindings.searchConversation)) {
+        e.preventDefault();
+        setConversationSearchQuery('');
+        setShowConversationSearch(true);
+        setShowShortcuts(false);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Backspace') {
         e.preventDefault();
         clearAndResetToListen();
         return;
       }
 
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        (e.code === 'KeyS' || e.key.toLowerCase() === 's')
-      ) {
+      if (matchesInterviewShortcut(e, shortcutBindings.solveScreen)) {
         e.preventDefault();
         handleScreenCapture('fullscreen');
+        return;
+      }
+      if (matchesInterviewShortcut(e, shortcutBindings.snipScreen)) {
+        e.preventDefault();
+        handleScreenCapture('snip');
         return;
       }
 
@@ -1410,13 +1883,6 @@ export default function TeleprompterView() {
         return;
       }
 
-      // Quick Copy Code shortcut: Cmd+K
-      if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyK' || e.key.toLowerCase() === 'k')) {
-        e.preventDefault();
-        handleCopyPrimaryCode();
-        return;
-      }
-
       // Auto-scroll toggle: Cmd+J
       if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyJ' || e.key.toLowerCase() === 'j')) {
         e.preventDefault();
@@ -1425,19 +1891,41 @@ export default function TeleprompterView() {
         return;
       }
 
-      if (e.code === 'Space' && currentAnswer) {
-        const activeTag = document.activeElement?.tagName;
-        if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
-          e.preventDefault();
-          doneAnswering();
-        }
+      if (
+        matchesInterviewShortcut(e, shortcutBindings.finishAnswer) &&
+        currentAnswer &&
+        !showShortcuts &&
+        !showControlsPopover &&
+        !showConversationSearch
+      ) {
+        const focusedInteractive = Boolean(
+          target?.closest('button, a, [role="button"], [role="menuitem"]')
+        );
+        if (shortcutBindings.finishAnswer === 'Space' && focusedInteractive) return;
+        e.preventDefault();
+        doneAnswering();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentAnswer, doneAnswering, restorePreviousQuestion, redoQuestion, markQuestionIncomplete]);
+  }, [
+    currentAnswer,
+    doneAnswering,
+    restorePreviousQuestion,
+    redoQuestion,
+    markQuestionIncomplete,
+    showShortcuts,
+    showControlsPopover,
+    showConversationSearch,
+    isAutoScrolling,
+    toggleRecording,
+    shortcutBindings,
+    clearAndResetToListen,
+    handleScreenCapture,
+    setResponseMode,
+    setToast,
+  ]);
 
-  
   const handleToggleCompactWindow = async () => {
     if (typeof window !== 'undefined' && window.electronAPI?.setWindowSize) {
       const size = await window.electronAPI.getWindowSize?.();
@@ -1552,6 +2040,958 @@ export default function TeleprompterView() {
   const hasCodeBlock = useMemo(() => {
     return parsedSegments.some((s) => s.type === 'code' && s.code && s.code.trim().length > 0);
   }, [parsedSegments]);
+
+  const toggleBionicHud = () => {
+    const element = conversationScrollRef.current;
+    if (element) conversationScrollTopRef.current = element.scrollTop;
+    setIsBionicGazeMode((value) => !value);
+  };
+
+  if (!isBionicGazeMode) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          width: '100%',
+          minHeight: 0,
+          overflow: 'hidden',
+          color: '#f8fafc',
+          background: 'rgba(5, 7, 11, 0.82)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        }}
+      >
+        <header
+          className="teleprompter-draggable"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            padding: '10px 14px',
+            borderBottom: '1px solid rgba(255,255,255,0.09)',
+            background: 'rgba(9,12,18,0.78)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>Live Interview</strong>
+            <span
+              style={{
+                fontSize: 11,
+                color: '#8f9bad',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {status === 'generating' || status === 'analyzing'
+                ? 'Preparing answer'
+                : status === 'transcribing'
+                  ? 'Transcribing'
+                  : isListening
+                    ? 'Listening'
+                    : 'Paused'}
+            </span>
+          </div>
+          <div
+            className="teleprompter-nodrag"
+            style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}
+          >
+            <button
+              type="button"
+              onClick={toggleBionicHud}
+              title="Switch to Bionic HUD answer presentation (⌘⇧H)"
+              style={{
+                border: '1px solid rgba(129,140,248,0.55)',
+                background: 'rgba(99,102,241,0.16)',
+                color: '#c7d2fe',
+                borderRadius: 7,
+                padding: '6px 10px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <Eye size={13} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+              Bionic HUD · OFF
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowShortcuts(true)}
+              title="Keyboard shortcuts"
+              style={{
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.05)',
+                color: '#cbd5e1',
+                borderRadius: 7,
+                padding: '6px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <Keyboard size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={handleExit}
+              title="Quit"
+              style={{
+                border: '1px solid rgba(248,113,113,0.35)',
+                background: 'rgba(127,29,29,0.22)',
+                color: '#fecaca',
+                borderRadius: 7,
+                padding: '6px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <Power size={13} />
+            </button>
+          </div>
+        </header>
+        <div
+          ref={conversationScrollRef}
+          onScroll={(event) => {
+            const element = event.currentTarget;
+            conversationScrollTopRef.current = element.scrollTop;
+            shouldAutoScrollConversationRef.current = isConversationNearBottom(
+              element.scrollHeight,
+              element.scrollTop,
+              element.clientHeight
+            );
+          }}
+          role="log"
+          aria-live="polite"
+          aria-label="Interview conversation"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            padding: '22px clamp(14px, 5vw, 56px)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 18,
+            overscrollBehavior: 'contain',
+          }}
+        >
+          {questionHistory.map((item, index) => (
+            <React.Fragment key={item.timestamp || index}>
+              <div
+                data-conversation-id={
+                  'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index)
+                }
+                style={{ display: 'flex', justifyContent: 'flex-end' }}
+              >
+                <div
+                  style={{
+                    maxWidth: '88%',
+                    background: 'rgba(39,50,67,0.82)',
+                    border: '1px solid rgba(148,163,184,0.14)',
+                    borderRadius: '16px 16px 4px 16px',
+                    padding: '11px 14px',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.55,
+                    fontSize: 14,
+                  }}
+                >
+                  {item.question}
+                </div>
+              </div>
+              {item.answer && (
+                <div
+                  style={{
+                    alignSelf: 'flex-start',
+                    maxWidth: '96%',
+                    color: '#e5eaf2',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.72,
+                    fontSize: 14,
+                  }}
+                >
+                  {item.answer}
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+          {currentQuestion && (
+            <div
+              data-conversation-id="current-conversation"
+              style={{ display: 'flex', justifyContent: 'flex-end' }}
+            >
+              <div
+                style={{
+                  maxWidth: '88%',
+                  background: 'rgba(39,50,67,0.82)',
+                  border: '1px solid rgba(148,163,184,0.14)',
+                  borderRadius: '16px 16px 4px 16px',
+                  padding: '11px 14px',
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: 1.55,
+                  fontSize: 14,
+                }}
+              >
+                {currentQuestion}
+              </div>
+            </div>
+          )}
+          {(currentAnswer || draftAnswer || isGenerating) && (
+            <div
+              style={{
+                alignSelf: 'flex-start',
+                width: '100%',
+                maxWidth: 900,
+                color: '#e5eaf2',
+                whiteSpace: 'pre-wrap',
+                lineHeight: 1.72,
+                fontSize: 14,
+              }}
+            >
+              {currentAnswer || draftAnswer || 'Preparing an answer…'}
+              {blockedReason && (
+                <div role="alert" style={{ color: '#fca5a5', fontSize: 12, marginTop: 10 }}>
+                  {blockedReason}
+                </div>
+              )}
+              {(answerValidationStatus === 'BLOCKED' || answerValidationStatus === 'FAILED') && (
+                <div style={{ color: '#fbbf24', fontSize: 11, marginTop: 8 }}>
+                  Answer is not approved for speaking. Review before using it.
+                </div>
+              )}
+              {currentAnswer && (
+                <button
+                  type="button"
+                  onClick={copyAnswer}
+                  style={{
+                    display: 'block',
+                    marginTop: 9,
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    background: 'transparent',
+                    color: '#cbd5e1',
+                    borderRadius: 6,
+                    padding: '5px 9px',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Copy size={12} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+                  Copy answer
+                </button>
+              )}
+            </div>
+          )}
+          {draftAnswer && (
+            <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11, fontWeight: 600 }}>
+              🛡️ Live Generation Draft — Grounding validation in progress
+            </div>
+          )}
+          {answerValidationStatus === 'BLOCKED' && (
+            <div
+              role="alert"
+              style={{ marginBottom: 10, color: '#fca5a5', fontSize: 12, lineHeight: 1.5 }}
+            >
+              <div style={{ fontWeight: 700 }}>
+                Candidate Recital Blocked (Factual Grounding Safety Gate)
+              </div>
+              {technicalGuidance && (
+                <div style={{ marginTop: 8, color: '#cbd5e1' }}>
+                  <div style={{ color: '#93c5fd', fontWeight: 600 }}>
+                    Impersonal Technical Guidance
+                  </div>
+                  {technicalGuidance}
+                </div>
+              )}
+            </div>
+          )}
+          {isAnswerValidated && answerValidationStatus === 'VALIDATED' && (
+            <div style={{ marginBottom: 8, color: '#6ee7b7', fontSize: 11 }}>
+              🛡️ Factual Grounding: Verified
+            </div>
+          )}
+          {answerValidationStatus === 'FLAGGED_BUT_QUALIFIED' && (
+            <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11 }}>
+              ⚠️ Grounding: Qualified
+            </div>
+          )}
+          {lastUnconfirmedTranscript && (
+            <div
+              role="alert"
+              style={{
+                alignSelf: 'center',
+                width: 'min(100%, 720px)',
+                border: '1px solid rgba(245,158,11,0.35)',
+                background: 'rgba(120,53,15,0.16)',
+                borderRadius: 10,
+                padding: 12,
+              }}
+            >
+              <div style={{ color: '#fcd34d', fontSize: 12, marginBottom: 8 }}>
+                Unconfirmed speech · not submitted
+              </div>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, marginBottom: 10 }}>
+                {lastUnconfirmedTranscript.text}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={handleConfirmUnclassifiedTranscript}
+                  style={{
+                    border: 0,
+                    borderRadius: 6,
+                    padding: '7px 10px',
+                    color: '#fff',
+                    background: '#047857',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                  }}
+                >
+                  Use as question
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDismissUnclassifiedTranscript}
+                  style={{
+                    border: '1px solid #64748b',
+                    borderRadius: 6,
+                    padding: '7px 10px',
+                    color: '#e2e8f0',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                  }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+          {!questionHistory.length &&
+            !currentQuestion &&
+            !lastUnconfirmedTranscript &&
+            !currentAnswer &&
+            !draftAnswer && (
+              <div style={{ margin: 'auto', textAlign: 'center', color: '#7f8b9d', fontSize: 13 }}>
+                Your interview conversation will appear here.
+              </div>
+            )}
+        </div>
+        <footer
+          className="teleprompter-nodrag"
+          style={{
+            borderTop: '1px solid rgba(255,255,255,0.09)',
+            background: 'rgba(8,11,16,0.88)',
+            padding: '10px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 9,
+          }}
+        >
+          <form onSubmit={handleFormSubmit} style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <input
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              placeholder="Type or paste an interview question…"
+              aria-label="Enter interview question"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                background: 'rgba(255,255,255,0.055)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 8,
+                padding: '10px 12px',
+                color: '#f8fafc',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            />
+            <button
+              type="submit"
+              disabled={!manualInput.trim()}
+              style={{
+                border: 0,
+                borderRadius: 8,
+                padding: '0 15px',
+                color: '#fff',
+                background: manualInput.trim() ? '#4f46e5' : '#303746',
+                cursor: manualInput.trim() ? 'pointer' : 'not-allowed',
+                fontSize: 12,
+              }}
+            >
+              Send
+            </button>
+          </form>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                type="button"
+                onClick={toggleRecording}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  border: 0,
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  color: '#fff',
+                  background: isListening ? '#7f1d1d' : '#4f46e5',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                {isListening ? <MicOff size={14} /> : <Mic size={14} />}{' '}
+                {isListening ? 'Pause listening' : 'Start listening'}
+              </button>
+              <span style={{ color: '#8d9bad', fontSize: 11 }}>
+                {isGenerating
+                  ? 'Generating…'
+                  : status === 'transcribing'
+                    ? 'Transcribing…'
+                    : isListening
+                      ? 'Microphone ready'
+                      : 'Mic paused'}
+              </span>
+            </div>
+            {currentAnswer && (
+              <button
+                type="button"
+                onClick={clearAndResetToListen}
+                style={{
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 7,
+                  padding: '7px 10px',
+                  background: 'transparent',
+                  color: '#cbd5e1',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                }}
+              >
+                New question
+              </button>
+            )}
+          </div>
+        </footer>
+        {showConversationSearch && (
+          <ConversationSearchOverlay
+            query={conversationSearchQuery}
+            onQueryChange={setConversationSearchQuery}
+            results={conversationSearchResults}
+            onClose={() => setShowConversationSearch(false)}
+            onSelect={jumpToConversationResult}
+          />
+        )}
+        {showShortcuts && (
+          <div
+            onClick={() => setShowShortcuts(false)}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 90,
+              background: 'rgba(0,0,0,0.72)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: 20,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: 'min(100%, 420px)',
+                padding: 18,
+                borderRadius: 12,
+                background: '#101722',
+                border: '1px solid #354155',
+                color: '#e5eaf2',
+              }}
+            >
+              <strong>Keyboard shortcuts</strong>
+              <p style={{ fontSize: 11, lineHeight: 1.6, color: '#8290a3', marginBottom: 8 }}>
+                Select a shortcut and press a new key combination. Changes are saved to your app
+                settings.
+              </p>
+              <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
+              <button
+                type="button"
+                onClick={() => setShowShortcuts(false)}
+                style={{
+                  marginTop: 8,
+                  border: 0,
+                  borderRadius: 7,
+                  padding: '7px 12px',
+                  background: '#3730a3',
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (isBionicGazeMode) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          width: '100%',
+          minHeight: 0,
+          overflow: 'hidden',
+          color: '#f8fafc',
+          background: 'rgba(5, 7, 11, 0.82)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        }}
+      >
+        <header
+          className="teleprompter-draggable"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            padding: '10px 14px',
+            borderBottom: '1px solid rgba(255,255,255,0.09)',
+            background: 'rgba(9,12,18,0.78)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>Live Interview</strong>
+            <span style={{ fontSize: 11, color: '#a5b4fc' }}>Bionic answer mode</span>
+          </div>
+          <div
+            className="teleprompter-nodrag"
+            style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}
+          >
+            <button
+              type="button"
+              onClick={toggleBionicHud}
+              title="Return to normal chat answers (⌘⇧H)"
+              style={{
+                border: '1px solid rgba(129,140,248,0.55)',
+                background: 'rgba(99,102,241,0.2)',
+                color: '#c7d2fe',
+                borderRadius: 7,
+                padding: '6px 10px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <EyeOff size={13} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+              HUD ON · Chat
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowShortcuts(true)}
+              title="Keyboard shortcuts"
+              style={{
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.05)',
+                color: '#cbd5e1',
+                borderRadius: 7,
+                padding: '6px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <Keyboard size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={handleExit}
+              title="Quit"
+              style={{
+                border: '1px solid rgba(248,113,113,0.35)',
+                background: 'rgba(127,29,29,0.22)',
+                color: '#fecaca',
+                borderRadius: 7,
+                padding: '6px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <Power size={13} />
+            </button>
+          </div>
+        </header>
+        <div
+          ref={conversationScrollRef}
+          onScroll={(event) => {
+            const element = event.currentTarget;
+            conversationScrollTopRef.current = element.scrollTop;
+            shouldAutoScrollConversationRef.current = isConversationNearBottom(
+              element.scrollHeight,
+              element.scrollTop,
+              element.clientHeight
+            );
+          }}
+          role="log"
+          aria-live="polite"
+          aria-label="Interview conversation in Bionic answer mode"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            padding: '22px clamp(14px, 5vw, 56px)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 18,
+            overscrollBehavior: 'contain',
+          }}
+        >
+          {questionHistory.map((item, index) => (
+            <React.Fragment key={item.timestamp || index}>
+              <div
+                data-conversation-id={
+                  'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index)
+                }
+                style={{ display: 'flex', justifyContent: 'flex-end' }}
+              >
+                <div
+                  style={{
+                    maxWidth: '88%',
+                    background: 'rgba(39,50,67,0.82)',
+                    border: '1px solid rgba(148,163,184,0.14)',
+                    borderRadius: '16px 16px 4px 16px',
+                    padding: '11px 14px',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.55,
+                    fontSize: 14,
+                  }}
+                >
+                  {item.question}
+                </div>
+              </div>
+              {item.answer &&
+                (() => {
+                  const presentation = getBionicAnswerPresentation(item.answer);
+                  return presentation.bullets.length > 0 ? (
+                    <BionicGazeHUD bullets={presentation.bullets} />
+                  ) : (
+                    <div
+                      style={{
+                        alignSelf: 'flex-start',
+                        maxWidth: '96%',
+                        color: '#e5eaf2',
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: 1.72,
+                        fontSize: 14,
+                      }}
+                    >
+                      {presentation.fallbackText}
+                    </div>
+                  );
+                })()}
+            </React.Fragment>
+          ))}
+          {currentQuestion && (
+            <div
+              data-conversation-id="current-conversation"
+              style={{ display: 'flex', justifyContent: 'flex-end' }}
+            >
+              <div
+                style={{
+                  maxWidth: '88%',
+                  background: 'rgba(39,50,67,0.82)',
+                  border: '1px solid rgba(148,163,184,0.14)',
+                  borderRadius: '16px 16px 4px 16px',
+                  padding: '11px 14px',
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: 1.55,
+                  fontSize: 14,
+                }}
+              >
+                {currentQuestion}
+              </div>
+            </div>
+          )}
+          {(currentAnswer || draftAnswer || isGenerating) &&
+            (bionicGazeBullets.length > 0 ? (
+              <BionicGazeHUD bullets={bionicGazeBullets} />
+            ) : (
+              <div
+                style={{ color: '#e5eaf2', whiteSpace: 'pre-wrap', lineHeight: 1.7, fontSize: 14 }}
+              >
+                {currentAnswer || draftAnswer || 'Preparing answer…'}
+              </div>
+            ))}
+          {draftAnswer && (
+            <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11, fontWeight: 600 }}>
+              🛡️ Live Generation Draft — Grounding validation in progress
+            </div>
+          )}
+          {answerValidationStatus === 'BLOCKED' && (
+            <div
+              role="alert"
+              style={{ marginBottom: 10, color: '#fca5a5', fontSize: 12, lineHeight: 1.5 }}
+            >
+              <div style={{ fontWeight: 700 }}>
+                Candidate Recital Blocked (Factual Grounding Safety Gate)
+              </div>
+              {technicalGuidance && (
+                <div style={{ marginTop: 8, color: '#cbd5e1' }}>
+                  <div style={{ color: '#93c5fd', fontWeight: 600 }}>
+                    Impersonal Technical Guidance
+                  </div>
+                  {technicalGuidance}
+                </div>
+              )}
+            </div>
+          )}
+          {isAnswerValidated && answerValidationStatus === 'VALIDATED' && (
+            <div style={{ marginBottom: 8, color: '#6ee7b7', fontSize: 11 }}>
+              🛡️ Factual Grounding: Verified
+            </div>
+          )}
+          {answerValidationStatus === 'FLAGGED_BUT_QUALIFIED' && (
+            <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11 }}>
+              ⚠️ Grounding: Qualified
+            </div>
+          )}
+          {blockedReason && (
+            <div role="alert" style={{ color: '#fca5a5', fontSize: 12 }}>
+              {blockedReason}
+            </div>
+          )}
+          {lastUnconfirmedTranscript && (
+            <div
+              role="alert"
+              style={{
+                alignSelf: 'center',
+                width: 'min(100%, 720px)',
+                border: '1px solid rgba(245,158,11,0.35)',
+                background: 'rgba(120,53,15,0.16)',
+                borderRadius: 10,
+                padding: 12,
+              }}
+            >
+              <div style={{ color: '#fcd34d', fontSize: 12, marginBottom: 8 }}>
+                Unconfirmed speech · not submitted
+              </div>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, marginBottom: 10 }}>
+                {lastUnconfirmedTranscript.text}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={handleConfirmUnclassifiedTranscript}
+                  style={{
+                    border: 0,
+                    borderRadius: 6,
+                    padding: '7px 10px',
+                    color: '#fff',
+                    background: '#047857',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                  }}
+                >
+                  Use as question
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDismissUnclassifiedTranscript}
+                  style={{
+                    border: '1px solid #64748b',
+                    borderRadius: 6,
+                    padding: '7px 10px',
+                    color: '#e2e8f0',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                  }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+          {!questionHistory.length &&
+            !currentQuestion &&
+            !lastUnconfirmedTranscript &&
+            !currentAnswer &&
+            !draftAnswer && (
+              <div style={{ margin: 'auto', textAlign: 'center', color: '#7f8b9d', fontSize: 13 }}>
+                Your Bionic answers will appear here.
+              </div>
+            )}
+        </div>
+        <footer
+          className="teleprompter-nodrag"
+          style={{
+            borderTop: '1px solid rgba(255,255,255,0.09)',
+            background: 'rgba(8,11,16,0.88)',
+            padding: '10px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 9,
+          }}
+        >
+          <form onSubmit={handleFormSubmit} style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <input
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              placeholder="Type or paste an interview question…"
+              aria-label="Enter interview question"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                background: 'rgba(255,255,255,0.055)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 8,
+                padding: '10px 12px',
+                color: '#f8fafc',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            />
+            <button
+              type="submit"
+              disabled={!manualInput.trim()}
+              style={{
+                border: 0,
+                borderRadius: 8,
+                padding: '0 15px',
+                color: '#fff',
+                background: manualInput.trim() ? '#4f46e5' : '#303746',
+                cursor: manualInput.trim() ? 'pointer' : 'not-allowed',
+                fontSize: 12,
+              }}
+            >
+              Send
+            </button>
+          </form>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                type="button"
+                onClick={toggleRecording}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  border: 0,
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  color: '#fff',
+                  background: isListening ? '#7f1d1d' : '#4f46e5',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                {isListening ? <MicOff size={14} /> : <Mic size={14} />}{' '}
+                {isListening ? 'Pause listening' : 'Start listening'}
+              </button>
+              <span style={{ color: '#8d9bad', fontSize: 11 }}>
+                {isGenerating
+                  ? 'Generating…'
+                  : status === 'transcribing'
+                    ? 'Transcribing…'
+                    : isListening
+                      ? 'Microphone ready'
+                      : 'Mic paused'}
+              </span>
+            </div>
+            {currentAnswer && (
+              <button
+                type="button"
+                onClick={clearAndResetToListen}
+                style={{
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 7,
+                  padding: '7px 10px',
+                  background: 'transparent',
+                  color: '#cbd5e1',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                }}
+              >
+                New question
+              </button>
+            )}
+          </div>
+        </footer>
+        {showConversationSearch && (
+          <ConversationSearchOverlay
+            query={conversationSearchQuery}
+            onQueryChange={setConversationSearchQuery}
+            results={conversationSearchResults}
+            onClose={() => setShowConversationSearch(false)}
+            onSelect={jumpToConversationResult}
+          />
+        )}
+        {showShortcuts && (
+          <div
+            onClick={() => setShowShortcuts(false)}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 90,
+              background: 'rgba(0,0,0,0.72)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: 20,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: 'min(100%, 420px)',
+                padding: 18,
+                borderRadius: 12,
+                background: '#101722',
+                border: '1px solid #354155',
+                color: '#e5eaf2',
+              }}
+            >
+              <strong>Keyboard shortcuts</strong>
+              <p style={{ fontSize: 11, lineHeight: 1.6, color: '#8290a3', marginBottom: 8 }}>
+                Select a shortcut and press a new key combination. Changes are saved to your app
+                settings.
+              </p>
+              <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
+              <button
+                type="button"
+                onClick={() => setShowShortcuts(false)}
+                style={{
+                  marginTop: 8,
+                  border: 0,
+                  borderRadius: 7,
+                  padding: '7px 12px',
+                  background: '#3730a3',
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1672,683 +3112,798 @@ export default function TeleprompterView() {
       {/* ════════════ TOP TELEPROMPTER CONTROL BAR ════════════ */}
       {!isRibbonMode && (
         <>
-      <div
-        className="teleprompter-draggable"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "6px 12px",
-          background: `rgba(16, 18, 30, ${Math.min(0.72, windowOpacity * 0.75 + 0.15)})`,
-          borderBottom: "1px solid rgba(255, 255, 255, 0.10)",
-          gap: "8px",
-          flexWrap: "nowrap",
-          position: "relative",
-        }}
-      >
-        {/* Left: Mode Selector Pills & Language */}
-        <div
-          className="teleprompter-nodrag"
-          style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}
-        >
           <div
+            className="teleprompter-draggable"
             style={{
-              display: "flex",
-              alignItems: "center",
-              background: "rgba(0, 0, 0, 0.5)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-              borderRadius: "6px",
-              padding: "2px",
-              gap: "2px",
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '6px 12px',
+              background: `rgba(16, 18, 30, ${Math.min(0.72, windowOpacity * 0.75 + 0.15)})`,
+              borderBottom: '1px solid rgba(255, 255, 255, 0.10)',
+              gap: '8px',
+              flexWrap: 'nowrap',
+              position: 'relative',
             }}
           >
-            {[
-              {
-                id: "coding",
-                label: "💻 Coding",
-                title:
-                  "Coding Mode: 100% verified compilable code, syntax card, Big-O & 1-click copy",
-              },
-              {
-                id: "interview",
-                label: "🎙️ Interview",
-                title: "Interview Mode: Spoken STAR answers, eye-contact teleprompter flow",
-              },
-              {
-                id: "quiz",
-                label: "📝 Quiz",
-                title: "Quiz / MCQ Mode: High-contrast correct answer banner + 1-sentence proof",
-              },
-            ].map((m) => {
-              const active = responseMode === m.id;
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    setResponseMode(m.id as any);
-                    setToast(`Mode switched to: ${m.label}`);
-                  }}
-                  title={m.title}
-                  style={{
-                    background: active
-                      ? m.id === "coding"
-                        ? "linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(79, 70, 229, 0.95))"
-                        : m.id === "quiz"
-                          ? "linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.95))"
-                          : "linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(147, 51, 234, 0.95))"
-                      : "transparent",
-                    color: active ? "#ffffff" : "#94a3b8",
-                    border: active ? "1px solid rgba(255, 255, 255, 0.3)" : "1px solid transparent",
-                    borderRadius: "4px",
-                    padding: isUltraCompact ? "3px 6px" : "3px 8px",
-                    fontSize: "11px",
-                    fontWeight: active ? 700 : 500,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    transition: "all 0.15s ease",
-                    boxShadow: active ? "0 2px 6px rgba(0, 0, 0, 0.4)" : "none",
-                  }}
-                >
-                  {isUltraCompact ? m.label.split(" ")[0] : m.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* If in Coding Mode: Show Language Selector Dropdown */}
-          {responseMode === "coding" && (
-            <select
-              value={settings?.preferredLanguage || "Java"}
-              onChange={(e) => {
-                updateSetting("preferredLanguage", e.target.value);
-                setToast(`💻 Coding Language: ${e.target.value}`);
-              }}
-              title="Preferred programming language for coding challenge solutions"
-              style={{
-                background: "rgba(99, 102, 241, 0.25)",
-                color: "#e0e7ff",
-                border: "1px solid rgba(129, 140, 248, 0.45)",
-                borderRadius: "4px",
-                padding: "3px 6px",
-                fontSize: "11px",
-                fontWeight: 650,
-                cursor: "pointer",
-                outline: "none",
-              }}
-            >
-              <option value="Java" style={{ background: "#0f172a", color: "#fff" }}>☕ Java</option>
-              <option value="Python" style={{ background: "#0f172a", color: "#fff" }}>🐍 Python</option>
-              <option value="TypeScript" style={{ background: "#0f172a", color: "#fff" }}>🔷 TypeScript</option>
-              <option value="JavaScript" style={{ background: "#0f172a", color: "#fff" }}>⚡ JavaScript</option>
-              <option value="C++" style={{ background: "#0f172a", color: "#fff" }}>⚙️ C++</option>
-              <option value="Go" style={{ background: "#0f172a", color: "#fff" }}>🐹 Go</option>
-              <option value="SQL" style={{ background: "#0f172a", color: "#fff" }}>🗄️ SQL</option>
-            </select>
-          )}
-
-          {/* Bionic Prompter Gaze HUD Toggle */}
-          <button
-            onClick={() => {
-              const next = !isBionicGazeMode;
-              setIsBionicGazeMode(next);
-              setToast(
-                next
-                  ? '👁️ Bionic Gaze HUD Activated: Centered triggers & metrics anchored near webcam.'
-                  : '👁️ Bionic Gaze HUD Deactivated: Returned to full script view.'
-              );
-            }}
-            title="Toggle Bionic Gaze HUD: Glanceable 3-6 word centered anchors to maintain natural camera eye-contact"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              background: isBionicGazeMode
-                ? "linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.45))"
-                : "rgba(255, 255, 255, 0.06)",
-              color: isBionicGazeMode ? "#6ee7b7" : "#94a3b8",
-              border: isBionicGazeMode
-                ? "1px solid #10b981"
-                : "1px solid rgba(255, 255, 255, 0.12)",
-              borderRadius: "4px",
-              padding: isUltraCompact ? "3px 6px" : "3px 8px",
-              fontSize: "11px",
-              fontWeight: isBionicGazeMode ? 700 : 500,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <Eye size={12} />
-            <span>{isUltraCompact ? 'Bionic' : isBionicGazeMode ? '👁️ Bionic HUD' : '👁️ Bionic Gaze'}</span>
-          </button>
-        </div>
-
-        {/* Center: Essential Session Controls */}
-        <div
-          className="teleprompter-nodrag"
-          style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}
-        >
-          {/* Scroll / Pause */}
-          <button
-            onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-            title={isAutoScrolling ? "Pause auto-scroll" : "Resume auto-scroll"}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              background: isAutoScrolling ? "#1e1b4b" : "rgba(255, 255, 255, 0.08)",
-              color: isAutoScrolling ? "#a5b4fc" : "#e2e8f0",
-              border: isAutoScrolling ? "1px solid #6366f1" : "1px solid rgba(255, 255, 255, 0.12)",
-              borderRadius: "4px",
-              padding: "4px 8px",
-              fontSize: "11px",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
-          >
-            {isAutoScrolling ? <Pause size={11} /> : <Play size={11} />}
-            <span>{isAutoScrolling ? "Pause" : "Scroll"}</span>
-          </button>
-
-          {/* Session Timer Badge */}
-          <div
-            onClick={() => setTimerRunning(!timerRunning)}
-            title="Click to pause/resume session timer"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              background: "#1e1b4b",
-              border: "1px solid #4338ca",
-              borderRadius: "4px",
-              padding: "4px 8px",
-              fontSize: "11px",
-              fontWeight: 700,
-              color: "#a5b4fc",
-              letterSpacing: "0.5px",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-          >
-            <span>⏱️</span>
-            <span>{formatTimer(seconds)}</span>
-          </div>
-
-          {/* Undo Disruption / Back Button */}
-          {questionHistory && questionHistory.length > 0 && (
-            <button
-              onClick={restorePreviousQuestion}
-              title={`Back: Restore previous question & answer (Shortcut: ⌘Z) [${questionHistory.length} in stack]`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                background: "rgba(99, 102, 241, 0.24)",
-                color: "#c7d2fe",
-                border: "1px solid rgba(129, 140, 248, 0.45)",
-                borderRadius: "4px",
-                padding: isUltraCompact ? "3px 5px" : "4px 7px",
-                fontSize: "11px",
-                fontWeight: 600,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <Undo2 size={11} />
-              <span>Back ({questionHistory.length})</span>
-            </button>
-          )}
-
-          {/* Quick Clear Button */}
-          {currentAnswer && (
-            <button
-              onClick={clearAndResetToListen}
-              title="Clear answer and listen for new question (Shortcut: ⌘K)"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                background: "rgba(239, 68, 68, 0.18)",
-                border: "1px solid rgba(248, 113, 113, 0.4)",
-                color: "#fca5a5",
-                borderRadius: "4px",
-                padding: "3px 7px",
-                fontSize: "11px",
-                fontWeight: 650,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <span>✨ Clear (⌘K)</span>
-            </button>
-          )}
-
-          {/* Word Count & Read Time Badge */}
-          {currentAnswer && !isCompact && (
+            {/* Left: Mode Selector Pills & Language */}
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "4px",
-                padding: "4px 7px",
-                fontSize: "11px",
-                color: "#cbd5e1",
-                whiteSpace: "nowrap",
-              }}
-              title="Target: ~380-430 words for a standard 3-minute spoken response"
+              className="teleprompter-nodrag"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}
             >
-              <span>📊</span>
-              <span>
-                {wordCount}w (~{estMinutes}m)
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Stealth, Progressive Controls Popover, Exit */}
-        <div
-          className="teleprompter-nodrag"
-          style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}
-        >
-          {/* Stealth Toggle */}
-          <button
-            onClick={handleToggleStealth}
-            title={
-              isLinux
-                ? "Linux Stealth: Share your IDE/Browser window in Zoom/Meet (IAC is a separate window and will remain 100% invisible). Press Esc or Ctrl+Shift+H to panic-hide."
-                : isStealthActive
-                ? "Screen Stealth ON: Teleprompter is 100% invisible to Zoom, Google Meet, Teams, Discord & recordings"
-                : "Screen Stealth OFF: Teleprompter is visible to screen share"
-            }
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              background: isLinux
-                ? "rgba(59, 130, 246, 0.16)"
-                : isStealthActive
-                ? "rgba(16, 185, 129, 0.16)"
-                : "rgba(239, 68, 68, 0.16)",
-              border: isLinux
-                ? "1px solid rgba(59, 130, 246, 0.4)"
-                : isStealthActive
-                ? "1px solid rgba(52, 211, 153, 0.4)"
-                : "1px solid rgba(239, 68, 68, 0.4)",
-              color: isLinux ? "#93c5fd" : isStealthActive ? "#6ee7b7" : "#fca5a5",
-              borderRadius: "4px",
-              padding: "4px 8px",
-              fontSize: "11px",
-              fontWeight: 600,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <Shield size={12} style={{ color: isLinux ? "#60a5fa" : isStealthActive ? "#34d399" : "#f87171" }} />
-            {!isUltraCompact && (
-              <span>{isLinux ? "Linux Stealth: Window Share" : isStealthActive ? "Stealth ON" : "Stealth OFF"}</span>
-            )}
-          </button>
-
-          {/* Progressive Disclosure: Controls & Display Popover Trigger */}
-          <button
-            onClick={() => setShowControlsPopover(!showControlsPopover)}
-            title="Display, Font Size, Opacity & Session Settings"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              background: showControlsPopover
-                ? "rgba(99, 102, 241, 0.35)"
-                : "rgba(255, 255, 255, 0.08)",
-              color: showControlsPopover ? "#ffffff" : "#cbd5e1",
-              border: showControlsPopover
-                ? "1px solid rgba(129, 140, 248, 0.6)"
-                : "1px solid rgba(255, 255, 255, 0.14)",
-              borderRadius: "4px",
-              padding: "4px 8px",
-              fontSize: "11px",
-              fontWeight: 600,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <SlidersHorizontal size={12} />
-            <span>Controls</span>
-          </button>
-
-          {/* Quit Button */}
-          <button
-            type="button"
-            onClick={handleExit}
-            title="Quit Application (⌘Q)"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              background: "#e11d48",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "4px",
-              padding: "4px 10px",
-              fontSize: "11px",
-              fontWeight: 650,
-              cursor: "pointer",
-              transition: "background 0.15s ease",
-            }}
-          >
-            <Power size={11} />
-            <span>Quit</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ════════════ PROGRESSIVE CONTROLS FLOATING POPOVER ════════════ */}
-      {showControlsPopover && (
-        <div
-          className="teleprompter-nodrag glass-popover-panel"
-          style={{
-            position: "absolute",
-            top: "44px",
-            right: "12px",
-            zIndex: 100,
-            width: "320px",
-            borderRadius: "12px",
-            padding: "14px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "12px",
-            color: "#e2e8f0",
-            fontSize: "11px",
-            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.12)",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontWeight: 700, fontSize: "12px", color: "#f8fafc", display: "flex", alignItems: "center", gap: "6px" }}>
-              <SlidersHorizontal size={13} style={{ color: "#818cf8" }} />
-              Display &amp; Session Controls
-            </span>
-            <button
-              onClick={() => setShowControlsPopover(false)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#94a3b8",
-                cursor: "pointer",
-                padding: "2px",
-              }}
-            >
-              <X size={14} />
-            </button>
-          </div>
-
-          {/* Font Size Selector */}
-          <div>
-            <div style={{ color: "#94a3b8", marginBottom: "5px", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
-              Teleprompter Font Size
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "4px" }}>
-              {(["small", "medium", "large", "xlarge"] as TeleprompterFontSize[]).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setTeleprompterFontSize(f)}
-                  style={{
-                    background: teleprompterFontSize === f ? "#3730a3" : "rgba(255, 255, 255, 0.06)",
-                    color: teleprompterFontSize === f ? "#ffffff" : "#94a3b8",
-                    border: teleprompterFontSize === f ? "1px solid #6366f1" : "1px solid rgba(255, 255, 255, 0.08)",
-                    borderRadius: "4px",
-                    padding: "4px 6px",
-                    fontSize: "10px",
-                    fontWeight: teleprompterFontSize === f ? 700 : 500,
-                    cursor: "pointer",
-                    textAlign: "center",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  {fontSizes[f].label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Opacity Selector */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#94a3b8", marginBottom: "5px", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
-              <span>Window Transparency</span>
-              <span style={{ color: "#818cf8", fontWeight: 700 }}>{Math.round(windowOpacity * 100)}%</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <button
-                onClick={() => setWindowOpacity(Math.max(0.15, Math.round((windowOpacity - 0.1) * 100) / 100))}
-                title="More transparent"
+              <div
                 style={{
-                  background: "rgba(255, 255, 255, 0.08)",
-                  color: "#e2e8f0",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
-                  borderRadius: "4px",
-                  padding: "2px 8px",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  cursor: "pointer",
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '6px',
+                  padding: '2px',
+                  gap: '2px',
                 }}
               >
-                -
-              </button>
-              <input
-                type="range"
-                min="0.15"
-                max="0.98"
-                step="0.05"
-                value={windowOpacity}
-                onChange={(e) => setWindowOpacity(parseFloat(e.target.value))}
-                style={{ flex: 1, accentColor: "#6366f1", cursor: "pointer" }}
-              />
-              <button
-                onClick={() => setWindowOpacity(Math.min(0.98, Math.round((windowOpacity + 0.1) * 100) / 100))}
-                title="Less transparent"
-                style={{
-                  background: "rgba(255, 255, 255, 0.08)",
-                  color: "#e2e8f0",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
-                  borderRadius: "4px",
-                  padding: "2px 8px",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                +
-              </button>
-            </div>
-            <div style={{ display: "flex", gap: "4px", marginTop: "6px" }}>
-              {[
-                { label: "Clear", val: 0.25 },
-                { label: "Frosted", val: 0.5 },
-                { label: "Deep", val: 0.75 },
-                { label: "Solid", val: 0.98 },
-              ].map((preset) => (
-                <button
-                  key={preset.label}
-                  onClick={() => setWindowOpacity(preset.val)}
+                {[
+                  {
+                    id: 'coding',
+                    label: '💻 Coding',
+                    title:
+                      'Coding Mode: 100% verified compilable code, syntax card, Big-O & 1-click copy',
+                  },
+                  {
+                    id: 'interview',
+                    label: '🎙️ Interview',
+                    title: 'Interview Mode: Spoken STAR answers, eye-contact teleprompter flow',
+                  },
+                  {
+                    id: 'quiz',
+                    label: '📝 Quiz',
+                    title:
+                      'Quiz / MCQ Mode: High-contrast correct answer banner + 1-sentence proof',
+                  },
+                ].map((m) => {
+                  const active = responseMode === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        setResponseMode(m.id as any);
+                        setToast(`Mode switched to: ${m.label}`);
+                      }}
+                      title={m.title}
+                      style={{
+                        background: active
+                          ? m.id === 'coding'
+                            ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(79, 70, 229, 0.95))'
+                            : m.id === 'quiz'
+                              ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.95))'
+                              : 'linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(147, 51, 234, 0.95))'
+                          : 'transparent',
+                        color: active ? '#ffffff' : '#94a3b8',
+                        border: active
+                          ? '1px solid rgba(255, 255, 255, 0.3)'
+                          : '1px solid transparent',
+                        borderRadius: '4px',
+                        padding: isUltraCompact ? '3px 6px' : '3px 8px',
+                        fontSize: '11px',
+                        fontWeight: active ? 700 : 500,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                        boxShadow: active ? '0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
+                      }}
+                    >
+                      {isUltraCompact ? m.label.split(' ')[0] : m.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* If in Coding Mode: Show Language Selector Dropdown */}
+              {responseMode === 'coding' && (
+                <select
+                  value={settings?.preferredLanguage || 'Java'}
+                  onChange={(e) => {
+                    updateSetting('preferredLanguage', e.target.value);
+                    setToast(`💻 Coding Language: ${e.target.value}`);
+                  }}
+                  title="Preferred programming language for coding challenge solutions"
                   style={{
-                    flex: 1,
-                    background: Math.abs(windowOpacity - preset.val) < 0.1 ? "rgba(99, 102, 241, 0.3)" : "rgba(255, 255, 255, 0.05)",
-                    color: Math.abs(windowOpacity - preset.val) < 0.1 ? "#c7d2fe" : "#94a3b8",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                    borderRadius: "4px",
-                    padding: "2px 4px",
-                    fontSize: "9px",
-                    fontWeight: 600,
-                    cursor: "pointer",
+                    background: 'rgba(99, 102, 241, 0.25)',
+                    color: '#e0e7ff',
+                    border: '1px solid rgba(129, 140, 248, 0.45)',
+                    borderRadius: '4px',
+                    padding: '3px 6px',
+                    fontSize: '11px',
+                    fontWeight: 650,
+                    cursor: 'pointer',
+                    outline: 'none',
                   }}
                 >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </div>
+                  <option value="Java" style={{ background: '#0f172a', color: '#fff' }}>
+                    ☕ Java
+                  </option>
+                  <option value="Python" style={{ background: '#0f172a', color: '#fff' }}>
+                    🐍 Python
+                  </option>
+                  <option value="TypeScript" style={{ background: '#0f172a', color: '#fff' }}>
+                    🔷 TypeScript
+                  </option>
+                  <option value="JavaScript" style={{ background: '#0f172a', color: '#fff' }}>
+                    ⚡ JavaScript
+                  </option>
+                  <option value="C++" style={{ background: '#0f172a', color: '#fff' }}>
+                    ⚙️ C++
+                  </option>
+                  <option value="Go" style={{ background: '#0f172a', color: '#fff' }}>
+                    🐹 Go
+                  </option>
+                  <option value="SQL" style={{ background: '#0f172a', color: '#fff' }}>
+                    🗄️ SQL
+                  </option>
+                </select>
+              )}
 
-          {/* Auto-Scroll Speed & Restart */}
-          <div>
-            <div style={{ color: "#94a3b8", marginBottom: "5px", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
-              Auto-Scroll Speed &amp; Top Reset
-            </div>
-            <div style={{ display: "flex", gap: "4px" }}>
-              {[0.7, 1.0, 1.5, 2.0].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setScrollSpeed(s)}
-                  style={{
-                    flex: 1,
-                    background: scrollSpeed === s ? "#3730a3" : "rgba(255, 255, 255, 0.06)",
-                    color: scrollSpeed === s ? "#ffffff" : "#94a3b8",
-                    border: scrollSpeed === s ? "1px solid #6366f1" : "1px solid rgba(255, 255, 255, 0.08)",
-                    borderRadius: "4px",
-                    padding: "4px 6px",
-                    fontSize: "10px",
-                    fontWeight: scrollSpeed === s ? 700 : 500,
-                    cursor: "pointer",
-                  }}
-                >
-                  {s}x
-                </button>
-              ))}
-              <button
-                onClick={handleRestartScrolling}
-                title="Restart scrolling from the top"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "2px",
-                  background: "rgba(255, 255, 255, 0.06)",
-                  color: "#e2e8f0",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  borderRadius: "4px",
-                  padding: "4px 6px",
-                  fontSize: "10px",
-                  cursor: "pointer",
-                }}
-              >
-                <RotateCcw size={10} /> Top
-              </button>
-            </div>
-          </div>
-
-          {/* Speech Pause Tolerance */}
-          <div>
-            <div style={{ color: "#94a3b8", marginBottom: "5px", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>
-              Interviewer Pause Tolerance
-            </div>
-            <select
-              value={speechPauseTolerance || 1000}
-              onChange={(e) => setSpeechPauseTolerance(Number(e.target.value))}
-              style={{
-                width: "100%",
-                background: "rgba(255, 255, 255, 0.06)",
-                color: "#e2e8f0",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "4px",
-                padding: "4px 8px",
-                fontSize: "10px",
-                fontWeight: 600,
-                outline: "none",
-                cursor: "pointer",
-              }}
-            >
-              <option value={700} style={{ background: "#0f172a", color: "#fff" }}>⚡ 0.7s Fast (Rapid fire)</option>
-              <option value={1000} style={{ background: "#0f172a", color: "#fff" }}>⏱️ 1.0s Normal (Balanced)</option>
-              <option value={1500} style={{ background: "#0f172a", color: "#fff" }}>🧘 1.5s Patient (Allows thinking pauses)</option>
-              <option value={2000} style={{ background: "#0f172a", color: "#fff" }}>⏳ 2.0s Long (Deliberate)</option>
-            </select>
-          </div>
-
-          {/* Actions: Target Role, Shortcuts, Instant Hide */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", paddingTop: "4px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
-            <button
-              onClick={() => {
-                setResumeModalOpen(true);
-                setShowControlsPopover(false);
-              }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "5px 8px",
-                background: "rgba(168, 85, 247, 0.15)",
-                border: "1px solid rgba(168, 85, 247, 0.3)",
-                borderRadius: "4px",
-                color: "#e9d5ff",
-                cursor: "pointer",
-                fontSize: "10px",
-                fontWeight: 600,
-              }}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                <Target size={11} style={{ color: "#c084fc" }} />
-                Target Role &amp; Resume Context
-              </span>
-              <span>{targetRole ? (targetRole.length > 12 ? targetRole.slice(0, 12) + "..." : targetRole) : "Not Set"} &rarr;</span>
-            </button>
-
-            <div style={{ display: "flex", gap: "6px" }}>
+              {/* Bionic Prompter Gaze HUD Toggle */}
               <button
                 onClick={() => {
-                  setShowShortcuts(!showShortcuts);
-                  setShowControlsPopover(false);
+                  const next = !isBionicGazeMode;
+                  setIsBionicGazeMode(next);
+                  setToast(
+                    next ? 'Bionic HUD answer mode enabled.' : 'Returned to minimal chat mode.'
+                  );
                 }}
+                title="Toggle Bionic Gaze HUD: Glanceable 3-6 word centered anchors to maintain natural camera eye-contact"
                 style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "4px",
-                  padding: "5px 8px",
-                  background: "rgba(255, 255, 255, 0.06)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "4px",
-                  color: "#cbd5e1",
-                  cursor: "pointer",
-                  fontSize: "10px",
-                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: isBionicGazeMode
+                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.45))'
+                    : 'rgba(255, 255, 255, 0.06)',
+                  color: isBionicGazeMode ? '#6ee7b7' : '#94a3b8',
+                  border: isBionicGazeMode
+                    ? '1px solid #10b981'
+                    : '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '4px',
+                  padding: isUltraCompact ? '3px 6px' : '3px 8px',
+                  fontSize: '11px',
+                  fontWeight: isBionicGazeMode ? 700 : 500,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <Keyboard size={11} />
-                Shortcuts
+                <Eye size={12} />
+                <span>{isUltraCompact ? 'Bionic' : '👁️ Bionic HUD'}</span>
+              </button>
+            </div>
+
+            {/* Center: Essential Session Controls */}
+            <div
+              className="teleprompter-nodrag"
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
+            >
+              {/* Scroll / Pause */}
+              <button
+                onClick={() => setIsAutoScrolling(!isAutoScrolling)}
+                title={isAutoScrolling ? 'Pause auto-scroll' : 'Resume auto-scroll'}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: isAutoScrolling ? '#1e1b4b' : 'rgba(255, 255, 255, 0.08)',
+                  color: isAutoScrolling ? '#a5b4fc' : '#e2e8f0',
+                  border: isAutoScrolling
+                    ? '1px solid #6366f1'
+                    : '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {isAutoScrolling ? <Pause size={11} /> : <Play size={11} />}
+                <span>{isAutoScrolling ? 'Pause' : 'Scroll'}</span>
               </button>
 
-              <button
-                onClick={() => window.electronAPI?.toggleVisibility?.()}
-                title="Instant Stealth Toggle — Shortcut: Cmd+Shift+H"
+              {/* Session Timer Badge */}
+              <div
+                onClick={() => setTimerRunning(!timerRunning)}
+                title="Click to pause/resume session timer"
                 style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "4px",
-                  padding: "5px 8px",
-                  background: "rgba(255, 255, 255, 0.06)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "4px",
-                  color: "#cbd5e1",
-                  cursor: "pointer",
-                  fontSize: "10px",
-                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: '#1e1b4b',
+                  border: '1px solid #4338ca',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: '#a5b4fc',
+                  letterSpacing: '0.5px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
                 }}
               >
-                <EyeOff size={11} />
-                Hide (⌘⇧H)
+                <span>⏱️</span>
+                <span>{formatTimer(seconds)}</span>
+              </div>
+
+              {/* Undo Disruption / Back Button */}
+              {questionHistory && questionHistory.length > 0 && (
+                <button
+                  onClick={restorePreviousQuestion}
+                  title={`Back: Restore previous question & answer (Shortcut: ⌘Z) [${questionHistory.length} in stack]`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'rgba(99, 102, 241, 0.24)',
+                    color: '#c7d2fe',
+                    border: '1px solid rgba(129, 140, 248, 0.45)',
+                    borderRadius: '4px',
+                    padding: isUltraCompact ? '3px 5px' : '4px 7px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Undo2 size={11} />
+                  <span>Back ({questionHistory.length})</span>
+                </button>
+              )}
+
+              {/* Quick Clear Button */}
+              {currentAnswer && (
+                <button
+                  onClick={clearAndResetToListen}
+                  title="Clear answer and listen for a new question"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'rgba(239, 68, 68, 0.18)',
+                    border: '1px solid rgba(248, 113, 113, 0.4)',
+                    color: '#fca5a5',
+                    borderRadius: '4px',
+                    padding: '3px 7px',
+                    fontSize: '11px',
+                    fontWeight: 650,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>✨ Clear</span>
+                </button>
+              )}
+
+              {/* Word Count & Read Time Badge */}
+              {currentAnswer && !isCompact && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '4px',
+                    padding: '4px 7px',
+                    fontSize: '11px',
+                    color: '#cbd5e1',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title="Target: ~380-430 words for a standard 3-minute spoken response"
+                >
+                  <span>📊</span>
+                  <span>
+                    {wordCount}w (~{estMinutes}m)
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Right: Stealth, Progressive Controls Popover, Exit */}
+            <div
+              className="teleprompter-nodrag"
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
+            >
+              {/* Stealth Toggle */}
+              <button
+                onClick={handleToggleStealth}
+                title={
+                  isLinux
+                    ? 'Linux Stealth: Share your IDE/Browser window in Zoom/Meet (IAC is a separate window and will remain 100% invisible). Press Esc or Ctrl+Shift+H to panic-hide.'
+                    : isStealthActive
+                      ? 'Screen Stealth ON: Teleprompter is 100% invisible to Zoom, Google Meet, Teams, Discord & recordings'
+                      : 'Screen Stealth OFF: Teleprompter is visible to screen share'
+                }
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: isLinux
+                    ? 'rgba(59, 130, 246, 0.16)'
+                    : isStealthActive
+                      ? 'rgba(16, 185, 129, 0.16)'
+                      : 'rgba(239, 68, 68, 0.16)',
+                  border: isLinux
+                    ? '1px solid rgba(59, 130, 246, 0.4)'
+                    : isStealthActive
+                      ? '1px solid rgba(52, 211, 153, 0.4)'
+                      : '1px solid rgba(239, 68, 68, 0.4)',
+                  color: isLinux ? '#93c5fd' : isStealthActive ? '#6ee7b7' : '#fca5a5',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Shield
+                  size={12}
+                  style={{ color: isLinux ? '#60a5fa' : isStealthActive ? '#34d399' : '#f87171' }}
+                />
+                {!isUltraCompact && (
+                  <span>
+                    {isLinux
+                      ? 'Linux Stealth: Window Share'
+                      : isStealthActive
+                        ? 'Stealth ON'
+                        : 'Stealth OFF'}
+                  </span>
+                )}
+              </button>
+
+              {/* Progressive Disclosure: Controls & Display Popover Trigger */}
+              <button
+                onClick={() => setShowControlsPopover(!showControlsPopover)}
+                title="Display, Font Size, Opacity & Session Settings"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: showControlsPopover
+                    ? 'rgba(99, 102, 241, 0.35)'
+                    : 'rgba(255, 255, 255, 0.08)',
+                  color: showControlsPopover ? '#ffffff' : '#cbd5e1',
+                  border: showControlsPopover
+                    ? '1px solid rgba(129, 140, 248, 0.6)'
+                    : '1px solid rgba(255, 255, 255, 0.14)',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <SlidersHorizontal size={12} />
+                <span>Controls</span>
+              </button>
+
+              {/* Quit Button */}
+              <button
+                type="button"
+                onClick={handleExit}
+                title="Quit Application (⌘Q)"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: '#e11d48',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 650,
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease',
+                }}
+              >
+                <Power size={11} />
+                <span>Quit</span>
               </button>
             </div>
           </div>
-        </div>
-      )}
+
+          {/* ════════════ PROGRESSIVE CONTROLS FLOATING POPOVER ════════════ */}
+          {showControlsPopover && (
+            <div
+              className="teleprompter-nodrag glass-popover-panel"
+              style={{
+                position: 'absolute',
+                top: '44px',
+                right: '12px',
+                zIndex: 100,
+                width: '320px',
+                borderRadius: '12px',
+                padding: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                color: '#e2e8f0',
+                fontSize: '11px',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.12)',
+              }}
+            >
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <span
+                  style={{
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    color: '#f8fafc',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <SlidersHorizontal size={13} style={{ color: '#818cf8' }} />
+                  Display &amp; Session Controls
+                </span>
+                <button
+                  onClick={() => setShowControlsPopover(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    padding: '2px',
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Font Size Selector */}
+              <div>
+                <div
+                  style={{
+                    color: '#94a3b8',
+                    marginBottom: '5px',
+                    fontWeight: 600,
+                    fontSize: '10px',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Teleprompter Font Size
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+                  {(['small', 'medium', 'large', 'xlarge'] as TeleprompterFontSize[]).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setTeleprompterFontSize(f)}
+                      style={{
+                        background:
+                          teleprompterFontSize === f ? '#3730a3' : 'rgba(255, 255, 255, 0.06)',
+                        color: teleprompterFontSize === f ? '#ffffff' : '#94a3b8',
+                        border:
+                          teleprompterFontSize === f
+                            ? '1px solid #6366f1'
+                            : '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '4px',
+                        padding: '4px 6px',
+                        fontSize: '10px',
+                        fontWeight: teleprompterFontSize === f ? 700 : 500,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {fontSizes[f].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Opacity Selector */}
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    color: '#94a3b8',
+                    marginBottom: '5px',
+                    fontWeight: 600,
+                    fontSize: '10px',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  <span>Window Transparency</span>
+                  <span style={{ color: '#818cf8', fontWeight: 700 }}>
+                    {Math.round(windowOpacity * 100)}%
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    onClick={() =>
+                      setWindowOpacity(
+                        Math.max(0.15, Math.round((windowOpacity - 0.1) * 100) / 100)
+                      )
+                    }
+                    title="More transparent"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      color: '#e2e8f0',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      borderRadius: '4px',
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    -
+                  </button>
+                  <input
+                    type="range"
+                    min="0.15"
+                    max="0.98"
+                    step="0.05"
+                    value={windowOpacity}
+                    onChange={(e) => setWindowOpacity(parseFloat(e.target.value))}
+                    style={{ flex: 1, accentColor: '#6366f1', cursor: 'pointer' }}
+                  />
+                  <button
+                    onClick={() =>
+                      setWindowOpacity(
+                        Math.min(0.98, Math.round((windowOpacity + 0.1) * 100) / 100)
+                      )
+                    }
+                    title="Less transparent"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      color: '#e2e8f0',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      borderRadius: '4px',
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
+                  {[
+                    { label: 'Clear', val: 0.25 },
+                    { label: 'Frosted', val: 0.5 },
+                    { label: 'Deep', val: 0.75 },
+                    { label: 'Solid', val: 0.98 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      onClick={() => setWindowOpacity(preset.val)}
+                      style={{
+                        flex: 1,
+                        background:
+                          Math.abs(windowOpacity - preset.val) < 0.1
+                            ? 'rgba(99, 102, 241, 0.3)'
+                            : 'rgba(255, 255, 255, 0.05)',
+                        color: Math.abs(windowOpacity - preset.val) < 0.1 ? '#c7d2fe' : '#94a3b8',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '4px',
+                        padding: '2px 4px',
+                        fontSize: '9px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Auto-Scroll Speed & Restart */}
+              <div>
+                <div
+                  style={{
+                    color: '#94a3b8',
+                    marginBottom: '5px',
+                    fontWeight: 600,
+                    fontSize: '10px',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Auto-Scroll Speed &amp; Top Reset
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {[0.7, 1.0, 1.5, 2.0].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setScrollSpeed(s)}
+                      style={{
+                        flex: 1,
+                        background: scrollSpeed === s ? '#3730a3' : 'rgba(255, 255, 255, 0.06)',
+                        color: scrollSpeed === s ? '#ffffff' : '#94a3b8',
+                        border:
+                          scrollSpeed === s
+                            ? '1px solid #6366f1'
+                            : '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '4px',
+                        padding: '4px 6px',
+                        fontSize: '10px',
+                        fontWeight: scrollSpeed === s ? 700 : 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {s}x
+                    </button>
+                  ))}
+                  <button
+                    onClick={handleRestartScrolling}
+                    title="Restart scrolling from the top"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '2px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      color: '#e2e8f0',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '4px',
+                      padding: '4px 6px',
+                      fontSize: '10px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <RotateCcw size={10} /> Top
+                  </button>
+                </div>
+              </div>
+
+              {/* Speech Pause Tolerance */}
+              <div>
+                <div
+                  style={{
+                    color: '#94a3b8',
+                    marginBottom: '5px',
+                    fontWeight: 600,
+                    fontSize: '10px',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Interviewer Pause Tolerance
+                </div>
+                <select
+                  value={speechPauseTolerance || 1000}
+                  onChange={(e) => setSpeechPauseTolerance(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    color: '#e2e8f0',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '4px',
+                    padding: '4px 8px',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value={700} style={{ background: '#0f172a', color: '#fff' }}>
+                    ⚡ 0.7s Fast (Rapid fire)
+                  </option>
+                  <option value={1000} style={{ background: '#0f172a', color: '#fff' }}>
+                    ⏱️ 1.0s Normal (Balanced)
+                  </option>
+                  <option value={1500} style={{ background: '#0f172a', color: '#fff' }}>
+                    🧘 1.5s Patient (Allows thinking pauses)
+                  </option>
+                  <option value={2000} style={{ background: '#0f172a', color: '#fff' }}>
+                    ⏳ 2.0s Long (Deliberate)
+                  </option>
+                </select>
+              </div>
+
+              {/* Actions: Target Role, Shortcuts, Instant Hide */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  paddingTop: '4px',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                }}
+              >
+                <button
+                  onClick={() => {
+                    setResumeModalOpen(true);
+                    setShowControlsPopover(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '5px 8px',
+                    background: 'rgba(168, 85, 247, 0.15)',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    borderRadius: '4px',
+                    color: '#e9d5ff',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Target size={11} style={{ color: '#c084fc' }} />
+                    Target Role &amp; Resume Context
+                  </span>
+                  <span>
+                    {targetRole
+                      ? targetRole.length > 12
+                        ? targetRole.slice(0, 12) + '...'
+                        : targetRole
+                      : 'Not Set'}{' '}
+                    &rarr;
+                  </span>
+                </button>
+
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    onClick={() => {
+                      setShowShortcuts(!showShortcuts);
+                      setShowControlsPopover(false);
+                    }}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      padding: '5px 8px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '4px',
+                      color: '#cbd5e1',
+                      cursor: 'pointer',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <Keyboard size={11} />
+                    Shortcuts
+                  </button>
+
+                  <button
+                    onClick={() => window.electronAPI?.toggleVisibility?.()}
+                    title="Instant Stealth Toggle — Shortcut: Cmd+\\"
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      padding: '5px 8px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '4px',
+                      color: '#cbd5e1',
+                      cursor: 'pointer',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <EyeOff size={11} />
+                    Hide (⌘\\)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -2365,7 +3920,7 @@ export default function TeleprompterView() {
           userSelect: 'text',
         }}
       >
-                {/* Minimal Distraction-Free Interview HUD Pill */}
+        {/* Minimal Distraction-Free Interview HUD Pill */}
         {isRibbonMode && (
           <div
             className="teleprompter-draggable flex items-center justify-between px-3 py-1.5 mb-2 floating-hud-pill mx-auto w-full select-none"
@@ -2379,16 +3934,25 @@ export default function TeleprompterView() {
                 style={{
                   background: isRecording ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.08)',
                   color: isRecording ? '#f87171' : '#cbd5e1',
-                  border: isRecording ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(255, 255, 255, 0.12)',
+                  border: isRecording
+                    ? '1px solid rgba(239, 68, 68, 0.4)'
+                    : '1px solid rgba(255, 255, 255, 0.12)',
                 }}
                 title="Toggle Microphone (Shortcut: R)"
               >
-                <span className={'w-2 h-2 rounded-full ' + (isRecording ? 'bg-rose-500 animate-ping' : 'bg-slate-400')} />
+                <span
+                  className={
+                    'w-2 h-2 rounded-full ' +
+                    (isRecording ? 'bg-rose-500 animate-ping' : 'bg-slate-400')
+                  }
+                />
                 <span>{isRecording ? 'Listening' : 'Mic Off (R)'}</span>
               </button>
               <span className="text-[11px] font-mono text-slate-300 font-semibold px-2 py-0.5 rounded bg-white/10 flex items-center gap-1">
                 ⏱️ {formatTimer(seconds)}
-                {wordCount > 0 && <span className="opacity-60 ml-0.5 font-normal">· {wordCount}w</span>}
+                {wordCount > 0 && (
+                  <span className="opacity-60 ml-0.5 font-normal">· {wordCount}w</span>
+                )}
               </span>
             </div>
 
@@ -2443,7 +4007,7 @@ export default function TeleprompterView() {
                 type="button"
                 onClick={clearAndResetToListen}
                 className="card-interactive px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600/90 hover:bg-indigo-500 text-white border border-indigo-400/30 flex items-center gap-1 shadow-sm"
-                title="Next Question / Clear Answer (Shortcut: Space or ⌘K)"
+                title="Finish the current answer with Space, or use the button to clear it"
               >
                 <Sparkles size={11} />
                 <span>Next (Space)</span>
@@ -2480,7 +4044,11 @@ export default function TeleprompterView() {
                 type="button"
                 onClick={handleToggleCompactWindow}
                 className="card-interactive px-2 py-1 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/15 text-slate-300 border border-white/10 flex items-center gap-1"
-                title={isCompactHeight ? "Restore full studio window (1024x720)" : "Switch to compact ribbon (680x240)"}
+                title={
+                  isCompactHeight
+                    ? 'Restore full studio window (1024x720)'
+                    : 'Switch to compact ribbon (680x240)'
+                }
               >
                 <SlidersHorizontal size={11} />
                 <span className="hidden sm:inline">{isCompactHeight ? 'Expand' : 'Ribbon'}</span>
@@ -2490,7 +4058,11 @@ export default function TeleprompterView() {
                 type="button"
                 onClick={toggleInterviewFocusMode}
                 className="card-interactive px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1"
-                title={isInterviewFocusMode ? "Exit Focus Mode (Show full studio controls)" : "Enter Focus Mode (Hide clutter)"}
+                title={
+                  isInterviewFocusMode
+                    ? 'Exit Focus Mode (Show full studio controls)'
+                    : 'Enter Focus Mode (Hide clutter)'
+                }
               >
                 <span>{isInterviewFocusMode ? '👁️ Full' : '🎯 Focus'}</span>
               </button>
@@ -2551,9 +4123,19 @@ export default function TeleprompterView() {
               color: '#fca5a5',
             }}
           >
-            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+            <div
+              style={{
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginBottom: '2px',
+              }}
+            >
               <span>⚠️ Factual Guardrail Notice:</span>
-              <span>{(groundingViolations || []).length} unsupported claim(s) flagged & qualified</span>
+              <span>
+                {(groundingViolations || []).length} unsupported claim(s) flagged & qualified
+              </span>
             </div>
             <ul style={{ margin: 0, paddingLeft: '14px', lineHeight: '1.35' }}>
               {(groundingViolations || []).map((v, idx) => (
@@ -2673,12 +4255,27 @@ export default function TeleprompterView() {
               }}
             >
               <Sparkles size={13} style={{ color: '#818cf8', flexShrink: 0 }} />
-              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: isUltraCompact ? 'normal' : 'nowrap', wordBreak: 'break-word' }}>
+              <span
+                style={{
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: isUltraCompact ? 'normal' : 'nowrap',
+                  wordBreak: 'break-word',
+                }}
+              >
                 Q: {currentQuestion}
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, marginLeft: isUltraCompact ? 'auto' : undefined }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                flexShrink: 0,
+                marginLeft: isUltraCompact ? 'auto' : undefined,
+              }}
+            >
               {/* Back / Undo button right on Question Card */}
               <button
                 onClick={restorePreviousQuestion}
@@ -2701,7 +4298,8 @@ export default function TeleprompterView() {
                   padding: '3px 7px',
                   fontSize: '11px',
                   fontWeight: 600,
-                  cursor: !questionHistory || questionHistory.length === 0 ? 'not-allowed' : 'pointer',
+                  cursor:
+                    !questionHistory || questionHistory.length === 0 ? 'not-allowed' : 'pointer',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -2717,7 +4315,9 @@ export default function TeleprompterView() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '3px',
-                  background: isIncompleteQuestionMode ? 'rgba(245, 158, 11, 0.38)' : 'rgba(245, 158, 11, 0.2)',
+                  background: isIncompleteQuestionMode
+                    ? 'rgba(245, 158, 11, 0.38)'
+                    : 'rgba(245, 158, 11, 0.2)',
                   border: '1px solid rgba(245, 158, 11, 0.55)',
                   color: '#fde68a',
                   borderRadius: '4px',
@@ -2768,7 +4368,8 @@ export default function TeleprompterView() {
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: '8px',
-              background: 'linear-gradient(135deg, rgba(180, 83, 9, 0.38), rgba(120, 53, 15, 0.48))',
+              background:
+                'linear-gradient(135deg, rgba(180, 83, 9, 0.38), rgba(120, 53, 15, 0.48))',
               border: '1.5px solid rgba(245, 158, 11, 0.7)',
               borderRadius: '6px',
               padding: '8px 12px',
@@ -2776,10 +4377,20 @@ export default function TeleprompterView() {
               boxShadow: '0 4px 16px rgba(180, 83, 9, 0.35)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fef3c7', fontSize: '12px', fontWeight: 600 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: '#fef3c7',
+                fontSize: '12px',
+                fontWeight: 600,
+              }}
+            >
               <Hourglass size={15} style={{ color: '#fbbf24', flexShrink: 0 }} />
               <span>
-                <strong>Question Not Completed:</strong> AI is waiting for interviewer to finish. Next spoken words will automatically append to this question.
+                <strong>Question Not Completed:</strong> AI is waiting for interviewer to finish.
+                Next spoken words will automatically append to this question.
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
@@ -2787,7 +4398,10 @@ export default function TeleprompterView() {
                 onClick={() => {
                   setIsIncompleteQuestionMode(false);
                   if (currentQuestion) {
-                    InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text: currentQuestion });
+                    InterviewEngine.handleEvent({
+                      type: 'QUESTION_DETECTED',
+                      text: currentQuestion,
+                    });
                   }
                 }}
                 title="Interviewer is done — solve now"
@@ -2885,29 +4499,32 @@ export default function TeleprompterView() {
         )}
 
         {/* Dynamic Recital / Interruption Banner */}
-        {recitalState === 'reciting' && Boolean(currentAnswer) && answerValidationStatus !== 'ABORTED' && answerValidationStatus !== 'FAILED' && (
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'rgba(59, 130, 246, 0.18)',
-              border: '1px solid rgba(96, 165, 250, 0.4)',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              marginBottom: '14px',
-              color: '#93c5fd',
-              fontSize: '12px',
-              fontWeight: 600,
-            }}
-          >
-            <Volume2 size={13} style={{ color: '#60a5fa' }} />
-            <span>
-              🗣️ Reciting Answer: Mic is automatically paused for your speech • Auto-listening for
-              interruptions
-            </span>
-          </div>
-        )}
+        {recitalState === 'reciting' &&
+          Boolean(currentAnswer) &&
+          answerValidationStatus !== 'ABORTED' &&
+          answerValidationStatus !== 'FAILED' && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'rgba(59, 130, 246, 0.18)',
+                border: '1px solid rgba(96, 165, 250, 0.4)',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                marginBottom: '14px',
+                color: '#93c5fd',
+                fontSize: '12px',
+                fontWeight: 600,
+              }}
+            >
+              <Volume2 size={13} style={{ color: '#60a5fa' }} />
+              <span>
+                🗣️ Reciting Answer: Mic is automatically paused for your speech • Auto-listening for
+                interruptions
+              </span>
+            </div>
+          )}
 
         {recitalState === 'interrupted' && (
           <div
@@ -2957,13 +4574,22 @@ export default function TeleprompterView() {
                 color: '#fecaca',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}
+              >
                 <span style={{ fontSize: '18px' }}>🚫</span>
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#f87171' }}>
                   Candidate Recital Blocked (Factual Grounding Safety Gate)
                 </span>
               </div>
-              <p style={{ fontSize: '13px', color: '#fca5a5', lineHeight: '1.5', margin: '0 0 12px 0' }}>
+              <p
+                style={{
+                  fontSize: '13px',
+                  color: '#fca5a5',
+                  lineHeight: '1.5',
+                  margin: '0 0 12px 0',
+                }}
+              >
                 {blockedReason ||
                   'This generated answer contains unsupported personal claims that could not be validated against your candidate knowledge vault. To protect your interview credibility, raw claims cannot be recited.'}
               </p>
@@ -2990,9 +4616,19 @@ export default function TeleprompterView() {
                       gap: '6px',
                     }}
                   >
-                    <span>📘 Impersonal Technical Guidance (Reference Only — Do Not Present as Past Personal Experience):</span>
+                    <span>
+                      📘 Impersonal Technical Guidance (Reference Only — Do Not Present as Past
+                      Personal Experience):
+                    </span>
                   </div>
-                  <div style={{ fontSize: '13px', color: '#e2e8f0', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      color: '#e2e8f0',
+                      lineHeight: '1.6',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
                     {technicalGuidance}
                   </div>
                 </div>
@@ -3010,19 +4646,36 @@ export default function TeleprompterView() {
                 color: '#fecaca',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}
+              >
                 <span style={{ fontSize: '18px' }}>⚠️</span>
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#f87171' }}>
-                  {blockedReason && (blockedReason.includes('RATE_LIMIT_EXCEEDED') || blockedReason.includes('429') || blockedReason.includes('Rate limit') || blockedReason.includes('TPM'))
+                  {blockedReason &&
+                  (blockedReason.includes('RATE_LIMIT_EXCEEDED') ||
+                    blockedReason.includes('429') ||
+                    blockedReason.includes('Rate limit') ||
+                    blockedReason.includes('TPM'))
                     ? 'Provider Rate Limit Reached (TPM Limit)'
                     : 'Response Generation Failed'}
                 </span>
               </div>
-              <p style={{ fontSize: '13px', color: '#fca5a5', lineHeight: '1.5', margin: '0 0 14px 0' }}>
-                {blockedReason && (blockedReason.includes('RATE_LIMIT_EXCEEDED') || blockedReason.includes('429') || blockedReason.includes('Rate limit') || blockedReason.includes('TPM'))
+              <p
+                style={{
+                  fontSize: '13px',
+                  color: '#fca5a5',
+                  lineHeight: '1.5',
+                  margin: '0 0 14px 0',
+                }}
+              >
+                {blockedReason &&
+                (blockedReason.includes('RATE_LIMIT_EXCEEDED') ||
+                  blockedReason.includes('429') ||
+                  blockedReason.includes('Rate limit') ||
+                  blockedReason.includes('TPM'))
                   ? `The AI provider temporarily throttled this request due to its per-minute token limit (TPM). Wait ~15 seconds to retry, or switch to a faster model (like GPT-OSS 20B) in Settings.\n\nDiagnostic: ${blockedReason}`
-                  : (blockedReason ||
-                    'The AI provider did not return an answer. Please check your internet connection or verify your Groq API key in Settings.')}
+                  : blockedReason ||
+                    'The AI provider did not return an answer. Please check your internet connection or verify your Groq API key in Settings.'}
               </p>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button
@@ -3048,10 +4701,14 @@ export default function TeleprompterView() {
                   type="button"
                   onClick={() => {
                     const qText = currentQuestion || '';
-                    const fallback = CandidateRagService.getInstance().synthesizeEmergencyAnswer(qText);
+                    const fallback =
+                      CandidateRagService.getInstance().synthesizeEmergencyAnswer(qText);
                     if (fallback) {
                       const store = useAppStore.getState();
-                      const sentences = fallback.split(/(?<=[.?!])\s+/).map((s) => s.trim()).filter(Boolean);
+                      const sentences = fallback
+                        .split(/(?<=[.?!])\s+/)
+                        .map((s) => s.trim())
+                        .filter(Boolean);
                       store.setCurrentAnswer(fallback);
                       store.setIsAnswerValidated(true);
                       store.setAnswerValidationStatus('VALIDATED');
@@ -3151,7 +4808,9 @@ export default function TeleprompterView() {
                           store.enqueueSentences(sentences);
                           store.setStatus('ready');
                           store.setBlockedReason(null);
-                          store.setToast('🛡️ Teleprompter loaded with Autonomous RAG Grounded Answer');
+                          store.setToast(
+                            '🛡️ Teleprompter loaded with Autonomous RAG Grounded Answer'
+                          );
                         }}
                         style={{
                           background: '#059669',
@@ -3194,14 +4853,24 @@ export default function TeleprompterView() {
                 color: '#fef3c7',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}
+              >
                 <span style={{ fontSize: '18px' }}>⏹️</span>
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#fbbf24' }}>
                   Answer Generation Cancelled or Aborted
                 </span>
               </div>
-              <p style={{ fontSize: '13px', color: '#fde68a', lineHeight: '1.5', margin: '0 0 14px 0' }}>
-                {blockedReason || 'Generation was stopped before completion. You can generate an answer for this question with one click:'}
+              <p
+                style={{
+                  fontSize: '13px',
+                  color: '#fde68a',
+                  lineHeight: '1.5',
+                  margin: '0 0 14px 0',
+                }}
+              >
+                {blockedReason ||
+                  'Generation was stopped before completion. You can generate an answer for this question with one click:'}
               </p>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button
@@ -3225,7 +4894,7 @@ export default function TeleprompterView() {
                 </button>
               </div>
             </div>
-          ) : (pipelineStage === 'waiting_quota_reset' || rateLimitCooldown) ? (
+          ) : pipelineStage === 'waiting_quota_reset' || rateLimitCooldown ? (
             <div
               className="rate-limit-card"
               style={{
@@ -3237,13 +4906,22 @@ export default function TeleprompterView() {
                 color: '#fecaca',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}
+              >
                 <Clock size={18} style={{ color: '#f87171' }} />
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#f87171' }}>
                   AI Provider Rate Limit Cooldown Active
                 </span>
               </div>
-              <p style={{ fontSize: '13px', color: '#fca5a5', lineHeight: '1.5', margin: '0 0 14px 0' }}>
+              <p
+                style={{
+                  fontSize: '13px',
+                  color: '#fca5a5',
+                  lineHeight: '1.5',
+                  margin: '0 0 14px 0',
+                }}
+              >
                 {rateLimitCooldown
                   ? `Groq per-minute token quota reached. Quota resets in ${rateLimitCooldown.retryAfterSeconds}s. You can wait or retry now.`
                   : 'The AI provider is temporarily throttling requests due to per-minute limits.'}
@@ -3289,7 +4967,7 @@ export default function TeleprompterView() {
                 </button>
               </div>
             </div>
-          ) : (recoveredPartialAnswer && !currentAnswer) ? (
+          ) : recoveredPartialAnswer && !currentAnswer ? (
             <div
               className="partial-recovery-card"
               style={{
@@ -3300,7 +4978,14 @@ export default function TeleprompterView() {
                 margin: '12px 0',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '8px',
+                }}
+              >
                 <span style={{ fontSize: '12px', fontWeight: 700, color: '#fbbf24' }}>
                   ⚠️ Stream Interrupted — Recovered Partial Answer:
                 </span>
@@ -3324,7 +5009,14 @@ export default function TeleprompterView() {
                   <RotateCcw size={11} /> Regenerate Full Answer
                 </button>
               </div>
-              <div style={{ fontSize: '13px', color: '#fef3c7', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+              <div
+                style={{
+                  fontSize: '13px',
+                  color: '#fef3c7',
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: '1.6',
+                }}
+              >
                 {recoveredPartialAnswer}
               </div>
             </div>
@@ -3507,7 +5199,7 @@ export default function TeleprompterView() {
                 </div>
               )}
 
-        {(responseMode === 'quiz' || currentAnswer?.includes('CORRECT ANSWER:')) && (
+              {(responseMode === 'quiz' || currentAnswer?.includes('CORRECT ANSWER:')) && (
                 <QuizAnswerCard
                   answerText={currentAnswer}
                   onCopy={async (text) => {
@@ -3575,23 +5267,29 @@ export default function TeleprompterView() {
                 return (
                   <div
                     key={idx}
-                    className={"floating-prompter-card shadow-2xl group " + (isRibbonMode ? "p-3 sm:p-4 my-1.5" : "p-5 sm:p-7 my-3")}
+                    className={
+                      'floating-prompter-card shadow-2xl group ' +
+                      (isRibbonMode ? 'p-3 sm:p-4 my-1.5' : 'p-5 sm:p-7 my-3')
+                    }
                     style={{
-                      fontSize: {
-                        small: '15px',
-                        medium: '18px',
-                        large: '22px',
-                        xlarge: '26px',
-                      }[teleprompterFontSize] || '18px',
-                      lineHeight: {
-                        small: '1.6',
-                        medium: '1.7',
-                        large: '1.75',
-                        xlarge: '1.8',
-                      }[teleprompterFontSize] || '1.7',
+                      fontSize:
+                        {
+                          small: '15px',
+                          medium: '18px',
+                          large: '22px',
+                          xlarge: '26px',
+                        }[teleprompterFontSize] || '18px',
+                      lineHeight:
+                        {
+                          small: '1.6',
+                          medium: '1.7',
+                          large: '1.75',
+                          xlarge: '1.8',
+                        }[teleprompterFontSize] || '1.7',
                       color: '#f8fafc',
                       whiteSpace: 'pre-wrap',
-                      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                      fontFamily:
+                        "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
                       letterSpacing: '-0.01em',
                       position: 'relative',
                     }}
@@ -3672,93 +5370,130 @@ export default function TeleprompterView() {
               )}
 
               {/* Layer 6: Predicted Follow-Ups Panel */}
-              {!isRibbonMode && predictedFollowUps && predictedFollowUps.length > 0 && !isGenerating && (
-                <FollowUpPredictions
-                  followUps={predictedFollowUps}
-                  onSelect={(fu) => handleTriggerQuestion(fu)}
-                />
-              )}
+              {!isRibbonMode &&
+                predictedFollowUps &&
+                predictedFollowUps.length > 0 &&
+                !isGenerating && (
+                  <FollowUpPredictions
+                    followUps={predictedFollowUps}
+                    onSelect={(fu) => handleTriggerQuestion(fu)}
+                  />
+                )}
             </div>
           ) : isGenerating ? (
             <div
               style={{
-                padding: "24px",
-                background: "rgba(15, 23, 42, 0.75)",
-                border: "1px solid rgba(129, 140, 248, 0.3)",
-                borderRadius: "16px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "14px",
-                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+                padding: '24px',
+                background: 'rgba(15, 23, 42, 0.75)',
+                border: '1px solid rgba(129, 140, 248, 0.3)',
+                borderRadius: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div
                     style={{
-                      width: "24px",
-                      height: "24px",
-                      borderRadius: "6px",
-                      background: "rgba(99, 102, 241, 0.2)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '6px',
+                      background: 'rgba(99, 102, 241, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                   >
-                    <Loader2 size={14} className="spin" style={{ color: "#818cf8" }} />
+                    <Loader2 size={14} className="spin" style={{ color: '#818cf8' }} />
                   </div>
-                  <span style={{ fontWeight: 700, fontSize: "13px", color: "#e0e7ff" }}>
+                  <span style={{ fontWeight: 700, fontSize: '13px', color: '#e0e7ff' }}>
                     Synthesizing Verified Interview Solution...
                   </span>
                 </div>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  {draftAnswer ? '⚡ DRAFT (VALIDATION ACTIVE)' : `${responseMode.toUpperCase()} STREAM`}
+                  {draftAnswer
+                    ? '⚡ DRAFT (VALIDATION ACTIVE)'
+                    : `${responseMode.toUpperCase()} STREAM`}
                 </span>
               </div>
 
               {draftAnswer && draftAnswer.trim().length > 0 ? (
                 <div
                   style={{
-                    background: "rgba(0, 0, 0, 0.45)",
-                    borderRadius: "10px",
-                    padding: "16px",
-                    border: "1px solid rgba(251, 191, 36, 0.25)",
-                    color: "#f1f5f9",
-                    fontSize: "15px",
-                    lineHeight: "1.6",
-                    whiteSpace: "pre-wrap",
+                    background: 'rgba(0, 0, 0, 0.45)',
+                    borderRadius: '10px',
+                    padding: '16px',
+                    border: '1px solid rgba(251, 191, 36, 0.25)',
+                    color: '#f1f5f9',
+                    fontSize: '15px',
+                    lineHeight: '1.6',
+                    whiteSpace: 'pre-wrap',
                   }}
                 >
-                  <div style={{ fontSize: "11px", color: "#f59e0b", fontWeight: 700, marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: '#f59e0b',
+                      fontWeight: 700,
+                      marginBottom: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
                     <span>🛡️ Live Generation Draft</span>
-                    <span style={{ color: "#94a3b8", fontWeight: 400 }}>— Grounding validation in progress; ready-to-speak answer will display upon completion.</span>
+                    <span style={{ color: '#94a3b8', fontWeight: 400 }}>
+                      — Grounding validation in progress; ready-to-speak answer will display upon
+                      completion.
+                    </span>
                   </div>
                   {draftAnswer}
-                  <span style={{ display: 'inline-block', width: '8px', height: '16px', background: '#f59e0b', marginLeft: '6px', verticalAlign: 'middle', animation: 'pulse 1s infinite' }} />
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '8px',
+                      height: '16px',
+                      background: '#f59e0b',
+                      marginLeft: '6px',
+                      verticalAlign: 'middle',
+                      animation: 'pulse 1s infinite',
+                    }}
+                  />
                 </div>
               ) : (
                 <>
                   {/* Shimmer Skeleton Blocks */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingTop: "4px" }}>
-                    <div className="skeleton-shimmer" style={{ height: "18px", width: "75%" }} />
-                    <div className="skeleton-shimmer" style={{ height: "14px", width: "92%" }} />
-                    <div className="skeleton-shimmer" style={{ height: "14px", width: "85%" }} />
-                    <div className="skeleton-shimmer" style={{ height: "14px", width: "60%" }} />
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      paddingTop: '4px',
+                    }}
+                  >
+                    <div className="skeleton-shimmer" style={{ height: '18px', width: '75%' }} />
+                    <div className="skeleton-shimmer" style={{ height: '14px', width: '92%' }} />
+                    <div className="skeleton-shimmer" style={{ height: '14px', width: '85%' }} />
+                    <div className="skeleton-shimmer" style={{ height: '14px', width: '60%' }} />
                   </div>
 
                   <div
                     style={{
-                      background: "rgba(0, 0, 0, 0.4)",
-                      borderRadius: "10px",
-                      padding: "14px",
-                      border: "1px solid rgba(255, 255, 255, 0.05)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "6px",
+                      background: 'rgba(0, 0, 0, 0.4)',
+                      borderRadius: '10px',
+                      padding: '14px',
+                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
                     }}
                   >
-                    <div className="skeleton-shimmer" style={{ height: "12px", width: "40%" }} />
-                    <div className="skeleton-shimmer" style={{ height: "12px", width: "65%" }} />
+                    <div className="skeleton-shimmer" style={{ height: '12px', width: '40%' }} />
+                    <div className="skeleton-shimmer" style={{ height: '12px', width: '65%' }} />
                   </div>
                 </>
               )}
@@ -3766,13 +5501,21 @@ export default function TeleprompterView() {
           ) : isRibbonMode ? (
             <div className="floating-prompter-card p-4 sm:p-5 my-auto max-w-xl mx-auto flex flex-col items-center justify-center text-center shadow-2xl select-none">
               <div className="flex items-center gap-2 mb-1.5">
-                <span className={"w-2.5 h-2.5 rounded-full " + (isListening ? "bg-emerald-400 animate-pulse" : "bg-indigo-400")} />
+                <span
+                  className={
+                    'w-2.5 h-2.5 rounded-full ' +
+                    (isListening ? 'bg-emerald-400 animate-pulse' : 'bg-indigo-400')
+                  }
+                />
                 <span className="text-xs font-bold text-white tracking-wide">
-                  {isListening ? "Live Copilot Active — Listening for Interview Question..." : "AI Technical Copilot Standby"}
+                  {isListening
+                    ? 'Live Copilot Active — Listening for Interview Question...'
+                    : 'AI Technical Copilot Standby'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-300 mb-3 max-w-md leading-relaxed">
-                Speak or paste a question to see real-time verified answers, or snip a coding problem directly off your screen.
+                Speak or paste a question to see real-time verified answers, or snip a coding
+                problem directly off your screen.
               </p>
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 <button
@@ -3786,7 +5529,11 @@ export default function TeleprompterView() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleTriggerQuestion("Explain the trade-offs between optimistic vs pessimistic locking in distributed systems.")}
+                  onClick={() =>
+                    handleTriggerQuestion(
+                      'Explain the trade-offs between optimistic vs pessimistic locking in distributed systems.'
+                    )
+                  }
                   className="card-interactive px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600/70 hover:bg-indigo-500 text-indigo-100 border border-indigo-400/30 flex items-center gap-1.5 transition"
                 >
                   <Sparkles size={12} />
@@ -4247,7 +5994,9 @@ export default function TeleprompterView() {
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     boxShadow:
-                      responseMode === 'application' ? '0 4px 18px rgba(59, 130, 246, 0.25)' : 'none',
+                      responseMode === 'application'
+                        ? '0 4px 18px rgba(59, 130, 246, 0.25)'
+                        : 'none',
                   }}
                 >
                   <div
@@ -4295,7 +6044,8 @@ export default function TeleprompterView() {
                       margin: '0 0 10px 0',
                     }}
                   >
-                    Question-by-question form assistance for vendor questionnaires and job portals without hallucinated claims.
+                    Question-by-question form assistance for vendor questionnaires and job portals
+                    without hallucinated claims.
                   </p>
                   <span
                     style={{
@@ -4335,7 +6085,7 @@ export default function TeleprompterView() {
                   <kbd className="kbd">⌘⇧X</kbd> Snip Box
                 </span>
                 <span>
-                  <kbd className="kbd">⌘K</kbd> Clear & Reset
+                  <kbd className="kbd">⌘K</kbd> Search conversation
                 </span>
                 <span>
                   <kbd className="kbd">⌘J</kbd> Auto-Scroll
@@ -4344,7 +6094,7 @@ export default function TeleprompterView() {
                   <kbd className="kbd">Space</kbd> Done Answering
                 </span>
                 <span>
-                  <kbd className="kbd">⌘⇧H</kbd> Stealth Hide
+                  <kbd className="kbd">⌘\\</kbd> Stealth Hide
                 </span>
               </div>
             </div>
@@ -4354,473 +6104,433 @@ export default function TeleprompterView() {
 
       {/* ════════════ BOTTOM STEALTH TOOLBAR & INPUT BAR ════════════ */}
       {!isRibbonMode && (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          background: `rgba(12, 14, 24, ${Math.min(0.78, windowOpacity * 0.75 + 0.18)})`,
-          borderTop: '1px solid rgba(255, 255, 255, 0.10)',
-          padding: '8px 14px',
-          gap: '8px',
-        }}
-      >
-        {/* Row 1: Direct Question Input Box (Full-width Responsive) & Quick Pills */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
-          <form
-            onSubmit={handleFormSubmit}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%' }}
-          >
-            <input
-              type="text"
-              value={manualInput}
-              onChange={(e) => setManualInput(e.target.value)}
-              placeholder="Type or paste any interview / coding question & press Enter..."
-              style={{
-                flex: 1,
-                minWidth: 0,
-                background: 'rgba(255, 255, 255, 0.07)',
-                border: '1px solid rgba(255, 255, 255, 0.14)',
-                borderRadius: '6px',
-                padding: '6px 10px',
-                fontSize: '12px',
-                color: '#f8fafc',
-                outline: 'none',
-              }}
-            />
-            <button
-              type="submit"
-              disabled={!manualInput.trim()}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: manualInput.trim() ? '#4f46e5' : 'rgba(255, 255, 255, 0.08)',
-                color: manualInput.trim() ? '#ffffff' : '#64748b',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '6px 12px',
-                fontWeight: 600,
-                fontSize: '12px',
-                cursor: manualInput.trim() ? 'pointer' : 'default',
-                flexShrink: 0,
-              }}
-            >
-              <Send size={12} />
-              <span>Solve</span>
-            </button>
-          </form>
-
-          {/* Quick-Test Buttons Bar (Horizontally scrollable, never squishes input) */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              overflowX: 'auto',
-              whiteSpace: 'nowrap',
-              paddingBottom: '2px',
-              scrollbarWidth: 'none',
-            }}
-          >
-            <span
-              style={{
-                fontSize: '10px',
-                color: '#64748b',
-                fontWeight: 700,
-                flexShrink: 0,
-                textTransform: 'uppercase',
-              }}
-            >
-              ⚡ Quick Tests:
-            </span>
-            <button
-              onClick={() => {
-                setResponseMode('coding');
-                handleTriggerQuestion(
-                  'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. Provide optimal O(N) solution with Hash Table.'
-                );
-              }}
-              title="Test Coding Challenge Mode (Two Sum in preferred language)"
-              style={{
-                background:
-                  'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(79, 70, 229, 0.25))',
-                border: '1px solid rgba(129, 140, 248, 0.55)',
-                color: '#c7d2fe',
-                borderRadius: '12px',
-                padding: '3px 8px',
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              💻 Two Sum
-            </button>
-            <button
-              onClick={() => {
-                setResponseMode('quiz');
-                handleTriggerQuestion(
-                  'Question: Which of the following is true regarding Inodes in Unix filesystems?\nA) They store file name and data\nB) They store file metadata and data block pointers\nC) They reside in MBR\nD) They are only used in FAT32\nSelect the single correct option and justify.'
-                );
-              }}
-              title="Test Quiz / MCQ Mode (Highlight correct answer + proof)"
-              style={{
-                background:
-                  'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.25))',
-                border: '1px solid rgba(52, 211, 153, 0.55)',
-                color: '#a7f3d0',
-                borderRadius: '12px',
-                padding: '3px 8px',
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              📝 MCQ Quiz
-            </button>
-            <button
-              onClick={() => {
-                setResponseMode('interview');
-                handleTriggerQuestion(
-                  'Tell me about a challenging distributed systems backend issue you solved in your past production experience.'
-                );
-              }}
-              title="Test Behavioral / STAR Interview Response Mode"
-              style={{
-                background:
-                  'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(147, 51, 234, 0.25))',
-                border: '1px solid rgba(192, 132, 252, 0.55)',
-                color: '#e9d5ff',
-                borderRadius: '12px',
-                padding: '3px 8px',
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              🎙️ Behavioral
-            </button>
-            <button
-              onClick={() =>
-                InterviewEngine.handleEvent({
-                  type: 'SCREEN_PROBLEM_DETECTED',
-                  rawText:
-                    'Pregunta: Dado un arreglo de números enteros nums y un valor entero target, devuelva los índices de los dos elementos que sumados sean iguales a target. Asuma que cada entrada tiene exactamente una solución y no use el mismo elemento dos veces. Ejemplo: nums = [2, 7, 11, 15], target = 9 -> Salida: [0, 1]',
-                  mode: 'fullscreen',
-                })
-              }
-              title="Test Automatic Spanish Detection, English Translation & Code Solution"
-              style={{
-                background:
-                  'linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.25))',
-                border: '1px solid rgba(248, 113, 113, 0.55)',
-                color: '#fecaca',
-                borderRadius: '12px',
-                padding: '3px 8px',
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              🇪🇸 Spanish
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2: Mic Status & Live Audio Diagnostics (Responsive Wrap) */}
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '11px',
-            color: '#94a3b8',
+            flexDirection: 'column',
+            background: `rgba(12, 14, 24, ${Math.min(0.78, windowOpacity * 0.75 + 0.18)})`,
+            borderTop: '1px solid rgba(255, 255, 255, 0.10)',
+            padding: '8px 14px',
             gap: '8px',
-            rowGap: '6px',
-            flexWrap: 'wrap',
           }}
         >
-          {/* Screen OCR & Solve Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <button
-              onClick={() => handleScreenCapture('fullscreen')}
-              disabled={isScreenReading}
-              title="Capture Interviewer's Shared Screen & Solve 100% accurately (Shortcut: Cmd+Shift+S)"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                background: isScreenReading
-                  ? 'rgba(245, 158, 11, 0.3)'
-                  : 'linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(5, 150, 105, 0.28))',
-                color: isScreenReading ? '#fde68a' : '#6ee7b7',
-                border: isScreenReading
-                  ? '1px solid #f59e0b'
-                  : '1px solid rgba(52, 211, 153, 0.45)',
-                borderRadius: '6px',
-                padding: '4px 10px',
-                fontWeight: 650,
-                fontSize: '11px',
-                cursor: isScreenReading ? 'wait' : 'pointer',
-                transition: 'all 0.15s ease',
-                whiteSpace: 'nowrap',
-              }}
+          {/* Row 1: Direct Question Input Box (Full-width Responsive) & Quick Pills */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+            <form
+              onSubmit={handleFormSubmit}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%' }}
             >
-              {isScreenReading ? <Loader2 size={12} className="spin" /> : <ScanText size={12} />}
-              <span>{isScreenReading ? 'Reading Screen...' : '📸 Solve Screen (⌘⇧S)'}</span>
-            </button>
+              <input
+                type="text"
+                value={manualInput}
+                onChange={(e) => setManualInput(e.target.value)}
+                placeholder="Type or paste any interview / coding question & press Enter..."
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  background: 'rgba(255, 255, 255, 0.07)',
+                  border: '1px solid rgba(255, 255, 255, 0.14)',
+                  borderRadius: '6px',
+                  padding: '6px 10px',
+                  fontSize: '12px',
+                  color: '#f8fafc',
+                  outline: 'none',
+                }}
+              />
+              <button
+                type="submit"
+                disabled={!manualInput.trim()}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: manualInput.trim() ? '#4f46e5' : 'rgba(255, 255, 255, 0.08)',
+                  color: manualInput.trim() ? '#ffffff' : '#64748b',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  cursor: manualInput.trim() ? 'pointer' : 'default',
+                  flexShrink: 0,
+                }}
+              >
+                <Send size={12} />
+                <span>Solve</span>
+              </button>
+            </form>
 
-            <button
-              onClick={() => handleScreenCapture('snip')}
-              disabled={isScreenReading}
-              title="Snip specific question box / code snippet on screen"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'rgba(99, 102, 241, 0.2)',
-                color: '#c7d2fe',
-                border: '1px solid rgba(129, 140, 248, 0.35)',
-                borderRadius: '6px',
-                padding: '4px 8px',
-                fontWeight: 600,
-                fontSize: '11px',
-                cursor: isScreenReading ? 'wait' : 'pointer',
-                transition: 'all 0.15s ease',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <Crop size={11} />
-              <span>✂️ Snip Box</span>
-            </button>
-
-            <button
-              onClick={() => handleAppendScreenCapture('fullscreen')}
-              disabled={isScreenReading}
-              title="Scroll down in question & append lower section/constraints (Shortcut: Cmd+Shift+A)"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'rgba(6, 182, 212, 0.22)',
-                color: '#67e8f9',
-                border: '1px solid rgba(34, 211, 238, 0.35)',
-                borderRadius: '6px',
-                padding: '4px 8px',
-                fontWeight: 650,
-                fontSize: '11px',
-                cursor: isScreenReading ? 'wait' : 'pointer',
-                transition: 'all 0.15s ease',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <FilePlus size={11} />
-              <span>📄 + Append Page (⌘⇧A)</span>
-            </button>
-          </div>
-
-          {/* Left: Mic toggle button & Live Hearing Indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button
-              onClick={toggleRecording}
+            {/* Quick-Test Buttons Bar (Horizontally scrollable, never squishes input) */}
+            <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                background: isListening ? '#dc2626' : '#4f46e5',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '4px 10px',
-                fontWeight: 600,
-                fontSize: '11px',
-                cursor: 'pointer',
-                boxShadow: isListening ? '0 0 10px rgba(220, 38, 38, 0.5)' : 'none',
+                overflowX: 'auto',
+                whiteSpace: 'nowrap',
+                paddingBottom: '2px',
+                scrollbarWidth: 'none',
               }}
             >
-              {isListening ? (
-                <>
-                  <MicOff size={12} />
-                  <span>Listening ({diagnosticState.currentDb} dB)</span>
-                </>
-              ) : (
-                <>
-                  <Mic size={12} />
-                  <span>Start Listening</span>
-                </>
-              )}
-            </button>
-
-            {/* Live 5-Bar Audio Level VU Meter */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-end',
-                gap: '2px',
-                height: '14px',
-                padding: '0 2px',
-              }}
-              title={`Microphone input level: ${diagnosticState.currentDb} dB (Threshold: -46 dB)`}
-            >
-              {[1, 2, 3, 4, 5].map((bar) => {
-                const minThreshold = -62 + bar * 6; // -56, -50, -44, -38, -32
-                const active = isListening && diagnosticState.currentDb > minThreshold;
-                const color = bar >= 5 ? '#ef4444' : bar >= 4 ? '#f59e0b' : '#10b981';
-                return (
-                  <span
-                    key={bar}
-                    style={{
-                      width: '3px',
-                      height: `${4 + bar * 2}px`,
-                      borderRadius: '1px',
-                      background: active ? color : 'rgba(255, 255, 255, 0.15)',
-                      boxShadow: active ? `0 0 6px ${color}` : 'none',
-                      transition: 'background 0.08s ease',
-                    }}
-                  />
-                );
-              })}
-            </div>
-
-            {/* Status explanation */}
-            <span
-              style={{
-                color:
-                  recitalState === 'reciting'
-                    ? '#93c5fd'
-                    : recitalState === 'interrupted'
-                      ? '#fca5a5'
-                      : isListening
-                        ? '#86efac'
-                        : '#94a3b8',
-              }}
-            >
-              {status === 'transcribing'
-                ? '🎙️ Transcribing speech...'
-                : status === 'analyzing' || status === 'generating'
-                  ? '⚡ Streaming answer...'
-                  : recitalState === 'reciting'
-                    ? '🗣️ Candidate answering (mic echo paused • listening for third person)'
-                    : recitalState === 'interrupted'
-                      ? '⚡ Interviewer interrupted! Reacting live...'
-                      : isListening
-                        ? '● Continuous mic active (auto echo-filtering)'
-                        : 'Mic paused'}
-            </span>
-
-            {/* Live heard ticker */}
-            {diagnosticState.latestTranscript && diagnosticState.latestTranscript !== '(empty)' && (
               <span
                 style={{
-                  maxWidth: '220px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  color: '#cbd5e1',
+                  fontSize: '10px',
+                  color: '#64748b',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  textTransform: 'uppercase',
                 }}
-                title={diagnosticState.latestTranscript}
               >
-                Heard: "{diagnosticState.latestTranscript}"
+                ⚡ Quick Tests:
               </span>
-            )}
+              <button
+                onClick={() => {
+                  setResponseMode('coding');
+                  handleTriggerQuestion(
+                    'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. Provide optimal O(N) solution with Hash Table.'
+                  );
+                }}
+                title="Test Coding Challenge Mode (Two Sum in preferred language)"
+                style={{
+                  background:
+                    'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(79, 70, 229, 0.25))',
+                  border: '1px solid rgba(129, 140, 248, 0.55)',
+                  color: '#c7d2fe',
+                  borderRadius: '12px',
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                💻 Two Sum
+              </button>
+              <button
+                onClick={() => {
+                  setResponseMode('quiz');
+                  handleTriggerQuestion(
+                    'Question: Which of the following is true regarding Inodes in Unix filesystems?\nA) They store file name and data\nB) They store file metadata and data block pointers\nC) They reside in MBR\nD) They are only used in FAT32\nSelect the single correct option and justify.'
+                  );
+                }}
+                title="Test Quiz / MCQ Mode (Highlight correct answer + proof)"
+                style={{
+                  background:
+                    'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.25))',
+                  border: '1px solid rgba(52, 211, 153, 0.55)',
+                  color: '#a7f3d0',
+                  borderRadius: '12px',
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                📝 MCQ Quiz
+              </button>
+              <button
+                onClick={() => {
+                  setResponseMode('interview');
+                  handleTriggerQuestion(
+                    'Tell me about a challenging distributed systems backend issue you solved in your past production experience.'
+                  );
+                }}
+                title="Test Behavioral / STAR Interview Response Mode"
+                style={{
+                  background:
+                    'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(147, 51, 234, 0.25))',
+                  border: '1px solid rgba(192, 132, 252, 0.55)',
+                  color: '#e9d5ff',
+                  borderRadius: '12px',
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                🎙️ Behavioral
+              </button>
+              <button
+                onClick={() =>
+                  InterviewEngine.handleEvent({
+                    type: 'SCREEN_PROBLEM_DETECTED',
+                    rawText:
+                      'Pregunta: Dado un arreglo de números enteros nums y un valor entero target, devuelva los índices de los dos elementos que sumados sean iguales a target. Asuma que cada entrada tiene exactamente una solución y no use el mismo elemento dos veces. Ejemplo: nums = [2, 7, 11, 15], target = 9 -> Salida: [0, 1]',
+                    mode: 'fullscreen',
+                  })
+                }
+                title="Test Automatic Spanish Detection, English Translation & Code Solution"
+                style={{
+                  background:
+                    'linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.25))',
+                  border: '1px solid rgba(248, 113, 113, 0.55)',
+                  color: '#fecaca',
+                  borderRadius: '12px',
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                🇪🇸 Spanish
+              </button>
+            </div>
+          </div>
 
-            {diagnosticState.latestTranscript && diagnosticState.latestTranscript !== '(empty)' && (
+          {/* Row 2: Mic Status & Live Audio Diagnostics (Responsive Wrap) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '11px',
+              color: '#94a3b8',
+              gap: '8px',
+              rowGap: '6px',
+              flexWrap: 'wrap',
+            }}
+          >
+            {/* Screen OCR & Solve Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <button
+                onClick={() => handleScreenCapture('fullscreen')}
+                disabled={isScreenReading}
+                title="Capture Interviewer's Shared Screen & Solve 100% accurately (Shortcut: Cmd+Shift+S)"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  background: isScreenReading
+                    ? 'rgba(245, 158, 11, 0.3)'
+                    : 'linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(5, 150, 105, 0.28))',
+                  color: isScreenReading ? '#fde68a' : '#6ee7b7',
+                  border: isScreenReading
+                    ? '1px solid #f59e0b'
+                    : '1px solid rgba(52, 211, 153, 0.45)',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontWeight: 650,
+                  fontSize: '11px',
+                  cursor: isScreenReading ? 'wait' : 'pointer',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {isScreenReading ? <Loader2 size={12} className="spin" /> : <ScanText size={12} />}
+                <span>{isScreenReading ? 'Reading Screen...' : '📸 Solve Screen (⌘⇧S)'}</span>
+              </button>
+
+              <button
+                onClick={() => handleScreenCapture('snip')}
+                disabled={isScreenReading}
+                title="Snip specific question box / code snippet on screen"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'rgba(99, 102, 241, 0.2)',
+                  color: '#c7d2fe',
+                  border: '1px solid rgba(129, 140, 248, 0.35)',
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  fontWeight: 600,
+                  fontSize: '11px',
+                  cursor: isScreenReading ? 'wait' : 'pointer',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Crop size={11} />
+                <span>✂️ Snip Box</span>
+              </button>
+
+              <button
+                onClick={() => handleAppendScreenCapture('fullscreen')}
+                disabled={isScreenReading}
+                title="Scroll down in question & append lower section/constraints (Shortcut: Cmd+Shift+A)"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'rgba(6, 182, 212, 0.22)',
+                  color: '#67e8f9',
+                  border: '1px solid rgba(34, 211, 238, 0.35)',
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  fontWeight: 650,
+                  fontSize: '11px',
+                  cursor: isScreenReading ? 'wait' : 'pointer',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <FilePlus size={11} />
+                <span>📄 + Append Page (⌘⇧A)</span>
+              </button>
+            </div>
+
+            {/* Left: Mic toggle button & Live Hearing Indicator */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                onClick={toggleRecording}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: isListening ? '#dc2626' : '#4f46e5',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontWeight: 600,
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  boxShadow: isListening ? '0 0 10px rgba(220, 38, 38, 0.5)' : 'none',
+                }}
+              >
+                {isListening ? (
+                  <>
+                    <MicOff size={12} />
+                    <span>Listening ({diagnosticState.currentDb} dB)</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic size={12} />
+                    <span>Start Listening</span>
+                  </>
+                )}
+              </button>
+
+              {/* Live 5-Bar Audio Level VU Meter */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  gap: '2px',
+                  height: '14px',
+                  padding: '0 2px',
+                }}
+                title={`Microphone input level: ${diagnosticState.currentDb} dB (Threshold: -46 dB)`}
+              >
+                {[1, 2, 3, 4, 5].map((bar) => {
+                  const minThreshold = -62 + bar * 6; // -56, -50, -44, -38, -32
+                  const active = isListening && diagnosticState.currentDb > minThreshold;
+                  const color = bar >= 5 ? '#ef4444' : bar >= 4 ? '#f59e0b' : '#10b981';
+                  return (
+                    <span
+                      key={bar}
+                      style={{
+                        width: '3px',
+                        height: `${4 + bar * 2}px`,
+                        borderRadius: '1px',
+                        background: active ? color : 'rgba(255, 255, 255, 0.15)',
+                        boxShadow: active ? `0 0 6px ${color}` : 'none',
+                        transition: 'background 0.08s ease',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Status explanation */}
+              <span
+                style={{
+                  color:
+                    recitalState === 'reciting'
+                      ? '#93c5fd'
+                      : recitalState === 'interrupted'
+                        ? '#fca5a5'
+                        : isListening
+                          ? '#86efac'
+                          : '#94a3b8',
+                }}
+              >
+                {status === 'transcribing'
+                  ? '🎙️ Transcribing speech...'
+                  : status === 'analyzing' || status === 'generating'
+                    ? '⚡ Streaming answer...'
+                    : recitalState === 'reciting'
+                      ? '🗣️ Candidate answering (mic echo paused • listening for third person)'
+                      : recitalState === 'interrupted'
+                        ? '⚡ Interviewer interrupted! Reacting live...'
+                        : isListening
+                          ? '● Continuous mic active (auto echo-filtering)'
+                          : 'Mic paused'}
+              </span>
+
+              {/* Raw transcript text is kept out of the visible HUD control strip. */}
               <button
                 type="button"
-                onClick={() => generateAnswerFromTranscript(diagnosticState.latestTranscript)}
-                title="Force AI answer generation from this heard speech"
+                onClick={() => {
+                  const text = DiagnosticLoggerService.getInstance().exportLogsAsText();
+                  copyToClipboard(text);
+                  setToast('📋 Diagnostic logs copied to clipboard!');
+                }}
+                title="Copy sanitized diagnostic logs to clipboard"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '3px',
-                  background: 'rgba(99, 102, 241, 0.25)',
-                  border: '1px solid rgba(129, 140, 248, 0.4)',
-                  color: '#c7d2fe',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  color: '#94a3b8',
                   borderRadius: '4px',
                   padding: '2px 6px',
                   fontSize: '10px',
-                  fontWeight: 650,
+                  fontWeight: 500,
                   cursor: 'pointer',
                   marginLeft: '4px',
                   whiteSpace: 'nowrap',
                 }}
               >
-                <Zap size={10} /> Ask This
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                const text = DiagnosticLoggerService.getInstance().exportLogsAsText();
-                copyToClipboard(text);
-                setToast('📋 Diagnostic logs copied to clipboard!');
-              }}
-              title="Copy sanitized diagnostic logs to clipboard"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                color: '#94a3b8',
-                borderRadius: '4px',
-                padding: '2px 6px',
-                fontSize: '10px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                marginLeft: '4px',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Logs
-            </button>
-          </div>
-
-          {/* Right: Action Buttons (Clear & Copy) */}
-          {currentAnswer && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <button
-                onClick={clearAndResetToListen}
-                title="Clear current answer and listen for new question (Shortcut: ⌘K)"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  background: 'rgba(239, 68, 68, 0.16)',
-                  border: '1px solid rgba(248, 113, 113, 0.35)',
-                  color: '#fca5a5',
-                  borderRadius: '4px',
-                  padding: '3px 8px',
-                  fontSize: '11px',
-                  fontWeight: 650,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span>✨ New Question (⌘K)</span>
-              </button>
-              <button
-                onClick={copyAnswer}
-                title="Copy entire answer including explanations to clipboard"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  color: '#cbd5e1',
-                  borderRadius: '4px',
-                  padding: '3px 8px',
-                  fontSize: '11px',
-                  cursor: 'pointer',
-                }}
-              >
-                <Copy size={11} /> Copy Full Answer
+                Logs
               </button>
             </div>
-          )}
+
+            {/* Right: Action Buttons (Clear & Copy) */}
+            {currentAnswer && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  onClick={clearAndResetToListen}
+                  title="Clear current answer and listen for a new question"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'rgba(239, 68, 68, 0.16)',
+                    border: '1px solid rgba(248, 113, 113, 0.35)',
+                    color: '#fca5a5',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '11px',
+                    fontWeight: 650,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span>✨ New Question</span>
+                </button>
+                <button
+                  onClick={copyAnswer}
+                  title="Copy entire answer including explanations to clipboard"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#cbd5e1',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Copy size={11} /> Copy Full Answer
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
       )}
 
       {/* Shortcuts Quick-Ref Modal */}
@@ -4908,7 +6618,7 @@ export default function TeleprompterView() {
                 { key: '⌘ + K', desc: 'Copy clean compilable code directly to clipboard.' },
                 { key: '⌘ + J', desc: 'Toggle smooth hands-free auto-scrolling.' },
                 { key: 'Space', desc: 'Done reciting: advance teleprompter and resume listening.' },
-                { key: 'Escape', desc: 'Instantly dismiss overlay window.' },
+                { key: 'Escape', desc: 'Close the active dialog or overlay.' },
               ].map((item, i) => (
                 <div
                   key={i}
