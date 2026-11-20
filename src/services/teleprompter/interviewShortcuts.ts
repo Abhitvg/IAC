@@ -1,10 +1,5 @@
 export type InterviewShortcutAction =
-  | 'bionicHud'
-  | 'listening'
-  | 'solveScreen'
-  | 'snipScreen'
-  | 'searchConversation'
-  | 'finishAnswer';
+  'bionicHud' | 'listening' | 'solveScreen' | 'snipScreen' | 'searchConversation' | 'finishAnswer';
 
 export const DEFAULT_INTERVIEW_SHORTCUTS: Record<InterviewShortcutAction, string> = {
   bionicHud: 'CmdOrCtrl+Shift+H',
