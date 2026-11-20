@@ -1,0 +1,28 @@
+name: Temporary Prettier Diagnostic
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  format-diagnostic:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Format target files and show diff
+        shell: bash
+        run: |
+          npx prettier --write src/components/teleprompter/TeleprompterView.tsx src/services/teleprompter/interviewShortcuts.ts tests/interviewShortcuts.test.ts
+          git diff -- src/components/teleprompter/TeleprompterView.tsx src/services/teleprompter/interviewShortcuts.ts tests/interviewShortcuts.test.ts
