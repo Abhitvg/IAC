@@ -16,7 +16,8 @@ describe('Ambiguous transcript confirmation flow', () => {
       status: 'listening',
       pipelineStage: 'listening',
       currentQuestion: 'How do you monitor distributed systems?',
-      currentAnswer: 'Distributed tracing helps identify latency bottlenecks across service boundaries.',
+      currentAnswer:
+        'Distributed tracing helps identify latency bottlenecks across service boundaries.',
       settings: { language: 'hi' },
       teleprompterQueue: [],
       transcript: [],
@@ -37,7 +38,9 @@ describe('Ambiguous transcript confirmation flow', () => {
   });
 
   it('ignores ordinary candidate speech instead of retaining it as a question', async () => {
-    transcribeAudioMock.mockResolvedValue({ text: 'The architecture uses distributed tracing for service boundaries.' });
+    transcribeAudioMock.mockResolvedValue({
+      text: 'The architecture uses distributed tracing for service boundaries.',
+    });
 
     await InterviewEngine.handleEvent({
       type: 'UTTERANCE_FINALIZED',
@@ -49,7 +52,9 @@ describe('Ambiguous transcript confirmation flow', () => {
     expect(state.transcript).toHaveLength(0);
     expect(state.status).toBe('listening');
     expect(state.currentQuestion).toBe('How do you monitor distributed systems?');
-    expect(state.currentAnswer).toBe('Distributed tracing helps identify latency bottlenecks across service boundaries.');
+    expect(state.currentAnswer).toBe(
+      'Distributed tracing helps identify latency bottlenecks across service boundaries.'
+    );
   });
 
   it('does not transcribe further microphone segments while a question awaits confirmation', async () => {
