@@ -130,7 +130,6 @@ describe('audio capture diagnostics', () => {
     ).toEqual(['STARTING', 'STOPPED']);
   });
 
-
   it('activates a valid microphone capture and releases it on Stop', async () => {
     const trackStop = vi.fn();
     const stream = {
@@ -173,15 +172,21 @@ describe('audio capture diagnostics', () => {
     expect(sourceNode.connect).toHaveBeenCalledWith(processorNode);
     expect(processorNode.connect).toHaveBeenCalledWith(gainNode);
     expect(gainNode.gain.value).toBe(0);
-    expect(DiagnosticLoggerService.getInstance().getEvents().map((event) => event.audioCaptureOutcome))
-      .toEqual(['STARTING', 'ACTIVE']);
+    expect(
+      DiagnosticLoggerService.getInstance()
+        .getEvents()
+        .map((event) => event.audioCaptureOutcome)
+    ).toEqual(['STARTING', 'ACTIVE']);
 
     await recorder.stop();
 
     expect(trackStop).toHaveBeenCalledTimes(1);
     expect(recorder.getCaptureState()).toBe('stopped');
-    expect(DiagnosticLoggerService.getInstance().getEvents().map((event) => event.audioCaptureOutcome))
-      .toEqual(['STARTING', 'ACTIVE', 'STOPPED']);
+    expect(
+      DiagnosticLoggerService.getInstance()
+        .getEvents()
+        .map((event) => event.audioCaptureOutcome)
+    ).toEqual(['STARTING', 'ACTIVE', 'STOPPED']);
   });
 
   it('records microphone setup failure without logging microphone or transcript content', async () => {
