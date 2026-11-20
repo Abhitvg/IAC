@@ -88,26 +88,25 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     expect(result3.type).toBe('CONVERSATIONAL_FILLER');
   });
 
-  it('stores ambiguous speech with needsConfirmation in lastUnconfirmedTranscript', () => {
-    // 3+ words non-narrative with moderate overlap
-    const speech = 'Distributed tracing telemetry overhead metrics.';
+  it('stores a question-shaped utterance for confirmation without generating an answer', () => {
+    const speech = 'What about distributed tracing telemetry overhead metrics?';
     const result = classifyUtterance(speech, previousAnswer, [previousAnswer]);
 
-    if (result.needsConfirmation) {
-      useAppStore.getState().setLastUnconfirmedTranscript({
-        id: 'test-1',
-        text: speech,
-        confidence: result.confidence,
-        reason: result.reason,
-        timestamp: Date.now(),
-      });
-      useAppStore.getState().setPipelineStage('confirmation_required');
+    expect(result.type).toBe('UNCLASSIFIED');
+    expect(result.needsConfirmation).toBe(true);
+    useAppStore.getState().setLastUnconfirmedTranscript({
+      id: 'test-1',
+      text: speech,
+      confidence: result.confidence,
+      reason: result.reason,
+      timestamp: Date.now(),
+    });
+    useAppStore.getState().setPipelineStage('confirmation_required');
 
-      const storeState = useAppStore.getState();
-      expect(storeState.lastUnconfirmedTranscript).not.toBeNull();
-      expect(storeState.lastUnconfirmedTranscript?.text).toBe(speech);
-      expect(storeState.pipelineStage).toBe('confirmation_required');
-    }
+    const storeState = useAppStore.getState();
+    expect(storeState.lastUnconfirmedTranscript).not.toBeNull();
+    expect(storeState.lastUnconfirmedTranscript?.text).toBe(speech);
+    expect(storeState.pipelineStage).toBe('confirmation_required');
   });
 
   it('allows manual trigger to generate answer from transcript via generateAnswerFromTranscript', async () => {
