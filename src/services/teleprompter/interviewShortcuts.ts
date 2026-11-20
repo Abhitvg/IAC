@@ -65,6 +65,12 @@ export const RESERVED_INTERVIEW_SHORTCUTS = [
   'CmdOrCtrl+3',
   'CmdOrCtrl+J',
   'CmdOrCtrl+\\',
+  'CmdOrCtrl+Alt+Shift+H',
+  'Alt+H',
+  'Alt+Shift+S',
+  'CmdOrCtrl+Shift+A',
+  'Alt+V',
+  'Alt+T',
   'Alt+C',
 ] as const;
 
