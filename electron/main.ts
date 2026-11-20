@@ -229,7 +229,7 @@ function setupTray() {
 
 function registerGlobalShortcuts() {
   const stealthShortcuts = [
-    'Alt+Shift+H',
+    'CommandOrControl+Alt+Shift+H',
     'CommandOrControl+Shift+Space',
     'CommandOrControl+\\',
     'Alt+H',
