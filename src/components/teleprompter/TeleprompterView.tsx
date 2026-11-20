@@ -1368,7 +1368,11 @@ export default function TeleprompterView() {
   );
   const handleShortcutChange = useCallback(
     (action: InterviewShortcutAction, binding: string) => {
-      if (RESERVED_INTERVIEW_SHORTCUTS.includes(binding as (typeof RESERVED_INTERVIEW_SHORTCUTS)[number])) {
+      if (
+        RESERVED_INTERVIEW_SHORTCUTS.includes(
+          binding as (typeof RESERVED_INTERVIEW_SHORTCUTS)[number]
+        )
+      ) {
         setToast('That shortcut is reserved by another interview control.');
         return;
       }
@@ -2172,7 +2176,12 @@ export default function TeleprompterView() {
         >
           {questionHistory.map((item, index) => (
             <React.Fragment key={item.timestamp || index}>
-              <div data-conversation-id={'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index)} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div
+                data-conversation-id={
+                  'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index)
+                }
+                style={{ display: 'flex', justifyContent: 'flex-end' }}
+              >
                 <div
                   style={{
                     maxWidth: '88%',
@@ -2205,7 +2214,10 @@ export default function TeleprompterView() {
             </React.Fragment>
           ))}
           {currentQuestion && (
-            <div data-conversation-id="current-conversation" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div
+              data-conversation-id="current-conversation"
+              style={{ display: 'flex', justifyContent: 'flex-end' }}
+            >
               <div
                 style={{
                   maxWidth: '88%',
@@ -2500,9 +2512,13 @@ export default function TeleprompterView() {
             >
               <strong>Keyboard shortcuts</strong>
               <p style={{ fontSize: 11, lineHeight: 1.6, color: '#8290a3', marginBottom: 8 }}>
-                Select a shortcut and press a new key combination. Changes are saved to your app settings.
+                Select a shortcut and press a new key combination. Changes are saved to your app
+                settings.
               </p>
-              <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
+              <ShortcutSettings
+                bindings={shortcutBindings}
+                onChange={handleShortcutChange}
+              />
               <button
                 type="button"
                 onClick={() => setShowShortcuts(false)}
@@ -2640,7 +2656,12 @@ export default function TeleprompterView() {
         >
           {questionHistory.map((item, index) => (
             <React.Fragment key={item.timestamp || index}>
-              <div data-conversation-id={'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index)} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div
+                data-conversation-id={
+                  'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index)
+                }
+                style={{ display: 'flex', justifyContent: 'flex-end' }}
+              >
                 <div
                   style={{
                     maxWidth: '88%',
@@ -2679,7 +2700,10 @@ export default function TeleprompterView() {
             </React.Fragment>
           ))}
           {currentQuestion && (
-            <div data-conversation-id="current-conversation" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div
+              data-conversation-id="current-conversation"
+              style={{ display: 'flex', justifyContent: 'flex-end' }}
+            >
               <div
                 style={{
                   maxWidth: '88%',
@@ -2944,9 +2968,13 @@ export default function TeleprompterView() {
             >
               <strong>Keyboard shortcuts</strong>
               <p style={{ fontSize: 11, lineHeight: 1.6, color: '#8290a3', marginBottom: 8 }}>
-                Select a shortcut and press a new key combination. Changes are saved to your app settings.
+                Select a shortcut and press a new key combination. Changes are saved to your app
+                settings.
               </p>
-              <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
+              <ShortcutSettings
+                bindings={shortcutBindings}
+                onChange={handleShortcutChange}
+              />
               <button
                 type="button"
                 onClick={() => setShowShortcuts(false)}
