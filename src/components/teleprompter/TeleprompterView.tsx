@@ -334,33 +334,161 @@ function ConversationSearchOverlay({
   onCopy: (result: ConversationSearchResult) => void;
 }) {
   return (
-    <div role="dialog" aria-modal="true" aria-label="Search interview conversation" onClick={onClose}
-      style={{ position: 'absolute', inset: 0, zIndex: 100, display: 'grid', placeItems: 'start center', padding: 24, background: 'rgba(0,0,0,0.76)', backdropFilter: 'blur(8px)' }}>
-      <div onClick={(event) => event.stopPropagation()}
-        style={{ width: 'min(100%, 620px)', maxHeight: 'min(78vh, 680px)', overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: 12, border: '1px solid rgba(148,163,184,0.22)', background: '#0b111b', color: '#e5eaf2', boxShadow: '0 18px 60px rgba(0,0,0,0.55)' }}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Search interview conversation"
+      onClick={onClose}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 100,
+        display: 'grid',
+        placeItems: 'start center',
+        padding: 24,
+        background: 'rgba(0,0,0,0.76)',
+        backdropFilter: 'blur(8px)',
+      }}
+    >
+      <div
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          width: 'min(100%, 620px)',
+          maxHeight: 'min(78vh, 680px)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: 12,
+          border: '1px solid rgba(148,163,184,0.22)',
+          background: '#0b111b',
+          color: '#e5eaf2',
+          boxShadow: '0 18px 60px rgba(0,0,0,0.55)',
+        }}
+      >
         <div style={{ padding: 14, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <input autoFocus value={query} onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Search previous interview questions and answers…" aria-label="Search conversation history"
-            style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px', borderRadius: 8, border: '1px solid rgba(148,163,184,0.25)', outline: 'none', background: 'rgba(255,255,255,0.06)', color: '#f8fafc', fontSize: 13 }} />
+          <input
+            autoFocus
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="Search previous interview questions and answers…"
+            aria-label="Search conversation history"
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '11px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(148,163,184,0.25)',
+              outline: 'none',
+              background: 'rgba(255,255,255,0.06)',
+              color: '#f8fafc',
+              fontSize: 13,
+            }}
+          />
           <div style={{ marginTop: 7, color: '#8290a3', fontSize: 11 }}>
-            {query.trim() ? results.length + ' matching conversation item(s)' : 'Recent conversation history'} · Esc to close
+            {query.trim()
+              ? results.length + ' matching conversation item(s)'
+              : 'Recent conversation history'}{' '}
+            · Esc to close
           </div>
         </div>
-        <div style={{ overflowY: 'auto', padding: 10, display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {results.length ? results.map((result) => (
-            <button key={result.id} type="button" onClick={() => onCopy(result)}
-              style={{ display: 'block', width: '100%', padding: 11, textAlign: 'left', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)', color: '#e5eaf2', cursor: 'pointer' }}
-              title="Copy this question and answer">
-              <span style={{ display: 'block', color: '#93a4ba', fontSize: 10, marginBottom: 5 }}>{result.label} · click to copy</span>
-              <span style={{ display: 'block', fontSize: 13, lineHeight: 1.45, fontWeight: 650 }}>{result.question}</span>
-              {result.answer && <span style={{ display: 'block', marginTop: 5, color: '#aab5c4', fontSize: 11, lineHeight: 1.45 }}>{result.answer.slice(0, 240)}{result.answer.length > 240 ? '…' : ''}</span>}
-            </button>
-          )) : (
-            <div style={{ padding: 24, textAlign: 'center', color: '#8290a3', fontSize: 12 }}>No matching questions or answers found.</div>
+        <div
+          style={{
+            overflowY: 'auto',
+            padding: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 7,
+          }}
+        >
+          {results.length ? (
+            results.map((result) => (
+              <button
+                key={result.id}
+                type="button"
+                onClick={() => onCopy(result)}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  padding: 11,
+                  textAlign: 'left',
+                  borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.035)',
+                  color: '#e5eaf2',
+                  cursor: 'pointer',
+                }}
+                title="Copy this question and answer"
+              >
+                <span
+                  style={{
+                    display: 'block',
+                    color: '#93a4ba',
+                    fontSize: 10,
+                    marginBottom: 5,
+                  }}
+                >
+                  {result.label} · click to copy
+                </span>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: 13,
+                    lineHeight: 1.45,
+                    fontWeight: 650,
+                  }}
+                >
+                  {result.question}
+                </span>
+                {result.answer && (
+                  <span
+                    style={{
+                      display: 'block',
+                      marginTop: 5,
+                      color: '#aab5c4',
+                      fontSize: 11,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {result.answer.slice(0, 240)}
+                    {result.answer.length > 240 ? '…' : ''}
+                  </span>
+                )}
+              </button>
+            ))
+          ) : (
+            <div
+              style={{
+                padding: 24,
+                textAlign: 'center',
+                color: '#8290a3',
+                fontSize: 12,
+              }}
+            >
+              No matching questions or answers found.
+            </div>
           )}
         </div>
-        <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'right' }}>
-          <button type="button" onClick={onClose} style={{ border: 0, borderRadius: 7, padding: '7px 12px', background: '#273449', color: '#e5eaf2', cursor: 'pointer' }}>Close</button>
+        <div
+          style={{
+            padding: '10px 14px',
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            textAlign: 'right',
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              border: 0,
+              borderRadius: 7,
+              padding: '7px 12px',
+              background: '#273449',
+              color: '#e5eaf2',
+              cursor: 'pointer',
+            }}
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -1122,13 +1250,23 @@ export default function TeleprompterView() {
       question: item.question,
       answer: item.answer || '',
     }));
+
     if (currentQuestion) {
-      entries.push({ id: 'current-conversation', label: 'Current question', question: currentQuestion, answer: currentAnswer || draftAnswer || '' });
+      entries.push({
+        id: 'current-conversation',
+        label: 'Current question',
+        question: currentQuestion,
+        answer: currentAnswer || draftAnswer || '',
+      });
     }
+
     const normalizedQuery = conversationSearchQuery.trim().toLocaleLowerCase();
     const matching = normalizedQuery
-      ? entries.filter((entry) => (entry.question + '\n' + entry.answer).toLocaleLowerCase().includes(normalizedQuery))
+      ? entries.filter((entry) =>
+          (entry.question + '\\n' + entry.answer).toLocaleLowerCase().includes(normalizedQuery)
+        )
       : entries;
+
     return matching.slice(-30).reverse();
   }, [questionHistory, currentQuestion, currentAnswer, draftAnswer, conversationSearchQuery]);
 
