@@ -328,14 +328,6 @@ interface ConversationSearchResult {
   answer: string;
 }
 
-type InterviewShortcutAction =
-  | 'bionicHud'
-  | 'listening'
-  | 'solveScreen'
-  | 'snipScreen'
-  | 'searchConversation'
-  | 'finishAnswer';
-
 
 function ShortcutSettings({
   bindings,
@@ -412,16 +404,13 @@ function ShortcutSettings({
               border: '1px solid rgba(148,163,184,0.25)',
               borderRadius: 7,
               padding: '6px 9px',
-              background:
-                capturing === action ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)',
+              background: capturing === action ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)',
               color: '#e5eaf2',
               cursor: 'pointer',
               fontSize: 11,
             }}
           >
-            {capturing === action
-              ? 'Press shortcut…'
-              : formatInterviewShortcut(bindings[action])}
+            {capturing === action ? 'Press shortcut…' : formatInterviewShortcut(bindings[action])}
           </button>
         </div>
       ))}
@@ -1422,26 +1411,29 @@ export default function TeleprompterView() {
     return matching.slice(-30).reverse();
   }, [questionHistory, currentQuestion, currentAnswer, draftAnswer, conversationSearchQuery]);
 
-  const jumpToConversationResult = useCallback((result: ConversationSearchResult) => {
-    setShowConversationSearch(false);
-    window.requestAnimationFrame(() => {
-      const target = Array.from(
-        document.querySelectorAll<HTMLElement>('[data-conversation-id]')
-      ).find((element) => element.dataset.conversationId === result.id);
-      if (!target) {
-        setToast('That conversation item is no longer in the visible history.');
-        return;
-      }
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const previousOutline = target.style.outline;
-      target.style.outline = '2px solid rgba(129, 140, 248, 0.9)';
-      target.style.outlineOffset = '5px';
-      window.setTimeout(() => {
-        target.style.outline = previousOutline;
-        target.style.outlineOffset = '';
-      }, 1400);
-    });
-  }, [setToast]);
+  const jumpToConversationResult = useCallback(
+    (result: ConversationSearchResult) => {
+      setShowConversationSearch(false);
+      window.requestAnimationFrame(() => {
+        const target = Array.from(
+          document.querySelectorAll<HTMLElement>('[data-conversation-id]')
+        ).find((element) => element.dataset.conversationId === result.id);
+        if (!target) {
+          setToast('That conversation item is no longer in the visible history.');
+          return;
+        }
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const previousOutline = target.style.outline;
+        target.style.outline = '2px solid rgba(129, 140, 248, 0.9)';
+        target.style.outlineOffset = '5px';
+        window.setTimeout(() => {
+          target.style.outline = previousOutline;
+          target.style.outlineOffset = '';
+        }, 1400);
+      });
+    },
+    [setToast]
+  );
 
   useEffect(() => {
     try {
@@ -2515,10 +2507,7 @@ export default function TeleprompterView() {
                 Select a shortcut and press a new key combination. Changes are saved to your app
                 settings.
               </p>
-              <ShortcutSettings
-                bindings={shortcutBindings}
-                onChange={handleShortcutChange}
-              />
+              <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
               <button
                 type="button"
                 onClick={() => setShowShortcuts(false)}
