@@ -2117,6 +2117,8 @@ export default function TeleprompterView() {
                 <br />
                 ⌘⇧S — Solve screen
                 <br />
+                ⌘⇧X — Snip a screen region
+                <br />
                 ⌘K — New question / clear active answer
                 <br />
                 Esc — Close shortcuts
@@ -2558,6 +2560,8 @@ export default function TeleprompterView() {
                 ⌘⇧L — Start or pause listening
                 <br />
                 ⌘⇧S — Solve screen
+                <br />
+                ⌘⇧X — Snip a screen region
                 <br />
                 ⌘K — New question / clear active answer
                 <br />
@@ -5686,7 +5690,7 @@ export default function TeleprompterView() {
                   <kbd className="kbd">Space</kbd> Done Answering
                 </span>
                 <span>
-                  <kbd className="kbd">⌘⇧H</kbd> Stealth Hide
+                  <kbd className="kbd">⌘\\</kbd> Stealth Hide
                 </span>
               </div>
             </div>
@@ -6210,7 +6214,7 @@ export default function TeleprompterView() {
                 { key: '⌘ + K', desc: 'Copy clean compilable code directly to clipboard.' },
                 { key: '⌘ + J', desc: 'Toggle smooth hands-free auto-scrolling.' },
                 { key: 'Space', desc: 'Done reciting: advance teleprompter and resume listening.' },
-                { key: 'Escape', desc: 'Instantly dismiss overlay window.' },
+                { key: 'Escape', desc: 'Close the active dialog or overlay.' },
               ].map((item, i) => (
                 <div
                   key={i}
