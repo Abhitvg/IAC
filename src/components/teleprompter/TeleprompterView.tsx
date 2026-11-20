@@ -347,13 +347,18 @@ const INTERVIEW_SHORTCUT_LABELS: Record<InterviewShortcutAction, string> = {
 };
 
 function matchesInterviewShortcut(event: KeyboardEvent, binding: string): boolean {
-  const parts = binding.split('+').map((part) => part.trim()).filter(Boolean);
+  const parts = binding
+    .split('+')
+    .map((part) => part.trim())
+    .filter(Boolean);
   if (!parts.length) return false;
+
   const key = parts[parts.length - 1].toLowerCase();
   const modifiers = new Set(parts.slice(0, -1).map((part) => part.toLowerCase()));
   const wantsCommand = modifiers.has('cmdorctrl');
   const wantsShift = modifiers.has('shift');
   const wantsAlt = modifiers.has('alt');
+
   if ((event.metaKey || event.ctrlKey) !== wantsCommand) return false;
   if (event.shiftKey !== wantsShift || event.altKey !== wantsAlt) return false;
   if (key === 'space') return event.code === 'Space';
@@ -381,28 +386,39 @@ function ShortcutSettings({
 
   useEffect(() => {
     if (!capturing) return;
+
     const handleCapture = (event: KeyboardEvent) => {
       event.preventDefault();
       event.stopPropagation();
+
       if (event.key === 'Escape') {
         setCapturing(null);
         setCaptureError('');
         return;
       }
       if (['Shift', 'Control', 'Meta', 'Alt'].includes(event.key)) return;
+
       const modifiers: string[] = [];
       if (event.metaKey || event.ctrlKey) modifiers.push('CmdOrCtrl');
       if (event.altKey) modifiers.push('Alt');
       if (event.shiftKey) modifiers.push('Shift');
+
       if (!modifiers.length && event.code !== 'Space') {
         setCaptureError('Use at least one modifier for letter/number shortcuts.');
         return;
       }
-      const key = event.code === 'Space' ? 'Space' : event.key.length === 1 ? event.key.toUpperCase() : event.key;
+
+      const key =
+        event.code === 'Space'
+          ? 'Space'
+          : event.key.length === 1
+            ? event.key.toUpperCase()
+            : event.key;
       onChange(capturing, [...modifiers, key].join('+'));
       setCapturing(null);
       setCaptureError('');
     };
+
     window.addEventListener('keydown', handleCapture, true);
     return () => window.removeEventListener('keydown', handleCapture, true);
   }, [capturing, onChange]);
@@ -410,23 +426,55 @@ function ShortcutSettings({
   return (
     <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
       {(Object.keys(INTERVIEW_SHORTCUT_LABELS) as InterviewShortcutAction[]).map((action) => (
-        <div key={action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <span style={{ color: '#cbd5e1', fontSize: 12 }}>{INTERVIEW_SHORTCUT_LABELS[action]}</span>
+        <div
+          key={action}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+          }}
+        >
+          <span style={{ color: '#cbd5e1', fontSize: 12 }}>
+            {INTERVIEW_SHORTCUT_LABELS[action]}
+          </span>
           <button
             type="button"
-            onClick={() => { setCaptureError(''); setCapturing(action); }}
-            style={{ minWidth: 118, border: '1px solid rgba(148,163,184,0.25)', borderRadius: 7, padding: '6px 9px', background: capturing === action ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)', color: '#e5eaf2', cursor: 'pointer', fontSize: 11 }}
+            onClick={() => {
+              setCaptureError('');
+              setCapturing(action);
+            }}
+            style={{
+              minWidth: 118,
+              border: '1px solid rgba(148,163,184,0.25)',
+              borderRadius: 7,
+              padding: '6px 9px',
+              background:
+                capturing === action ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)',
+              color: '#e5eaf2',
+              cursor: 'pointer',
+              fontSize: 11,
+            }}
           >
-            {capturing === action ? 'Press shortcut…' : formatInterviewShortcut(bindings[action])}
+            {capturing === action
+              ? 'Press shortcut…'
+              : formatInterviewShortcut(bindings[action])}
           </button>
         </div>
       ))}
-      {capturing && <div style={{ color: '#a5b4fc', fontSize: 11 }}>Press the key combination for {INTERVIEW_SHORTCUT_LABELS[capturing]}. Esc cancels.</div>}
-      {captureError && <div role="status" style={{ color: '#fbbf24', fontSize: 11 }}>{captureError}</div>}
+      {capturing && (
+        <div style={{ color: '#a5b4fc', fontSize: 11 }}>
+          Press the key combination for {INTERVIEW_SHORTCUT_LABELS[capturing]}. Esc cancels.
+        </div>
+      )}
+      {captureError && (
+        <div role="status" style={{ color: '#fbbf24', fontSize: 11 }}>
+          {captureError}
+        </div>
+      )}
     </div>
   );
 }
-
 // prettier-ignore
 function ConversationSearchOverlay({
   query,
@@ -1368,11 +1416,18 @@ export default function TeleprompterView() {
         (candidate) => candidate !== action && shortcutBindings[candidate] === binding
       );
       if (duplicate) {
-        setToast('That shortcut is already assigned to ' + INTERVIEW_SHORTCUT_LABELS[duplicate] + '.');
+        setToast(
+          'That shortcut is already assigned to ' + INTERVIEW_SHORTCUT_LABELS[duplicate] + '.'
+        );
         return;
       }
       updateSetting('shortcuts', { ...(settings?.shortcuts || {}), [action]: binding });
-      setToast(INTERVIEW_SHORTCUT_LABELS[action] + ' shortcut updated to ' + formatInterviewShortcut(binding) + '.');
+      setToast(
+        INTERVIEW_SHORTCUT_LABELS[action] +
+          ' shortcut updated to ' +
+          formatInterviewShortcut(binding) +
+          '.'
+      );
     },
     [shortcutBindings, settings?.shortcuts, updateSetting, setToast]
   );
