@@ -1,10 +1,5 @@
 export type InterviewShortcutAction =
-  | 'bionicHud'
-  | 'listening'
-  | 'solveScreen'
-  | 'snipScreen'
-  | 'searchConversation'
-  | 'finishAnswer';
+  'bionicHud' | 'listening' | 'solveScreen' | 'snipScreen' | 'searchConversation' | 'finishAnswer';
 
 export const DEFAULT_INTERVIEW_SHORTCUTS: Record<InterviewShortcutAction, string> = {
   bionicHud: 'CmdOrCtrl+Shift+H',
@@ -151,15 +146,25 @@ export const RESERVED_INTERVIEW_SHORTCUTS = [
 export function resolveInterviewShortcutBindings(
   configured?: Partial<Record<InterviewShortcutAction, string>>
 ): Record<InterviewShortcutAction, string> {
-  return Object.fromEntries(
-    Object.entries(DEFAULT_INTERVIEW_SHORTCUTS).map(([action, fallback]) => {
-      const candidate = configured?.[action as InterviewShortcutAction];
-      const canonical =
-        typeof candidate === 'string' ? canonicalizeInterviewShortcut(candidate) : null;
-      return [
-        action,
-        canonical && !isReservedInterviewShortcut(canonical) ? canonical : fallback,
-      ];
-    })
-  ) as Record<InterviewShortcutAction, string>;
+  const resolved = { ...DEFAULT_INTERVIEW_SHORTCUTS };
+  const actions = Object.keys(DEFAULT_INTERVIEW_SHORTCUTS) as InterviewShortcutAction[];
+
+  for (const action of actions) {
+    const candidate = configured?.[action];
+    const canonical =
+      typeof candidate === 'string' ? canonicalizeInterviewShortcut(candidate) : null;
+    if (!canonical || isReservedInterviewShortcut(canonical)) continue;
+
+    const conflictsWithAnotherDefault = actions.some(
+      (other) => other !== action && DEFAULT_INTERVIEW_SHORTCUTS[other] === canonical
+    );
+    const conflictsWithResolved = actions.some(
+      (other) => other !== action && resolved[other] === canonical
+    );
+    if (!conflictsWithAnotherDefault && !conflictsWithResolved) {
+      resolved[action] = canonical;
+    }
+  }
+
+  return resolved;
 }

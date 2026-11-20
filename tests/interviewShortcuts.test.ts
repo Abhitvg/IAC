@@ -57,10 +57,21 @@ describe('live interview shortcut bindings', () => {
     });
   });
 
+  it('falls back safely when persisted settings contain duplicate shortcuts', () => {
+    expect(
+      resolveInterviewShortcutBindings({
+        bionicHud: 'Alt+B',
+        listening: 'Alt+B',
+        solveScreen: 'CmdOrCtrl+Shift+L',
+      })
+    ).toEqual({
+      ...DEFAULT_INTERVIEW_SHORTCUTS,
+      bionicHud: 'Alt+B',
+    });
+  });
+
   it('canonicalizes modifier order and common platform aliases', () => {
-    expect(canonicalizeInterviewShortcut('Shift+CommandOrControl+h')).toBe(
-      'CmdOrCtrl+Shift+H'
-    );
+    expect(canonicalizeInterviewShortcut('Shift+CommandOrControl+h')).toBe('CmdOrCtrl+Shift+H');
     expect(canonicalizeInterviewShortcut('Alt+Ctrl+k')).toBe('CmdOrCtrl+Alt+K');
   });
 

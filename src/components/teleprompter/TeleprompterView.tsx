@@ -1774,9 +1774,9 @@ export default function TeleprompterView() {
       const target = e.target as HTMLElement | null;
       const isTyping = Boolean(
         target &&
-          (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
-            target.isContentEditable ||
-            target.closest('[contenteditable="true"], [role="textbox"]'))
+        (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+          target.isContentEditable ||
+          target.closest('[contenteditable="true"], [role="textbox"]'))
       );
       if (isTyping) return;
       if (matchesInterviewShortcut(e, shortcutBindings.bionicHud)) {
