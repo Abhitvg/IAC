@@ -35,6 +35,22 @@ describe('Ambiguous transcript confirmation flow', () => {
     expect(result.questionText).toBe('Possibly tomorrow');
   });
 
+  it('does not transcribe further microphone segments while a transcript awaits confirmation', async () => {
+    transcribeAudioMock.mockResolvedValue({ text: 'Possibly tomorrow' });
+
+    await InterviewEngine.handleEvent({
+      type: 'UTTERANCE_FINALIZED',
+      blob: new Blob([new Uint8Array(600)]),
+    });
+    await InterviewEngine.handleEvent({
+      type: 'UTTERANCE_FINALIZED',
+      blob: new Blob([new Uint8Array(600)]),
+    });
+
+    expect(transcribeAudioMock).toHaveBeenCalledTimes(1);
+    expect(useAppStore.getState().lastUnconfirmedTranscript?.text).toBe('Possibly tomorrow');
+  });
+
   it('preserves ambiguous speech and exposes an actionable confirmation state', async () => {
     transcribeAudioMock.mockResolvedValue({ text: 'Possibly tomorrow' });
 
