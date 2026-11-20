@@ -1412,6 +1412,23 @@ export default function TeleprompterView() {
   }, [settings?.shortcuts]);
   const handleShortcutChange = useCallback(
     (action: InterviewShortcutAction, binding: string) => {
+      const reservedShortcuts = [
+        'CmdOrCtrl+Shift+Space',
+        'CmdOrCtrl+Backspace',
+        'CmdOrCtrl+Z',
+        'CmdOrCtrl+Shift+Z',
+        'CmdOrCtrl+Y',
+        'CmdOrCtrl+1',
+        'CmdOrCtrl+2',
+        'CmdOrCtrl+3',
+        'CmdOrCtrl+J',
+        'CmdOrCtrl+Backslash',
+        'Alt+C',
+      ];
+      if (reservedShortcuts.includes(binding)) {
+        setToast('That shortcut is reserved by another interview control.');
+        return;
+      }
       const duplicate = (Object.keys(shortcutBindings) as InterviewShortcutAction[]).find(
         (candidate) => candidate !== action && shortcutBindings[candidate] === binding
       );
@@ -1433,7 +1450,7 @@ export default function TeleprompterView() {
   );
   const conversationSearchResults = useMemo<ConversationSearchResult[]>(() => {
     const entries: ConversationSearchResult[] = questionHistory.map((item, index) => ({
-      id: 'history-' + String(item.timestamp || index),
+      id: 'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index),
       label: 'Previous answer ' + String(index + 1),
       question: item.question,
       answer: item.answer || '',
@@ -2212,7 +2229,7 @@ export default function TeleprompterView() {
         >
           {questionHistory.map((item, index) => (
             <React.Fragment key={item.timestamp || index}>
-              <div data-conversation-id={'history-' + String(item.timestamp || index)} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div data-conversation-id={'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index)} style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <div
                   style={{
                     maxWidth: '88%',
@@ -2680,7 +2697,7 @@ export default function TeleprompterView() {
         >
           {questionHistory.map((item, index) => (
             <React.Fragment key={item.timestamp || index}>
-              <div data-conversation-id={'history-' + String(item.timestamp || index)} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div data-conversation-id={'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index)} style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <div
                   style={{
                     maxWidth: '88%',
