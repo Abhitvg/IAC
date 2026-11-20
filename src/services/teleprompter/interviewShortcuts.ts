@@ -6,7 +6,7 @@ export type InterviewShortcutAction =
   | 'searchConversation'
   | 'finishAnswer';
 
-const DEFAULT_INTERVIEW_SHORTCUTS: Record<InterviewShortcutAction, string> = {
+export const DEFAULT_INTERVIEW_SHORTCUTS: Record<InterviewShortcutAction, string> = {
   bionicHud: 'CmdOrCtrl+Shift+H',
   listening: 'CmdOrCtrl+Shift+L',
   solveScreen: 'CmdOrCtrl+Shift+S',
@@ -16,7 +16,7 @@ const DEFAULT_INTERVIEW_SHORTCUTS: Record<InterviewShortcutAction, string> = {
 };
 
 
-function matchesInterviewShortcut(event: KeyboardEvent, binding: string): boolean {
+export function matchesInterviewShortcut(event: KeyboardEvent, binding: string): boolean {
   const parts = binding
     .split('+')
     .map((part) => part.trim())
@@ -35,7 +35,7 @@ function matchesInterviewShortcut(event: KeyboardEvent, binding: string): boolea
   return event.key.toLowerCase() === key;
 }
 
-function formatInterviewShortcut(binding: string): string {
+export function formatInterviewShortcut(binding: string): string {
   const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
   return binding
     .replace(/CmdOrCtrl/gi, isMac ? '⌘' : 'Ctrl')
