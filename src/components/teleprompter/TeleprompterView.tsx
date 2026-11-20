@@ -13,10 +13,10 @@ import {
 import { ApplicationAssistanceView } from './ApplicationAssistanceView';
 import {
   extractGlanceableGazeBullets,
-  getBionicAnswerPresentation,
   formatBionicWord,
   BionicGazeBullet,
 } from '../../services/teleprompter/bionicPrompterService';
+import { getBionicAnswerPresentation } from '../../services/teleprompter/bionicAnswerPresentation';
 import {
   Play,
   Pause,

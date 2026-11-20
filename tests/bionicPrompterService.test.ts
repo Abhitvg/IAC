@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getBionicAnswerPresentation } from '../src/services/teleprompter/bionicPrompterService';
+import { getBionicAnswerPresentation } from '../src/services/teleprompter/bionicAnswerPresentation';
 
 describe('Bionic answer presentation', () => {
   it('uses glanceable bullets for ordinary prose', () => {
