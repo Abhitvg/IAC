@@ -1384,10 +1384,13 @@ export default function TeleprompterView() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && showShortcuts) {
-        e.preventDefault();
-        setShowShortcuts(false);
-        return;
+      if (e.key === 'Escape') {
+        if (showShortcuts || showControlsPopover) {
+          e.preventDefault();
+          setShowShortcuts(false);
+          setShowControlsPopover(false);
+          return;
+        }
       }
       const target = e.target as HTMLElement | null;
       const isTyping = Boolean(
@@ -1397,7 +1400,7 @@ export default function TeleprompterView() {
           target.closest('[contenteditable="true"], [role="textbox"]'))
       );
       if (isTyping) return;
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'KeyB') {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'KeyH') {
         e.preventDefault();
         const scrollElement = conversationScrollRef.current;
         if (scrollElement) conversationScrollTopRef.current = scrollElement.scrollTop;
@@ -1409,20 +1412,11 @@ export default function TeleprompterView() {
         toggleRecording();
         return;
       }
-      // Instant Stealth Hide / Panic Shortcut: Escape or Cmd+Shift+H or Cmd+\ or Cmd+Shift+Space
+      // Panic stealth shortcuts remain separate from the Bionic HUD toggle.
       if (
-        e.key === 'Escape' ||
-        ((e.metaKey || e.ctrlKey) &&
-          e.shiftKey &&
-          (e.code === 'KeyH' || e.key.toLowerCase() === 'h')) ||
         ((e.metaKey || e.ctrlKey) && (e.code === 'Backslash' || e.key === '\\')) ||
         ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Space')
       ) {
-        const activeTag = document.activeElement?.tagName;
-        if (e.key === 'Escape' && (activeTag === 'INPUT' || activeTag === 'TEXTAREA')) {
-          (document.activeElement as HTMLElement)?.blur();
-          return;
-        }
         e.preventDefault();
         window.electronAPI?.toggleVisibility?.();
         return;
@@ -1479,6 +1473,15 @@ export default function TeleprompterView() {
       ) {
         e.preventDefault();
         handleScreenCapture('fullscreen');
+        return;
+      }
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        (e.code === 'KeyX' || e.key.toLowerCase() === 'x')
+      ) {
+        e.preventDefault();
+        handleScreenCapture('snip');
         return;
       }
 
@@ -1714,7 +1717,7 @@ export default function TeleprompterView() {
             <button
               type="button"
               onClick={toggleBionicHud}
-              title="Switch to Bionic HUD answer presentation (⌘⇧B)"
+              title="Switch to Bionic HUD answer presentation (⌘⇧H)"
               style={{
                 border: '1px solid rgba(129,140,248,0.55)',
                 background: 'rgba(99,102,241,0.16)',
@@ -2108,7 +2111,7 @@ export default function TeleprompterView() {
             >
               <strong>Keyboard shortcuts</strong>
               <p style={{ fontSize: 12, lineHeight: 1.8, color: '#aab5c4' }}>
-                ⌘⇧B — Toggle Bionic HUD
+                ⌘⇧H — Toggle Bionic HUD
                 <br />
                 ⌘⇧L — Start or pause listening
                 <br />
@@ -2180,7 +2183,7 @@ export default function TeleprompterView() {
             <button
               type="button"
               onClick={toggleBionicHud}
-              title="Return to normal chat answers (⌘⇧B)"
+              title="Return to normal chat answers (⌘⇧H)"
               style={{
                 border: '1px solid rgba(129,140,248,0.55)',
                 background: 'rgba(99,102,241,0.2)',
@@ -2550,7 +2553,7 @@ export default function TeleprompterView() {
             >
               <strong>Keyboard shortcuts</strong>
               <p style={{ fontSize: 12, lineHeight: 1.8, color: '#aab5c4' }}>
-                ⌘⇧B — Toggle Bionic HUD
+                ⌘⇧H — Toggle Bionic HUD
                 <br />
                 ⌘⇧L — Start or pause listening
                 <br />
@@ -3469,7 +3472,7 @@ export default function TeleprompterView() {
 
                   <button
                     onClick={() => window.electronAPI?.toggleVisibility?.()}
-                    title="Instant Stealth Toggle — Shortcut: Cmd+Shift+H"
+                    title="Instant Stealth Toggle — Shortcut: Cmd+\\"
                     style={{
                       flex: 1,
                       display: 'flex',
@@ -3487,7 +3490,7 @@ export default function TeleprompterView() {
                     }}
                   >
                     <EyeOff size={11} />
-                    Hide (⌘⇧H)
+                    Hide (⌘\\)
                   </button>
                 </div>
               </div>
