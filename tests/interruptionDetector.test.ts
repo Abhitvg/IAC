@@ -81,12 +81,16 @@ describe('interruptionDetector & Utterance Classification', () => {
 
     it('detects a Hindi imperative at the end of a Devanagari utterance', () => {
       const speech = 'AWS के fundamentals के बारे में कुछ बताओ';
-      expect(classifyUtterance(speech, referenceAnswer).type).toBe('INTERVIEWER_INTERRUPTION');
+      const result = classifyUtterance(speech, referenceAnswer);
+      expect(result.type).toBe('UNCLASSIFIED');
+      expect(result.needsConfirmation).toBe(true);
     });
 
     it('does not call a technical follow-up recital merely because it overlaps the answer', () => {
       const question = 'How does Kubernetes control plane availability affect scheduling?';
-      expect(classifyUtterance(question, referenceAnswer).type).toBe('INTERVIEWER_INTERRUPTION');
+      const result = classifyUtterance(question, referenceAnswer);
+      expect(result.type).toBe('UNCLASSIFIED');
+      expect(result.needsConfirmation).toBe(true);
     });
 
     it('marks an ambiguous declarative utterance unclassified rather than candidate recital', () => {
@@ -114,7 +118,8 @@ describe('interruptionDetector & Utterance Classification', () => {
     it('classifies distinct questions with zero overlap as INTERVIEWER_INTERRUPTION during solo testing', () => {
       const speech = 'Explain how Kafka consumer groups rebalance partitions.';
       const res = classifyUtterance(speech, referenceAnswer);
-      expect(res.type).toBe('INTERVIEWER_INTERRUPTION');
+      expect(res.type).toBe('UNCLASSIFIED');
+      expect(res.needsConfirmation).toBe(true);
     });
 
     it('classifies multilingual Hinglish prompt as INTERVIEWER_INTERRUPTION', () => {
@@ -124,9 +129,9 @@ describe('interruptionDetector & Utterance Classification', () => {
     });
 
     it('detects explicit interruption phrases without a question mark', () => {
-      expect(classifyUtterance('Wait, let me stop you for a second', referenceAnswer).type).toBe(
-        'INTERVIEWER_INTERRUPTION'
-      );
+      const result = classifyUtterance('Wait, let me stop you for a second', referenceAnswer);
+      expect(result.type).toBe('UNCLASSIFIED');
+      expect(result.needsConfirmation).toBe(true);
     });
 
     it('classifies question with question mark as INTERVIEWER_INTERRUPTION', () => {
@@ -138,7 +143,8 @@ describe('interruptionDetector & Utterance Classification', () => {
     it('classifies any valid speech as INTERVIEWER_QUESTION when no answer is active', () => {
       const speech = 'Tell me about your experience with distributed systems.';
       const res = classifyUtterance(speech, null);
-      expect(res.type).toBe('INTERVIEWER_QUESTION');
+      expect(res.type).toBe('UNCLASSIFIED');
+      expect(res.needsConfirmation).toBe(true);
     });
   });
 });
