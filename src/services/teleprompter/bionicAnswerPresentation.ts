@@ -1,7 +1,5 @@
-import {
-  extractGlanceableGazeBullets,
-  BionicGazeBullet,
-} from './bionicPrompterService';
+import { extractGlanceableGazeBullets } from './bionicPrompterService';
+import type { BionicGazeBullet } from './bionicPrompterService';
 
 export interface BionicAnswerPresentation {
   bullets: BionicGazeBullet[];
@@ -9,11 +7,14 @@ export interface BionicAnswerPresentation {
 }
 
 /**
- * Preserve the complete answer whenever the HUD cannot derive glanceable bullets.
+ * Preserve the complete answer whenever the HUD cannot derive
+ * glanceable bullets.
  * This is especially important for code-only, heading-only, or otherwise sparse
  * historical answers.
  */
-export function getBionicAnswerPresentation(prose: string): BionicAnswerPresentation {
+export function getBionicAnswerPresentation(
+  prose: string
+): BionicAnswerPresentation {
   const bullets = extractGlanceableGazeBullets(prose);
   return {
     bullets,
