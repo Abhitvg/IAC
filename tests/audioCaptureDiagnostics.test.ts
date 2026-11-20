@@ -16,7 +16,6 @@ describe('audio capture diagnostics', () => {
   beforeEach(() => DiagnosticLoggerService.getInstance().clear());
   afterEach(() => vi.unstubAllGlobals());
 
-
   it('does not reactivate the microphone when permission resolves after Stop', async () => {
     let resolvePermission: ((stream: MediaStream) => void) | undefined;
     const stopTrack = vi.fn();
