@@ -6,9 +6,14 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
 import { InterviewEngine } from '../../services/InterviewEngine';
 import { DiagnosticLoggerService } from '../../services/diagnosticLogger';
+import {
+  getConversationScrollTarget,
+  isConversationNearBottom,
+} from '../../services/teleprompter/conversationScroll';
 import { ApplicationAssistanceView } from './ApplicationAssistanceView';
 import {
   extractGlanceableGazeBullets,
+  getBionicAnswerPresentation,
   formatBionicWord,
   BionicGazeBullet,
 } from '../../services/teleprompter/bionicPrompterService';
@@ -1051,6 +1056,7 @@ export default function TeleprompterView() {
   });
   const conversationScrollRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollConversationRef = useRef(true);
+  const conversationScrollTopRef = useRef(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showControlsPopover, setShowControlsPopover] = useState(false);
 
@@ -1069,6 +1075,21 @@ export default function TeleprompterView() {
       element.scrollTo({ top: element.scrollHeight, behavior: 'auto' });
     }
   }, [currentQuestion, currentAnswer, draftAnswer, status, isBionicGazeMode]);
+
+  // The two answer modes render different DOM trees. Preserve the reader's position
+  // when switching modes unless they were already following the newest content.
+  useEffect(() => {
+    const element = conversationScrollRef.current;
+    if (!element) return;
+    const target = getConversationScrollTarget(
+      element.scrollHeight,
+      conversationScrollTopRef.current,
+      shouldAutoScrollConversationRef.current
+    );
+    if (!shouldAutoScrollConversationRef.current) {
+      element.scrollTo({ top: target, behavior: 'auto' });
+    }
+  }, [isBionicGazeMode]);
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' && window.innerWidth > 0 ? window.innerWidth : 900
   );
@@ -1378,6 +1399,8 @@ export default function TeleprompterView() {
       if (isTyping) return;
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'KeyB') {
         e.preventDefault();
+        const scrollElement = conversationScrollRef.current;
+        if (scrollElement) conversationScrollTopRef.current = scrollElement.scrollTop;
         setIsBionicGazeMode((value) => !value);
         return;
       }
@@ -1629,7 +1652,11 @@ export default function TeleprompterView() {
     return parsedSegments.some((s) => s.type === 'code' && s.code && s.code.trim().length > 0);
   }, [parsedSegments]);
 
-  const toggleBionicHud = () => setIsBionicGazeMode((value) => !value);
+  const toggleBionicHud = () => {
+    const element = conversationScrollRef.current;
+    if (element) conversationScrollTopRef.current = element.scrollTop;
+    setIsBionicGazeMode((value) => !value);
+  };
 
   if (!isBionicGazeMode) {
     return (
@@ -1739,8 +1766,12 @@ export default function TeleprompterView() {
           ref={conversationScrollRef}
           onScroll={(event) => {
             const element = event.currentTarget;
-            shouldAutoScrollConversationRef.current =
-              element.scrollHeight - element.scrollTop - element.clientHeight < 160;
+            conversationScrollTopRef.current = element.scrollTop;
+            shouldAutoScrollConversationRef.current = isConversationNearBottom(
+              element.scrollHeight,
+              element.scrollTop,
+              element.clientHeight
+            );
           }}
           role="log"
           aria-live="polite"
@@ -2201,8 +2232,12 @@ export default function TeleprompterView() {
           ref={conversationScrollRef}
           onScroll={(event) => {
             const element = event.currentTarget;
-            shouldAutoScrollConversationRef.current =
-              element.scrollHeight - element.scrollTop - element.clientHeight < 160;
+            conversationScrollTopRef.current = element.scrollTop;
+            shouldAutoScrollConversationRef.current = isConversationNearBottom(
+              element.scrollHeight,
+              element.scrollTop,
+              element.clientHeight
+            );
           }}
           role="log"
           aria-live="polite"
@@ -2236,7 +2271,25 @@ export default function TeleprompterView() {
                   {item.question}
                 </div>
               </div>
-              {item.answer && <BionicGazeHUD bullets={extractGlanceableGazeBullets(item.answer)} />}
+              {item.answer && (() => {
+                const presentation = getBionicAnswerPresentation(item.answer);
+                return presentation.bullets.length > 0 ? (
+                  <BionicGazeHUD bullets={presentation.bullets} />
+                ) : (
+                  <div
+                    style={{
+                      alignSelf: 'flex-start',
+                      maxWidth: '96%',
+                      color: '#e5eaf2',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: 1.72,
+                      fontSize: 14,
+                    }}
+                  >
+                    {presentation.fallbackText}
+                  </div>
+                );
+              })()}
             </React.Fragment>
           ))}
           {currentQuestion && (

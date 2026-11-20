@@ -110,4 +110,46 @@ describe('Ambiguous transcript confirmation flow', () => {
       expect.any(AbortSignal)
     );
   });
+
+  it('clears the pending transcript only after explicit confirmation and forwards the exact text', async () => {
+    const handleEventSpy = vi
+      .spyOn(InterviewEngine, 'handleEvent')
+      .mockResolvedValue(undefined as never);
+    try {
+      const question = 'How does PostgreSQL row-level security isolate tenants?';
+      useAppStore.getState().setLastUnconfirmedTranscript({
+        id: 'pending-confirm', text: question, confidence: 0.55,
+        reason: 'Speaker identity unavailable', timestamp: Date.now(),
+      });
+      await useAppStore.getState().overrideTranscriptAsQuestion(question);
+      expect(handleEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'QUESTION_DETECTED', text: question })
+      );
+      expect(useAppStore.getState().lastUnconfirmedTranscript).toBeNull();
+      expect(useAppStore.getState().currentQuestion).toBe('How do you monitor distributed systems?');
+      expect(useAppStore.getState().currentAnswer).toBe(
+        'Distributed tracing helps identify latency bottlenecks across service boundaries.'
+      );
+    } finally {
+      handleEventSpy.mockRestore();
+    }
+  });
+
+  it('dismisses pending speech without changing the active Q&A', () => {
+    useAppStore.getState().setLastUnconfirmedTranscript({
+      id: 'pending-dismiss', text: 'What about retry semantics?', confidence: 0.55,
+      reason: 'Speaker identity unavailable', timestamp: Date.now(),
+    });
+    useAppStore.getState().clearUnconfirmedTranscript();
+    useAppStore.getState().setPipelineStage('listening');
+    useAppStore.getState().setStatus('listening');
+    const state = useAppStore.getState();
+    expect(state.lastUnconfirmedTranscript).toBeNull();
+    expect(state.status).toBe('listening');
+    expect(state.pipelineStage).toBe('listening');
+    expect(state.currentQuestion).toBe('How do you monitor distributed systems?');
+    expect(state.currentAnswer).toBe(
+      'Distributed tracing helps identify latency bottlenecks across service boundaries.'
+    );
+  });
 });
