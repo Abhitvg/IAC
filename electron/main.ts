@@ -235,27 +235,16 @@ function registerGlobalShortcuts() {
     'Alt+H',
   ];
   stealthShortcuts.forEach((shortcut) => {
+    // Bionic HUD is renderer-scoped so shortcuts are ignored while typing.
+    if (shortcut === 'CommandOrControl+Shift+H') return;
     try {
       globalShortcut.register(shortcut, () => {
-        if (shortcut === 'CommandOrControl+Shift+H') {
-          mainWindow?.webContents.send('toggle-bionic-hud');
-          return;
-        }
         toggleWindowVisibility();
       });
     } catch (err) {
       console.warn(`[Electron] Could not register shortcut ${shortcut}:`, err);
     }
   });
-
-  try {
-    globalShortcut.register('CommandOrControl+Shift+S', () => {
-      if (!mainWindow?.isVisible()) mainWindow?.show();
-      mainWindow?.webContents.send('trigger-screen-capture');
-    });
-  } catch (err) {
-    console.warn('[Electron] Could not register screen capture shortcut:', err);
-  }
 
   try {
     globalShortcut.register('CommandOrControl+Shift+A', () => {
