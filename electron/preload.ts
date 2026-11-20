@@ -1,5 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+ipcRenderer.on('toggle-bionic-hud', () => {
+  window.dispatchEvent(new Event('toggle-bionic-hud'));
+});
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // Window controls
   toggleVisibility: () => ipcRenderer.send('window:toggle-visibility'),
