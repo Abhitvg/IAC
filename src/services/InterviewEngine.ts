@@ -609,7 +609,9 @@ export class InterviewEngine {
             console.error('[InterviewEngine] Transcription error:', e);
             const transcriptionStillOwnsUi =
               !generationWasActive &&
-              ['transcribing', 'transcript_received', 'identifying_question'].includes(state.status);
+              ['transcribing', 'transcript_received', 'identifying_question'].includes(
+                state.status
+              );
             if (transcriptionStillOwnsUi) {
               state.setToast(
                 isEmptyTranscript
