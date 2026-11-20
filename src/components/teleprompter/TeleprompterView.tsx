@@ -1457,10 +1457,11 @@ export default function TeleprompterView() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (showShortcuts || showControlsPopover) {
+        if (showShortcuts || showControlsPopover || showConversationSearch) {
           e.preventDefault();
           setShowShortcuts(false);
           setShowControlsPopover(false);
+          setShowConversationSearch(false);
           return;
         }
       }
@@ -1611,6 +1612,7 @@ export default function TeleprompterView() {
     redoQuestion,
     markQuestionIncomplete,
     showShortcuts,
+    showControlsPopover,
     toggleRecording,
   ]);
 
