@@ -1742,6 +1742,7 @@ export default function TeleprompterView() {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     currentAnswer,
     doneAnswering,
