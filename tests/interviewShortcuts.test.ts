@@ -88,7 +88,7 @@ describe('live interview shortcut bindings', () => {
   });
 
   it('formats platform-neutral shortcut labels', () => {
-    expect(formatInterviewShortcut('CmdOrCtrl+Shift+H')).toMatch(/(⌘|Ctrl)⇧H/);
+    expect(formatInterviewShortcut('CmdOrCtrl+Shift+H')).toMatch(/(⌘|Ctrl)\+⇧\+H/);
     expect(formatInterviewShortcut('Space')).toBe('Space');
   });
 });
