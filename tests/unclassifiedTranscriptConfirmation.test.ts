@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { InterviewEngine } from '../src/services/InterviewEngine';
+import { AnswerGenerationService } from '../src/services/AnswerGenerationService';
 import { useAppStore } from '../src/store/useAppStore';
 import { classifyUtterance } from '../src/services/interruptionDetector';
 
@@ -55,6 +56,57 @@ describe('Ambiguous transcript confirmation flow', () => {
     expect(state.currentAnswer).toBe(
       'Distributed tracing helps identify latency bottlenecks across service boundaries.'
     );
+  });
+
+  it('keeps answer generation alive when ordinary microphone speech is transcribed', async () => {
+    let generationCallbacks: any;
+    let generationRequestId = '';
+    let releaseGeneration: ((value: any) => void) | undefined;
+    const generationSpy = vi
+      .spyOn(AnswerGenerationService.getInstance(), 'generateAnswer')
+      .mockImplementation((params: any, callbacks: any) => {
+        generationRequestId = params.requestId;
+        generationCallbacks = callbacks;
+        return new Promise((resolve) => {
+          releaseGeneration = resolve;
+        }) as any;
+      });
+
+    let generationPromise: Promise<void> | undefined;
+    try {
+      generationPromise = InterviewEngine.handleEvent({
+        type: 'QUESTION_DETECTED',
+        text: 'How do you handle idempotency in distributed systems?',
+      });
+      await Promise.resolve();
+
+      expect(generationCallbacks).toBeDefined();
+      expect(useAppStore.getState().status).toBe('analyzing');
+
+      transcribeAudioMock.mockResolvedValue({
+        text: 'I designed a retry-safe service with idempotency checks.',
+      });
+      await InterviewEngine.handleEvent({
+        type: 'UTTERANCE_FINALIZED',
+        blob: new Blob([new Uint8Array(600)]),
+      });
+
+      expect(useAppStore.getState().status).toBe('analyzing');
+      expect(useAppStore.getState().pipelineStage).toBe('generating');
+      expect(useAppStore.getState().lastUnconfirmedTranscript).toBeNull();
+
+      generationCallbacks.onToken('generation-survived-microphone', generationRequestId);
+      expect(useAppStore.getState().status).toBe('generating');
+      expect(useAppStore.getState().draftAnswer).toContain('generation-survived-microphone');
+    } finally {
+      releaseGeneration?.({
+        requestId: generationRequestId,
+        status: 'ABORTED',
+        cleanAnswer: '',
+      });
+      await generationPromise;
+      generationSpy.mockRestore();
+    }
   });
 
   it('does not transcribe further microphone segments while a question awaits confirmation', async () => {

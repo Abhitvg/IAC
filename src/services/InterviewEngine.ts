@@ -48,6 +48,7 @@ let activeAbortController: AbortController | null = null;
 let activeRequestId: string | null = null;
 
 let activeTranscriptionController: AbortController | null = null;
+let activeTranscriptionRequestId: string | null = null;
 let pendingQuestionTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingQuestionText = '';
 let pendingQuestionTranscript = '';
@@ -185,6 +186,7 @@ export class InterviewEngine {
    * Aborts in-flight audio transcription.
    */
   static abortActiveTranscription(): void {
+    activeTranscriptionRequestId = null;
     if (activeTranscriptionController) {
       activeTranscriptionController.abort();
       activeTranscriptionController = null;
@@ -275,14 +277,28 @@ export class InterviewEngine {
         }
 
         const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-        activeRequestId = requestId;
-
         InterviewEngine.abortActiveTranscription();
-        activeTranscriptionController = new AbortController();
+        const transcriptionController = new AbortController();
+        activeTranscriptionController = transcriptionController;
+        activeTranscriptionRequestId = requestId;
+        const generationWasActive = store.status === 'analyzing' || store.status === 'generating';
+
+        const restoreListeningAfterTranscription = () => {
+          const currentState = useAppStore.getState();
+          if (
+            !generationWasActive &&
+            ['transcribing', 'transcript_received', 'identifying_question'].includes(
+              currentState.status
+            )
+          ) {
+            currentState.setStatus('listening');
+            currentState.setPipelineStage('listening');
+          }
+        };
 
         globalLatencyTracker.mark('speechEnd');
         globalLatencyTracker.mark('transcriptionStart');
-        store.setStatus('transcribing');
+        if (!generationWasActive) store.setStatus('transcribing');
         const transcriptionStartedAt = Date.now();
         DiagnosticLoggerService.getInstance().recordEvent({
           requestId,
@@ -299,11 +315,15 @@ export class InterviewEngine {
           const result = await transcribeAudio(
             event.blob,
             { ...store.settings, language: sttLanguage },
-            activeTranscriptionController.signal
+            transcriptionController.signal
           );
 
-          // Check if this transcription was superseded by a newer request or cancelled
-          if (activeRequestId !== requestId || useAppStore.getState().status === 'idle') {
+          // Transcription has its own request identity; it must not invalidate answer streaming.
+          if (
+            activeTranscriptionRequestId !== requestId ||
+            transcriptionController.signal.aborted ||
+            useAppStore.getState().status === 'idle'
+          ) {
             return;
           }
 
@@ -327,8 +347,7 @@ export class InterviewEngine {
             useAppStore.getState().updateDiagnostics({
               whisperStatus: 'no speech detected in utterance',
             });
-            useAppStore.getState().setStatus('listening');
-            useAppStore.getState().setPipelineStage('listening');
+            restoreListeningAfterTranscription();
             return;
           }
 
@@ -351,8 +370,11 @@ export class InterviewEngine {
             return;
           }
 
-          useAppStore.getState().setPipelineStage('transcript_received');
-          useAppStore.getState().updateDiagnostics({
+          const postTranscriptionState = useAppStore.getState();
+          if (!generationWasActive && postTranscriptionState.status === 'transcribing') {
+            postTranscriptionState.setPipelineStage('transcript_received');
+          }
+          postTranscriptionState.updateDiagnostics({
             latestTranscript: text,
           });
 
@@ -362,7 +384,10 @@ export class InterviewEngine {
             message: 'Transcript received; text content omitted from diagnostics.',
           });
 
-          useAppStore.getState().setPipelineStage('identifying_question');
+          const classificationState = useAppStore.getState();
+          if (!generationWasActive && classificationState.status === 'transcribing') {
+            classificationState.setPipelineStage('identifying_question');
+          }
 
           // Intelligent Classification: Distinguish Candidate Recital vs. Third-Person Interruption
           const classification = classifyUtterance(
@@ -398,8 +423,7 @@ export class InterviewEngine {
               recitalState: 'reciting',
               questionMatched: false,
             });
-            useAppStore.getState().setStatus('listening');
-            useAppStore.getState().setPipelineStage('listening');
+            restoreListeningAfterTranscription();
             return;
           }
 
@@ -409,8 +433,7 @@ export class InterviewEngine {
                 whisperStatus: 'Non-question speech ignored; waiting for a question.',
                 questionMatched: false,
               });
-              useAppStore.getState().setStatus('listening');
-              useAppStore.getState().setPipelineStage('listening');
+              restoreListeningAfterTranscription();
               return;
             }
 
@@ -436,11 +459,13 @@ export class InterviewEngine {
               whisperStatus: 'Question-shaped speech held for confirmation; no answer generated.',
               questionMatched: false,
             });
-            useAppStore
-              .getState()
-              .setToast('Possible question retained. Confirm it before generating an answer.');
-            useAppStore.getState().setStatus('confirmation_required');
-            useAppStore.getState().setPipelineStage('confirmation_required');
+            if (!generationWasActive) {
+              useAppStore
+                .getState()
+                .setToast('Possible question retained. Confirm it before generating an answer.');
+              useAppStore.getState().setStatus('confirmation_required');
+              useAppStore.getState().setPipelineStage('confirmation_required');
+            }
             return;
           }
 
@@ -464,8 +489,7 @@ export class InterviewEngine {
             useAppStore.getState().updateDiagnostics({
               whisperStatus: `Conversational filler ignored ("${text}")`,
             });
-            useAppStore.getState().setStatus('listening');
-            useAppStore.getState().setPipelineStage('listening');
+            restoreListeningAfterTranscription();
             return;
           }
 
@@ -482,7 +506,6 @@ export class InterviewEngine {
               reason: classification.reason,
               timestamp: Date.now(),
             });
-            useAppStore.getState().setPipelineStage('confirmation_required');
             useAppStore.getState().updateDiagnostics({
               latestTranscript: questionCandidate,
               whisperStatus: `Awaiting user confirmation: "${questionCandidate.slice(0, 35)}..."`,
@@ -505,6 +528,10 @@ export class InterviewEngine {
               finalOutcome: 'CONFIRMATION_NEEDED',
               message: `Awaiting user confirmation for: "${questionCandidate.slice(0, 80)}" (${classification.reason})`,
             });
+            if (!generationWasActive) {
+              useAppStore.getState().setPipelineStage('confirmation_required');
+              useAppStore.getState().setStatus('confirmation_required');
+            }
             return;
           }
 
@@ -555,8 +582,7 @@ export class InterviewEngine {
             return;
           }
 
-          useAppStore.getState().setStatus('listening');
-          useAppStore.getState().setPipelineStage('listening');
+          restoreListeningAfterTranscription();
         } catch (e: any) {
           const isAbort = e?.name === 'AbortError';
           const isEmptyTranscript = String(e?.message || e).includes('[TRANSCRIPTION_EMPTY]');
@@ -573,19 +599,26 @@ export class InterviewEngine {
                 ? 'Speech transcription returned no usable text.'
                 : 'Speech transcription failed; details remain in local diagnostics.',
           });
-          if (!isAbort) {
+          const ownsTranscription =
+            activeTranscriptionRequestId === requestId && !transcriptionController.signal.aborted;
+          if (!isAbort && ownsTranscription) {
             const state = useAppStore.getState();
             state.updateDiagnostics({
               whisperStatus: 'error: ' + (e?.message || e),
             });
             console.error('[InterviewEngine] Transcription error:', e);
-            state.setToast(
-              isEmptyTranscript
-                ? 'No speech was recognized. Repeat the question or enter it manually.'
-                : 'Speech transcription failed. Please retry or enter the question manually.'
-            );
-            state.setStatus('listening');
-            state.setPipelineStage('listening');
+            const transcriptionStillOwnsUi =
+              !generationWasActive &&
+              ['transcribing', 'transcript_received', 'identifying_question'].includes(state.status);
+            if (transcriptionStillOwnsUi) {
+              state.setToast(
+                isEmptyTranscript
+                  ? 'No speech was recognized. Repeat the question or enter it manually.'
+                  : 'Speech transcription failed. Please retry or enter the question manually.'
+              );
+              state.setStatus('listening');
+              state.setPipelineStage('listening');
+            }
           }
         }
         break;
@@ -607,6 +640,7 @@ export class InterviewEngine {
           return;
         }
 
+        InterviewEngine.abortActiveTranscription();
         globalLatencyTracker.mark('questionDetected');
 
         const isExtending = store.isIncompleteQuestionMode && Boolean(store.currentQuestion);
@@ -885,6 +919,7 @@ export class InterviewEngine {
       }
 
       case 'SCREEN_PROBLEM_DETECTED': {
+        InterviewEngine.abortActiveTranscription();
         globalLatencyTracker.mark('questionDetected');
 
         if (store.currentQuestion && store.currentQuestion.trim() !== '') {
