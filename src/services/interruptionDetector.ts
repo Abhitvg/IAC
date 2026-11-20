@@ -300,7 +300,8 @@ export function classifyUtterance(
     return {
       type: 'UNCLASSIFIED',
       confidence: 0.55,
-      reason: 'Question intent detected, but speaker identity is unavailable; confirmation is required before generation',
+      reason:
+        'Question intent detected, but speaker identity is unavailable; confirmation is required before generation',
       questionText: trimmed,
       overlapScore: compositeScore,
       isIncomplete: intent.incomplete,
