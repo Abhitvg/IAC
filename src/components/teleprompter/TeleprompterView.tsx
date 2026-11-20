@@ -1724,8 +1724,6 @@ export default function TeleprompterView() {
         return;
       }
 
-
-
       // Auto-scroll toggle: Cmd+J
       if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyJ' || e.key.toLowerCase() === 'j')) {
         e.preventDefault();
