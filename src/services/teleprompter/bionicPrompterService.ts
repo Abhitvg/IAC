@@ -110,7 +110,6 @@ export function formatBionicWord(word: string): { bold: string; normal: string }
   };
 }
 
-
 /**
  * Preserve the complete answer whenever the HUD cannot derive glanceable bullets.
  * This is especially important for code-only, heading-only, or otherwise sparse

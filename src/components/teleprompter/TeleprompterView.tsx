@@ -2271,25 +2271,26 @@ export default function TeleprompterView() {
                   {item.question}
                 </div>
               </div>
-              {item.answer && (() => {
-                const presentation = getBionicAnswerPresentation(item.answer);
-                return presentation.bullets.length > 0 ? (
-                  <BionicGazeHUD bullets={presentation.bullets} />
-                ) : (
-                  <div
-                    style={{
-                      alignSelf: 'flex-start',
-                      maxWidth: '96%',
-                      color: '#e5eaf2',
-                      whiteSpace: 'pre-wrap',
-                      lineHeight: 1.72,
-                      fontSize: 14,
-                    }}
-                  >
-                    {presentation.fallbackText}
-                  </div>
-                );
-              })()}
+              {item.answer &&
+                (() => {
+                  const presentation = getBionicAnswerPresentation(item.answer);
+                  return presentation.bullets.length > 0 ? (
+                    <BionicGazeHUD bullets={presentation.bullets} />
+                  ) : (
+                    <div
+                      style={{
+                        alignSelf: 'flex-start',
+                        maxWidth: '96%',
+                        color: '#e5eaf2',
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: 1.72,
+                        fontSize: 14,
+                      }}
+                    >
+                      {presentation.fallbackText}
+                    </div>
+                  );
+                })()}
             </React.Fragment>
           ))}
           {currentQuestion && (
