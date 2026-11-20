@@ -385,19 +385,9 @@ export class InterviewEngine {
             },
           });
 
-          // Preserve all recognized speech before classification-specific handling. A
-          // classifier decision must never be the condition for transcript retention.
-          useAppStore.getState().addTranscript({
-            id: `transcript_${requestId}`,
-            speaker: classification.type === 'CANDIDATE_RECITAL' ? 'user' : 'unknown',
-            text,
-            timestamp: Date.now(),
-            classification: classification.type,
-            confidence: classification.confidence,
-            reason: classification.reason,
-          });
-
-          // Strong recital evidence remains the only automatic echo-suppression path.
+          // Candidate recital is suppressed. Only question-shaped speech is retained
+          // for user confirmation; ordinary conversation and candidate explanations
+          // must not enter the interview question history or trigger generation.
           if (classification.type === 'CANDIDATE_RECITAL') {
             useAppStore.getState().setRecitalState('reciting');
             useAppStore.getState().updateDiagnostics({
@@ -410,12 +400,27 @@ export class InterviewEngine {
             return;
           }
 
-          // Ambiguous words are preserved. Plausible question intent can proceed to
-          // generation even when speaker identity cannot be established.
           if (classification.type === 'UNCLASSIFIED') {
+            if (!classification.needsConfirmation) {
+              useAppStore.getState().updateDiagnostics({
+                whisperStatus: 'Non-question speech ignored; waiting for a question.',
+                questionMatched: false,
+              });
+              useAppStore.getState().setStatus('listening');
+              useAppStore.getState().setPipelineStage('listening');
+              return;
+            }
+
             const candidateQuestion = classification.questionText || text;
-            // Store the uncertain speech as a recoverable question candidate. It is
-            // retained independently of the eventual finalized question.
+            useAppStore.getState().addTranscript({
+              id: `transcript_${requestId}`,
+              speaker: 'unknown',
+              text: candidateQuestion,
+              timestamp: Date.now(),
+              classification: 'CONFIRMATION_REQUIRED',
+              confidence: classification.confidence,
+              reason: classification.reason,
+            });
             useAppStore.getState().setLastUnconfirmedTranscript({
               id: `unconfirmed_${requestId}`,
               text: candidateQuestion,
@@ -423,23 +428,30 @@ export class InterviewEngine {
               reason: classification.reason,
               timestamp: Date.now(),
             });
-            if (classification.needsConfirmation) {
-              useAppStore.getState().setPipelineStage('confirmation_required');
-              useAppStore.getState().setStatus('confirmation_required');
-              useAppStore.getState().setToast('Possible interviewer question retained. Confirm before generating.');
-              return;
-            }
             useAppStore.getState().updateDiagnostics({
-              latestTranscript: text,
-              whisperStatus: `Speaker uncertain; transcript retained: ${classification.reason}`,
+              latestTranscript: candidateQuestion,
+              whisperStatus: 'Question-shaped speech held for confirmation; no answer generated.',
               questionMatched: false,
             });
-            useAppStore
-              .getState()
-              .setToast('Speech retained. Confirm as a question or dismiss it.');
+            useAppStore.getState().setToast('Possible question retained. Confirm it before generating an answer.');
             useAppStore.getState().setStatus('confirmation_required');
             useAppStore.getState().setPipelineStage('confirmation_required');
             return;
+          }
+
+          if (
+            classification.type === 'INTERVIEWER_INTERRUPTION' ||
+            classification.type === 'INTERVIEWER_QUESTION'
+          ) {
+            useAppStore.getState().addTranscript({
+              id: `transcript_${requestId}`,
+              speaker: 'unknown',
+              text,
+              timestamp: Date.now(),
+              classification: classification.type,
+              confidence: classification.confidence,
+              reason: classification.reason,
+            });
           }
 
           // 2. CONVERSATIONAL FILLER ("Yeah", "Okay", "Right")
