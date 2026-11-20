@@ -413,11 +413,9 @@ export class InterviewEngine {
               timestamp: Date.now(),
             });
             if (classification.needsConfirmation) {
-              await InterviewEngine.handleEvent({
-                type: 'QUESTION_DETECTED',
-                text: candidateQuestion,
-                requestId,
-              });
+              useAppStore.getState().setPipelineStage('confirmation_required');
+              useAppStore.getState().setStatus('confirmation_required');
+              useAppStore.getState().setToast('Possible interviewer question retained. Confirm before generating.');
               return;
             }
             useAppStore.getState().updateDiagnostics({
