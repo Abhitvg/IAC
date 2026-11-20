@@ -349,7 +349,7 @@ function setupNativeApplicationMenu() {
 
 // Enforce single-instance lock to prevent multiple application instances/windows from opening in production
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL) || Boolean(app && !app.isPackaged);
-const gotTheLock = isDev ? true : (app ? app.requestSingleInstanceLock() : true);
+const gotTheLock = isDev ? true : app ? app.requestSingleInstanceLock() : true;
 
 if (!gotTheLock) {
   console.log(
@@ -857,7 +857,10 @@ async function captureScreenToFile(mode: 'fullscreen' | 'snip', outputPath: stri
         }
       }
     } catch (dcErr) {
-      console.warn('[Electron] desktopCapturer fullscreen capture failed, attempting CLI fallback:', dcErr);
+      console.warn(
+        '[Electron] desktopCapturer fullscreen capture failed, attempting CLI fallback:',
+        dcErr
+      );
     }
   }
 
@@ -934,7 +937,9 @@ ipcMain.handle(
         String(err?.stderr || '').includes('could not create image from display');
       if (isPermissionErr && process.platform === 'darwin') {
         shell
-          .openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+          .openExternal(
+            'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+          )
           .catch(() => {});
         return {
           success: false,
