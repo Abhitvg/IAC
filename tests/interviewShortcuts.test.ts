@@ -2,14 +2,27 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_INTERVIEW_SHORTCUTS,
   RESERVED_INTERVIEW_SHORTCUTS,
+  canonicalizeInterviewShortcut,
   formatInterviewShortcut,
+  isReservedInterviewShortcut,
   matchesInterviewShortcut,
   resolveInterviewShortcutBindings,
 } from '../src/services/teleprompter/interviewShortcuts';
 
 function keyboardEvent(
   values: Partial<
-    Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>
+    Pick<
+      KeyboardEvent,
+      | 'key'
+      | 'code'
+      | 'metaKey'
+      | 'ctrlKey'
+      | 'shiftKey'
+      | 'altKey'
+      | 'repeat'
+      | 'isComposing'
+      | 'keyCode'
+    >
   >
 ): KeyboardEvent {
   return {
@@ -19,6 +32,9 @@ function keyboardEvent(
     ctrlKey: false,
     shiftKey: false,
     altKey: false,
+    repeat: false,
+    isComposing: false,
+    keyCode: 0,
     ...values,
   } as KeyboardEvent;
 }
@@ -28,16 +44,33 @@ describe('live interview shortcut bindings', () => {
     expect(resolveInterviewShortcutBindings()).toEqual(DEFAULT_INTERVIEW_SHORTCUTS);
   });
 
-  it('uses configured bindings and falls back for missing or blank values', () => {
+  it('uses configured bindings and falls back for missing, blank, or unsafe values', () => {
     expect(
       resolveInterviewShortcutBindings({
         bionicHud: 'Alt+B',
         listening: '',
+        solveScreen: 'S',
       })
     ).toEqual({
       ...DEFAULT_INTERVIEW_SHORTCUTS,
       bionicHud: 'Alt+B',
     });
+  });
+
+  it('canonicalizes modifier order and common platform aliases', () => {
+    expect(canonicalizeInterviewShortcut('Shift+CommandOrControl+h')).toBe(
+      'CmdOrCtrl+Shift+H'
+    );
+    expect(canonicalizeInterviewShortcut('Alt+Ctrl+k')).toBe('CmdOrCtrl+Alt+K');
+  });
+
+  it('rejects ambiguous or unsafe shortcut definitions', () => {
+    expect(canonicalizeInterviewShortcut('H')).toBeNull();
+    expect(canonicalizeInterviewShortcut('Shift+Shift+H')).toBeNull();
+    expect(canonicalizeInterviewShortcut('CmdOrCtrl+Alt')).toBeNull();
+    expect(isReservedInterviewShortcut('Shift+Alt+S')).toBe(true);
+    expect(isReservedInterviewShortcut('Escape')).toBe(true);
+    expect(isReservedInterviewShortcut('Alt+Q')).toBe(false);
   });
 
   it('matches command/control shortcuts with exact modifiers', () => {
@@ -85,6 +118,30 @@ describe('live interview shortcut bindings', () => {
     expect(RESERVED_INTERVIEW_SHORTCUTS).toContain('Alt+H');
     expect(RESERVED_INTERVIEW_SHORTCUTS).toContain('Alt+Shift+S');
     expect(RESERVED_INTERVIEW_SHORTCUTS).toContain('Alt+C');
+  });
+
+  it('ignores repeated and IME-composition key events', () => {
+    expect(
+      matchesInterviewShortcut(
+        keyboardEvent({ key: 'h', code: 'KeyH', ctrlKey: true, shiftKey: true, repeat: true }),
+        'CmdOrCtrl+Shift+H'
+      )
+    ).toBe(false);
+    expect(
+      matchesInterviewShortcut(
+        keyboardEvent({ key: 'h', code: 'KeyH', ctrlKey: true, shiftKey: true, isComposing: true }),
+        'CmdOrCtrl+Shift+H'
+      )
+    ).toBe(false);
+  });
+
+  it('does not accept simultaneous Meta and Control as one CmdOrCtrl modifier', () => {
+    expect(
+      matchesInterviewShortcut(
+        keyboardEvent({ key: 'h', code: 'KeyH', metaKey: true, ctrlKey: true, shiftKey: true }),
+        'CmdOrCtrl+Shift+H'
+      )
+    ).toBe(false);
   });
 
   it('formats platform-neutral shortcut labels', () => {

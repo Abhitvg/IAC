@@ -19,8 +19,9 @@ import {
 import { getBionicAnswerPresentation } from '../../services/teleprompter/bionicAnswerPresentation';
 import {
   INTERVIEW_SHORTCUT_LABELS,
-  RESERVED_INTERVIEW_SHORTCUTS,
+  canonicalizeInterviewShortcut,
   formatInterviewShortcut,
+  isReservedInterviewShortcut,
   matchesInterviewShortcut,
   resolveInterviewShortcutBindings,
 } from '../../services/teleprompter/interviewShortcuts';
@@ -1356,16 +1357,19 @@ export default function TeleprompterView() {
   );
   const handleShortcutChange = useCallback(
     (action: InterviewShortcutAction, binding: string) => {
-      if (
-        RESERVED_INTERVIEW_SHORTCUTS.includes(
-          binding as (typeof RESERVED_INTERVIEW_SHORTCUTS)[number]
-        )
-      ) {
-        setToast('That shortcut is reserved by another interview control.');
+      const canonical = canonicalizeInterviewShortcut(binding);
+      if (!canonical) {
+        setToast('That key combination is not supported. Choose a valid shortcut.');
+        return;
+      }
+      if (isReservedInterviewShortcut(canonical)) {
+        setToast('That shortcut is reserved by another application control.');
         return;
       }
       const duplicate = (Object.keys(shortcutBindings) as InterviewShortcutAction[]).find(
-        (candidate) => candidate !== action && shortcutBindings[candidate] === binding
+        (candidate) =>
+          candidate !== action &&
+          canonicalizeInterviewShortcut(shortcutBindings[candidate]) === canonical
       );
       if (duplicate) {
         setToast(
@@ -1373,11 +1377,11 @@ export default function TeleprompterView() {
         );
         return;
       }
-      updateSetting('shortcuts', { ...(settings?.shortcuts || {}), [action]: binding });
+      updateSetting('shortcuts', { ...(settings?.shortcuts || {}), [action]: canonical });
       setToast(
         INTERVIEW_SHORTCUT_LABELS[action] +
           ' shortcut updated to ' +
-          formatInterviewShortcut(binding) +
+          formatInterviewShortcut(canonical) +
           '.'
       );
     },
@@ -1770,9 +1774,9 @@ export default function TeleprompterView() {
       const target = e.target as HTMLElement | null;
       const isTyping = Boolean(
         target &&
-        (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
-          target.isContentEditable ||
-          target.closest('[contenteditable="true"], [role="textbox"]'))
+          (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+            target.isContentEditable ||
+            target.closest('[contenteditable="true"], [role="textbox"]'))
       );
       if (isTyping) return;
       if (matchesInterviewShortcut(e, shortcutBindings.bionicHud)) {
@@ -1894,11 +1898,12 @@ export default function TeleprompterView() {
         !showControlsPopover &&
         !showConversationSearch
       ) {
-        const activeTag = document.activeElement?.tagName;
-        if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
-          e.preventDefault();
-          doneAnswering();
-        }
+        const focusedInteractive = Boolean(
+          target?.closest('button, a, [role="button"], [role="menuitem"]')
+        );
+        if (shortcutBindings.finishAnswer === 'Space' && focusedInteractive) return;
+        e.preventDefault();
+        doneAnswering();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -1911,8 +1916,14 @@ export default function TeleprompterView() {
     markQuestionIncomplete,
     showShortcuts,
     showControlsPopover,
+    showConversationSearch,
+    isAutoScrolling,
     toggleRecording,
     shortcutBindings,
+    clearAndResetToListen,
+    handleScreenCapture,
+    setResponseMode,
+    setToast,
   ]);
 
   const handleToggleCompactWindow = async () => {

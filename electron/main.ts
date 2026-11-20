@@ -199,16 +199,14 @@ function setupTray() {
     : nativeImage.createEmpty();
   try {
     tray = new Tray(icon);
-    tray.setToolTip('AI Interview Assistant (Cmd+Shift+H to toggle)');
+    tray.setToolTip('AI Interview Assistant (Alt+H to show or hide)');
     const trayMenu = Menu.buildFromTemplate([
       {
-        label: 'Show / Hide Overlay',
-        accelerator: 'CmdOrCtrl+Shift+H',
+        label: 'Show / Hide Window (Alt+H)',
         click: () => toggleWindowVisibility(),
       },
       {
-        label: 'Solve Screen Problem',
-        accelerator: 'CmdOrCtrl+Shift+S',
+        label: 'Solve Screen Problem (Alt+Shift+S)',
         click: () => {
           if (!mainWindow?.isVisible()) mainWindow?.show();
           mainWindow?.webContents.send('trigger-screen-capture');
