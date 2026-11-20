@@ -8,7 +8,9 @@ import {
 } from '../src/services/teleprompter/interviewShortcuts';
 
 function keyboardEvent(
-  values: Partial<Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>>
+  values: Partial<
+    Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>
+  >
 ): KeyboardEvent {
   return {
     key: '',
