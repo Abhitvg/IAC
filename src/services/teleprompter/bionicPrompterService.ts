@@ -115,10 +115,12 @@ export function formatBionicWord(word: string): { bold: string; normal: string }
  * This is especially important for code-only, heading-only, or otherwise sparse
  * historical answers.
  */
-export function getBionicAnswerPresentation(prose: string): {
+export interface BionicAnswerPresentation {
   bullets: BionicGazeBullet[];
   fallbackText: string | null;
-} {
+}
+
+export function getBionicAnswerPresentation(prose: string): BionicAnswerPresentation {
   const bullets = extractGlanceableGazeBullets(prose);
   return {
     bullets,
