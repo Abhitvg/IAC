@@ -227,6 +227,7 @@ function setupTray() {
   }
 }
 
+// prettier-ignore
 function registerGlobalShortcuts() {
   const stealthShortcuts = [
     'CommandOrControl+Alt+Shift+H',
