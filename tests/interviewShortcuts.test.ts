@@ -82,6 +82,9 @@ describe('live interview shortcut bindings', () => {
 
   it('identifies reserved controls so user bindings cannot shadow them', () => {
     expect(RESERVED_INTERVIEW_SHORTCUTS).toContain('CmdOrCtrl+Shift+Space');
+    expect(RESERVED_INTERVIEW_SHORTCUTS).toContain('CmdOrCtrl+\\');
+    expect(RESERVED_INTERVIEW_SHORTCUTS).toContain('Alt+H');
+    expect(RESERVED_INTERVIEW_SHORTCUTS).toContain('Alt+Shift+S');
     expect(RESERVED_INTERVIEW_SHORTCUTS).toContain('Alt+C');
   });
 
