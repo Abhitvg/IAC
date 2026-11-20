@@ -43,11 +43,12 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     const speech = 'So looking at your architecture, how does your service handle database failover under high load?';
     const result = classifyUtterance(speech, previousAnswer, [previousAnswer]);
 
-    expect(result.type).toBe('INTERVIEWER_INTERRUPTION');
+    expect(result.type).toBe('UNCLASSIFIED');
+    expect(result.needsConfirmation).toBe(true);
     expect(result.questionText).toContain('database failover');
   });
 
-  it('holds incomplete question-shaped speech for confirmation, () => {
+  it('holds incomplete question-shaped speech for confirmation', () => {
     const incompleteSpeech = 'When scaling your database horizontally, what happens if...';
     const result = classifyUtterance(incompleteSpeech, previousAnswer, [previousAnswer]);
 
