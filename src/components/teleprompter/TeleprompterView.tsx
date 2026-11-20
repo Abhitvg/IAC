@@ -320,19 +320,126 @@ interface ConversationSearchResult {
   answer: string;
 }
 
+type InterviewShortcutAction =
+  | 'bionicHud'
+  | 'listening'
+  | 'solveScreen'
+  | 'snipScreen'
+  | 'searchConversation'
+  | 'finishAnswer';
+
+const DEFAULT_INTERVIEW_SHORTCUTS: Record<InterviewShortcutAction, string> = {
+  bionicHud: 'CmdOrCtrl+Shift+H',
+  listening: 'CmdOrCtrl+Shift+L',
+  solveScreen: 'CmdOrCtrl+Shift+S',
+  snipScreen: 'CmdOrCtrl+Shift+X',
+  searchConversation: 'CmdOrCtrl+K',
+  finishAnswer: 'Space',
+};
+
+const INTERVIEW_SHORTCUT_LABELS: Record<InterviewShortcutAction, string> = {
+  bionicHud: 'Toggle Bionic HUD',
+  listening: 'Pause / resume listening',
+  solveScreen: 'Solve current screen',
+  snipScreen: 'Snip screen region',
+  searchConversation: 'Search conversation',
+  finishAnswer: 'Finish current answer',
+};
+
+function matchesInterviewShortcut(event: KeyboardEvent, binding: string): boolean {
+  const parts = binding.split('+').map((part) => part.trim()).filter(Boolean);
+  if (!parts.length) return false;
+  const key = parts[parts.length - 1].toLowerCase();
+  const modifiers = new Set(parts.slice(0, -1).map((part) => part.toLowerCase()));
+  const wantsCommand = modifiers.has('cmdorctrl');
+  const wantsShift = modifiers.has('shift');
+  const wantsAlt = modifiers.has('alt');
+  if ((event.metaKey || event.ctrlKey) !== wantsCommand) return false;
+  if (event.shiftKey !== wantsShift || event.altKey !== wantsAlt) return false;
+  if (key === 'space') return event.code === 'Space';
+  return event.key.toLowerCase() === key;
+}
+
+function formatInterviewShortcut(binding: string): string {
+  const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
+  return binding
+    .replace(/CmdOrCtrl/gi, isMac ? '⌘' : 'Ctrl')
+    .replace(/Shift/gi, '⇧')
+    .replace(/Alt/gi, isMac ? '⌥' : 'Alt')
+    .replace(/Space/gi, 'Space');
+}
+
+function ShortcutSettings({
+  bindings,
+  onChange,
+}: {
+  bindings: Record<InterviewShortcutAction, string>;
+  onChange: (action: InterviewShortcutAction, binding: string) => void;
+}) {
+  const [capturing, setCapturing] = useState<InterviewShortcutAction | null>(null);
+  const [captureError, setCaptureError] = useState('');
+
+  useEffect(() => {
+    if (!capturing) return;
+    const handleCapture = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === 'Escape') {
+        setCapturing(null);
+        setCaptureError('');
+        return;
+      }
+      if (['Shift', 'Control', 'Meta', 'Alt'].includes(event.key)) return;
+      const modifiers: string[] = [];
+      if (event.metaKey || event.ctrlKey) modifiers.push('CmdOrCtrl');
+      if (event.altKey) modifiers.push('Alt');
+      if (event.shiftKey) modifiers.push('Shift');
+      if (!modifiers.length && event.code !== 'Space') {
+        setCaptureError('Use at least one modifier for letter/number shortcuts.');
+        return;
+      }
+      const key = event.code === 'Space' ? 'Space' : event.key.length === 1 ? event.key.toUpperCase() : event.key;
+      onChange(capturing, [...modifiers, key].join('+'));
+      setCapturing(null);
+      setCaptureError('');
+    };
+    window.addEventListener('keydown', handleCapture, true);
+    return () => window.removeEventListener('keydown', handleCapture, true);
+  }, [capturing, onChange]);
+
+  return (
+    <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+      {(Object.keys(INTERVIEW_SHORTCUT_LABELS) as InterviewShortcutAction[]).map((action) => (
+        <div key={action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ color: '#cbd5e1', fontSize: 12 }}>{INTERVIEW_SHORTCUT_LABELS[action]}</span>
+          <button
+            type="button"
+            onClick={() => { setCaptureError(''); setCapturing(action); }}
+            style={{ minWidth: 118, border: '1px solid rgba(148,163,184,0.25)', borderRadius: 7, padding: '6px 9px', background: capturing === action ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)', color: '#e5eaf2', cursor: 'pointer', fontSize: 11 }}
+          >
+            {capturing === action ? 'Press shortcut…' : formatInterviewShortcut(bindings[action])}
+          </button>
+        </div>
+      ))}
+      {capturing && <div style={{ color: '#a5b4fc', fontSize: 11 }}>Press the key combination for {INTERVIEW_SHORTCUT_LABELS[capturing]}. Esc cancels.</div>}
+      {captureError && <div role="status" style={{ color: '#fbbf24', fontSize: 11 }}>{captureError}</div>}
+    </div>
+  );
+}
+
 // prettier-ignore
 function ConversationSearchOverlay({
   query,
   onQueryChange,
   results,
   onClose,
-  onCopy,
+  onSelect,
 }: {
   query: string;
   onQueryChange: (value: string) => void;
   results: ConversationSearchResult[];
   onClose: () => void;
-  onCopy: (result: ConversationSearchResult) => void;
+  onSelect: (result: ConversationSearchResult) => void;
 }) {
   return (
     <div
@@ -406,7 +513,7 @@ function ConversationSearchOverlay({
               <button
                 key={result.id}
                 type="button"
-                onClick={() => onCopy(result)}
+                onClick={() => onSelect(result)}
                 style={{
                   display: 'block',
                   width: '100%',
@@ -418,7 +525,7 @@ function ConversationSearchOverlay({
                   color: '#e5eaf2',
                   cursor: 'pointer',
                 }}
-                title="Copy this question and answer"
+                title="Jump to this question in the conversation"
               >
                 <span
                   style={{
@@ -428,7 +535,7 @@ function ConversationSearchOverlay({
                     marginBottom: 5,
                   }}
                 >
-                  {result.label} · click to copy
+                  {result.label} · jump to message
                 </span>
                 <span
                   style={{
@@ -1244,6 +1351,31 @@ export default function TeleprompterView() {
   const [showControlsPopover, setShowControlsPopover] = useState(false);
   const [showConversationSearch, setShowConversationSearch] = useState(false);
   const [conversationSearchQuery, setConversationSearchQuery] = useState('');
+  const shortcutBindings = useMemo<Record<InterviewShortcutAction, string>>(() => {
+    const configured = settings?.shortcuts || {};
+    return Object.fromEntries(
+      Object.entries(DEFAULT_INTERVIEW_SHORTCUTS).map(([action, fallback]) => [
+        action,
+        typeof configured[action] === 'string' && configured[action].trim()
+          ? configured[action]
+          : fallback,
+      ])
+    ) as Record<InterviewShortcutAction, string>;
+  }, [settings?.shortcuts]);
+  const handleShortcutChange = useCallback(
+    (action: InterviewShortcutAction, binding: string) => {
+      const duplicate = (Object.keys(shortcutBindings) as InterviewShortcutAction[]).find(
+        (candidate) => candidate !== action && shortcutBindings[candidate] === binding
+      );
+      if (duplicate) {
+        setToast('That shortcut is already assigned to ' + INTERVIEW_SHORTCUT_LABELS[duplicate] + '.');
+        return;
+      }
+      updateSetting('shortcuts', { ...(settings?.shortcuts || {}), [action]: binding });
+      setToast(INTERVIEW_SHORTCUT_LABELS[action] + ' shortcut updated to ' + formatInterviewShortcut(binding) + '.');
+    },
+    [shortcutBindings, settings?.shortcuts, updateSetting, setToast]
+  );
   const conversationSearchResults = useMemo<ConversationSearchResult[]>(() => {
     const entries: ConversationSearchResult[] = questionHistory.map((item, index) => ({
       id: 'history-' + String(item.timestamp || index),
@@ -1270,6 +1402,22 @@ export default function TeleprompterView() {
 
     return matching.slice(-30).reverse();
   }, [questionHistory, currentQuestion, currentAnswer, draftAnswer, conversationSearchQuery]);
+
+  const jumpToConversationResult = useCallback((result: ConversationSearchResult) => {
+    setShowConversationSearch(false);
+    window.requestAnimationFrame(() => {
+      const target = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-conversation-id]')
+      ).find((element) => element.dataset.conversationId === result.id);
+      if (!target) {
+        setToast('That conversation item is no longer in the visible history.');
+        return;
+      }
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.setAttribute('data-search-highlight', 'true');
+      window.setTimeout(() => target.removeAttribute('data-search-highlight'), 1400);
+    });
+  }, [setToast]);
 
   useEffect(() => {
     try {
@@ -1612,14 +1760,14 @@ export default function TeleprompterView() {
           target.closest('[contenteditable="true"], [role="textbox"]'))
       );
       if (isTyping) return;
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'KeyH') {
+      if (matchesInterviewShortcut(e, shortcutBindings.bionicHud)) {
         e.preventDefault();
         const scrollElement = conversationScrollRef.current;
         if (scrollElement) conversationScrollTopRef.current = scrollElement.scrollTop;
         setIsBionicGazeMode((value) => !value);
         return;
       }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'KeyL') {
+      if (matchesInterviewShortcut(e, shortcutBindings.listening)) {
         e.preventDefault();
         toggleRecording();
         return;
@@ -1672,7 +1820,7 @@ export default function TeleprompterView() {
       }
 
       // Search retained interview history; do not mutate the active question or answer.
-      if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyK' || e.key.toLowerCase() === 'k')) {
+      if (matchesInterviewShortcut(e, shortcutBindings.searchConversation)) {
         e.preventDefault();
         setConversationSearchQuery('');
         setShowConversationSearch(true);
@@ -1685,20 +1833,12 @@ export default function TeleprompterView() {
         return;
       }
 
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        (e.code === 'KeyS' || e.key.toLowerCase() === 's')
-      ) {
+      if (matchesInterviewShortcut(e, shortcutBindings.solveScreen)) {
         e.preventDefault();
         handleScreenCapture('fullscreen');
         return;
       }
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        (e.code === 'KeyX' || e.key.toLowerCase() === 'x')
-      ) {
+      if (matchesInterviewShortcut(e, shortcutBindings.snipScreen)) {
         e.preventDefault();
         handleScreenCapture('snip');
         return;
@@ -1733,7 +1873,7 @@ export default function TeleprompterView() {
       }
 
       if (
-        e.code === 'Space' &&
+        matchesInterviewShortcut(e, shortcutBindings.finishAnswer) &&
         currentAnswer &&
         !showShortcuts &&
         !showControlsPopover &&
@@ -1757,6 +1897,7 @@ export default function TeleprompterView() {
     showShortcuts,
     showControlsPopover,
     toggleRecording,
+    shortcutBindings,
   ]);
 
   const handleToggleCompactWindow = async () => {
@@ -2011,7 +2152,7 @@ export default function TeleprompterView() {
         >
           {questionHistory.map((item, index) => (
             <React.Fragment key={item.timestamp || index}>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div data-conversation-id={'history-' + String(item.timestamp || index)} style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <div
                   style={{
                     maxWidth: '88%',
@@ -2044,7 +2185,7 @@ export default function TeleprompterView() {
             </React.Fragment>
           ))}
           {currentQuestion && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div data-conversation-id="current-conversation" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <div
                 style={{
                   maxWidth: '88%',
@@ -2310,10 +2451,7 @@ export default function TeleprompterView() {
             onQueryChange={setConversationSearchQuery}
             results={conversationSearchResults}
             onClose={() => setShowConversationSearch(false)}
-            onCopy={(result) => {
-              copyToClipboard((result.question + '\n\n' + result.answer).trim());
-              setToast('Conversation item copied.');
-            }}
+            onSelect={jumpToConversationResult}
           />
         )}
         {showShortcuts && (
@@ -2341,19 +2479,10 @@ export default function TeleprompterView() {
               }}
             >
               <strong>Keyboard shortcuts</strong>
-              <p style={{ fontSize: 12, lineHeight: 1.8, color: '#aab5c4' }}>
-                ⌘⇧H — Toggle Bionic HUD
-                <br />
-                ⌘⇧L — Start or pause listening
-                <br />
-                ⌘⇧S — Solve screen
-                <br />
-                ⌘⇧X — Snip a screen region
-                <br />
-                ⌘K — Search conversation history
-                <br />
-                Esc — Close shortcuts
+              <p style={{ fontSize: 11, lineHeight: 1.6, color: '#8290a3', marginBottom: 8 }}>
+                Select a shortcut and press a new key combination. Changes are saved to your app settings.
               </p>
+              <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
               <button
                 type="button"
                 onClick={() => setShowShortcuts(false)}
@@ -2491,7 +2620,7 @@ export default function TeleprompterView() {
         >
           {questionHistory.map((item, index) => (
             <React.Fragment key={item.timestamp || index}>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div data-conversation-id={'history-' + String(item.timestamp || index)} style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <div
                   style={{
                     maxWidth: '88%',
@@ -2530,7 +2659,7 @@ export default function TeleprompterView() {
             </React.Fragment>
           ))}
           {currentQuestion && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div data-conversation-id="current-conversation" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <div
                 style={{
                   maxWidth: '88%',
@@ -2766,10 +2895,7 @@ export default function TeleprompterView() {
             onQueryChange={setConversationSearchQuery}
             results={conversationSearchResults}
             onClose={() => setShowConversationSearch(false)}
-            onCopy={(result) => {
-              copyToClipboard((result.question + '\n\n' + result.answer).trim());
-              setToast('Conversation item copied.');
-            }}
+            onSelect={jumpToConversationResult}
           />
         )}
         {showShortcuts && (
@@ -2797,19 +2923,10 @@ export default function TeleprompterView() {
               }}
             >
               <strong>Keyboard shortcuts</strong>
-              <p style={{ fontSize: 12, lineHeight: 1.8, color: '#aab5c4' }}>
-                ⌘⇧H — Toggle Bionic HUD
-                <br />
-                ⌘⇧L — Start or pause listening
-                <br />
-                ⌘⇧S — Solve screen
-                <br />
-                ⌘⇧X — Snip a screen region
-                <br />
-                ⌘K — Search conversation history
-                <br />
-                Esc — Close shortcuts
+              <p style={{ fontSize: 11, lineHeight: 1.6, color: '#8290a3', marginBottom: 8 }}>
+                Select a shortcut and press a new key combination. Changes are saved to your app settings.
               </p>
+              <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
               <button
                 type="button"
                 onClick={() => setShowShortcuts(false)}
