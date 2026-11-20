@@ -128,6 +128,14 @@ export function verifyConsentRecord(record: ConsentRecord, signingSecret: string
   if (!signingSecret || signingSecret.length < 32 || record.revokedAt !== null) return false;
   const contract = SprintContractSchema.safeParse(record.contract);
   if (!contract.success) return false;
+  if (
+    typeof record.contractHash !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(record.contractHash) ||
+    typeof record.signature !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(record.signature)
+  ) {
+    return false;
+  }
   const expectedHash = createHmac('sha256', signingSecret)
     .update(canonicalJson(contract.data))
     .digest();
