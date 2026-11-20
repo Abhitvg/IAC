@@ -313,6 +313,60 @@ function BionicGazeHUD({ bullets }: { bullets: BionicGazeBullet[] }) {
   );
 }
 
+interface ConversationSearchResult {
+  id: string;
+  label: string;
+  question: string;
+  answer: string;
+}
+
+function ConversationSearchOverlay({
+  query,
+  onQueryChange,
+  results,
+  onClose,
+  onCopy,
+}: {
+  query: string;
+  onQueryChange: (value: string) => void;
+  results: ConversationSearchResult[];
+  onClose: () => void;
+  onCopy: (result: ConversationSearchResult) => void;
+}) {
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Search interview conversation" onClick={onClose}
+      style={{ position: 'absolute', inset: 0, zIndex: 100, display: 'grid', placeItems: 'start center', padding: 24, background: 'rgba(0,0,0,0.76)', backdropFilter: 'blur(8px)' }}>
+      <div onClick={(event) => event.stopPropagation()}
+        style={{ width: 'min(100%, 620px)', maxHeight: 'min(78vh, 680px)', overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: 12, border: '1px solid rgba(148,163,184,0.22)', background: '#0b111b', color: '#e5eaf2', boxShadow: '0 18px 60px rgba(0,0,0,0.55)' }}>
+        <div style={{ padding: 14, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <input autoFocus value={query} onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="Search previous interview questions and answers…" aria-label="Search conversation history"
+            style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px', borderRadius: 8, border: '1px solid rgba(148,163,184,0.25)', outline: 'none', background: 'rgba(255,255,255,0.06)', color: '#f8fafc', fontSize: 13 }} />
+          <div style={{ marginTop: 7, color: '#8290a3', fontSize: 11 }}>
+            {query.trim() ? results.length + ' matching conversation item(s)' : 'Recent conversation history'} · Esc to close
+          </div>
+        </div>
+        <div style={{ overflowY: 'auto', padding: 10, display: 'flex', flexDirection: 'column', gap: 7 }}>
+          {results.length ? results.map((result) => (
+            <button key={result.id} type="button" onClick={() => onCopy(result)}
+              style={{ display: 'block', width: '100%', padding: 11, textAlign: 'left', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)', color: '#e5eaf2', cursor: 'pointer' }}
+              title="Copy this question and answer">
+              <span style={{ display: 'block', color: '#93a4ba', fontSize: 10, marginBottom: 5 }}>{result.label} · click to copy</span>
+              <span style={{ display: 'block', fontSize: 13, lineHeight: 1.45, fontWeight: 650 }}>{result.question}</span>
+              {result.answer && <span style={{ display: 'block', marginTop: 5, color: '#aab5c4', fontSize: 11, lineHeight: 1.45 }}>{result.answer.slice(0, 240)}{result.answer.length > 240 ? '…' : ''}</span>}
+            </button>
+          )) : (
+            <div style={{ padding: 24, textAlign: 'center', color: '#8290a3', fontSize: 12 }}>No matching questions or answers found.</div>
+          )}
+        </div>
+        <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'right' }}>
+          <button type="button" onClick={onClose} style={{ border: 0, borderRadius: 7, padding: '7px 12px', background: '#273449', color: '#e5eaf2', cursor: 'pointer' }}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══ Layer 4.8: Factual Grounding Badge ═══ */
 function GroundingBadge({
   validationStatus,
@@ -1059,6 +1113,24 @@ export default function TeleprompterView() {
   const conversationScrollTopRef = useRef(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showControlsPopover, setShowControlsPopover] = useState(false);
+  const [showConversationSearch, setShowConversationSearch] = useState(false);
+  const [conversationSearchQuery, setConversationSearchQuery] = useState('');
+  const conversationSearchResults = useMemo<ConversationSearchResult[]>(() => {
+    const entries: ConversationSearchResult[] = questionHistory.map((item, index) => ({
+      id: 'history-' + String(item.timestamp || index),
+      label: 'Previous answer ' + String(index + 1),
+      question: item.question,
+      answer: item.answer || '',
+    }));
+    if (currentQuestion) {
+      entries.push({ id: 'current-conversation', label: 'Current question', question: currentQuestion, answer: currentAnswer || draftAnswer || '' });
+    }
+    const normalizedQuery = conversationSearchQuery.trim().toLocaleLowerCase();
+    const matching = normalizedQuery
+      ? entries.filter((entry) => (entry.question + '\n' + entry.answer).toLocaleLowerCase().includes(normalizedQuery))
+      : entries;
+    return matching.slice(-30).reverse();
+  }, [questionHistory, currentQuestion, currentAnswer, draftAnswer, conversationSearchQuery]);
 
   useEffect(() => {
     try {
@@ -1459,8 +1531,15 @@ export default function TeleprompterView() {
         return;
       }
 
-      // Clear / Next Question Shortcut: Cmd+K or Cmd+Backspace
-      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'k' || e.key === 'Backspace')) {
+      // Search retained interview history; do not mutate the active question or answer.
+      if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyK' || e.key.toLowerCase() === 'k')) {
+        e.preventDefault();
+        setConversationSearchQuery('');
+        setShowConversationSearch(true);
+        setShowShortcuts(false);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Backspace') {
         e.preventDefault();
         clearAndResetToListen();
         return;
@@ -1505,12 +1584,7 @@ export default function TeleprompterView() {
         return;
       }
 
-      // Quick Copy Code shortcut: Cmd+K
-      if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyK' || e.key.toLowerCase() === 'k')) {
-        e.preventDefault();
-        handleCopyPrimaryCode();
-        return;
-      }
+
 
       // Auto-scroll toggle: Cmd+J
       if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyJ' || e.key.toLowerCase() === 'j')) {
@@ -2085,6 +2159,18 @@ export default function TeleprompterView() {
             )}
           </div>
         </footer>
+        {showConversationSearch && (
+          <ConversationSearchOverlay
+            query={conversationSearchQuery}
+            onQueryChange={setConversationSearchQuery}
+            results={conversationSearchResults}
+            onClose={() => setShowConversationSearch(false)}
+            onCopy={(result) => {
+              copyToClipboard((result.question + '\n\n' + result.answer).trim());
+              setToast('Conversation item copied.');
+            }}
+          />
+        )}
         {showShortcuts && (
           <div
             onClick={() => setShowShortcuts(false)}
@@ -2119,7 +2205,7 @@ export default function TeleprompterView() {
                 <br />
                 ⌘⇧X — Snip a screen region
                 <br />
-                ⌘K — New question / clear active answer
+                ⌘K — Search conversation history
                 <br />
                 Esc — Close shortcuts
               </p>
@@ -2529,6 +2615,18 @@ export default function TeleprompterView() {
             )}
           </div>
         </footer>
+        {showConversationSearch && (
+          <ConversationSearchOverlay
+            query={conversationSearchQuery}
+            onQueryChange={setConversationSearchQuery}
+            results={conversationSearchResults}
+            onClose={() => setShowConversationSearch(false)}
+            onCopy={(result) => {
+              copyToClipboard((result.question + '\n\n' + result.answer).trim());
+              setToast('Conversation item copied.');
+            }}
+          />
+        )}
         {showShortcuts && (
           <div
             onClick={() => setShowShortcuts(false)}
@@ -2563,7 +2661,7 @@ export default function TeleprompterView() {
                 <br />
                 ⌘⇧X — Snip a screen region
                 <br />
-                ⌘K — New question / clear active answer
+                ⌘K — Search conversation history
                 <br />
                 Esc — Close shortcuts
               </p>
@@ -2958,7 +3056,7 @@ export default function TeleprompterView() {
               {currentAnswer && (
                 <button
                   onClick={clearAndResetToListen}
-                  title="Clear answer and listen for new question (Shortcut: ⌘K)"
+                  title="Clear answer and listen for a new question"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -2975,7 +3073,7 @@ export default function TeleprompterView() {
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <span>✨ Clear (⌘K)</span>
+                  <span>✨ Clear</span>
                 </button>
               )}
 
@@ -3603,7 +3701,7 @@ export default function TeleprompterView() {
                 type="button"
                 onClick={clearAndResetToListen}
                 className="card-interactive px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600/90 hover:bg-indigo-500 text-white border border-indigo-400/30 flex items-center gap-1 shadow-sm"
-                title="Next Question / Clear Answer (Shortcut: Space or ⌘K)"
+                title="Finish the current answer with Space, or use the button to clear it"
               >
                 <Sparkles size={11} />
                 <span>Next (Space)</span>
@@ -5681,7 +5779,7 @@ export default function TeleprompterView() {
                   <kbd className="kbd">⌘⇧X</kbd> Snip Box
                 </span>
                 <span>
-                  <kbd className="kbd">⌘K</kbd> Clear & Reset
+                  <kbd className="kbd">⌘K</kbd> Search conversation
                 </span>
                 <span>
                   <kbd className="kbd">⌘J</kbd> Auto-Scroll
@@ -6103,7 +6201,7 @@ export default function TeleprompterView() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <span>✨ New Question (⌘K)</span>
+                  <span>✨ New Question</span>
                 </button>
                 <button
                   onClick={copyAnswer}
