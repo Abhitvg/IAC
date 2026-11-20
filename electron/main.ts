@@ -1028,7 +1028,9 @@ ipcMain.handle(
         String(err?.stderr || '').includes('could not create image from display');
       if (isPermissionErr && process.platform === 'darwin') {
         shell
-          .openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+          .openExternal(
+            'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+          )
           .catch(() => {});
         return {
           success: false,
