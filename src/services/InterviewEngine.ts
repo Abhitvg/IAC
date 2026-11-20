@@ -262,7 +262,10 @@ export class InterviewEngine {
         // Once uncertain speech is awaiting confirmation, do not keep transcribing
         // subsequent microphone segments into a queue of competing candidates.
         if (store.lastUnconfirmedTranscript) {
-          store.updateDiagnostics({ whisperStatus: 'Microphone speech held until the pending segment is confirmed or dismissed.' });
+          store.updateDiagnostics({
+            whisperStatus:
+              'Microphone speech held until the pending segment is confirmed or dismissed.',
+          });
           return;
         }
 
@@ -430,10 +433,13 @@ export class InterviewEngine {
             });
             useAppStore.getState().updateDiagnostics({
               latestTranscript: candidateQuestion,
-              whisperStatus: 'Question-shaped speech held for confirmation; no answer generated.',
+              whisperStatus:
+                'Question-shaped speech held for confirmation; no answer generated.',
               questionMatched: false,
             });
-            useAppStore.getState().setToast('Possible question retained. Confirm it before generating an answer.');
+            useAppStore
+              .getState()
+              .setToast('Possible question retained. Confirm it before generating an answer.');
             useAppStore.getState().setStatus('confirmation_required');
             useAppStore.getState().setPipelineStage('confirmation_required');
             return;
