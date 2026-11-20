@@ -15,8 +15,9 @@ describe('Ambiguous transcript confirmation flow', () => {
     useAppStore.setState({
       status: 'listening',
       pipelineStage: 'listening',
-      currentAnswer:
-        'Distributed tracing helps identify latency bottlenecks across service boundaries.',
+      currentQuestion: 'How do you monitor distributed systems?',
+      currentAnswer: 'Distributed tracing helps identify latency bottlenecks across service boundaries.',
+      settings: { language: 'hi' },
       teleprompterQueue: [],
       transcript: [],
       lastUnconfirmedTranscript: null,
@@ -61,7 +62,12 @@ describe('Ambiguous transcript confirmation flow', () => {
     expect(state.status).toBe('confirmation_required');
     expect(state.pipelineStage).toBe('confirmation_required');
     expect(state.isRecording).toBe(true);
-    expect(state.currentQuestion).toBeNull();
-    expect(state.currentAnswer).toBeNull();
+    expect(state.currentQuestion).toBe('How do you monitor distributed systems?');
+    expect(state.currentAnswer).toBe('Distributed tracing helps identify latency bottlenecks across service boundaries.');
+    expect(transcribeAudioMock).toHaveBeenCalledWith(
+      expect.any(Blob),
+      expect.objectContaining({ language: 'hi' }),
+      expect.any(AbortSignal)
+    );
   });
 });
