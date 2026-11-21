@@ -458,14 +458,17 @@ Deliver as a natural, engaging first-person narrative suitable for speaking alou
  * FreeCodeCamp / LeetCode Coding Framework
  */
 function buildCodingFrameworkSection(preferredLanguage: string): string {
-  return `
+  return \`
 ════════════ CODING & ALGORITHM IMPLEMENTATION FRAMEWORK ════════════
-1. Approach & Trade-offs: State the optimal pattern and target Big-O complexity upfront.
-2. Complete Code Block: Provide 100% runnable, verified ${preferredLanguage} code inside a markdown block (\`\`\`${preferredLanguage.toLowerCase()} ... \`\`\`).
-3. Zero Placeholders: Implement all functions, boundary guards (null/empty/overflow), and necessary imports.
-4. Spoken Walkthrough: A concise 2-3 sentence verbal summary explaining the intuition and time/space complexity.
-${getGfgKnowledgePromptSection()}
-`;
+1. Requirement: Restate the input, output, constraints, and assumptions. If a material ambiguity changes the algorithm, ask one concise clarification; otherwise state the assumption and proceed.
+2. Approach: Explain the simplest correct approach, its bottleneck, then justify the chosen optimal or best-fit approach. Do not claim optimality without comparing relevant alternatives.
+3. Complexity: State worst-case time and auxiliary space, including recursion stack and data structures. Explain the dominant operation.
+4. Complete implementation: Provide complete \${preferredLanguage} code in a fenced code block. Respect the exact function signature and platform contract; include required imports and avoid unrelated scaffolding. Do not use TODOs, pseudocode, or omitted branches.
+5. Correctness: Explain the key invariant or why the algorithm works. Dry-run a representative example and check empty, minimum, maximum, duplicate, negative, and overflow cases when applicable.
+6. Verification honesty: Never claim code was compiled, executed, or passed tests unless a tool actually ran those checks. If execution is unavailable, say it is reasoned-through code and identify the tests the candidate should run.
+7. Interview delivery: Keep the spoken explanation concise and natural; lead with the approach, then code, correctness, complexity, and edge cases. Do not bury the answer in generic theory.
+\${getGfgKnowledgePromptSection()}
+\`;
 }
 
 /**
