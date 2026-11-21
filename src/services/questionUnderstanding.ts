@@ -342,15 +342,6 @@ export class QuestionUnderstandingEngine {
       return 'React and frontend';
     }
 
-    // AWS & Cloud
-    if (
-      /\b(aws|cloud|s3|ec2|lambda|dynamodb|iam role|ecs|eks|vpc|cloudformation|cloud watch)\b/i.test(
-        lower
-      )
-    ) {
-      return 'AWS and cloud';
-    }
-
     // DevOps & CI/CD
     if (
       /\b(devops|docker|kubernetes|k8s|ci\/cd|pipeline|github actions|jenkins|terraform|ansible|helm|container)\b/i.test(
@@ -358,6 +349,15 @@ export class QuestionUnderstandingEngine {
       )
     ) {
       return 'DevOps';
+    }
+
+    // AWS & Cloud
+    if (
+      /\b(aws|cloud|s3|ec2|lambda|dynamodb|iam role|ecs|eks|vpc|cloudformation|cloud watch)\b/i.test(
+        lower
+      )
+    ) {
+      return 'AWS and cloud';
     }
 
     // Backend engineering
