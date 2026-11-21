@@ -113,12 +113,6 @@ function containsSkill(text: string, skill: string): boolean {
 }
 
 export function analyzeAlignment(
-')
-    .replace(/\\s+/g, '\\\\s+');
-  return new RegExp(`(^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`, 'i').test(text);
-}
-
-export function analyzeAlignment(
   resumeText: string,
   jobDescriptionText: string
 ): {
