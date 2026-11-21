@@ -28,6 +28,35 @@ export class FollowUpEngine {
     const aLower = (answer || '').toLowerCase();
     const followUps: PredictedFollowUp[] = [];
 
+    // Cloud platform follow-ups are selected from the actual mechanisms named in the answer,
+    // not merely from the broad category. This also handles mixed AWS + Terraform questions.
+    if (/\\b(terraform|\.tfstate|remote state|terraform plan|terraform apply)\\b/i.test(aLower + ' ' + qLower)) {
+      followUps.push({
+        question: 'How would you recover safely from a corrupted or stale Terraform state file?',
+        category: 'failure_mode',
+        rational: 'Terraform is mentioned; state integrity and recovery are high-impact operational failure modes.',
+        suggestedDefense: 'Explain backend versioning, locking, backups, state inspection, and a reviewed recovery plan before any apply.',
+      });
+    }
+
+    if (/\\b(kubernetes|\\bk8s\\b|pod|deployment|readiness probe|liveness probe|startup probe)\\b/i.test(aLower + ' ' + qLower)) {
+      followUps.push({
+        question: 'A pod is healthy but receives no traffic; how would you isolate the cause?',
+        category: 'failure_mode',
+        rational: 'Kubernetes workload behavior requires checking readiness, service selectors, endpoints, and network policy.',
+        suggestedDefense: 'Check pod readiness and events, Service selectors/endpoints, target ports, NetworkPolicies, and ingress routing.',
+      });
+    }
+
+    if (/\\b(vpc|subnet|route table|security group|nat gateway|vpc endpoint|iam)\\b/i.test(aLower + ' ' + qLower)) {
+      followUps.push({
+        question: 'How would you prove whether a private workload can reach the required AWS service?',
+        category: 'testing',
+        rational: 'Cloud networking answers should demonstrate a traceable path across routes, policies, and endpoints.',
+        suggestedDefense: 'Trace DNS, route tables, security groups, NACLs, endpoint policies, IAM authorization, and application logs.',
+      });
+    }
+
     // 1. Check for database technology choices (e.g. PostgreSQL, Redis, DynamoDB)
     if (aLower.includes('postgresql') || aLower.includes('postgres')) {
       followUps.push({
