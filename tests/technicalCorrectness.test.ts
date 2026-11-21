@@ -227,6 +227,12 @@ describe('Cloud platform and DevOps correctness rules', () => {
     );
     expect(terraform.category).toBe('DevOps');
     expect(kubernetes.category).toBe('DevOps');
+    expect(terraform.hiddenRequirement).toContain('safe Terraform state');
+    const aws = QuestionUnderstandingEngine.analyze(
+      'How do you design private AWS subnets and workload IAM permissions?'
+    );
+    expect(aws.category).toBe('AWS and cloud');
+    expect(aws.hiddenRequirement).toContain('least-privilege IAM');
   });
 
   it('enforces safe Terraform state and plan/apply distinctions', () => {
