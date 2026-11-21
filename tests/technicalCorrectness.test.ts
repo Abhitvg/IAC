@@ -259,6 +259,41 @@ describe('Cloud platform and DevOps correctness rules', () => {
 });
 
 
+  it('prioritizes DevOps mechanisms in mixed AWS and Terraform questions', () => {
+    const terraformAws = QuestionUnderstandingEngine.analyze(
+      'How would you manage Terraform state for AWS infrastructure and prevent concurrent applies?'
+    );
+    const eksDelivery = QuestionUnderstandingEngine.analyze(
+      'How would you deploy a Dockerized service to EKS through a CI/CD pipeline?'
+    );
+    expect(terraformAws.category).toBe('DevOps');
+    expect(eksDelivery.category).toBe('DevOps');
+    expect(terraformAws.hiddenRequirement).toContain('safe Terraform state');
+  });
+
+  it('predicts operational follow-ups for Terraform, Kubernetes, and AWS networking', () => {
+    const terraform = FollowUpEngine.predictFollowUps(
+      'How do you manage AWS infrastructure?',
+      'I use Terraform remote state and review the plan before apply.',
+      'AWS and cloud'
+    );
+    const kubernetes = FollowUpEngine.predictFollowUps(
+      'How do you operate workloads?',
+      'The Kubernetes deployment uses readiness probes and Services.',
+      'DevOps'
+    );
+    const networking = FollowUpEngine.predictFollowUps(
+      'How do private workloads access AWS services?',
+      'The VPC uses private subnets, route tables, and VPC endpoints.',
+      'AWS and cloud'
+    );
+    expect(terraform[0].question).toContain('Terraform state');
+    expect(kubernetes[0].question).toContain('pod is healthy');
+    expect(networking[0].question).toContain('private workload');
+  });
+
+
+
 describe('Coding answer contract', () => {
   it('requires complete Java, correctness reasoning, edge cases, and honest verification claims', () => {
     const prompt = buildCandidateSystemPrompt(
