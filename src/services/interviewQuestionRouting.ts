@@ -13,7 +13,7 @@ export interface InterviewTranscriptClassification {
 }
 
 const QUESTION_START =
-  /^(?:what|why|how|when|where|who|which|whose|whom|can|could|would|will|should|do|does|did|is|are|was|were|have|has|had|tell me|explain|describe|compare|differentiate|walk me through|talk me through|implement|write|code|design|debug|solve|find|calculate|give me|show me|discuss|outline|elaborate|define|suppose|imagine)\b/i;
+  /^(?:please\s+)?(?:what|why|how|when|where|who|which|whose|whom|can|could|would|will|should|do|does|did|is|are|was|were|have|has|had|tell me|explain|describe|compare|differentiate|walk me through|talk me through|implement|write|code|design|debug|solve|build|create|find|calculate|give me|show me|list|name|state|prove|derive|trace|discuss|outline|elaborate|define|suppose|imagine)\b/i;
 
 const FILLER_ONLY =
   /^(?:yeah|yes|no|okay|ok|right|sure|thanks|thank you|great|fine|alright|uh|um|hmm|hello|hi|bye|got it|makes sense)[.!\s]*$/i;
