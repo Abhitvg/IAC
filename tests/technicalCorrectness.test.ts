@@ -5,6 +5,7 @@ import { ProductionDebuggingEngine } from '../src/services/productionDebugging';
 import { FollowUpEngine } from '../src/services/followUpEngine';
 import { CandidateKnowledgeBase, CandidateConfirmationWorkflow } from '../src/services/candidateIntelligence';
 import { buildCandidateSystemPrompt } from '../src/services/candidatePersona';
+import { buildResumeDeepDivePlan } from '../src/services/resumeDeepDive';
 
 describe('IAC 2.0 Technical Correctness, Reasoning & Domain Intelligence Suite', () => {
   describe('Question Understanding Engine — 16 Category Coverage', () => {
@@ -326,6 +327,42 @@ describe('Resume narrative grounding', () => {
       'What is the Java garbage collector?'
     );
     expect(prompt).not.toContain('EVIDENCE-LED EXPERIENCE NARRATIVE');
+  });
+});
+
+
+describe('Resume deep-dive preparation planner', () => {
+  it('creates project narratives and exposes missing personal evidence as clarification tasks', () => {
+    const kb = new CandidateKnowledgeBase(`
+ATMA Research & Consultancy
+Software Development Engineer
+• Own backend services using Java 8 and Spring Boot.
+• Implemented Kafka-based event pipelines for inventory updates.
+• Supported 10K+ daily users at 99.9% uptime.
+Projects:
+Quorum – Real-Time Collaboration Platform
+• Built a full-stack collaboration platform using Next.js, NestJS, and PostgreSQL.
+• Implemented JWT authentication and Google OAuth.
+`);
+    const plan = buildResumeDeepDivePlan(kb);
+    expect(plan.modules.some((module) => module.title === 'Quorum')).toBe(true);
+    expect(plan.modules.some((module) => module.kind === 'achievement')).toBe(true);
+    const quorum = plan.modules.find((module) => module.title === 'Quorum');
+    expect(quorum?.interviewerQuestions.some((question) => question.includes('actual architecture'))).toBe(true);
+    expect(quorum?.clarificationNeeded.some((item) => item.includes('personally implement'))).toBe(true);
+    expect(plan.coverage.projects).toBeGreaterThan(0);
+    expect(plan.totalEvidenceItems).toBeGreaterThan(0);
+  });
+
+  it('does not turn resume-reported metrics into confirmed measurements', () => {
+    const kb = new CandidateKnowledgeBase(`
+Experience:
+• Reduced API latency by 35%.
+`);
+    const plan = buildResumeDeepDivePlan(kb);
+    const metric = plan.modules.find((module) => module.kind === 'achievement');
+    expect(metric?.evidence[0].verificationStatus).toBe('RESUME_REPORTED');
+    expect(metric?.clarificationNeeded.length).toBeGreaterThan(0);
   });
 });
 
