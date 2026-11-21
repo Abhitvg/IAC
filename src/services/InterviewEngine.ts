@@ -547,6 +547,7 @@ export class InterviewEngine {
               reason: classification.reason,
             });
 
+            useAppStore.getState().setLastUnconfirmedTranscript(null);
             await InterviewEngine.handleEvent({
               type: 'QUESTION_DETECTED',
               text: questionText,
