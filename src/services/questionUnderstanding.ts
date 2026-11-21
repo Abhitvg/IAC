@@ -392,6 +392,10 @@ export class QuestionUnderstandingEngine {
         return 'Interviewer wants proof of Java Memory Model awareness: happens-before semantics, CPU cache visibility, and difference between atomicity vs visibility.';
       case 'JavaScript and Node.js':
         return 'Interviewer is evaluating understanding of non-blocking I/O: microtask queue draining before macrotask next tick, libuv thread pool offloading, and avoiding event-loop starvation.';
+      case 'AWS and cloud':
+        return 'Interviewer is evaluating least-privilege IAM, network reachability, workload identity, failure domains, recovery objectives, and operational observability.';
+      case 'DevOps':
+        return 'Interviewer is evaluating reproducible delivery: safe Terraform state and plan/apply discipline, immutable artifacts, deployment health and rollback, container security, Kubernetes workload behavior, and useful telemetry.';
       case 'Databases':
         return 'Interviewer is probing cost trade-offs: index write amplification, transaction isolation anomalies (dirty/non-repeatable/phantom reads), and MVCC table bloat.';
       case 'Distributed systems':
