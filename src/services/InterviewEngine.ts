@@ -422,7 +422,7 @@ export class InterviewEngine {
           }
 
           if (classification.type === 'UNCLASSIFIED') {
-            if (!shouldAutoRouteUncertainQuestion(classification)) {
+            if (!shouldAutoRouteUncertainQuestion(classification, text)) {
               useAppStore.getState().updateDiagnostics({
                 whisperStatus: 'Non-question speech ignored; waiting for a question.',
                 questionMatched: false,
@@ -483,7 +483,7 @@ export class InterviewEngine {
 
           // 3. AMBIGUOUS SPEECH: route question-shaped speech automatically.
           // Confidence is retained as metadata; it never creates an interaction gate.
-          if (shouldAutoRouteUncertainQuestion(classification)) {
+          if (shouldAutoRouteUncertainQuestion(classification, text)) {
             const questionCandidate = classification.questionText || text;
             useAppStore.getState().setLastUnconfirmedTranscript(null);
             useAppStore.getState().updateDiagnostics({
