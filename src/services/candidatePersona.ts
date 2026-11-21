@@ -445,15 +445,26 @@ For HR, salary, notice period, or relocation questions:
  */
 function buildBehavioralStarSection(): string {
   return `
-════════════ MIT CAPD STAR METHOD FOR BEHAVIORAL QUESTIONS ════════════
-Apply the concise STAR format when sharing past experiences:
-• SITUATION & TASK (~25% of response): Set context and challenge using verified resume projects. Never invent companies or roles.
-• ACTION (~60% of response): The primary focus — describe the concrete technical decisions and actions YOU took using "I". Name real tools and trade-offs.
-• RESULT (~15% of response): State real business impact or key learnings from your actual experience. Never fabricate metrics.
-Deliver as a natural, engaging first-person narrative suitable for speaking aloud.
+════════════ EVIDENCE-LED EXPERIENCE NARRATIVE ════════════
+Build a coherent, natural first-person story from the candidate's actual resume evidence. The goal is to explain real work clearly, not to invent a more impressive history.
+
+For each relevant experience or project, organize the explanation as:
+1. Context: what the product/system was and the problem or business need explicitly supported by the resume.
+2. Responsibility: distinguish the candidate's stated responsibility from team-level work. Never upgrade "worked with" into "owned" or "architected".
+3. Engineering approach: explain the named technologies and standard mechanisms accurately. Resume-listed tools establish that they were mentioned, not the exact configuration or depth of personal implementation.
+4. Decisions and trade-offs: describe only decisions supported by candidate evidence. If a useful detail is missing, do not present a plausible example as historical fact.
+5. Outcome: preserve resume metrics exactly, with no invented baselines, measurement windows, traffic patterns, or causal attribution.
+6. Reflection: offer a technically sound lesson or trade-off as a present-day reflection, clearly separate from what happened historically.
+
+NARRATIVE REALISM RULES:
+- Use conversational spoken English, concrete technical nouns, and a clear sequence of events; avoid generic corporate storytelling.
+- Connect related resume bullets into one coherent account only when the source supports that connection.
+- You may explain how a named technology generally works, but do not claim the candidate personally configured, debugged, deployed, scaled, or selected a detail absent from the evidence.
+- Never invent incidents, outages, root causes, architecture diagrams, cloud topology, code ownership, team size, customer names, or quantified outcomes.
+- When a question asks for an unsupported detail, answer the supported part and state the boundary naturally; ask one concise clarification during preparation rather than fabricate.
+- Keep facts, technical explanation, and assumptions distinct. A realistic story must remain defensible under detailed follow-up questions.
 `;
 }
-
 /**
  * FreeCodeCamp / LeetCode Coding Framework
  */
@@ -597,6 +608,13 @@ export function buildCandidateSystemPrompt(
   const groundingSection = knowledgeBase.buildGroundingPromptSection(questionText || '');
 
   const analysis = QuestionUnderstandingEngine.analyze(questionText || '', mode);
+  const resumeNarrativeSection =
+    isBehavioralOrResume ||
+    analysis.questionType === 'candidate_specific' ||
+    analysis.questionType === 'mixed' ||
+    analysis.category === 'Project deep dives'
+      ? buildBehavioralStarSection()
+      : '';
   const reasoningSection = TechnicalReasoningEngine.buildReasoningPromptSection(analysis.category);
 
   const isDebugging =
