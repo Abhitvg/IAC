@@ -1290,8 +1290,6 @@ export default function TeleprompterView() {
     markQuestionIncomplete,
     setSpeechPauseTolerance,
     pipelineStage,
-    lastUnconfirmedTranscript,
-    clearUnconfirmedTranscript,
     recoveredPartialAnswer,
     rateLimitCooldown,
     generateAnswerFromTranscript,
@@ -1970,18 +1968,6 @@ export default function TeleprompterView() {
     }
   };
 
-  const handleConfirmUnclassifiedTranscript = async () => {
-    const pending = useAppStore.getState().lastUnconfirmedTranscript;
-    if (!pending?.text.trim()) return;
-    await useAppStore.getState().overrideTranscriptAsQuestion(pending.text);
-  };
-
-  const handleDismissUnclassifiedTranscript = () => {
-    clearUnconfirmedTranscript();
-    useAppStore.getState().setPipelineStage('listening');
-    useAppStore.getState().setStatus('listening');
-  };
-
   const handleTriggerQuestion = (q: string) => {
     if (!q || !q.trim()) return;
     InterviewEngine.handleEvent({
@@ -2334,61 +2320,8 @@ export default function TeleprompterView() {
               ⚠️ Grounding: Qualified
             </div>
           )}
-          {lastUnconfirmedTranscript && (
-            <div
-              role="alert"
-              style={{
-                alignSelf: 'center',
-                width: 'min(100%, 720px)',
-                border: '1px solid rgba(245,158,11,0.35)',
-                background: 'rgba(120,53,15,0.16)',
-                borderRadius: 10,
-                padding: 12,
-              }}
-            >
-              <div style={{ color: '#fcd34d', fontSize: 12, marginBottom: 8 }}>
-                Unconfirmed speech · not submitted
-              </div>
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, marginBottom: 10 }}>
-                {lastUnconfirmedTranscript.text}
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={handleConfirmUnclassifiedTranscript}
-                  style={{
-                    border: 0,
-                    borderRadius: 6,
-                    padding: '7px 10px',
-                    color: '#fff',
-                    background: '#047857',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                  }}
-                >
-                  Use as question
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDismissUnclassifiedTranscript}
-                  style={{
-                    border: '1px solid #64748b',
-                    borderRadius: 6,
-                    padding: '7px 10px',
-                    color: '#e2e8f0',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                  }}
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          )}
           {!questionHistory.length &&
             !currentQuestion &&
-            !lastUnconfirmedTranscript &&
             !currentAnswer &&
             !draftAnswer && (
               <div style={{ margin: 'auto', textAlign: 'center', color: '#7f8b9d', fontSize: 13 }}>
