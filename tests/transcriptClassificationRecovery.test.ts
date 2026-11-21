@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { classifyUtterance } from '../src/services/interruptionDetector';
 import { useAppStore } from '../src/store/useAppStore';
 import { InterviewEngine } from '../src/services/InterviewEngine';
+import { shouldAutoRouteUncertainQuestion } from '../src/services/interviewQuestionRouting';
 
 describe('Suite A: Transcript Classification & Recovery', () => {
   const previousAnswer =
@@ -21,7 +22,7 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     });
   });
 
-  it('holds question-shaped speech for confirmation because speaker identity is unavailable', () => {
+  it('recognizes question-shaped speech even when speaker identity is unavailable', () => {
     const speech = 'What trade-offs do you consider when choosing Kafka over RabbitMQ?';
     const result = classifyUtterance(speech, previousAnswer, [previousAnswer]);
 
@@ -30,7 +31,7 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     expect(result.confidence).toBeLessThan(0.7);
   });
 
-  it('holds follow-up questions containing answer words for confirmation', () => {
+  it('recognizes follow-up questions containing answer words', () => {
     // Has overlap on "distributed", "tracing", "OpenTelemetry"
     const followUp =
       'Can you explain how OpenTelemetry sampling affects distributed tracing overhead?';
@@ -40,7 +41,7 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     expect(result.needsConfirmation).toBe(true);
   });
 
-  it('holds multi-sentence question-shaped speech for confirmation', () => {
+  it('recognizes multi-sentence question-shaped speech', () => {
     const speech =
       'So looking at your architecture, how does your service handle database failover under high load?';
     const result = classifyUtterance(speech, previousAnswer, [previousAnswer]);
@@ -50,7 +51,7 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     expect(result.questionText).toContain('database failover');
   });
 
-  it('holds incomplete question-shaped speech for confirmation', () => {
+  it('recognizes incomplete question-shaped speech', () => {
     const incompleteSpeech = 'When scaling your database horizontally, what happens if...';
     const result = classifyUtterance(incompleteSpeech, previousAnswer, [previousAnswer]);
 
@@ -59,7 +60,7 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     expect(result.isIncomplete).toBe(true);
   });
 
-  it('holds Hindi and Hinglish questions for confirmation instead of guessing the speaker', () => {
+  it('recognizes Hindi and Hinglish question intent without blocking generation', () => {
     const hindi = classifyUtterance(
       'क्या आप बता सकते हैं कि database failover कैसे काम करता है?',
       null,
@@ -99,25 +100,15 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     expect(result3.type).toBe('CONVERSATIONAL_FILLER');
   });
 
-  it('stores a question-shaped utterance for confirmation without generating an answer', () => {
+  it('routes question-shaped speech automatically without storing a confirmation request', () => {
     const speech = 'What about distributed tracing telemetry overhead metrics?';
     const result = classifyUtterance(speech, previousAnswer, [previousAnswer]);
 
     expect(result.type).toBe('UNCLASSIFIED');
     expect(result.needsConfirmation).toBe(true);
-    useAppStore.getState().setLastUnconfirmedTranscript({
-      id: 'test-1',
-      text: speech,
-      confidence: result.confidence,
-      reason: result.reason,
-      timestamp: Date.now(),
-    });
-    useAppStore.getState().setPipelineStage('confirmation_required');
-
-    const storeState = useAppStore.getState();
-    expect(storeState.lastUnconfirmedTranscript).not.toBeNull();
-    expect(storeState.lastUnconfirmedTranscript?.text).toBe(speech);
-    expect(storeState.pipelineStage).toBe('confirmation_required');
+    expect(shouldAutoRouteUncertainQuestion(result, speech)).toBe(true);
+    expect(useAppStore.getState().lastUnconfirmedTranscript).toBeNull();
+    expect(useAppStore.getState().pipelineStage).toBe('listening');
   });
 
   it('allows manual trigger to generate answer from transcript via generateAnswerFromTranscript', async () => {
