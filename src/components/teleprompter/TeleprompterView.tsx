@@ -318,7 +318,6 @@ function BionicGazeHUD({ bullets, sourceText }: { bullets: BionicGazeBullet[]; s
           </div>
         ))}
       </div>
-    </div>
       {sourceText && (
         <details style={{ width: '100%', marginTop: 4, color: '#cbd5e1' }}>
           <summary style={{ cursor: 'pointer', fontSize: 11, color: '#a7f3d0' }}>
@@ -329,6 +328,7 @@ function BionicGazeHUD({ bullets, sourceText }: { bullets: BionicGazeBullet[]; s
           </pre>
         </details>
       )}
+    </div>
   );
 }
 
