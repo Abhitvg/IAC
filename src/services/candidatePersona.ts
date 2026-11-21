@@ -67,6 +67,14 @@ const COMMON_TECH_SKILLS = [
   'JavaScript',
   'Go',
   'Java',
+  'Spring Boot',
+  'Spring MVC',
+  'Hibernate',
+  'JPA',
+  'Maven',
+  'Gradle',
+  'JUnit',
+  'Mockito',
   'Node.js',
   'React',
   'Next.js',
@@ -95,6 +103,15 @@ const COMMON_TECH_SKILLS = [
   'VPC',
 ];
 
+function containsSkill(text: string, skill: string): boolean {
+  const escaped = skill
+    .toLowerCase()
+    .replace(/[.*+?^${}()|[\\]\\\\]/g, '\\export function analyzeAlignment(
+')
+    .replace(/\\s+/g, '\\\\s+');
+  return new RegExp(`(^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`, 'i').test(text);
+}
+
 export function analyzeAlignment(
   resumeText: string,
   jobDescriptionText: string
@@ -106,15 +123,13 @@ export function analyzeAlignment(
   const resumeLower = (resumeText || '').toLowerCase();
   const jdLower = (jobDescriptionText || '').toLowerCase();
 
-  const jdRequiredSkills = COMMON_TECH_SKILLS.filter((skill) =>
-    jdLower.includes(skill.toLowerCase())
-  );
+  const jdRequiredSkills = COMMON_TECH_SKILLS.filter((skill) => containsSkill(jdLower, skill));
 
   const matchedSkills: string[] = [];
   const missingSkills: string[] = [];
 
   for (const skill of jdRequiredSkills) {
-    if (resumeLower.includes(skill.toLowerCase())) {
+    if (containsSkill(resumeLower, skill)) {
       matchedSkills.push(skill);
     } else {
       missingSkills.push(skill);
