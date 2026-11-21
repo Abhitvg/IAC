@@ -792,8 +792,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       status === 'listening' ||
       status === 'transcribing' ||
       status === 'analyzing' ||
-      status === 'generating' ||
-      status === 'confirmation_required'
+      status === 'generating'
     ) {
       InterviewEngine.handleEvent({ type: 'STOP_LISTENING' });
       get().setStatus('idle');
