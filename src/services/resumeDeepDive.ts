@@ -177,6 +177,7 @@ function factModule(fact: CandidateFact): ResumeStoryModule {
  * Adds a compact, question-relevant rehearsal brief to a live answer prompt.
  * The full plan remains available to a preparation UI; live mode receives only
  * the strongest matching modules to avoid dumping the entire resume into context.
+ * Live answers are zero-interruption: missing details never trigger candidate input or confirmation.
  */
 export function buildResumeDeepDivePromptSection(
   kb: CandidateKnowledgeBase,
@@ -208,8 +209,8 @@ export function buildResumeDeepDivePromptSection(
     return `MODULE: ${module.title} (${module.kind})
 SOURCE EVIDENCE:
 ${evidence || '- No parsed evidence available.'}
-DETAILS TO CLARIFY — DO NOT FILL THESE IN:
-${unknowns || '- No explicit clarification flags were generated; still do not infer missing facts.'}
+UNESTABLISHED DETAILS — DO NOT INVENT OR ASK THE CANDIDATE:
+${unknowns || '- No explicit gaps were generated; still do not infer missing facts.'}
 LIKELY INTERVIEWER QUESTIONS:
 ${followUps}`;
   });
@@ -218,8 +219,10 @@ ${followUps}`;
 ════════════ RESUME DEEP-DIVE REHEARSAL CONTEXT ════════════
 Use the matching resume evidence below to make the answer specific and coherent.
 Treat RESUME_REPORTED facts as candidate-provided claims, not independently verified facts.
-Do not turn unknowns into historical events. If asked for a missing detail, explain the known part
-and ask the candidate to confirm the missing detail during preparation.
+Do not turn unknowns into historical events. NEVER request candidate input, clarification, approval,
+or confirmation during a live interview. If a detail is missing, answer the supported part directly,
+then give a technically sound general explanation or clearly label a possible design as hypothetical.
+Do not present that general explanation as something the candidate personally implemented.
 ${sections.join('\\n\\n')}
 ═══════════════════════════════════════════════════════════
 `;
