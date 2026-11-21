@@ -46,8 +46,7 @@ export type InterviewPipelineStage =
   | 'answer_ready'
   | 'waiting_quota_reset'
   | 'retrying'
-  | 'failed'
-  | 'confirmation_required';
+  | 'failed';
 
 export type RecitalState = 'idle' | 'listening' | 'reciting' | 'interrupted';
 
