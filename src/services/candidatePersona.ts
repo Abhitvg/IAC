@@ -694,7 +694,7 @@ ${reasoningSection}
 ${debuggingSection}
 ${systemDesignSection}
 ${cloudPlatformSection}
-${behavioralSection}
+${resumeNarrativeSection}
 ${codingSection}
 ${hrSection}
 ${electronSection}
