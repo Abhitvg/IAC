@@ -5,7 +5,7 @@ import { ProductionDebuggingEngine } from '../src/services/productionDebugging';
 import { FollowUpEngine } from '../src/services/followUpEngine';
 import { CandidateKnowledgeBase, CandidateConfirmationWorkflow } from '../src/services/candidateIntelligence';
 import { buildCandidateSystemPrompt } from '../src/services/candidatePersona';
-import { shouldAutoRouteUncertainQuestion } from '../src/services/interviewQuestionRouting';
+import { isQuestionShapedSpeech, shouldAutoRouteUncertainQuestion } from '../src/services/interviewQuestionRouting';
 import { buildResumeDeepDivePlan } from '../src/services/resumeDeepDive';
 
 describe('IAC 2.0 Technical Correctness, Reasoning & Domain Intelligence Suite', () => {
@@ -297,30 +297,49 @@ describe('Cloud platform and DevOps correctness rules', () => {
 
 
 describe('Non-blocking live question routing', () => {
-  it('automatically routes question-shaped uncertain speech without confirmation', () => {
+  it('routes uncertain interviewer questions automatically without confirmation', () => {
     expect(shouldAutoRouteUncertainQuestion({
       type: 'UNCLASSIFIED',
       needsConfirmation: true,
       confidence: 0.42,
-    })).toBe(true);
+    }, 'Can you explain Kafka consumer offsets?')).toBe(true);
     expect(shouldAutoRouteUncertainQuestion({
       type: 'INTERVIEWER_INTERRUPTION',
       needsConfirmation: false,
       confidence: 0.55,
+    }, 'Walk me through the deployment.')).toBe(true);
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'INTERVIEWER_INTERRUPTION',
+      needsConfirmation: true,
+      confidence: 0.45,
+      questionText: 'What happens when a pod fails?',
     })).toBe(true);
   });
 
-  it('does not route ordinary unclassified speech as an interview question', () => {
+  it('does not generate answers for uncertain filler or ordinary background speech', () => {
     expect(shouldAutoRouteUncertainQuestion({
       type: 'UNCLASSIFIED',
-      needsConfirmation: false,
+      needsConfirmation: true,
       confidence: 0.2,
-    })).toBe(false);
+    }, 'Yeah, okay.')).toBe(false);
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'UNCLASSIFIED',
+      needsConfirmation: true,
+      confidence: 0.3,
+    }, 'The weather is nice today.')).toBe(false);
     expect(shouldAutoRouteUncertainQuestion({
       type: 'CONVERSATIONAL_FILLER',
       needsConfirmation: true,
       confidence: 0.3,
-    })).toBe(false);
+    }, 'What is Kubernetes?')).toBe(false);
+  });
+
+  it('recognizes concise and command-style interview questions', () => {
+    expect(isQuestionShapedSpeech('Kafka?')).toBe(true);
+    expect(isQuestionShapedSpeech('Explain Java memory management.')).toBe(true);
+    expect(isQuestionShapedSpeech('Design a CI/CD pipeline.')).toBe(true);
+    expect(isQuestionShapedSpeech('Right.')).toBe(false);
+    expect(isQuestionShapedSpeech('')).toBe(false);
   });
 });
 
