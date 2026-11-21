@@ -407,9 +407,8 @@ export class InterviewEngine {
             },
           });
 
-          // Candidate recital is suppressed. Only question-shaped speech is retained
-          // for user confirmation; ordinary conversation and candidate explanations
-          // must not enter the interview question history or trigger generation.
+          // Candidate recital and ordinary conversation are suppressed. Question-shaped
+          // speech is routed automatically; no manual transcript confirmation is used.
           if (classification.type === 'CANDIDATE_RECITAL') {
             useAppStore.getState().setRecitalState('reciting');
             useAppStore.getState().updateDiagnostics({
@@ -509,7 +508,7 @@ export class InterviewEngine {
           }
 
           // Uncertain interruptions that do not resemble a question are not
-          // auto-promoted to answers. Keep listening without a confirmation dialog.
+          // auto-promoted to answers. Keep listening without interrupting the candidate.
           if (
             classification.type === 'INTERVIEWER_INTERRUPTION' &&
             (classification.needsConfirmation || classification.confidence < 0.7) &&
