@@ -106,7 +106,7 @@ const COMMON_TECH_SKILLS = [
 function containsSkill(text: string, skill: string): boolean {
   const escaped = skill
     .toLowerCase()
-    .replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+    .replace(/[.*+?^$()|[\]\\]/g, '\\$&')
     .replace(/\s+/g, '\\s+');
   return new RegExp('(^|[^a-z0-9])' + escaped + '(?=$|[^a-z0-9])', 'i').test(text);
 }
