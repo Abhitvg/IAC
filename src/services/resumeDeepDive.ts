@@ -174,6 +174,58 @@ function factModule(fact: CandidateFact): ResumeStoryModule {
 }
 
 /**
+ * Adds a compact, question-relevant rehearsal brief to a live answer prompt.
+ * The full plan remains available to a preparation UI; live mode receives only
+ * the strongest matching modules to avoid dumping the entire resume into context.
+ */
+export function buildResumeDeepDivePromptSection(
+  kb: CandidateKnowledgeBase,
+  question: string,
+  maxModules: number = 2
+): string {
+  const plan = buildResumeDeepDivePlan(kb);
+  if (!plan.modules.length) return '';
+
+  const tokens = (question || '').toLowerCase().match(/[a-z0-9+#.-]{3,}/g) || [];
+  const ranked = plan.modules
+    .map((module) => {
+      const haystack = (module.title + ' ' + module.evidence.map((item) => item.text).join(' ')).toLowerCase();
+      const score = tokens.reduce((total, token) => total + (haystack.includes(token) ? 1 : 0), 0);
+      return { module, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const selected = ranked.filter((item) => item.score > 0).slice(0, maxModules);
+  if (!selected.length) return '';
+
+  const sections = selected.map(({ module }) => {
+    const evidence = module.evidence
+      .slice(0, 8)
+      .map((item) => `- [${item.verificationStatus}] ${item.text}`)
+      .join('\\n');
+    const unknowns = module.clarificationNeeded.slice(0, 5).map((item) => `- ${item}`).join('\\n');
+    const followUps = module.interviewerQuestions.slice(0, 5).map((item) => `- ${item}`).join('\\n');
+    return `MODULE: ${module.title} (${module.kind})
+SOURCE EVIDENCE:
+${evidence || '- No parsed evidence available.'}
+DETAILS TO CLARIFY — DO NOT FILL THESE IN:
+${unknowns || '- No explicit clarification flags were generated; still do not infer missing facts.'}
+LIKELY INTERVIEWER QUESTIONS:
+${followUps}`;
+  });
+
+  return `
+════════════ RESUME DEEP-DIVE REHEARSAL CONTEXT ════════════
+Use the matching resume evidence below to make the answer specific and coherent.
+Treat RESUME_REPORTED facts as candidate-provided claims, not independently verified facts.
+Do not turn unknowns into historical events. If asked for a missing detail, explain the known part
+and ask the candidate to confirm the missing detail during preparation.
+${sections.join('\\n\\n')}
+═══════════════════════════════════════════════════════════
+`;
+}
+
+/**
  * Creates one preparation module per parsed project and resume fact.
  * This is a coverage map and interview rehearsal scaffold, not a fabricated biography.
  */
