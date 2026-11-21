@@ -170,7 +170,7 @@ describe('Automatic transcript routing flow', () => {
       expect(state.transcript).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            speaker: 'interviewer',
+            speaker: 'unknown',
             classification: 'AUTO_ACCEPTED_QUESTION',
             text: 'What about tomorrow?',
           }),
