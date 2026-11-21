@@ -314,6 +314,26 @@ describe('Resume narrative grounding', () => {
     expect(prompt).toContain('preserve resume metrics exactly');
   });
 
+  it('never pauses a live interview for candidate input or confirmation', () => {
+    const prompt = buildCandidateSystemPrompt(
+      'ATMA Research & Consultancy: Java 8, Spring Boot, Kafka event pipelines; 10K+ daily users; 99.9% uptime.',
+      '',
+      'Software Development Engineer',
+      'Java',
+      'interview',
+      [],
+      'Project',
+      'resume',
+      'Walk me through the exact Kafka consumer configuration and failure recovery.'
+    );
+    expect(prompt).toContain('LIVE RESPONSE CONTINUITY');
+    expect(prompt).toContain('Do not pause the response to collect missing details');
+    expect(prompt).toContain('hypothetical approach');
+    expect(prompt).not.toContain('ask the candidate to confirm the missing detail');
+    expect(prompt).not.toContain('ask a polite clarifying question');
+    expect(prompt).not.toContain('candidate must clarify');
+  });
+
   it('does not add experience storytelling rules to an unrelated conceptual question', () => {
     const prompt = buildCandidateSystemPrompt(
       'Java and Spring Boot developer.',
