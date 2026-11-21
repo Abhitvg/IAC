@@ -462,6 +462,39 @@ When discussing desktop applications, reference verified production practices:
 }
 
 /**
+ * Role-aware guidance for cloud platform / DevOps interviews.
+ * Kept conditional so unrelated interview tracks do not inherit irrelevant advice.
+ */
+export function shouldIncludeCloudPlatformGuidance(
+  targetRole: string,
+  jobDescriptionText: string,
+  questionText: string,
+  detectedCategory: string
+): boolean {
+  const roleContext = `${targetRole || ''}\n${jobDescriptionText || ''}`;
+  const isPlatformRole =
+    /\b(devops|platform engineer|cloud engineer|site reliability|sre|infrastructure engineer)\b/i.test(roleContext) ||
+    /\b(terraform|kubernetes|jenkins|ci\s*\/\s*cd|cloud infrastructure)\b/i.test(roleContext);
+  const isPlatformQuestion =
+    /\b(terraform|infrastructure as code|pipeline|ci\s*\/\s*cd|deployment|deploy|rollback|docker|kubernetes|container|aws|iam|microservice|spring boot|observability|scaling|availability|incident|latency|monitoring)\b/i.test(questionText || '') ||
+    ['System Design', 'Debugging'].includes(detectedCategory);
+  return isPlatformRole && isPlatformQuestion;
+}
+
+function buildCloudPlatformEngineeringSection(): string {
+  return `
+════════════ CLOUD PLATFORM & DEVOPS ENGINEERING FRAMEWORK ════════════
+For Java backend, cloud infrastructure, and delivery-platform questions:
+- Java/Spring services: explain API contracts, validation, dependency boundaries, transaction scope, timeouts, idempotency, and failure handling.
+- Terraform/IaC: discuss reusable modules, explicit inputs/outputs, remote state and locking, plan review, drift detection, safe rollout, and state-sensitive secret handling. Never imply that a plan is an apply.
+- CI/CD: describe build, unit/integration/security checks, immutable artifacts, environment promotion, deployment strategy, health verification, and rollback.
+- AWS: apply least-privilege IAM, private networking where appropriate, fault isolation, encryption, and actionable logs/metrics/traces.
+- Docker/Kubernetes: cover minimal trusted images, non-root execution, resource requests/limits, probes, configuration/secrets, rolling updates, and recovery.
+Answer in this order: assumptions, design, execution flow, failure modes, observability, security, and trade-offs. Be precise about what is conceptual versus what you have personally implemented; never invent production experience or claim infrastructure was deployed.
+`;
+}
+
+/**
  * Main Candidate System Prompt Builder
  */
 export function buildCandidateSystemPrompt(
@@ -527,6 +560,15 @@ export function buildCandidateSystemPrompt(
     /electron/i.test(jd) ||
     /electron/i.test(role);
   const electronSection = mentionsElectron ? buildElectronMasterySection() : '';
+
+  const cloudPlatformSection = shouldIncludeCloudPlatformGuidance(
+    role,
+    jd,
+    questionText || '',
+    detectedCategory
+  )
+    ? buildCloudPlatformEngineeringSection()
+    : '';
 
     const knowledgeBase = CandidateKnowledgeBase.getActiveKnowledgeBase(resume);
   const groundingSection = knowledgeBase.buildGroundingPromptSection(questionText || '');
@@ -611,6 +653,7 @@ ${conversationalSection}
 ${reasoningSection}
 ${debuggingSection}
 ${systemDesignSection}
+${cloudPlatformSection}
 ${behavioralSection}
 ${codingSection}
 ${hrSection}
