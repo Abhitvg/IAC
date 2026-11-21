@@ -3,6 +3,7 @@ import { QuestionUnderstandingEngine } from './questionUnderstanding';
 import { TechnicalReasoningEngine } from './technicalReasoning';
 import { ProductionDebuggingEngine } from './productionDebugging';
 import { FollowUpEngine } from './followUpEngine';
+import { buildResumeDeepDivePromptSection } from './resumeDeepDive';
 import { KnowledgeVaultService } from './knowledgeVault';
 import { CandidateRagService } from './rag';
 import { getGfgKnowledgePromptSection } from '../data/gfgCurriculum';
@@ -614,6 +615,14 @@ export function buildCandidateSystemPrompt(
     analysis.category === 'Project deep dives'
       ? buildBehavioralStarSection()
       : '';
+  const resumeDeepDiveSection =
+    analysis.questionType === 'candidate_specific' ||
+    analysis.questionType === 'mixed' ||
+    analysis.questionType === 'behavioral' ||
+    analysis.category === 'Project deep dives' ||
+    intent === 'resume'
+      ? buildResumeDeepDivePromptSection(knowledgeBase, questionText || '')
+      : '';
   const reasoningSection = TechnicalReasoningEngine.buildReasoningPromptSection(analysis.category);
 
   const isDebugging =
@@ -695,6 +704,7 @@ ${debuggingSection}
 ${systemDesignSection}
 ${cloudPlatformSection}
 ${resumeNarrativeSection}
+${resumeDeepDiveSection}
 ${codingSection}
 ${hrSection}
 ${electronSection}
