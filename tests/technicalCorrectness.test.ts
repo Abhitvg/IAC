@@ -4,6 +4,7 @@ import { TechnicalReasoningEngine } from '../src/services/technicalReasoning';
 import { ProductionDebuggingEngine } from '../src/services/productionDebugging';
 import { FollowUpEngine } from '../src/services/followUpEngine';
 import { CandidateKnowledgeBase, CandidateConfirmationWorkflow } from '../src/services/candidateIntelligence';
+import { buildCandidateSystemPrompt } from '../src/services/candidatePersona';
 
 describe('IAC 2.0 Technical Correctness, Reasoning & Domain Intelligence Suite', () => {
   describe('Question Understanding Engine — 16 Category Coverage', () => {
@@ -248,5 +249,26 @@ describe('Cloud platform and DevOps correctness rules', () => {
     expect(rules.mandatoryChecks.some((rule) => rule.includes('VPC CIDRs, subnet routing'))).toBe(true);
     expect(rules.strictProhibitions.some((rule) => rule.includes('security group as stateless'))).toBe(true);
     expect(rules.strictProhibitions.some((rule) => rule.includes('private subnet has internet access'))).toBe(true);
+  });
+});
+
+
+describe('Coding answer contract', () => {
+  it('requires complete Java, correctness reasoning, edge cases, and honest verification claims', () => {
+    const prompt = buildCandidateSystemPrompt(
+      '',
+      '',
+      'Software Engineer',
+      'Java',
+      'coding',
+      [],
+      'Data structures and algorithms',
+      'coding',
+      'Implement a function to find the first non-repeating character.'
+    );
+    expect(prompt).toContain('Provide complete Java code');
+    expect(prompt).toContain('Respect the exact function signature and platform contract');
+    expect(prompt).toContain('Dry-run a representative example');
+    expect(prompt).toContain('Never claim code was compiled, executed, or passed tests');
   });
 });
