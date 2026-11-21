@@ -294,6 +294,43 @@ describe('Cloud platform and DevOps correctness rules', () => {
 
 
 
+describe('Resume narrative grounding', () => {
+  it('builds realistic experience narratives without inventing missing implementation details', () => {
+    const prompt = buildCandidateSystemPrompt(
+      'ATMA Research & Consultancy: Owned backend services using Java 8 and Spring Boot. Kafka event pipelines for inventory updates. 10K+ daily users; 99.9% uptime.',
+      '',
+      'Software Development Engineer',
+      'Java',
+      'interview',
+      [],
+      'Project',
+      'resume',
+      'Walk me through the Kafka event pipeline you worked on.'
+    );
+    expect(prompt).toContain('EVIDENCE-LED EXPERIENCE NARRATIVE');
+    expect(prompt).toContain('Never upgrade "worked with" into "owned"');
+    expect(prompt).toContain('Never invent incidents, outages, root causes');
+    expect(prompt).toContain('preserve resume metrics exactly');
+  });
+
+  it('does not add experience storytelling rules to an unrelated conceptual question', () => {
+    const prompt = buildCandidateSystemPrompt(
+      'Java and Spring Boot developer.',
+      '',
+      'Software Engineer',
+      'Java',
+      'interview',
+      [],
+      'General',
+      'conceptual',
+      'What is the Java garbage collector?'
+    );
+    expect(prompt).not.toContain('EVIDENCE-LED EXPERIENCE NARRATIVE');
+  });
+});
+
+
+
 describe('Coding answer contract', () => {
   it('requires complete Java, correctness reasoning, edge cases, and honest verification claims', () => {
     const prompt = buildCandidateSystemPrompt(
