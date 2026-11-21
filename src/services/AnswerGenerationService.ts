@@ -610,7 +610,8 @@ export class AnswerGenerationService {
         status: validation.validationStatus,
         isValidated: decision.outcome === 'VALIDATED',
         cleanAnswer:
-          decision.speakableAnswer || (decision.outcome === 'BLOCKED' ? '' : cleanAnswer),
+          decision.speakableAnswer ||
+          (decision.outcome === 'BLOCKED' ? decision.technicalGuidance || '' : cleanAnswer),
         detectedCategory,
         confidence,
         followUps: validatedFollowUps,
