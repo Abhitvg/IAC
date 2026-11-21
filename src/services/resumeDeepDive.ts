@@ -202,9 +202,9 @@ export function buildResumeDeepDivePromptSection(
     const evidence = module.evidence
       .slice(0, 8)
       .map((item) => `- [${item.verificationStatus}] ${item.text}`)
-      .join('\\n');
-    const unknowns = module.clarificationNeeded.slice(0, 5).map((item) => `- ${item}`).join('\\n');
-    const followUps = module.interviewerQuestions.slice(0, 5).map((item) => `- ${item}`).join('\\n');
+      .join('\n');
+    const unknowns = module.clarificationNeeded.slice(0, 5).map((item) => `- ${item}`).join('\n');
+    const followUps = module.interviewerQuestions.slice(0, 5).map((item) => `- ${item}`).join('\n');
     return `MODULE: ${module.title} (${module.kind})
 SOURCE EVIDENCE:
 ${evidence || '- No parsed evidence available.'}
