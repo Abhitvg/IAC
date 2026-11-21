@@ -14,6 +14,7 @@ import { AudioRecorder } from './audio';
 import { transcribeAudio } from './whisper';
 import { AnswerGenerationService } from './AnswerGenerationService';
 import { DiagnosticLoggerService } from './diagnosticLogger';
+import { shouldAutoRouteUncertainQuestion } from './interviewQuestionRouting';
 import {
   FactualGroundingValidator,
   CandidateKnowledgeBase,
@@ -421,7 +422,7 @@ export class InterviewEngine {
           }
 
           if (classification.type === 'UNCLASSIFIED') {
-            if (!classification.needsConfirmation) {
+            if (!shouldAutoRouteUncertainQuestion(classification)) {
               useAppStore.getState().updateDiagnostics({
                 whisperStatus: 'Non-question speech ignored; waiting for a question.',
                 questionMatched: false,
@@ -482,10 +483,7 @@ export class InterviewEngine {
 
           // 3. AMBIGUOUS SPEECH: route question-shaped speech automatically.
           // Confidence is retained as metadata; it never creates an interaction gate.
-          if (
-            classification.needsConfirmation ||
-            (classification.confidence < 0.7 && classification.type === 'INTERVIEWER_INTERRUPTION')
-          ) {
+          if (shouldAutoRouteUncertainQuestion(classification)) {
             const questionCandidate = classification.questionText || text;
             useAppStore.getState().setLastUnconfirmedTranscript(null);
             useAppStore.getState().updateDiagnostics({
