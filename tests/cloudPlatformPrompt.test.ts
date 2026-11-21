@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shouldIncludeCloudPlatformGuidance } from '../src/services/candidatePersona';
+import { analyzeAlignment, shouldIncludeCloudPlatformGuidance } from '../src/services/candidatePersona';
 
 const sophosRole = 'Software Engineer – DevOps / Cloud Platform';
 const sophosJobDescription = `
@@ -51,5 +51,27 @@ describe('cloud platform interview guidance selection', () => {
         'General'
       )
     ).toBe(false);
+  });
+});
+
+
+describe('job-description skill alignment', () => {
+  it('does not count JavaScript as Java experience', () => {
+    const result = analyzeAlignment(
+      'Built production interfaces with JavaScript, React, and TypeScript.',
+      'This role requires Java and Spring Boot.'
+    );
+    expect(result.matchedSkills).not.toContain('Java');
+    expect(result.missingSkills).toContain('Java');
+    expect(result.missingSkills).toContain('Spring Boot');
+  });
+
+  it('matches Java and Spring Boot when they are explicitly present', () => {
+    const result = analyzeAlignment(
+      'Developed Java services using Spring Boot.',
+      'Build Java and Spring Boot microservices.'
+    );
+    expect(result.matchedSkills).toContain('Java');
+    expect(result.matchedSkills).toContain('Spring Boot');
   });
 });
