@@ -571,7 +571,6 @@ export function buildCandidateSystemPrompt(
   // Conditional domain sections based on intent and category
   const isBehavioralOrResume =
     intent === 'behavioral' || intent === 'resume' || detectedCategory === 'Behavioral';
-  const behavioralSection = isBehavioralOrResume ? buildBehavioralStarSection() : '';
 
   const isSystemDesign =
     intent === 'system_design' || detectedCategory === 'System Design';
