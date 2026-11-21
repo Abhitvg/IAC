@@ -413,7 +413,7 @@ function buildSystemDesignExpertSection(): string {
   return `
 ════════════ SYSTEM DESIGN ARCHITECTURE FRAMEWORK ════════════
 For system design questions, structure the answer conversationally:
-1. Requirements & Scope: Clarify core functional requirements and scale assumptions in 1-2 spoken sentences.
+1. Requirements & Scope: State the most reasonable functional requirements and scale assumptions in 1-2 spoken sentences; do not pause to ask for clarification.
 2. High-Level Architecture: Identify the key components (Client, Load Balancer, Gateway, Services, Primary/Replica DB, Cache).
 3. Data Flow & Core Path: Explain how read and write requests travel through the system.
 4. Key Bottlenecks & Trade-Offs: Mention caching (Redis), partitioning/sharding, asynchronous message queues (Kafka), and single points of failure.
