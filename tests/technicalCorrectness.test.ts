@@ -214,3 +214,39 @@ DocFlow – Real-time collaborative document editor in TypeScript and WebSockets
     });
   });
 });
+
+
+describe('Cloud platform and DevOps correctness rules', () => {
+  it('classifies Terraform and Kubernetes questions as DevOps', () => {
+    const terraform = QuestionUnderstandingEngine.analyze(
+      'How do you manage Terraform remote state and prevent concurrent applies?'
+    );
+    const kubernetes = QuestionUnderstandingEngine.analyze(
+      'What is the difference between readiness and liveness probes in Kubernetes?'
+    );
+    expect(terraform.category).toBe('DevOps');
+    expect(kubernetes.category).toBe('DevOps');
+  });
+
+  it('enforces safe Terraform state and plan/apply distinctions', () => {
+    const rules = TechnicalReasoningEngine.getDomainVerification('DevOps');
+    expect(rules.mandatoryChecks.some((rule) => rule.includes('never describe plan as a deployment'))).toBe(true);
+    expect(rules.mandatoryChecks.some((rule) => rule.includes('native lockfile support'))).toBe(true);
+    expect(rules.strictProhibitions.some((rule) => rule.includes('terraform plan changes infrastructure'))).toBe(true);
+  });
+
+  it('enforces Kubernetes probe and resource semantics', () => {
+    const rules = TechnicalReasoningEngine.getDomainVerification('DevOps');
+    expect(rules.mandatoryChecks.some((rule) => rule.includes('readiness, liveness, and startup probes'))).toBe(true);
+    expect(rules.strictProhibitions.some((rule) => rule.includes('liveness probe should fail'))).toBe(true);
+    expect(rules.strictProhibitions.some((rule) => rule.includes('resource limits are equivalent to requests'))).toBe(true);
+  });
+
+  it('enforces AWS networking and IAM correctness', () => {
+    const rules = TechnicalReasoningEngine.getDomainVerification('AWS and cloud');
+    expect(rules.mandatoryChecks.some((rule) => rule.includes('least privilege'))).toBe(true);
+    expect(rules.mandatoryChecks.some((rule) => rule.includes('VPC CIDRs, subnet routing'))).toBe(true);
+    expect(rules.strictProhibitions.some((rule) => rule.includes('security group as stateless'))).toBe(true);
+    expect(rules.strictProhibitions.some((rule) => rule.includes('private subnet has internet access'))).toBe(true);
+  });
+});
