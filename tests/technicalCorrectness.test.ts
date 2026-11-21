@@ -5,6 +5,7 @@ import { ProductionDebuggingEngine } from '../src/services/productionDebugging';
 import { FollowUpEngine } from '../src/services/followUpEngine';
 import { CandidateKnowledgeBase, CandidateConfirmationWorkflow } from '../src/services/candidateIntelligence';
 import { buildCandidateSystemPrompt } from '../src/services/candidatePersona';
+import { shouldAutoRouteUncertainQuestion } from '../src/services/interviewQuestionRouting';
 import { buildResumeDeepDivePlan } from '../src/services/resumeDeepDive';
 
 describe('IAC 2.0 Technical Correctness, Reasoning & Domain Intelligence Suite', () => {
@@ -294,6 +295,34 @@ describe('Cloud platform and DevOps correctness rules', () => {
   });
 
 
+
+describe('Non-blocking live question routing', () => {
+  it('automatically routes question-shaped uncertain speech without confirmation', () => {
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'UNCLASSIFIED',
+      needsConfirmation: true,
+      confidence: 0.42,
+    })).toBe(true);
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'INTERVIEWER_INTERRUPTION',
+      needsConfirmation: false,
+      confidence: 0.55,
+    })).toBe(true);
+  });
+
+  it('does not route ordinary unclassified speech as an interview question', () => {
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'UNCLASSIFIED',
+      needsConfirmation: false,
+      confidence: 0.2,
+    })).toBe(false);
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'CONVERSATIONAL_FILLER',
+      needsConfirmation: true,
+      confidence: 0.3,
+    })).toBe(false);
+  });
+});
 
 describe('Resume narrative grounding', () => {
   it('builds realistic experience narratives without inventing missing implementation details', () => {
