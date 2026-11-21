@@ -14,7 +14,7 @@ import { AudioRecorder } from './audio';
 import { transcribeAudio } from './whisper';
 import { AnswerGenerationService } from './AnswerGenerationService';
 import { DiagnosticLoggerService } from './diagnosticLogger';
-import { shouldAutoRouteUncertainQuestion } from './interviewQuestionRouting';
+import { isQuestionShapedSpeech, shouldAutoRouteUncertainQuestion } from './interviewQuestionRouting';
 import {
   FactualGroundingValidator,
   CandidateKnowledgeBase,
@@ -505,6 +505,17 @@ export class InterviewEngine {
               text: questionCandidate,
               requestId,
             });
+            return;
+          }
+
+          // Uncertain interruptions that do not resemble a question are not
+          // auto-promoted to answers. Keep listening without a confirmation dialog.
+          if (
+            classification.type === 'INTERVIEWER_INTERRUPTION' &&
+            (classification.needsConfirmation || classification.confidence < 0.7) &&
+            !isQuestionShapedSpeech(classification.questionText || text)
+          ) {
+            restoreListeningAfterTranscription();
             return;
           }
 
