@@ -6,6 +6,7 @@ import { FollowUpEngine } from '../src/services/followUpEngine';
 import { CandidateKnowledgeBase, CandidateConfirmationWorkflow } from '../src/services/candidateIntelligence';
 import { buildCandidateSystemPrompt } from '../src/services/candidatePersona';
 import { isQuestionShapedSpeech, shouldAutoRouteUncertainQuestion } from '../src/services/interviewQuestionRouting';
+import { classifyUtterance } from '../src/services/interruptionDetector';
 import { buildResumeDeepDivePlan } from '../src/services/resumeDeepDive';
 
 describe('IAC 2.0 Technical Correctness, Reasoning & Domain Intelligence Suite', () => {
@@ -332,6 +333,17 @@ describe('Non-blocking live question routing', () => {
       needsConfirmation: true,
       confidence: 0.3,
     }, 'What is Kubernetes?')).toBe(false);
+  });
+
+  it('classifies command-style prompts as questions before applying automatic routing', () => {
+    const designPrompt = classifyUtterance('Design a CI/CD pipeline.', null);
+    expect(designPrompt.type).toBe('UNCLASSIFIED');
+    expect(designPrompt.needsConfirmation).toBe(true);
+    expect(shouldAutoRouteUncertainQuestion(designPrompt, 'Design a CI/CD pipeline.')).toBe(true);
+
+    const codingPrompt = classifyUtterance('Implement an LRU cache in Java.', null);
+    expect(codingPrompt.needsConfirmation).toBe(true);
+    expect(shouldAutoRouteUncertainQuestion(codingPrompt, 'Implement an LRU cache in Java.')).toBe(true);
   });
 
   it('recognizes concise and command-style interview questions', () => {
