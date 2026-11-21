@@ -433,7 +433,7 @@ export class InterviewEngine {
             const candidateQuestion = classification.questionText || text;
             useAppStore.getState().addTranscript({
               id: `transcript_${requestId}`,
-              speaker: 'interviewer',
+              speaker: 'unknown',
               text: candidateQuestion,
               timestamp: Date.now(),
               classification: 'AUTO_ACCEPTED_QUESTION',
@@ -492,7 +492,7 @@ export class InterviewEngine {
             });
             useAppStore.getState().addTranscript({
               id: Date.now().toString(),
-              speaker: 'interviewer',
+              speaker: 'unknown',
               text: questionCandidate,
               timestamp: Date.now(),
               classification: 'AUTO_ACCEPTED_LOW_CONFIDENCE',
