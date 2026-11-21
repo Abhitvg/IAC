@@ -108,7 +108,7 @@ function containsSkill(text: string, skill: string): boolean {
     .toLowerCase()
     .replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
     .replace(/\s+/g, '\\s+');
-  return new RegExp(\`(^|[^a-z0-9])\${escaped}(?=$|[^a-z0-9])\`, 'i').test(text);
+  return new RegExp('(^|[^a-z0-9])' + escaped + '(?=$|[^a-z0-9])', 'i').test(text);
 }
 
 export function analyzeAlignment(
