@@ -1299,8 +1299,7 @@ export default function TeleprompterView() {
     status === 'listening' ||
     status === 'transcribing' ||
     status === 'analyzing' ||
-    status === 'generating' ||
-    status === 'confirmation_required';
+    status === 'generating';
   const isGenerating = status === 'analyzing' || status === 'generating';
 
   const [manualInput, setManualInput] = useState('');
