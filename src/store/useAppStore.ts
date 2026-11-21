@@ -30,7 +30,6 @@ export type InterviewStatus =
   | 'paused'
   | 'waiting_quota_reset'
   | 'retrying'
-  | 'confirmation_required'
   | 'error';
 
 export type InterviewPipelineStage =
@@ -693,8 +692,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         s === 'listening' ||
         s === 'transcribing' ||
         s === 'analyzing' ||
-        s === 'generating' ||
-        s === 'confirmation_required',
+        s === 'generating',
       isGenerating: s === 'analyzing' || s === 'generating',
     });
   },
