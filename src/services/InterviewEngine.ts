@@ -261,15 +261,8 @@ export class InterviewEngine {
       }
 
       case 'UTTERANCE_FINALIZED': {
-        // Once uncertain speech is awaiting confirmation, do not keep transcribing
-        // subsequent microphone segments into a queue of competing candidates.
-        if (store.lastUnconfirmedTranscript) {
-          store.updateDiagnostics({
-            whisperStatus:
-              'Microphone speech held until the pending segment is confirmed or dismissed.',
-          });
-          return;
-        }
+        // Live interview flow is non-blocking: uncertain segments are classified and
+        // routed automatically below; no transcript confirmation gate may stall listening.
 
         // Guard: Stale or stopped session check
         if (store.status === 'idle') {
@@ -440,38 +433,32 @@ export class InterviewEngine {
             const candidateQuestion = classification.questionText || text;
             useAppStore.getState().addTranscript({
               id: `transcript_${requestId}`,
-              speaker: 'unknown',
+              speaker: 'interviewer',
               text: candidateQuestion,
               timestamp: Date.now(),
-              classification: 'CONFIRMATION_REQUIRED',
+              classification: 'AUTO_ACCEPTED_QUESTION',
               confidence: classification.confidence,
               reason: classification.reason,
             });
-            useAppStore.getState().setLastUnconfirmedTranscript({
-              id: `unconfirmed_${requestId}`,
-              text: candidateQuestion,
-              confidence: classification.confidence,
-              reason: classification.reason,
-              timestamp: Date.now(),
-            });
+            useAppStore.getState().setLastUnconfirmedTranscript(null);
             useAppStore.getState().updateDiagnostics({
               latestTranscript: candidateQuestion,
-              whisperStatus: 'Question-shaped speech held for confirmation; no answer generated.',
-              questionMatched: false,
+              whisperStatus: 'Possible interviewer question detected and routed automatically.',
+              questionMatched: true,
             });
-            if (!generationWasActive) {
-              useAppStore
-                .getState()
-                .setToast('Possible question retained. Confirm it before generating an answer.');
-              useAppStore.getState().setStatus('confirmation_required');
-              useAppStore.getState().setPipelineStage('confirmation_required');
-            }
+            await InterviewEngine.handleEvent({
+              type: 'QUESTION_DETECTED',
+              text: candidateQuestion,
+              requestId,
+            });
             return;
           }
 
           if (
-            classification.type === 'INTERVIEWER_INTERRUPTION' ||
-            classification.type === 'INTERVIEWER_QUESTION'
+            (classification.type === 'INTERVIEWER_INTERRUPTION' ||
+              classification.type === 'INTERVIEWER_QUESTION') &&
+            !classification.needsConfirmation &&
+            !(classification.confidence < 0.7 && classification.type === 'INTERVIEWER_INTERRUPTION')
           ) {
             useAppStore.getState().addTranscript({
               id: `transcript_${requestId}`,
@@ -493,45 +480,33 @@ export class InterviewEngine {
             return;
           }
 
-          // 3. AMBIGUOUS SPEECH: Require confirmation before generating answer
+          // 3. AMBIGUOUS SPEECH: route question-shaped speech automatically.
+          // Confidence is retained as metadata; it never creates an interaction gate.
           if (
             classification.needsConfirmation ||
             (classification.confidence < 0.7 && classification.type === 'INTERVIEWER_INTERRUPTION')
           ) {
             const questionCandidate = classification.questionText || text;
-            useAppStore.getState().setLastUnconfirmedTranscript({
-              id: Date.now().toString(),
-              text: questionCandidate,
-              confidence: classification.confidence,
-              reason: classification.reason,
-              timestamp: Date.now(),
-            });
+            useAppStore.getState().setLastUnconfirmedTranscript(null);
             useAppStore.getState().updateDiagnostics({
               latestTranscript: questionCandidate,
-              whisperStatus: `Awaiting user confirmation: "${questionCandidate.slice(0, 35)}..."`,
-              questionMatched: false,
+              whisperStatus: 'Low-confidence interviewer question routed automatically.',
+              questionMatched: true,
             });
-
             useAppStore.getState().addTranscript({
               id: Date.now().toString(),
               speaker: 'interviewer',
               text: questionCandidate,
               timestamp: Date.now(),
-              classification: 'CONFIRMATION_REQUIRED',
+              classification: 'AUTO_ACCEPTED_LOW_CONFIDENCE',
               confidence: classification.confidence,
               reason: classification.reason,
             });
-
-            DiagnosticLoggerService.getInstance().recordEvent({
+            await InterviewEngine.handleEvent({
+              type: 'QUESTION_DETECTED',
+              text: questionCandidate,
               requestId,
-              pipelineStage: 'confirmation_required',
-              finalOutcome: 'CONFIRMATION_NEEDED',
-              message: `Awaiting user confirmation for: "${questionCandidate.slice(0, 80)}" (${classification.reason})`,
             });
-            if (!generationWasActive) {
-              useAppStore.getState().setPipelineStage('confirmation_required');
-              useAppStore.getState().setStatus('confirmation_required');
-            }
             return;
           }
 
