@@ -517,7 +517,7 @@ export class AnswerGenerationService {
             validationStatus: 'FLAGGED',
             score: 0,
             violations: [
-              'Candidate-specific details require confirmation because no candidate source material is available.',
+              'Candidate-specific details are not supported by the loaded candidate material; avoid presenting them as personal experience.',
             ],
             structuredViolations: [],
             isGrounded: false,
