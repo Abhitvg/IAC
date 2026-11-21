@@ -476,7 +476,7 @@ export function shouldIncludeCloudPlatformGuidance(
     /\b(devops|platform engineer|cloud engineer|site reliability|sre|infrastructure engineer)\b/i.test(roleContext) ||
     /\b(terraform|kubernetes|jenkins|ci\s*\/\s*cd|cloud infrastructure)\b/i.test(roleContext);
   const isPlatformQuestion =
-    /\b(terraform|infrastructure as code|pipeline|ci\s*\/\s*cd|deployment|deploy|rollback|docker|kubernetes|container|aws|iam|microservice|spring boot|observability|scaling|availability|incident|latency|monitoring)\b/i.test(questionText || '') ||
+    /\b(java|spring|terraform|infrastructure as code|pipeline|ci\s*\/\s*cd|deployment|deploy|rollback|docker|kubernetes|container|aws|iam|microservices?|spring boot|observability|scaling|availability|incident|latency|monitoring|rest api)\b/i.test(questionText || '') ||
     ['System Design', 'Debugging'].includes(detectedCategory);
   return isPlatformRole && isPlatformQuestion;
 }
