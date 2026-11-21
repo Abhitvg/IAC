@@ -336,14 +336,23 @@ describe('Non-blocking live question routing', () => {
   });
 
   it('classifies command-style prompts as questions before applying automatic routing', () => {
-    const designPrompt = classifyUtterance('Design a CI/CD pipeline.', null);
-    expect(designPrompt.type).toBe('UNCLASSIFIED');
-    expect(designPrompt.needsConfirmation).toBe(true);
-    expect(shouldAutoRouteUncertainQuestion(designPrompt, 'Design a CI/CD pipeline.')).toBe(true);
+    const commandPrompts = [
+      'Design a CI/CD pipeline.',
+      'Implement an LRU cache in Java.',
+      'Build a CI/CD pipeline.',
+      'Create a REST API.',
+      'List the AWS services you used.',
+      'Trace this algorithm.',
+      'Derive the time complexity.',
+      'Please build a deployment pipeline.',
+    ];
 
-    const codingPrompt = classifyUtterance('Implement an LRU cache in Java.', null);
-    expect(codingPrompt.needsConfirmation).toBe(true);
-    expect(shouldAutoRouteUncertainQuestion(codingPrompt, 'Implement an LRU cache in Java.')).toBe(true);
+    for (const prompt of commandPrompts) {
+      const classification = classifyUtterance(prompt, null);
+      expect(classification.type).toBe('UNCLASSIFIED');
+      expect(classification.needsConfirmation).toBe(true);
+      expect(shouldAutoRouteUncertainQuestion(classification, prompt)).toBe(true);
+    }
   });
 
   it('recognizes concise and command-style interview questions', () => {
