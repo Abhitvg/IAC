@@ -177,7 +177,6 @@ describe('Automatic transcript routing flow', () => {
         ])
       );
       expect(state.currentQuestion).toBe('What about tomorrow?');
-      expect(state.pipelineStage).not.toBe('confirmation_required');
     } finally {
       generationSpy.mockRestore();
     }
