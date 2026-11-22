@@ -194,7 +194,13 @@ function QuizAnswerCard({
   );
 }
 
-function BionicTable({ rows, compact = false }: { rows: string[][]; compact?: boolean }) {
+function BionicTable({
+  rows,
+  compact = false,
+}: {
+  rows: string[][];
+  compact?: boolean;
+}) {
   const [headerRow, ...bodyRows] = rows;
   const cellStyle: React.CSSProperties = {
     padding: compact ? '5px 7px' : '7px 9px',
@@ -338,7 +344,14 @@ function BionicGazeHUD({
               transition: 'none',
             }}
           >
-            <span style={{ fontSize: '11px', fontWeight: 800, color: '#34d399', opacity: 0.85 }}>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 800,
+                color: '#34d399',
+                opacity: 0.85,
+              }}
+            >
               {Number(b.id.replace('gaze-', '')) + 1 || i + 1}.
             </span>
 
@@ -2337,8 +2350,12 @@ export default function TeleprompterView() {
               maxWidth: 840,
               boxSizing: 'border-box',
               padding: isBionicGazeMode ? 0 : '16px 18px',
-              background: isBionicGazeMode ? 'transparent' : 'rgba(8, 12, 18, 0.96)',
-              border: isBionicGazeMode ? 'none' : '1px solid rgba(148, 163, 184, 0.16)',
+              background: isBionicGazeMode
+                ? 'transparent'
+                : 'rgba(8, 12, 18, 0.96)',
+              border: isBionicGazeMode
+                ? 'none'
+                : '1px solid rgba(148, 163, 184, 0.16)',
               borderRadius: isBionicGazeMode ? 0 : 12,
               color: '#e5eaf2',
               whiteSpace: 'pre-wrap',
