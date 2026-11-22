@@ -2474,7 +2474,7 @@ export default function TeleprompterView() {
                         fontSize: 14,
                       }}
                     >
-                      {presentation.fallbackText}
+                      <InterviewAnswerMarkdown content={presentation.fallbackText || item.answer} />
                     </div>
                   );
                 })()
@@ -2489,7 +2489,7 @@ export default function TeleprompterView() {
                     fontSize: 14,
                   }}
                 >
-                  {item.answer}
+                  <InterviewAnswerMarkdown content={item.answer} />
                 </div>
               ))}
           </React.Fragment>
@@ -2544,7 +2544,7 @@ export default function TeleprompterView() {
                   return presentation.bullets.length > 0 ? (
                     <BionicGazeHUD bullets={presentation.bullets} sourceText={answerText} />
                   ) : (
-                    presentation.fallbackText
+                    <InterviewAnswerMarkdown content={presentation.fallbackText || answerText} />
                   );
                 })()
               : <InterviewAnswerMarkdown content={currentAnswer || draftAnswer || 'Preparing an answer…'} />}
