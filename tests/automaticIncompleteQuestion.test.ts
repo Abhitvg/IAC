@@ -54,6 +54,7 @@ describe('automatic incomplete interviewer questions', () => {
       type: 'QUESTION_DETECTED',
       text: 'How would you design a system that can handle one million concurrent users?',
       originalTranscript: `${firstPart} ${continuation}`,
+      preserveQueuedUtterances: true,
     });
     expect(useAppStore.getState().isIncompleteQuestionMode).toBe(false);
   });
