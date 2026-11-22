@@ -243,11 +243,7 @@ function parseInterviewAnswerBlocks(content: string): InterviewAnswerBlock[] {
     }
 
     const nextLine = lines[index + 1]?.trim() || '';
-    if (
-      !insideCodeFence &&
-      trimmed.includes('|') &&
-      isMarkdownTableSeparator(nextLine)
-    ) {
+    if (!insideCodeFence && trimmed.includes('|') && isMarkdownTableSeparator(nextLine)) {
       flushMarkdown();
       const rows = [splitMarkdownTableRow(trimmed)];
       index += 2;
@@ -2553,7 +2549,11 @@ export default function TeleprompterView() {
                     <InterviewAnswerMarkdown content={presentation.fallbackText || answerText} />
                   );
                 })()
-              : <InterviewAnswerMarkdown content={currentAnswer || draftAnswer || 'Preparing an answer…'} />}
+              : (
+                  <InterviewAnswerMarkdown
+                    content={currentAnswer || draftAnswer || 'Preparing an answer…'}
+                  />
+                )}
             {blockedReason && (
               <div role="alert" style={{ color: '#fca5a5', fontSize: 12, marginTop: 10 }}>
                 {blockedReason}
