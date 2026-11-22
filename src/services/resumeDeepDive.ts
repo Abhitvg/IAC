@@ -105,7 +105,11 @@ function projectEvidence(project: ProjectProfile): ResumeStoryEvidence[] {
 function projectClarifications(project: ProjectProfile): string[] {
   const prov = project.fieldProvenance;
   const missing: string[] = [];
-  if (!prov?.personalContribution?.value || prov.personalContribution.value === 'UNKNOWN') {
+  if (
+    !prov?.personalContribution?.value ||
+    prov.personalContribution.value === 'UNKNOWN' ||
+    prov.personalContribution.verificationStatus !== 'CANDIDATE_CONFIRMED'
+  ) {
     missing.push('What exactly did you personally implement, decide, review, or operate?');
   }
   if (!prov?.architecture?.value || prov.architecture.value === 'UNKNOWN') {
