@@ -702,6 +702,33 @@ function ShortcutSettings({
           </button>
         </div>
       ))}
+      <div
+        style={{
+          marginTop: 8,
+          padding: '10px 11px',
+          borderRadius: 8,
+          border: '1px solid rgba(148,163,184,0.16)',
+          background: 'rgba(255,255,255,0.025)',
+          display: 'grid',
+          gap: 6,
+        }}
+      >
+        <div style={{ color: '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
+          System-wide controls · macOS
+        </div>
+        <div style={{ color: '#aeb9c8', fontSize: 11, lineHeight: 1.55 }}>
+          <strong>⌘\\</strong> or <strong>⌘⇧Space</strong> show / hide ·{' '}
+          <strong>⌘⌥←</strong> left corner · <strong>⌘⌥→</strong> right corner
+        </div>
+        <div style={{ color: '#8492a6', fontSize: 10, lineHeight: 1.5 }}>
+          Also available: ⌘⌥⇧H / ⌥H show or hide, ⌥⇧S solve screen, ⌘⇧A append capture,
+          ⌥V auto-type code, ⌥T auto-type answer. Global bindings are fixed and may be
+          unavailable if another app or macOS has claimed them.
+        </div>
+        <div style={{ color: '#8492a6', fontSize: 10 }}>
+          The macOS Dock icon remains available to reopen the assistant.
+        </div>
+      </div>
       {capturing && (
         <div style={{ color: '#a5b4fc', fontSize: 11 }}>
           Press the key combination for {INTERVIEW_SHORTCUT_LABELS[capturing]}. Esc cancels.
