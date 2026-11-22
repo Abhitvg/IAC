@@ -1,4 +1,8 @@
-export type PendingQuestionContinuationDecision = 'append' | 'ignore' | 'new-question';
+export type PendingQuestionContinuationDecision =
+  | 'append'
+  | 'ignore'
+  | 'new-question'
+  | 'candidate-speech';
 
 const FILLER_UTTERANCE =
   /^(?:yeah|yes|no|okay|ok|right|sure|thanks|thank you|great|fine|alright|uh|um|hmm|hello|hi|bye|got it|makes sense)[.!?\s]*$/i;
