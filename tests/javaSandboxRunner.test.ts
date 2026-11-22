@@ -259,7 +259,7 @@ describe('Java Docker sandbox runner', () => {
 
     expect(result.status).toBe('CLEANUP_FAILED');
     expect(result.ok).toBe(false);
-    expect(result.cleanupWarning).toContain('remove');
+    expect(result.cleanupWarning).toContain('removal');
     expect(result.message).toContain('Cleanup was not confirmed');
   });
 
