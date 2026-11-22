@@ -296,8 +296,7 @@ export class InterviewEngine {
       text,
       requestId,
       preserveQueuedUtterances: true,
-    }).catch(
-      (error: unknown) => {
+    }).catch((error: unknown) => {
         const errorName = error instanceof Error ? error.name : 'UnknownError';
         console.error('[InterviewEngine] Failed to dispatch a recognized question.', {
           requestId,
