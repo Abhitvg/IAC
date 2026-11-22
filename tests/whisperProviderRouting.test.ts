@@ -175,6 +175,62 @@ describe('live transcription provider routing', () => {
     expect(transcribeCloudAudio.mock.calls[0][0].model).toBe('whisper-1');
   });
 
+  it('retries transient cloud provider failures with a fresh request ID', async () => {
+    const transcribeCloudAudio = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('[PROVIDER_UNAVAILABLE] temporary provider failure'))
+      .mockResolvedValueOnce({ text: 'recovered transcript' });
+    vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
+
+    const result = await transcribeAudio(createAudioBlob(), {
+      aiProvider: 'groq',
+      whisperModel: 'whisper-large-v3-turbo',
+    });
+
+    expect(result.text).toBe('recovered transcript');
+    expect(transcribeCloudAudio).toHaveBeenCalledTimes(2);
+    expect(transcribeCloudAudio.mock.calls[0][0].requestId).not.toBe(
+      transcribeCloudAudio.mock.calls[1][0].requestId
+    );
+  });
+
+  it('does not retry authentication failures', async () => {
+    const transcribeCloudAudio = vi
+      .fn()
+      .mockRejectedValue(new Error('[AUTH_INVALID_KEY] The saved API key is invalid.'));
+    vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
+
+    await expect(
+      transcribeAudio(createAudioBlob(), {
+        aiProvider: 'groq',
+        whisperModel: 'whisper-large-v3-turbo',
+      })
+    ).rejects.toThrow('[AUTH_INVALID_KEY]');
+
+    expect(transcribeCloudAudio).toHaveBeenCalledOnce();
+  });
+
+  it('cancels retry backoff immediately when the caller aborts', async () => {
+    const controller = new AbortController();
+    const transcribeCloudAudio = vi
+      .fn()
+      .mockRejectedValue(new TypeError('fetch failed'));
+    vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
+
+    const pending = transcribeAudio(
+      createAudioBlob(),
+      { aiProvider: 'groq', whisperModel: 'whisper-large-v3-turbo' },
+      controller.signal
+    );
+
+    await vi.waitFor(() => expect(transcribeCloudAudio).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(transcribeCloudAudio).toHaveBeenCalledOnce();
+  });
+
   it('requests main-process cancellation when the caller aborts', async () => {
     const controller = new AbortController();
     let resolveRequest: ((result: { cancelled?: boolean; text: string }) => void) | undefined;
