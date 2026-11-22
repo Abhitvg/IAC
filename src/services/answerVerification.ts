@@ -1,7 +1,5 @@
 export type AnswerVerificationBasis =
-  | 'CANDIDATE_EVIDENCE'
-  | 'GENERAL_TECHNICAL_REASONING'
-  | 'SCREEN_CODE_NOT_EXECUTED';
+  | 'CANDIDATE_EVIDENCE' | 'GENERAL_TECHNICAL_REASONING' | 'SCREEN_CODE_NOT_EXECUTED';
 
 export interface AnswerVerificationBasisInput {
   type: 'interview' | 'screen';
