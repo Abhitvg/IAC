@@ -517,7 +517,7 @@ export class AnswerGenerationService {
             validationStatus: 'FLAGGED',
             score: 0,
             violations: [
-              'Candidate-specific details require confirmation because no candidate source material is available.',
+              'Candidate-specific details are not supported by the loaded candidate material; avoid presenting them as personal experience.',
             ],
             structuredViolations: [],
             isGrounded: false,
@@ -610,7 +610,8 @@ export class AnswerGenerationService {
         status: validation.validationStatus,
         isValidated: decision.outcome === 'VALIDATED',
         cleanAnswer:
-          decision.speakableAnswer || (decision.outcome === 'BLOCKED' ? '' : cleanAnswer),
+          decision.speakableAnswer ||
+          (decision.outcome === 'BLOCKED' ? decision.technicalGuidance || '' : cleanAnswer),
         detectedCategory,
         confidence,
         followUps: validatedFollowUps,
