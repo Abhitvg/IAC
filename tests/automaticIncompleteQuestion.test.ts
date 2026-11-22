@@ -76,7 +76,9 @@ describe('automatic incomplete interviewer questions', () => {
     const firstPart = 'How would you design a system that...';
     expect(InterviewEngine.beginPendingQuestionFromTranscript(firstPart, firstPart)).toBe(true);
 
-    expect(InterviewEngine.appendPendingQuestionUtterance('What about failure recovery?')).toBe(false);
+    expect(InterviewEngine.appendPendingQuestionUtterance('What about failure recovery?')).toBe(
+      false
+    );
     expect(useAppStore.getState().isIncompleteQuestionMode).toBe(false);
     expect(useAppStore.getState().pipelineStage).toBe('listening');
   });
