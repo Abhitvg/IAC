@@ -12,8 +12,7 @@ const NEW_QUESTION_START =
 const AUXILIARY_QUESTION_START =
   /^(?:can|could|would|should|will|do|does|did|is|are|was|were|have|has|had)\s+(?:you|we|i|it|they|he|she|this|that|the|a|an)\b/i;
 
-const CANDIDATE_LEAD_IN =
-  /^(?:yeah|yes|no|okay|ok|right|sure|well|so)[,;:]\s+(?:i|we|my|our)\b/i;
+const CANDIDATE_LEAD_IN = /^(?:yeah|yes|no|okay|ok|right|sure|well|so)[,;:]\s+(?:i|we|my|our)\b/i;
 
 /**
  * Decides whether a transcript arriving during the short incomplete-question
