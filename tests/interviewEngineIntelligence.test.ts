@@ -200,6 +200,11 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
       vi.clearAllMocks();
       useAppStore.setState({
         status: 'idle',
+        isRecording: false,
+        diagnosticState: {
+          ...useAppStore.getState().diagnosticState,
+          micActive: false,
+        },
         recitalState: 'idle',
         currentQuestion: null,
         currentAnswer: null,
