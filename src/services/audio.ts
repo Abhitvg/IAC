@@ -22,8 +22,9 @@ export class AudioRecorder {
   private captureStartedAt = 0;
   private captureGeneration = 0;
   private stopPromise: Promise<void> | null = null;
-  private mediaTrackEndedListeners: Array<{
+  private mediaTrackStateListeners: Array<{
     track: MediaStreamTrack;
+    type: 'ended' | 'mute' | 'unmute';
     listener: () => void;
   }> = [];
 
@@ -234,10 +235,19 @@ export class AudioRecorder {
 
       // A browser can keep the MediaStream object alive after the physical input
       // disappears. Listen for a track ending so the UI cannot remain falsely active.
-      for (const track of this.mediaStream?.getAudioTracks?.() || []) {
-        const listener = () => this.handleUnexpectedTrackEnd(generation);
-        track.addEventListener('ended', listener);
-        this.mediaTrackEndedListeners.push({ track, listener });
+      const audioTracks = this.mediaStream?.getAudioTracks?.() || [];
+      for (const track of audioTracks) {
+        const endedListener = () => this.handleUnexpectedTrackEnd(generation);
+        const muteListener = () => this.handleTrackMute(generation);
+        const unmuteListener = () => this.handleTrackUnmute(generation);
+        track.addEventListener('ended', endedListener);
+        track.addEventListener('mute', muteListener);
+        track.addEventListener('unmute', unmuteListener);
+        this.mediaTrackStateListeners.push(
+          { track, type: 'ended', listener: endedListener },
+          { track, type: 'mute', listener: muteListener },
+          { track, type: 'unmute', listener: unmuteListener }
+        );
       }
 
       this.isListening = true;
@@ -251,8 +261,13 @@ export class AudioRecorder {
           message: 'Microphone capture pipeline is active.',
         });
       }
+      const isInputMuted = audioTracks.some((track) => track.muted);
       useAppStore.getState().updateDiagnostics({
         micActive: true,
+        micInputMuted: isInputMuted,
+        whisperStatus: isInputMuted
+          ? 'Microphone input is muted by the device.'
+          : 'Microphone ready.',
         mimeType: 'audio/wav (16kHz mono PCM)',
       });
     } catch (e: any) {
@@ -287,10 +302,45 @@ export class AudioRecorder {
       }
       useAppStore.getState().updateDiagnostics({
         micActive: false,
+        micInputMuted: false,
         whisperStatus: 'Mic error: ' + (e?.message || e),
       });
       throw e;
     }
+  }
+
+  private handleTrackMute(generation: number): void {
+    if (generation !== this.captureGeneration || this.captureState !== 'active') return;
+    const state = useAppStore.getState();
+    if (state.diagnosticState.micInputMuted) return;
+
+    // Discard a partial utterance while the operating system or headset mutes input.
+    this.isCapturing = false;
+    this.utteranceChunks = [];
+    this.totalUtteranceSamples = 0;
+    this.speechStartDetectedTime = 0;
+    this.lastSpeechTime = 0;
+    this.preRollBuffer.fill(0);
+    this.preRollIndex = 0;
+    state.updateDiagnostics({
+      micInputMuted: true,
+      speechDetected: false,
+      whisperStatus: 'Microphone input is muted by the device. Unmute it to resume listening.',
+    });
+    state.setToast('Microphone muted. Unmute your input device to resume listening.');
+  }
+
+  private handleTrackUnmute(generation: number): void {
+    if (generation !== this.captureGeneration || this.captureState !== 'active') return;
+    const state = useAppStore.getState();
+    if (!state.diagnosticState.micInputMuted) return;
+
+    state.updateDiagnostics({
+      micInputMuted: false,
+      speechDetected: false,
+      whisperStatus: 'Microphone input restored. Listening for speech.',
+    });
+    state.setToast('Microphone input restored.');
   }
 
   private handleUnexpectedTrackEnd(generation: number): void {
@@ -310,6 +360,7 @@ export class AudioRecorder {
       const store = useAppStore.getState();
       store.updateDiagnostics({
         micActive: false,
+        micInputMuted: false,
         speechDetected: false,
         whisperStatus: 'Microphone input disconnected. Restart the microphone.',
       });
@@ -318,10 +369,10 @@ export class AudioRecorder {
   }
 
   private async releaseCaptureResources(): Promise<void> {
-    for (const { track, listener } of this.mediaTrackEndedListeners) {
-      track.removeEventListener('ended', listener);
+    for (const { track, type, listener } of this.mediaTrackStateListeners) {
+      track.removeEventListener(type, listener);
     }
-    this.mediaTrackEndedListeners = [];
+    this.mediaTrackStateListeners = [];
 
     if (this.processorNode) {
       this.processorNode.onaudioprocess = null;
@@ -557,6 +608,7 @@ export class AudioRecorder {
       }
       useAppStore.getState().updateDiagnostics({
         micActive: false,
+        micInputMuted: false,
         speechDetected: false,
       });
     })();

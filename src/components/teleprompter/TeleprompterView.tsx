@@ -3,6 +3,7 @@ import { detectLanguageHint } from '../../services/screenSolver';
 import { readAndParseFile } from '../../services/resume';
 import { CandidateRagService } from '../../services/rag';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
 import { InterviewEngine } from '../../services/InterviewEngine';
 import { DiagnosticLoggerService } from '../../services/diagnosticLogger';
@@ -14,6 +15,7 @@ import { ApplicationAssistanceView } from './ApplicationAssistanceView';
 import {
   extractGlanceableGazeBullets,
   formatBionicWord,
+  selectPrimaryGlanceableBullets,
   BionicGazeBullet,
 } from '../../services/teleprompter/bionicPrompterService';
 import { getBionicAnswerPresentation } from '../../services/teleprompter/bionicAnswerPresentation';
@@ -126,7 +128,7 @@ function QuizAnswerCard({
               textTransform: 'uppercase',
             }}
           >
-            Verified Correct Option
+            Suggested Correct Option
           </span>
         </div>
         {correctOptionText && (
@@ -193,7 +195,235 @@ function QuizAnswerCard({
   );
 }
 
-// Bionic Glanceable Prompter & Eye-Contact HUD
+type InterviewAnswerBlock =
+  | { type: 'markdown'; content: string; id: number }
+  | { type: 'table'; rows: string[][]; id: number };
+
+function isMarkdownTableSeparator(line: string): boolean {
+  return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
+}
+
+function splitMarkdownTableRow(line: string): string[] {
+  return line
+    .split('|')
+    .map((cell) => cell.trim())
+    .filter((cell, index, cells) => {
+      return !(cell === '' && (index === 0 || index === cells.length - 1));
+    });
+}
+
+function parseInterviewAnswerBlocks(content: string): InterviewAnswerBlock[] {
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  const blocks: InterviewAnswerBlock[] = [];
+  let markdownLines: string[] = [];
+  let blockId = 0;
+  let insideCodeFence = false;
+
+  const flushMarkdown = () => {
+    const markdown = markdownLines.join('\n').trim();
+    if (markdown) {
+      blocks.push({
+        type: 'markdown',
+        content: markdown,
+        id: blockId++,
+      });
+    }
+    markdownLines = [];
+  };
+
+  for (let index = 0; index < lines.length;) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('```')) {
+      insideCodeFence = !insideCodeFence;
+      markdownLines.push(line);
+      index += 1;
+      continue;
+    }
+
+    const nextLine = lines[index + 1]?.trim() || '';
+    if (!insideCodeFence && trimmed.includes('|') && isMarkdownTableSeparator(nextLine)) {
+      flushMarkdown();
+      const rows = [splitMarkdownTableRow(trimmed)];
+      index += 2;
+
+      while (index < lines.length) {
+        const row = lines[index].trim();
+        if (!row || !row.includes('|')) break;
+        rows.push(splitMarkdownTableRow(row));
+        index += 1;
+      }
+
+      if (rows.length > 0) {
+        blocks.push({
+          type: 'table',
+          rows,
+          id: blockId++,
+        });
+      }
+      continue;
+    }
+
+    markdownLines.push(line);
+    index += 1;
+  }
+
+  flushMarkdown();
+  return blocks;
+}
+
+function InterviewAnswerMarkdown({ content }: { content: string }) {
+  const blocks = parseInterviewAnswerBlocks(content);
+
+  return (
+    <div style={{ whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: 1.7 }}>
+      {blocks.map((block) =>
+        block.type === 'table' ? (
+          <BionicTable key={block.id} rows={block.rows} />
+        ) : (
+          <ReactMarkdown
+            key={block.id}
+            components={{
+              p: ({ children }) => (
+                <p style={{ margin: '0 0 10px', lineHeight: 1.7 }}>{children}</p>
+              ),
+              h1: ({ children }) => (
+                <h1 style={{ margin: '18px 0 9px', fontSize: 20, fontWeight: 750 }}>{children}</h1>
+              ),
+              h2: ({ children }) => (
+                <h2 style={{ margin: '16px 0 8px', fontSize: 17, fontWeight: 700 }}>{children}</h2>
+              ),
+              h3: ({ children }) => (
+                <h3 style={{ margin: '14px 0 7px', fontSize: 15, fontWeight: 700 }}>{children}</h3>
+              ),
+              ul: ({ children }) => (
+                <ul style={{ margin: '6px 0 12px', paddingLeft: 22 }}>{children}</ul>
+              ),
+              ol: ({ children }) => (
+                <ol style={{ margin: '6px 0 12px', paddingLeft: 24 }}>{children}</ol>
+              ),
+              li: ({ children }) => (
+                <li style={{ margin: '4px 0', paddingLeft: 3, lineHeight: 1.6 }}>{children}</li>
+              ),
+              blockquote: ({ children }) => (
+                <blockquote
+                  style={{
+                    margin: '10px 0',
+                    padding: '7px 12px',
+                    borderLeft: '3px solid rgba(148, 163, 184, 0.55)',
+                    color: '#cbd5e1',
+                    background: 'rgba(148, 163, 184, 0.06)',
+                  }}
+                >
+                  {children}
+                </blockquote>
+              ),
+              pre: ({ children }) => (
+                <pre
+                  style={{
+                    margin: '10px 0 14px',
+                    padding: '13px 14px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(148, 163, 184, 0.16)',
+                    background: 'rgba(0, 0, 0, 0.32)',
+                    color: '#e2e8f0',
+                    overflowX: 'auto',
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {children}
+                </pre>
+              ),
+              code: ({ children }) => (
+                <code
+                  style={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    fontSize: '0.92em',
+                    color: '#c4d7ff',
+                  }}
+                >
+                  {children}
+                </code>
+              ),
+              hr: () => (
+                <hr
+                  style={{
+                    border: 0,
+                    borderTop: '1px solid rgba(148, 163, 184, 0.2)',
+                    margin: '14px 0',
+                  }}
+                />
+              ),
+            }}
+          >
+            {block.content}
+          </ReactMarkdown>
+        )
+      )}
+    </div>
+  );
+}
+
+function BionicTable({ rows, compact = false }: { rows: string[][]; compact?: boolean }) {
+  const [headerRow, ...bodyRows] = rows;
+  const cellStyle: React.CSSProperties = {
+    padding: compact ? '5px 7px' : '7px 9px',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    textAlign: 'left',
+    verticalAlign: 'top',
+    fontSize: compact ? 11 : 12,
+    lineHeight: 1.45,
+    overflowWrap: 'anywhere',
+  };
+
+  return (
+    <div style={{ width: '100%', overflowX: 'auto', margin: '4px 0' }}>
+      <table
+        style={{
+          width: '100%',
+          minWidth: 360,
+          borderCollapse: 'collapse',
+          tableLayout: 'auto',
+          color: '#e5e7eb',
+        }}
+      >
+        <thead>
+          <tr>
+            {headerRow.map((cell, index) => (
+              <th
+                key={index}
+                scope="col"
+                style={{
+                  ...cellStyle,
+                  background: 'rgba(148, 163, 184, 0.1)',
+                  color: '#f8fafc',
+                  fontWeight: 700,
+                }}
+              >
+                {cell}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {bodyRows.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              {headerRow.map((_, cellIndex) => (
+                <td key={cellIndex} style={cellStyle}>
+                  {row[cellIndex] || '—'}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Bionic Glanceable Prompter HUD
 function BionicGazeHUD({
   bullets,
   sourceText,
@@ -201,31 +431,33 @@ function BionicGazeHUD({
   bullets: BionicGazeBullet[];
   sourceText?: string;
 }) {
+  const { primary, remaining } = selectPrimaryGlanceableBullets(bullets);
+
   return (
     <div
       style={{
-        margin: '8px 0 16px 0',
-        padding: '16px',
-        background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(10, 15, 30, 0.98))',
-        border: '1.5px solid rgba(16, 185, 129, 0.5)',
-        borderRadius: '12px',
-        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.2)',
+        margin: '8px 0 14px 0',
+        padding: '12px 14px',
+        background: 'rgba(8, 12, 18, 0.96)',
+        border: '1px solid rgba(148, 163, 184, 0.16)',
+        borderRadius: '10px',
+        boxShadow: 'none',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        gap: '12px',
+        alignItems: 'stretch',
+        gap: '8px',
       }}
     >
-      {/* Webcam Eye-Line Reticle */}
+      {/* Bionic HUD heading */}
       <div
         style={{
           width: '100%',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'flex-start',
           gap: '8px',
-          paddingBottom: '8px',
-          borderBottom: '1px dashed rgba(16, 185, 129, 0.35)',
+          paddingBottom: '7px',
+          borderBottom: '1px solid rgba(148, 163, 184, 0.12)',
         }}
       >
         <span
@@ -233,75 +465,84 @@ function BionicGazeHUD({
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            background: '#10b981',
-            boxShadow: '0 0 8px #10b981',
+            background: '#34d399',
             display: 'inline-block',
           }}
         />
         <span
           style={{
-            fontSize: '11px',
-            fontWeight: 800,
-            letterSpacing: '0.08em',
+            fontSize: '10px',
+            fontWeight: 700,
+            letterSpacing: '0.06em',
             textTransform: 'uppercase',
-            color: '#6ee7b7',
+            color: '#9ca3af',
           }}
         >
-          Optimal Webcam Eye-Contact Zone · Glance Naturally
+          Bionic HUD · Key points
         </span>
       </div>
 
-      {/* Glanceable Centered Bullets */}
+      {/* Glanceable key points */}
       <div
         style={{
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          gap: '8px',
+          alignItems: 'stretch',
+          gap: '3px',
         }}
       >
-        {bullets.map((b, i) => (
+        {primary.map((b, i) => (
           <div
             key={b.id || i}
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               flexWrap: 'wrap',
-              gap: '8px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              maxWidth: '90%',
-              textAlign: 'center',
-              transition: 'all 0.15s ease',
+              gap: '6px',
+              padding: '4px 2px',
+              borderRadius: '0',
+              background: 'transparent',
+              border: '0',
+              maxWidth: '100%',
+              textAlign: 'left',
+              transition: 'none',
             }}
           >
-            <span style={{ fontSize: '11px', fontWeight: 800, color: '#34d399', opacity: 0.85 }}>
-              {i + 1}.
-            </span>
-
-            {/* Bionic Formatted Text */}
             <span
               style={{
-                fontSize: '16px',
-                lineHeight: 1.4,
-                color: '#f8fafc',
-                letterSpacing: '0.01em',
+                fontSize: '11px',
+                fontWeight: 800,
+                color: '#34d399',
+                opacity: 0.85,
               }}
             >
-              {b.text.split(' ').map((word, wIdx) => {
-                const { bold, normal } = formatBionicWord(word);
-                return (
-                  <span key={wIdx} style={{ marginRight: '4px' }}>
-                    <strong style={{ fontWeight: 800, color: '#ffffff' }}>{bold}</strong>
-                    <span style={{ color: '#cbd5e1', fontWeight: 400 }}>{normal}</span>
-                  </span>
-                );
-              })}
+              {Number(b.id.replace('gaze-', '')) + 1 || i + 1}.
             </span>
+
+            {b.tableRows ? (
+              <BionicTable rows={b.tableRows} />
+            ) : (
+              <span
+                style={{
+                  fontSize: '14px',
+                  lineHeight: 1.55,
+                  color: '#e5e7eb',
+                  letterSpacing: '0',
+                }}
+              >
+                {b.text.split(' ').map((word, wIdx) => {
+                  const { bold, normal } = formatBionicWord(word);
+                  return (
+                    <span key={wIdx} style={{ marginRight: '4px' }}>
+                      <strong style={{ fontWeight: 800, color: '#ffffff' }}>{bold}</strong>
+                      <span style={{ color: '#cbd5e1', fontWeight: 400 }}>{normal}</span>
+                    </span>
+                  );
+                })}
+              </span>
+            )}
 
             {/* Metric / Complexity Pill */}
             {b.metricChip && (
@@ -324,23 +565,43 @@ function BionicGazeHUD({
           </div>
         ))}
       </div>
+      {remaining.length > 0 && (
+        <details style={{ width: '100%', marginTop: 4, color: '#cbd5e1' }}>
+          <summary style={{ cursor: 'pointer', fontSize: 11, color: '#a7f3d0' }}>
+            Show {remaining.length} additional key points
+          </summary>
+          <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+            {remaining.map((bullet) => (
+              <div
+                key={bullet.id}
+                style={{
+                  padding: '6px 9px',
+                  borderRadius: 7,
+                  background: 'rgba(255,255,255,0.035)',
+                  color: '#cbd5e1',
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                {bullet.tableRows ? (
+                  <BionicTable rows={bullet.tableRows} compact />
+                ) : (
+                  <>
+                    {bullet.text}
+                    {bullet.metricChip ? ` · ${bullet.metricChip}` : ''}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
       {sourceText && (
         <details style={{ width: '100%', marginTop: 4, color: '#cbd5e1' }}>
           <summary style={{ cursor: 'pointer', fontSize: 11, color: '#a7f3d0' }}>
             Show complete answer and code
           </summary>
-          <pre
-            style={{
-              whiteSpace: 'pre-wrap',
-              overflowWrap: 'anywhere',
-              font: 'inherit',
-              fontSize: 12,
-              lineHeight: 1.6,
-              marginTop: 10,
-            }}
-          >
-            {sourceText}
-          </pre>
+          <InterviewAnswerMarkdown content={sourceText} />
         </details>
       )}
     </div>
@@ -666,7 +927,7 @@ function GroundingBadge({
           background: 'rgba(59, 130, 246, 0.12)',
           border: '1px solid rgba(96, 165, 250, 0.35)',
         }}
-        title="Streaming live token stream. Factual grounding validation occurs upon completion."
+        title="Candidate-specific claim checks run after the answer is complete. This is not independent fact verification."
       >
         ⚡ Live Stream (Validation Pending)
       </span>
@@ -688,9 +949,9 @@ function GroundingBadge({
           background: 'rgba(239, 68, 68, 0.2)',
           border: '1px solid rgba(239, 68, 68, 0.6)',
         }}
-        title="Candidate claims in this answer could not be safely verified or qualified; answer is blocked from speaking queue."
+        title="Candidate-specific claims could not be supported or qualified; this answer is blocked from the speakable queue."
       >
-        🚫 Speaking Blocked (Ungrounded Claims)
+        🚫 Speaking blocked (unsupported candidate claims)
       </span>
     );
   }
@@ -753,9 +1014,9 @@ function GroundingBadge({
           background: 'rgba(239, 68, 68, 0.15)',
           border: '1px solid rgba(239, 68, 68, 0.4)',
         }}
-        title="Validation failed closed: unsafe or unvalidated answer blocked."
+        title="Candidate-claim checks could not complete safely, so this answer is blocked."
       >
-        ❌ Factual Grounding: FAILED
+        ❌ Candidate-claim check failed
       </span>
     );
   }
@@ -780,9 +1041,9 @@ function GroundingBadge({
           background: 'rgba(16, 185, 129, 0.12)',
           border: '1px solid rgba(52, 211, 153, 0.35)',
         }}
-        title="100% grounded in verified candidate facts without unsupported technical claims."
+        title="Automated checks found no unsupported candidate-specific claims. This is not independent fact verification."
       >
-        🛡️ Factual Grounding: Verified
+        🛡️ Candidate-claim check passed
       </span>
     );
   }
@@ -803,7 +1064,7 @@ function GroundingBadge({
       }}
       title={`${violationsCount} ungrounded claims neutralized and qualified for speaking safety.`}
     >
-      ⚠️ Grounding: Qualified ({violationsCount} Claim{violationsCount > 1 ? 's' : ''} Neutralized)
+      ⚠️ Candidate claims qualified ({violationsCount} neutralized)
     </span>
   );
 }
@@ -1309,6 +1570,14 @@ export default function TeleprompterView() {
 
   const isListening = diagnosticState.micActive;
   const isGenerating = status === 'analyzing' || status === 'generating';
+  const responseModeLabel =
+    responseMode === 'coding'
+      ? 'Coding'
+      : responseMode === 'quiz'
+        ? 'Quiz'
+        : responseMode === 'application'
+          ? 'Application'
+          : 'Interview';
 
   const [manualInput, setManualInput] = useState('');
   const [copiedCodeIndices, setCopiedCodeIndices] = useState<Record<number, boolean>>({});
@@ -2023,9 +2292,9 @@ export default function TeleprompterView() {
         minHeight: 0,
         overflow: 'hidden',
         color: '#f8fafc',
-        background: 'rgba(5, 7, 11, 0.82)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        background: 'rgba(5, 7, 11, 0.95)',
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
     >
@@ -2038,7 +2307,7 @@ export default function TeleprompterView() {
           gap: 10,
           padding: '10px 14px',
           borderBottom: '1px solid rgba(255,255,255,0.09)',
-          background: 'rgba(9,12,18,0.78)',
+          background: 'rgba(9,12,18,0.94)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -2052,13 +2321,16 @@ export default function TeleprompterView() {
               whiteSpace: 'nowrap',
             }}
           >
+            {responseModeLabel} ·{' '}
             {status === 'generating' || status === 'analyzing'
               ? 'Preparing answer'
               : status === 'transcribing'
                 ? 'Transcribing'
-                : isListening
-                  ? 'Listening'
-                  : 'Paused'}
+                : diagnosticState.micInputMuted
+                  ? 'Microphone muted'
+                  : isListening
+                    ? 'Listening'
+                    : 'Paused'}
           </span>
         </div>
         <div
@@ -2190,7 +2462,7 @@ export default function TeleprompterView() {
                         fontSize: 14,
                       }}
                     >
-                      {presentation.fallbackText}
+                      <InterviewAnswerMarkdown content={presentation.fallbackText || item.answer} />
                     </div>
                   );
                 })()
@@ -2205,7 +2477,7 @@ export default function TeleprompterView() {
                     fontSize: 14,
                   }}
                 >
-                  {item.answer}
+                  <InterviewAnswerMarkdown content={item.answer} />
                 </div>
               ))}
           </React.Fragment>
@@ -2236,24 +2508,34 @@ export default function TeleprompterView() {
             style={{
               alignSelf: 'flex-start',
               width: '100%',
-              maxWidth: 900,
+              maxWidth: 840,
+              boxSizing: 'border-box',
+              padding: isBionicGazeMode ? 0 : '16px 18px',
+              background: isBionicGazeMode ? 'transparent' : 'rgba(8, 12, 18, 0.96)',
+              border: isBionicGazeMode ? 'none' : '1px solid rgba(148, 163, 184, 0.16)',
+              borderRadius: isBionicGazeMode ? 0 : 12,
               color: '#e5eaf2',
-              whiteSpace: 'pre-wrap',
-              lineHeight: 1.72,
+              whiteSpace: 'normal',
+              overflowWrap: 'anywhere',
+              lineHeight: 1.7,
               fontSize: 14,
             }}
           >
-            {isBionicGazeMode && (currentAnswer || draftAnswer)
-              ? (() => {
-                  const answerText = currentAnswer || draftAnswer;
-                  const presentation = getBionicAnswerPresentation(answerText);
-                  return presentation.bullets.length > 0 ? (
-                    <BionicGazeHUD bullets={presentation.bullets} sourceText={answerText} />
-                  ) : (
-                    presentation.fallbackText
-                  );
-                })()
-              : currentAnswer || draftAnswer || 'Preparing an answer…'}
+            {isBionicGazeMode && (currentAnswer || draftAnswer) ? (
+              (() => {
+                const answerText = currentAnswer || draftAnswer;
+                const presentation = getBionicAnswerPresentation(answerText);
+                return presentation.bullets.length > 0 ? (
+                  <BionicGazeHUD bullets={presentation.bullets} sourceText={answerText} />
+                ) : (
+                  <InterviewAnswerMarkdown content={presentation.fallbackText || answerText} />
+                );
+              })()
+            ) : (
+              <InterviewAnswerMarkdown
+                content={currentAnswer || draftAnswer || 'Preparing an answer…'}
+              />
+            )}
             {blockedReason && (
               <div role="alert" style={{ color: '#fca5a5', fontSize: 12, marginTop: 10 }}>
                 {blockedReason}
@@ -2288,7 +2570,7 @@ export default function TeleprompterView() {
         )}
         {draftAnswer && (
           <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11, fontWeight: 600 }}>
-            🛡️ Live Generation Draft — Grounding validation in progress
+            Live Generation Draft · candidate-claim checks pending
           </div>
         )}
         {answerValidationStatus === 'BLOCKED' && (
@@ -2296,9 +2578,7 @@ export default function TeleprompterView() {
             role="alert"
             style={{ marginBottom: 10, color: '#fca5a5', fontSize: 12, lineHeight: 1.5 }}
           >
-            <div style={{ fontWeight: 700 }}>
-              Candidate Recital Blocked (Factual Grounding Safety Gate)
-            </div>
+            <div style={{ fontWeight: 700 }}>Answer blocked by candidate-evidence checks</div>
             {technicalGuidance && (
               <div style={{ marginTop: 8, color: '#cbd5e1' }}>
                 <div style={{ color: '#93c5fd', fontWeight: 600 }}>
@@ -2311,12 +2591,12 @@ export default function TeleprompterView() {
         )}
         {isAnswerValidated && answerValidationStatus === 'VALIDATED' && (
           <div style={{ marginBottom: 8, color: '#6ee7b7', fontSize: 11 }}>
-            🛡️ Factual Grounding: Verified
+            🛡️ Candidate-claim check passed
           </div>
         )}
         {answerValidationStatus === 'FLAGGED_BUT_QUALIFIED' && (
           <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11 }}>
-            ⚠️ Grounding: Qualified
+            ⚠️ Candidate claims qualified
           </div>
         )}
         {!questionHistory.length && !currentQuestion && !currentAnswer && !draftAnswer && (
@@ -2404,9 +2684,11 @@ export default function TeleprompterView() {
                 ? 'Generating…'
                 : status === 'transcribing'
                   ? 'Transcribing…'
-                  : isListening
-                    ? 'Microphone ready'
-                    : 'Mic paused'}
+                  : diagnosticState.micInputMuted
+                    ? 'Microphone muted · unmute input device'
+                    : isListening
+                      ? 'Microphone ready'
+                      : 'Mic paused'}
             </span>
           </div>
           {currentAnswer && (

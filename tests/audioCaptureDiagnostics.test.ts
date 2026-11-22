@@ -334,4 +334,76 @@ describe('audio capture diagnostics', () => {
     expect(events[1].audioCaptureDurationMs).toBeGreaterThanOrEqual(0);
     expect(events[1].message).not.toContain('navigator');
   });
+  it('surfaces microphone mute and restore events without treating them as disconnection', async () => {
+    const listeners = new Map<string, EventListener>();
+    const trackStop = vi.fn();
+    const track = {
+      kind: 'audio',
+      muted: false,
+      readyState: 'live' as MediaStreamTrackState,
+      stop: trackStop,
+      addEventListener: vi.fn((type: string, listener: EventListener) => {
+        listeners.set(type, listener);
+      }),
+      removeEventListener: vi.fn((type: string, listener: EventListener) => {
+        if (listeners.get(type) === listener) listeners.delete(type);
+      }),
+    } as unknown as MediaStreamTrack;
+    const stream = {
+      getTracks: () => [track],
+      getAudioTracks: () => [track],
+    } as unknown as MediaStream;
+
+    const sourceNode = { connect: vi.fn(), disconnect: vi.fn() };
+    const processorNode = {
+      onaudioprocess: null as ((event: AudioProcessingEvent) => void) | null,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    const gainNode = {
+      gain: { value: 1 },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+
+    class ActiveAudioContext {
+      state: AudioContextState = 'running';
+      sampleRate = 48000;
+      destination = {} as AudioDestinationNode;
+      resume = vi.fn(async () => undefined);
+      close = vi.fn(async () => {
+        this.state = 'closed';
+      });
+      createMediaStreamSource = vi.fn(() => sourceNode);
+      createScriptProcessor = vi.fn(() => processorNode);
+      createGain = vi.fn(() => gainNode);
+    }
+
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+    vi.stubGlobal('window', { AudioContext: ActiveAudioContext });
+
+    const recorder = new AudioRecorder();
+    await recorder.start(() => undefined);
+
+    expect(recorder.getCaptureState()).toBe('active');
+    expect(useAppStore.getState().diagnosticState.micActive).toBe(true);
+    listeners.get('mute')?.(new Event('mute'));
+
+    expect(useAppStore.getState().diagnosticState.micActive).toBe(true);
+    expect(useAppStore.getState().diagnosticState.micInputMuted).toBe(true);
+    expect(useAppStore.getState().diagnosticState.whisperStatus).toContain('muted');
+    expect(recorder.getCaptureState()).toBe('active');
+
+    listeners.get('unmute')?.(new Event('unmute'));
+
+    expect(useAppStore.getState().diagnosticState.micInputMuted).toBe(false);
+    expect(useAppStore.getState().diagnosticState.whisperStatus).toContain('restored');
+    expect(recorder.getCaptureState()).toBe('active');
+
+    await recorder.stop();
+    expect(trackStop).toHaveBeenCalledTimes(1);
+    expect(listeners.size).toBe(0);
+  });
 });

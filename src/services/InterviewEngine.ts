@@ -11,6 +11,7 @@ import { classifyUtterance } from './interruptionDetector';
 import { globalLatencyTracker } from './LatencyTracker';
 import { useAppStore } from '../store/useAppStore';
 import { AudioRecorder } from './audio';
+import { resolvePendingQuestionContinuation } from './pendingQuestionContinuation';
 import { transcribeAudio } from './whisper';
 import { AnswerGenerationService } from './AnswerGenerationService';
 import { DiagnosticLoggerService } from './diagnosticLogger';
@@ -69,6 +70,62 @@ function clearPendingQuestionTimer(): void {
 
 export class InterviewEngine {
   /**
+   * Starts automatic bounded collection when speech is clearly a question but
+   * ends mid-thought. This replaces the previous answered question in history,
+   * holds generation, and lets subsequent transcript fragments complete it.
+   */
+  static beginPendingQuestionFromTranscript(
+    text: string,
+    originalTranscript: string = text
+  ): boolean {
+    const initialQuestion = (text || '').trim();
+    if (!initialQuestion) return false;
+
+    const state = useAppStore.getState();
+    const previousQuestion = state.currentQuestion?.trim() || '';
+    if (previousQuestion && previousQuestion.toLowerCase() !== initialQuestion.toLowerCase()) {
+      state.pushToQuestionHistory({
+        question: previousQuestion,
+        answer: state.currentAnswer,
+        confidence: state.answerConfidence,
+      });
+    }
+
+    InterviewEngine.abortActiveGeneration();
+    clearPendingQuestionTimer();
+    pendingQuestionText = initialQuestion;
+    pendingQuestionTranscript = (originalTranscript || initialQuestion).trim();
+
+    const now = Date.now();
+    pendingQuestionHardDeadline = now + QUESTION_CONTINUATION_MAX_MS;
+    pendingQuestionDeadline = Math.min(
+      pendingQuestionHardDeadline,
+      now +
+        Math.min(3500, Math.max(400, state.speechPauseTolerance)) +
+        QUESTION_CONTINUATION_GRACE_MS
+    );
+
+    state.clearAnswerQueue();
+    state.setCurrentQuestion(initialQuestion);
+    state.setIsIncompleteQuestionMode(true);
+    state.setPipelineStage('pending_finalization');
+    state.setStatus('listening');
+    state.updateDiagnostics({
+      latestTranscript: pendingQuestionTranscript,
+      whisperStatus: 'Incomplete interviewer question detected; waiting briefly for continuation.',
+      questionMatched: false,
+    });
+
+    pendingQuestionTimer = setTimeout(
+      () => {
+        void InterviewEngine.finalizePendingQuestion();
+      },
+      Math.max(0, pendingQuestionDeadline - Date.now())
+    );
+    return true;
+  }
+
+  /**
    * Converts the current question into a bounded pending-finalization request.
    * The silence threshold remains user-configurable; the extra grace window is
    * a fixed continuation cap so incomplete-question mode cannot wait forever.
@@ -100,17 +157,31 @@ export class InterviewEngine {
     );
   }
 
-  static appendPendingQuestionUtterance(text: string): boolean {
+  static appendPendingQuestionUtterance(
+    text: string
+  ): 'none' | 'appended' | 'ignored' | 'candidate-speech' | 'new-question' {
     const incoming = (text || '').trim();
     const now = Date.now();
-    if (
-      !incoming ||
-      !pendingQuestionText ||
-      now > pendingQuestionDeadline ||
-      now > pendingQuestionHardDeadline
-    ) {
-      return false;
+    if (!incoming || !pendingQuestionText) return 'none';
+
+    if (now > pendingQuestionDeadline || now > pendingQuestionHardDeadline) {
+      InterviewEngine.clearPendingQuestion();
+      return 'none';
     }
+
+    const continuationDecision = resolvePendingQuestionContinuation(incoming);
+    if (continuationDecision === 'new-question') {
+      InterviewEngine.clearPendingQuestion();
+      return 'new-question';
+    }
+    if (continuationDecision === 'candidate-speech') {
+      // Candidate narration must not be mistaken for a continuation or
+      // re-enter interviewer-question routing after the stale partial is cleared.
+      InterviewEngine.clearPendingQuestion();
+      return 'candidate-speech';
+    }
+    if (continuationDecision === 'ignore') return 'ignored';
+
     pendingQuestionText = `${pendingQuestionText.replace(/[.?!…]+$/, '')} ${incoming}`.trim();
     pendingQuestionTranscript = `${pendingQuestionTranscript} ${incoming}`.trim();
     const state = useAppStore.getState();
@@ -129,7 +200,7 @@ export class InterviewEngine {
       },
       Math.max(0, pendingQuestionDeadline - Date.now())
     );
-    return true;
+    return 'appended';
   }
 
   static async finalizePendingQuestion(): Promise<void> {
@@ -367,7 +438,9 @@ export class InterviewEngine {
 
           // If explicit Still Asking mode is active, retain each segment and give
           // continuation a bounded window. The timer guarantees eventual finalization.
-          if (InterviewEngine.appendPendingQuestionUtterance(text)) {
+          const pendingUtteranceResult = InterviewEngine.appendPendingQuestionUtterance(text);
+
+          if (pendingUtteranceResult === 'appended') {
             useAppStore.getState().addTranscript({
               id: `continuation_${requestId}`,
               speaker: 'unknown',
@@ -381,6 +454,36 @@ export class InterviewEngine {
               latestTranscript: text,
               whisperStatus: 'Pending question extended; finalization timer restarted',
             });
+            return;
+          }
+
+          if (
+            pendingUtteranceResult === 'ignored' ||
+            pendingUtteranceResult === 'candidate-speech'
+          ) {
+            useAppStore.getState().addTranscript({
+              id: `pending_question_${pendingUtteranceResult}_${requestId}`,
+              speaker: 'unknown',
+              text,
+              timestamp: Date.now(),
+              classification:
+                pendingUtteranceResult === 'candidate-speech'
+                  ? 'CANDIDATE_NARRATION_DETECTED'
+                  : 'PENDING_QUESTION_FILLER_IGNORED',
+              reason:
+                pendingUtteranceResult === 'candidate-speech'
+                  ? 'Candidate-style narration detected; stale pending question discarded'
+                  : 'Neutral filler ignored; pending question was not extended',
+            });
+            useAppStore.getState().updateDiagnostics({
+              latestTranscript: text,
+              whisperStatus:
+                pendingUtteranceResult === 'candidate-speech'
+                  ? 'Candidate narration detected; incomplete question discarded.'
+                  : 'Neutral filler ignored while waiting for question continuation.',
+              questionMatched: false,
+            });
+            restoreListeningAfterTranscription();
             return;
           }
 
@@ -438,6 +541,26 @@ export class InterviewEngine {
             });
             restoreListeningAfterTranscription();
             return;
+          }
+
+          if (
+            classification.type === 'UNCLASSIFIED' &&
+            classification.isIncomplete &&
+            shouldAutoRouteUncertainQuestion(classification, text)
+          ) {
+            const candidateQuestion = classification.questionText || text;
+            if (InterviewEngine.beginPendingQuestionFromTranscript(candidateQuestion, text)) {
+              useAppStore.getState().addTranscript({
+                id: `pending_question_${requestId}`,
+                speaker: 'unknown',
+                text: candidateQuestion,
+                timestamp: Date.now(),
+                classification: 'PENDING_INCOMPLETE_QUESTION',
+                confidence: classification.confidence,
+                reason: 'Incomplete question retained for automatic continuation',
+              });
+              return;
+            }
           }
 
           if (classification.type === 'UNCLASSIFIED') {

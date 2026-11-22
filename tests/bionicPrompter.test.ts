@@ -9,15 +9,20 @@ describe('Bionic Prompter & Gaze Service', () => {
     const answer =
       'We designed an event-driven architecture using Kafka partitions to handle 50k QPS with sub-10ms latency. The Redis cache layer absorbs hot reads, ensuring high availability under bursty spikes.';
     const bullets = extractGlanceableGazeBullets(answer);
-    expect(bullets.length).toBeGreaterThan(0);
-    expect(bullets.every((b) => b.text.split(' ').length <= 7)).toBe(true);
+    expect(bullets).toHaveLength(2);
+    expect(bullets[0].text).toContain('We designed an event-driven architecture');
+    expect(bullets[0].text).toContain('sub-10ms latency.');
+    expect(bullets[1].text).toContain('The Redis cache layer absorbs hot reads');
+    expect(bullets[1].text).toContain('bursty spikes.');
   });
 
   it('detects metric chips for instant visual anchoring', () => {
     const answer =
       'Achieved 98% test coverage and maintained 99.99% SLA across 4 distributed Kubernetes clusters.';
     const bullets = extractGlanceableGazeBullets(answer);
-    const hasMetric = bullets.some((b) => b.metricChip && (b.metricChip.includes('98%') || b.metricChip.includes('99.99%')));
+    const hasMetric = bullets.some(
+      (b) => b.metricChip && (b.metricChip.includes('98%') || b.metricChip.includes('99.99%'))
+    );
     expect(hasMetric).toBe(true);
   });
 
@@ -28,4 +33,3 @@ describe('Bionic Prompter & Gaze Service', () => {
     expect(formatted.bold + formatted.normal).toBe('Architecture');
   });
 });
-

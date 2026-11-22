@@ -13,6 +13,7 @@ import {
 import { InterviewEngine } from '../services/InterviewEngine';
 import { InterviewWorkspace } from '../types';
 import { normalizePreferredLanguage } from '../utils/settings';
+import { resolveInterviewResponseMode } from '../utils/responseMode';
 import {
   resolveOrMigrateModel,
   getDefaultModelForProvider,
@@ -52,6 +53,7 @@ export type RecitalState = 'idle' | 'listening' | 'reciting' | 'interrupted';
 
 export interface DiagnosticState {
   micActive: boolean;
+  micInputMuted?: boolean;
   currentDb: number;
   speechDetected: boolean;
   blobSize: number;
@@ -887,10 +889,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
             ? ''
             : savedJD,
         targetRole: !savedRole || savedRole === 'Legacy Sample Developer' ? '' : savedRole,
-        responseMode:
-          savedMode === 'coding' || savedMode === 'interview' || savedMode === 'quiz'
-            ? savedMode
-            : 'coding',
+        responseMode: resolveInterviewResponseMode(savedMode),
       });
     } catch {}
   },
@@ -1018,16 +1017,10 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   },
   responseMode: (() => {
     try {
-      const saved = localStorage.getItem('interview_response_mode');
-      if (
-        saved === 'coding' ||
-        saved === 'interview' ||
-        saved === 'quiz' ||
-        saved === 'application'
-      )
-        return saved;
-    } catch {}
-    return 'coding';
+      return resolveInterviewResponseMode(localStorage.getItem('interview_response_mode'));
+    } catch {
+      return 'interview';
+    }
   })(),
   setResponseMode: (responseMode) => {
     try {
@@ -1236,6 +1229,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   toast: null,
   diagnosticState: {
     micActive: false,
+    micInputMuted: false,
     currentDb: -100,
     speechDetected: false,
     blobSize: 0,

@@ -159,14 +159,16 @@ describe('Question History & Incomplete Question Recovery', () => {
 
         for (let i = 0; i < 4; i++) {
           await vi.advanceTimersByTimeAsync(3000);
-          expect(InterviewEngine.appendPendingQuestionUtterance(`continuation ${i}`)).toBe(true);
+          expect(InterviewEngine.appendPendingQuestionUtterance(`continuation ${i}`)).toBe(
+            'appended'
+          );
         }
 
         await vi.advanceTimersByTimeAsync(3001);
         expect(handleEventSpy).toHaveBeenCalledWith(
           expect.objectContaining({ type: 'QUESTION_DETECTED' })
         );
-        expect(InterviewEngine.appendPendingQuestionUtterance('too late')).toBe(false);
+        expect(InterviewEngine.appendPendingQuestionUtterance('too late')).toBe('none');
       } finally {
         handleEventSpy.mockRestore();
         vi.useRealTimers();

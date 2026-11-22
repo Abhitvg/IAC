@@ -84,7 +84,15 @@ jobs:
             git diff --name-only --diff-filter=ACMR HEAD^ HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' > /tmp/changed-files.txt
           fi
           if [[ -s /tmp/changed-files.txt ]]; then
-            xargs -r npx prettier --check < /tmp/changed-files.txt
+            if ! xargs -r npx prettier --check < /tmp/changed-files.txt; then
+              while IFS= read -r file; do
+                [[ -f "$file" ]] || continue
+                echo "::group::Prettier diff: $file"
+                npx prettier "$file" | diff -u "$file" - || true
+                echo "::endgroup::"
+              done < /tmp/changed-files.txt
+              exit 1
+            fi
           else
             echo "No supported files changed; skipping formatting check."
           fi
