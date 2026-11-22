@@ -101,21 +101,21 @@ export function selectPrimaryGlanceableBullets(bullets: BionicGazeBullet[]): {
     }
   };
 
-  // Keep the direct answer and the ending conclusion/caveats in the first glance.
-  for (let index = 0; index < Math.min(7, bullets.length); index += 1) addIndex(index);
-  for (let index = Math.max(7, bullets.length - 5); index < bullets.length; index += 1) {
+  // Prioritise the opening answer, then reserve space for the ending and
+  // high-signal engineering details without changing their original order.
+  for (let index = 0; index < Math.min(4, bullets.length); index += 1) addIndex(index);
+
+  for (let index = Math.max(4, bullets.length - 2); index < bullets.length; index += 1) {
     addIndex(index);
   }
 
-  // Pull high-signal engineering points (metrics, risks, trade-offs, security) forward.
-  for (let index = 7; index < Math.max(7, bullets.length - 5); index += 1) {
+  for (let index = 4; index < bullets.length - 2; index += 1) {
     if (bullets[index].metricChip || HIGH_SIGNAL_BULLET.test(bullets[index].text)) {
       addIndex(index);
     }
   }
 
-  // Fill any remaining slots in original order for a representative overview.
-  for (let index = 7; index < bullets.length && selectedIndexes.size < BIONIC_PRIMARY_BULLET_LIMIT; index += 1) {
+  for (let index = 4; index < bullets.length && selectedIndexes.size < BIONIC_PRIMARY_BULLET_LIMIT; index += 1) {
     addIndex(index);
   }
 
