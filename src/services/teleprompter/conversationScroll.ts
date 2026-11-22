@@ -12,6 +12,16 @@ export function isConversationNearBottom(
   return scrollHeight - scrollTop - clientHeight < threshold;
 }
 
+export function shouldAutoFollowConversation(
+  scrollHeight: number,
+  scrollTop: number,
+  clientHeight: number,
+  autoFollowEnabled: boolean,
+  threshold = CONVERSATION_AUTO_FOLLOW_THRESHOLD_PX
+): boolean {
+  return autoFollowEnabled && isConversationNearBottom(scrollHeight, scrollTop, clientHeight, threshold);
+}
+
 export function getConversationScrollTarget(
   scrollHeight: number,
   savedScrollTop: number,
