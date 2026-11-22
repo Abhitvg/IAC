@@ -194,7 +194,13 @@ function QuizAnswerCard({
 }
 
 // Bionic Glanceable Prompter & Eye-Contact HUD
-function BionicGazeHUD({ bullets, sourceText }: { bullets: BionicGazeBullet[]; sourceText?: string }) {
+function BionicGazeHUD({
+  bullets,
+  sourceText,
+}: {
+  bullets: BionicGazeBullet[];
+  sourceText?: string;
+}) {
   return (
     <div
       style={{
@@ -323,7 +329,16 @@ function BionicGazeHUD({ bullets, sourceText }: { bullets: BionicGazeBullet[]; s
           <summary style={{ cursor: 'pointer', fontSize: 11, color: '#a7f3d0' }}>
             Show complete answer and code
           </summary>
-          <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', font: 'inherit', fontSize: 12, lineHeight: 1.6, marginTop: 10 }}>
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              overflowWrap: 'anywhere',
+              font: 'inherit',
+              fontSize: 12,
+              lineHeight: 1.6,
+              marginTop: 10,
+            }}
+          >
             {sourceText}
           </pre>
         </details>
@@ -2043,178 +2058,147 @@ export default function TeleprompterView() {
   };
 
   return (
-      <div
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
+        minHeight: 0,
+        overflow: 'hidden',
+        color: '#f8fafc',
+        background: 'rgba(5, 7, 11, 0.82)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      }}
+    >
+      <header
+        className="teleprompter-draggable"
         style={{
           display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          width: '100%',
-          minHeight: 0,
-          overflow: 'hidden',
-          color: '#f8fafc',
-          background: 'rgba(5, 7, 11, 0.82)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          padding: '10px 14px',
+          borderBottom: '1px solid rgba(255,255,255,0.09)',
+          background: 'rgba(9,12,18,0.78)',
         }}
       >
-        <header
-          className="teleprompter-draggable"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 10,
-            padding: '10px 14px',
-            borderBottom: '1px solid rgba(255,255,255,0.09)',
-            background: 'rgba(9,12,18,0.78)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>Live Interview</strong>
-            <span
-              style={{
-                fontSize: 11,
-                color: '#8f9bad',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {status === 'generating' || status === 'analyzing'
-                ? 'Preparing answer'
-                : status === 'transcribing'
-                  ? 'Transcribing'
-                  : isListening
-                    ? 'Listening'
-                    : 'Paused'}
-            </span>
-          </div>
-          <div
-            className="teleprompter-nodrag"
-            style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>Live Interview</strong>
+          <span
+            style={{
+              fontSize: 11,
+              color: '#8f9bad',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
           >
-            <button
-              type="button"
-              onClick={toggleBionicHud}
-              title={isBionicGazeMode ? "Switch to standard answer presentation (⌘⇧H)" : "Switch to Bionic HUD answer presentation (⌘⇧H)"}
-              style={{
-                border: '1px solid rgba(129,140,248,0.55)',
-                background: 'rgba(99,102,241,0.16)',
-                color: '#c7d2fe',
-                borderRadius: 7,
-                padding: '6px 10px',
-                fontSize: 11,
-                cursor: 'pointer',
-              }}
-            >
-              {isBionicGazeMode ? <EyeOff size={13} style={{ verticalAlign: 'middle', marginRight: 5 }} /> : <Eye size={13} style={{ verticalAlign: 'middle', marginRight: 5 }} />}
-              Bionic HUD · {isBionicGazeMode ? 'ON' : 'OFF'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowShortcuts(true)}
-              title="Keyboard shortcuts"
-              style={{
-                border: '1px solid rgba(255,255,255,0.12)',
-                background: 'rgba(255,255,255,0.05)',
-                color: '#cbd5e1',
-                borderRadius: 7,
-                padding: '6px 9px',
-                fontSize: 11,
-                cursor: 'pointer',
-              }}
-            >
-              <Keyboard size={13} />
-            </button>
-            <button
-              type="button"
-              onClick={handleExit}
-              title="Quit"
-              style={{
-                border: '1px solid rgba(248,113,113,0.35)',
-                background: 'rgba(127,29,29,0.22)',
-                color: '#fecaca',
-                borderRadius: 7,
-                padding: '6px 9px',
-                fontSize: 11,
-                cursor: 'pointer',
-              }}
-            >
-              <Power size={13} />
-            </button>
-          </div>
-        </header>
+            {status === 'generating' || status === 'analyzing'
+              ? 'Preparing answer'
+              : status === 'transcribing'
+                ? 'Transcribing'
+                : isListening
+                  ? 'Listening'
+                  : 'Paused'}
+          </span>
+        </div>
         <div
-          ref={conversationScrollRef}
-          onScroll={(event) => {
-            const element = event.currentTarget;
-            conversationScrollTopRef.current = element.scrollTop;
-            shouldAutoScrollConversationRef.current = isConversationNearBottom(
-              element.scrollHeight,
-              element.scrollTop,
-              element.clientHeight
-            );
-          }}
-          role="log"
-          aria-live="polite"
-          aria-label="Interview conversation"
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: 'auto',
-            padding: '22px clamp(14px, 5vw, 56px)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 18,
-            overscrollBehavior: 'contain',
-          }}
+          className="teleprompter-nodrag"
+          style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}
         >
-          {questionHistory.map((item, index) => (
-            <React.Fragment key={item.timestamp || index}>
-              <div
-                data-conversation-id={
-                  'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index)
-                }
-                style={{ display: 'flex', justifyContent: 'flex-end' }}
-              >
-                <div
-                  style={{
-                    maxWidth: '88%',
-                    background: 'rgba(39,50,67,0.82)',
-                    border: '1px solid rgba(148,163,184,0.14)',
-                    borderRadius: '16px 16px 4px 16px',
-                    padding: '11px 14px',
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: 1.55,
-                    fontSize: 14,
-                  }}
-                >
-                  {item.question}
-                </div>
-              </div>
-              {item.answer &&
-                (isBionicGazeMode ? (
-                  (() => {
-                    const presentation = getBionicAnswerPresentation(item.answer);
-                    return presentation.bullets.length > 0 ? (
-                      <BionicGazeHUD bullets={presentation.bullets} sourceText={item.answer} />
-                    ) : (
-                      <div style={{ alignSelf: 'flex-start', maxWidth: '96%', color: '#e5eaf2', whiteSpace: 'pre-wrap', lineHeight: 1.72, fontSize: 14 }}>
-                        {presentation.fallbackText}
-                      </div>
-                    );
-                  })()
-                ) : (
-                  <div style={{ alignSelf: 'flex-start', maxWidth: '96%', color: '#e5eaf2', whiteSpace: 'pre-wrap', lineHeight: 1.72, fontSize: 14 }}>
-                    {item.answer}
-                  </div>
-                ))}
-            </React.Fragment>
-          ))}
-          {currentQuestion && (
+          <button
+            type="button"
+            onClick={toggleBionicHud}
+            title={
+              isBionicGazeMode
+                ? 'Switch to standard answer presentation (⌘⇧H)'
+                : 'Switch to Bionic HUD answer presentation (⌘⇧H)'
+            }
+            style={{
+              border: '1px solid rgba(129,140,248,0.55)',
+              background: 'rgba(99,102,241,0.16)',
+              color: '#c7d2fe',
+              borderRadius: 7,
+              padding: '6px 10px',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+          >
+            {isBionicGazeMode ? (
+              <EyeOff size={13} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+            ) : (
+              <Eye size={13} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+            )}
+            Bionic HUD · {isBionicGazeMode ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowShortcuts(true)}
+            title="Keyboard shortcuts"
+            style={{
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'rgba(255,255,255,0.05)',
+              color: '#cbd5e1',
+              borderRadius: 7,
+              padding: '6px 9px',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+          >
+            <Keyboard size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={handleExit}
+            title="Quit"
+            style={{
+              border: '1px solid rgba(248,113,113,0.35)',
+              background: 'rgba(127,29,29,0.22)',
+              color: '#fecaca',
+              borderRadius: 7,
+              padding: '6px 9px',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+          >
+            <Power size={13} />
+          </button>
+        </div>
+      </header>
+      <div
+        ref={conversationScrollRef}
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          conversationScrollTopRef.current = element.scrollTop;
+          shouldAutoScrollConversationRef.current = isConversationNearBottom(
+            element.scrollHeight,
+            element.scrollTop,
+            element.clientHeight
+          );
+        }}
+        role="log"
+        aria-live="polite"
+        aria-label="Interview conversation"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          padding: '22px clamp(14px, 5vw, 56px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 18,
+          overscrollBehavior: 'contain',
+        }}
+      >
+        {questionHistory.map((item, index) => (
+          <React.Fragment key={item.timestamp || index}>
             <div
-              data-conversation-id="current-conversation"
+              data-conversation-id={
+                'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index)
+              }
               style={{ display: 'flex', justifyContent: 'flex-end' }}
             >
               <div
@@ -2229,265 +2213,321 @@ export default function TeleprompterView() {
                   fontSize: 14,
                 }}
               >
-                {currentQuestion}
+                {item.question}
               </div>
             </div>
-          )}
-          {(currentAnswer || draftAnswer || isGenerating) && (
+            {item.answer &&
+              (isBionicGazeMode ? (
+                (() => {
+                  const presentation = getBionicAnswerPresentation(item.answer);
+                  return presentation.bullets.length > 0 ? (
+                    <BionicGazeHUD bullets={presentation.bullets} sourceText={item.answer} />
+                  ) : (
+                    <div
+                      style={{
+                        alignSelf: 'flex-start',
+                        maxWidth: '96%',
+                        color: '#e5eaf2',
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: 1.72,
+                        fontSize: 14,
+                      }}
+                    >
+                      {presentation.fallbackText}
+                    </div>
+                  );
+                })()
+              ) : (
+                <div
+                  style={{
+                    alignSelf: 'flex-start',
+                    maxWidth: '96%',
+                    color: '#e5eaf2',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.72,
+                    fontSize: 14,
+                  }}
+                >
+                  {item.answer}
+                </div>
+              ))}
+          </React.Fragment>
+        ))}
+        {currentQuestion && (
+          <div
+            data-conversation-id="current-conversation"
+            style={{ display: 'flex', justifyContent: 'flex-end' }}
+          >
             <div
               style={{
-                alignSelf: 'flex-start',
-                width: '100%',
-                maxWidth: 900,
-                color: '#e5eaf2',
+                maxWidth: '88%',
+                background: 'rgba(39,50,67,0.82)',
+                border: '1px solid rgba(148,163,184,0.14)',
+                borderRadius: '16px 16px 4px 16px',
+                padding: '11px 14px',
                 whiteSpace: 'pre-wrap',
-                lineHeight: 1.72,
+                lineHeight: 1.55,
                 fontSize: 14,
               }}
             >
-              {isBionicGazeMode && (currentAnswer || draftAnswer) ? (() => {
-                const answerText = currentAnswer || draftAnswer;
-                const presentation = getBionicAnswerPresentation(answerText);
-                return presentation.bullets.length > 0 ? (
-                  <BionicGazeHUD bullets={presentation.bullets} sourceText={answerText} />
-                ) : (
-                  presentation.fallbackText
-                );
-              })() : currentAnswer || draftAnswer || 'Preparing an answer…'}
-              {blockedReason && (
-                <div role="alert" style={{ color: '#fca5a5', fontSize: 12, marginTop: 10 }}>
-                  {blockedReason}
-                </div>
-              )}
-              {(answerValidationStatus === 'BLOCKED' || answerValidationStatus === 'FAILED') && (
-                <div style={{ color: '#fbbf24', fontSize: 11, marginTop: 8 }}>
-                  Answer is not approved for speaking. Review before using it.
-                </div>
-              )}
-              {currentAnswer && (
-                <button
-                  type="button"
-                  onClick={copyAnswer}
-                  style={{
-                    display: 'block',
-                    marginTop: 9,
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    background: 'transparent',
-                    color: '#cbd5e1',
-                    borderRadius: 6,
-                    padding: '5px 9px',
-                    fontSize: 11,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Copy size={12} style={{ verticalAlign: 'middle', marginRight: 5 }} />
-                  Copy answer
-                </button>
-              )}
+              {currentQuestion}
             </div>
-          )}
-          {draftAnswer && (
-            <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11, fontWeight: 600 }}>
-              🛡️ Live Generation Draft — Grounding validation in progress
-            </div>
-          )}
-          {answerValidationStatus === 'BLOCKED' && (
-            <div
-              role="alert"
-              style={{ marginBottom: 10, color: '#fca5a5', fontSize: 12, lineHeight: 1.5 }}
-            >
-              <div style={{ fontWeight: 700 }}>
-                Candidate Recital Blocked (Factual Grounding Safety Gate)
-              </div>
-              {technicalGuidance && (
-                <div style={{ marginTop: 8, color: '#cbd5e1' }}>
-                  <div style={{ color: '#93c5fd', fontWeight: 600 }}>
-                    Impersonal Technical Guidance
-                  </div>
-                  {technicalGuidance}
-                </div>
-              )}
-            </div>
-          )}
-          {isAnswerValidated && answerValidationStatus === 'VALIDATED' && (
-            <div style={{ marginBottom: 8, color: '#6ee7b7', fontSize: 11 }}>
-              🛡️ Factual Grounding: Verified
-            </div>
-          )}
-          {answerValidationStatus === 'FLAGGED_BUT_QUALIFIED' && (
-            <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11 }}>
-              ⚠️ Grounding: Qualified
-            </div>
-          )}
-          {!questionHistory.length &&
-            !currentQuestion &&
-            !currentAnswer &&
-            !draftAnswer && (
-              <div style={{ margin: 'auto', textAlign: 'center', color: '#7f8b9d', fontSize: 13 }}>
-                Your interview conversation will appear here.
-              </div>
-            )}
-        </div>
-        <footer
-          className="teleprompter-nodrag"
-          style={{
-            borderTop: '1px solid rgba(255,255,255,0.09)',
-            background: 'rgba(8,11,16,0.88)',
-            padding: '10px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 9,
-          }}
-        >
-          <form onSubmit={handleFormSubmit} style={{ display: 'flex', gap: 8, width: '100%' }}>
-            <input
-              value={manualInput}
-              onChange={(e) => setManualInput(e.target.value)}
-              placeholder="Type or paste an interview question…"
-              aria-label="Enter interview question"
-              style={{
-                flex: 1,
-                minWidth: 0,
-                background: 'rgba(255,255,255,0.055)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 8,
-                padding: '10px 12px',
-                color: '#f8fafc',
-                fontSize: 13,
-                outline: 'none',
-              }}
-            />
-            <button
-              type="submit"
-              disabled={!manualInput.trim()}
-              style={{
-                border: 0,
-                borderRadius: 8,
-                padding: '0 15px',
-                color: '#fff',
-                background: manualInput.trim() ? '#4f46e5' : '#303746',
-                cursor: manualInput.trim() ? 'pointer' : 'not-allowed',
-                fontSize: 12,
-              }}
-            >
-              Send
-            </button>
-          </form>
+          </div>
+        )}
+        {(currentAnswer || draftAnswer || isGenerating) && (
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 8,
-              flexWrap: 'wrap',
+              alignSelf: 'flex-start',
+              width: '100%',
+              maxWidth: 900,
+              color: '#e5eaf2',
+              whiteSpace: 'pre-wrap',
+              lineHeight: 1.72,
+              fontSize: 14,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                type="button"
-                onClick={toggleRecording}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  border: 0,
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  color: '#fff',
-                  background: isListening ? '#7f1d1d' : '#4f46e5',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                {isListening ? <MicOff size={14} /> : <Mic size={14} />}{' '}
-                {isListening ? 'Pause listening' : 'Start listening'}
-              </button>
-              <span style={{ color: '#8d9bad', fontSize: 11 }}>
-                {isGenerating
-                  ? 'Generating…'
-                  : status === 'transcribing'
-                    ? 'Transcribing…'
-                    : isListening
-                      ? 'Microphone ready'
-                      : 'Mic paused'}
-              </span>
-            </div>
+            {isBionicGazeMode && (currentAnswer || draftAnswer)
+              ? (() => {
+                  const answerText = currentAnswer || draftAnswer;
+                  const presentation = getBionicAnswerPresentation(answerText);
+                  return presentation.bullets.length > 0 ? (
+                    <BionicGazeHUD bullets={presentation.bullets} sourceText={answerText} />
+                  ) : (
+                    presentation.fallbackText
+                  );
+                })()
+              : currentAnswer || draftAnswer || 'Preparing an answer…'}
+            {blockedReason && (
+              <div role="alert" style={{ color: '#fca5a5', fontSize: 12, marginTop: 10 }}>
+                {blockedReason}
+              </div>
+            )}
+            {(answerValidationStatus === 'BLOCKED' || answerValidationStatus === 'FAILED') && (
+              <div style={{ color: '#fbbf24', fontSize: 11, marginTop: 8 }}>
+                Answer is not approved for speaking. Review before using it.
+              </div>
+            )}
             {currentAnswer && (
               <button
                 type="button"
-                onClick={clearAndResetToListen}
+                onClick={copyAnswer}
                 style={{
+                  display: 'block',
+                  marginTop: 9,
                   border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: 7,
-                  padding: '7px 10px',
                   background: 'transparent',
                   color: '#cbd5e1',
+                  borderRadius: 6,
+                  padding: '5px 9px',
                   fontSize: 11,
                   cursor: 'pointer',
                 }}
               >
-                New question
+                <Copy size={12} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+                Copy answer
               </button>
             )}
           </div>
-        </footer>
-        {showConversationSearch && (
-          <ConversationSearchOverlay
-            query={conversationSearchQuery}
-            onQueryChange={setConversationSearchQuery}
-            results={conversationSearchResults}
-            onClose={() => setShowConversationSearch(false)}
-            onSelect={jumpToConversationResult}
-          />
         )}
-        {showShortcuts && (
+        {draftAnswer && (
+          <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11, fontWeight: 600 }}>
+            🛡️ Live Generation Draft — Grounding validation in progress
+          </div>
+        )}
+        {answerValidationStatus === 'BLOCKED' && (
           <div
-            onClick={() => setShowShortcuts(false)}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 90,
-              background: 'rgba(0,0,0,0.72)',
-              display: 'grid',
-              placeItems: 'center',
-              padding: 20,
-            }}
+            role="alert"
+            style={{ marginBottom: 10, color: '#fca5a5', fontSize: 12, lineHeight: 1.5 }}
           >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                width: 'min(100%, 420px)',
-                padding: 18,
-                borderRadius: 12,
-                background: '#101722',
-                border: '1px solid #354155',
-                color: '#e5eaf2',
-              }}
-            >
-              <strong>Keyboard shortcuts</strong>
-              <p style={{ fontSize: 11, lineHeight: 1.6, color: '#8290a3', marginBottom: 8 }}>
-                Select a shortcut and press a new key combination. Changes are saved to your app
-                settings.
-              </p>
-              <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
-              <button
-                type="button"
-                onClick={() => setShowShortcuts(false)}
-                style={{
-                  marginTop: 8,
-                  border: 0,
-                  borderRadius: 7,
-                  padding: '7px 12px',
-                  background: '#3730a3',
-                  color: '#fff',
-                  cursor: 'pointer',
-                }}
-              >
-                Close
-              </button>
+            <div style={{ fontWeight: 700 }}>
+              Candidate Recital Blocked (Factual Grounding Safety Gate)
             </div>
+            {technicalGuidance && (
+              <div style={{ marginTop: 8, color: '#cbd5e1' }}>
+                <div style={{ color: '#93c5fd', fontWeight: 600 }}>
+                  Impersonal Technical Guidance
+                </div>
+                {technicalGuidance}
+              </div>
+            )}
+          </div>
+        )}
+        {isAnswerValidated && answerValidationStatus === 'VALIDATED' && (
+          <div style={{ marginBottom: 8, color: '#6ee7b7', fontSize: 11 }}>
+            🛡️ Factual Grounding: Verified
+          </div>
+        )}
+        {answerValidationStatus === 'FLAGGED_BUT_QUALIFIED' && (
+          <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11 }}>
+            ⚠️ Grounding: Qualified
+          </div>
+        )}
+        {!questionHistory.length && !currentQuestion && !currentAnswer && !draftAnswer && (
+          <div style={{ margin: 'auto', textAlign: 'center', color: '#7f8b9d', fontSize: 13 }}>
+            Your interview conversation will appear here.
           </div>
         )}
       </div>
-    );
+      <footer
+        className="teleprompter-nodrag"
+        style={{
+          borderTop: '1px solid rgba(255,255,255,0.09)',
+          background: 'rgba(8,11,16,0.88)',
+          padding: '10px 14px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 9,
+        }}
+      >
+        <form onSubmit={handleFormSubmit} style={{ display: 'flex', gap: 8, width: '100%' }}>
+          <input
+            value={manualInput}
+            onChange={(e) => setManualInput(e.target.value)}
+            placeholder="Type or paste an interview question…"
+            aria-label="Enter interview question"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              background: 'rgba(255,255,255,0.055)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 8,
+              padding: '10px 12px',
+              color: '#f8fafc',
+              fontSize: 13,
+              outline: 'none',
+            }}
+          />
+          <button
+            type="submit"
+            disabled={!manualInput.trim()}
+            style={{
+              border: 0,
+              borderRadius: 8,
+              padding: '0 15px',
+              color: '#fff',
+              background: manualInput.trim() ? '#4f46e5' : '#303746',
+              cursor: manualInput.trim() ? 'pointer' : 'not-allowed',
+              fontSize: 12,
+            }}
+          >
+            Send
+          </button>
+        </form>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              type="button"
+              onClick={toggleRecording}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                border: 0,
+                borderRadius: 8,
+                padding: '8px 12px',
+                color: '#fff',
+                background: isListening ? '#7f1d1d' : '#4f46e5',
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+            >
+              {isListening ? <MicOff size={14} /> : <Mic size={14} />}{' '}
+              {isListening ? 'Pause listening' : 'Start listening'}
+            </button>
+            <span style={{ color: '#8d9bad', fontSize: 11 }}>
+              {isGenerating
+                ? 'Generating…'
+                : status === 'transcribing'
+                  ? 'Transcribing…'
+                  : isListening
+                    ? 'Microphone ready'
+                    : 'Mic paused'}
+            </span>
+          </div>
+          {currentAnswer && (
+            <button
+              type="button"
+              onClick={clearAndResetToListen}
+              style={{
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 7,
+                padding: '7px 10px',
+                background: 'transparent',
+                color: '#cbd5e1',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              New question
+            </button>
+          )}
+        </div>
+      </footer>
+      {showConversationSearch && (
+        <ConversationSearchOverlay
+          query={conversationSearchQuery}
+          onQueryChange={setConversationSearchQuery}
+          results={conversationSearchResults}
+          onClose={() => setShowConversationSearch(false)}
+          onSelect={jumpToConversationResult}
+        />
+      )}
+      {showShortcuts && (
+        <div
+          onClick={() => setShowShortcuts(false)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 90,
+            background: 'rgba(0,0,0,0.72)',
+            display: 'grid',
+            placeItems: 'center',
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(100%, 420px)',
+              padding: 18,
+              borderRadius: 12,
+              background: '#101722',
+              border: '1px solid #354155',
+              color: '#e5eaf2',
+            }}
+          >
+            <strong>Keyboard shortcuts</strong>
+            <p style={{ fontSize: 11, lineHeight: 1.6, color: '#8290a3', marginBottom: 8 }}>
+              Select a shortcut and press a new key combination. Changes are saved to your app
+              settings.
+            </p>
+            <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
+            <button
+              type="button"
+              onClick={() => setShowShortcuts(false)}
+              style={{
+                marginTop: 8,
+                border: 0,
+                borderRadius: 7,
+                padding: '7px 12px',
+                background: '#3730a3',
+                color: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

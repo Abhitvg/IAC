@@ -30,40 +30,62 @@ export class FollowUpEngine {
 
     // Cloud platform follow-ups are selected from the actual mechanisms named in the answer,
     // not merely from the broad category. This also handles mixed AWS + Terraform questions.
-    if (/\b(terraform|\.tfstate|remote state|terraform plan|terraform apply)\b/i.test(aLower + ' ' + qLower)) {
+    if (
+      /\b(terraform|\.tfstate|remote state|terraform plan|terraform apply)\b/i.test(
+        aLower + ' ' + qLower
+      )
+    ) {
       followUps.push({
         question: 'How would you recover safely from a corrupted or stale Terraform state file?',
         category: 'failure_mode',
-        rational: 'Terraform is mentioned; state integrity and recovery are high-impact operational failure modes.',
-        suggestedDefense: 'Explain backend versioning, locking, backups, state inspection, and a reviewed recovery plan before any apply.',
+        rational:
+          'Terraform is mentioned; state integrity and recovery are high-impact operational failure modes.',
+        suggestedDefense:
+          'Explain backend versioning, locking, backups, state inspection, and a reviewed recovery plan before any apply.',
       });
     }
 
-    if (/\b(kubernetes|\bk8s\b|pod|deployment|readiness probe|liveness probe|startup probe)\b/i.test(aLower + ' ' + qLower)) {
+    if (
+      /\b(kubernetes|\bk8s\b|pod|deployment|readiness probe|liveness probe|startup probe)\b/i.test(
+        aLower + ' ' + qLower
+      )
+    ) {
       followUps.push({
         question: 'A pod is healthy but receives no traffic; how would you isolate the cause?',
         category: 'failure_mode',
-        rational: 'Kubernetes workload behavior requires checking readiness, service selectors, endpoints, and network policy.',
-        suggestedDefense: 'Check pod readiness and events, Service selectors/endpoints, target ports, NetworkPolicies, and ingress routing.',
+        rational:
+          'Kubernetes workload behavior requires checking readiness, service selectors, endpoints, and network policy.',
+        suggestedDefense:
+          'Check pod readiness and events, Service selectors/endpoints, target ports, NetworkPolicies, and ingress routing.',
       });
     }
 
-    if (/\b(vpc|subnet|route table|security group|nat gateway|vpc endpoint|iam)\b/i.test(aLower + ' ' + qLower)) {
+    if (
+      /\b(vpc|subnet|route table|security group|nat gateway|vpc endpoint|iam)\b/i.test(
+        aLower + ' ' + qLower
+      )
+    ) {
       followUps.push({
-        question: 'How would you prove whether a private workload can reach the required AWS service?',
+        question:
+          'How would you prove whether a private workload can reach the required AWS service?',
         category: 'testing',
-        rational: 'Cloud networking answers should demonstrate a traceable path across routes, policies, and endpoints.',
-        suggestedDefense: 'Trace DNS, route tables, security groups, NACLs, endpoint policies, IAM authorization, and application logs.',
+        rational:
+          'Cloud networking answers should demonstrate a traceable path across routes, policies, and endpoints.',
+        suggestedDefense:
+          'Trace DNS, route tables, security groups, NACLs, endpoint policies, IAM authorization, and application logs.',
       });
     }
 
     // 1. Check for database technology choices (e.g. PostgreSQL, Redis, DynamoDB)
     if (aLower.includes('postgresql') || aLower.includes('postgres')) {
       followUps.push({
-        question: 'Why did you choose PostgreSQL over a document store like MongoDB or DynamoDB for this use case?',
+        question:
+          'Why did you choose PostgreSQL over a document store like MongoDB or DynamoDB for this use case?',
         category: 'alternative',
-        rational: 'Answer explicitly mentions PostgreSQL; interviewers standardly probe data modeling alternatives.',
-        suggestedDefense: 'Focus on ACID transaction guarantees, relational schema consistency, and JSONB flexibility when document storage is needed.',
+        rational:
+          'Answer explicitly mentions PostgreSQL; interviewers standardly probe data modeling alternatives.',
+        suggestedDefense:
+          'Focus on ACID transaction guarantees, relational schema consistency, and JSONB flexibility when document storage is needed.',
       });
     }
 
@@ -71,68 +93,95 @@ export class FollowUpEngine {
       followUps.push({
         question: 'What happens if the Redis cache nodes crash or experience an eviction spike?',
         category: 'failure_mode',
-        rational: 'Caches are vulnerable to cache stampedes and memory eviction under high write volume.',
-        suggestedDefense: 'Explain cache penetration protections, probabilistic early expiration (XFetch), and falling back to read replicas with connection pooling.',
+        rational:
+          'Caches are vulnerable to cache stampedes and memory eviction under high write volume.',
+        suggestedDefense:
+          'Explain cache penetration protections, probabilistic early expiration (XFetch), and falling back to read replicas with connection pooling.',
       });
     }
 
     // 2. Check for distributed messaging / Kafka / queues
     if (aLower.includes('kafka') || aLower.includes('queue') || aLower.includes('message')) {
       followUps.push({
-        question: 'How do you guarantee message ordering and avoid duplicate processing when a consumer crashes?',
+        question:
+          'How do you guarantee message ordering and avoid duplicate processing when a consumer crashes?',
         category: 'failure_mode',
-        rational: 'Consumer group rebalancing in Kafka can lead to redelivery of uncommitted offsets.',
-        suggestedDefense: 'Emphasize that ordering is guaranteed per partition key, and consumers must maintain idempotent state updates using transaction IDs.',
+        rational:
+          'Consumer group rebalancing in Kafka can lead to redelivery of uncommitted offsets.',
+        suggestedDefense:
+          'Emphasize that ordering is guaranteed per partition key, and consumers must maintain idempotent state updates using transaction IDs.',
       });
     }
 
     // 3. Check for concurrency or multithreading
-    if (aLower.includes('thread') || aLower.includes('concurren') || aLower.includes('volatile') || aLower.includes('lock')) {
+    if (
+      aLower.includes('thread') ||
+      aLower.includes('concurren') ||
+      aLower.includes('volatile') ||
+      aLower.includes('lock')
+    ) {
       followUps.push({
-        question: 'Under severe contention, how does your chosen locking mechanism impact latency and CPU utilization?',
+        question:
+          'Under severe contention, how does your chosen locking mechanism impact latency and CPU utilization?',
         category: 'scale',
         rational: 'Lock contention leads to thread parking and kernel context switching overhead.',
-        suggestedDefense: 'Contrast coarse-grained synchronization with lock striping or non-blocking CAS primitives (AtomicReference/StampedLock).',
+        suggestedDefense:
+          'Contrast coarse-grained synchronization with lock striping or non-blocking CAS primitives (AtomicReference/StampedLock).',
       });
     }
 
     // 4. Check for personal ownership in behavioral / project answers
     if (aLower.includes('we ') || aLower.includes('our team') || aLower.includes('the project')) {
       followUps.push({
-        question: 'What specific parts of this architecture did you personally write versus what was built by other team members?',
+        question:
+          'What specific parts of this architecture did you personally write versus what was built by other team members?',
         category: 'ownership',
-        rational: 'Interviewers seek to separate individual technical contributions from broader team deliverables.',
-        suggestedDefense: 'Directly identify the modules you individually coded (e.g. data synchronization protocol, unit test suite, schema design).',
+        rational:
+          'Interviewers seek to separate individual technical contributions from broader team deliverables.',
+        suggestedDefense:
+          'Directly identify the modules you individually coded (e.g. data synchronization protocol, unit test suite, schema design).',
       });
     }
 
     // 5. Check for scaling claims
-    if (aLower.includes('scale') || aLower.includes('thousands') || aLower.includes('high traffic') || aLower.includes('load balancer')) {
+    if (
+      aLower.includes('scale') ||
+      aLower.includes('thousands') ||
+      aLower.includes('high traffic') ||
+      aLower.includes('load balancer')
+    ) {
       followUps.push({
-        question: 'If traffic increased by a factor of 10x overnight, where is the first single point of failure in this design?',
+        question:
+          'If traffic increased by a factor of 10x overnight, where is the first single point of failure in this design?',
         category: 'scale',
         rational: 'Probes architectural bottlenecks under sudden burst scale.',
-        suggestedDefense: 'Isolate the primary database write throughput and connection limits; propose horizontal sharding or read-replica scaling.',
+        suggestedDefense:
+          'Isolate the primary database write throughput and connection limits; propose horizontal sharding or read-replica scaling.',
       });
     }
 
     // 6. Check for testing & verification
     if (followUps.length < 3) {
       followUps.push({
-        question: 'How did you verify and test this implementation in production or staging environments?',
+        question:
+          'How did you verify and test this implementation in production or staging environments?',
         category: 'testing',
-        rational: 'Validates that the candidate tests systems systematically rather than relying on manual inspection.',
-        suggestedDefense: 'Mention end-to-end integration tests, load testing with k6/Gatling, and canary deployments with synthetic health probes.',
+        rational:
+          'Validates that the candidate tests systems systematically rather than relying on manual inspection.',
+        suggestedDefense:
+          'Mention end-to-end integration tests, load testing with k6/Gatling, and canary deployments with synthetic health probes.',
       });
     }
 
     // 7. General fallback if needed
     if (followUps.length < 3) {
       followUps.push({
-        question: 'Looking back at this implementation, what architectural trade-off would you design differently today?',
+        question:
+          'Looking back at this implementation, what architectural trade-off would you design differently today?',
         category: 'trade_off',
         rational: 'Tests technical self-reflection and engineering maturity.',
-        suggestedDefense: 'Discuss an operational limitation (e.g., earlier adoption of structured observability or stricter API schemas).',
+        suggestedDefense:
+          'Discuss an operational limitation (e.g., earlier adoption of structured observability or stricter API schemas).',
       });
     }
 

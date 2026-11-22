@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeAlignment, shouldIncludeCloudPlatformGuidance } from '../src/services/candidatePersona';
+import {
+  analyzeAlignment,
+  shouldIncludeCloudPlatformGuidance,
+} from '../src/services/candidatePersona';
 
 const sophosRole = 'Software Engineer – DevOps / Cloud Platform';
 const sophosJobDescription = `
@@ -53,7 +56,6 @@ describe('cloud platform interview guidance selection', () => {
     ).toBe(false);
   });
 });
-
 
 describe('job-description skill alignment', () => {
   it('does not count JavaScript as Java experience', () => {

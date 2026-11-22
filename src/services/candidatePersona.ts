@@ -197,14 +197,31 @@ export function estimateConfidence(
   const resumeLower = (resumeText || '').toLowerCase();
 
   // Dynamically extract non-trivial technical keywords and project identifiers from the candidate's actual resume
-  const resumeTokens = Array.from(new Set(
-    resumeLower
-      .split(/[^a-z0-9+#.-]+/)
-      .filter((w) => w.length > 3 && !['with', 'from', 'that', 'this', 'have', 'were', 'been', 'about', 'build', 'using', 'experience', 'responsibilities'].includes(w))
-  ));
-  const directMatch = resumeTokens.filter(
-    (token) => questionLower.includes(token)
+  const resumeTokens = Array.from(
+    new Set(
+      resumeLower
+        .split(/[^a-z0-9+#.-]+/)
+        .filter(
+          (w) =>
+            w.length > 3 &&
+            ![
+              'with',
+              'from',
+              'that',
+              'this',
+              'have',
+              'were',
+              'been',
+              'about',
+              'build',
+              'using',
+              'experience',
+              'responsibilities',
+            ].includes(w)
+        )
+    )
   );
+  const directMatch = resumeTokens.filter((token) => questionLower.includes(token));
   if (directMatch.length >= 2) return 'high';
 
   if (['Coding', 'DSA'].includes(category)) return 'high';
@@ -502,11 +519,13 @@ export function shouldIncludeCloudPlatformGuidance(
 ): boolean {
   const roleContext = `${targetRole || ''}\n${jobDescriptionText || ''}`;
   const isPlatformRole =
-    /\b(devops|platform engineer|cloud engineer|site reliability|sre|infrastructure engineer)\b/i.test(roleContext) ||
-    /\b(terraform|kubernetes|jenkins|ci\s*\/\s*cd|cloud infrastructure)\b/i.test(roleContext);
+    /\b(devops|platform engineer|cloud engineer|site reliability|sre|infrastructure engineer)\b/i.test(
+      roleContext
+    ) || /\b(terraform|kubernetes|jenkins|ci\s*\/\s*cd|cloud infrastructure)\b/i.test(roleContext);
   const isPlatformQuestion =
-    /\b(java|spring|terraform|infrastructure as code|pipeline|ci\s*\/\s*cd|deployment|deploy|rollback|docker|kubernetes|container|aws|iam|microservices?|spring boot|observability|scaling|availability|incident|latency|monitoring|rest api)\b/i.test(questionText || '') ||
-    ['System Design', 'Debugging'].includes(detectedCategory);
+    /\b(java|spring|terraform|infrastructure as code|pipeline|ci\s*\/\s*cd|deployment|deploy|rollback|docker|kubernetes|container|aws|iam|microservices?|spring boot|observability|scaling|availability|incident|latency|monitoring|rest api)\b/i.test(
+      questionText || ''
+    ) || ['System Design', 'Debugging'].includes(detectedCategory);
   return isPlatformRole && isPlatformQuestion;
 }
 
@@ -542,7 +561,8 @@ export function buildCandidateSystemPrompt(
     const vault = KnowledgeVaultService.getInstance().getVault();
     if (vault.experiences.length > 0 || vault.projects.length > 0) {
       const expLines = vault.experiences.map(
-        (e) => `${e.role} at ${e.company} (${e.startDate} - ${e.endDate}): ${e.responsibilities.join('; ')}`
+        (e) =>
+          `${e.role} at ${e.company} (${e.startDate} - ${e.endDate}): ${e.responsibilities.join('; ')}`
       );
       const projLines = vault.projects.map(
         (p) => `Project: ${p.title} - ${p.description}. Tech: ${p.technologies.join(', ')}`
@@ -567,8 +587,7 @@ export function buildCandidateSystemPrompt(
   const isBehavioralOrResume =
     intent === 'behavioral' || intent === 'resume' || detectedCategory === 'Behavioral';
 
-  const isSystemDesign =
-    intent === 'system_design' || detectedCategory === 'System Design';
+  const isSystemDesign = intent === 'system_design' || detectedCategory === 'System Design';
   const systemDesignSection = isSystemDesign ? buildSystemDesignExpertSection() : '';
 
   const isHR = detectedCategory === 'HR';
@@ -598,7 +617,7 @@ export function buildCandidateSystemPrompt(
     ? buildCloudPlatformEngineeringSection()
     : '';
 
-    const knowledgeBase = CandidateKnowledgeBase.getActiveKnowledgeBase(resume);
+  const knowledgeBase = CandidateKnowledgeBase.getActiveKnowledgeBase(resume);
   const groundingSection = knowledgeBase.buildGroundingPromptSection(questionText || '');
 
   const analysis = QuestionUnderstandingEngine.analyze(questionText || '', mode);
@@ -622,14 +641,24 @@ export function buildCandidateSystemPrompt(
   const isDebugging =
     analysis.category === 'Debugging' ||
     intent === 'troubleshooting' ||
-    Boolean(questionText && /\b(debug|troubleshoot|diagnose|incident|latency|p99|memory leak|cpu|slow)\b/i.test(questionText));
-  const debuggingSection = isDebugging ? ProductionDebuggingEngine.buildDebuggingPromptSection() : '';
+    Boolean(
+      questionText &&
+      /\b(debug|troubleshoot|diagnose|incident|latency|p99|memory leak|cpu|slow)\b/i.test(
+        questionText
+      )
+    );
+  const debuggingSection = isDebugging
+    ? ProductionDebuggingEngine.buildDebuggingPromptSection()
+    : '';
 
   const followUpSuffix = FollowUpEngine.buildFollowUpPromptInstruction();
 
   const isRoleIntro =
     analysis.category === 'Career and role alignment' &&
-    Boolean(questionText && /\b(tell me about yourself|walk me through your background)\b/i.test(questionText));
+    Boolean(
+      questionText &&
+      /\b(tell me about yourself|walk me through your background)\b/i.test(questionText)
+    );
 
   const roleIntroInstruction = isRoleIntro
     ? `\n════════════ ROLE-TAILORED INTRODUCTION GUIDANCE ════════════
@@ -645,12 +674,12 @@ ${
   analysis.questionType === 'technical' || analysis.questionType === 'ai_ml'
     ? 'This is an objective technical/conceptual question. Provide a direct, authoritative, and technically rigorous explanation focusing on core mechanics, invariants, and trade-offs. DO NOT fabricate personal project experience or claim past implementation of systems you did not build.'
     : analysis.questionType === 'ambiguous'
-    ? 'This question is brief or ambiguous. Select the most likely standard interpretation, state the assumption briefly, and answer directly without requesting more information.'
-    : analysis.questionType === 'role_alignment'
-    ? `This is a role/company alignment question. Ground your answer in your genuine technical interest for the role of "${role}" and how your actual technical strengths apply, without inventing past employers.`
-    : analysis.questionType === 'mixed'
-    ? 'This question combines technical theory with practical experience. First explain the core technical mechanism, then accurately cite only your verified project facts.'
-    : 'Ground your answer strictly in your verified resume and project experience using the first-person ("I").'
+      ? 'This question is brief or ambiguous. Select the most likely standard interpretation, state the assumption briefly, and answer directly without requesting more information.'
+      : analysis.questionType === 'role_alignment'
+        ? `This is a role/company alignment question. Ground your answer in your genuine technical interest for the role of "${role}" and how your actual technical strengths apply, without inventing past employers.`
+        : analysis.questionType === 'mixed'
+          ? 'This question combines technical theory with practical experience. First explain the core technical mechanism, then accurately cite only your verified project facts.'
+          : 'Ground your answer strictly in your verified resume and project experience using the first-person ("I").'
 }`;
 
   // Token budget guard: cap extensive raw resumes and job descriptions so live prompt remains within TPM limits

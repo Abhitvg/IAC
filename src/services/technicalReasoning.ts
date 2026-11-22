@@ -36,13 +36,15 @@ export class TechnicalReasoningEngine {
       stepNumber: 1,
       name: 'Understand the requirement',
       description: 'Pinpoint the exact question being asked and its underlying intent.',
-      guidance: 'Answer the actual question immediately in sentence 1; do not diverge into adjacent topics.',
+      guidance:
+        'Answer the actual question immediately in sentence 1; do not diverge into adjacent topics.',
     },
     {
       stepNumber: 2,
       name: 'Identify assumptions and constraints',
       description: 'Surface scale, memory, runtime, and failure assumptions.',
-      guidance: 'Explicitly state operating boundaries (e.g. single-node vs distributed, memory vs latency).',
+      guidance:
+        'Explicitly state operating boundaries (e.g. single-node vs distributed, memory vs latency).',
     },
     {
       stepNumber: 3,
@@ -60,7 +62,8 @@ export class TechnicalReasoningEngine {
       stepNumber: 5,
       name: 'Verify correctness',
       description: 'Validate against domain laws (JMM, MVCC, CAP, ACID).',
-      guidance: 'Ensure algorithm logic, memory barriers, and synchronization guarantees hold true.',
+      guidance:
+        'Ensure algorithm logic, memory barriers, and synchronization guarantees hold true.',
     },
     {
       stepNumber: 6,

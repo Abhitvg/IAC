@@ -207,5 +207,4 @@ describe('Automatic transcript routing flow', () => {
       generationSpy.mockRestore();
     }
   });
-
 });

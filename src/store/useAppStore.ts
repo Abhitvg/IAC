@@ -688,10 +688,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     set({
       status: s,
       isRecording:
-        s === 'listening' ||
-        s === 'transcribing' ||
-        s === 'analyzing' ||
-        s === 'generating',
+        s === 'listening' || s === 'transcribing' || s === 'analyzing' || s === 'generating',
       isGenerating: s === 'analyzing' || s === 'generating',
     });
   },

@@ -14,7 +14,10 @@ import { AudioRecorder } from './audio';
 import { transcribeAudio } from './whisper';
 import { AnswerGenerationService } from './AnswerGenerationService';
 import { DiagnosticLoggerService } from './diagnosticLogger';
-import { isQuestionShapedSpeech, shouldAutoRouteUncertainQuestion } from './interviewQuestionRouting';
+import {
+  isQuestionShapedSpeech,
+  shouldAutoRouteUncertainQuestion,
+} from './interviewQuestionRouting';
 import {
   FactualGroundingValidator,
   CandidateKnowledgeBase,

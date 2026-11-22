@@ -82,11 +82,15 @@ export class QuestionUnderstandingEngine {
     // 4. Determine code expectation
     const isCodeExpected =
       activeMode === 'coding' ||
-      /\b(write a function|write code|implement\s+(?:a|an)?\s*(?:algorithm|function|class)|solve this|two sum|reverse a linked list|binary search)\b/i.test(lower);
+      /\b(write a function|write code|implement\s+(?:a|an)?\s*(?:algorithm|function|class)|solve this|two sum|reverse a linked list|binary search)\b/i.test(
+        lower
+      );
 
     // 5. Practical experience vs theoretical knowledge
     const isPracticalExperience =
-      /\b(how have you|in your experience|production|tell me about a time|how did you|how do you debug|in your project|what did you do when)\b/i.test(lower) ||
+      /\b(how have you|in your experience|production|tell me about a time|how did you|how do you debug|in your project|what did you do when)\b/i.test(
+        lower
+      ) ||
       category === 'Behavioral interviews' ||
       category === 'Project deep dives' ||
       category === 'Debugging';
@@ -101,10 +105,7 @@ export class QuestionUnderstandingEngine {
     } else if (category === 'System design' || category === 'Distributed systems') {
       expectedDepth = 'deep';
       targetSpokenDurationSec = 120; // 90-150 seconds
-    } else if (
-      /^(what is\b|define\b|what are\b|meaning of\b)/i.test(lower) &&
-      lower.length < 50
-    ) {
+    } else if (/^(what is\b|define\b|what are\b|meaning of\b)/i.test(lower) && lower.length < 50) {
       expectedDepth = 'concise';
       targetSpokenDurationSec = 30; // 20-40 seconds
     } else {
@@ -114,23 +115,38 @@ export class QuestionUnderstandingEngine {
 
     // 7. Constraints and required examples
     const constraints: string[] = [];
-    if (lower.includes('thread') || lower.includes('concurren')) constraints.push('Thread-safety & memory visibility');
-    if (lower.includes('scale') || lower.includes('high traffic')) constraints.push('Horizontal scalability & low latency');
-    if (lower.includes('distributed') || lower.includes('network')) constraints.push('Network partitions & partial failure resilience');
-    if (lower.includes('memory') || lower.includes('leak')) constraints.push('Bounded memory & resource cleanup');
-    if (lower.includes('transaction') || lower.includes('acid')) constraints.push('ACID guarantees & isolation anomalies');
+    if (lower.includes('thread') || lower.includes('concurren'))
+      constraints.push('Thread-safety & memory visibility');
+    if (lower.includes('scale') || lower.includes('high traffic'))
+      constraints.push('Horizontal scalability & low latency');
+    if (lower.includes('distributed') || lower.includes('network'))
+      constraints.push('Network partitions & partial failure resilience');
+    if (lower.includes('memory') || lower.includes('leak'))
+      constraints.push('Bounded memory & resource cleanup');
+    if (lower.includes('transaction') || lower.includes('acid'))
+      constraints.push('ACID guarantees & isolation anomalies');
 
     const requiredExamples: string[] = [];
-    if (category === 'Databases') requiredExamples.push('B-Tree index lookups or PostgreSQL MVCC VACUUM cost');
-    if (category === 'Distributed systems') requiredExamples.push('Payment idempotency key or Kafka partition ordering');
-    if (category === 'Java and concurrency') requiredExamples.push('Volatile flag vs synchronized counter');
-    if (category === 'JavaScript and Node.js') requiredExamples.push('process.nextTick queue draining vs timer callback');
-    if (category === 'React and frontend') requiredExamples.push('useCallback / useMemo memoization or key reconciler');
-    if (category === 'Debugging') requiredExamples.push('Metric diagnosis (p99 vs p50, GC pause, pool saturation)');
+    if (category === 'Databases')
+      requiredExamples.push('B-Tree index lookups or PostgreSQL MVCC VACUUM cost');
+    if (category === 'Distributed systems')
+      requiredExamples.push('Payment idempotency key or Kafka partition ordering');
+    if (category === 'Java and concurrency')
+      requiredExamples.push('Volatile flag vs synchronized counter');
+    if (category === 'JavaScript and Node.js')
+      requiredExamples.push('process.nextTick queue draining vs timer callback');
+    if (category === 'React and frontend')
+      requiredExamples.push('useCallback / useMemo memoization or key reconciler');
+    if (category === 'Debugging')
+      requiredExamples.push('Metric diagnosis (p99 vs p50, GC pause, pool saturation)');
 
     // 8. Determine questionType
     let questionType: QuestionType = 'technical';
-    if (lower.length < 15 && lower.split(/\s+/).length <= 2 && !/\b(what is|explain|define)\b/i.test(lower)) {
+    if (
+      lower.length < 15 &&
+      lower.split(/\s+/).length <= 2 &&
+      !/\b(what is|explain|define)\b/i.test(lower)
+    ) {
       questionType = 'ambiguous';
     } else if (
       /\b(why\s+(?:do\s+you\s+want\s+to\s+join|should\s+we\s+hire\s+you|this\s+company|our\s+company|this\s+role|join\s+us|work\s+here)|what\s+interests\s+you\s+about|why\s+our\s+company)\b/i.test(
@@ -194,7 +210,13 @@ export class QuestionUnderstandingEngine {
     const vaultRetrievalKeywords = q
       .replace(/[^\w\s]/g, '')
       .split(/\s+/)
-      .filter((w) => w.length > 3 && !/\b(what|how|when|where|why|which|explain|tell|about|does|with|have|your|this|that|from)\b/i.test(w));
+      .filter(
+        (w) =>
+          w.length > 3 &&
+          !/\b(what|how|when|where|why|which|explain|tell|about|does|with|have|your|this|that|from)\b/i.test(
+            w
+          )
+      );
 
     return {
       category,
@@ -422,7 +444,9 @@ export class QuestionUnderstandingEngine {
     lower: string,
     category: DetailedInterviewCategory
   ): string {
-    const conceptMatches = raw.match(/\b(?:what is|difference between|how does|explain)\s+([A-Za-z0-9_\s]{3,30}?)(?:\?|\s+work|\s+and|\s+in|$)/i);
+    const conceptMatches = raw.match(
+      /\b(?:what is|difference between|how does|explain)\s+([A-Za-z0-9_\s]{3,30}?)(?:\?|\s+work|\s+and|\s+in|$)/i
+    );
     if (conceptMatches && conceptMatches[1]) {
       return conceptMatches[1].trim();
     }

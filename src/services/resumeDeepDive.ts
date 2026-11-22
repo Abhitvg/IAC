@@ -112,19 +112,27 @@ function projectClarifications(project: ProjectProfile): string[] {
     missing.push('Describe the actual architecture and request/data flow used at the time.');
   }
   if (!prov?.deployment?.value || prov.deployment.value === 'UNKNOWN') {
-    missing.push('Where and how was it deployed? Separate what you did from the team deployment process.');
+    missing.push(
+      'Where and how was it deployed? Separate what you did from the team deployment process.'
+    );
   }
   if (!prov?.engineeringChallenges?.value?.length) {
-    missing.push('What real engineering challenge did you encounter, and what evidence identified its cause?');
+    missing.push(
+      'What real engineering challenge did you encounter, and what evidence identified its cause?'
+    );
   }
   if (
     !prov?.performanceMetrics?.value?.length ||
     prov.performanceMetrics.verificationStatus !== 'CANDIDATE_CONFIRMED'
   ) {
-    missing.push('For each resume metric, confirm the baseline, measurement window, data source, and your contribution.');
+    missing.push(
+      'For each resume metric, confirm the baseline, measurement window, data source, and your contribution.'
+    );
   }
   if (!prov?.databaseDesign?.value || prov.databaseDesign.value === 'UNKNOWN') {
-    missing.push('If a database was involved, explain the actual schema, indexes, consistency needs, and query patterns.');
+    missing.push(
+      'If a database was involved, explain the actual schema, indexes, consistency needs, and query patterns.'
+    );
   }
   return missing;
 }
@@ -168,7 +176,9 @@ function factModule(fact: CandidateFact): ResumeStoryModule {
     ],
     clarificationNeeded:
       fact.verificationStatus === 'RESUME_REPORTED'
-        ? ['Confirm the exact scope of your involvement and the details you can defend from first-hand experience.']
+        ? [
+            'Confirm the exact scope of your involvement and the details you can defend from first-hand experience.',
+          ]
         : [],
   };
 }
@@ -190,7 +200,11 @@ export function buildResumeDeepDivePromptSection(
   const tokens = (question || '').toLowerCase().match(/[a-z0-9+#.-]{3,}/g) || [];
   const ranked = plan.modules
     .map((module) => {
-      const haystack = (module.title + ' ' + module.evidence.map((item) => item.text).join(' ')).toLowerCase();
+      const haystack = (
+        module.title +
+        ' ' +
+        module.evidence.map((item) => item.text).join(' ')
+      ).toLowerCase();
       const score = tokens.reduce((total, token) => total + (haystack.includes(token) ? 1 : 0), 0);
       return { module, score };
     })
@@ -207,7 +221,10 @@ export function buildResumeDeepDivePromptSection(
     const unknowns = module.clarificationNeeded.length
       ? '- Some implementation details are absent from the source. Do not infer them, request input, or block the answer.'
       : '- No explicit gaps were generated; still do not infer missing facts.';
-    const followUps = module.interviewerQuestions.slice(0, 5).map((item) => `- ${item}`).join('\n');
+    const followUps = module.interviewerQuestions
+      .slice(0, 5)
+      .map((item) => `- ${item}`)
+      .join('\n');
     return `MODULE: ${module.title} (${module.kind})
 SOURCE EVIDENCE:
 ${evidence || '- No parsed evidence available.'}
