@@ -375,11 +375,13 @@ export class InterviewEngine {
                   ? 'Transcription is falling behind; this speech segment was not queued.'
                   : 'Unable to queue finalized speech for transcription.',
               });
-              useAppStore.getState().setToast(
-                queueFull
-                  ? 'Transcription is overloaded. Pause briefly and repeat the last question.'
-                  : 'Speech could not be queued. Please repeat the last question.'
-              );
+              useAppStore
+                .getState()
+                .setToast(
+                  queueFull
+                    ? 'Transcription is overloaded. Pause briefly and repeat the last question.'
+                    : 'Speech could not be queued. Please repeat the last question.'
+                );
               console.error('[InterviewEngine] Unable to queue finalized audio.', {
                 errorName: error instanceof Error ? error.name : 'UnknownError',
               });
