@@ -69,11 +69,6 @@ function clearPendingQuestionTimer(): void {
 
 export class InterviewEngine {
   /**
-   * Converts the current question into a bounded pending-finalization request.
-   * The silence threshold remains user-configurable; the extra grace window is
-   * a fixed continuation cap so incomplete-question mode cannot wait forever.
-   */
-  /**
    * Starts automatic bounded collection when speech is clearly a question but
    * ends mid-thought. This replaces the previous answered question in history,
    * holds generation, and lets subsequent transcript fragments complete it.
@@ -129,6 +124,11 @@ export class InterviewEngine {
     return true;
   }
 
+  /**
+   * Converts the current question into a bounded pending-finalization request.
+   * The silence threshold remains user-configurable; the extra grace window is
+   * a fixed continuation cap so incomplete-question mode cannot wait forever.
+   */
   static markQuestionPendingFinalization(): void {
     const state = useAppStore.getState();
     const existing = state.currentQuestion?.trim() || '';
