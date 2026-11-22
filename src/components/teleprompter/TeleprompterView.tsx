@@ -2570,69 +2570,69 @@ export default function TeleprompterView() {
           const conversationId =
             'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index);
           return (
-          <React.Fragment key={item.timestamp || index}>
-            <div
-              data-conversation-id={conversationId}
-              data-conversation-anchor={conversationId + '-question'}
-              style={{ display: 'flex', justifyContent: 'flex-end' }}
-            >
+            <React.Fragment key={item.timestamp || index}>
               <div
-                style={{
-                  maxWidth: '88%',
-                  background: 'rgba(39,50,67,0.82)',
-                  border: '1px solid rgba(148,163,184,0.14)',
-                  borderRadius: '16px 16px 4px 16px',
-                  padding: '11px 14px',
-                  whiteSpace: 'pre-wrap',
-                  lineHeight: 1.55,
-                  fontSize: 14,
-                }}
+                data-conversation-id={conversationId}
+                data-conversation-anchor={conversationId + '-question'}
+                style={{ display: 'flex', justifyContent: 'flex-end' }}
               >
-                {item.question}
-              </div>
-            </div>
-            {item.answer &&
-              (isBionicGazeMode ? (
-                (() => {
-                  const presentation = getBionicAnswerPresentation(item.answer);
-                  return presentation.bullets.length > 0 ? (
-                    <BionicGazeHUD
-                      bullets={presentation.bullets}
-                      sourceText={item.answer}
-                      anchorId={conversationId + '-answer'}
-                    />
-                  ) : (
-                    <div
-                      data-conversation-anchor={conversationId + '-answer'}
-                      style={{
-                        alignSelf: 'flex-start',
-                        maxWidth: '96%',
-                        color: '#e5eaf2',
-                        whiteSpace: 'pre-wrap',
-                        lineHeight: 1.72,
-                        fontSize: 14,
-                      }}
-                    >
-                      <InterviewAnswerMarkdown content={presentation.fallbackText || item.answer} />
-                    </div>
-                  );
-                })()
-              ) : (
                 <div
-                  data-conversation-anchor={conversationId + '-answer'}
                   style={{
-                    alignSelf: 'flex-start',
-                    maxWidth: '96%',
-                    color: '#e5eaf2',
+                    maxWidth: '88%',
+                    background: 'rgba(39,50,67,0.82)',
+                    border: '1px solid rgba(148,163,184,0.14)',
+                    borderRadius: '16px 16px 4px 16px',
+                    padding: '11px 14px',
                     whiteSpace: 'pre-wrap',
-                    lineHeight: 1.72,
+                    lineHeight: 1.55,
                     fontSize: 14,
                   }}
                 >
-                  <InterviewAnswerMarkdown content={item.answer} />
+                  {item.question}
                 </div>
-              ))}
-          </React.Fragment>
+              </div>
+              {item.answer &&
+                (isBionicGazeMode ? (
+                  (() => {
+                    const presentation = getBionicAnswerPresentation(item.answer);
+                    return presentation.bullets.length > 0 ? (
+                      <BionicGazeHUD
+                        bullets={presentation.bullets}
+                        sourceText={item.answer}
+                        anchorId={conversationId + '-answer'}
+                      />
+                    ) : (
+                      <div
+                        data-conversation-anchor={conversationId + '-answer'}
+                        style={{
+                          alignSelf: 'flex-start',
+                          maxWidth: '96%',
+                          color: '#e5eaf2',
+                          whiteSpace: 'pre-wrap',
+                          lineHeight: 1.72,
+                          fontSize: 14,
+                        }}
+                      >
+                        <InterviewAnswerMarkdown content={presentation.fallbackText || item.answer} />
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div
+                    data-conversation-anchor={conversationId + '-answer'}
+                    style={{
+                      alignSelf: 'flex-start',
+                      maxWidth: '96%',
+                      color: '#e5eaf2',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: 1.72,
+                      fontSize: 14,
+                    }}
+                  >
+                    <InterviewAnswerMarkdown content={item.answer} />
+                  </div>
+                ))}
+            </React.Fragment>
           );
         })}
         {currentQuestion && (
