@@ -207,8 +207,7 @@ export function normalizeJavaOutput(value: string): string {
 
 export function isLocalDockerEndpoint(endpoint: string): boolean {
   return (
-    endpoint.startsWith('unix://') ||
-    /^npipe:\/\/\/\/\.\/pipe\/[A-Za-z0-9_.-]+$/.test(endpoint)
+    endpoint.startsWith('unix://') || /^npipe:\/\/\/\/\.\/pipe\/[A-Za-z0-9_.-]+$/.test(endpoint)
   );
 }
 
@@ -681,21 +680,14 @@ export function createJavaSandboxRunner(
           }
         );
       }
-      return createTrackedResult(
-        'DOCKER_ERROR',
-        'The sandbox could not complete safely.',
-        {
-          stdout: truncate(details.stdout),
-          stderr: truncate(details.stderr),
-          durationMs: dependencies.now() - startedAt,
-        }
-      );
+      return createTrackedResult('DOCKER_ERROR', 'The sandbox could not complete safely.', {
+        stdout: truncate(details.stdout),
+        stderr: truncate(details.stderr),
+        durationMs: dependencies.now() - startedAt,
+      });
     } finally {
       if (createAttempted) {
-        const cleanup = await runCommand(
-          ['rm', '--force', containerName],
-          CLEANUP_TIMEOUT_MS
-        );
+        const cleanup = await runCommand(['rm', '--force', containerName], CLEANUP_TIMEOUT_MS);
         if (!cleanup.ok && containerCreated) {
           markCleanupFailed(
             'Docker did not confirm removal of the sandbox container. Inspect Docker for ' +

@@ -21,6 +21,7 @@ function createFakeRunner(
     endpoint?: string;
     securityOptions?: string[];
     imageAvailable?: boolean;
+    cleanupFails?: boolean;
     startOutput?: string;
     startError?: {
       code: number | string;
@@ -51,7 +52,16 @@ function createFakeRunner(
       return { stdout: 'sha256:local-image-id', stderr: '' };
     }
     if (args[0] === 'create') return { stdout: '0123456789abcdef0123456789abcdef', stderr: '' };
-    if (args[0] === 'cp' || args[0] === 'rm') return { stdout: '', stderr: '' };
+    if (args[0] === 'cp') return { stdout: '', stderr: '' };
+    if (args[0] === 'rm') {
+      if (options.cleanupFails) {
+        throw Object.assign(new Error('cleanup failed'), {
+          code: 1,
+          stderr: 'permission denied',
+        });
+      }
+      return { stdout: '', stderr: '' };
+    }
     if (args[0] === 'start') return { stdout: '', stderr: '' };
     if (args[0] === 'exec') {
       if (options.startError) {
@@ -152,8 +162,10 @@ describe('Java Docker sandbox runner', () => {
     const create = calls.find((call) => call.args[0] === 'create')!;
     expect(create.args).toContain('--network');
     expect(create.args).toContain('none');
+    expect(create.args).not.toContain('--mount');
     const execution = calls.find((call) => call.args[0] === 'exec')!;
     expect(execution.args.some((arg) => arg === 'IAC_COMPILE_MARKER=' + marker)).toBe(true);
+    expect(execution.args).toContain('IAC_EXECUTE_MAIN=1');
     expect(writeFile).toHaveBeenCalledTimes(2);
     expect(removeDirectory).toHaveBeenCalledWith('/tmp/iac-java-sandbox-test');
   });
@@ -169,8 +181,8 @@ describe('Java Docker sandbox runner', () => {
 
     expect(result.status).toBe('COMPILED');
     expect(result.ok).toBe(true);
-    const create = calls.find((call) => call.args[0] === 'create')!;
-    expect(create.args).toContain('IAC_EXECUTE_MAIN=0');
+    const execution = calls.find((call) => call.args[0] === 'exec')!;
+    expect(execution.args).toContain('IAC_EXECUTE_MAIN=0');
   });
 
   it('refuses remote Docker contexts before creating a container', async () => {
@@ -239,6 +251,16 @@ describe('Java Docker sandbox runner', () => {
     expect(malformed.status).toBe('INVALID_REQUEST');
     expect(oversized.status).toBe('INVALID_REQUEST');
     expect(calls).toHaveLength(0);
+  });
+
+  it('surfaces a failed Docker cleanup instead of reporting a clean result', async () => {
+    const { runner } = createFakeRunner({ cleanupFails: true });
+    const result = await runner({ sourceCode: runnableSource, executeMain: true });
+
+    expect(result.status).toBe('CLEANUP_FAILED');
+    expect(result.ok).toBe(false);
+    expect(result.cleanupWarning).toContain('remove');
+    expect(result.message).toContain('Cleanup was not confirmed');
   });
 
   it('compares line endings and ignores only trailing newlines', () => {

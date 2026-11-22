@@ -13,7 +13,8 @@ function statusTone(status: JavaSandboxResult['status']): 'success' | 'warning' 
     status === 'OUTPUT_MISMATCH' ||
     status === 'COMPILE_FAILED' ||
     status === 'RUNTIME_FAILED' ||
-    status === 'TIMEOUT'
+    status === 'TIMEOUT' ||
+    status === 'CLEANUP_FAILED'
   ) {
     return 'warning';
   }
@@ -283,6 +284,9 @@ export function JavaSandboxPanel({ sourceCode }: JavaSandboxPanelProps) {
             >
               <strong>{result.status.replace(/_/g, ' ')}</strong>
               <span>{result.message}</span>
+              {result.cleanupWarning && (
+                <span style={{ color: '#fca5a5' }}>{result.cleanupWarning}</span>
+              )}
               <span style={{ color: '#94a3b8' }}>Elapsed: {result.durationMs} ms</span>
               {result.setupCommand && (
                 <>
