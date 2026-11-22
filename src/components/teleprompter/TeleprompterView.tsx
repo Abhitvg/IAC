@@ -194,7 +194,64 @@ function QuizAnswerCard({
   );
 }
 
-// Bionic Glanceable Prompter & Eye-Contact HUD
+function BionicTable({ rows, compact = false }: { rows: string[][]; compact?: boolean }) {
+  const [headerRow, ...bodyRows] = rows;
+  const cellStyle: React.CSSProperties = {
+    padding: compact ? '5px 7px' : '7px 9px',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    textAlign: 'left',
+    verticalAlign: 'top',
+    fontSize: compact ? 11 : 12,
+    lineHeight: 1.45,
+    overflowWrap: 'anywhere',
+  };
+
+  return (
+    <div style={{ width: '100%', overflowX: 'auto', margin: '4px 0' }}>
+      <table
+        style={{
+          width: '100%',
+          minWidth: 360,
+          borderCollapse: 'collapse',
+          tableLayout: 'auto',
+          color: '#e5e7eb',
+        }}
+      >
+        <thead>
+          <tr>
+            {headerRow.map((cell, index) => (
+              <th
+                key={index}
+                scope="col"
+                style={{
+                  ...cellStyle,
+                  background: 'rgba(148, 163, 184, 0.1)',
+                  color: '#f8fafc',
+                  fontWeight: 700,
+                }}
+              >
+                {cell}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {bodyRows.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              {headerRow.map((_, cellIndex) => (
+                <td key={cellIndex} style={cellStyle}>
+                  {row[cellIndex] || '—'}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Bionic Glanceable Prompter HUD
 function BionicGazeHUD({
   bullets,
   sourceText,
@@ -285,25 +342,28 @@ function BionicGazeHUD({
               {Number(b.id.replace('gaze-', '')) + 1 || i + 1}.
             </span>
 
-            {/* Bionic Formatted Text */}
-            <span
-              style={{
-                fontSize: '14px',
-                lineHeight: 1.55,
-                color: '#e5e7eb',
-                letterSpacing: '0',
-              }}
-            >
-              {b.text.split(' ').map((word, wIdx) => {
-                const { bold, normal } = formatBionicWord(word);
-                return (
-                  <span key={wIdx} style={{ marginRight: '4px' }}>
-                    <strong style={{ fontWeight: 800, color: '#ffffff' }}>{bold}</strong>
-                    <span style={{ color: '#cbd5e1', fontWeight: 400 }}>{normal}</span>
-                  </span>
-                );
-              })}
-            </span>
+            {b.tableRows ? (
+              <BionicTable rows={b.tableRows} />
+            ) : (
+              <span
+                style={{
+                  fontSize: '14px',
+                  lineHeight: 1.55,
+                  color: '#e5e7eb',
+                  letterSpacing: '0',
+                }}
+              >
+                {b.text.split(' ').map((word, wIdx) => {
+                  const { bold, normal } = formatBionicWord(word);
+                  return (
+                    <span key={wIdx} style={{ marginRight: '4px' }}>
+                      <strong style={{ fontWeight: 800, color: '#ffffff' }}>{bold}</strong>
+                      <span style={{ color: '#cbd5e1', fontWeight: 400 }}>{normal}</span>
+                    </span>
+                  );
+                })}
+              </span>
+            )}
 
             {/* Metric / Complexity Pill */}
             {b.metricChip && (
@@ -344,8 +404,14 @@ function BionicGazeHUD({
                   lineHeight: 1.5,
                 }}
               >
-                {bullet.text}
-                {bullet.metricChip ? ` · ${bullet.metricChip}` : ''}
+                {bullet.tableRows ? (
+                  <BionicTable rows={bullet.tableRows} compact />
+                ) : (
+                  <>
+                    {bullet.text}
+                    {bullet.metricChip ? ` · ${bullet.metricChip}` : ''}
+                  </>
+                )}
               </div>
             ))}
           </div>
