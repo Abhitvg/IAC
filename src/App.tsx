@@ -91,6 +91,22 @@ export default function App() {
       }
       if (settingsOpen || sessionsOpen) return;
 
+      // Keep the app-level focus toggle available in every workspace.
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        (e.code === 'KeyF' || e.key.toLowerCase() === 'f')
+      ) {
+        e.preventDefault();
+        toggleInterviewFocusMode();
+        return;
+      }
+
+      // The live interview view owns its contextual shortcuts (including Cmd/Ctrl+K
+      // conversation search and Cmd/Ctrl+1/2/3 response modes). Do not let the shell
+      // also consume those keystrokes as navigation or command-spotlight actions.
+      if (currentNav === 'teleprompter') return;
+
       if ((e.metaKey || e.ctrlKey) && e.key === '1') {
         e.preventDefault();
         setCurrentNav('overview');
@@ -104,16 +120,6 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === '3') {
         e.preventDefault();
         setCurrentNav('teleprompter');
-        return;
-      }
-
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        (e.code === 'KeyF' || e.key.toLowerCase() === 'f')
-      ) {
-        e.preventDefault();
-        toggleInterviewFocusMode();
         return;
       }
 
@@ -144,6 +150,7 @@ export default function App() {
     [
       settingsOpen,
       sessionsOpen,
+      currentNav,
       isRecording,
       isGenerating,
       toggleRecording,

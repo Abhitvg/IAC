@@ -208,6 +208,12 @@ export interface ShortcutMap {
   detailedAnswer: string;
   minimize: string;
   regenerate: string;
+  bionicHud?: string;
+  listening?: string;
+  solveScreen?: string;
+  snipScreen?: string;
+  searchConversation?: string;
+  finishAnswer?: string;
 }
 
 // ─── Pipeline Status Types ───

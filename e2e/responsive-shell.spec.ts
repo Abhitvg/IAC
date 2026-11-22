@@ -46,3 +46,40 @@ test('main application shell has no page-level horizontal overflow at common vie
     await electronApp.close();
   }
 });
+
+test('live interview owns its contextual shortcuts instead of triggering app navigation', async () => {
+  const env = { ...process.env, NODE_ENV: 'test' };
+  delete env.ELECTRON_RUN_AS_NODE;
+
+  const electronApp = await electron.launch({
+    args: ['.', '--no-sandbox'],
+    env,
+  });
+
+  try {
+    const window = await electronApp.firstWindow();
+    await window.waitForLoadState('domcontentloaded');
+
+    await window.evaluate(async () => {
+      await window.electronAPI?.setSettings('hasCompletedOnboarding', true);
+    });
+    await window.reload();
+    await window.waitForLoadState('domcontentloaded');
+
+    await window.getByRole('button', { name: /Live Interview/ }).click();
+    await expect(window.getByRole('log', { name: 'Interview conversation' })).toBeVisible();
+
+    const commandModifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await window.keyboard.press(`${commandModifier}+K`);
+    await expect(
+      window.getByRole('dialog', { name: 'Search interview conversation' })
+    ).toBeVisible();
+    await expect(window.getByPlaceholder(/Type a screen, command/)).toHaveCount(0);
+
+    await window.keyboard.press('Escape');
+    await window.keyboard.press(`${commandModifier}+1`);
+    await expect(window.getByRole('log', { name: 'Interview conversation' })).toBeVisible();
+  } finally {
+    await electronApp.close();
+  }
+});
