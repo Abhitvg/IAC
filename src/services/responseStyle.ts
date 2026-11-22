@@ -376,7 +376,7 @@ Do not invent option text that was not supplied.
   }
 
   if (mode === 'coding' || intent === 'coding') {
-    return `ACTIVE MODE: CODING INTERVIEW (${target.minWords}–${target.maxWords} words)
+    return `ACTIVE MODE: CODING INTERVIEW (${preferredLanguage})
 Give a concise spoken explanation followed by one complete ${preferredLanguage} code block.
 Start with the approach and why it fits. Mention a simpler alternative only when it helps explain the trade-off.
 State time and auxiliary-space complexity, including recursion and data structures.
@@ -398,7 +398,7 @@ Question intent: ${intent.toUpperCase()}
 The teleprompter shows a response to be spoken aloud naturally. Write something a thoughtful engineer can comfortably say to another person—not an article, tutorial, essay, or memorised script.
 
 DIRECT ANSWER
-ANSWER DIRECTLY IN SENTENCE 1. Start with the answer itself; do not begin with "Sure", "Great question", a restatement, or a generic introduction.
+ANSWER DIRECTLY IN SENTENCE 1. Explain the MECHANISM clearly, then mention the most relevant TRADE-OFF only when it helps. Start with the answer itself; do not begin with "Sure", "Great question", a restatement, or a generic introduction.
 
 NATURAL SPOKEN ENGLISH
 - Use plain, confident, conversational English and natural contractions where they fit.
@@ -422,7 +422,7 @@ ADAPT TO THE QUESTION
 - If ambiguity materially changes the answer, state a reasonable assumption briefly. Ask for clarification only when genuinely necessary.
 
 TRUTHFULNESS
-- Never invent employers, responsibilities, project details, metrics, incidents, tools used, or personal achievements.
+- NO FABRICATION: never invent employers, responsibilities, project details, metrics, incidents, tools used, or personal achievements.
 - A skill listed on a resume does not prove deep hands-on experience or ownership of a particular implementation.
 - Distinguish what the candidate has done from what they understand or would do. If direct experience is missing, say so briefly and give a technically sound approach without pretending.
 - If evidence is missing, answer the supported part and explain the general engineering mechanism separately.
