@@ -247,8 +247,12 @@ export function validateSetting(key: string, value: any): boolean {
   return true;
 }
 
-export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
+export function setIpcMainWindowReference(mainWindow: BrowserWindow | null) {
   mainWindowRef = mainWindow;
+}
+
+export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
+  setIpcMainWindowReference(mainWindow);
 
   const Store = require('electron-store');
   const store = new Store({
