@@ -104,7 +104,9 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
     expect(useAppStore.getState().sessionHistory.some((s) => s.id === 'session_test_1')).toBe(true);
 
     await useAppStore.getState().deleteSession('session_test_1');
-    expect(useAppStore.getState().sessionHistory.some((s) => s.id === 'session_test_1')).toBe(false);
+    expect(useAppStore.getState().sessionHistory.some((s) => s.id === 'session_test_1')).toBe(
+      false
+    );
   });
 
   it('preserves question undo/redo stack on history restoration', () => {
