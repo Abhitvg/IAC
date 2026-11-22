@@ -602,6 +602,34 @@ export class CandidateKnowledgeBase {
 
     // 2. Extract and structure projects from textual lines with evidence tracking
     this.extractProjectsFromText(resumeText);
+
+    // 3. Preserve explicit metrics outside project sections as resume-reported facts.
+    // They remain unverified claims and must never be promoted to confirmed measurements.
+    const projectClaimLineNumbers = new Set(
+      Array.from(new Set(this.projects.values())).flatMap((project) =>
+        (project.rawClaims || []).map((claim) => claim.sourceLine)
+      )
+    );
+    const metricPattern =
+      /\b\d[\d,]*(?:\.\d+)?\s*(?:%|(?:x|users?|qps|rps|requests?|ms|milliseconds?|seconds?|minutes?|hours?|days?|transactions?|records?)\b|[kmb]\+?(?=\s|$))/i;
+
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+      if (projectClaimLineNumbers.has(lineIdx + 1)) continue;
+      const rawLine = lines[lineIdx].trim();
+      const factText = rawLine.replace(/^[•*-]\s*/, '').trim();
+      if (!factText || !metricPattern.test(factText)) continue;
+
+      this.addFact({
+        id: `resume-metric-line-${lineIdx + 1}`,
+        fact: factText,
+        source: 'resume',
+        confidence: 0.5,
+        verificationStatus: 'RESUME_REPORTED',
+        ownership: 'unknown',
+        category: 'metric',
+        sourceLine: lineIdx + 1,
+      });
+    }
   }
 
   /**
