@@ -1427,7 +1427,7 @@ export default function TeleprompterView() {
     const normalizedQuery = conversationSearchQuery.trim().toLocaleLowerCase();
     const matching = normalizedQuery
       ? entries.filter((entry) =>
-          (entry.question + '\\n' + entry.answer).toLocaleLowerCase().includes(normalizedQuery)
+          (entry.question + '\n' + entry.answer).toLocaleLowerCase().includes(normalizedQuery)
         )
       : entries;
 
