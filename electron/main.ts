@@ -176,9 +176,14 @@ function createWindow() {
   // IPC handlers are registered once; rebind their trusted sender to each new window.
   setIpcMainWindowReference(mainWindow);
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
+  const windowToTrack = mainWindow;
+  if (windowToTrack) {
+    windowToTrack.on('closed', () => {
+      if (mainWindow !== windowToTrack) return;
+      setIpcMainWindowReference(null);
+      mainWindow = null;
+    });
+  }
 }
 
 function showOrCreateMainWindow() {
