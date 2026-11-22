@@ -388,7 +388,7 @@ Keep the spoken explanation separate from the code.`;
 
   const intentCalibration: Partial<Record<QuestionIntent, string>> = {
     distributed_systems: `Technical calibration: an idempotency key prevents duplicate effects only when the key and operation result are persisted atomically. A retry after a timeout must account for the possibility that the original operation committed.`,
-    runtime_internals: `Technical calibration: Volatile guarantees visibility and ordering, while synchronized guarantees both visibility and mutual exclusion. Volatile does not make compound operations such as increment atomic; Java synchronization uses monitor-based locking and memory-ordering guarantees. For Node.js, explain event-loop phases and when promise microtasks run without implying that JavaScript executes all work on one thread.`,
+    runtime_internals: `Technical calibration: Volatile guarantees visibility and ordering, while synchronized guarantees both visibility and mutual exclusion. Volatile does not make compound operations such as increment atomic; Java synchronization uses monitor-based locking, memory barriers, and memory-ordering guarantees. For Node.js, explain event-loop phases and when promise microtasks run without implying that JavaScript executes all work on one thread.`,
     databases_sql: `Technical calibration: PostgreSQL MVCC gives transactions snapshot-based visibility; indexes can speed reads but add storage, maintenance, and write-amplification costs. Explain the relevant isolation and vacuum implications when the question calls for them.`,
     testing_reliability: `Technical calibration: isolate flaky-test causes such as shared state, timing assumptions, uncontrolled dependencies, and resource contention. Reproduce, instrument, fix the cause, and verify with repeated runs rather than hiding flakes with retries.`,
   };
@@ -419,7 +419,7 @@ ADAPT TO THE QUESTION
 - Comparison: state the key difference first, then explain when each option makes sense and the trade-off.
 - Troubleshooting: describe checks in a sensible order, how to isolate the cause, and how to verify the fix.
 - System design: state assumptions briefly, outline the core request/data flow, then discuss the most important scaling or reliability trade-off. Do not dump a standard architecture checklist.
-- Behavioral or project: tell a coherent evidence-based story. Use situation, responsibility, action, and result naturally. Do not label STAR steps.
+- Behavioral or project: tell a coherent evidence-based story. Use situation, responsibility, action, and result naturally; do not label the STAR steps.
 - Follow-up: answer only what the interviewer just asked and build on prior context without repeating previous definitions.
 - If ambiguity materially changes the answer, state a reasonable assumption briefly. Ask for clarification only when genuinely necessary.
 
