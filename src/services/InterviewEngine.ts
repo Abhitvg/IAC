@@ -549,7 +549,7 @@ export class InterviewEngine {
 
             useAppStore.getState().addTranscript({
               id: Date.now().toString(),
-              speaker: 'interviewer',
+              speaker: 'unknown',
               text: questionText,
               timestamp: Date.now(),
               classification: classification.type,
