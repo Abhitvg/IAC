@@ -293,6 +293,51 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
       expect(useAppStore.getState().status).toBe('generating');
     });
 
+    it('pauses and restarts microphone capture without cancelling an active answer', async () => {
+      const recorder = AudioRecorder.getInstance();
+      const captureStateSpy = vi.spyOn(recorder, 'getCaptureState');
+      const startSpy = vi.spyOn(recorder, 'start').mockImplementation(async () => {
+        useAppStore.getState().updateDiagnostics({ micActive: true });
+      });
+      const stopSpy = vi.spyOn(recorder, 'stop').mockImplementation(async () => {
+        useAppStore.getState().updateDiagnostics({ micActive: false });
+      });
+      const cancelSpy = vi.spyOn(InterviewEngine, 'cancelAllActiveWork');
+
+      useAppStore.setState({
+        status: 'generating',
+        currentQuestion: 'Explain a database transaction.',
+        currentAnswer: 'The answer is still streaming...',
+        diagnosticState: {
+          ...useAppStore.getState().diagnosticState,
+          micActive: true,
+        },
+        isRecording: true,
+      });
+
+      try {
+        captureStateSpy.mockReturnValue('active');
+        useAppStore.getState().toggleRecording();
+
+        await vi.waitFor(() => expect(stopSpy).toHaveBeenCalledWith(false));
+        expect(useAppStore.getState().status).toBe('generating');
+        expect(useAppStore.getState().isRecording).toBe(false);
+
+        captureStateSpy.mockReturnValue('stopped');
+        useAppStore.getState().toggleRecording();
+
+        await vi.waitFor(() => expect(startSpy).toHaveBeenCalledTimes(1));
+        expect(useAppStore.getState().status).toBe('generating');
+        expect(useAppStore.getState().isRecording).toBe(true);
+        expect(cancelSpy).not.toHaveBeenCalled();
+      } finally {
+        captureStateSpy.mockRestore();
+        startSpy.mockRestore();
+        stopSpy.mockRestore();
+        cancelSpy.mockRestore();
+      }
+    });
+
     it('CANCEL_ACTIVE_REQUEST cleanly terminates active generation, purges queue, and restores safe state', async () => {
       const abortSpy = vi.spyOn(InterviewEngine, 'cancelAllActiveWork');
 
