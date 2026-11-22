@@ -298,11 +298,13 @@ export class AudioRecorder {
       }
 
       this.captureState = 'error';
-      useAppStore.getState().updateDiagnostics({
+      const store = useAppStore.getState();
+      store.updateDiagnostics({
         micActive: false,
         speechDetected: false,
         whisperStatus: 'Microphone input disconnected. Restart the microphone.',
       });
+      store.setToast('Microphone disconnected. Check the input device and start listening again.');
     });
   }
 
