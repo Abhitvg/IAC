@@ -2570,7 +2570,7 @@ export default function TeleprompterView() {
         )}
         {draftAnswer && (
           <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11, fontWeight: 600 }}>
-            Draft answer · candidate-claim checks pending
+            Live Generation Draft · candidate-claim checks pending
           </div>
         )}
         {answerValidationStatus === 'BLOCKED' && (
