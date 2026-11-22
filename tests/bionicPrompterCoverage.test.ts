@@ -54,7 +54,7 @@ describe('Bionic answer coverage', () => {
       '| Model | What it is | Typical use case |',
       '| --- | --- | --- |',
       '| On-Demand | Pay for usage | Variable workloads |',
-    ].join('\\n'));
+    ].join('\n'));
 
     expect(bullets).toHaveLength(4);
     expect(bullets[0].text).toBe('Pricing models');
