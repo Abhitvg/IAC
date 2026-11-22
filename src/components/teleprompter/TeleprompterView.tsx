@@ -630,6 +630,8 @@ export function ShortcutSettings({
 }) {
   const [capturing, setCapturing] = useState<InterviewShortcutAction | null>(null);
   const [captureError, setCaptureError] = useState('');
+  const isMacPlatform =
+    typeof window !== 'undefined' && window.electronAPI?.platform === 'darwin';
 
   useEffect(() => {
     if (!capturing) return;
@@ -725,19 +727,18 @@ export function ShortcutSettings({
         }}
       >
         <div style={{ color: '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
-          System-wide controls · macOS
+          System-wide controls · {isMacPlatform ? 'macOS' : 'Windows / Linux'}
         </div>
         <div style={{ color: '#aeb9c8', fontSize: 11, lineHeight: 1.55 }}>
-          <strong>⌘\\</strong> or <strong>⌘⇧Space</strong> show / hide · <strong>⌘⌥←</strong> left
-          corner · <strong>⌘⌥→</strong> right corner
+          <strong>{isMacPlatform ? '⌘\\' : 'Ctrl+\\'}</strong> or <strong>{isMacPlatform ? '⌘⇧Space' : 'Ctrl+Shift+Space'}</strong> show / hide · <strong>{isMacPlatform ? '⌘⌥←' : 'Ctrl+Alt+←'}</strong> left
+          corner · <strong>{isMacPlatform ? '⌘⌥→' : 'Ctrl+Alt+→'}</strong> right corner
         </div>
         <div style={{ color: '#8492a6', fontSize: 10, lineHeight: 1.5 }}>
-          Also available: ⌘⌥⇧H / ⌥H show or hide, ⌥⇧S solve screen, ⌘⇧A append capture, ⌥V auto-type
-          code, ⌥T auto-type answer. Global bindings are fixed and may be unavailable if another app
-          or macOS has claimed them.
+          Also available: {isMacPlatform ? '⌘⌥⇧H / ⌥H' : 'Ctrl+Alt+Shift+H / Alt+H'} show or hide, {isMacPlatform ? '⌥⇧S' : 'Alt+Shift+S'} solve screen, {isMacPlatform ? '⌘⇧A' : 'Ctrl+Shift+A'} append capture, {isMacPlatform ? '⌥V' : 'Alt+V'} auto-type
+          code, {isMacPlatform ? '⌥T' : 'Alt+T'} auto-type answer. Global bindings are fixed and may be unavailable if another application has claimed them.
         </div>
         <div style={{ color: '#8492a6', fontSize: 10 }}>
-          The macOS Dock icon remains available to reopen the assistant.
+          The macOS Dock or Windows / Linux system-tray icon remains available to reopen the assistant.
         </div>
       </div>
       <div
