@@ -181,7 +181,10 @@ async function withTranscriptionRetries<T>(
       return await operation();
     } catch (error) {
       if (signal?.aborted) throw createTranscriptionAbortError(signal);
-      if (retryCount >= TRANSCRIPTION_RETRY_DELAYS_MS.length || !isRetryableTranscriptionError(error)) {
+      if (
+        retryCount >= TRANSCRIPTION_RETRY_DELAYS_MS.length ||
+        !isRetryableTranscriptionError(error)
+      ) {
         throw error;
       }
 
