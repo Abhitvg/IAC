@@ -6,7 +6,7 @@ describe('natural spoken interview response guidance', () => {
     const prompt = buildConversationalPromptSection('definition', 'interview');
     expect(prompt).toContain('ANSWER DIRECTLY IN SENTENCE 1');
     expect(prompt).toContain('Simple questions should receive a short answer');
-    expect(prompt).toContain('Do not force an example, trade-off, or five-part structure');
+    expect(prompt).toContain('do not force an example into every definition');
     expect(prompt).not.toContain('DEFAULT 5-STEP SPOKEN RESPONSE FRAMEWORK');
   });
 
