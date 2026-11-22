@@ -102,7 +102,7 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
 export const BIONIC_PRIMARY_BULLET_LIMIT = 18;
 
 const HIGH_SIGNAL_BULLET =
-  /\\b(trade[- ]?off|however|limitation|risk|edge case|failure|security|latency|cost|conclusion|therefore|finally|overall|in summary|complexity|fallback|recovery|scalab|availability|consistency|durability|monitoring|observability)\\b/i;
+  /\b(trade[- ]?off|however|limitation|risk|edge case|failure|security|latency|cost|conclusion|therefore|finally|overall|in summary|complexity|fallback|recovery|scalab|availability|consistency|durability|monitoring|observability)\b/i;
 
 export function selectPrimaryGlanceableBullets(bullets: BionicGazeBullet[]): {
   primary: BionicGazeBullet[];
