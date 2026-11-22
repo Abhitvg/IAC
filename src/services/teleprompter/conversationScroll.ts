@@ -19,7 +19,10 @@ export function shouldAutoFollowConversation(
   autoFollowEnabled: boolean,
   threshold = CONVERSATION_AUTO_FOLLOW_THRESHOLD_PX
 ): boolean {
-  return autoFollowEnabled && isConversationNearBottom(scrollHeight, scrollTop, clientHeight, threshold);
+  return (
+    autoFollowEnabled &&
+    isConversationNearBottom(scrollHeight, scrollTop, clientHeight, threshold)
+  );
 }
 
 export function getConversationScrollTarget(
