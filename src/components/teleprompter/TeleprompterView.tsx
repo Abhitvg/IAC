@@ -207,16 +207,16 @@ function BionicGazeHUD({
   return (
     <div
       style={{
-        margin: '8px 0 16px 0',
-        padding: '16px',
-        background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(10, 15, 30, 0.98))',
-        border: '1.5px solid rgba(16, 185, 129, 0.5)',
-        borderRadius: '12px',
-        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.2)',
+        margin: '8px 0 14px 0',
+        padding: '12px 14px',
+        background: 'rgba(8, 12, 18, 0.96)',
+        border: '1px solid rgba(148, 163, 184, 0.16)',
+        borderRadius: '10px',
+        boxShadow: 'none',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        gap: '12px',
+        alignItems: 'stretch',
+        gap: '8px',
       }}
     >
       {/* Webcam Eye-Line Reticle */}
@@ -225,10 +225,10 @@ function BionicGazeHUD({
           width: '100%',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'flex-start',
           gap: '8px',
-          paddingBottom: '8px',
-          borderBottom: '1px dashed rgba(16, 185, 129, 0.35)',
+          paddingBottom: '7px',
+          borderBottom: '1px solid rgba(148, 163, 184, 0.12)',
         }}
       >
         <span
@@ -236,21 +236,20 @@ function BionicGazeHUD({
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            background: '#10b981',
-            boxShadow: '0 0 8px #10b981',
+            background: '#34d399',
             display: 'inline-block',
           }}
         />
         <span
           style={{
-            fontSize: '11px',
-            fontWeight: 800,
-            letterSpacing: '0.08em',
+            fontSize: '10px',
+            fontWeight: 700,
+            letterSpacing: '0.06em',
             textTransform: 'uppercase',
-            color: '#6ee7b7',
+            color: '#9ca3af',
           }}
         >
-          Glanceable answer · Key points
+          Bionic HUD · Key points
         </span>
       </div>
 
@@ -260,8 +259,8 @@ function BionicGazeHUD({
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          gap: '8px',
+          alignItems: 'stretch',
+          gap: '3px',
         }}
       >
         {primary.map((b, i) => (
@@ -270,16 +269,16 @@ function BionicGazeHUD({
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               flexWrap: 'wrap',
-              gap: '8px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              maxWidth: '90%',
-              textAlign: 'center',
-              transition: 'all 0.15s ease',
+              gap: '6px',
+              padding: '4px 2px',
+              borderRadius: '0',
+              background: 'transparent',
+              border: '0',
+              maxWidth: '100%',
+              textAlign: 'left',
+              transition: 'none',
             }}
           >
             <span style={{ fontSize: '11px', fontWeight: 800, color: '#34d399', opacity: 0.85 }}>
@@ -289,10 +288,10 @@ function BionicGazeHUD({
             {/* Bionic Formatted Text */}
             <span
               style={{
-                fontSize: '16px',
-                lineHeight: 1.4,
-                color: '#f8fafc',
-                letterSpacing: '0.01em',
+                fontSize: '14px',
+                lineHeight: 1.55,
+                color: '#e5e7eb',
+                letterSpacing: '0',
               }}
             >
               {b.text.split(' ').map((word, wIdx) => {
