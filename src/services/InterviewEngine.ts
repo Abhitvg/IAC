@@ -168,9 +168,12 @@ export class InterviewEngine {
     }
 
     const continuationDecision = resolvePendingQuestionContinuation(incoming);
-    if (continuationDecision === 'new-question') {
+    if (
+      continuationDecision === 'new-question' ||
+      continuationDecision === 'candidate-speech'
+    ) {
       // Do not let the old timer generate a stale partial after a new question
-      // has entered the normal classification and answer-generation path.
+      // or candidate answer has entered the normal classification path.
       InterviewEngine.clearPendingQuestion();
       return false;
     }
