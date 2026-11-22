@@ -297,19 +297,18 @@ export class InterviewEngine {
       requestId,
       preserveQueuedUtterances: true,
     }).catch((error: unknown) => {
-        const errorName = error instanceof Error ? error.name : 'UnknownError';
-        console.error('[InterviewEngine] Failed to dispatch a recognized question.', {
-          requestId,
-          errorName,
-        });
-        const state = useAppStore.getState();
-        if (state.activeRequestId === requestId) {
-          state.setPipelineStage('failed');
-          state.setStatus('error');
-          state.setToast('Could not start an answer for the recognized question. Please retry.');
-        }
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      console.error('[InterviewEngine] Failed to dispatch a recognized question.', {
+        requestId,
+        errorName,
+      });
+      const state = useAppStore.getState();
+      if (state.activeRequestId === requestId) {
+        state.setPipelineStage('failed');
+        state.setStatus('error');
+        state.setToast('Could not start an answer for the recognized question. Please retry.');
       }
-    );
+    });
   }
 
   /**
