@@ -56,13 +56,15 @@ describe('Bionic answer coverage', () => {
       '| On-Demand | Pay for usage | Variable workloads |',
     ].join('\n'));
 
-    expect(bullets).toHaveLength(4);
+    expect(bullets).toHaveLength(3);
     expect(bullets[0].text).toBe('Pricing models');
     expect(bullets[1].text).toBe(
       'Pay-as-you-go is billed for what you use, while commitments can reduce the unit price.'
     );
-    expect(bullets[2].text).toBe('Model | What it is | Typical use case');
-    expect(bullets[3].text).toBe('On-Demand | Pay for usage | Variable workloads');
+    expect(bullets[2].tableRows).toEqual([
+      ['Model', 'What it is', 'Typical use case'],
+      ['On-Demand', 'Pay for usage', 'Variable workloads'],
+    ]);
   });
 
   it('does not split or hide short answers', () => {
