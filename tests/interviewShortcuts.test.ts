@@ -81,6 +81,10 @@ describe('live interview shortcut bindings', () => {
     expect(canonicalizeInterviewShortcut('CmdOrCtrl+Alt')).toBeNull();
     expect(isReservedInterviewShortcut('Shift+Alt+S')).toBe(true);
     expect(isReservedInterviewShortcut('Escape')).toBe(true);
+    expect(isReservedInterviewShortcut('CmdOrCtrl+Q')).toBe(true);
+    expect(isReservedInterviewShortcut('CmdOrCtrl+W')).toBe(true);
+    expect(isReservedInterviewShortcut('Alt+F4')).toBe(true);
+    expect(isReservedInterviewShortcut('Alt+Tab')).toBe(true);
     expect(isReservedInterviewShortcut('Alt+Q')).toBe(false);
   });
 
