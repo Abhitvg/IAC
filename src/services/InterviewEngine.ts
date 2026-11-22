@@ -945,10 +945,6 @@ export class InterviewEngine {
 
               state.setAnswerVerificationBasis(res.verificationBasis ?? null);
 
-              state.setAnswerVerificationBasis(
-                res.verificationBasis ?? 'SCREEN_CODE_NOT_EXECUTED'
-              );
-
               if (decision.isSpeakable) {
                 const finalAnswer = decision.speakableAnswer;
                 state.setCurrentAnswer(finalAnswer);
@@ -1259,6 +1255,10 @@ export class InterviewEngine {
                 });
                 return;
               }
+
+              state.setAnswerVerificationBasis(
+                res.verificationBasis ?? 'SCREEN_CODE_NOT_EXECUTED'
+              );
 
               if (decision.isSpeakable) {
                 const finalAnswer = decision.speakableAnswer;
