@@ -274,69 +274,51 @@ function setupTray() {
   }
 }
 
-// prettier-ignore
-function registerGlobalShortcuts() {
-  const stealthShortcuts = [
-    'CommandOrControl+Alt+Shift+H',
-    'CommandOrControl+Shift+Space',
-    'CommandOrControl+\\',
-    'Alt+H',
-  ];
-  stealthShortcuts.forEach((shortcut) => {
-    try {
-      globalShortcut.register(shortcut, () => {
-        toggleWindowVisibility();
-      });
-    } catch (err) {
-      console.warn(`[Electron] Could not register shortcut ${shortcut}:`, err);
-    }
-  });
-
-  // Keyboard-first placement: keep the interview window reachable without a carousel.
-  const placementShortcuts: Array<[string, () => void]> = [
-    ['CommandOrControl+Alt+Left', () => positionWindowInCorner('left')],
-    ['CommandOrControl+Alt+Right', () => positionWindowInCorner('right')],
-  ];
-  placementShortcuts.forEach(([shortcut, action]) => {
+function registerShortcut(shortcut: string, action: () => void) {
+  try {
     const registered = globalShortcut.register(shortcut, action);
     if (!registered) {
-      console.warn(`[Electron] Shortcut unavailable (already claimed by the OS or another app): ${shortcut}`);
+      console.warn(
+        `[Electron] Shortcut unavailable (already claimed by the OS or another app): ${shortcut}`
+      );
     }
+  } catch (err) {
+    console.warn(`[Electron] Could not register shortcut ${shortcut}:`, err);
+  }
+}
+
+function registerGlobalShortcuts() {
+  const visibilityShortcuts = [
+    'CommandOrControl+Alt+Shift+H',
+    'CommandOrControl+Shift+Space',
+    'CommandOrControl+\\\\',
+    'Alt+H',
+  ];
+
+  visibilityShortcuts.forEach((shortcut) =>
+    registerShortcut(shortcut, () => toggleWindowVisibility())
+  );
+
+  registerShortcut('CommandOrControl+Alt+Left', () => positionWindowInCorner('left'));
+  registerShortcut('CommandOrControl+Alt+Right', () => positionWindowInCorner('right'));
+
+  registerShortcut('Alt+Shift+S', () => {
+    showOrCreateMainWindow();
+    mainWindow?.webContents.send('trigger-screen-capture');
   });
 
-  try {
-    globalShortcut.register('Alt+Shift+S', () => {
-      if (!mainWindow?.isVisible()) mainWindow?.show();
-      mainWindow?.webContents.send('trigger-screen-capture');
-    });
-  } catch (err) {
-    console.warn('[Electron] Could not register screen capture shortcut:', err);
-  }
+  registerShortcut('CommandOrControl+Shift+A', () => {
+    showOrCreateMainWindow();
+    mainWindow?.webContents.send('trigger-append-screen-capture');
+  });
 
-  try {
-    globalShortcut.register('CommandOrControl+Shift+A', () => {
-      if (!mainWindow?.isVisible()) mainWindow?.show();
-      mainWindow?.webContents.send('trigger-append-screen-capture');
-    });
-  } catch (err) {
-    console.warn('[Electron] Could not register append screen capture shortcut:', err);
-  }
+  registerShortcut('Alt+V', () => {
+    mainWindow?.webContents.send('trigger-auto-type');
+  });
 
-  try {
-    globalShortcut.register('Alt+V', () => {
-      mainWindow?.webContents.send('trigger-auto-type');
-    });
-  } catch (err) {
-    console.warn('[Electron] Could not register auto-type shortcut:', err);
-  }
-
-  try {
-    globalShortcut.register('Alt+T', () => {
-      mainWindow?.webContents.send('trigger-auto-type-text');
-    });
-  } catch (err) {
-    console.warn('[Electron] Could not register auto-type-text shortcut:', err);
-  }
+  registerShortcut('Alt+T', () => {
+    mainWindow?.webContents.send('trigger-auto-type-text');
+  });
 }
 
 function setupNativeApplicationMenu() {
