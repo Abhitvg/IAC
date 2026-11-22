@@ -232,16 +232,16 @@ export class AudioRecorder {
         return;
       }
 
-      this.isListening = true;
-      this.captureState = 'active';
-
       // A browser can keep the MediaStream object alive after the physical input
       // disappears. Listen for a track ending so the UI cannot remain falsely active.
-      for (const track of this.mediaStream?.getAudioTracks() || []) {
+      for (const track of this.mediaStream?.getAudioTracks?.() || []) {
         const listener = () => this.handleUnexpectedTrackEnd(generation);
         track.addEventListener('ended', listener);
         this.mediaTrackEndedListeners.push({ track, listener });
       }
+
+      this.isListening = true;
+      this.captureState = 'active';
 
       if (this.captureRequestId) {
         DiagnosticLoggerService.getInstance().recordEvent({
