@@ -8,7 +8,7 @@ import { InterviewEngine } from '../../services/InterviewEngine';
 import { DiagnosticLoggerService } from '../../services/diagnosticLogger';
 import {
   getConversationScrollTarget,
-  isConversationNearBottom,
+  shouldAutoFollowConversation,
 } from '../../services/teleprompter/conversationScroll';
 import { ApplicationAssistanceView } from './ApplicationAssistanceView';
 import {
@@ -1267,8 +1267,6 @@ export default function TeleprompterView() {
     setTeleprompterFontSize,
     isAutoScrolling,
     setIsAutoScrolling,
-    scrollSpeed,
-    setScrollSpeed,
     windowOpacity,
     setWindowOpacity,
     toggleRecording,
@@ -1367,7 +1365,7 @@ export default function TeleprompterView() {
     }
   });
   const conversationScrollRef = useRef<HTMLDivElement>(null);
-  const shouldAutoScrollConversationRef = useRef(true);
+  const shouldAutoScrollConversationRef = useRef(isAutoScrolling);
   const conversationScrollTopRef = useRef(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showControlsPopover, setShowControlsPopover] = useState(false);
@@ -1471,10 +1469,10 @@ export default function TeleprompterView() {
   useEffect(() => {
     const element = conversationScrollRef.current;
     if (!element) return;
-    if (shouldAutoScrollConversationRef.current) {
+    if (isAutoScrolling && shouldAutoScrollConversationRef.current) {
       element.scrollTo({ top: element.scrollHeight, behavior: 'auto' });
     }
-  }, [currentQuestion, currentAnswer, draftAnswer, status, isBionicGazeMode]);
+  }, [currentQuestion, currentAnswer, draftAnswer, status, isBionicGazeMode, isAutoScrolling]);
 
   // The two answer modes render different DOM trees. Preserve the reader's position
   // when switching modes unless they were already following the newest content.
@@ -1756,29 +1754,10 @@ export default function TeleprompterView() {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
-
-  useEffect(() => {
-    if (!isAutoScrolling || isHovered) return;
-    const el = scrollRef.current;
-    if (!el) return;
-
-    const interval = setInterval(() => {
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) return;
-      el.scrollTop += 0.8 * scrollSpeed;
-    }, 30);
-
-    return () => clearInterval(interval);
-  }, [isAutoScrolling, scrollSpeed, isHovered]);
-
   useEffect(() => {
     if (currentQuestion) {
       setSeconds(0);
       setTimerRunning(true);
-      if (scrollRef.current) {
-        scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-      }
     }
   }, [currentQuestion]);
 
@@ -1905,11 +1884,21 @@ export default function TeleprompterView() {
         return;
       }
 
-      // Auto-scroll toggle: Cmd+J
+      // Toggle conversation auto-follow: Cmd+J.
       if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyJ' || e.key.toLowerCase() === 'j')) {
         e.preventDefault();
-        setIsAutoScrolling(!isAutoScrolling);
-        setToast(!isAutoScrolling ? '📜 Auto-Scroll: Resumed' : '⏸️ Auto-Scroll: Paused');
+        const nextAutoFollow = !isAutoScrolling;
+        setIsAutoScrolling(nextAutoFollow);
+        shouldAutoScrollConversationRef.current = nextAutoFollow;
+        if (nextAutoFollow) {
+          const element = conversationScrollRef.current;
+          element?.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
+        }
+        setToast(
+          nextAutoFollow
+            ? '📜 Conversation auto-follow: ON'
+            : '⏸️ Conversation auto-follow: OFF'
+        );
         return;
       }
 
@@ -1956,12 +1945,6 @@ export default function TeleprompterView() {
       } else {
         await window.electronAPI.setWindowSize(680, 240);
       }
-    }
-  };
-
-  const handleRestartScrolling = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -2173,10 +2156,11 @@ export default function TeleprompterView() {
         onScroll={(event) => {
           const element = event.currentTarget;
           conversationScrollTopRef.current = element.scrollTop;
-          shouldAutoScrollConversationRef.current = isConversationNearBottom(
+          shouldAutoScrollConversationRef.current = shouldAutoFollowConversation(
             element.scrollHeight,
             element.scrollTop,
-            element.clientHeight
+            element.clientHeight,
+            isAutoScrolling
           );
         }}
         role="log"
