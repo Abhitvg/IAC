@@ -3,6 +3,7 @@ import { transcribeAudio } from '../src/services/whisper';
 import { classifyUtterance } from '../src/services/interruptionDetector';
 import { useAppStore } from '../src/store/useAppStore';
 import { InterviewEngine } from '../src/services/InterviewEngine';
+import { AudioRecorder } from '../src/services/audio';
 import { shouldAutoRouteUncertainQuestion } from '../src/services/interviewQuestionRouting';
 
 vi.mock('../src/services/whisper', () => ({
@@ -152,6 +153,45 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     } finally {
       infoSpy.mockRestore();
       logSpy.mockRestore();
+    }
+  });
+
+  it('transcribes consecutive finalized microphone segments in order without cancelling the first', async () => {
+    InterviewEngine.abortActiveTranscription();
+    vi.mocked(transcribeAudio).mockReset();
+    const captureStateSpy = vi
+      .spyOn(AudioRecorder.getInstance(), 'getCaptureState')
+      .mockReturnValue('active');
+    let resolveFirst:
+      | ((result: Awaited<ReturnType<typeof transcribeAudio>>) => void)
+      | undefined;
+
+    vi.mocked(transcribeAudio)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          })
+      )
+      .mockResolvedValueOnce({ text: 'Thank you.' });
+
+    const first = InterviewEngine.enqueueFinalizedUtterance(new Blob([new Uint8Array(512)]));
+    const second = InterviewEngine.enqueueFinalizedUtterance(new Blob([new Uint8Array(512)]));
+
+    try {
+      await vi.waitFor(() => expect(transcribeAudio).toHaveBeenCalledTimes(1));
+      expect(transcribeAudio).toHaveBeenCalledTimes(1);
+
+      resolveFirst?.({ text: 'Thank you.' });
+      await Promise.all([first, second]);
+
+      expect(transcribeAudio).toHaveBeenCalledTimes(2);
+    } finally {
+      resolveFirst?.({ text: 'Thank you.' });
+      await Promise.allSettled([first, second]);
+      captureStateSpy.mockRestore();
+      InterviewEngine.abortActiveTranscription();
+      vi.mocked(transcribeAudio).mockReset();
     }
   });
 
