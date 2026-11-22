@@ -25,7 +25,9 @@ EXPERIENCE: Designed multi-region failover architecture at Global Media Corp.
     for (const fact of facts) {
       // Must be unverified or self-reported
       expect(isCandidateOrIndependentlyVerified(fact.verificationStatus)).toBe(false);
-      expect(['RESUME_REPORTED', 'REASONABLE_INFERENCE', 'UNKNOWN']).toContain(fact.verificationStatus);
+      expect(['RESUME_REPORTED', 'REASONABLE_INFERENCE', 'UNKNOWN']).toContain(
+        fact.verificationStatus
+      );
     }
 
     // Attempting to treat raw OCR as confirmed experience must fail verification check
@@ -141,7 +143,9 @@ Experience: Contributed to ... distributed sys... throughput approx 4...
     expect(groundingSection).toContain('UNKNOWN');
     expect(groundingSection).toContain('PRESERVE UNKNOWN INFORMATION');
     expect(groundingSection).toContain('do not invent them');
-    expect(groundingSection).toContain('Do not invent metrics, user numbers, or performance benchmarks');
+    expect(groundingSection).toContain(
+      'Do not invent metrics, user numbers, or performance benchmarks'
+    );
     expect(groundingSection).toContain('ZERO INVENTED CLAIMS');
   });
 
@@ -174,7 +178,8 @@ Experience: Contributed to ... distributed sys... throughput approx 4...
     expect(isCandidateOrIndependentlyVerified(project!.verificationStatus)).toBe(false);
 
     // Validator rejects claiming personal production ownership over a proposed or unverified design
-    const dishonestAnswer = 'In my previous company, I built and deployed the GlobalTelemetryAggregator in production with 100,000 concurrent users.';
+    const dishonestAnswer =
+      'In my previous company, I built and deployed the GlobalTelemetryAggregator in production with 100,000 concurrent users.';
     const validation = FactualGroundingValidator.validateAnswer(
       dishonestAnswer,
       kb,

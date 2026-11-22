@@ -35,7 +35,10 @@ describe('Deterministic Question Intent Classification', () => {
       'system_design'
     );
     expect(
-      classifyQuestionIntent('Design a distributed key-value store scaled to 10M users', 'interview')
+      classifyQuestionIntent(
+        'Design a distributed key-value store scaled to 10M users',
+        'interview'
+      )
     ).toBe('system_design');
   });
 
@@ -44,17 +47,24 @@ describe('Deterministic Question Intent Classification', () => {
       'behavioral'
     );
     expect(
-      classifyQuestionIntent('Give me an example of a time you handled a production outage', 'interview')
+      classifyQuestionIntent(
+        'Give me an example of a time you handled a production outage',
+        'interview'
+      )
     ).toBe('behavioral');
     expect(classifyQuestionIntent('Walk me through your resume.', 'interview')).toBe('resume');
   });
 
   it('correctly classifies multiple choice questions as quiz', () => {
-    const mcq1 = 'Which HTTP status code represents Temporary Redirect?\nA) 301\nB) 302\nC) 404\nD) 500';
+    const mcq1 =
+      'Which HTTP status code represents Temporary Redirect?\nA) 301\nB) 302\nC) 404\nD) 500';
     expect(classifyQuestionIntent(mcq1, 'interview')).toBe('quiz');
-    expect(classifyQuestionIntent('Which of the following is true regarding ACID transactions?', 'interview')).toBe(
-      'quiz'
-    );
+    expect(
+      classifyQuestionIntent(
+        'Which of the following is true regarding ACID transactions?',
+        'interview'
+      )
+    ).toBe('quiz');
     expect(classifyQuestionIntent('Any question in quiz mode', 'quiz')).toBe('quiz');
   });
 
@@ -72,9 +82,9 @@ describe('Deterministic Question Intent Classification', () => {
     );
 
     // Complexity question in coding mode remains definition
-    expect(
-      classifyQuestionIntent('What is the time complexity of binary search?', 'coding')
-    ).toBe('definition');
+    expect(classifyQuestionIntent('What is the time complexity of binary search?', 'coding')).toBe(
+      'definition'
+    );
   });
 
   it('correctly classifies contextual follow-up questions when prior context exists', () => {
@@ -151,7 +161,7 @@ Skills: Java, TypeScript, Spring Boot, React, Kafka, Docker, AWS.`;
     expect(prompt).toContain('NO FABRICATION');
 
     // Verifies positive benchmark example is included for clarity
-    expect(prompt).toContain('AWS is Amazon\'s cloud platform');
+    expect(prompt).toContain("AWS is Amazon's cloud platform");
 
     // Verifies rigid 3-beat phase 1/2/3 framework and Electron bloat are NOT injected
     expect(prompt).not.toContain('Phase 1 (Ingestion & Initialization)');
@@ -307,7 +317,8 @@ Skills: Java, TypeScript, Spring Boot, React, Kafka, Docker, AWS.`;
   });
 
   it('8. Multiple choice question in quiz mode produces high-contrast correct answer prompt', () => {
-    const q = 'Which HTTP status code represents Temporary Redirect?\nA) 301\nB) 302\nC) 404\nD) 500';
+    const q =
+      'Which HTTP status code represents Temporary Redirect?\nA) 301\nB) 302\nC) 404\nD) 500';
     const prompt = buildCandidateSystemPrompt(
       verifiedResume,
       DEFAULT_JOB_DESCRIPTION,
@@ -346,7 +357,8 @@ Given a sorted array of distinct integers nums and an integer target, return the
     const history = [
       {
         question: 'What is database normalization?',
-        answer: 'Database normalization is the process of organizing relational tables to reduce redundancy and improve data integrity.',
+        answer:
+          'Database normalization is the process of organizing relational tables to reduce redundancy and improve data integrity.',
         category: 'DBMS',
       },
     ];
@@ -437,9 +449,11 @@ describe('Streaming Parsing & Clean Sentence Buffering', () => {
     const parser = new AIStreamParser();
     const sentenceBuffer = new SentenceBuffer();
 
-    const chunk1 = '<think>Let me formulate a conversational answer for AWS.</think>AWS is Amazon\'s cloud platform. ';
+    const chunk1 =
+      "<think>Let me formulate a conversational answer for AWS.</think>AWS is Amazon's cloud platform. ";
     const chunk2 = 'Instead of buying physical servers, you rent resources on demand. ';
-    const chunk3 = 'For example, EC2 runs applications, while S3 stores files. FOLLOW_UPS: What is S3? | What is EC2? | What is a VPC?';
+    const chunk3 =
+      'For example, EC2 runs applications, while S3 stores files. FOLLOW_UPS: What is S3? | What is EC2? | What is a VPC?';
 
     const clean1 = parser.parseChunk(chunk1);
     const clean2 = parser.parseChunk(chunk2);
@@ -448,7 +462,7 @@ describe('Streaming Parsing & Clean Sentence Buffering', () => {
 
     expect(clean1).not.toContain('<think>');
     expect(clean1).not.toContain('Let me formulate');
-    expect(clean1).toBe('AWS is Amazon\'s cloud platform. ');
+    expect(clean1).toBe("AWS is Amazon's cloud platform. ");
 
     const sentences1 = sentenceBuffer.push(clean1);
     const sentences2 = sentenceBuffer.push(clean2);
@@ -458,7 +472,9 @@ describe('Streaming Parsing & Clean Sentence Buffering', () => {
     const allSentences = [...sentences1, ...sentences2, ...sentences3, ...flushed];
 
     expect(allSentences.length).toBeGreaterThanOrEqual(2);
-    expect(allSentences[0]).toBe('AWS is Amazon\'s cloud platform.');
-    expect(allSentences[1]).toBe('Instead of buying physical servers, you rent resources on demand.');
+    expect(allSentences[0]).toBe("AWS is Amazon's cloud platform.");
+    expect(allSentences[1]).toBe(
+      'Instead of buying physical servers, you rent resources on demand.'
+    );
   });
 });
