@@ -13,6 +13,7 @@ export interface BionicGazeBullet {
   text: string;
   metricChip?: string;
   highlightWords: string[];
+  tableRows?: string[][];
 }
 
 /**
@@ -40,15 +41,50 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
   const bullets: BionicGazeBullet[] = [];
   let bulletIndex = 0;
 
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim();
     if (!line) continue;
 
-    // Keep each table row intact. The full Markdown table remains available in
-    // the complete-answer disclosure below the glanceable summary.
-    if (/^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(line)) continue;
+    // Parse a complete Markdown table as one semantic unit so its headers and
+    // values remain aligned in the HUD rather than becoming unrelated bullets.
+    if (line.includes('|') && /^\|?.+\|.+\|?$/.test(line)) {
+      const tableRows: string[][] = [];
+      let cursor = index;
 
-    const isTableRow = line.includes('|') && /^\|?.+\|.+\|?$/.test(line);
+      while (cursor < lines.length) {
+        const tableLine = lines[cursor].trim();
+        if (!tableLine.includes('|')) break;
+        if (/^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(tableLine)) {
+          cursor += 1;
+          continue;
+        }
+
+        const cells = tableLine
+          .split('|')
+          .map((cell) => cell.trim())
+          .filter((cell, cellIndex, allCells) => {
+            return !(
+              cell === '' &&
+              (cellIndex === 0 || cellIndex === allCells.length - 1)
+            );
+          });
+        if (cells.length > 1) tableRows.push(cells);
+        cursor += 1;
+      }
+
+      if (tableRows.length > 0) {
+        const tableText = tableRows.map((row) => row.join(' | ')).join('\n');
+        bullets.push({
+          id: `gaze-${bulletIndex++}`,
+          text: tableText,
+          highlightWords: [],
+          tableRows,
+        });
+        index = cursor - 1;
+        continue;
+      }
+    }
+
     const isHeading = /^#{1,6}\s+/.test(line);
     const isListItem = /^(?:[-*+]\s+|\d+[.)]\s+)/.test(line);
     const cleanLine = line
@@ -59,10 +95,9 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
 
     if (!cleanLine) continue;
 
-    // A table row is one indivisible record; do not split its cells into
-    // disconnected "glance" fragments.
+    // Keep complete sentences and list items intact. Headings remain standalone.
     const logicalUnits =
-      isTableRow || isHeading || isListItem
+      isHeading || isListItem
         ? [cleanLine]
         : cleanLine.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).map((part) => part.trim());
 
@@ -72,7 +107,7 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
       bullets.push({
         id: `gaze-${bulletIndex++}`,
         text: unit,
-        metricChip: isTableRow ? undefined : findFirstMetric(unit),
+        metricChip: findFirstMetric(unit),
         highlightWords: words.slice(0, 2),
       });
     }
