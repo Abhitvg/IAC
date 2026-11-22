@@ -20,6 +20,7 @@ import {
 } from '../../services/teleprompter/bionicPrompterService';
 import { getBionicAnswerPresentation } from '../../services/teleprompter/bionicAnswerPresentation';
 import { getAnswerVerificationNotice } from '../../services/answerVerification';
+import { JavaSandboxPanel } from './JavaSandboxPanel';
 import {
   INTERVIEW_SHORTCUT_LABELS,
   canonicalizeInterviewShortcut,
@@ -2283,6 +2284,16 @@ export default function TeleprompterView() {
     return parsedSegments.some((s) => s.type === 'code' && s.code && s.code.trim().length > 0);
   }, [parsedSegments]);
 
+  const javaSandboxSource = useMemo(() => {
+    if (answerVerificationBasis !== 'SCREEN_CODE_NOT_EXECUTED') return null;
+    const codeSegment = parsedSegments.find(
+      (segment) => segment.type === 'code' && segment.code && segment.code.trim().length > 0
+    );
+    if (!codeSegment?.code) return null;
+    const language = (codeSegment.language || settings?.preferredLanguage || '').toLowerCase();
+    return language === 'java' ? codeSegment.code : null;
+  }, [answerVerificationBasis, parsedSegments, settings?.preferredLanguage]);
+
   const toggleBionicHud = () => {
     const element = conversationScrollRef.current;
     if (element) conversationScrollTopRef.current = element.scrollTop;
@@ -2542,6 +2553,9 @@ export default function TeleprompterView() {
               <InterviewAnswerMarkdown
                 content={currentAnswer || draftAnswer || 'Preparing an answer…'}
               />
+            )}
+            {currentAnswer && javaSandboxSource && (
+              <JavaSandboxPanel sourceCode={javaSandboxSource} />
             )}
             {blockedReason && (
               <div role="alert" style={{ color: '#fca5a5', fontSize: 12, marginTop: 10 }}>

@@ -60,6 +60,17 @@ The companion browser extension communication channel implements four defense-in
 3. **Session Authentication:** A cryptographically random per-session token (`crypto.randomUUID()`) is required during the handshake.
 4. **Untrusted Data Isolation:** Received browser payloads are capped at 256 KB and wrapped in strict `<<<EXTERNAL_UNTRUSTED_CONTENT>>>` delimiter blocks to prevent prompt injection attacks.
 
+### 7. Optional Local Java Verification Sandbox
+
+The interview workspace can optionally compile and run a Java answer after an explicit user action. This is a practice/verification utility, not an automatic part of OCR or answer generation.
+
+- The renderer cannot spawn processes. It invokes one narrowly scoped, sender-validated IPC method; the Electron main process owns Docker execution.
+- The runner accepts one small Java class, record, or enum, optional stdin, and optional expected output. It rejects package declarations and does not fetch external dependencies or annotation processors.
+- The Java image is pinned by digest and must already exist locally. IAC does not pull images automatically. The Docker context must use a local Unix socket or Windows named pipe; remote SSH/TCP contexts are rejected.
+- Linux requires rootless Docker. The container has no network, no host-directory mounts, a read-only root filesystem, a non-root UID, no Linux capabilities, no-new-privileges, bounded CPU/memory/PIDs/output, temporary in-container filesystems, and a 15-second wall-clock limit.
+- A judge-style method without a public static main(String[] args) entry point is compile-only. A successful compile or execution without an expected output is not reported as a passed test; only a supplied expected-output comparison can produce an output-match result.
+- Docker, its daemon, the host kernel, and the pinned base image remain part of the trust boundary. Containers reduce exposure but are not a mathematical guarantee against container-runtime or kernel vulnerabilities. Do not submit secrets or execute code you do not trust.
+
 ---
 
 ## Reporting a Vulnerability
