@@ -1259,7 +1259,6 @@ export default function TeleprompterView() {
     groundingScore,
     groundingViolations,
     diagnosticState,
-    isRecording,
     isInterviewFocusMode,
     setInterviewFocusMode,
     toggleInterviewFocusMode,
@@ -1308,11 +1307,7 @@ export default function TeleprompterView() {
     generateAnswerFromTranscript,
   } = useAppStore();
 
-  const isListening =
-    status === 'listening' ||
-    status === 'transcribing' ||
-    status === 'analyzing' ||
-    status === 'generating';
+  const isListening = diagnosticState.micActive;
   const isGenerating = status === 'analyzing' || status === 'generating';
 
   const [manualInput, setManualInput] = useState('');
