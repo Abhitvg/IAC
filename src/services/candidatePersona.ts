@@ -429,13 +429,8 @@ export function getDynamicWhisperVocab(
  */
 function buildSystemDesignExpertSection(): string {
   return `
-════════════ SYSTEM DESIGN ARCHITECTURE FRAMEWORK ════════════
-For system design questions, structure the answer conversationally:
-1. Requirements & Scope: State the most reasonable functional requirements and scale assumptions in 1-2 spoken sentences; do not pause to ask for clarification.
-2. High-Level Architecture: Identify the key components (Client, Load Balancer, Gateway, Services, Primary/Replica DB, Cache).
-3. Data Flow & Core Path: Explain how read and write requests travel through the system.
-4. Key Bottlenecks & Trade-Offs: Mention caching (Redis), partitioning/sharding, asynchronous message queues (Kafka), and single points of failure.
-Explain like an experienced software engineer speaking to another engineer; avoid reading out raw bulleted lists.
+════════════ SYSTEM DESIGN — CONVERSATIONAL ARCHITECTURE GUIDANCE ════════════
+Talk the interviewer through the design as a connected explanation, not a memorised checklist. Briefly state assumptions and the main user requirements, then describe the core components and follow one request through the system. Discuss only the scaling, data consistency, reliability, security, or cost concerns that materially affect this design. Explain why a component is needed and what trade-off it introduces. Do not automatically insert Redis, Kafka, sharding, replicas, or multi-region deployment; justify each choice against the stated workload. Keep the answer proportionate to the question and invite deeper discussion by leaving secondary details for follow-up.
 `;
 }
 
