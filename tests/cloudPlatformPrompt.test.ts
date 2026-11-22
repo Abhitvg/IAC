@@ -10,6 +10,7 @@ import {
 
 const sophosRole = 'Software Engineer – DevOps / Cloud Platform';
 const sophosJobDescription = `
+The supplied internal posting names Sophos as the employer.
 Build Java and Spring Boot microservices.
 Automate infrastructure with Terraform.
 Work with AWS, Docker, Kubernetes, Jenkins, and CI/CD pipelines.
