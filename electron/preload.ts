@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { JavaSandboxRequest, JavaSandboxResult } from '../src/types';
+import type { JavaSandboxRequest, JavaSandboxResult } from './types/javaSandbox';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Window controls
