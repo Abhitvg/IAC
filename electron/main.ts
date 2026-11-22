@@ -199,8 +199,7 @@ function positionWindowInCorner(side: 'left' | 'right') {
   const margin = 16;
   const width = Math.min(bounds.width, Math.max(320, workArea.width - margin * 2));
   const height = Math.min(bounds.height, Math.max(240, workArea.height - margin * 2));
-  const x =
-    side === 'left' ? workArea.x + margin : workArea.x + workArea.width - width - margin;
+  const x = side === 'left' ? workArea.x + margin : workArea.x + workArea.width - width - margin;
   const y = workArea.y + margin;
 
   mainWindow.setBounds({ x, y, width, height });
