@@ -131,6 +131,63 @@ describe('audio capture diagnostics', () => {
     ).toEqual(['STARTING', 'STOPPED']);
   });
 
+  it('rejects a microphone track that ends while AudioContext startup is pending', async () => {
+    let readyState: MediaStreamTrackState = 'live';
+    let resolveResume: (() => void) | undefined;
+    const trackStop = vi.fn();
+    const track = {
+      kind: 'audio',
+      get readyState() {
+        return readyState;
+      },
+      stop: trackStop,
+    } as unknown as MediaStreamTrack;
+    const stream = {
+      getTracks: () => [track],
+      getAudioTracks: () => [track],
+    } as unknown as MediaStream;
+    const resume = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveResume = resolve;
+        })
+    );
+    const close = vi.fn(async () => undefined);
+
+    class DeferredAudioContext {
+      state: AudioContextState = 'suspended';
+      destination = {} as AudioDestinationNode;
+      resume = resume;
+      close = close;
+      createMediaStreamSource = vi.fn();
+      createScriptProcessor = vi.fn();
+      createGain = vi.fn();
+    }
+
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+    vi.stubGlobal('window', { AudioContext: DeferredAudioContext });
+
+    const recorder = new AudioRecorder();
+    const startup = recorder.start(() => undefined);
+    await vi.waitFor(() => expect(resume).toHaveBeenCalledTimes(1));
+
+    readyState = 'ended';
+    resolveResume?.();
+
+    await expect(startup).rejects.toThrow('Microphone input ended during startup');
+    expect(trackStop).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(recorder.getCaptureState()).toBe('error');
+    expect(useAppStore.getState().diagnosticState.micActive).toBe(false);
+    expect(
+      DiagnosticLoggerService.getInstance()
+        .getEvents()
+        .map((event) => event.audioCaptureOutcome)
+    ).toEqual(['STARTING', 'FAILED']);
+  });
+
   it('activates a valid microphone capture and releases it on Stop', async () => {
     const trackStop = vi.fn();
     const stream = {
