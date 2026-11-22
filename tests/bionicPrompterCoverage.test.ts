@@ -47,6 +47,24 @@ describe('Bionic answer coverage', () => {
     );
   });
 
+  it('keeps complete sentences and table rows intact', () => {
+    const bullets = extractGlanceableGazeBullets([
+      '## Pricing models',
+      'Pay-as-you-go is billed for what you use, while commitments can reduce the unit price.',
+      '| Model | What it is | Typical use case |',
+      '| --- | --- | --- |',
+      '| On-Demand | Pay for usage | Variable workloads |',
+    ].join('\\n'));
+
+    expect(bullets).toHaveLength(4);
+    expect(bullets[0].text).toBe('Pricing models');
+    expect(bullets[1].text).toBe(
+      'Pay-as-you-go is billed for what you use, while commitments can reduce the unit price.'
+    );
+    expect(bullets[2].text).toBe('Model | What it is | Typical use case');
+    expect(bullets[3].text).toBe('On-Demand | Pay for usage | Variable workloads');
+  });
+
   it('does not split or hide short answers', () => {
     const bullets = [{ id: 'gaze-0', text: 'A short answer.', highlightWords: [] }];
     expect(selectPrimaryGlanceableBullets(bullets)).toEqual({
