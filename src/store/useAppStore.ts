@@ -687,8 +687,6 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   setStatus: (s) => {
     set({
       status: s,
-      isRecording:
-        s === 'listening' || s === 'transcribing' || s === 'analyzing' || s === 'generating',
       isGenerating: s === 'analyzing' || s === 'generating',
     });
   },
@@ -783,20 +781,13 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   },
 
   toggleRecording: () => {
-    const { status } = get();
-    if (
-      status === 'listening' ||
-      status === 'transcribing' ||
-      status === 'analyzing' ||
-      status === 'generating'
-    ) {
-      InterviewEngine.handleEvent({ type: 'STOP_LISTENING' });
-      get().setStatus('idle');
-      set({ recitalState: 'idle' });
-    } else {
-      InterviewEngine.handleEvent({ type: 'START_LISTENING' });
-      set({ recitalState: 'listening' });
-    }
+    void import('../services/audio').then(({ AudioRecorder }) => {
+      const captureState = AudioRecorder.getInstance().getCaptureState();
+      const isCapturing = captureState === 'active' || captureState === 'starting';
+      void InterviewEngine.handleEvent({
+        type: isCapturing ? 'STOP_LISTENING' : 'START_LISTENING',
+      });
+    });
   },
 
   analyzeTranscript: () => {
@@ -1256,6 +1247,9 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     lastInterruption: null,
   },
   updateDiagnostics: (updates) =>
-    set((state) => ({ diagnosticState: { ...state.diagnosticState, ...updates } })),
+    set((state) => ({
+      diagnosticState: { ...state.diagnosticState, ...updates },
+      ...(typeof updates.micActive === 'boolean' ? { isRecording: updates.micActive } : {}),
+    })),
   currentResponse: { interviewAnswer: '', followUpQuestions: [] },
 }));
