@@ -94,7 +94,52 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
     }
   }
 
-  return bullets.slice(0, 18); // Keep prompter glanceable and non-fatiguing
+  // Preserve the complete extracted outline. The HUD chooses a concise primary
+  // set, while the UI keeps every additional point available under an expander.
+  return bullets;
+}
+
+export const BIONIC_PRIMARY_BULLET_LIMIT = 18;
+
+const HIGH_SIGNAL_BULLET =
+  /\\b(trade[- ]?off|however|limitation|risk|edge case|failure|security|latency|cost|conclusion|therefore|finally|overall|in summary|complexity|fallback|recovery|scalab|availability|consistency|durability|monitoring|observability)\\b/i;
+
+export function selectPrimaryGlanceableBullets(bullets: BionicGazeBullet[]): {
+  primary: BionicGazeBullet[];
+  remaining: BionicGazeBullet[];
+} {
+  if (bullets.length <= BIONIC_PRIMARY_BULLET_LIMIT) {
+    return { primary: bullets, remaining: [] };
+  }
+
+  const selectedIndexes = new Set<number>();
+  const addIndex = (index: number) => {
+    if (index >= 0 && index < bullets.length && selectedIndexes.size < BIONIC_PRIMARY_BULLET_LIMIT) {
+      selectedIndexes.add(index);
+    }
+  };
+
+  // Keep the direct answer and the ending conclusion/caveats in the first glance.
+  for (let index = 0; index < Math.min(7, bullets.length); index += 1) addIndex(index);
+  for (let index = Math.max(7, bullets.length - 5); index < bullets.length; index += 1) {
+    addIndex(index);
+  }
+
+  // Pull high-signal engineering points (metrics, risks, trade-offs, security) forward.
+  for (let index = 7; index < Math.max(7, bullets.length - 5); index += 1) {
+    if (bullets[index].metricChip || HIGH_SIGNAL_BULLET.test(bullets[index].text)) {
+      addIndex(index);
+    }
+  }
+
+  // Fill any remaining slots in original order for a representative overview.
+  for (let index = 7; index < bullets.length && selectedIndexes.size < BIONIC_PRIMARY_BULLET_LIMIT; index += 1) {
+    addIndex(index);
+  }
+
+  const primary = [...selectedIndexes].sort((a, b) => a - b).map((index) => bullets[index]);
+  const remaining = bullets.filter((_, index) => !selectedIndexes.has(index));
+  return { primary, remaining };
 }
 
 /**
