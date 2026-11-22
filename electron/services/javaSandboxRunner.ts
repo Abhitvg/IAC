@@ -408,7 +408,7 @@ export function createJavaSandboxRunner(
       );
     }
 
-    let contextEndpoint = '';
+    let contextEndpoint: string;
     try {
       const endpointInfo = JSON.parse(context.stdout.trim()) as { Host?: unknown };
       contextEndpoint = typeof endpointInfo.Host === 'string' ? endpointInfo.Host : '';
