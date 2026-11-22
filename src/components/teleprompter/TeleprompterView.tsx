@@ -1331,26 +1331,6 @@ export default function TeleprompterView() {
     }
   };
 
-  const isLinux = typeof window !== 'undefined' && window.electronAPI?.platform === 'linux';
-  const [isStealthActive, setIsStealthActive] = useState(!isLinux);
-
-  const handleToggleStealth = async () => {
-    if (isLinux) {
-      setToast(
-        '🛡️ Linux mode does not enable window-level screen-share protection. Share only your editor or browser window, not the full desktop. Hide/show IAC with Ctrl+\\ or Ctrl+Shift+Space.'
-      );
-      return;
-    }
-    const next = !isStealthActive;
-    setIsStealthActive(next);
-    await window.electronAPI?.setContentProtection?.(next);
-    setToast(
-      next
-        ? '🛡️ Screen Stealth ON: Window is completely invisible in screen share (Zoom, Meet, Teams)'
-        : '⚠️ Screen Stealth OFF: Window is now visible in screen share'
-    );
-  };
-
   const [isScreenReading, setIsScreenReading] = useState(false);
   const [isBionicGazeMode, setIsBionicGazeMode] = useState(() => {
     try {
