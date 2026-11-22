@@ -99,7 +99,6 @@ Requirements:
     );
   });
 
-
   it('maps the Sophos platform-engineering brief and generates a focused role-specific round', () => {
     const sophosJD = `
       The Software Engineer will facilitate and automate continuous feature builds for multiple
@@ -169,4 +168,3 @@ Requirements:
     expect(plan.companyName).toBe('Uber');
   });
 });
-
