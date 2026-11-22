@@ -253,6 +253,7 @@ describe('audio capture diagnostics', () => {
     expect(useAppStore.getState().diagnosticState.whisperStatus).toContain(
       'Microphone input disconnected'
     );
+    expect(useAppStore.getState().toast).toContain('Microphone disconnected');
     expect(
       DiagnosticLoggerService.getInstance()
         .getEvents()
