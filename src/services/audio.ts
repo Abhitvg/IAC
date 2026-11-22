@@ -265,7 +265,7 @@ export class AudioRecorder {
       useAppStore.getState().updateDiagnostics({
         micActive: true,
         micInputMuted: isInputMuted,
-        whisperStatus: isInputMuted ? 'Microphone input is muted by the device.' : 'Microphone ready.',
+        whisperStatus: isInputMuted\n          ? 'Microphone input is muted by the device.'\n          : 'Microphone ready.',
         mimeType: 'audio/wav (16kHz mono PCM)',
       });
     } catch (e: any) {
@@ -322,7 +322,7 @@ export class AudioRecorder {
       speechDetected: false,
       whisperStatus: 'Microphone input is muted by the device. Unmute it to resume listening.',
     });
-    state.setToast('Microphone input is muted. Unmute your headset or microphone to continue.');
+    state.setToast('Microphone muted. Unmute your input device to resume listening.');
   }
 
   private handleTrackUnmute(generation: number): void {
