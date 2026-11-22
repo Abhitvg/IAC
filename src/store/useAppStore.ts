@@ -297,18 +297,24 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   windowOpacity: (() => {
     try {
       const saved = localStorage.getItem('teleprompter_opacity');
-      if (saved) return parseFloat(saved);
+      if (saved !== null) {
+        const parsed = Number(saved);
+        if (Number.isFinite(parsed)) return Math.max(0.12, Math.min(1, parsed));
+      }
     } catch {}
     return 0.35;
   })(),
-  setWindowOpacity: (windowOpacity) => {
+  setWindowOpacity: (requestedOpacity) => {
+    const windowOpacity = Number.isFinite(requestedOpacity)
+      ? Math.max(0.12, Math.min(1, requestedOpacity))
+      : 0.35;
     try {
       localStorage.setItem('teleprompter_opacity', String(windowOpacity));
     } catch {}
     set({ windowOpacity });
     try {
       if (typeof window !== 'undefined' && window.electronAPI?.setWindowOpacity) {
-        window.electronAPI.setWindowOpacity(windowOpacity);
+        void window.electronAPI.setWindowOpacity(windowOpacity);
       }
     } catch {}
   },
