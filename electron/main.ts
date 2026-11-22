@@ -35,7 +35,7 @@ import path from 'path';
 import fs from 'fs';
 import dns from 'dns';
 import mammoth from 'mammoth';
-import { setupIpcHandlers } from './ipc/handlers';
+import { setupIpcHandlers, setIpcMainWindowReference } from './ipc/handlers';
 import {
   readFileSafely,
   validateReadPath,
@@ -85,6 +85,8 @@ function ensureDirectories() {
 }
 
 function createWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
+
   const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
   const isProduction = !isDev || app.isPackaged || process.env.NODE_ENV === 'production';
 
@@ -171,34 +173,53 @@ function createWindow() {
     }
   }
 
+  // IPC handlers are registered once; rebind their trusted sender to each new window.
+  setIpcMainWindowReference(mainWindow);
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
+function showOrCreateMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) createWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+}
+
 function toggleWindowVisibility() {
-  if (!mainWindow) return;
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    showOrCreateMainWindow();
+    return;
+  }
   if (mainWindow.isVisible()) {
     mainWindow.hide();
-  } else {
-    mainWindow.show();
+    return;
+  }
+  showOrCreateMainWindow();
+  if (mainWindow && !mainWindow.isDestroyed()) {
     if (process.platform === 'darwin') {
       mainWindow.setAlwaysOnTop(true, 'floating');
       mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     } else {
       mainWindow.setAlwaysOnTop(true);
     }
-    mainWindow.focus();
   }
 }
 
 function positionWindowInCorner(side: 'left' | 'right') {
-  if (!mainWindow) return;
+  showOrCreateMainWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
   const bounds = mainWindow.getBounds();
   const workArea = screen.getDisplayMatching(bounds).workArea;
   const margin = 16;
-  const width = Math.min(bounds.width, Math.max(320, workArea.width - margin * 2));
-  const height = Math.min(bounds.height, Math.max(240, workArea.height - margin * 2));
+  const availableWidth = Math.max(1, workArea.width - margin * 2);
+  const availableHeight = Math.max(1, workArea.height - margin * 2);
+  const width = Math.min(bounds.width, availableWidth);
+  const height = Math.min(bounds.height, availableHeight);
   const x = side === 'left' ? workArea.x + margin : workArea.x + workArea.width - width - margin;
   const y = workArea.y + margin;
 
@@ -207,8 +228,7 @@ function positionWindowInCorner(side: 'left' | 'right') {
   if (process.platform === 'darwin') {
     mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   }
-  if (!mainWindow.isVisible()) mainWindow.show();
-  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
   mainWindow.focus();
 }
 
@@ -451,13 +471,7 @@ if (!gotTheLock) {
     }
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
-      } else if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        if (!mainWindow.isVisible()) mainWindow.show();
-        mainWindow.focus();
-      }
+      showOrCreateMainWindow();
     });
   });
 }
