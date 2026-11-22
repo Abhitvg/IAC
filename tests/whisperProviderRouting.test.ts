@@ -212,9 +212,7 @@ describe('live transcription provider routing', () => {
 
   it('cancels retry backoff immediately when the caller aborts', async () => {
     const controller = new AbortController();
-    const transcribeCloudAudio = vi
-      .fn()
-      .mockRejectedValue(new TypeError('fetch failed'));
+    const transcribeCloudAudio = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
     vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
 
     const pending = transcribeAudio(
