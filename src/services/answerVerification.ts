@@ -24,11 +24,7 @@ export function resolveAnswerVerificationBasis(
   input: AnswerVerificationBasisInput
 ): AnswerVerificationBasis {
   if (input.type === 'screen') return 'SCREEN_CODE_NOT_EXECUTED';
-  if (
-    input.technicalIntent &&
-    !input.candidateSpecificQuestion &&
-    !input.candidateSpecificAnswer
-  ) {
+  if (input.technicalIntent && !input.candidateSpecificQuestion && !input.candidateSpecificAnswer) {
     return 'GENERAL_TECHNICAL_REASONING';
   }
   return 'CANDIDATE_EVIDENCE';

@@ -48,7 +48,11 @@ describe('answer verification provenance', () => {
   });
 
   it('does not call a qualified candidate answer a passed check', () => {
-    const notice = getAnswerVerificationNotice('CANDIDATE_EVIDENCE', 'FLAGGED_BUT_QUALIFIED', false);
+    const notice = getAnswerVerificationNotice(
+      'CANDIDATE_EVIDENCE',
+      'FLAGGED_BUT_QUALIFIED',
+      false
+    );
 
     expect(notice?.tone).toBe('warning');
     expect(notice?.label).toBe('Candidate claims qualified');
