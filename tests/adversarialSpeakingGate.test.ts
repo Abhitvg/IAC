@@ -615,7 +615,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       });
 
       const html = renderToString(React.createElement(TeleprompterView));
-      expect(html).toContain('Live Generation Draft');
+      expect(html).toContain('Draft answer · candidate-claim checks pending');
       expect(html).toContain('Grounding validation in progress');
       expect(html).toContain('Kafka uses partition keys');
     });
@@ -652,7 +652,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       });
 
       const html = renderToString(React.createElement(TeleprompterView));
-      expect(html).toContain('Candidate Recital Blocked');
+      expect(html).toContain('Answer blocked by candidate-evidence checks');
       expect(html).toContain('Impersonal Technical Guidance');
       expect(html).toContain('Cassandra uses consistent hashing');
     });
@@ -705,7 +705,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
 
       const html = renderToString(React.createElement(TeleprompterView));
       expect(html).toContain(validText);
-      expect(html).toContain('Factual Grounding: Verified');
+      expect(html).toContain('Candidate-claim check passed');
     });
 
     it('5.5 FLAGGED_BUT_QUALIFIED answers can be recited with qualified markers and badge', () => {
@@ -737,7 +737,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
 
       const html = renderToString(React.createElement(TeleprompterView));
       expect(html).toContain('The project was developed');
-      expect(html).toContain('Grounding: Qualified');
+      expect(html).toContain('Candidate claims qualified');
     });
   });
 });

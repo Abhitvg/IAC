@@ -9,8 +9,11 @@ describe('Bionic Prompter & Gaze Service', () => {
     const answer =
       'We designed an event-driven architecture using Kafka partitions to handle 50k QPS with sub-10ms latency. The Redis cache layer absorbs hot reads, ensuring high availability under bursty spikes.';
     const bullets = extractGlanceableGazeBullets(answer);
-    expect(bullets.length).toBeGreaterThan(0);
-    expect(bullets.every((b) => b.text.split(' ').length <= 7)).toBe(true);
+    expect(bullets).toHaveLength(2);
+    expect(bullets[0].text).toContain('We designed an event-driven architecture');
+    expect(bullets[0].text).toContain('sub-10ms latency.');
+    expect(bullets[1].text).toContain('The Redis cache layer absorbs hot reads');
+    expect(bullets[1].text).toContain('bursty spikes.');
   });
 
   it('detects metric chips for instant visual anchoring', () => {

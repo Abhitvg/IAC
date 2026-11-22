@@ -20,6 +20,13 @@ describe('pending interviewer-question continuation routing', () => {
       'ignore'
     );
     expect(resolvePendingQuestionContinuation('Yeah, so I would use Redis.')).toBe('ignore');
+    expect(resolvePendingQuestionContinuation('The first thing I would do is profile latency.')).toBe(
+      'ignore'
+    );
+    expect(resolvePendingQuestionContinuation("What I'd do is add a cache.")).toBe('ignore');
+    expect(resolvePendingQuestionContinuation('What is your approach to caching?')).toBe(
+      'new-question'
+    );
   });
 
   it('recognizes a distinct question so the stale pending fragment can be discarded', () => {
