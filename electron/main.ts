@@ -291,7 +291,7 @@ function registerGlobalShortcuts() {
   const visibilityShortcuts = [
     'CommandOrControl+Alt+Shift+H',
     'CommandOrControl+Shift+Space',
-    'CommandOrControl+\\\\',
+    'CommandOrControl+\\',
     'Alt+H',
   ];
 
