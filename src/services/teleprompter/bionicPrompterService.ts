@@ -122,8 +122,36 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
 
 export const BIONIC_PRIMARY_BULLET_LIMIT = 7;
 
-const HIGH_SIGNAL_BULLET =
-  /\b(trade[- ]?off|however|limitation|risk|edge case|failure|security|latency|cost|conclusion|therefore|finally|overall|in summary|complexity|fallback|recovery|scalab|availability|consistency|durability|monitoring|observability)\b/i;
+const HIGH_SIGNAL_BULLET_TERMS = [
+  'trade[- ]?off',
+  'however',
+  'limitation',
+  'risk',
+  'edge case',
+  'failure',
+  'security',
+  'latency',
+  'cost',
+  'conclusion',
+  'therefore',
+  'finally',
+  'overall',
+  'in summary',
+  'complexity',
+  'fallback',
+  'recovery',
+  'scalab',
+  'availability',
+  'consistency',
+  'durability',
+  'monitoring',
+  'observability',
+];
+
+const HIGH_SIGNAL_BULLET = new RegExp(
+  `\\b(?:${HIGH_SIGNAL_BULLET_TERMS.join('|')})\\b`,
+  'i'
+);
 
 export function selectPrimaryGlanceableBullets(bullets: BionicGazeBullet[]): {
   primary: BionicGazeBullet[];
