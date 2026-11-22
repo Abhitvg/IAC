@@ -88,6 +88,120 @@ async function readErrorBody(response: Response): Promise<string> {
   }
 }
 
+const TRANSCRIPTION_RETRY_DELAYS_MS = [500, 1500] as const;
+const RATE_LIMIT_RETRY_DELAYS_MS = [2000, 5000] as const;
+
+function createTranscriptionAbortError(signal?: AbortSignal): Error {
+  const reason = signal?.reason;
+  const message =
+    reason instanceof Error
+      ? reason.message
+      : typeof reason === 'string' && reason.trim()
+        ? reason
+        : 'Transcription aborted';
+  const error = new Error(message);
+  error.name = 'AbortError';
+  return error;
+}
+
+function isRetryableTranscriptionError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as {
+    name?: unknown;
+    status?: unknown;
+    statusCode?: unknown;
+    message?: unknown;
+  };
+
+  if (candidate.name === 'AbortError') return false;
+  if (candidate.name === 'TimeoutError') return true;
+
+  const message = typeof candidate.message === 'string' ? candidate.message : String(error);
+  if (
+    /\[(AUTH_INVALID_KEY|MODEL_NOT_FOUND|TRANSCRIPTION_EMPTY|TRANSCRIPTION_INVALID_RESPONSE)\]/i.test(
+      message
+    )
+  ) {
+    return false;
+  }
+  if (/\[(RATE_LIMITED|PROVIDER_UNAVAILABLE)\]/i.test(message)) return true;
+
+  const status = Number(candidate.status ?? candidate.statusCode);
+  if ([408, 425, 429, 500, 502, 503, 504].includes(status)) return true;
+  if (Number.isFinite(status) && status > 0) return false;
+
+  return /HTTP\s+(408|425|429|500|502|503|504)\b|fetch failed|failed to fetch|network error|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|connection reset|timed out|timeout/i.test(
+    message
+  );
+}
+
+function getTranscriptionRetryDelay(error: unknown, attemptIndex: number): number {
+  const message =
+    error && typeof error === 'object' && 'message' in error
+      ? String((error as { message?: unknown }).message || '')
+      : String(error || '');
+  const delays = /\[(RATE_LIMITED)\]/i.test(message)
+    ? RATE_LIMIT_RETRY_DELAYS_MS
+    : TRANSCRIPTION_RETRY_DELAYS_MS;
+  return delays[Math.min(attemptIndex, delays.length - 1)];
+}
+
+function waitForTranscriptionRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(createTranscriptionAbortError(signal));
+      return;
+    }
+
+    let timer: ReturnType<typeof setTimeout>;
+    const cleanup = () => signal?.removeEventListener('abort', onAbort);
+    const onAbort = () => {
+      clearTimeout(timer);
+      cleanup();
+      reject(createTranscriptionAbortError(signal));
+    };
+
+    timer = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, delayMs);
+    signal?.addEventListener('abort', onAbort, { once: true });
+    if (signal?.aborted) onAbort();
+  });
+}
+
+async function withTranscriptionRetries<T>(
+  operation: () => Promise<T>,
+  signal?: AbortSignal
+): Promise<T> {
+  let retryCount = 0;
+  while (true) {
+    if (signal?.aborted) throw createTranscriptionAbortError(signal);
+    try {
+      return await operation();
+    } catch (error) {
+      if (signal?.aborted) throw createTranscriptionAbortError(signal);
+      if (
+        retryCount >= TRANSCRIPTION_RETRY_DELAYS_MS.length ||
+        !isRetryableTranscriptionError(error)
+      ) {
+        throw error;
+      }
+
+      const delayMs = getTranscriptionRetryDelay(error, retryCount);
+      retryCount += 1;
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      console.warn('[Whisper] Retrying transient transcription failure.', {
+        attempt: retryCount,
+        maxRetries: TRANSCRIPTION_RETRY_DELAYS_MS.length,
+        delayMs,
+        errorName,
+      });
+      await waitForTranscriptionRetry(delayMs, signal);
+    }
+  }
+}
+
 /**
  * Transcribe audio using cloud providers through Electron main, or a local Whisper server.
  * Provider credentials never enter the renderer process.
@@ -118,7 +232,10 @@ export async function transcribeAudio(
   const targetProvider = resolveTranscriptionProvider(config);
   const sttConfig = { ...config, model: config.model || config.whisperModel };
   if (targetProvider === 'local') {
-    return requireUsableTranscript(await transcribeLocal(audioBlob, sttConfig, signal));
+    return withTranscriptionRetries(
+      async () => requireUsableTranscript(await transcribeLocal(audioBlob, sttConfig, signal)),
+      signal
+    );
   }
 
   const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
@@ -151,39 +268,36 @@ export async function transcribeAudio(
     prompt = `Technical interview discussion about: AWS CodePipeline, AWS, Kubernetes, Docker, CI/CD, DevOps, ${techPrompt}`;
   }
 
-  const requestId = crypto.randomUUID();
-  const cancelRequest = () => {
-    void electronAPI.cancelCloudTranscription?.(requestId).catch(() => undefined);
-  };
+  return withTranscriptionRetries(async () => {
+    if (signal?.aborted) throw createTranscriptionAbortError(signal);
 
-  if (signal?.aborted) {
-    const abortErr = new Error('Transcription aborted');
-    abortErr.name = 'AbortError';
-    throw abortErr;
-  }
+    // Each attempt gets a distinct main-process request ID. The failed attempt's
+    // IPC controller is released before the next request is submitted.
+    const requestId = crypto.randomUUID();
+    const cancelRequest = () => {
+      void electronAPI.cancelCloudTranscription?.(requestId).catch(() => undefined);
+    };
+    const requestPromise = electronAPI.transcribeCloudAudio({
+      requestId,
+      provider: targetProvider,
+      model: targetModel,
+      audio: new Uint8Array(audio),
+      language: sttConfig.language,
+      prompt,
+    });
+    signal?.addEventListener('abort', cancelRequest, { once: true });
 
-  const requestPromise = electronAPI.transcribeCloudAudio({
-    requestId,
-    provider: targetProvider,
-    model: targetModel,
-    audio: new Uint8Array(audio),
-    language: sttConfig.language,
-    prompt,
-  });
-  signal?.addEventListener('abort', cancelRequest, { once: true });
-
-  try {
-    if (signal?.aborted) cancelRequest();
-    const result = await requestPromise;
-    if (result.cancelled) {
-      const abortErr = new Error('Transcription aborted');
-      abortErr.name = 'AbortError';
-      throw abortErr;
+    try {
+      if (signal?.aborted) cancelRequest();
+      const result = await requestPromise;
+      if (result.cancelled || signal?.aborted) {
+        throw createTranscriptionAbortError(signal);
+      }
+      return requireUsableTranscript(result);
+    } finally {
+      signal?.removeEventListener('abort', cancelRequest);
     }
-    return requireUsableTranscript(result);
-  } finally {
-    signal?.removeEventListener('abort', cancelRequest);
-  }
+  }, signal);
 }
 
 /**
