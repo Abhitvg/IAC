@@ -41,7 +41,7 @@ describe('automatic incomplete interviewer questions', () => {
     );
     expect(handleEvent).not.toHaveBeenCalled();
 
-    expect(InterviewEngine.appendPendingQuestionUtterance(continuation)).toBe(true);
+    expect(InterviewEngine.appendPendingQuestionUtterance(continuation)).toBe('appended');
     expect(useAppStore.getState().currentQuestion).toBe(
       'How would you design a system that can handle one million concurrent users?'
     );
@@ -67,7 +67,7 @@ describe('automatic incomplete interviewer questions', () => {
       InterviewEngine.appendPendingQuestionUtterance(
         'I would start by defining the service boundaries.'
       )
-    ).toBe(false);
+    ).toBe('candidate-speech');
     expect(useAppStore.getState().isIncompleteQuestionMode).toBe(false);
 
     await vi.advanceTimersByTimeAsync(QUESTION_CONTINUATION_GRACE_MS + 1100);
@@ -78,7 +78,7 @@ describe('automatic incomplete interviewer questions', () => {
     const firstPart = 'How would you design a system that...';
     expect(InterviewEngine.beginPendingQuestionFromTranscript(firstPart, firstPart)).toBe(true);
 
-    expect(InterviewEngine.appendPendingQuestionUtterance('okay')).toBe(false);
+    expect(InterviewEngine.appendPendingQuestionUtterance('okay')).toBe('ignored');
     expect(useAppStore.getState().isIncompleteQuestionMode).toBe(true);
     expect(useAppStore.getState().currentQuestion).toBe(firstPart);
   });
@@ -88,13 +88,13 @@ describe('automatic incomplete interviewer questions', () => {
     expect(InterviewEngine.beginPendingQuestionFromTranscript(firstPart, firstPart)).toBe(true);
 
     expect(InterviewEngine.appendPendingQuestionUtterance('What about failure recovery?')).toBe(
-      false
+      'new-question'
     );
     expect(useAppStore.getState().isIncompleteQuestionMode).toBe(false);
     expect(useAppStore.getState().pipelineStage).toBe('listening');
   });
 
   it('does not generate anything when no pending question is active', () => {
-    expect(InterviewEngine.appendPendingQuestionUtterance('under heavy load')).toBe(false);
+    expect(InterviewEngine.appendPendingQuestionUtterance('under heavy load')).toBe('none');
   });
 });
