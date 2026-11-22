@@ -11,6 +11,7 @@ vi.mock('../src/services/InterviewEngine', () => ({
 
 import { AudioRecorder } from '../src/services/audio';
 import { DiagnosticLoggerService } from '../src/services/diagnosticLogger';
+import { useAppStore } from '../src/store/useAppStore';
 
 describe('audio capture diagnostics', () => {
   beforeEach(() => DiagnosticLoggerService.getInstance().clear());
