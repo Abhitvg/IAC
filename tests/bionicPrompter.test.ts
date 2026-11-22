@@ -20,7 +20,9 @@ describe('Bionic Prompter & Gaze Service', () => {
     const answer =
       'Achieved 98% test coverage and maintained 99.99% SLA across 4 distributed Kubernetes clusters.';
     const bullets = extractGlanceableGazeBullets(answer);
-    const hasMetric = bullets.some((b) => b.metricChip && (b.metricChip.includes('98%') || b.metricChip.includes('99.99%')));
+    const hasMetric = bullets.some(
+      (b) => b.metricChip && (b.metricChip.includes('98%') || b.metricChip.includes('99.99%'))
+    );
     expect(hasMetric).toBe(true);
   });
 
@@ -31,4 +33,3 @@ describe('Bionic Prompter & Gaze Service', () => {
     expect(formatted.bold + formatted.normal).toBe('Architecture');
   });
 });
-

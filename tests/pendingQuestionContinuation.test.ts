@@ -22,9 +22,9 @@ describe('pending interviewer-question continuation routing', () => {
     expect(resolvePendingQuestionContinuation('Yeah, so I would use Redis.')).toBe(
       'candidate-speech'
     );
-    expect(resolvePendingQuestionContinuation('The first thing I would do is profile latency.')).toBe(
-      'candidate-speech'
-    );
+    expect(
+      resolvePendingQuestionContinuation('The first thing I would do is profile latency.')
+    ).toBe('candidate-speech');
     expect(resolvePendingQuestionContinuation("What I'd do is add a cache.")).toBe(
       'candidate-speech'
     );
