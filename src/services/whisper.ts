@@ -118,19 +118,19 @@ function isRetryableTranscriptionError(error: unknown): boolean {
 
   const message = typeof candidate.message === 'string' ? candidate.message : String(error);
   if (
-    /\\[(AUTH_INVALID_KEY|MODEL_NOT_FOUND|TRANSCRIPTION_EMPTY|TRANSCRIPTION_INVALID_RESPONSE)\\]/i.test(
+    /\[(AUTH_INVALID_KEY|MODEL_NOT_FOUND|TRANSCRIPTION_EMPTY|TRANSCRIPTION_INVALID_RESPONSE)\]/i.test(
       message
     )
   ) {
     return false;
   }
-  if (/\\[(RATE_LIMITED|PROVIDER_UNAVAILABLE)\\]/i.test(message)) return true;
+  if (/\[(RATE_LIMITED|PROVIDER_UNAVAILABLE)\]/i.test(message)) return true;
 
   const status = Number(candidate.status ?? candidate.statusCode);
   if ([408, 425, 429, 500, 502, 503, 504].includes(status)) return true;
   if (Number.isFinite(status) && status > 0) return false;
 
-  return /HTTP\\s+(408|425|429|500|502|503|504)\\b|fetch failed|failed to fetch|network error|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|connection reset|timed out|timeout/i.test(
+  return /HTTP\s+(408|425|429|500|502|503|504)\b|fetch failed|failed to fetch|network error|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|connection reset|timed out|timeout/i.test(
     message
   );
 }
@@ -140,7 +140,7 @@ function getTranscriptionRetryDelay(error: unknown, attemptIndex: number): numbe
     error && typeof error === 'object' && 'message' in error
       ? String((error as { message?: unknown }).message || '')
       : String(error || '');
-  const delays = /\\[(RATE_LIMITED)\\]/i.test(message)
+  const delays = /\[(RATE_LIMITED)\]/i.test(message)
     ? RATE_LIMIT_RETRY_DELAYS_MS
     : TRANSCRIPTION_RETRY_DELAYS_MS;
   return delays[Math.min(attemptIndex, delays.length - 1)];
