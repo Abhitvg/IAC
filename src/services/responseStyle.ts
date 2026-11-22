@@ -58,7 +58,8 @@ export const LENGTH_TARGETS: Record<QuestionIntent, LengthTarget> = {
   implementation: {
     minWords: 70,
     maxWords: 130,
-    targetDescription: '70–130 words (concrete data structures, lifecycle, and operational mechanism)',
+    targetDescription:
+      '70–130 words (concrete data structures, lifecycle, and operational mechanism)',
     recommendedMaxTokens: 600,
   },
   troubleshooting: {
@@ -70,7 +71,8 @@ export const LENGTH_TARGETS: Record<QuestionIntent, LengthTarget> = {
   system_design: {
     minWords: 100,
     maxWords: 180,
-    targetDescription: '100–180 words (high-level components, data flow, key bottlenecks/trade-offs)',
+    targetDescription:
+      '100–180 words (high-level components, data flow, key bottlenecks/trade-offs)',
     recommendedMaxTokens: 900,
   },
   distributed_systems: {
@@ -112,19 +114,22 @@ export const LENGTH_TARGETS: Record<QuestionIntent, LengthTarget> = {
   security: {
     minWords: 60,
     maxWords: 120,
-    targetDescription: '60–120 words (threat vectors, token boundaries, encryption at rest/transit)',
+    targetDescription:
+      '60–120 words (threat vectors, token boundaries, encryption at rest/transit)',
     recommendedMaxTokens: 550,
   },
   behavioral: {
     minWords: 80,
     maxWords: 140,
-    targetDescription: '80–140 words (grounded in verified candidate resume experience via concise STAR)',
+    targetDescription:
+      '80–140 words (grounded in verified candidate resume experience via concise STAR)',
     recommendedMaxTokens: 650,
   },
   resume: {
     minWords: 80,
     maxWords: 140,
-    targetDescription: '80–140 words (grounded strictly in provided resume background, zero fabrication)',
+    targetDescription:
+      '80–140 words (grounded strictly in provided resume background, zero fabrication)',
     recommendedMaxTokens: 650,
   },
   follow_up: {
@@ -161,7 +166,9 @@ export function classifyQuestionIntent(
   // 1. Explicit Quiz / MCQ detection
   if (
     activeMode === 'quiz' ||
-    /\b(which of the following|choose the correct|select the correct|select one option|which statement is true|which statement is false)\b/i.test(lowerQ) ||
+    /\b(which of the following|choose the correct|select the correct|select one option|which statement is true|which statement is false)\b/i.test(
+      lowerQ
+    ) ||
     /(?:^|\n)\s*[A-D]\)\s+/i.test(q) ||
     /\bOption\s+[A-D]\b/i.test(q)
   ) {

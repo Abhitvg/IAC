@@ -94,7 +94,9 @@ Requirements:
 
     // Verify disclaimer exists
     expect(plan.disclaimer).toContain('grounded in curriculum technical baselines');
-    expect(plan.disclaimer).toContain('IAC does not claim these are proprietary leaked company questions');
+    expect(plan.disclaimer).toContain(
+      'IAC does not claim these are proprietary leaked company questions'
+    );
   });
 
 

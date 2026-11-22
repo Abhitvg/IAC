@@ -72,9 +72,11 @@ export function buildRoleInterviewProfile(
     explicitPlatformRole ||
     focusAreas.length >= 3 ||
     focusAreas.some((area) =>
-      ['Terraform and infrastructure as code', 'CI/CD and Jenkins', 'Docker and Kubernetes'].includes(
-        area
-      )
+      [
+        'Terraform and infrastructure as code',
+        'CI/CD and Jenkins',
+        'Docker and Kubernetes',
+      ].includes(area)
     );
 
   const experienceBand =
@@ -118,7 +120,8 @@ export function buildRoleInterviewContextSection(
     'Target role: ' + (targetRole || 'Software Engineer'),
     'Role track: Cloud platform / DevOps-oriented software engineering',
     'Priority areas detected in the full job description: ' +
-      (profile.focusAreas.join(', ') || 'cloud platform engineering') + '.',
+      (profile.focusAreas.join(', ') || 'cloud platform engineering') +
+      '.',
     experienceLine,
     companyLine,
     '',

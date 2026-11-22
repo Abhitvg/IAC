@@ -91,9 +91,9 @@ describe('Deterministic Question Intent Classification', () => {
     expect(classifyQuestionIntent('Explain Terraform remote state locking.', 'interview')).toBe(
       'cloud_devops'
     );
-    expect(
-      classifyQuestionIntent('What is a readiness probe in Kubernetes?', 'interview')
-    ).toBe('cloud_devops');
+    expect(classifyQuestionIntent('What is a readiness probe in Kubernetes?', 'interview')).toBe(
+      'cloud_devops'
+    );
     expect(
       classifyQuestionIntent('How would you build a Jenkins deployment pipeline?', 'interview')
     ).toBe('cloud_devops');
