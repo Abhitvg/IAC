@@ -162,9 +162,7 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     const captureStateSpy = vi
       .spyOn(AudioRecorder.getInstance(), 'getCaptureState')
       .mockReturnValue('active');
-    let resolveFirst:
-      | ((result: Awaited<ReturnType<typeof transcribeAudio>>) => void)
-      | undefined;
+    let resolveFirst: ((result: Awaited<ReturnType<typeof transcribeAudio>>) => void) | undefined;
 
     vi.mocked(transcribeAudio)
       .mockImplementationOnce(
