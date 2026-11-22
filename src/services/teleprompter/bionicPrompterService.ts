@@ -66,10 +66,7 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
           .split('|')
           .map((cell) => cell.trim())
           .filter((cell, cellIndex, allCells) => {
-            return !(
-              cell === '' &&
-              (cellIndex === 0 || cellIndex === allCells.length - 1)
-            );
+            return !(cell === '' && (cellIndex === 0 || cellIndex === allCells.length - 1));
           });
 
         if (cells.length > 1) tableRows.push(cells);
@@ -182,7 +179,7 @@ export function selectPrimaryGlanceableBullets(bullets: BionicGazeBullet[]): {
     addIndex(index);
   }
 
-  for (let index = 4; index < bullets.length - 2; index += 1) {
+  for (let index = 3; index < bullets.length - 2; index += 1) {
     if (bullets[index].metricChip || HIGH_SIGNAL_BULLET.test(bullets[index].text)) {
       addIndex(index);
     }
