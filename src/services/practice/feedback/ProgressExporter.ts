@@ -143,11 +143,11 @@ export class ProgressExporter {
 
         summary.metrics.forEach((m) => {
           const confLabel =
-            m.confidence === 'high'
-              ? '🟢 High (LLM Verified Evidence)'
-              : '🟡 Low (Heuristic Estimate)';
+            m.confidence === 'llm_assisted'
+              ? 'LLM-assisted (not independently verified)'
+              : 'Heuristic estimate (low confidence)';
           lines.push(
-            `| ${m.sessionId} | ${m.roundType} | ${m.structureScore}/5 | ${m.concretenessScore}/5 | ${m.deliveryScore}/5 | ${m.speakingPaceWpm} WPM | ${confLabel} |`
+            `| ${m.sessionId} | ${m.roundType} | ${m.structureScore === null ? 'Not measured' : `${m.structureScore}/5`} | ${m.concretenessScore === null ? 'Not measured' : `${m.concretenessScore}/5`} | ${m.deliveryScore === null ? 'Not measured' : `${m.deliveryScore}/5`} | ${m.speakingPaceWpm === null ? 'Not measured' : `${m.speakingPaceWpm} WPM`} | ${confLabel} |`
           );
         });
       }

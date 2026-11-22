@@ -169,14 +169,39 @@ describe('Phase 6 - Progress and Honesty in Reporting Suite', () => {
         []
       );
 
-      expect(summary.metrics[0].confidence).toBe('high');
-      expect(summary.metrics[1].confidence).toBe('low');
+      expect(summary.metrics[0].confidence).toBe('llm_assisted');
+      expect(summary.metrics[1].confidence).toBe('heuristic');
 
       const html = renderToStaticMarkup(
         React.createElement(ProgressView, { sessionHistory: [verifiedSession, estimatedSession] })
       );
-      expect(html).toContain('High Confidence (LLM Verified)');
-      expect(html).toContain('Low Confidence (Estimated)');
+      expect(html).toContain('LLM-assisted (not independently verified)');
+      expect(html).toContain('Heuristic estimate (low confidence)');
+    });
+  });
+
+  describe('Task 2a: Missing measurements stay unmeasured', () => {
+    it('does not invent structure, concreteness, delivery, or speaking pace defaults', () => {
+      const session = createMockSession('s1', 'answer without delivery metrics', 4.0, 3.5, 4.0);
+      session.overallScorecard = undefined;
+      session.questionHistory[0].evaluation!.dimensions = [];
+      session.questionHistory[0].delivery = undefined;
+
+      const summary = ProgressMetricsService.computeProgressSummary([session], []);
+      const metric = summary.metrics[0];
+
+      expect(metric.structureScore).toBeNull();
+      expect(metric.concretenessScore).toBeNull();
+      expect(metric.deliveryScore).toBeNull();
+      expect(metric.speakingPaceWpm).toBeNull();
+      expect(metric.fillerCount).toBeNull();
+      expect(metric.overallScore).toBe(3.8);
+
+      const html = renderToStaticMarkup(
+        React.createElement(ProgressView, { sessionHistory: [session] })
+      );
+      expect(html).toContain('--');
+      expect(html).not.toContain('130 WPM');
     });
   });
 
