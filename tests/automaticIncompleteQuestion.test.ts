@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  InterviewEngine,
-  QUESTION_CONTINUATION_GRACE_MS,
-} from '../src/services/InterviewEngine';
+import { InterviewEngine, QUESTION_CONTINUATION_GRACE_MS } from '../src/services/InterviewEngine';
 import { useAppStore } from '../src/store/useAppStore';
 
 describe('automatic incomplete interviewer questions', () => {
@@ -27,15 +24,11 @@ describe('automatic incomplete interviewer questions', () => {
   });
 
   it('holds an incomplete question, appends the continuation, then generates once', async () => {
-    const handleEvent = vi
-      .spyOn(InterviewEngine, 'handleEvent')
-      .mockResolvedValue(undefined);
+    const handleEvent = vi.spyOn(InterviewEngine, 'handleEvent').mockResolvedValue(undefined);
     const firstPart = 'How would you design a system that...';
     const continuation = 'can handle one million concurrent users?';
 
-    expect(
-      InterviewEngine.beginPendingQuestionFromTranscript(firstPart, firstPart)
-    ).toBe(true);
+    expect(InterviewEngine.beginPendingQuestionFromTranscript(firstPart, firstPart)).toBe(true);
 
     const pendingState = useAppStore.getState();
     expect(pendingState.currentQuestion).toBe(firstPart);
