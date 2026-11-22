@@ -26,18 +26,18 @@ export class SerializedTaskQueue {
     this.pending += 1;
 
     const operation = this.tail.then(async () => {
-      if (scheduledGeneration !== this.generation) return undefined;
-      return task();
+      try {
+        if (scheduledGeneration !== this.generation) return undefined;
+        return await task();
+      } finally {
+        this.pending = Math.max(0, this.pending - 1);
+      }
     });
 
-    this.tail = operation
-      .then(
-        () => undefined,
-        () => undefined
-      )
-      .then(() => {
-        this.pending = Math.max(0, this.pending - 1);
-      });
+    this.tail = operation.then(
+      () => undefined,
+      () => undefined
+    );
 
     return operation;
   }
