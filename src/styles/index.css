@@ -1729,3 +1729,121 @@ body {
     gap: 12px;
   }
 }
+
+/* App shell and navigation adapt to compact Electron windows and high-DPI layouts. */
+.app-shell,
+.app-shell > *,
+.app-workspace {
+  min-width: 0;
+  min-height: 0;
+}
+.app-workspace {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.app-sidebar {
+  min-height: 0;
+  overflow: hidden;
+}
+.app-sidebar > div:first-child {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.app-topbar,
+.app-topbar > div {
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .app-sidebar {
+    width: 64px !important;
+    flex: 0 0 64px !important;
+  }
+  .app-sidebar > div:first-child > div:first-child {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .app-sidebar > div:first-child > div:first-child > div > span,
+  .app-sidebar > div:first-child > div:nth-child(2) > div > div:first-child,
+  .app-sidebar button > div > span:nth-child(2),
+  .app-sidebar button > span {
+    display: none !important;
+  }
+  .app-sidebar > div:first-child > div:nth-child(2) {
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+    gap: 10px !important;
+  }
+  .app-sidebar button {
+    width: 100%;
+    justify-content: center !important;
+    padding: 10px 0 !important;
+  }
+  .app-topbar {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    gap: 6px;
+  }
+  .app-topbar > div:first-child > span {
+    display: none !important;
+  }
+}
+@media (max-width: 640px) {
+  .app-topbar {
+    min-height: 46px;
+    height: auto !important;
+    padding: 6px 8px !important;
+    flex-wrap: wrap;
+  }
+  .app-topbar > div:first-child {
+    flex: 1 1 100%;
+  }
+  .app-topbar > div:last-child {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 4px !important;
+    flex-wrap: wrap;
+  }
+  .app-topbar > div:last-child button {
+    min-height: 32px;
+    padding: 5px 7px !important;
+  }
+  .app-workspace {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+@media (max-width: 420px) {
+  .app-sidebar {
+    width: 48px !important;
+    flex-basis: 48px !important;
+  }
+  .app-sidebar > div:first-child > div:nth-child(2) {
+    padding-left: 3px !important;
+    padding-right: 3px !important;
+  }
+  .app-sidebar button {
+    min-height: 40px;
+  }
+}
+@media (max-height: 520px) {
+  .app-sidebar > div:first-child > div:nth-child(2) {
+    gap: 6px !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+  .app-sidebar button {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar,
+  .app-sidebar *,
+  .app-topbar,
+  .panel {
+    animation: none !important;
+    transition: none !important;
+  }
+}
