@@ -189,7 +189,9 @@ export class AudioRecorder {
         startupAudioTracks.length > 0 &&
         startupAudioTracks.every((track) => track.readyState === 'ended')
       ) {
-        throw new Error('Microphone input ended during startup. Reconnect the input device and retry.');
+        throw new Error(
+          'Microphone input ended during startup. Reconnect the input device and retry.'
+        );
       }
       if (!isCurrentStartup()) {
         stopPendingStream();
