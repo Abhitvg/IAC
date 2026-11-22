@@ -747,13 +747,13 @@ function ShortcutSettings({
           Built-in conversation controls · macOS
         </div>
         <div style={{ color: '#aeb9c8', fontSize: 11, lineHeight: 1.55 }}>
-          <strong>⌘Z</strong> / <strong>⌘[</strong> restore · <strong>⌘⇧Z</strong> / <strong>⌘Y</strong> /
-          <strong>⌘]</strong> redo · <strong>⌥C</strong> mark incomplete
+          <strong>⌘Z</strong> / <strong>⌘[</strong> restore · <strong>⌘⇧Z</strong> /{' '}
+          <strong>⌘Y</strong> /<strong>⌘]</strong> redo · <strong>⌥C</strong> mark incomplete
         </div>
         <div style={{ color: '#8492a6', fontSize: 10, lineHeight: 1.5 }}>
-          <strong>⌘⌫</strong> new question · <strong>⌘1</strong> Coding · <strong>⌘2</strong> Interview ·
-          <strong>⌘3</strong> Quiz · <strong>⌘J</strong> auto-follow · <strong>Esc</strong> close overlay.
-          On Windows / Linux, use Ctrl instead of ⌘.
+          <strong>⌘⌫</strong> new question · <strong>⌘1</strong> Coding · <strong>⌘2</strong>{' '}
+          Interview ·<strong>⌘3</strong> Quiz · <strong>⌘J</strong> auto-follow ·{' '}
+          <strong>Esc</strong> close overlay. On Windows / Linux, use Ctrl instead of ⌘.
         </div>
       </div>
       {capturing && (
@@ -2613,7 +2613,9 @@ export default function TeleprompterView() {
                           fontSize: 14,
                         }}
                       >
-                        <InterviewAnswerMarkdown content={presentation.fallbackText || item.answer} />
+                        <InterviewAnswerMarkdown
+                          content={presentation.fallbackText || item.answer}
+                        />
                       </div>
                     );
                   })()
