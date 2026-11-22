@@ -68,19 +68,22 @@ n == height.length
       const result = stitchOcrTexts(top, bottom);
       expect(result).toContain('Line A');
       expect(result).toContain('Following line D');
-      expect(result.split('\n').filter((line) => line.includes('Target long seam line'))).toHaveLength(
-        1
-      );
       expect(
-        stitchOcrTexts('Question statement\nand', 'and\nanother unrelated section')
-      ).toContain('--- [SCROLLED SECTION / CONTINUED] ---');
+        result.split('\n').filter((line) => line.includes('Target long seam line'))
+      ).toHaveLength(1);
+      expect(stitchOcrTexts('Question statement\nand', 'and\nanother unrelated section')).toContain(
+        '--- [SCROLLED SECTION / CONTINUED] ---'
+      );
     });
 
     it('handles empty inputs and falls back when pages do not overlap', () => {
       expect(stitchOcrTexts('', 'Constraints: N <= 10^5')).toBe('Constraints: N <= 10^5');
       expect(stitchOcrTexts('Given an array', '')).toBe('Given an array');
       expect(stitchOcrTexts('   ', '   ')).toBe('');
-      const result = stitchOcrTexts('Page 1 header and problem statement', 'Constraints: 1 <= k <= 10^5');
+      const result = stitchOcrTexts(
+        'Page 1 header and problem statement',
+        'Constraints: 1 <= k <= 10^5'
+      );
       expect(result).toContain('--- [SCROLLED SECTION / CONTINUED] ---');
       expect(result).toContain('Constraints: 1 <= k <= 10^5');
     });
@@ -111,9 +114,9 @@ n == height.length
       expect(detectLanguageHint('Dado um arranjo de inteiros retorne a soma').languageName).toBe(
         'Portuguese'
       );
-      expect(detectLanguageHint('Dato un vettore di interi restituisci gli indici').languageName).toBe(
-        'Italian'
-      );
+      expect(
+        detectLanguageHint('Dato un vettore di interi restituisci gli indici').languageName
+      ).toBe('Italian');
     });
 
     it('filters browser chrome while preserving code, brackets, and mathematical constraints', () => {
@@ -136,9 +139,9 @@ public int[] searchRange(int[] nums, int target) {
     });
 
     it('extracts visible problem titles from common formats', () => {
-      expect(extractProblemHeadline('42. Trapping Rain Water\nGiven n non-negative integers...')).toBe(
-        '42. Trapping Rain Water'
-      );
+      expect(
+        extractProblemHeadline('42. Trapping Rain Water\nGiven n non-negative integers...')
+      ).toBe('42. Trapping Rain Water');
       expect(extractProblemHeadline('Design an LRU Cache\nImplement the LRUCache class')).toBe(
         'Design an LRU Cache'
       );
