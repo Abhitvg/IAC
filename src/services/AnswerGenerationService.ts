@@ -8,6 +8,7 @@ import { FollowUpEngine } from './followUpEngine';
 import { resolveOrMigrateModel, AIProviderId } from './models/modelRegistry';
 import { RateLimitGovernor } from './rateLimitGovernor';
 import { DiagnosticLoggerService } from './diagnosticLogger';
+import { resolveAnswerVerificationBasis, type AnswerVerificationBasis } from './answerVerification';
 /**
  * AnswerGenerationService
  *
@@ -53,6 +54,7 @@ export interface GenerationRequestParams {
 export type AnswerGenerationResult =
   | {
       status: 'VALIDATED';
+      verificationBasis?: AnswerVerificationBasis;
       isValidated: true;
       cleanAnswer: string;
       detectedCategory: QuestionCategory;
@@ -68,6 +70,7 @@ export type AnswerGenerationResult =
     }
   | {
       status: 'FLAGGED';
+      verificationBasis?: AnswerVerificationBasis;
       isValidated: false;
       cleanAnswer: string;
       detectedCategory: QuestionCategory;
@@ -83,6 +86,7 @@ export type AnswerGenerationResult =
     }
   | {
       status: 'FAILED';
+      verificationBasis?: AnswerVerificationBasis;
       isValidated: false;
       cleanAnswer: string;
       partialAnswer?: string;
@@ -100,6 +104,7 @@ export type AnswerGenerationResult =
     }
   | {
       status: 'ABORTED';
+      verificationBasis?: AnswerVerificationBasis;
       isValidated: false;
       cleanAnswer: string;
       partialAnswer?: string;
@@ -486,6 +491,12 @@ export class AnswerGenerationService {
         /\b(my|our|i (personally|single-handedly|led|built|designed|implemented|worked|managed|handled|achieved|owned|contributed)|we (built|implemented|deployed|migrated|handled|achieved)|my experience|my role|my achievement|my project)\b/i.test(
           cleanAnswer
         );
+      const verificationBasis = resolveAnswerVerificationBasis({
+        type: type === 'screen' ? 'screen' : 'interview',
+        technicalIntent,
+        candidateSpecificQuestion,
+        candidateSpecificAnswer,
+      });
       const hasCandidateContext = Boolean(
         (params.resumeText || '').trim() ||
         params.knowledgeBase ||
@@ -612,6 +623,7 @@ export class AnswerGenerationService {
 
       completionResult = {
         status: validation.validationStatus,
+        verificationBasis,
         isValidated: decision.outcome === 'VALIDATED',
         cleanAnswer:
           decision.speakableAnswer ||

@@ -14,6 +14,7 @@ import { InterviewEngine } from '../services/InterviewEngine';
 import { InterviewWorkspace } from '../types';
 import { normalizePreferredLanguage } from '../utils/settings';
 import { resolveInterviewResponseMode } from '../utils/responseMode';
+import type { AnswerVerificationBasis } from '../services/answerVerification';
 import {
   resolveOrMigrateModel,
   getDefaultModelForProvider,
@@ -69,6 +70,7 @@ export interface QuestionHistoryItem {
   question: string;
   answer: string | null;
   confidence?: 'high' | 'medium' | 'low' | null;
+  verificationBasis?: AnswerVerificationBasis | null;
   timestamp?: number;
 }
 
@@ -108,6 +110,8 @@ interface InterviewState {
     | 'BLOCKED'
     | 'FAILED'
     | 'ABORTED';
+  answerVerificationBasis: AnswerVerificationBasis | null;
+  setAnswerVerificationBasis: (basis: AnswerVerificationBasis | null) => void;
   technicalGuidance: string | null;
   blockedReason: string | null;
   groundingScore: number | null;
@@ -325,6 +329,8 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   currentAnswer: null,
   isAnswerValidated: false,
   answerValidationStatus: 'PENDING',
+  answerVerificationBasis: null,
+  setAnswerVerificationBasis: (answerVerificationBasis) => set({ answerVerificationBasis }),
   technicalGuidance: null,
   blockedReason: null,
   activeRequestId: null,
@@ -414,6 +420,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       currentQuestion,
       currentAnswer,
       answerConfidence,
+      answerVerificationBasis,
     } = get();
     if (!questionHistory || questionHistory.length === 0) {
       get().setToast('⚠️ No previous question in history');
@@ -428,6 +435,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         question: currentQuestion,
         answer: currentAnswer,
         confidence: answerConfidence,
+        verificationBasis: answerVerificationBasis,
         timestamp: Date.now(),
       });
     }
@@ -438,6 +446,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       currentQuestion: prevItem.question,
       currentAnswer: prevItem.answer,
       answerConfidence: prevItem.confidence || null,
+      answerVerificationBasis: prevItem.verificationBasis || null,
       status: 'ready',
       recitalState: 'reciting',
       isIncompleteQuestionMode: false,
@@ -454,6 +463,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       currentQuestion,
       currentAnswer,
       answerConfidence,
+      answerVerificationBasis,
     } = get();
     if (!redoQuestionHistory || redoQuestionHistory.length === 0) {
       return false;
@@ -467,6 +477,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         question: currentQuestion,
         answer: currentAnswer,
         confidence: answerConfidence,
+        verificationBasis: answerVerificationBasis,
         timestamp: Date.now(),
       });
     }
@@ -477,6 +488,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       currentQuestion: nextItem.question,
       currentAnswer: nextItem.answer,
       answerConfidence: nextItem.confidence || null,
+      answerVerificationBasis: nextItem.verificationBasis || null,
       status: 'ready',
       recitalState: 'reciting',
       isIncompleteQuestionMode: false,
@@ -754,6 +766,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       currentAnswer: null,
       isAnswerValidated: false,
       answerValidationStatus: 'PENDING',
+      answerVerificationBasis: null,
       technicalGuidance: null,
       blockedReason: null,
       activeRequestId: null,
@@ -771,6 +784,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
         question: currentQuestion,
         answer: currentAnswer,
         confidence: answerConfidence,
+        verificationBasis: get().answerVerificationBasis,
       });
     }
     get().clearAnswerQueue();
@@ -1215,6 +1229,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       sessionHistory: [],
       currentQuestion: null,
       currentAnswer: null,
+      answerVerificationBasis: null,
       teleprompterQueue: [],
       currentSentenceIndex: 0,
       status: 'idle',

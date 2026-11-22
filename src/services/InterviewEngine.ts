@@ -88,6 +88,7 @@ export class InterviewEngine {
         question: previousQuestion,
         answer: state.currentAnswer,
         confidence: state.answerConfidence,
+        verificationBasis: state.answerVerificationBasis,
       });
     }
 
@@ -800,6 +801,7 @@ export class InterviewEngine {
             question: store.currentQuestion,
             answer: store.currentAnswer,
             confidence: store.answerConfidence,
+            verificationBasis: store.answerVerificationBasis,
           });
         }
 
@@ -825,6 +827,7 @@ export class InterviewEngine {
         store.setCurrentAnswer('');
         store.setActiveRequestId(requestId);
         store.setAnswerValidationStatus('PENDING');
+        store.setAnswerVerificationBasis(null);
         store.setIsAnswerValidated(false);
         store.setGroundingResult(null, []);
         store.setStatus('analyzing');
@@ -939,6 +942,12 @@ export class InterviewEngine {
                 });
                 return;
               }
+
+              state.setAnswerVerificationBasis(res.verificationBasis ?? null);
+
+              state.setAnswerVerificationBasis(
+                res.verificationBasis ?? 'SCREEN_CODE_NOT_EXECUTED'
+              );
 
               if (decision.isSpeakable) {
                 const finalAnswer = decision.speakableAnswer;
@@ -1063,6 +1072,7 @@ export class InterviewEngine {
             question: store.currentQuestion,
             answer: store.currentAnswer,
             confidence: store.answerConfidence,
+            verificationBasis: store.answerVerificationBasis,
           });
         }
 
@@ -1149,6 +1159,7 @@ export class InterviewEngine {
         store.setCurrentAnswer('');
         store.setActiveRequestId(requestId);
         store.setAnswerValidationStatus('PENDING');
+        store.setAnswerVerificationBasis(null);
         store.setIsAnswerValidated(false);
         store.setGroundingResult(null, []);
         store.setStatus('analyzing');
@@ -1156,11 +1167,11 @@ export class InterviewEngine {
 
         if (lang.isNonEnglish) {
           store.setToast(
-            `🌐 Detected ${lang.languageName} ${lang.flag} on screen! Translating to English & solving with 0-hallucination verification...`
+            `🌐 Detected ${lang.languageName} ${lang.flag}. Translating the captured problem and generating a reasoned solution; code is not executed here.`
           );
         } else {
           store.setToast(
-            `📸 Screen Question Detected: "${headline.slice(0, 45)}..." — Solving with 0-hallucination verification!`
+            `📸 Screen problem captured: "${headline.slice(0, 45)}..." — generating a reasoned solution; code is not executed here.`
           );
         }
 

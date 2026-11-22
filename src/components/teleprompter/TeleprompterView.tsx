@@ -19,6 +19,7 @@ import {
   BionicGazeBullet,
 } from '../../services/teleprompter/bionicPrompterService';
 import { getBionicAnswerPresentation } from '../../services/teleprompter/bionicAnswerPresentation';
+import { getAnswerVerificationNotice } from '../../services/answerVerification';
 import {
   INTERVIEW_SHORTCUT_LABELS,
   canonicalizeInterviewShortcut,
@@ -1517,6 +1518,7 @@ export default function TeleprompterView() {
     status,
     isAnswerValidated,
     answerValidationStatus,
+    answerVerificationBasis,
     groundingScore,
     groundingViolations,
     diagnosticState,
@@ -2217,6 +2219,11 @@ export default function TeleprompterView() {
 
   const wordCount = currentAnswer ? currentAnswer.trim().split(/\s+/).filter(Boolean).length : 0;
   const estMinutes = (wordCount / 135).toFixed(1);
+  const answerVerificationNotice = getAnswerVerificationNotice(
+    answerVerificationBasis,
+    answerValidationStatus,
+    isAnswerValidated
+  );
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2589,14 +2596,42 @@ export default function TeleprompterView() {
             )}
           </div>
         )}
-        {isAnswerValidated && answerValidationStatus === 'VALIDATED' && (
-          <div style={{ marginBottom: 8, color: '#6ee7b7', fontSize: 11 }}>
-            🛡️ Candidate-claim check passed
-          </div>
-        )}
-        {answerValidationStatus === 'FLAGGED_BUT_QUALIFIED' && (
-          <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11 }}>
-            ⚠️ Candidate claims qualified
+        {currentAnswer && answerVerificationNotice && (
+          <div
+            role="status"
+            aria-live="polite"
+            data-verification-basis={answerVerificationBasis}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 3,
+              marginBottom: 10,
+              padding: '8px 10px',
+              borderRadius: 7,
+              border:
+                answerVerificationNotice.tone === 'success'
+                  ? '1px solid rgba(52, 211, 153, 0.28)'
+                  : answerVerificationNotice.tone === 'warning'
+                    ? '1px solid rgba(251, 191, 36, 0.32)'
+                    : '1px solid rgba(148, 163, 184, 0.22)',
+              background:
+                answerVerificationNotice.tone === 'success'
+                  ? 'rgba(16, 185, 129, 0.08)'
+                  : answerVerificationNotice.tone === 'warning'
+                    ? 'rgba(245, 158, 11, 0.08)'
+                    : 'rgba(148, 163, 184, 0.06)',
+              color:
+                answerVerificationNotice.tone === 'success'
+                  ? '#6ee7b7'
+                  : answerVerificationNotice.tone === 'warning'
+                    ? '#fcd34d'
+                    : '#cbd5e1',
+              fontSize: 11,
+              lineHeight: 1.5,
+            }}
+          >
+            <strong>{answerVerificationNotice.label}</strong>
+            <span style={{ color: '#aeb9c8' }}>{answerVerificationNotice.description}</span>
           </div>
         )}
         {!questionHistory.length && !currentQuestion && !currentAnswer && !draftAnswer && (
