@@ -1,10 +1,10 @@
 import React from 'react';
 
 /**
- * Bionic Prompter & Eye-Contact Gaze Service
+ * Bionic Prompter & Gaze Service
  *
- * Formats spoken AI responses into glanceable, centered gaze triggers (<= 6 words)
- * and highlights key metrics, tech stacks, and Big-O complexities with bionic fixation.
+ * Preserves complete answer ideas while extracting glanceable points, metrics,
+ * technical details, and Markdown table structure for the Bionic HUD.
  */
 
 export interface BionicGazeBullet {
@@ -20,19 +20,21 @@ export interface BionicGazeBullet {
  * Metric & Technical Pattern Helper
  */
 function findFirstMetric(text: string): string | undefined {
-  const regex = /(?:\b\d+(?:\.\d+)?%|\b\d+[kKmMbB]?\s*(?:QPS|TPS|ms|seconds|min|hours|users|req\/s|rps|IOPS|GB|TB|MB|PB)\b|O\([1nNlogkK\s+*^]+\)|\bp99\b|\bp95\b|\bzero-downtime\b)/i;
+  const regex =
+    /(?:\b\d+(?:\.\d+)?%|\b\d+[kKmMbB]?\s*(?:QPS|TPS|ms|seconds|min|hours|users|req\/s|rps|IOPS|GB|TB|MB|PB)\b|O\([1nNlogkK\s+*^]+\)|\bp99\b|\bp95\b|\bzero-downtime\b)/i;
   const match = text.match(regex);
   return match ? match[0] : undefined;
 }
 
 /**
- * Chunks continuous prose into centered glanceable gaze bullets (3-7 words each).
+ * Extracts complete sentences, list items, headings, and whole Markdown tables.
+ * It deliberately avoids splitting prose into arbitrary word-count fragments.
  */
 export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] {
   if (!prose || !prose.trim()) return [];
 
-  // Treat Markdown structure as meaningful boundaries. Never split a sentence
-  // into arbitrary word-count fragments: the HUD must preserve complete ideas.
+  // Remove code fences from the glanceable outline; the complete answer
+  // disclosure still retains the original code, commands, and formatting.
   const lines = prose
     .replace(/\r\n/g, '\n')
     .replace(/```[\s\S]*?```/g, '')
@@ -54,6 +56,7 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
       while (cursor < lines.length) {
         const tableLine = lines[cursor].trim();
         if (!tableLine.includes('|')) break;
+
         if (/^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(tableLine)) {
           cursor += 1;
           continue;
@@ -68,6 +71,7 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
               (cellIndex === 0 || cellIndex === allCells.length - 1)
             );
           });
+
         if (cells.length > 1) tableRows.push(cells);
         cursor += 1;
       }
@@ -131,14 +135,20 @@ export function selectPrimaryGlanceableBullets(bullets: BionicGazeBullet[]): {
 
   const selectedIndexes = new Set<number>();
   const addIndex = (index: number) => {
-    if (index >= 0 && index < bullets.length && selectedIndexes.size < BIONIC_PRIMARY_BULLET_LIMIT) {
+    if (
+      index >= 0 &&
+      index < bullets.length &&
+      selectedIndexes.size < BIONIC_PRIMARY_BULLET_LIMIT
+    ) {
       selectedIndexes.add(index);
     }
   };
 
   // Prioritise the opening answer, then reserve space for the ending and
   // high-signal engineering details without changing their original order.
-  for (let index = 0; index < Math.min(3, bullets.length); index += 1) addIndex(index);
+  for (let index = 0; index < Math.min(3, bullets.length); index += 1) {
+    addIndex(index);
+  }
 
   for (let index = Math.max(4, bullets.length - 2); index < bullets.length; index += 1) {
     addIndex(index);
@@ -150,11 +160,17 @@ export function selectPrimaryGlanceableBullets(bullets: BionicGazeBullet[]): {
     }
   }
 
-  for (let index = 4; index < bullets.length && selectedIndexes.size < BIONIC_PRIMARY_BULLET_LIMIT; index += 1) {
+  for (
+    let index = 4;
+    index < bullets.length && selectedIndexes.size < BIONIC_PRIMARY_BULLET_LIMIT;
+    index += 1
+  ) {
     addIndex(index);
   }
 
-  const primary = [...selectedIndexes].sort((a, b) => a - b).map((index) => bullets[index]);
+  const primary = [...selectedIndexes]
+    .sort((a, b) => a - b)
+    .map((index) => bullets[index]);
   const remaining = bullets.filter((_, index) => !selectedIndexes.has(index));
   return { primary, remaining };
 }
