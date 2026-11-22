@@ -638,6 +638,7 @@ export function ShortcutSettings({
       event.preventDefault();
       event.stopPropagation();
 
+      if (event.repeat || event.isComposing || event.keyCode === 229) return;
       if (event.key === 'Escape') {
         setCapturing(null);
         setCaptureError('');
@@ -646,6 +647,10 @@ export function ShortcutSettings({
       if (['Shift', 'Control', 'Meta', 'Alt'].includes(event.key)) return;
 
       const modifiers: string[] = [];
+      if (event.metaKey && event.ctrlKey) {
+        setCaptureError('Do not hold Command and Control together.');
+        return;
+      }
       if (event.metaKey || event.ctrlKey) modifiers.push('CmdOrCtrl');
       if (event.altKey) modifiers.push('Alt');
       if (event.shiftKey) modifiers.push('Shift');
@@ -675,14 +680,16 @@ export function ShortcutSettings({
       {(Object.keys(INTERVIEW_SHORTCUT_LABELS) as InterviewShortcutAction[]).map((action) => (
         <div
           key={action}
+          className="shortcut-settings-row"
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 10,
+            flexWrap: 'wrap',
           }}
         >
-          <span style={{ color: '#cbd5e1', fontSize: 12 }}>
+          <span style={{ color: '#cbd5e1', fontSize: 12, flex: '1 1 150px' }}>
             {INTERVIEW_SHORTCUT_LABELS[action]}
           </span>
           <button
