@@ -3,9 +3,14 @@ import {
   analyzeAlignment,
   shouldIncludeCloudPlatformGuidance,
 } from '../src/services/candidatePersona';
+import {
+  buildRoleInterviewContextSection,
+  buildRoleInterviewProfile,
+} from '../src/services/roleInterviewContext';
 
 const sophosRole = 'Software Engineer – DevOps / Cloud Platform';
 const sophosJobDescription = `
+The supplied internal posting names Sophos as the employer.
 Build Java and Spring Boot microservices.
 Automate infrastructure with Terraform.
 Work with AWS, Docker, Kubernetes, Jenkins, and CI/CD pipelines.
@@ -75,5 +80,50 @@ describe('job-description skill alignment', () => {
     );
     expect(result.matchedSkills).toContain('Java');
     expect(result.matchedSkills).toContain('Spring Boot');
+  });
+});
+
+describe('Sophos role-specific live interview context', () => {
+  it('extracts Java, cloud, IaC, delivery, container, SDLC, and early-career signals', () => {
+    const jobDescription = `${sophosJobDescription}
+      The role asks for 1-2 years of development experience, automated unit and integration
+      tests, complete SDLC ownership, Agile delivery, and defect resolution within SLAs.
+    `;
+
+    const profile = buildRoleInterviewProfile(sophosRole, jobDescription);
+    const promptSection = buildRoleInterviewContextSection(sophosRole, jobDescription);
+
+    expect(profile.isCloudPlatformRole).toBe(true);
+    expect(profile.companyName).toBe('Sophos');
+    expect(profile.experienceBand).toBe('early-career');
+    expect(profile.focusAreas).toContain('Java and Spring Boot');
+    expect(profile.focusAreas).toContain('Terraform and infrastructure as code');
+    expect(profile.focusAreas).toContain('CI/CD and Jenkins');
+    expect(profile.focusAreas).toContain('Docker and Kubernetes');
+    expect(promptSection).toContain('1–2 years of experience');
+    expect(promptSection).toContain('remote state and locking');
+    expect(promptSection).toContain('readiness/liveness probes');
+    expect(promptSection).toContain('Do not infer proprietary internal tools');
+  });
+
+  it('extracts critical requirements from the full JD even when they appear after the live raw-JD budget', () => {
+    const longJobDescription =
+      'General role background. '.repeat(100) +
+      'Required stack: Terraform, Jenkins, Docker, Kubernetes, AWS, and Spring Boot.';
+
+    const promptSection = buildRoleInterviewContextSection('Software Engineer', longJobDescription);
+
+    expect(promptSection).toContain('Terraform and infrastructure as code');
+    expect(promptSection).toContain('CI/CD and Jenkins');
+    expect(promptSection).toContain('Docker and Kubernetes');
+  });
+
+  it('does not inject cloud platform guidance into an unrelated frontend role', () => {
+    expect(
+      buildRoleInterviewContextSection(
+        'Frontend React Engineer',
+        'Build accessible React interfaces with TypeScript and CSS.'
+      )
+    ).toBe('');
   });
 });

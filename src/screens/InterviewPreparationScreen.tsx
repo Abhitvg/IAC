@@ -35,6 +35,18 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
     return JDInterviewMapper.analyzeJD(jobDescriptionText || '');
   }, [jobDescriptionText]);
 
+  const targetedPlan = React.useMemo(
+    () =>
+      JDInterviewMapper.generateInterviewPlan({
+        jdText: jobDescriptionText || '',
+        roleTitle: targetRole || 'Software Engineer',
+      }),
+    [jobDescriptionText, targetRole]
+  );
+  const roleSpecificRound = targetedPlan.rounds.find(
+    (round) => round.roundType === 'role_specific'
+  );
+
   const catalog = React.useMemo(() => CurriculumCatalogService.getInstance(), []);
 
   // Extraction of relevant technical & behavioral topics from JD / Candidate Profile
@@ -49,8 +61,19 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
   const checklistItems = [
     { label: 'Candidate Resume Loaded', done: !!resumeText },
     { label: 'Target Job Description Provided', done: !!jobDescriptionText },
-    { label: 'Verified Project Evidence Linked', done: projects.some((p) => p.verificationStatus && p.verificationStatus !== 'UNKNOWN' && p.verificationStatus !== 'RESUME_REPORTED') },
-    { label: 'System Design Architecture Grounded', done: projects.some((p) => p.architecture && p.architecture !== 'UNKNOWN') },
+    {
+      label: 'Verified Project Evidence Linked',
+      done: projects.some(
+        (p) =>
+          p.verificationStatus &&
+          p.verificationStatus !== 'UNKNOWN' &&
+          p.verificationStatus !== 'RESUME_REPORTED'
+      ),
+    },
+    {
+      label: 'System Design Architecture Grounded',
+      done: projects.some((p) => p.architecture && p.architecture !== 'UNKNOWN'),
+    },
   ];
 
   return (
@@ -82,11 +105,20 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
         }
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', marginBottom: '24px' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1.2fr 1fr',
+          gap: '20px',
+          marginBottom: '24px',
+        }}
+      >
         {/* Left Column: Requirements & Relevant Projects */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Card>
-            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: '0 0 12px 0' }}>
+            <h3
+              style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: '0 0 12px 0' }}
+            >
               Target Role & Requirements
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
@@ -96,13 +128,17 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
               </div>
               <div>
                 <span style={{ color: '#9299AA' }}>Grounding Strategy: </span>
-                <span style={{ color: '#35C991', fontWeight: 600 }}>Zero-Tolerance Metric Fabrication</span>
+                <span style={{ color: '#35C991', fontWeight: 600 }}>
+                  Zero-Tolerance Metric Fabrication
+                </span>
               </div>
             </div>
           </Card>
 
           <Card>
-            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: '0 0 12px 0' }}>
+            <h3
+              style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: '0 0 12px 0' }}
+            >
               Matching Candidate Projects
             </h3>
             {projects.length === 0 ? (
@@ -128,7 +164,8 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
                     <div>
                       <strong style={{ color: '#F3F4F8', fontSize: '13px' }}>{p.name}</strong>
                       <div style={{ fontSize: '11px', color: '#9299AA', marginTop: '2px' }}>
-                        Role: {p.ownership || 'contributor'} • Tech: {(p.technologyStack || []).slice(0, 3).join(', ')}
+                        Role: {p.ownership || 'contributor'} • Tech:{' '}
+                        {(p.technologyStack || []).slice(0, 3).join(', ')}
                       </div>
                     </div>
                     <StatusBadge status={p.verificationStatus || 'UNKNOWN'} size="sm" />
@@ -142,7 +179,9 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
         {/* Right Column: Readiness Checklist & Skills */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Card>
-            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: '0 0 12px 0' }}>
+            <h3
+              style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: '0 0 12px 0' }}
+            >
               Preparation Checklist
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -160,7 +199,14 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
                   {item.done ? (
                     <CheckCircle2 size={16} style={{ color: '#35C991' }} />
                   ) : (
-                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '1px dashed #9299AA' }} />
+                    <div
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '50%',
+                        border: '1px dashed #9299AA',
+                      }}
+                    />
                   )}
                   <span>{item.label}</span>
                 </div>
@@ -169,7 +215,9 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
           </Card>
 
           <Card>
-            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: '0 0 12px 0' }}>
+            <h3
+              style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: '0 0 12px 0' }}
+            >
               Covered Technology Skills
             </h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -197,7 +245,14 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
 
           {/* Curriculum Competency Match & Practice Drill Recommendations */}
           <Card>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '10px',
+              }}
+            >
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
                 Curriculum Topic Match &amp; Gaps
               </h3>
@@ -243,7 +298,9 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
 
               {jdAnalysis.gapAnalysis.unassessedTopics.length > 0 && (
                 <div style={{ marginTop: '4px' }}>
-                  <span style={{ color: '#E09F3E', fontWeight: 600 }}>Unverified Gaps to Practice: </span>
+                  <span style={{ color: '#E09F3E', fontWeight: 600 }}>
+                    Unverified Gaps to Practice:{' '}
+                  </span>
                   <span style={{ color: '#9299AA' }}>
                     {jdAnalysis.gapAnalysis.unassessedTopics
                       .slice(0, 3)
@@ -254,6 +311,47 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
               )}
             </div>
           </Card>
+
+          {roleSpecificRound && (
+            <Card>
+              <div style={{ marginBottom: '10px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
+                  Role-Specific Technical Rehearsal
+                </h3>
+                <p style={{ fontSize: '11px', color: '#9299AA', margin: '5px 0 0' }}>
+                  Generic practice questions derived from the supplied job description, not claimed
+                  to be proprietary or leaked company questions.
+                </p>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {roleSpecificRound.recommendedQuestions.map((question, index) => (
+                  <div
+                    key={question.id}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: '7px',
+                      background: '#151922',
+                      border: '1px solid #292E3A',
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: '#A99DFF',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        marginBottom: '5px',
+                      }}
+                    >
+                      PRACTICE {index + 1} · {question.topic} · {question.timeBudgetMinutes} MIN
+                    </div>
+                    <div style={{ color: '#F3F4F8', fontSize: '12px', lineHeight: 1.6 }}>
+                      {question.prompt}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </div>

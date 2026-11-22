@@ -94,7 +94,66 @@ Requirements:
 
     // Verify disclaimer exists
     expect(plan.disclaimer).toContain('grounded in curriculum technical baselines');
-    expect(plan.disclaimer).toContain('IAC does not claim these are proprietary leaked company questions');
+    expect(plan.disclaimer).toContain(
+      'IAC does not claim these are proprietary leaked company questions'
+    );
+  });
+
+  it('maps the Sophos platform-engineering brief and generates a focused role-specific round', () => {
+    const sophosJD = `
+      The Software Engineer will facilitate and automate continuous feature builds for multiple
+      development teams. Build Java and Spring Boot microservices and public REST APIs.
+      Customize Terraform automation and work with AWS, Docker, Kubernetes, Jenkins, and CI/CD.
+      Write automated unit and integration tests in CI/CD pipelines and support IaaS.
+      Carry out the SDLC in an Agile team and address customer defects within defined SLAs.
+      Requires 1-2 years of development experience.
+    `;
+
+    const analysis = JDInterviewMapper.analyzeJD(sophosJD, competencyService);
+    expect(analysis.seniority).toBe('Junior');
+    expect(analysis.extractedTechStack).toContain('java');
+    expect(analysis.extractedTechStack).toContain('spring boot');
+    expect(analysis.extractedTechStack).toContain('terraform');
+    expect(analysis.extractedTechStack).toContain('aws');
+    expect(analysis.extractedTechStack).toContain('docker');
+    expect(analysis.extractedTechStack).toContain('kubernetes');
+    expect(analysis.extractedTechStack).toContain('jenkins');
+    expect(analysis.extractedTechStack).toContain('ci/cd');
+
+    expect(analysis.mappedCurriculumTopicIds).toContain('se_api_design');
+    expect(analysis.mappedCurriculumTopicIds).toContain('se_oop_design_patterns');
+    expect(analysis.mappedCurriculumTopicIds).toContain('cs_testing_debugging');
+    expect(analysis.mappedCurriculumTopicIds).toContain('cs_distributed_systems');
+    expect(analysis.mappedCurriculumTopicIds).toContain('se_scalability');
+
+    const plan = JDInterviewMapper.generateInterviewPlan({
+      jdText: sophosJD,
+      roleTitle: 'Software Engineer - DevOps / Cloud Platform',
+      companyName: 'Sophos',
+      competencyService,
+    });
+    const roleRound = plan.rounds.find((round) => round.roundType === 'role_specific');
+
+    expect(plan.seniority).toBe('Junior');
+    expect(plan.rounds.map((round) => round.roundType)).toContain('system_design');
+    expect(roleRound).toBeDefined();
+    expect(roleRound?.recommendedQuestions).toHaveLength(3);
+    expect(roleRound?.title).toContain('Platform Engineering');
+    expect(roleRound?.recommendedQuestions.map((question) => question.curriculumTopicId)).toEqual([
+      'se_api_design',
+      'cs_testing_debugging',
+      'se_scalability',
+    ]);
+    expect(roleRound?.recommendedQuestions[1].prompt).toContain('Terraform');
+    expect(roleRound?.recommendedQuestions[2].prompt).toContain('Kubernetes');
+  });
+
+  it('does not classify JavaScript as Java in the JD skill map', () => {
+    const analysis = JDInterviewMapper.analyzeJD(
+      'Build browser interfaces with JavaScript and TypeScript.',
+      competencyService
+    );
+    expect(analysis.extractedTechStack).not.toContain('java');
   });
 
   it('generates curriculum interview plan via CompanyPlanGenerator extension', () => {
@@ -109,4 +168,3 @@ Requirements:
     expect(plan.companyName).toBe('Uber');
   });
 });
-
