@@ -123,6 +123,11 @@ export default function SettingsPanel() {
     [shortcutBindings, settings?.shortcuts, updateSetting, setToast]
   );
 
+  const supportsNativeOpacity =
+    typeof window !== 'undefined' &&
+    Boolean(window.electronAPI?.setWindowOpacity) &&
+    window.electronAPI?.platform !== 'linux';
+
   const refreshReliabilitySummary = () => {
     setReliabilitySummary(DiagnosticLoggerService.getInstance().getReliabilitySummary());
   };
@@ -876,6 +881,7 @@ export default function SettingsPanel() {
                 step="1"
                 value={Math.round(windowOpacity * 100)}
                 onChange={(event) => setWindowOpacity(Number(event.target.value) / 100)}
+                disabled={!supportsNativeOpacity}
                 aria-label="Live interview window opacity"
                 aria-valuemin={12}
                 aria-valuemax={100}
@@ -883,8 +889,14 @@ export default function SettingsPanel() {
                 className="w-full accent-violet-500"
               />
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="field__hint">Lower opacity lets you see forms and coding editors behind the live overlay. Applies to the Live Interview window, not the main workspace.</span>
-                <button type="button" className="action-btn" onClick={() => setWindowOpacity(0.35)}>
+                <span className="field__hint">
+                {supportsNativeOpacity
+                  ? 'Lower opacity lets you see forms and coding editors behind the live overlay. Applies to the Live Interview window, not the main workspace.'
+                  : window.electronAPI?.platform === 'linux'
+                    ? 'Native Electron window opacity is not supported on Linux. The control is disabled rather than pretending the setting works.'
+                    : 'Native window opacity is unavailable in this session.'}
+              </span>
+                <button type="button" className="action-btn" disabled={!supportsNativeOpacity} onClick={() => setWindowOpacity(0.35)}>
                   Reset · 35%
                 </button>
               </div>
@@ -895,6 +907,7 @@ export default function SettingsPanel() {
                     type="button"
                     className={Math.round(windowOpacity * 100) === value ? 'action-btn action-btn--primary' : 'action-btn'}
                     aria-pressed={Math.round(windowOpacity * 100) === value}
+                    disabled={!supportsNativeOpacity}
                     onClick={() => setWindowOpacity(value / 100)}
                   >
                     {value}%
