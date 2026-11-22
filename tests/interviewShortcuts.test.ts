@@ -123,6 +123,24 @@ describe('live interview shortcut bindings', () => {
     ).toBe(false);
   });
 
+  it('reserves every alias for built-in conversation and window placement actions', () => {
+    for (const binding of [
+      'CmdOrCtrl+[',
+      'CmdOrCtrl+]',
+      'CmdOrCtrl+Alt+Left',
+      'CmdOrCtrl+Alt+Right',
+    ]) {
+      expect(isReservedInterviewShortcut(binding)).toBe(true);
+    }
+
+    expect(
+      resolveInterviewShortcutBindings({
+        bionicHud: 'CmdOrCtrl+Alt+Left',
+        listening: 'CmdOrCtrl+]',
+      })
+    ).toEqual(DEFAULT_INTERVIEW_SHORTCUTS);
+  });
+
   it('identifies reserved controls so user bindings cannot shadow them', () => {
     expect(RESERVED_INTERVIEW_SHORTCUTS).toContain('CmdOrCtrl+Shift+Space');
     expect(RESERVED_INTERVIEW_SHORTCUTS).toContain('CmdOrCtrl+\\');
