@@ -11,6 +11,7 @@ import { classifyUtterance } from './interruptionDetector';
 import { globalLatencyTracker } from './LatencyTracker';
 import { useAppStore } from '../store/useAppStore';
 import { AudioRecorder } from './audio';
+import { resolvePendingQuestionContinuation } from './pendingQuestionContinuation';
 import { transcribeAudio } from './whisper';
 import { AnswerGenerationService } from './AnswerGenerationService';
 import { DiagnosticLoggerService } from './diagnosticLogger';
@@ -159,14 +160,22 @@ export class InterviewEngine {
   static appendPendingQuestionUtterance(text: string): boolean {
     const incoming = (text || '').trim();
     const now = Date.now();
-    if (
-      !incoming ||
-      !pendingQuestionText ||
-      now > pendingQuestionDeadline ||
-      now > pendingQuestionHardDeadline
-    ) {
+    if (!incoming || !pendingQuestionText) return false;
+
+    if (now > pendingQuestionDeadline || now > pendingQuestionHardDeadline) {
+      InterviewEngine.clearPendingQuestion();
       return false;
     }
+
+    const continuationDecision = resolvePendingQuestionContinuation(incoming);
+    if (continuationDecision === 'new-question') {
+      // Do not let the old timer generate a stale partial after a new question
+      // has entered the normal classification and answer-generation path.
+      InterviewEngine.clearPendingQuestion();
+      return false;
+    }
+    if (continuationDecision !== 'append') return false;
+
     pendingQuestionText = `${pendingQuestionText.replace(/[.?!…]+$/, '')} ${incoming}`.trim();
     pendingQuestionTranscript = `${pendingQuestionTranscript} ${incoming}`.trim();
     const state = useAppStore.getState();
