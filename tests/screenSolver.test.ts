@@ -185,7 +185,7 @@ public int[] searchRange(int[] nums, int target) {
       expect(prompt).toContain('Preserve visible class names, method signatures');
       expect(prompt).toContain('complete that exact contract');
       expect(prompt).toContain('Do not rename it or add a competing entry point');
-      expect(prompt).toContain('Do not add a `main` method or test harness');
+      expect(prompt).toContain('Do not add a main method or test harness');
     });
 
     it('keeps quiz answers direct and refuses to invent cropped choices', () => {
