@@ -215,14 +215,21 @@ export class InterviewEngine {
 
     switch (event.type) {
       case 'START_LISTENING': {
-        // Idempotent start: if already active or starting, ignore redundant trigger
-        if (store.status === 'listening' || audioService.getCaptureState() === 'active') {
+        const captureState = audioService.getCaptureState();
+        // The microphone, not the answer-generation status, decides whether Start is redundant.
+        if (captureState === 'active' || captureState === 'starting') {
           return;
         }
 
-        InterviewEngine.cancelAllActiveWork();
+        const answerWasActive = store.status === 'analyzing' || store.status === 'generating';
+        InterviewEngine.clearPendingQuestion();
+        InterviewEngine.abortActiveTranscription();
         globalLatencyTracker.mark('speechStart');
-        store.setStatus('listening');
+
+        // Starting the microphone must not cancel or overwrite an answer already in flight.
+        if (!answerWasActive) {
+          store.setStatus('listening');
+        }
         store.setRecitalState('listening');
         store.setToast('🎙️ Microphone Active — Listening for speech...');
 
@@ -248,7 +255,11 @@ export class InterviewEngine {
             });
           });
         } catch (e: any) {
-          store.updateDiagnostics({ whisperStatus: 'Mic error: ' + (e?.message || e) });
+          const currentStore = useAppStore.getState();
+          currentStore.updateDiagnostics({
+            whisperStatus: 'Mic error: ' + (e?.message || e),
+            micActive: false,
+          });
           console.error('[InterviewEngine] Microphone start error:', e);
           const isPermission =
             e?.name === 'NotAllowedError' ||
@@ -257,9 +268,15 @@ export class InterviewEngine {
           const errorMsg = isPermission
             ? '🎙️ Microphone permission denied. Please grant microphone access in macOS System Settings > Privacy & Security > Microphone.'
             : `🎙️ Microphone error: ${e?.message || e}`;
-          store.setToast(errorMsg);
-          store.setStatus('idle');
-          store.setRecitalState('idle');
+          currentStore.setToast(errorMsg);
+
+          // A failed microphone startup does not invalidate a concurrently active answer.
+          const answerIsStillActive =
+            currentStore.status === 'analyzing' || currentStore.status === 'generating';
+          if (!answerIsStillActive) {
+            currentStore.setStatus('idle');
+            currentStore.setRecitalState('idle');
+          }
         }
         break;
       }
