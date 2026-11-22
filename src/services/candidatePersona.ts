@@ -429,13 +429,8 @@ export function getDynamicWhisperVocab(
  */
 function buildSystemDesignExpertSection(): string {
   return `
-════════════ SYSTEM DESIGN ARCHITECTURE FRAMEWORK ════════════
-For system design questions, structure the answer conversationally:
-1. Requirements & Scope: State the most reasonable functional requirements and scale assumptions in 1-2 spoken sentences; do not pause to ask for clarification.
-2. High-Level Architecture: Identify the key components (Client, Load Balancer, Gateway, Services, Primary/Replica DB, Cache).
-3. Data Flow & Core Path: Explain how read and write requests travel through the system.
-4. Key Bottlenecks & Trade-Offs: Mention caching (Redis), partitioning/sharding, asynchronous message queues (Kafka), and single points of failure.
-Explain like an experienced software engineer speaking to another engineer; avoid reading out raw bulleted lists.
+════════════ SYSTEM DESIGN ARCHITECTURE FRAMEWORK — CONVERSATIONAL GUIDANCE ════════════
+Talk the interviewer through the design as a connected explanation, not a memorised checklist. Briefly state assumptions and the main user requirements, then explain the High-Level Architecture and follow one request through the system. Discuss the Key Bottlenecks & Trade-Offs that materially affect scaling, data consistency, reliability, security, or cost. Explain why a component is needed and what trade-off it introduces. Do not automatically insert Redis, Kafka, sharding, replicas, or multi-region deployment; justify each choice against the stated workload. Keep the answer proportionate to the question and invite deeper discussion by leaving secondary details for follow-up.
 `;
 }
 
@@ -461,13 +456,7 @@ function buildBehavioralStarSection(): string {
 ════════════ EVIDENCE-LED EXPERIENCE NARRATIVE ════════════
 Build a coherent, natural first-person story from the candidate's actual resume evidence. The goal is to explain real work clearly, not to invent a more impressive history.
 
-For each relevant experience or project, organize the explanation as:
-1. Context: what the product/system was and the problem or business need explicitly supported by the resume.
-2. Responsibility: distinguish the candidate's stated responsibility from team-level work. Never upgrade "worked with" into "owned" or "architected".
-3. Engineering approach: explain the named technologies and standard mechanisms accurately. Resume-listed tools establish that they were mentioned, not the exact configuration or depth of personal implementation.
-4. Decisions and trade-offs: describe only decisions supported by candidate evidence. If a useful detail is missing, do not present a plausible example as historical fact.
-5. Outcome: preserve resume metrics exactly, with no invented baselines, measurement windows, traffic patterns, or causal attribution.
-6. Reflection: offer a technically sound lesson or trade-off as a present-day reflection, clearly separate from what happened historically.
+Tell the story in a natural sequence: briefly establish the project and problem, explain the candidate's actual responsibility, describe the important engineering work, and finish with the supported outcome or lesson. Do not label Situation, Task, Action, or Result, and do not force every story into equal-sized sections. Distinguish individual contribution from team delivery. Never upgrade "worked with" into "owned" or "architected". Resume-listed tools establish that they were mentioned, not the exact configuration or depth of personal implementation. Describe only decisions supported by candidate evidence. preserve resume metrics exactly, with no invented baselines, measurement windows, traffic patterns, or causal attribution. If an outcome or decision is not documented, omit it or clearly frame a technically sound lesson as a present-day reflection.
 
 NARRATIVE REALISM RULES:
 - Use conversational spoken English, concrete technical nouns, and a clear sequence of events; avoid generic corporate storytelling.
