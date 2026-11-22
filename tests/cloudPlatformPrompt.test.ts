@@ -3,7 +3,10 @@ import {
   analyzeAlignment,
   shouldIncludeCloudPlatformGuidance,
 } from '../src/services/candidatePersona';
-import { buildRoleInterviewContextSection, buildRoleInterviewProfile } from '../src/services/roleInterviewContext';
+import {
+  buildRoleInterviewContextSection,
+  buildRoleInterviewProfile,
+} from '../src/services/roleInterviewContext';
 
 const sophosRole = 'Software Engineer – DevOps / Cloud Platform';
 const sophosJobDescription = `
@@ -79,7 +82,6 @@ describe('job-description skill alignment', () => {
   });
 });
 
-
 describe('Sophos role-specific live interview context', () => {
   it('extracts Java, cloud, IaC, delivery, container, SDLC, and early-career signals', () => {
     const jobDescription = `${sophosJobDescription}
@@ -100,7 +102,7 @@ describe('Sophos role-specific live interview context', () => {
     expect(promptSection).toContain('1–2 years of experience');
     expect(promptSection).toContain('remote state and locking');
     expect(promptSection).toContain('readiness/liveness probes');
-    expect(promptSection).toContain('do not infer proprietary internal tools');
+    expect(promptSection).toContain('Do not infer proprietary internal tools');
   });
 
   it('extracts critical requirements from the full JD even when they appear after the live raw-JD budget', () => {
@@ -108,10 +110,7 @@ describe('Sophos role-specific live interview context', () => {
       'General role background. '.repeat(100) +
       'Required stack: Terraform, Jenkins, Docker, Kubernetes, AWS, and Spring Boot.';
 
-    const promptSection = buildRoleInterviewContextSection(
-      'Software Engineer',
-      longJobDescription
-    );
+    const promptSection = buildRoleInterviewContextSection('Software Engineer', longJobDescription);
 
     expect(promptSection).toContain('Terraform and infrastructure as code');
     expect(promptSection).toContain('CI/CD and Jenkins');
