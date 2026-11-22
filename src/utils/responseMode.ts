@@ -6,14 +6,13 @@ export type InterviewResponseMode = 'coding' | 'interview' | 'quiz' | 'applicati
  * installs and for stale or unknown persisted values.
  */
 export function resolveInterviewResponseMode(value: unknown): InterviewResponseMode {
-  if (
-    value === 'coding' ||
-    value === 'interview' ||
-    value === 'quiz' ||
-    value === 'application'
-  ) {
-    return value;
+  switch (value) {
+    case 'coding':
+    case 'interview':
+    case 'quiz':
+    case 'application':
+      return value;
+    default:
+      return 'interview';
   }
-
-  return 'interview';
 }
