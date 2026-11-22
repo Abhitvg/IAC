@@ -218,8 +218,14 @@ function positionWindowInCorner(side: 'left' | 'right') {
   const margin = 16;
   const availableWidth = Math.max(1, workArea.width - margin * 2);
   const availableHeight = Math.max(1, workArea.height - margin * 2);
-  const width = Math.min(bounds.width, availableWidth);
-  const height = Math.min(bounds.height, availableHeight);
+  const minWidth = Math.min(320, availableWidth);
+  const minHeight = Math.min(160, availableHeight);
+  const width = Math.min(Math.max(bounds.width, minWidth), availableWidth);
+  const height = Math.min(Math.max(bounds.height, minHeight), availableHeight);
+
+  // Temporarily lower the minimum only when a display is physically smaller than
+  // the normal window minimum. Restore the normal minimum on larger displays.
+  mainWindow.setMinimumSize(minWidth, minHeight);
   const x = side === 'left' ? workArea.x + margin : workArea.x + workArea.width - width - margin;
   const y = workArea.y + margin;
 
