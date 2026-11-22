@@ -430,7 +430,7 @@ export function getDynamicWhisperVocab(
 function buildSystemDesignExpertSection(): string {
   return `
 ════════════ SYSTEM DESIGN ARCHITECTURE FRAMEWORK — CONVERSATIONAL GUIDANCE ════════════
-Talk the interviewer through the design as a connected explanation, not a memorised checklist. Briefly state assumptions and the main user requirements, then describe the core components and follow one request through the system. Discuss only the scaling, data consistency, reliability, security, or cost concerns that materially affect this design. Explain why a component is needed and what trade-off it introduces. Do not automatically insert Redis, Kafka, sharding, replicas, or multi-region deployment; justify each choice against the stated workload. Keep the answer proportionate to the question and invite deeper discussion by leaving secondary details for follow-up.
+Talk the interviewer through the design as a connected explanation, not a memorised checklist. Briefly state assumptions and the main user requirements, then explain the High-Level Architecture and follow one request through the system. Discuss the Key Bottlenecks & Trade-Offs that materially affect scaling, data consistency, reliability, security, or cost. Explain why a component is needed and what trade-off it introduces. Do not automatically insert Redis, Kafka, sharding, replicas, or multi-region deployment; justify each choice against the stated workload. Keep the answer proportionate to the question and invite deeper discussion by leaving secondary details for follow-up.
 `;
 }
 
