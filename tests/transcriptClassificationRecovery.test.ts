@@ -194,9 +194,7 @@ describe('Suite A: Transcript Classification & Recovery', () => {
   });
 
   it('preserves later queued speech when dispatching an automatically recognized question', async () => {
-    const handleEventSpy = vi
-      .spyOn(InterviewEngine, 'handleEvent')
-      .mockResolvedValue(undefined);
+    const handleEventSpy = vi.spyOn(InterviewEngine, 'handleEvent').mockResolvedValue(undefined);
 
     try {
       InterviewEngine.dispatchDetectedQuestion(
