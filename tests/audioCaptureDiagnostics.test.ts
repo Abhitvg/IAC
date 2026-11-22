@@ -189,6 +189,76 @@ describe('audio capture diagnostics', () => {
     ).toEqual(['STARTING', 'ACTIVE', 'STOPPED']);
   });
 
+  it('marks capture failed and releases resources when the physical audio track ends', async () => {
+    let endedListener: (() => void) | undefined;
+    const trackStop = vi.fn();
+    const addEventListener = vi.fn((type: string, listener: EventListener) => {
+      if (type === 'ended') endedListener = () => listener(new Event('ended'));
+    });
+    const removeEventListener = vi.fn();
+    const track = {
+      kind: 'audio',
+      stop: trackStop,
+      addEventListener,
+      removeEventListener,
+    } as unknown as MediaStreamTrack;
+    const stream = {
+      getTracks: () => [track],
+      getAudioTracks: () => [track],
+    } as unknown as MediaStream;
+
+    const sourceNode = { connect: vi.fn(), disconnect: vi.fn() };
+    const processorNode = {
+      onaudioprocess: null as ((event: AudioProcessingEvent) => void) | null,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    const gainNode = {
+      gain: { value: 1 },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+
+    class ActiveAudioContext {
+      state: AudioContextState = 'running';
+      sampleRate = 48000;
+      destination = {} as AudioDestinationNode;
+      resume = vi.fn(async () => undefined);
+      close = vi.fn(async () => {
+        this.state = 'closed';
+      });
+      createMediaStreamSource = vi.fn(() => sourceNode);
+      createScriptProcessor = vi.fn(() => processorNode);
+      createGain = vi.fn(() => gainNode);
+    }
+
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+    vi.stubGlobal('window', { AudioContext: ActiveAudioContext });
+
+    const recorder = new AudioRecorder();
+    await recorder.start(() => undefined);
+
+    expect(recorder.getCaptureState()).toBe('active');
+    expect(useAppStore.getState().diagnosticState.micActive).toBe(true);
+
+    endedListener?.();
+    await vi.waitFor(() => expect(recorder.getCaptureState()).toBe('error'));
+
+    expect(trackStop).toHaveBeenCalledTimes(1);
+    expect(removeEventListener).toHaveBeenCalledWith('ended', expect.any(Function));
+    expect(useAppStore.getState().diagnosticState.micActive).toBe(false);
+    expect(useAppStore.getState().diagnosticState.whisperStatus).toContain(
+      'Microphone input disconnected'
+    );
+    expect(
+      DiagnosticLoggerService.getInstance()
+        .getEvents()
+        .map((event) => event.audioCaptureOutcome)
+    ).toEqual(['STARTING', 'ACTIVE', 'FAILED']);
+  });
+
   it('records microphone setup failure without logging microphone or transcript content', async () => {
     vi.stubGlobal('navigator', { mediaDevices: undefined });
     const recorder = new AudioRecorder();
