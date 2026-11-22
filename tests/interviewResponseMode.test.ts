@@ -16,6 +16,5 @@ describe('interview response mode defaults', () => {
 
   it('migrates stale or unsupported saved modes to Interview', () => {
     expect(resolveInterviewResponseMode('unknown')).toBe('interview');
-    expect(resolveInterviewResponseMode('unknown')).toBe('interview');
   });
 });
