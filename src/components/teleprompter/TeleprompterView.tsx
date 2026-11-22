@@ -621,7 +621,7 @@ interface ConversationSearchResult {
   answer: string;
 }
 
-function ShortcutSettings({
+export function ShortcutSettings({
   bindings,
   onChange,
 }: {
