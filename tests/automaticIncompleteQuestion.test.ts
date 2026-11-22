@@ -58,6 +58,25 @@ describe('automatic incomplete interviewer questions', () => {
     expect(useAppStore.getState().isIncompleteQuestionMode).toBe(false);
   });
 
+  it('does not absorb filler or candidate-led narration into a pending question', () => {
+    const firstPart = 'How would you design a system that...';
+    expect(InterviewEngine.beginPendingQuestionFromTranscript(firstPart, firstPart)).toBe(true);
+
+    expect(InterviewEngine.appendPendingQuestionUtterance('I would start by defining the service boundaries.')).toBe(false);
+    expect(InterviewEngine.appendPendingQuestionUtterance('okay')).toBe(false);
+    expect(useAppStore.getState().currentQuestion).toBe(firstPart);
+    expect(useAppStore.getState().isIncompleteQuestionMode).toBe(true);
+  });
+
+  it('clears a stale pending fragment before a distinct new question is classified', () => {
+    const firstPart = 'How would you design a system that...';
+    expect(InterviewEngine.beginPendingQuestionFromTranscript(firstPart, firstPart)).toBe(true);
+
+    expect(InterviewEngine.appendPendingQuestionUtterance('What about failure recovery?')).toBe(false);
+    expect(useAppStore.getState().isIncompleteQuestionMode).toBe(false);
+    expect(useAppStore.getState().pipelineStage).toBe('listening');
+  });
+
   it('does not generate anything when no pending question is active', () => {
     expect(InterviewEngine.appendPendingQuestionUtterance('under heavy load')).toBe(false);
   });
