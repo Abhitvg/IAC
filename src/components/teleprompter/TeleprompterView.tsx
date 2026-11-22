@@ -1895,9 +1895,7 @@ export default function TeleprompterView() {
           element?.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
         }
         setToast(
-          nextAutoFollow
-            ? '📜 Conversation auto-follow: ON'
-            : '⏸️ Conversation auto-follow: OFF'
+          nextAutoFollow ? '📜 Conversation auto-follow: ON' : '⏸️ Conversation auto-follow: OFF'
         );
         return;
       }
