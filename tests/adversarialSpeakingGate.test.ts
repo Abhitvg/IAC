@@ -686,6 +686,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
         status: 'ready' as const,
         isAnswerValidated: true,
         answerValidationStatus: 'VALIDATED' as const,
+        answerVerificationBasis: 'CANDIDATE_EVIDENCE' as const,
         teleprompterQueue: [validText],
       };
 
@@ -700,12 +701,13 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
         status: validatedState.status,
         isAnswerValidated: validatedState.isAnswerValidated,
         answerValidationStatus: validatedState.answerValidationStatus,
+        answerVerificationBasis: validatedState.answerVerificationBasis,
         teleprompterQueue: validatedState.teleprompterQueue,
       });
 
       const html = renderToString(React.createElement(TeleprompterView));
       expect(html).toContain(validText);
-      expect(html).toContain('Candidate-claim check passed');
+      expect(html).toContain('Candidate-evidence check passed');
     });
 
     it('5.5 FLAGGED_BUT_QUALIFIED answers can be recited with qualified markers and badge', () => {
@@ -718,6 +720,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
         status: 'ready' as const,
         isAnswerValidated: false,
         answerValidationStatus: 'FLAGGED_BUT_QUALIFIED' as const,
+        answerVerificationBasis: 'CANDIDATE_EVIDENCE' as const,
         teleprompterQueue: [qualifiedText],
       };
 
@@ -732,6 +735,7 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
         status: qualifiedState.status,
         isAnswerValidated: qualifiedState.isAnswerValidated,
         answerValidationStatus: qualifiedState.answerValidationStatus,
+        answerVerificationBasis: qualifiedState.answerVerificationBasis,
         teleprompterQueue: qualifiedState.teleprompterQueue,
       });
 
