@@ -193,6 +193,29 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     }
   });
 
+  it('preserves later queued speech when dispatching an automatically recognized question', async () => {
+    const handleEventSpy = vi
+      .spyOn(InterviewEngine, 'handleEvent')
+      .mockResolvedValue(undefined);
+
+    try {
+      InterviewEngine.dispatchDetectedQuestion(
+        'What happens when a database replica becomes unavailable?',
+        'automatic-question-request'
+      );
+
+      await vi.waitFor(() => expect(handleEventSpy).toHaveBeenCalledOnce());
+      expect(handleEventSpy).toHaveBeenCalledWith({
+        type: 'QUESTION_DETECTED',
+        text: 'What happens when a database replica becomes unavailable?',
+        requestId: 'automatic-question-request',
+        preserveQueuedUtterances: true,
+      });
+    } finally {
+      handleEventSpy.mockRestore();
+    }
+  });
+
   it('allows manual trigger to generate answer from transcript via generateAnswerFromTranscript', async () => {
     const store = useAppStore.getState();
     const transcriptText = 'Explain how Raft consensus algorithm prevents split-brain.';
