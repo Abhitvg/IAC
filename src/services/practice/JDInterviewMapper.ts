@@ -112,96 +112,101 @@ const KEYWORD_TO_TOPIC_MAP: Record<string, string[]> = {
   reliability: ['se_scalability'],
 };
 
-
 function buildPlatformRoleQuestions(
   jdText: string,
   seniority: JDRequirementAnalysis['seniority']
 ): QuestionEntry[] {
   const jd = (jdText || '').toLowerCase();
-  const difficulty = seniority === 'Junior' ? 2 : seniority === 'Mid' ? 3 : seniority === 'Senior' ? 4 : 5;
+  const difficulty =
+    seniority === 'Junior' ? 2 : seniority === 'Mid' ? 3 : seniority === 'Senior' ? 4 : 5;
   const questions: QuestionEntry[] = [];
 
   if (/\bjava\b|\bspring boot\b|\bmicroservices?\b/i.test(jd)) {
-    questions.push(QuestionEntrySchema.parse({
-      id: 'role-java-spring-microservices',
-      type: 'technical_concept',
-      topic: 'Java, Spring Boot, and Microservices',
-      tags: ['Java', 'Spring Boot', 'Microservices', 'REST API'],
-      difficulty,
-      prompt:
-        'How would you structure a Spring Boot microservice that exposes a REST API? Explain dependency injection, request validation, exception handling, transaction boundaries, and how you would test it.',
-      expectedPoints: [
-        'Separate controller, service, and persistence responsibilities with clear contracts.',
-        'Use constructor injection and validate input at the API boundary.',
-        'Return consistent error responses and keep transaction scope explicit.',
-        'Cover service logic with unit tests and persistence/API behavior with integration tests.',
-        'Explain timeouts, idempotency, and failure handling when another service is involved.',
-      ],
-      followUps: [
-        'How would you prevent duplicate requests from applying the same change twice?',
-        'Where would you place transaction boundaries?',
-        'What belongs in a unit test versus an integration test?',
-      ],
-      timeBudgetMinutes: 12,
-      curriculumTopicId: 'se_api_design',
-    }));
+    questions.push(
+      QuestionEntrySchema.parse({
+        id: 'role-java-spring-microservices',
+        type: 'technical_concept',
+        topic: 'Java, Spring Boot, and Microservices',
+        tags: ['Java', 'Spring Boot', 'Microservices', 'REST API'],
+        difficulty,
+        prompt:
+          'How would you structure a Spring Boot microservice that exposes a REST API? Explain dependency injection, request validation, exception handling, transaction boundaries, and how you would test it.',
+        expectedPoints: [
+          'Separate controller, service, and persistence responsibilities with clear contracts.',
+          'Use constructor injection and validate input at the API boundary.',
+          'Return consistent error responses and keep transaction scope explicit.',
+          'Cover service logic with unit tests and persistence/API behavior with integration tests.',
+          'Explain timeouts, idempotency, and failure handling when another service is involved.',
+        ],
+        followUps: [
+          'How would you prevent duplicate requests from applying the same change twice?',
+          'Where would you place transaction boundaries?',
+          'What belongs in a unit test versus an integration test?',
+        ],
+        timeBudgetMinutes: 12,
+        curriculumTopicId: 'se_api_design',
+      })
+    );
   }
 
   if (/\bterraform\b|\binfrastructure as code\b|\bjenkins\b|\bci\s*\/\s*cd\b/i.test(jd)) {
-    questions.push(QuestionEntrySchema.parse({
-      id: 'role-terraform-jenkins-cicd',
-      type: 'technical_concept',
-      topic: 'Terraform and CI/CD',
-      tags: ['Terraform', 'Jenkins', 'CI/CD', 'Infrastructure as Code'],
-      difficulty,
-      prompt:
-        'Design a Jenkins pipeline for a Java service that tests the code and provisions infrastructure with Terraform. Walk through the stages, state management, approval boundaries, and rollback strategy.',
-      expectedPoints: [
-        'Run formatting, initialization, validation, unit/integration tests, and security checks before release.',
-        'Build and publish an immutable artifact rather than rebuilding separately in each environment.',
-        'Use reusable Terraform modules, pinned providers, remote state, and state locking.',
-        'Review the Terraform plan before an approved apply; do not conflate plan with apply.',
-        'Promote through environments, verify health, and define deployment and infrastructure recovery paths.',
-      ],
-      followUps: [
-        'How do you detect and handle Terraform drift?',
-        'How would you prevent two pipeline runs from changing the same state concurrently?',
-        'What should happen if deployment succeeds but a post-deploy health check fails?',
-      ],
-      timeBudgetMinutes: 12,
-      curriculumTopicId: 'cs_testing_debugging',
-    }));
+    questions.push(
+      QuestionEntrySchema.parse({
+        id: 'role-terraform-jenkins-cicd',
+        type: 'technical_concept',
+        topic: 'Terraform and CI/CD',
+        tags: ['Terraform', 'Jenkins', 'CI/CD', 'Infrastructure as Code'],
+        difficulty,
+        prompt:
+          'Design a Jenkins pipeline for a Java service that tests the code and provisions infrastructure with Terraform. Walk through the stages, state management, approval boundaries, and rollback strategy.',
+        expectedPoints: [
+          'Run formatting, initialization, validation, unit/integration tests, and security checks before release.',
+          'Build and publish an immutable artifact rather than rebuilding separately in each environment.',
+          'Use reusable Terraform modules, pinned providers, remote state, and state locking.',
+          'Review the Terraform plan before an approved apply; do not conflate plan with apply.',
+          'Promote through environments, verify health, and define deployment and infrastructure recovery paths.',
+        ],
+        followUps: [
+          'How do you detect and handle Terraform drift?',
+          'How would you prevent two pipeline runs from changing the same state concurrently?',
+          'What should happen if deployment succeeds but a post-deploy health check fails?',
+        ],
+        timeBudgetMinutes: 12,
+        curriculumTopicId: 'cs_testing_debugging',
+      })
+    );
   }
 
   if (/\baws\b|\bdocker\b|\bkubernetes\b|\bk8s\b|\biaas\b/i.test(jd)) {
-    questions.push(QuestionEntrySchema.parse({
-      id: 'role-aws-docker-kubernetes',
-      type: 'technical_concept',
-      topic: 'AWS, Docker, and Kubernetes',
-      tags: ['AWS', 'Docker', 'Kubernetes', 'IaaS', 'Reliability'],
-      difficulty,
-      prompt:
-        'How would you deploy a containerized Java microservice on AWS using Docker and Kubernetes? Explain identity and networking boundaries, health checks, resource controls, observability, and rollback.',
-      expectedPoints: [
-        'Build a minimal, trusted image and run the service as a non-root user.',
-        'Apply least-privilege IAM and restrict network exposure to required paths.',
-        'Use Kubernetes Deployments and Services with readiness/liveness probes and resource requests/limits.',
-        'Keep configuration and secrets outside the image and apply suitable access controls.',
-        'Use rolling deployment health verification, logs/metrics/traces, and a tested rollback path.',
-      ],
-      followUps: [
-        'What is the difference between readiness and liveness probes?',
-        'How would you diagnose repeated pod restarts?',
-        'How would you scale the service while protecting its database?',
-      ],
-      timeBudgetMinutes: 12,
-      curriculumTopicId: 'se_scalability',
-    }));
+    questions.push(
+      QuestionEntrySchema.parse({
+        id: 'role-aws-docker-kubernetes',
+        type: 'technical_concept',
+        topic: 'AWS, Docker, and Kubernetes',
+        tags: ['AWS', 'Docker', 'Kubernetes', 'IaaS', 'Reliability'],
+        difficulty,
+        prompt:
+          'How would you deploy a containerized Java microservice on AWS using Docker and Kubernetes? Explain identity and networking boundaries, health checks, resource controls, observability, and rollback.',
+        expectedPoints: [
+          'Build a minimal, trusted image and run the service as a non-root user.',
+          'Apply least-privilege IAM and restrict network exposure to required paths.',
+          'Use Kubernetes Deployments and Services with readiness/liveness probes and resource requests/limits.',
+          'Keep configuration and secrets outside the image and apply suitable access controls.',
+          'Use rolling deployment health verification, logs/metrics/traces, and a tested rollback path.',
+        ],
+        followUps: [
+          'What is the difference between readiness and liveness probes?',
+          'How would you diagnose repeated pod restarts?',
+          'How would you scale the service while protecting its database?',
+        ],
+        timeBudgetMinutes: 12,
+        curriculumTopicId: 'se_scalability',
+      })
+    );
   }
 
   return questions;
 }
-
 
 export class JDInterviewMapper {
   /**
@@ -216,8 +221,7 @@ export class JDInterviewMapper {
     const mappedTopics = new Set<string>();
 
     for (const [kw, topicIds] of Object.entries(KEYWORD_TO_TOPIC_MAP)) {
-      const matchesKeyword =
-        kw === 'java' ? /\bjava\b/i.test(jdLower) : jdLower.includes(kw);
+      const matchesKeyword = kw === 'java' ? /\bjava\b/i.test(jdLower) : jdLower.includes(kw);
       if (matchesKeyword) {
         if (!extractedStack.includes(kw)) {
           extractedStack.push(kw);
