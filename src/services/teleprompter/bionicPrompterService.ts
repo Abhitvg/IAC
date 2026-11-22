@@ -30,76 +30,58 @@ function findFirstMetric(text: string): string | undefined {
 export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] {
   if (!prose || !prose.trim()) return [];
 
-  // Split prose into meaningful sentences or clauses
-  const rawSentences = prose
+  // Treat Markdown structure as meaningful boundaries. Never split a sentence
+  // into arbitrary word-count fragments: the HUD must preserve complete ideas.
+  const lines = prose
     .replace(/\r\n/g, '\n')
-    .replace(/^#+\s.*$/gm, '')
     .replace(/```[\s\S]*?```/g, '')
-    .split(/(?<=[.!?])\s+|\n+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith('#') && !s.startsWith('```'));
+    .split('\n');
 
   const bullets: BionicGazeBullet[] = [];
   let bulletIndex = 0;
 
-  for (const sentence of rawSentences) {
-    // Extract any metric chip if present in this sentence
-    const sentenceMetric = findFirstMetric(sentence);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
 
-    // Clean sentence of markdown formatting for gaze display
-    const cleanSentence = sentence.replace(/[*_`]/g, '').trim();
+    // Keep each table row intact. The full Markdown table remains available in
+    // the complete-answer disclosure below the glanceable summary.
+    if (/^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(line)) continue;
 
-    // If the sentence is short (<= 7 words), it's already a perfect gaze trigger
-    const words = cleanSentence.split(/\s+/).filter(Boolean);
-    if (words.length <= 7) {
+    const isTableRow = line.includes('|') && /^\|?.+\|.+\|?$/.test(line);
+    const isHeading = /^#{1,6}\s+/.test(line);
+    const isListItem = /^(?:[-*+]\s+|\d+[.)]\s+)/.test(line);
+    const cleanLine = line
+      .replace(/^#{1,6}\s+/, '')
+      .replace(/^(?:[-*+]\s+|\d+[.)]\s+)/, '')
+      .replace(/[*_`]/g, '')
+      .trim();
+
+    if (!cleanLine) continue;
+
+    // A table row is one indivisible record; do not split its cells into
+    // disconnected "glance" fragments.
+    const logicalUnits =
+      isTableRow || isHeading || isListItem
+        ? [cleanLine]
+        : cleanLine.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).map((part) => part.trim());
+
+    for (const unit of logicalUnits) {
+      if (!unit) continue;
+      const words = unit.split(/\s+/).filter(Boolean);
       bullets.push({
         id: `gaze-${bulletIndex++}`,
-        text: cleanSentence,
-        metricChip: sentenceMetric,
+        text: unit,
+        metricChip: isTableRow ? undefined : findFirstMetric(unit),
         highlightWords: words.slice(0, 2),
       });
-      continue;
-    }
-
-    // Split longer sentences by commas, semicolons, or conjunctions
-    const clauses = cleanSentence
-      .split(/[,;]|\s+(?:and then|whereas|because|which allows|in order to|by utilizing)\s+/i)
-      .map((c) => c.trim())
-      .filter((c) => c.length > 0);
-
-    for (const clause of clauses) {
-      const clauseWords = clause.split(/\s+/).filter(Boolean);
-      const clauseMetric = findFirstMetric(clause) || sentenceMetric;
-      if (clauseWords.length <= 7) {
-        bullets.push({
-          id: `gaze-${bulletIndex++}`,
-          text: clause,
-          metricChip: clauseMetric,
-          highlightWords: clauseWords.slice(0, 2),
-        });
-      } else {
-        // Chunk into 5-word micro-anchors
-        for (let i = 0; i < clauseWords.length; i += 5) {
-          const chunk = clauseWords.slice(i, i + 5).join(' ');
-          if (chunk.trim()) {
-            bullets.push({
-              id: `gaze-${bulletIndex++}`,
-              text: chunk,
-              metricChip: findFirstMetric(chunk) || clauseMetric,
-              highlightWords: clauseWords.slice(i, i + 2),
-            });
-          }
-        }
-      }
     }
   }
 
-  // Preserve the complete extracted outline. The HUD chooses a concise primary
-  // set, while the UI keeps every additional point available under an expander.
   return bullets;
 }
 
-export const BIONIC_PRIMARY_BULLET_LIMIT = 18;
+export const BIONIC_PRIMARY_BULLET_LIMIT = 7;
 
 const HIGH_SIGNAL_BULLET =
   /\b(trade[- ]?off|however|limitation|risk|edge case|failure|security|latency|cost|conclusion|therefore|finally|overall|in summary|complexity|fallback|recovery|scalab|availability|consistency|durability|monitoring|observability)\b/i;
