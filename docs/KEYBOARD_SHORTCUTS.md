@@ -6,32 +6,32 @@ The interview assistant is designed to be controlled from the keyboard. No carou
 
 These bindings are configurable in the interview shortcut settings.
 
-| macOS | Action |
-| --- | --- |
-| `⌘⇧H` | Toggle BIONIC HUD |
-| `⌘⇧L` | Pause / resume listening |
-| `⌘⇧S` | Solve the current screen |
-| `⌘⇧X` | Snip a screen region |
-| `⌘K` | Search conversation history |
+| macOS   | Action                                              |
+| ------- | --------------------------------------------------- |
+| `⌘⇧H`   | Toggle BIONIC HUD |
+| `⌘⇧L`   | Pause / resume listening |
+| `⌘⇧S`   | Solve the current screen |
+| `⌘⇧X`   | Snip a screen region |
+| `⌘K`    | Search conversation history |
 | `Space` | Finish the current answer (only when not typing) |
-| `Esc` | Close the active overlay or cancel shortcut capture |
+| `Esc`   | Close the active overlay or cancel shortcut capture |
 
 ## System-wide window and capture shortcuts
 
 These are registered by Electron while the app is running. They are separate from the configurable in-app bindings.
 
-| macOS | Action |
-| --- | --- |
-| `⌘\\` | Show / hide the assistant window |
-| `⌘⇧Space` | Show / hide the assistant window |
-| `⌘⌥⇧H` | Show / hide the assistant window |
-| `⌥H` | Show / hide the assistant window (legacy binding) |
-| `⌘⌥←` | Move the assistant to the top-left corner of the active display |
-| `⌘⌥→` | Move the assistant to the top-right corner of the active display |
-| `⌥⇧S` | Solve the current screen |
-| `⌘⇧A` | Append a screen capture to the current context |
-| `⌥V` | Auto-type the current code |
-| `⌥T` | Auto-type the current answer text |
+| macOS     | Action                                                           |
+| --------- | ---------------------------------------------------------------- |
+| `⌘\\`     | Show / hide the assistant window                                  |
+| `⌘⇧Space` | Show / hide the assistant window                                  |
+| `⌘⌥⇧H`    | Show / hide the assistant window                                  |
+| `⌥H`      | Show / hide the assistant window (legacy binding)                 |
+| `⌘⌥←`     | Move the assistant to the top-left corner of the active display   |
+| `⌘⌥→`     | Move the assistant to the top-right corner of the active display  |
+| `⌥⇧S`     | Solve the current screen                                          |
+| `⌘⇧A`     | Append a screen capture to the current context                    |
+| `⌥V`      | Auto-type the current code                                        |
+| `⌥T`      | Auto-type the current answer text                                 |
 
 ## Dock behavior
 
