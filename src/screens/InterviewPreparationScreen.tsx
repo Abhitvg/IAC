@@ -35,6 +35,16 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
     return JDInterviewMapper.analyzeJD(jobDescriptionText || '');
   }, [jobDescriptionText]);
 
+  const targetedPlan = React.useMemo(
+    () =>
+      JDInterviewMapper.generateInterviewPlan({
+        jdText: jobDescriptionText || '',
+        roleTitle: targetRole || 'Software Engineer',
+      }),
+    [jobDescriptionText, targetRole]
+  );
+  const roleSpecificRound = targetedPlan.rounds.find((round) => round.roundType === 'role_specific');
+
   const catalog = React.useMemo(() => CurriculumCatalogService.getInstance(), []);
 
   // Extraction of relevant technical & behavioral topics from JD / Candidate Profile
@@ -254,6 +264,40 @@ export const InterviewPreparationScreen: React.FC<InterviewPreparationScreenProp
               )}
             </div>
           </Card>
+
+          {roleSpecificRound && (
+            <Card>
+              <div style={{ marginBottom: '10px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#F3F4F8', margin: 0 }}>
+                  Role-Specific Technical Rehearsal
+                </h3>
+                <p style={{ fontSize: '11px', color: '#9299AA', margin: '5px 0 0' }}>
+                  Generic practice questions derived from the supplied job description, not claimed
+                  to be proprietary or leaked company questions.
+                </p>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {roleSpecificRound.recommendedQuestions.map((question, index) => (
+                  <div
+                    key={question.id}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: '7px',
+                      background: '#151922',
+                      border: '1px solid #292E3A',
+                    }}
+                  >
+                    <div style={{ color: '#A99DFF', fontSize: '10px', fontWeight: 700, marginBottom: '5px' }}>
+                      PRACTICE {index + 1} · {question.topic} · {question.timeBudgetMinutes} MIN
+                    </div>
+                    <div style={{ color: '#F3F4F8', fontSize: '12px', lineHeight: 1.6 }}>
+                      {question.prompt}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </div>

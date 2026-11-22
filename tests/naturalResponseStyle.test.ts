@@ -87,6 +87,24 @@ describe('Deterministic Question Intent Classification', () => {
     );
   });
 
+  it('routes platform-tool questions to the cloud_devops response target', () => {
+    expect(classifyQuestionIntent('Explain Terraform remote state locking.', 'interview')).toBe(
+      'cloud_devops'
+    );
+    expect(
+      classifyQuestionIntent('What is a readiness probe in Kubernetes?', 'interview')
+    ).toBe('cloud_devops');
+    expect(
+      classifyQuestionIntent('How would you build a Jenkins deployment pipeline?', 'interview')
+    ).toBe('cloud_devops');
+    expect(
+      classifyQuestionIntent('What is the difference between Docker and Kubernetes?', 'interview')
+    ).toBe('comparison');
+
+    // Preserve the existing short-definition behavior for generic AWS questions.
+    expect(classifyQuestionIntent('What is AWS?', 'interview')).toBe('definition');
+  });
+
   it('correctly classifies contextual follow-up questions when prior context exists', () => {
     expect(classifyQuestionIntent('Why?', 'interview', true)).toBe('follow_up');
     expect(classifyQuestionIntent('How so?', 'interview', true)).toBe('follow_up');

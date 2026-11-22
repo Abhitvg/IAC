@@ -321,7 +321,16 @@ export function classifyQuestionIntent(
     return 'follow_up';
   }
 
-  // 15. Simple definition / Complexity check
+  // 15. Cloud platform, Java backend, and delivery engineering questions.
+  if (
+    /\b(terraform|kubernetes|k8s|docker|jenkins|spring boot|microservices?|infrastructure as code|eks|ecs|helm|platform engineering|deployment pipeline|aws (?:iam|vpc|ec2|ecs|eks|lambda|s3))\b/i.test(
+      lowerQ
+    )
+  ) {
+    return 'cloud_devops';
+  }
+
+  // 16. Simple definition / Complexity check
   if (
     /^(what is\b|what are\b|define\b|what does .+ mean\b|meaning of\b|what is the time complexity of\b|time complexity of\b|space complexity of\b)/i.test(
       lowerQ
