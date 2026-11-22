@@ -145,6 +145,9 @@ export function buildScreenSolverPrompt(
   mode: 'coding' | 'interview' | 'quiz' = 'coding'
 ): string {
   const languageHint = detectLanguageHint(cleanedOcrText);
+  const languageHintContext = languageHint.isNonEnglish
+    ? `Heuristic OCR language hint (not authoritative): ${languageHint.languageName}. Confirm it from the actual wording before translating.`
+    : 'No non-English OCR language hint was detected.';
   const roleContext = targetRole?.trim()
     ? `Target role context: ${targetRole.trim()}. Use it only when it materially changes the explanation; do not force unrelated technologies into the answer.`
     : '';
@@ -156,6 +159,7 @@ ${cleanedOcrText}
 --- END SCREEN TEXT ---
 
 ${roleContext}
+${languageHintContext}
 
 PROBLEM READING RULES:
 - Solve the task that is actually visible. Separate problem instructions from editor chrome, unrelated open files, and copied code.

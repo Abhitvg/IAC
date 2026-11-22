@@ -404,7 +404,7 @@ export class AnswerGenerationService {
         'Honor the visible editor or judge contract and follow the mode-specific response format in the prompt.',
         'Do not invent constraints, signatures, candidate experience, execution results, or test outcomes.',
         'Return one coherent solution; do not add a competing entry point or test harness unless the task requires it.',
-      ].join('\\n');
+      ].join('\n');
       detectedCategory = 'Coding';
       questionIntent = mode === 'quiz' ? 'quiz' : 'coding';
     } else {
