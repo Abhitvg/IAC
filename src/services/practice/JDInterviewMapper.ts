@@ -1,5 +1,5 @@
 import { CompetencyProfileService } from './CompetencyProfileService';
-import { QuestionBank, QuestionEntry } from './QuestionBank';
+import { QuestionBank, QuestionEntry, QuestionEntrySchema } from './QuestionBank';
 
 export interface JDRequirementAnalysis {
   extractedTechStack: string[];
@@ -122,7 +122,7 @@ function buildPlatformRoleQuestions(
   const questions: QuestionEntry[] = [];
 
   if (/\bjava\b|\bspring boot\b|\bmicroservices?\b/i.test(jd)) {
-    questions.push({
+    questions.push(QuestionEntrySchema.parse({
       id: 'role-java-spring-microservices',
       type: 'technical_concept',
       topic: 'Java, Spring Boot, and Microservices',
@@ -144,11 +144,11 @@ function buildPlatformRoleQuestions(
       ],
       timeBudgetMinutes: 12,
       curriculumTopicId: 'se_api_design',
-    });
+    }));
   }
 
   if (/\bterraform\b|\binfrastructure as code\b|\bjenkins\b|\bci\s*\/\s*cd\b/i.test(jd)) {
-    questions.push({
+    questions.push(QuestionEntrySchema.parse({
       id: 'role-terraform-jenkins-cicd',
       type: 'technical_concept',
       topic: 'Terraform and CI/CD',
@@ -170,11 +170,11 @@ function buildPlatformRoleQuestions(
       ],
       timeBudgetMinutes: 12,
       curriculumTopicId: 'cs_testing_debugging',
-    });
+    }));
   }
 
   if (/\baws\b|\bdocker\b|\bkubernetes\b|\bk8s\b|\biaas\b/i.test(jd)) {
-    questions.push({
+    questions.push(QuestionEntrySchema.parse({
       id: 'role-aws-docker-kubernetes',
       type: 'technical_concept',
       topic: 'AWS, Docker, and Kubernetes',
@@ -196,7 +196,7 @@ function buildPlatformRoleQuestions(
       ],
       timeBudgetMinutes: 12,
       curriculumTopicId: 'se_scalability',
-    });
+    }));
   }
 
   return questions;
