@@ -2268,10 +2268,16 @@ export default function TeleprompterView() {
             style={{
               alignSelf: 'flex-start',
               width: '100%',
-              maxWidth: 900,
+              maxWidth: 840,
+              boxSizing: 'border-box',
+              padding: isBionicGazeMode ? 0 : '16px 18px',
+              background: isBionicGazeMode ? 'transparent' : 'rgba(8, 12, 18, 0.96)',
+              border: isBionicGazeMode ? 'none' : '1px solid rgba(148, 163, 184, 0.16)',
+              borderRadius: isBionicGazeMode ? 0 : 12,
               color: '#e5eaf2',
               whiteSpace: 'pre-wrap',
-              lineHeight: 1.72,
+              overflowWrap: 'anywhere',
+              lineHeight: 1.7,
               fontSize: 14,
             }}
           >
