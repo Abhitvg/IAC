@@ -2000,12 +2000,12 @@ export class CandidateKnowledgeBase {
         prov.performanceMetrics.value.length > 0 &&
         prov.performanceMetrics.verificationStatus === 'CANDIDATE_CONFIRMED'
           ? `${formatField(prov.performanceMetrics)}`
-          : 'NONE RECORDED (Candidate must not invent metrics, user numbers, or performance benchmarks)';
+          : 'NONE RECORDED (Do not invent metrics, user numbers, or performance benchmarks)';
 
       const personalContribDisplay =
         prov.personalContribution.value && prov.personalContribution.value !== 'UNKNOWN'
           ? `${formatField(prov.personalContribution)}`
-          : 'UNKNOWN (Personal role boundaries unverified — candidate must clarify exact personal contribution rather than claiming sole authorship)';
+          : 'UNKNOWN (Personal role boundaries are not established; do not claim sole authorship or invent an individual contribution)';
 
       const teamContribDisplay =
         prov.teamContribution.value && prov.teamContribution.value !== 'UNKNOWN'
@@ -2057,9 +2057,9 @@ ${relevantFacts.map((f) => `• [${f.verificationStatus}] ${f.fact} (Ownership: 
 CANDIDATE: ${this.candidateName}
 ANTI-HALLUCINATION RULES (STRICTLY ENFORCED):
 1. ZERO INVENTED CLAIMS: Only state achievements, technologies, and metrics directly supported by verified evidence.
-2. NO ASSUMED SOLE OWNERSHIP: A repository URL or project presence on a resume does not prove sole authorship. Clarify team vs. individual ownership.
+2. NO ASSUMED SOLE OWNERSHIP: A repository URL or project presence on a resume does not prove sole authorship. Describe only the ownership scope supported by available evidence.
 3. TECHNOLOGY KEYWORDS ≠ PRACTICAL EXPERTISE: A technology listed in a resume keyword section is not proof of production implementation mastery.
-4. PRESERVE UNKNOWN INFORMATION: If architecture, database design, deployment details, or benchmarks are marked UNKNOWN, explicitly state that you would need to consult team records or telemetry. NEVER invent architecture or metrics.
+4. PRESERVE UNKNOWN INFORMATION: If architecture, database design, deployment details, or benchmarks are marked UNKNOWN, do not invent them or pause for candidate input. Answer the supported part, then describe standard engineering practice as general guidance—not as historical implementation.
 5. PROPOSED DESIGNS ≠ COMPLETED WORK: The candidate is encouraged to explain how they WOULD architect or scale a system (e.g. "To scale this, I would propose introducing a distributed queue..."). But NEVER claim that a proposed design was already implemented in past production unless explicitly verified in the profile.
 6. ACCURACY OVER IMPRESSIVENESS: Never sacrifice factual correctness to make an answer sound more impressive.
 

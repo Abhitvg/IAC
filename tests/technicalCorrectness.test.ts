@@ -4,6 +4,10 @@ import { TechnicalReasoningEngine } from '../src/services/technicalReasoning';
 import { ProductionDebuggingEngine } from '../src/services/productionDebugging';
 import { FollowUpEngine } from '../src/services/followUpEngine';
 import { CandidateKnowledgeBase, CandidateConfirmationWorkflow } from '../src/services/candidateIntelligence';
+import { buildCandidateSystemPrompt } from '../src/services/candidatePersona';
+import { isQuestionShapedSpeech, shouldAutoRouteUncertainQuestion } from '../src/services/interviewQuestionRouting';
+import { classifyUtterance } from '../src/services/interruptionDetector';
+import { buildResumeDeepDivePlan } from '../src/services/resumeDeepDive';
 
 describe('IAC 2.0 Technical Correctness, Reasoning & Domain Intelligence Suite', () => {
   describe('Question Understanding Engine — 16 Category Coverage', () => {
@@ -212,5 +216,263 @@ DocFlow – Real-time collaborative document editor in TypeScript and WebSockets
       expect(relevant).toBeDefined();
       expect(relevant?.name).toBe('DocFlow');
     });
+  });
+});
+
+
+describe('Cloud platform and DevOps correctness rules', () => {
+  it('classifies Terraform and Kubernetes questions as DevOps', () => {
+    const terraform = QuestionUnderstandingEngine.analyze(
+      'How do you manage Terraform remote state and prevent concurrent applies?'
+    );
+    const kubernetes = QuestionUnderstandingEngine.analyze(
+      'What is the difference between readiness and liveness probes in Kubernetes?'
+    );
+    expect(terraform.category).toBe('DevOps');
+    expect(kubernetes.category).toBe('DevOps');
+    expect(terraform.hiddenRequirement).toContain('safe Terraform state');
+    const aws = QuestionUnderstandingEngine.analyze(
+      'How do you design private AWS subnets and workload IAM permissions?'
+    );
+    expect(aws.category).toBe('AWS and cloud');
+    expect(aws.hiddenRequirement).toContain('least-privilege IAM');
+  });
+
+  it('enforces safe Terraform state and plan/apply distinctions', () => {
+    const rules = TechnicalReasoningEngine.getDomainVerification('DevOps');
+    expect(rules.mandatoryChecks.some((rule) => rule.includes('never describe plan as a deployment'))).toBe(true);
+    expect(rules.mandatoryChecks.some((rule) => rule.includes('native lockfile support'))).toBe(true);
+    expect(rules.strictProhibitions.some((rule) => rule.includes('terraform plan changes infrastructure'))).toBe(true);
+  });
+
+  it('enforces Kubernetes probe and resource semantics', () => {
+    const rules = TechnicalReasoningEngine.getDomainVerification('DevOps');
+    expect(rules.mandatoryChecks.some((rule) => rule.includes('readiness, liveness, and startup probes'))).toBe(true);
+    expect(rules.strictProhibitions.some((rule) => rule.includes('liveness probe should fail'))).toBe(true);
+    expect(rules.strictProhibitions.some((rule) => rule.includes('resource limits are equivalent to requests'))).toBe(true);
+  });
+
+  it('enforces AWS networking and IAM correctness', () => {
+    const rules = TechnicalReasoningEngine.getDomainVerification('AWS and cloud');
+    expect(rules.mandatoryChecks.some((rule) => rule.includes('least privilege'))).toBe(true);
+    expect(rules.mandatoryChecks.some((rule) => rule.includes('VPC CIDRs, subnet routing'))).toBe(true);
+    expect(rules.strictProhibitions.some((rule) => rule.includes('security group as stateless'))).toBe(true);
+    expect(rules.strictProhibitions.some((rule) => rule.includes('private subnet has internet access'))).toBe(true);
+  });
+});
+
+
+  it('prioritizes DevOps mechanisms in mixed AWS and Terraform questions', () => {
+    const terraformAws = QuestionUnderstandingEngine.analyze(
+      'How would you manage Terraform state for AWS infrastructure and prevent concurrent applies?'
+    );
+    const eksDelivery = QuestionUnderstandingEngine.analyze(
+      'How would you deploy a Dockerized service to EKS through a CI/CD pipeline?'
+    );
+    expect(terraformAws.category).toBe('DevOps');
+    expect(eksDelivery.category).toBe('DevOps');
+    expect(terraformAws.hiddenRequirement).toContain('safe Terraform state');
+  });
+
+  it('predicts operational follow-ups for Terraform, Kubernetes, and AWS networking', () => {
+    const terraform = FollowUpEngine.predictFollowUps(
+      'How do you manage AWS infrastructure?',
+      'I use Terraform remote state and review the plan before apply.',
+      'AWS and cloud'
+    );
+    const kubernetes = FollowUpEngine.predictFollowUps(
+      'How do you operate workloads?',
+      'The Kubernetes deployment uses readiness probes and Services.',
+      'DevOps'
+    );
+    const networking = FollowUpEngine.predictFollowUps(
+      'How do private workloads access AWS services?',
+      'The VPC uses private subnets, route tables, and VPC endpoints.',
+      'AWS and cloud'
+    );
+    expect(terraform[0].question).toContain('Terraform state');
+    expect(kubernetes[0].question).toContain('pod is healthy');
+    expect(networking[0].question).toContain('private workload');
+  });
+
+
+
+describe('Non-blocking live question routing', () => {
+  it('routes uncertain interviewer questions automatically without confirmation', () => {
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'UNCLASSIFIED',
+      needsConfirmation: true,
+      confidence: 0.42,
+    }, 'Can you explain Kafka consumer offsets?')).toBe(true);
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'INTERVIEWER_INTERRUPTION',
+      needsConfirmation: false,
+      confidence: 0.55,
+    }, 'Walk me through the deployment.')).toBe(true);
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'INTERVIEWER_INTERRUPTION',
+      needsConfirmation: true,
+      confidence: 0.45,
+      questionText: 'What happens when a pod fails?',
+    })).toBe(true);
+  });
+
+  it('does not generate answers for uncertain filler or ordinary background speech', () => {
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'UNCLASSIFIED',
+      needsConfirmation: true,
+      confidence: 0.2,
+    }, 'Yeah, okay.')).toBe(false);
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'UNCLASSIFIED',
+      needsConfirmation: true,
+      confidence: 0.3,
+    }, 'The weather is nice today.')).toBe(false);
+    expect(shouldAutoRouteUncertainQuestion({
+      type: 'CONVERSATIONAL_FILLER',
+      needsConfirmation: true,
+      confidence: 0.3,
+    }, 'What is Kubernetes?')).toBe(false);
+  });
+
+  it('classifies command-style prompts as questions before applying automatic routing', () => {
+    const commandPrompts = [
+      'Design a CI/CD pipeline.',
+      'Implement an LRU cache in Java.',
+      'Build a CI/CD pipeline.',
+      'Create a REST API.',
+      'List the AWS services you used.',
+      'Trace this algorithm.',
+      'Derive the time complexity.',
+      'Please build a deployment pipeline.',
+    ];
+
+    for (const prompt of commandPrompts) {
+      const classification = classifyUtterance(prompt, null);
+      expect(classification.type).toBe('UNCLASSIFIED');
+      expect(classification.needsConfirmation).toBe(true);
+      expect(shouldAutoRouteUncertainQuestion(classification, prompt)).toBe(true);
+    }
+  });
+
+  it('recognizes concise and command-style interview questions', () => {
+    expect(isQuestionShapedSpeech('Kafka?')).toBe(true);
+    expect(isQuestionShapedSpeech('Explain Java memory management.')).toBe(true);
+    expect(isQuestionShapedSpeech('Design a CI/CD pipeline.')).toBe(true);
+    expect(isQuestionShapedSpeech('Right.')).toBe(false);
+    expect(isQuestionShapedSpeech('')).toBe(false);
+  });
+});
+
+describe('Resume narrative grounding', () => {
+  it('builds realistic experience narratives without inventing missing implementation details', () => {
+    const prompt = buildCandidateSystemPrompt(
+      'ATMA Research & Consultancy: Owned backend services using Java 8 and Spring Boot. Kafka event pipelines for inventory updates. 10K+ daily users; 99.9% uptime.',
+      '',
+      'Software Development Engineer',
+      'Java',
+      'interview',
+      [],
+      'Project',
+      'resume',
+      'Walk me through the Kafka event pipeline you worked on.'
+    );
+    expect(prompt).toContain('EVIDENCE-LED EXPERIENCE NARRATIVE');
+    expect(prompt).toContain('Never upgrade "worked with" into "owned"');
+    expect(prompt).toContain('Never invent incidents, outages, root causes');
+    expect(prompt).toContain('preserve resume metrics exactly');
+  });
+
+  it('never pauses a live interview for candidate input or confirmation', () => {
+    const prompt = buildCandidateSystemPrompt(
+      'ATMA Research & Consultancy: Java 8, Spring Boot, Kafka event pipelines; 10K+ daily users; 99.9% uptime.',
+      '',
+      'Software Development Engineer',
+      'Java',
+      'interview',
+      [],
+      'Project',
+      'resume',
+      'Walk me through the exact Kafka consumer configuration and failure recovery.'
+    );
+    expect(prompt).toContain('LIVE RESPONSE CONTINUITY');
+    expect(prompt).toContain('Do not pause the response to collect missing details');
+    expect(prompt).toContain('hypothetical approach');
+    expect(prompt).not.toContain('ask the candidate to confirm the missing detail');
+    expect(prompt).not.toContain('ask a polite clarifying question');
+    expect(prompt).not.toContain('candidate must clarify');
+  });
+
+  it('does not add experience storytelling rules to an unrelated conceptual question', () => {
+    const prompt = buildCandidateSystemPrompt(
+      'Java and Spring Boot developer.',
+      '',
+      'Software Engineer',
+      'Java',
+      'interview',
+      [],
+      'General',
+      'conceptual',
+      'What is the Java garbage collector?'
+    );
+    expect(prompt).not.toContain('EVIDENCE-LED EXPERIENCE NARRATIVE');
+  });
+});
+
+
+describe('Resume deep-dive preparation planner', () => {
+  it('creates project narratives and exposes missing personal evidence as clarification tasks', () => {
+    const kb = new CandidateKnowledgeBase(`
+ATMA Research & Consultancy
+Software Development Engineer
+• Own backend services using Java 8 and Spring Boot.
+• Implemented Kafka-based event pipelines for inventory updates.
+• Supported 10K+ daily users at 99.9% uptime.
+Projects:
+Quorum – Real-Time Collaboration Platform
+• Built a full-stack collaboration platform using Next.js, NestJS, and PostgreSQL.
+• Implemented JWT authentication and Google OAuth.
+`);
+    const plan = buildResumeDeepDivePlan(kb);
+    expect(plan.modules.some((module) => module.title === 'Quorum')).toBe(true);
+    expect(plan.modules.some((module) => module.kind === 'achievement')).toBe(true);
+    const quorum = plan.modules.find((module) => module.title === 'Quorum');
+    expect(quorum?.interviewerQuestions.some((question) => question.includes('actual architecture'))).toBe(true);
+    expect(quorum?.clarificationNeeded.some((item) => item.includes('personally implement'))).toBe(true);
+    expect(plan.coverage.projects).toBeGreaterThan(0);
+    expect(plan.totalEvidenceItems).toBeGreaterThan(0);
+  });
+
+  it('does not turn resume-reported metrics into confirmed measurements', () => {
+    const kb = new CandidateKnowledgeBase(`
+Experience:
+• Reduced API latency by 35%.
+`);
+    const plan = buildResumeDeepDivePlan(kb);
+    const metric = plan.modules.find((module) => module.kind === 'achievement');
+    expect(metric?.evidence[0].verificationStatus).toBe('RESUME_REPORTED');
+    expect(metric?.clarificationNeeded.length).toBeGreaterThan(0);
+  });
+});
+
+
+
+describe('Coding answer contract', () => {
+  it('requires complete Java, correctness reasoning, edge cases, and honest verification claims', () => {
+    const prompt = buildCandidateSystemPrompt(
+      '',
+      '',
+      'Software Engineer',
+      'Java',
+      'coding',
+      [],
+      'Data structures and algorithms',
+      'coding',
+      'Implement a function to find the first non-repeating character.'
+    );
+    expect(prompt).toContain('Provide complete Java code');
+    expect(prompt).toContain('Respect the exact function signature and platform contract');
+    expect(prompt).toContain('Dry-run a representative example');
+    expect(prompt).toContain('Never claim code was compiled, executed, or passed tests');
   });
 });
