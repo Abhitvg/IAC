@@ -192,6 +192,28 @@ function toggleWindowVisibility() {
   }
 }
 
+function positionWindowInCorner(side: 'left' | 'right') {
+  if (!mainWindow) return;
+  const bounds = mainWindow.getBounds();
+  const workArea = screen.getDisplayMatching(bounds).workArea;
+  const margin = 16;
+  const width = Math.min(bounds.width, Math.max(320, workArea.width - margin * 2));
+  const height = Math.min(bounds.height, Math.max(240, workArea.height - margin * 2));
+  const x = side === 'left'
+    ? workArea.x + margin
+    : workArea.x + workArea.width - width - margin;
+  const y = workArea.y + margin;
+
+  mainWindow.setBounds({ x, y, width, height });
+  mainWindow.setAlwaysOnTop(true, process.platform === 'darwin' ? 'floating' : 'normal');
+  if (process.platform === 'darwin') {
+    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
+  if (!mainWindow.isVisible()) mainWindow.show();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+}
+
 function setupTray() {
   if (tray) return;
   const iconPath = path.join(__dirname, '../public/icon.png');
@@ -241,6 +263,18 @@ function registerGlobalShortcuts() {
       });
     } catch (err) {
       console.warn(`[Electron] Could not register shortcut ${shortcut}:`, err);
+    }
+  });
+
+  // Keyboard-first placement: keep the interview window reachable without a carousel.
+  const placementShortcuts: Array<[string, () => void]> = [
+    ['CommandOrControl+Alt+Left', () => positionWindowInCorner('left')],
+    ['CommandOrControl+Alt+Right', () => positionWindowInCorner('right')],
+  ];
+  placementShortcuts.forEach(([shortcut, action]) => {
+    const registered = globalShortcut.register(shortcut, action);
+    if (!registered) {
+      console.warn(`[Electron] Shortcut unavailable (already claimed by the OS or another app): ${shortcut}`);
     }
   });
 
@@ -405,17 +439,30 @@ if (!gotTheLock) {
     setupTray();
     registerGlobalShortcuts();
 
+    if (process.platform === 'darwin') {
+      // Keep the native app icon available in the macOS Dock even with no open window.
+      app.dock?.show();
+    }
+
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createWindow();
+      } else if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        if (!mainWindow.isVisible()) mainWindow.show();
+        mainWindow.focus();
       }
     });
   });
 }
 
 app.on('window-all-closed', () => {
-  globalShortcut.unregisterAll();
-  app.quit();
+  // macOS apps conventionally remain resident so the Dock icon and global
+  // shortcuts can reopen the window. Other platforms quit when all windows close.
+  if (process.platform !== 'darwin') {
+    globalShortcut.unregisterAll();
+    app.quit();
+  }
 });
 
 // Window controls IPC
