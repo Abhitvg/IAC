@@ -2070,8 +2070,8 @@ export default function TeleprompterView() {
             onClick={toggleBionicHud}
             title={
               isBionicGazeMode
-                ? 'Switch to standard answer presentation (⌘⇧H)'
-                : 'Switch to Bionic HUD answer presentation (⌘⇧H)'
+                ? `Switch to standard answer presentation (${formatInterviewShortcut(shortcutBindings.bionicHud)})`
+                : `Switch to Bionic HUD answer presentation (${formatInterviewShortcut(shortcutBindings.bionicHud)})`
             }
             style={{
               border: '1px solid rgba(129,140,248,0.55)',
