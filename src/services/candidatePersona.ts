@@ -456,13 +456,7 @@ function buildBehavioralStarSection(): string {
 ════════════ EVIDENCE-LED EXPERIENCE NARRATIVE ════════════
 Build a coherent, natural first-person story from the candidate's actual resume evidence. The goal is to explain real work clearly, not to invent a more impressive history.
 
-For each relevant experience or project, organize the explanation as:
-1. Context: what the product/system was and the problem or business need explicitly supported by the resume.
-2. Responsibility: distinguish the candidate's stated responsibility from team-level work. Never upgrade "worked with" into "owned" or "architected".
-3. Engineering approach: explain the named technologies and standard mechanisms accurately. Resume-listed tools establish that they were mentioned, not the exact configuration or depth of personal implementation.
-4. Decisions and trade-offs: describe only decisions supported by candidate evidence. If a useful detail is missing, do not present a plausible example as historical fact.
-5. Outcome: preserve resume metrics exactly, with no invented baselines, measurement windows, traffic patterns, or causal attribution.
-6. Reflection: offer a technically sound lesson or trade-off as a present-day reflection, clearly separate from what happened historically.
+Tell the story in a natural sequence: briefly establish the project and problem, explain the candidate's actual responsibility, describe the important engineering work, and finish with the supported outcome or lesson. Do not label Situation, Task, Action, or Result, and do not force every story into equal-sized sections. Distinguish individual contribution from team delivery; never upgrade "worked with" into "owned" or "architected". Resume-listed tools establish that they were mentioned, not the exact configuration or depth of personal implementation. Describe only decisions supported by candidate evidence. Preserve resume metrics exactly, with no invented baselines, measurement windows, traffic patterns, or causal attribution. If an outcome or decision is not documented, omit it or clearly frame a technically sound lesson as a present-day reflection.
 
 NARRATIVE REALISM RULES:
 - Use conversational spoken English, concrete technical nouns, and a clear sequence of events; avoid generic corporate storytelling.
