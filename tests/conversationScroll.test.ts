@@ -3,12 +3,19 @@ import {
   CONVERSATION_AUTO_FOLLOW_THRESHOLD_PX,
   getConversationScrollTarget,
   isConversationNearBottom,
+  shouldAutoFollowConversation,
 } from '../src/services/teleprompter/conversationScroll';
 
 describe('conversation scroll policy', () => {
   it('auto-follows only when the reader is within the bottom threshold', () => {
     expect(isConversationNearBottom(1000, 700, 160)).toBe(true);
     expect(isConversationNearBottom(1000, 679, 160)).toBe(false);
+  });
+
+  it('respects the manual auto-follow toggle while preserving the near-bottom rule', () => {
+    expect(shouldAutoFollowConversation(1000, 700, 160, true)).toBe(true);
+    expect(shouldAutoFollowConversation(1000, 700, 160, false)).toBe(false);
+    expect(shouldAutoFollowConversation(1000, 400, 160, true)).toBe(false);
   });
 
   it('uses the documented default threshold', () => {
