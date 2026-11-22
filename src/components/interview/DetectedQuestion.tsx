@@ -1,10 +1,24 @@
 import React from 'react';
 import { useAppStore } from '../../store/useAppStore';
+import { getAnswerVerificationNotice } from '../../services/answerVerification';
 import { Copy, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 
 export default function DetectedQuestion() {
-  const { currentQuestion, currentAnswer, status, copyAnswer } = useAppStore();
+  const {
+    currentQuestion,
+    currentAnswer,
+    status,
+    copyAnswer,
+    answerVerificationBasis,
+    answerValidationStatus,
+    isAnswerValidated,
+  } = useAppStore();
   const isGenerating = status === 'analyzing' || status === 'generating';
+  const verificationNotice = getAnswerVerificationNotice(
+    answerVerificationBasis,
+    answerValidationStatus,
+    isAnswerValidated
+  );
 
   return (
     <div
@@ -28,7 +42,9 @@ export default function DetectedQuestion() {
                 ? 'ANALYZING...'
                 : status === 'generating'
                   ? 'GENERATING...'
-                  : 'LIVE'}
+                  : status === 'ready'
+                    ? 'GENERATED'
+                    : 'LIVE'}
             </span>
           )}
         </div>
@@ -131,6 +147,40 @@ export default function DetectedQuestion() {
             <div className="question-placeholder">
               The AI answer will appear here in real-time when a question is detected. You can also
               click "Analyze" below.
+            </div>
+          )}
+          {currentAnswer && verificationNotice && (
+            <div
+              role="status"
+              aria-live="polite"
+              style={{
+                marginTop: 12,
+                padding: '8px 10px',
+                borderRadius: 7,
+                border:
+                  verificationNotice.tone === 'success'
+                    ? '1px solid rgba(52, 211, 153, 0.28)'
+                    : verificationNotice.tone === 'warning'
+                      ? '1px solid rgba(251, 191, 36, 0.32)'
+                      : '1px solid rgba(148, 163, 184, 0.22)',
+                background:
+                  verificationNotice.tone === 'success'
+                    ? 'rgba(16, 185, 129, 0.08)'
+                    : verificationNotice.tone === 'warning'
+                      ? 'rgba(245, 158, 11, 0.08)'
+                      : 'rgba(148, 163, 184, 0.06)',
+                color:
+                  verificationNotice.tone === 'success'
+                    ? '#6ee7b7'
+                    : verificationNotice.tone === 'warning'
+                      ? '#fcd34d'
+                      : '#cbd5e1',
+                fontSize: 11,
+                lineHeight: 1.5,
+              }}
+            >
+              <strong>{verificationNotice.label}</strong>
+              <div style={{ color: '#aeb9c8' }}>{verificationNotice.description}</div>
             </div>
           )}
         </div>
