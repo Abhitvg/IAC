@@ -5,6 +5,7 @@ import { validateDocxArchiveExpansion } from './services/docxArchiveExpansion';
 import { sanitizeOcrText, stitchSanitizedOcrTexts } from './services/ocrStitcher';
 import { SafeConnectionFetcher, PinnedFetchOptions } from './services/safeConnectionFetcher';
 import { resolveOcrBinaryPath, getOcrEngineInfo } from './services/ocrService';
+import { runJavaSandbox } from './services/javaSandboxRunner';
 import {
   app,
   clipboard,
@@ -1164,4 +1165,10 @@ ipcMain.handle('screen:ocr-image', async (event, filePath: string) => {
       }
     }
   }
+});
+
+
+ipcMain.handle('sandbox:java-run', async (event, request: unknown) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  return runJavaSandbox(request);
 });

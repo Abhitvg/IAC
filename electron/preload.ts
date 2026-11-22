@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { JavaSandboxRequest, JavaSandboxResult } from '../src/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Window controls
@@ -154,6 +155,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setLastOcrText: (text: string) => ipcRenderer.invoke('screen:set-last-ocr-text', text),
   ocrImageFile: (filePath: string) => ipcRenderer.invoke('screen:ocr-image', filePath),
   getOcrEngineInfo: () => ipcRenderer.invoke('screen:get-ocr-engine-info'),
+  runJavaSandbox: (request: JavaSandboxRequest): Promise<JavaSandboxResult> =>
+    ipcRenderer.invoke('sandbox:java-run', request),
   autoTypeCode: (code: string, delayMs?: number) =>
     ipcRenderer.invoke('system:auto-type', code, delayMs),
 
