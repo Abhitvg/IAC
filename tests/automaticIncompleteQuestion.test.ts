@@ -58,18 +58,29 @@ describe('automatic incomplete interviewer questions', () => {
     expect(useAppStore.getState().isIncompleteQuestionMode).toBe(false);
   });
 
-  it('does not absorb filler or candidate-led narration into a pending question', () => {
+  it('cancels a stale incomplete question when candidate narration begins', async () => {
+    const handleEvent = vi.spyOn(InterviewEngine, 'handleEvent').mockResolvedValue(undefined);
     const firstPart = 'How would you design a system that...';
-    expect(InterviewEngine.beginPendingQuestionFromTranscript(firstPart, firstPart)).toBe(true);
 
+    expect(InterviewEngine.beginPendingQuestionFromTranscript(firstPart, firstPart)).toBe(true);
     expect(
       InterviewEngine.appendPendingQuestionUtterance(
         'I would start by defining the service boundaries.'
       )
     ).toBe(false);
+    expect(useAppStore.getState().isIncompleteQuestionMode).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(QUESTION_CONTINUATION_GRACE_MS + 1100);
+    expect(handleEvent).not.toHaveBeenCalled();
+  });
+
+  it('does not append harmless filler to a pending question', () => {
+    const firstPart = 'How would you design a system that...';
+    expect(InterviewEngine.beginPendingQuestionFromTranscript(firstPart, firstPart)).toBe(true);
+
     expect(InterviewEngine.appendPendingQuestionUtterance('okay')).toBe(false);
-    expect(useAppStore.getState().currentQuestion).toBe(firstPart);
     expect(useAppStore.getState().isIncompleteQuestionMode).toBe(true);
+    expect(useAppStore.getState().currentQuestion).toBe(firstPart);
   });
 
   it('clears a stale pending fragment before a distinct new question is classified', () => {
