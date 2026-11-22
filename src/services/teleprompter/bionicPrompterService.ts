@@ -145,10 +145,7 @@ const HIGH_SIGNAL_BULLET_TERMS = [
   'observability',
 ];
 
-const HIGH_SIGNAL_BULLET = new RegExp(
-  `\\b(?:${HIGH_SIGNAL_BULLET_TERMS.join('|')})\\b`,
-  'i'
-);
+const HIGH_SIGNAL_BULLET = new RegExp(`\\b(?:${HIGH_SIGNAL_BULLET_TERMS.join('|')})\\b`, 'i');
 
 export function selectPrimaryGlanceableBullets(bullets: BionicGazeBullet[]): {
   primary: BionicGazeBullet[];
@@ -193,9 +190,7 @@ export function selectPrimaryGlanceableBullets(bullets: BionicGazeBullet[]): {
     addIndex(index);
   }
 
-  const primary = [...selectedIndexes]
-    .sort((a, b) => a - b)
-    .map((index) => bullets[index]);
+  const primary = [...selectedIndexes].sort((a, b) => a - b).map((index) => bullets[index]);
   const remaining = bullets.filter((_, index) => !selectedIndexes.has(index));
   return { primary, remaining };
 }
