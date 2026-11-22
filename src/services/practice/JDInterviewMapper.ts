@@ -307,10 +307,10 @@ export class JDInterviewMapper {
       analysis.seniority === 'Staff/Lead'
         ? 'expert'
         : analysis.seniority === 'Senior'
-        ? 'advanced'
-        : analysis.seniority === 'Mid'
-        ? 'intermediate'
-        : 'easy';
+          ? 'advanced'
+          : analysis.seniority === 'Mid'
+            ? 'intermediate'
+            : 'easy';
 
     const rounds: TargetedRoundSpecification[] = [];
 
@@ -319,8 +319,12 @@ export class JDInterviewMapper {
       (id) => id.startsWith('ds_') || id.startsWith('algo_')
     );
     const selectedDsaTopic =
-      analysis.gapAnalysis.weakTopicsNeedingRevision.find((t) => t.startsWith('ds_') || t.startsWith('algo_')) ||
-      analysis.gapAnalysis.unassessedTopics.find((t) => t.startsWith('ds_') || t.startsWith('algo_')) ||
+      analysis.gapAnalysis.weakTopicsNeedingRevision.find(
+        (t) => t.startsWith('ds_') || t.startsWith('algo_')
+      ) ||
+      analysis.gapAnalysis.unassessedTopics.find(
+        (t) => t.startsWith('ds_') || t.startsWith('algo_')
+      ) ||
       dsaTopics[0] ||
       'ds_arrays_strings';
 
