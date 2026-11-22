@@ -195,126 +195,185 @@ function QuizAnswerCard({
   );
 }
 
+type InterviewAnswerBlock =
+  | { type: 'markdown'; content: string; id: number }
+  | { type: 'table'; rows: string[][]; id: number };
+
+function isMarkdownTableSeparator(line: string): boolean {
+  return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
+}
+
+function splitMarkdownTableRow(line: string): string[] {
+  return line
+    .split('|')
+    .map((cell) => cell.trim())
+    .filter((cell, index, cells) => {
+      return !(cell === '' && (index === 0 || index === cells.length - 1));
+    });
+}
+
+function parseInterviewAnswerBlocks(content: string): InterviewAnswerBlock[] {
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  const blocks: InterviewAnswerBlock[] = [];
+  let markdownLines: string[] = [];
+  let blockId = 0;
+  let insideCodeFence = false;
+
+  const flushMarkdown = () => {
+    const markdown = markdownLines.join('\n').trim();
+    if (markdown) {
+      blocks.push({
+        type: 'markdown',
+        content: markdown,
+        id: blockId++,
+      });
+    }
+    markdownLines = [];
+  };
+
+  for (let index = 0; index < lines.length; ) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('```')) {
+      insideCodeFence = !insideCodeFence;
+      markdownLines.push(line);
+      index += 1;
+      continue;
+    }
+
+    const nextLine = lines[index + 1]?.trim() || '';
+    if (
+      !insideCodeFence &&
+      trimmed.includes('|') &&
+      isMarkdownTableSeparator(nextLine)
+    ) {
+      flushMarkdown();
+      const rows = [splitMarkdownTableRow(trimmed)];
+      index += 2;
+
+      while (index < lines.length) {
+        const row = lines[index].trim();
+        if (!row || !row.includes('|')) break;
+        rows.push(splitMarkdownTableRow(row));
+        index += 1;
+      }
+
+      if (rows.length > 0) {
+        blocks.push({
+          type: 'table',
+          rows,
+          id: blockId++,
+        });
+      }
+      continue;
+    }
+
+    markdownLines.push(line);
+    index += 1;
+  }
+
+  flushMarkdown();
+  return blocks;
+}
+
 function InterviewAnswerMarkdown({ content }: { content: string }) {
+  const blocks = parseInterviewAnswerBlocks(content);
+
   return (
     <div style={{ whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: 1.7 }}>
-      <ReactMarkdown
-        components={{
-          p: ({ children }) => (
-            <p style={{ margin: '0 0 10px', lineHeight: 1.7 }}>{children}</p>
-          ),
-          h1: ({ children }) => (
-            <h1 style={{ margin: '18px 0 9px', fontSize: 20, fontWeight: 750 }}>
-              {children}
-            </h1>
-          ),
-          h2: ({ children }) => (
-            <h2 style={{ margin: '16px 0 8px', fontSize: 17, fontWeight: 700 }}>
-              {children}
-            </h2>
-          ),
-          h3: ({ children }) => (
-            <h3 style={{ margin: '14px 0 7px', fontSize: 15, fontWeight: 700 }}>
-              {children}
-            </h3>
-          ),
-          ul: ({ children }) => (
-            <ul style={{ margin: '6px 0 12px', paddingLeft: 22 }}>{children}</ul>
-          ),
-          ol: ({ children }) => (
-            <ol style={{ margin: '6px 0 12px', paddingLeft: 24 }}>{children}</ol>
-          ),
-          li: ({ children }) => (
-            <li style={{ margin: '4px 0', paddingLeft: 3, lineHeight: 1.6 }}>
-              {children}
-            </li>
-          ),
-          blockquote: ({ children }) => (
-            <blockquote
-              style={{
-                margin: '10px 0',
-                padding: '7px 12px',
-                borderLeft: '3px solid rgba(148, 163, 184, 0.55)',
-                color: '#cbd5e1',
-                background: 'rgba(148, 163, 184, 0.06)',
-              }}
-            >
-              {children}
-            </blockquote>
-          ),
-          table: ({ children }) => (
-            <div style={{ width: '100%', overflowX: 'auto', margin: '12px 0' }}>
-              <table
-                style={{
-                  width: '100%',
-                  minWidth: 360,
-                  borderCollapse: 'collapse',
-                  textAlign: 'left',
-                  fontSize: 13,
-                }}
-              >
-                {children}
-              </table>
-            </div>
-          ),
-          th: ({ children }) => (
-            <th
-              style={{
-                padding: '8px 10px',
-                border: '1px solid rgba(148, 163, 184, 0.22)',
-                background: 'rgba(148, 163, 184, 0.1)',
-                color: '#f8fafc',
-                fontWeight: 700,
-              }}
-            >
-              {children}
-            </th>
-          ),
-          td: ({ children }) => (
-            <td
-              style={{
-                padding: '8px 10px',
-                border: '1px solid rgba(148, 163, 184, 0.18)',
-                color: '#dbe3ee',
-                verticalAlign: 'top',
-              }}
-            >
-              {children}
-            </td>
-          ),
-          pre: ({ children }) => (
-            <pre
-              style={{
-                margin: '10px 0 14px',
-                padding: '13px 14px',
-                borderRadius: 8,
-                border: '1px solid rgba(148, 163, 184, 0.16)',
-                background: 'rgba(0, 0, 0, 0.32)',
-                color: '#e2e8f0',
-                overflowX: 'auto',
-                fontSize: 12,
-                lineHeight: 1.6,
-              }}
-            >
-              {children}
-            </pre>
-          ),
-          code: ({ children }) => (
-            <code
-              style={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                fontSize: '0.92em',
-                color: '#c4d7ff',
-              }}
-            >
-              {children}
-            </code>
-          ),
-          hr: () => <hr style={{ border: 0, borderTop: '1px solid rgba(148, 163, 184, 0.2)', margin: '14px 0' }} />,
-        }}
-      >
-        {content}
-      </ReactMarkdown>
+      {blocks.map((block) =>
+        block.type === 'table' ? (
+          <BionicTable key={block.id} rows={block.rows} />
+        ) : (
+          <ReactMarkdown
+            key={block.id}
+            components={{
+              p: ({ children }) => (
+                <p style={{ margin: '0 0 10px', lineHeight: 1.7 }}>{children}</p>
+              ),
+              h1: ({ children }) => (
+                <h1 style={{ margin: '18px 0 9px', fontSize: 20, fontWeight: 750 }}>
+                  {children}
+                </h1>
+              ),
+              h2: ({ children }) => (
+                <h2 style={{ margin: '16px 0 8px', fontSize: 17, fontWeight: 700 }}>
+                  {children}
+                </h2>
+              ),
+              h3: ({ children }) => (
+                <h3 style={{ margin: '14px 0 7px', fontSize: 15, fontWeight: 700 }}>
+                  {children}
+                </h3>
+              ),
+              ul: ({ children }) => (
+                <ul style={{ margin: '6px 0 12px', paddingLeft: 22 }}>{children}</ul>
+              ),
+              ol: ({ children }) => (
+                <ol style={{ margin: '6px 0 12px', paddingLeft: 24 }}>{children}</ol>
+              ),
+              li: ({ children }) => (
+                <li style={{ margin: '4px 0', paddingLeft: 3, lineHeight: 1.6 }}>
+                  {children}
+                </li>
+              ),
+              blockquote: ({ children }) => (
+                <blockquote
+                  style={{
+                    margin: '10px 0',
+                    padding: '7px 12px',
+                    borderLeft: '3px solid rgba(148, 163, 184, 0.55)',
+                    color: '#cbd5e1',
+                    background: 'rgba(148, 163, 184, 0.06)',
+                  }}
+                >
+                  {children}
+                </blockquote>
+              ),
+              pre: ({ children }) => (
+                <pre
+                  style={{
+                    margin: '10px 0 14px',
+                    padding: '13px 14px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(148, 163, 184, 0.16)',
+                    background: 'rgba(0, 0, 0, 0.32)',
+                    color: '#e2e8f0',
+                    overflowX: 'auto',
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {children}
+                </pre>
+              ),
+              code: ({ children }) => (
+                <code
+                  style={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    fontSize: '0.92em',
+                    color: '#c4d7ff',
+                  }}
+                >
+                  {children}
+                </code>
+              ),
+              hr: () => (
+                <hr
+                  style={{
+                    border: 0,
+                    borderTop: '1px solid rgba(148, 163, 184, 0.2)',
+                    margin: '14px 0',
+                  }}
+                />
+              ),
+            }}
+          >
+            {block.content}
+          </ReactMarkdown>
+        )
+      )}
     </div>
   );
 }
