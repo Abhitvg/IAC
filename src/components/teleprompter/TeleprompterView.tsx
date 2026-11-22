@@ -1337,6 +1337,8 @@ export default function TeleprompterView() {
 
   const isListening = diagnosticState.micActive;
   const isGenerating = status === 'analyzing' || status === 'generating';
+  const responseModeLabel =
+    responseMode === 'coding' ? 'Coding' : responseMode === 'quiz' ? 'Quiz' : 'Interview';
 
   const [manualInput, setManualInput] = useState('');
   const [copiedCodeIndices, setCopiedCodeIndices] = useState<Record<number, boolean>>({});
@@ -2080,13 +2082,16 @@ export default function TeleprompterView() {
               whiteSpace: 'nowrap',
             }}
           >
+            {responseModeLabel} ·{' '}
             {status === 'generating' || status === 'analyzing'
               ? 'Preparing answer'
               : status === 'transcribing'
                 ? 'Transcribing'
-                : isListening
-                  ? 'Listening'
-                  : 'Paused'}
+                : diagnosticState.micInputMuted
+                  ? 'Microphone muted'
+                  : isListening
+                    ? 'Listening'
+                    : 'Paused'}
           </span>
         </div>
         <div
@@ -2432,9 +2437,11 @@ export default function TeleprompterView() {
                 ? 'Generating…'
                 : status === 'transcribing'
                   ? 'Transcribing…'
-                  : isListening
-                    ? 'Microphone ready'
-                    : 'Mic paused'}
+                  : diagnosticState.micInputMuted
+                    ? 'Microphone muted · unmute input device'
+                    : isListening
+                      ? 'Microphone ready'
+                      : 'Mic paused'}
             </span>
           </div>
           {currentAnswer && (
