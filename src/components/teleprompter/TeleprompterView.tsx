@@ -276,7 +276,7 @@ function BionicGazeHUD({
         gap: '8px',
       }}
     >
-      {/* Webcam Eye-Line Reticle */}
+      {/* Bionic HUD heading */}
       <div
         style={{
           width: '100%',
@@ -310,7 +310,7 @@ function BionicGazeHUD({
         </span>
       </div>
 
-      {/* Glanceable Centered Bullets */}
+      {/* Glanceable key points */}
       <div
         style={{
           width: '100%',
@@ -2118,9 +2118,9 @@ export default function TeleprompterView() {
         minHeight: 0,
         overflow: 'hidden',
         color: '#f8fafc',
-        background: 'rgba(5, 7, 11, 0.82)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        background: 'rgba(5, 7, 11, 0.95)',
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
     >
@@ -2133,7 +2133,7 @@ export default function TeleprompterView() {
           gap: 10,
           padding: '10px 14px',
           borderBottom: '1px solid rgba(255,255,255,0.09)',
-          background: 'rgba(9,12,18,0.78)',
+          background: 'rgba(9,12,18,0.94)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
