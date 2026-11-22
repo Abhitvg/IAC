@@ -8,6 +8,7 @@ import { useAppStore, TeleprompterFontSize } from '../../store/useAppStore';
 import { InterviewEngine } from '../../services/InterviewEngine';
 import { DiagnosticLoggerService } from '../../services/diagnosticLogger';
 import {
+  getConversationAnchorScrollTarget,
   getConversationScrollTarget,
   shouldAutoFollowConversation,
 } from '../../services/teleprompter/conversationScroll';
@@ -429,14 +430,17 @@ function BionicTable({ rows, compact = false }: { rows: string[][]; compact?: bo
 function BionicGazeHUD({
   bullets,
   sourceText,
+  anchorId,
 }: {
   bullets: BionicGazeBullet[];
   sourceText?: string;
+  anchorId?: string;
 }) {
   const { primary, remaining } = selectPrimaryGlanceableBullets(bullets);
 
   return (
     <div
+      data-conversation-anchor={anchorId}
       style={{
         margin: '8px 0 14px 0',
         padding: '12px 14px',
@@ -702,6 +706,56 @@ function ShortcutSettings({
           </button>
         </div>
       ))}
+      <div
+        style={{
+          marginTop: 8,
+          padding: '10px 11px',
+          borderRadius: 8,
+          border: '1px solid rgba(148,163,184,0.16)',
+          background: 'rgba(255,255,255,0.025)',
+          display: 'grid',
+          gap: 6,
+        }}
+      >
+        <div style={{ color: '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
+          System-wide controls · macOS
+        </div>
+        <div style={{ color: '#aeb9c8', fontSize: 11, lineHeight: 1.55 }}>
+          <strong>⌘\\</strong> or <strong>⌘⇧Space</strong> show / hide · <strong>⌘⌥←</strong> left
+          corner · <strong>⌘⌥→</strong> right corner
+        </div>
+        <div style={{ color: '#8492a6', fontSize: 10, lineHeight: 1.5 }}>
+          Also available: ⌘⌥⇧H / ⌥H show or hide, ⌥⇧S solve screen, ⌘⇧A append capture, ⌥V auto-type
+          code, ⌥T auto-type answer. Global bindings are fixed and may be unavailable if another app
+          or macOS has claimed them.
+        </div>
+        <div style={{ color: '#8492a6', fontSize: 10 }}>
+          The macOS Dock icon remains available to reopen the assistant.
+        </div>
+      </div>
+      <div
+        style={{
+          padding: '10px 11px',
+          borderRadius: 8,
+          border: '1px solid rgba(148,163,184,0.16)',
+          background: 'rgba(255,255,255,0.025)',
+          display: 'grid',
+          gap: 6,
+        }}
+      >
+        <div style={{ color: '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
+          Built-in conversation controls · macOS
+        </div>
+        <div style={{ color: '#aeb9c8', fontSize: 11, lineHeight: 1.55 }}>
+          <strong>⌘Z</strong> / <strong>⌘[</strong> restore · <strong>⌘⇧Z</strong> /{' '}
+          <strong>⌘Y</strong> /<strong>⌘]</strong> redo · <strong>⌥C</strong> mark incomplete
+        </div>
+        <div style={{ color: '#8492a6', fontSize: 10, lineHeight: 1.5 }}>
+          <strong>⌘⌫</strong> new question · <strong>⌘1</strong> Coding · <strong>⌘2</strong>{' '}
+          Interview ·<strong>⌘3</strong> Quiz · <strong>⌘J</strong> auto-follow ·{' '}
+          <strong>Esc</strong> close overlay. On Windows / Linux, use Ctrl instead of ⌘.
+        </div>
+      </div>
       {capturing && (
         <div style={{ color: '#a5b4fc', fontSize: 11 }}>
           Press the key combination for {INTERVIEW_SHORTCUT_LABELS[capturing]}. Esc cancels.
@@ -1614,6 +1668,7 @@ export default function TeleprompterView() {
   const conversationScrollRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollConversationRef = useRef(isAutoScrolling);
   const conversationScrollTopRef = useRef(0);
+  const conversationScrollAnchorRef = useRef<{ id: string; offset: number } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showControlsPopover, setShowControlsPopover] = useState(false);
   const [showConversationSearch, setShowConversationSearch] = useState(false);
@@ -1705,6 +1760,36 @@ export default function TeleprompterView() {
     [setToast]
   );
 
+  const captureConversationScrollAnchor = useCallback(() => {
+    const container = conversationScrollRef.current;
+    if (!container) return;
+
+    conversationScrollTopRef.current = container.scrollTop;
+    if (shouldAutoScrollConversationRef.current) {
+      conversationScrollAnchorRef.current = null;
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const viewportTop = containerRect.top + container.clientTop;
+    const viewportBottom = viewportTop + container.clientHeight;
+    const visibleAnchor = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-conversation-anchor]')
+    ).find((node) => {
+      const rect = node.getBoundingClientRect();
+      return rect.bottom > viewportTop && rect.top < viewportBottom;
+    });
+    const id = visibleAnchor?.dataset.conversationAnchor;
+
+    conversationScrollAnchorRef.current =
+      visibleAnchor && id
+        ? {
+            id,
+            offset: visibleAnchor.getBoundingClientRect().top - viewportTop,
+          }
+        : null;
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('interview_bionic_hud', String(isBionicGazeMode));
@@ -1721,19 +1806,61 @@ export default function TeleprompterView() {
     }
   }, [currentQuestion, currentAnswer, draftAnswer, status, isBionicGazeMode, isAutoScrolling]);
 
-  // The two answer modes render different DOM trees. Preserve the reader's position
-  // when switching modes unless they were already following the newest content.
+  // Keep the same visible question or answer in view when HUD formatting changes message height.
   useEffect(() => {
-    const element = conversationScrollRef.current;
-    if (!element) return;
-    const target = getConversationScrollTarget(
-      element.scrollHeight,
-      conversationScrollTopRef.current,
-      shouldAutoScrollConversationRef.current
-    );
-    if (!shouldAutoScrollConversationRef.current) {
-      element.scrollTo({ top: target, behavior: 'auto' });
+    const container = conversationScrollRef.current;
+    if (!container) return;
+
+    if (shouldAutoScrollConversationRef.current) {
+      conversationScrollAnchorRef.current = null;
+      return;
     }
+
+    const savedAnchor = conversationScrollAnchorRef.current;
+    if (!savedAnchor) {
+      container.scrollTo({
+        top: getConversationScrollTarget(
+          container.scrollHeight,
+          conversationScrollTopRef.current,
+          false
+        ),
+        behavior: 'auto',
+      });
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      const anchor = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-conversation-anchor]')
+      ).find((node) => node.dataset.conversationAnchor === savedAnchor.id);
+
+      if (anchor) {
+        const containerRect = container.getBoundingClientRect();
+        const viewportTop = containerRect.top + container.clientTop;
+        const currentOffset = anchor.getBoundingClientRect().top - viewportTop;
+        container.scrollTo({
+          top: getConversationAnchorScrollTarget(
+            container.scrollTop,
+            currentOffset,
+            savedAnchor.offset
+          ),
+          behavior: 'auto',
+        });
+      } else {
+        container.scrollTo({
+          top: getConversationScrollTarget(
+            container.scrollHeight,
+            conversationScrollTopRef.current,
+            false
+          ),
+          behavior: 'auto',
+        });
+      }
+
+      conversationScrollAnchorRef.current = null;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [isBionicGazeMode]);
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' && window.innerWidth > 0 ? window.innerWidth : 900
@@ -2029,8 +2156,7 @@ export default function TeleprompterView() {
       if (isTyping) return;
       if (matchesInterviewShortcut(e, shortcutBindings.bionicHud)) {
         e.preventDefault();
-        const scrollElement = conversationScrollRef.current;
-        if (scrollElement) conversationScrollTopRef.current = scrollElement.scrollTop;
+        captureConversationScrollAnchor();
         setIsBionicGazeMode((value) => !value);
         return;
       }
@@ -2176,6 +2302,7 @@ export default function TeleprompterView() {
     isAutoScrolling,
     toggleRecording,
     shortcutBindings,
+    captureConversationScrollAnchor,
     clearAndResetToListen,
     handleScreenCapture,
     setResponseMode,
@@ -2295,8 +2422,7 @@ export default function TeleprompterView() {
   }, [answerVerificationBasis, parsedSegments, settings?.preferredLanguage]);
 
   const toggleBionicHud = () => {
-    const element = conversationScrollRef.current;
-    if (element) conversationScrollTopRef.current = element.scrollTop;
+    captureConversationScrollAnchor();
     setIsBionicGazeMode((value) => !value);
   };
 
@@ -2440,69 +2566,81 @@ export default function TeleprompterView() {
           overscrollBehavior: 'contain',
         }}
       >
-        {questionHistory.map((item, index) => (
-          <React.Fragment key={item.timestamp || index}>
-            <div
-              data-conversation-id={
-                'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index)
-              }
-              style={{ display: 'flex', justifyContent: 'flex-end' }}
-            >
+        {questionHistory.map((item, index) => {
+          const conversationId =
+            'history-' + String(item.timestamp || 'untimestamped') + '-' + String(index);
+          return (
+            <React.Fragment key={item.timestamp || index}>
               <div
-                style={{
-                  maxWidth: '88%',
-                  background: 'rgba(39,50,67,0.82)',
-                  border: '1px solid rgba(148,163,184,0.14)',
-                  borderRadius: '16px 16px 4px 16px',
-                  padding: '11px 14px',
-                  whiteSpace: 'pre-wrap',
-                  lineHeight: 1.55,
-                  fontSize: 14,
-                }}
+                data-conversation-id={conversationId}
+                data-conversation-anchor={conversationId + '-question'}
+                style={{ display: 'flex', justifyContent: 'flex-end' }}
               >
-                {item.question}
-              </div>
-            </div>
-            {item.answer &&
-              (isBionicGazeMode ? (
-                (() => {
-                  const presentation = getBionicAnswerPresentation(item.answer);
-                  return presentation.bullets.length > 0 ? (
-                    <BionicGazeHUD bullets={presentation.bullets} sourceText={item.answer} />
-                  ) : (
-                    <div
-                      style={{
-                        alignSelf: 'flex-start',
-                        maxWidth: '96%',
-                        color: '#e5eaf2',
-                        whiteSpace: 'pre-wrap',
-                        lineHeight: 1.72,
-                        fontSize: 14,
-                      }}
-                    >
-                      <InterviewAnswerMarkdown content={presentation.fallbackText || item.answer} />
-                    </div>
-                  );
-                })()
-              ) : (
                 <div
                   style={{
-                    alignSelf: 'flex-start',
-                    maxWidth: '96%',
-                    color: '#e5eaf2',
+                    maxWidth: '88%',
+                    background: 'rgba(39,50,67,0.82)',
+                    border: '1px solid rgba(148,163,184,0.14)',
+                    borderRadius: '16px 16px 4px 16px',
+                    padding: '11px 14px',
                     whiteSpace: 'pre-wrap',
-                    lineHeight: 1.72,
+                    lineHeight: 1.55,
                     fontSize: 14,
                   }}
                 >
-                  <InterviewAnswerMarkdown content={item.answer} />
+                  {item.question}
                 </div>
-              ))}
-          </React.Fragment>
-        ))}
+              </div>
+              {item.answer &&
+                (isBionicGazeMode ? (
+                  (() => {
+                    const presentation = getBionicAnswerPresentation(item.answer);
+                    return presentation.bullets.length > 0 ? (
+                      <BionicGazeHUD
+                        bullets={presentation.bullets}
+                        sourceText={item.answer}
+                        anchorId={conversationId + '-answer'}
+                      />
+                    ) : (
+                      <div
+                        data-conversation-anchor={conversationId + '-answer'}
+                        style={{
+                          alignSelf: 'flex-start',
+                          maxWidth: '96%',
+                          color: '#e5eaf2',
+                          whiteSpace: 'pre-wrap',
+                          lineHeight: 1.72,
+                          fontSize: 14,
+                        }}
+                      >
+                        <InterviewAnswerMarkdown
+                          content={presentation.fallbackText || item.answer}
+                        />
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div
+                    data-conversation-anchor={conversationId + '-answer'}
+                    style={{
+                      alignSelf: 'flex-start',
+                      maxWidth: '96%',
+                      color: '#e5eaf2',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: 1.72,
+                      fontSize: 14,
+                    }}
+                  >
+                    <InterviewAnswerMarkdown content={item.answer} />
+                  </div>
+                ))}
+            </React.Fragment>
+          );
+        })}
         {currentQuestion && (
           <div
             data-conversation-id="current-conversation"
+            data-conversation-anchor="current-question"
             style={{ display: 'flex', justifyContent: 'flex-end' }}
           >
             <div
@@ -2523,6 +2661,7 @@ export default function TeleprompterView() {
         )}
         {(currentAnswer || draftAnswer || isGenerating) && (
           <div
+            data-conversation-anchor="current-answer"
             style={{
               alignSelf: 'flex-start',
               width: '100%',
@@ -2785,6 +2924,9 @@ export default function TeleprompterView() {
             onClick={(e) => e.stopPropagation()}
             style={{
               width: 'min(100%, 420px)',
+              maxHeight: '100%',
+              overflowY: 'auto',
+              boxSizing: 'border-box',
               padding: 18,
               borderRadius: 12,
               background: '#101722',

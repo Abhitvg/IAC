@@ -39,6 +39,13 @@ let mainWindowRef: BrowserWindow | null = null;
 const cloudTranscriptionControllers = new Map<string, AbortController>();
 const cloudLLMControllers = new Map<string, AbortController>();
 
+export function abortAndClearControllers(controllers: Map<string, AbortController>): void {
+  for (const controller of controllers.values()) {
+    controller.abort();
+  }
+  controllers.clear();
+}
+
 const ALLOWED_SETTING_KEYS = new Set([
   'aiProvider',
   'aiModel',
@@ -247,8 +254,18 @@ export function validateSetting(key: string, value: any): boolean {
   return true;
 }
 
-export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
+export function setIpcMainWindowReference(mainWindow: BrowserWindow | null) {
   mainWindowRef = mainWindow;
+
+  // Closing the renderer must stop pending microphone uploads and answer streams.
+  if (!mainWindow) {
+    abortAndClearControllers(cloudTranscriptionControllers);
+    abortAndClearControllers(cloudLLMControllers);
+  }
+}
+
+export function setupIpcHandlers(mainWindow: BrowserWindow | null) {
+  setIpcMainWindowReference(mainWindow);
 
   const Store = require('electron-store');
   const store = new Store({

@@ -35,7 +35,7 @@ import path from 'path';
 import fs from 'fs';
 import dns from 'dns';
 import mammoth from 'mammoth';
-import { setupIpcHandlers } from './ipc/handlers';
+import { setupIpcHandlers, setIpcMainWindowReference } from './ipc/handlers';
 import {
   readFileSafely,
   validateReadPath,
@@ -85,6 +85,8 @@ function ensureDirectories() {
 }
 
 function createWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
+
   const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
   const isProduction = !isDev || app.isPackaged || process.env.NODE_ENV === 'production';
 
@@ -171,25 +173,74 @@ function createWindow() {
     }
   }
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
+  // IPC handlers are registered once; rebind their trusted sender to each new window.
+  setIpcMainWindowReference(mainWindow);
+
+  const windowToTrack = mainWindow;
+  if (windowToTrack) {
+    windowToTrack.on('closed', () => {
+      if (mainWindow !== windowToTrack) return;
+      setIpcMainWindowReference(null);
+      mainWindow = null;
+    });
+  }
+}
+
+function showOrCreateMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) createWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
 }
 
 function toggleWindowVisibility() {
-  if (!mainWindow) return;
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    showOrCreateMainWindow();
+    return;
+  }
   if (mainWindow.isVisible()) {
     mainWindow.hide();
-  } else {
-    mainWindow.show();
+    return;
+  }
+  showOrCreateMainWindow();
+  if (mainWindow && !mainWindow.isDestroyed()) {
     if (process.platform === 'darwin') {
       mainWindow.setAlwaysOnTop(true, 'floating');
       mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     } else {
       mainWindow.setAlwaysOnTop(true);
     }
-    mainWindow.focus();
   }
+}
+
+function positionWindowInCorner(side: 'left' | 'right') {
+  showOrCreateMainWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  const bounds = mainWindow.getBounds();
+  const workArea = screen.getDisplayMatching(bounds).workArea;
+  const margin = 16;
+  const availableWidth = Math.max(1, workArea.width - margin * 2);
+  const availableHeight = Math.max(1, workArea.height - margin * 2);
+  const minWidth = Math.min(320, availableWidth);
+  const minHeight = Math.min(160, availableHeight);
+  const width = Math.min(Math.max(bounds.width, minWidth), availableWidth);
+  const height = Math.min(Math.max(bounds.height, minHeight), availableHeight);
+
+  // Temporarily lower the minimum only when a display is physically smaller than
+  // the normal window minimum. Restore the normal minimum on larger displays.
+  mainWindow.setMinimumSize(minWidth, minHeight);
+  const x = side === 'left' ? workArea.x + margin : workArea.x + workArea.width - width - margin;
+  const y = workArea.y + margin;
+
+  mainWindow.setBounds({ x, y, width, height });
+  mainWindow.setAlwaysOnTop(true, process.platform === 'darwin' ? 'floating' : 'normal');
+  if (process.platform === 'darwin') {
+    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
+  mainWindow.show();
+  mainWindow.focus();
 }
 
 function setupTray() {
@@ -200,11 +251,19 @@ function setupTray() {
     : nativeImage.createEmpty();
   try {
     tray = new Tray(icon);
-    tray.setToolTip('AI Interview Assistant (Alt+H to show or hide)');
+    tray.setToolTip('AI Interview Assistant (⌘\\ or ⌘⇧Space to show / hide)');
     const trayMenu = Menu.buildFromTemplate([
       {
-        label: 'Show / Hide Window (Alt+H)',
+        label: 'Show / Hide Window (⌘\\ or ⌘⇧Space)',
         click: () => toggleWindowVisibility(),
+      },
+      {
+        label: 'Move Window to Left Corner (⌘⌥←)',
+        click: () => positionWindowInCorner('left'),
+      },
+      {
+        label: 'Move Window to Right Corner (⌘⌥→)',
+        click: () => positionWindowInCorner('right'),
       },
       {
         label: 'Solve Screen Problem (Alt+Shift+S)',
@@ -226,57 +285,51 @@ function setupTray() {
   }
 }
 
-// prettier-ignore
+function registerShortcut(shortcut: string, action: () => void) {
+  try {
+    const registered = globalShortcut.register(shortcut, action);
+    if (!registered) {
+      console.warn(
+        `[Electron] Shortcut unavailable (already claimed by the OS or another app): ${shortcut}`
+      );
+    }
+  } catch (err) {
+    console.warn(`[Electron] Could not register shortcut ${shortcut}:`, err);
+  }
+}
+
 function registerGlobalShortcuts() {
-  const stealthShortcuts = [
+  const visibilityShortcuts = [
     'CommandOrControl+Alt+Shift+H',
     'CommandOrControl+Shift+Space',
     'CommandOrControl+\\',
     'Alt+H',
   ];
-  stealthShortcuts.forEach((shortcut) => {
-    try {
-      globalShortcut.register(shortcut, () => {
-        toggleWindowVisibility();
-      });
-    } catch (err) {
-      console.warn(`[Electron] Could not register shortcut ${shortcut}:`, err);
-    }
+
+  visibilityShortcuts.forEach((shortcut) =>
+    registerShortcut(shortcut, () => toggleWindowVisibility())
+  );
+
+  registerShortcut('CommandOrControl+Alt+Left', () => positionWindowInCorner('left'));
+  registerShortcut('CommandOrControl+Alt+Right', () => positionWindowInCorner('right'));
+
+  registerShortcut('Alt+Shift+S', () => {
+    showOrCreateMainWindow();
+    mainWindow?.webContents.send('trigger-screen-capture');
   });
 
-  try {
-    globalShortcut.register('Alt+Shift+S', () => {
-      if (!mainWindow?.isVisible()) mainWindow?.show();
-      mainWindow?.webContents.send('trigger-screen-capture');
-    });
-  } catch (err) {
-    console.warn('[Electron] Could not register screen capture shortcut:', err);
-  }
+  registerShortcut('CommandOrControl+Shift+A', () => {
+    showOrCreateMainWindow();
+    mainWindow?.webContents.send('trigger-append-screen-capture');
+  });
 
-  try {
-    globalShortcut.register('CommandOrControl+Shift+A', () => {
-      if (!mainWindow?.isVisible()) mainWindow?.show();
-      mainWindow?.webContents.send('trigger-append-screen-capture');
-    });
-  } catch (err) {
-    console.warn('[Electron] Could not register append screen capture shortcut:', err);
-  }
+  registerShortcut('Alt+V', () => {
+    mainWindow?.webContents.send('trigger-auto-type');
+  });
 
-  try {
-    globalShortcut.register('Alt+V', () => {
-      mainWindow?.webContents.send('trigger-auto-type');
-    });
-  } catch (err) {
-    console.warn('[Electron] Could not register auto-type shortcut:', err);
-  }
-
-  try {
-    globalShortcut.register('Alt+T', () => {
-      mainWindow?.webContents.send('trigger-auto-type-text');
-    });
-  } catch (err) {
-    console.warn('[Electron] Could not register auto-type-text shortcut:', err);
-  }
+  registerShortcut('Alt+T', () => {
+    mainWindow?.webContents.send('trigger-auto-type-text');
+  });
 }
 
 function setupNativeApplicationMenu() {
@@ -405,17 +458,24 @@ if (!gotTheLock) {
     setupTray();
     registerGlobalShortcuts();
 
+    if (process.platform === 'darwin') {
+      // Keep the native app icon available in the macOS Dock even with no open window.
+      app.dock?.show();
+    }
+
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
-      }
+      showOrCreateMainWindow();
     });
   });
 }
 
 app.on('window-all-closed', () => {
-  globalShortcut.unregisterAll();
-  app.quit();
+  // macOS apps conventionally remain resident so the Dock icon and global
+  // shortcuts can reopen the window. Other platforms quit when all windows close.
+  if (process.platform !== 'darwin') {
+    globalShortcut.unregisterAll();
+    app.quit();
+  }
 });
 
 // Window controls IPC

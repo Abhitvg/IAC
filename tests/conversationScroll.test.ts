@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CONVERSATION_AUTO_FOLLOW_THRESHOLD_PX,
+  getConversationAnchorScrollTarget,
   getConversationScrollTarget,
   isConversationNearBottom,
   shouldAutoFollowConversation,
@@ -33,5 +34,21 @@ describe('conversation scroll policy', () => {
 
   it('never returns a negative restored scroll position', () => {
     expect(getConversationScrollTarget(1800, -20, false)).toBe(0);
+  });
+});
+
+describe('conversation scroll anchors', () => {
+  it('keeps the same message at the same viewport offset when its height changes', () => {
+    expect(getConversationAnchorScrollTarget(500, 260, 60)).toBe(700);
+  });
+
+  it('moves upward when the anchored message shifts upward after presentation changes', () => {
+    expect(getConversationAnchorScrollTarget(500, 20, 80)).toBe(440);
+  });
+
+  it('clamps invalid and negative scroll measurements safely', () => {
+    expect(getConversationAnchorScrollTarget(-10, 0, 40)).toBe(0);
+    expect(getConversationAnchorScrollTarget(Number.NaN, 20, 10)).toBe(10);
+    expect(getConversationAnchorScrollTarget(200, Number.NaN, 10)).toBe(190);
   });
 });

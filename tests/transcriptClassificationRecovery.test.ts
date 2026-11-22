@@ -1,8 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { transcribeAudio } from '../src/services/whisper';
 import { classifyUtterance } from '../src/services/interruptionDetector';
 import { useAppStore } from '../src/store/useAppStore';
 import { InterviewEngine } from '../src/services/InterviewEngine';
 import { shouldAutoRouteUncertainQuestion } from '../src/services/interviewQuestionRouting';
+
+vi.mock('../src/services/whisper', () => ({
+  transcribeAudio: vi.fn(),
+}));
 
 describe('Suite A: Transcript Classification & Recovery', () => {
   const previousAnswer =
@@ -109,6 +114,45 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     expect(shouldAutoRouteUncertainQuestion(result, speech)).toBe(true);
     expect(useAppStore.getState().lastUnconfirmedTranscript).toBeNull();
     expect(useAppStore.getState().pipelineStage).toBe('listening');
+  });
+
+  it('keeps raw utterance and duplicate-question text out of renderer console logs', async () => {
+    const transcriptText = 'Thank you.';
+    const duplicateQuestion = 'Private interview prompt 41A7 must never appear in logs.';
+
+    vi.mocked(transcribeAudio).mockResolvedValueOnce({ text: transcriptText });
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    try {
+      await InterviewEngine.handleEvent({
+        type: 'UTTERANCE_FINALIZED',
+        blob: new Blob([new Uint8Array(512)]),
+      });
+
+      useAppStore.setState({
+        status: 'generating',
+        currentQuestion: duplicateQuestion,
+      });
+      await InterviewEngine.handleEvent({
+        type: 'QUESTION_DETECTED',
+        text: duplicateQuestion,
+      });
+
+      const consoleOutput = JSON.stringify([...infoSpy.mock.calls, ...logSpy.mock.calls]);
+      expect(consoleOutput).not.toContain(transcriptText);
+      expect(consoleOutput).not.toContain(duplicateQuestion);
+      expect(infoSpy).toHaveBeenCalledWith(
+        '[InterviewEngine] Utterance classified.',
+        expect.objectContaining({
+          type: 'CONVERSATIONAL_FILLER',
+          transcriptCharacterCount: transcriptText.length,
+        })
+      );
+    } finally {
+      infoSpy.mockRestore();
+      logSpy.mockRestore();
+    }
   });
 
   it('allows manual trigger to generate answer from transcript via generateAnswerFromTranscript', async () => {

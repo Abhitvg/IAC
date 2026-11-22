@@ -514,12 +514,12 @@ export class InterviewEngine {
             useAppStore.getState().teleprompterQueue
           );
 
-          console.log(
-            '[InterviewEngine] Utterance classification:',
-            classification.type,
-            `(${classification.reason})`,
-            `"${text}"`
-          );
+          console.info('[InterviewEngine] Utterance classified.', {
+            requestId,
+            type: classification.type,
+            confidence: classification.confidence,
+            transcriptCharacterCount: text.length,
+          });
 
           DiagnosticLoggerService.getInstance().recordEvent({
             requestId,
@@ -770,10 +770,10 @@ export class InterviewEngine {
           incomingText.toLowerCase() === store.currentQuestion.trim().toLowerCase() &&
           (store.status === 'generating' || store.status === 'analyzing')
         ) {
-          console.log(
-            '[InterviewEngine] Deduplicating identical in-flight question:',
-            incomingText
-          );
+          console.info('[InterviewEngine] Deduplicated identical in-flight question.', {
+            requestId: event.requestId,
+            transcriptCharacterCount: incomingText.length,
+          });
           return;
         }
 

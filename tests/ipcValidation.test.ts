@@ -36,9 +36,25 @@ import {
   validateCloudTranscriptionRequest,
   validateSetting,
   shouldReleaseCloudLLMController,
+  abortAndClearControllers,
 } from '../electron/ipc/handlers';
 
 describe('Cloud LLM controller lifecycle', () => {
+  it('aborts and clears outstanding requests when the renderer window closes', () => {
+    const transcription = new AbortController();
+    const answerStream = new AbortController();
+    const registry = new Map<string, AbortController>([
+      ['transcription-1', transcription],
+      ['answer-1', answerStream],
+    ]);
+
+    abortAndClearControllers(registry);
+
+    expect(transcription.signal.aborted).toBe(true);
+    expect(answerStream.signal.aborted).toBe(true);
+    expect(registry.size).toBe(0);
+  });
+
   it('releases controllers for non-streaming requests and failed responses', () => {
     expect(shouldReleaseCloudLLMController({ stream: false }, { ok: true })).toBe(true);
     expect(shouldReleaseCloudLLMController({ stream: true }, { ok: false })).toBe(true);

@@ -31,3 +31,19 @@ export function getConversationScrollTarget(
 ): number {
   return shouldAutoFollow ? scrollHeight : Math.max(0, savedScrollTop);
 }
+
+/**
+ * Adjusts scrollTop so a previously visible message keeps the same viewport offset
+ * after its presentation changes height (for example, when BIONIC HUD is toggled).
+ */
+export function getConversationAnchorScrollTarget(
+  currentScrollTop: number,
+  currentAnchorOffset: number,
+  savedAnchorOffset: number
+): number {
+  const scrollTop = Number.isFinite(currentScrollTop) ? Math.max(0, currentScrollTop) : 0;
+  const currentOffset = Number.isFinite(currentAnchorOffset) ? currentAnchorOffset : 0;
+  const savedOffset = Number.isFinite(savedAnchorOffset) ? savedAnchorOffset : 0;
+
+  return Math.max(0, scrollTop + currentOffset - savedOffset);
+}
