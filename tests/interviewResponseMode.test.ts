@@ -11,7 +11,8 @@ describe('interview response mode defaults', () => {
   it('preserves an explicitly saved supported mode', () => {
     expect(resolveInterviewResponseMode('interview')).toBe('interview');
     expect(resolveInterviewResponseMode('coding')).toBe('coding');
-    expect(resolveInterviewResponseMode('quiz')).toBe('quiz');\n    expect(resolveInterviewResponseMode('application')).toBe('application');
+    expect(resolveInterviewResponseMode('quiz')).toBe('quiz');
+    expect(resolveInterviewResponseMode('application')).toBe('application');
   });
 
   it('migrates stale or unsupported saved modes to Interview', () => {
