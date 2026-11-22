@@ -30,7 +30,6 @@ export type InterviewStatus =
   | 'paused'
   | 'waiting_quota_reset'
   | 'retrying'
-  | 'confirmation_required'
   | 'error';
 
 export type InterviewPipelineStage =
@@ -47,8 +46,7 @@ export type InterviewPipelineStage =
   | 'answer_ready'
   | 'waiting_quota_reset'
   | 'retrying'
-  | 'failed'
-  | 'confirmation_required';
+  | 'failed';
 
 export type RecitalState = 'idle' | 'listening' | 'reciting' | 'interrupted';
 
@@ -690,11 +688,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     set({
       status: s,
       isRecording:
-        s === 'listening' ||
-        s === 'transcribing' ||
-        s === 'analyzing' ||
-        s === 'generating' ||
-        s === 'confirmation_required',
+        s === 'listening' || s === 'transcribing' || s === 'analyzing' || s === 'generating',
       isGenerating: s === 'analyzing' || s === 'generating',
     });
   },
@@ -794,8 +788,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
       status === 'listening' ||
       status === 'transcribing' ||
       status === 'analyzing' ||
-      status === 'generating' ||
-      status === 'confirmation_required'
+      status === 'generating'
     ) {
       InterviewEngine.handleEvent({ type: 'STOP_LISTENING' });
       get().setStatus('idle');

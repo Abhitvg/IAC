@@ -207,7 +207,7 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
       });
     });
 
-    it('preserves parenthetical technical context from speech through answer generation', async () => {
+    it('automatically generates an answer for question-shaped speech without speaker confirmation', async () => {
       const transcript =
         'What is CAP theorem (consistency, availability, and partition tolerance)?';
       const transcriptionSpy = vi
@@ -222,6 +222,7 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
         recitalState: 'listening',
         currentQuestion: null,
         currentAnswer: null,
+        lastUnconfirmedTranscript: null,
         settings: {
           aiProvider: 'groq',
           aiModel: 'openai/gpt-oss-120b',
@@ -237,12 +238,16 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
           blob: new Blob(['mock audio']),
         });
 
-        expect(answerSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            text: transcript,
-            originalTranscript: transcript,
-          }),
-          expect.any(Object)
+        expect(answerSpy).toHaveBeenCalledTimes(1);
+        expect(useAppStore.getState().lastUnconfirmedTranscript).toBeNull();
+        expect(useAppStore.getState().currentQuestion).toBe(transcript);
+        expect(useAppStore.getState().transcript).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              classification: 'AUTO_ACCEPTED_QUESTION',
+              text: transcript,
+            }),
+          ])
         );
       } finally {
         transcriptionSpy.mockRestore();

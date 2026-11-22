@@ -276,9 +276,10 @@ Skills: Java, TypeScript, Spring Boot, React, Kafka, Docker, AWS.`;
       q
     );
 
-    expect(prompt).toContain('MIT CAPD STAR METHOD FOR BEHAVIORAL QUESTIONS');
-    expect(prompt).toContain('Never invent companies or roles');
-    expect(prompt).toContain('Never fabricate metrics');
+    expect(prompt).toContain('EVIDENCE-LED EXPERIENCE NARRATIVE');
+    expect(prompt).toContain('Never upgrade "worked with" into "owned" or "architected"');
+    expect(prompt).toContain('Never invent incidents, outages, root causes');
+    expect(prompt).toContain('preserve resume metrics exactly');
     expect(prompt).toContain('80–140 words');
   });
 

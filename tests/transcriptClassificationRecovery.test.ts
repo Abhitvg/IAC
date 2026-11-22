@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { classifyUtterance } from '../src/services/interruptionDetector';
 import { useAppStore } from '../src/store/useAppStore';
 import { InterviewEngine } from '../src/services/InterviewEngine';
+import { shouldAutoRouteUncertainQuestion } from '../src/services/interviewQuestionRouting';
 
 describe('Suite A: Transcript Classification & Recovery', () => {
   const previousAnswer =
@@ -21,40 +22,64 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     });
   });
 
-  it('classifies a valid question asked after a previous answer is on screen as an interruption', () => {
+  it('recognizes question-shaped speech even when speaker identity is unavailable', () => {
     const speech = 'What trade-offs do you consider when choosing Kafka over RabbitMQ?';
     const result = classifyUtterance(speech, previousAnswer, [previousAnswer]);
 
-    expect(result.type).toBe('INTERVIEWER_INTERRUPTION');
-    expect(result.confidence).toBeGreaterThanOrEqual(0.85);
+    expect(result.type).toBe('UNCLASSIFIED');
+    expect(result.needsConfirmation).toBe(true);
+    expect(result.confidence).toBeLessThan(0.7);
   });
 
-  it('classifies follow-up questions containing words from the previous answer as INTERVIEWER_INTERRUPTION, not CANDIDATE_RECITAL', () => {
+  it('recognizes follow-up questions containing answer words', () => {
     // Has overlap on "distributed", "tracing", "OpenTelemetry"
-    const followUp = 'Can you explain how OpenTelemetry sampling affects distributed tracing overhead?';
+    const followUp =
+      'Can you explain how OpenTelemetry sampling affects distributed tracing overhead?';
     const result = classifyUtterance(followUp, previousAnswer, [previousAnswer]);
 
-    expect(result.type).toBe('INTERVIEWER_INTERRUPTION');
+    expect(result.type).toBe('UNCLASSIFIED');
+    expect(result.needsConfirmation).toBe(true);
   });
 
-  it('classifies multi-sentence questions with introductory remark correctly as interruption', () => {
-    const speech = 'So looking at your architecture, how does your service handle database failover under high load?';
+  it('recognizes multi-sentence question-shaped speech', () => {
+    const speech =
+      'So looking at your architecture, how does your service handle database failover under high load?';
     const result = classifyUtterance(speech, previousAnswer, [previousAnswer]);
 
-    expect(result.type).toBe('INTERVIEWER_INTERRUPTION');
+    expect(result.type).toBe('UNCLASSIFIED');
+    expect(result.needsConfirmation).toBe(true);
     expect(result.questionText).toContain('database failover');
   });
 
-  it('detects incomplete sentences in interviewer questions', () => {
+  it('recognizes incomplete question-shaped speech', () => {
     const incompleteSpeech = 'When scaling your database horizontally, what happens if...';
     const result = classifyUtterance(incompleteSpeech, previousAnswer, [previousAnswer]);
 
-    expect(result.type).toBe('INTERVIEWER_INTERRUPTION');
+    expect(result.type).toBe('UNCLASSIFIED');
+    expect(result.needsConfirmation).toBe(true);
     expect(result.isIncomplete).toBe(true);
   });
 
+  it('recognizes Hindi and Hinglish question intent without blocking generation', () => {
+    const hindi = classifyUtterance(
+      'क्या आप बता सकते हैं कि database failover कैसे काम करता है?',
+      null,
+      []
+    );
+    const hinglish = classifyUtterance(
+      'is system mein cache invalidation kaise handle karte ho?',
+      null,
+      []
+    );
+    expect(hindi.type).toBe('UNCLASSIFIED');
+    expect(hindi.needsConfirmation).toBe(true);
+    expect(hinglish.type).toBe('UNCLASSIFIED');
+    expect(hinglish.needsConfirmation).toBe(true);
+  });
+
   it('classifies candidate speaking/repeating their teleprompted answer as CANDIDATE_RECITAL', () => {
-    const candidateSpeech = 'distributed tracing with OpenTelemetry and Jaeger helps identify latency bottlenecks';
+    const candidateSpeech =
+      'distributed tracing with OpenTelemetry and Jaeger helps identify latency bottlenecks';
     const result = classifyUtterance(candidateSpeech, previousAnswer, [previousAnswer]);
 
     expect(result.type).toBe('CANDIDATE_RECITAL');
@@ -75,26 +100,15 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     expect(result3.type).toBe('CONVERSATIONAL_FILLER');
   });
 
-  it('stores ambiguous speech with needsConfirmation in lastUnconfirmedTranscript', () => {
-    // 3+ words non-narrative with moderate overlap
-    const speech = 'Distributed tracing telemetry overhead metrics.';
+  it('routes question-shaped speech automatically without storing a confirmation request', () => {
+    const speech = 'What about distributed tracing telemetry overhead metrics?';
     const result = classifyUtterance(speech, previousAnswer, [previousAnswer]);
 
-    if (result.needsConfirmation) {
-      useAppStore.getState().setLastUnconfirmedTranscript({
-        id: 'test-1',
-        text: speech,
-        confidence: result.confidence,
-        reason: result.reason,
-        timestamp: Date.now(),
-      });
-      useAppStore.getState().setPipelineStage('confirmation_required');
-
-      const storeState = useAppStore.getState();
-      expect(storeState.lastUnconfirmedTranscript).not.toBeNull();
-      expect(storeState.lastUnconfirmedTranscript?.text).toBe(speech);
-      expect(storeState.pipelineStage).toBe('confirmation_required');
-    }
+    expect(result.type).toBe('UNCLASSIFIED');
+    expect(result.needsConfirmation).toBe(true);
+    expect(shouldAutoRouteUncertainQuestion(result, speech)).toBe(true);
+    expect(useAppStore.getState().lastUnconfirmedTranscript).toBeNull();
+    expect(useAppStore.getState().pipelineStage).toBe('listening');
   });
 
   it('allows manual trigger to generate answer from transcript via generateAnswerFromTranscript', async () => {
@@ -116,4 +130,3 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     expect(updated.currentQuestion).toBe(transcriptText);
   });
 });
-

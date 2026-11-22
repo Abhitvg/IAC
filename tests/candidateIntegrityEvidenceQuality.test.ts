@@ -139,7 +139,9 @@ Experience: Contributed to ... distributed sys... throughput approx 4...
     // Grounding prompt must explicitly denote unknown fields and forbid inventing details
     const groundingSection = kb.buildGroundingPromptSection('How did you deploy EventRelay?');
     expect(groundingSection).toContain('UNKNOWN');
-    expect(groundingSection).toContain('NEVER invent architecture or metrics');
+    expect(groundingSection).toContain('PRESERVE UNKNOWN INFORMATION');
+    expect(groundingSection).toContain('do not invent them');
+    expect(groundingSection).toContain('Do not invent metrics, user numbers, or performance benchmarks');
     expect(groundingSection).toContain('ZERO INVENTED CLAIMS');
   });
 
