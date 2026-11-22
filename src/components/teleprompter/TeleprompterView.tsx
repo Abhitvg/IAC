@@ -717,13 +717,13 @@ function ShortcutSettings({
           System-wide controls · macOS
         </div>
         <div style={{ color: '#aeb9c8', fontSize: 11, lineHeight: 1.55 }}>
-          <strong>⌘\\</strong> or <strong>⌘⇧Space</strong> show / hide ·{' '}
-          <strong>⌘⌥←</strong> left corner · <strong>⌘⌥→</strong> right corner
+          <strong>⌘\\</strong> or <strong>⌘⇧Space</strong> show / hide · <strong>⌘⌥←</strong> left
+          corner · <strong>⌘⌥→</strong> right corner
         </div>
         <div style={{ color: '#8492a6', fontSize: 10, lineHeight: 1.5 }}>
-          Also available: ⌘⌥⇧H / ⌥H show or hide, ⌥⇧S solve screen, ⌘⇧A append capture,
-          ⌥V auto-type code, ⌥T auto-type answer. Global bindings are fixed and may be
-          unavailable if another app or macOS has claimed them.
+          Also available: ⌘⌥⇧H / ⌥H show or hide, ⌥⇧S solve screen, ⌘⇧A append capture, ⌥V auto-type
+          code, ⌥T auto-type answer. Global bindings are fixed and may be unavailable if another app
+          or macOS has claimed them.
         </div>
         <div style={{ color: '#8492a6', fontSize: 10 }}>
           The macOS Dock icon remains available to reopen the assistant.
