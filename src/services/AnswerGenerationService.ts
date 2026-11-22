@@ -399,8 +399,12 @@ export class AnswerGenerationService {
         params.targetRole || '',
         mode
       );
-      systemPrompt =
-        'You are an experienced software engineer assisting a candidate in a live technical evaluation. Deliver verified, optimal code and natural, conversational verbal explanations.';
+      systemPrompt = [
+        'You are a careful coding-interview assistant solving the exact task shown in the screen text.',
+        'Honor the visible editor or judge contract and follow the mode-specific response format in the prompt.',
+        'Do not invent constraints, signatures, candidate experience, execution results, or test outcomes.',
+        'Return one coherent solution; do not add a competing entry point or test harness unless the task requires it.',
+      ].join('\n');
       detectedCategory = 'Coding';
       questionIntent = mode === 'quiz' ? 'quiz' : 'coding';
     } else {
