@@ -733,6 +733,29 @@ function ShortcutSettings({
           The macOS Dock icon remains available to reopen the assistant.
         </div>
       </div>
+      <div
+        style={{
+          padding: '10px 11px',
+          borderRadius: 8,
+          border: '1px solid rgba(148,163,184,0.16)',
+          background: 'rgba(255,255,255,0.025)',
+          display: 'grid',
+          gap: 6,
+        }}
+      >
+        <div style={{ color: '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
+          Built-in conversation controls · macOS
+        </div>
+        <div style={{ color: '#aeb9c8', fontSize: 11, lineHeight: 1.55 }}>
+          <strong>⌘Z</strong> / <strong>⌘[</strong> restore · <strong>⌘⇧Z</strong> / <strong>⌘Y</strong> /
+          <strong>⌘]</strong> redo · <strong>⌥C</strong> mark incomplete
+        </div>
+        <div style={{ color: '#8492a6', fontSize: 10, lineHeight: 1.5 }}>
+          <strong>⌘⌫</strong> new question · <strong>⌘1</strong> Coding · <strong>⌘2</strong> Interview ·
+          <strong>⌘3</strong> Quiz · <strong>⌘J</strong> auto-follow · <strong>Esc</strong> close overlay.
+          On Windows / Linux, use Ctrl instead of ⌘.
+        </div>
+      </div>
       {capturing && (
         <div style={{ color: '#a5b4fc', fontSize: 11 }}>
           Press the key combination for {INTERVIEW_SHORTCUT_LABELS[capturing]}. Esc cancels.
