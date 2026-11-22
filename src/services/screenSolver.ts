@@ -199,7 +199,7 @@ MODE: LIVE CODING — ${preferredLanguage}
 SELECT ONE IMPLEMENTATION CONTRACT:
 1. If the screen shows an existing editor stub, class, function signature, or platform template, complete that exact contract. Do not rename it or add a competing entry point.
 2. If the problem explicitly specifies standard input/output, provide the required executable entry point and read/write format.
-3. If no platform contract or input/output format is visible, state the assumption briefly and provide one self-contained function/class solution using the requested language. Do not add a `main` method or test harness unless the task asks for a runnable program.
+3. If no platform contract or input/output format is visible, state the assumption briefly and provide one self-contained function/class solution using the requested language. Do not add a main method or test harness unless the task asks for a runnable program.
 
 SOLUTION REQUIREMENTS:
 - Return exactly one complete implementation in exactly one fenced code block. Do not provide a second "minimal" or alternative version.

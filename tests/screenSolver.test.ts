@@ -122,6 +122,7 @@ n == height.length
 https://leetcode.com/problems/two-sum/
 33. Search in Rotated Sorted Array
 1 <= nums.length <= 10^5
+-10^9 <= nums[i] <= 10^9
 public int[] searchRange(int[] nums, int target) {
     return new int[]{-1, -1};
 }`;
@@ -163,7 +164,7 @@ public int[] searchRange(int[] nums, int target) {
         expect(prompt).toContain('existing editor stub, class, function signature');
         expect(prompt).toContain('exactly one complete implementation');
         expect(prompt).toContain('exactly one fenced code block');
-        expect(prompt).toContain('Do not add a `main` method or test harness');
+        expect(prompt).toContain('Do not add a main method or test harness');
         expect(prompt).toContain('Do not invent constraints');
         expect(prompt).toContain('Discuss time and auxiliary-space complexity accurately');
         expect(prompt).not.toContain('FORMAT 1: ULTRA-MINIMAL TYPEABLE SOLUTION');
@@ -223,7 +224,7 @@ public int[] searchRange(int[] nums, int target) {
         'coding'
       );
       expect(prompt).toContain('Use it only when it materially changes the explanation');
-      expect(prompt).not.toContain('force unrelated technologies into the answer');
+      expect(prompt).toContain('do not force unrelated technologies into the answer');
     });
   });
 
