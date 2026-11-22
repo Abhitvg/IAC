@@ -60,8 +60,7 @@ export function JavaSandboxPanel({ sourceCode }: JavaSandboxPanelProps) {
   };
 
   const tone = result ? statusTone(result.status) : 'neutral';
-  const toneColor =
-    tone === 'success' ? '#6ee7b7' : tone === 'warning' ? '#fca5a5' : '#cbd5e1';
+  const toneColor = tone === 'success' ? '#6ee7b7' : tone === 'warning' ? '#fca5a5' : '#cbd5e1';
   const toneBorder =
     tone === 'success'
       ? 'rgba(52, 211, 153, 0.3)'
@@ -107,12 +106,20 @@ export function JavaSandboxPanel({ sourceCode }: JavaSandboxPanelProps) {
       {expanded && (
         <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <p style={{ margin: 0, color: '#aeb9c8', fontSize: 11, lineHeight: 1.5 }}>
-            Manual only. Nothing runs until you acknowledge the warning and press the button. Code is
-            sent only to your verified local Docker context; the container has no network or host
+            Manual only. Nothing runs until you acknowledge the warning and press the button. Code
+            is sent only to your verified local Docker context; the container has no network or host
             folder mounts. Docker and the host kernel remain part of the security boundary.
           </p>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 5, color: '#cbd5e1', fontSize: 11 }}>
+          <label
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 5,
+              color: '#cbd5e1',
+              fontSize: 11,
+            }}
+          >
             Standard input (stdin)
             <textarea
               value={stdin}
@@ -137,7 +144,15 @@ export function JavaSandboxPanel({ sourceCode }: JavaSandboxPanelProps) {
             />
           </label>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#cbd5e1', fontSize: 11 }}>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              color: '#cbd5e1',
+              fontSize: 11,
+            }}
+          >
             <input
               type="checkbox"
               checked={executeMain}
@@ -149,7 +164,15 @@ export function JavaSandboxPanel({ sourceCode }: JavaSandboxPanelProps) {
             Run public static main method after compilation (when present)
           </label>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#cbd5e1', fontSize: 11 }}>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              color: '#cbd5e1',
+              fontSize: 11,
+            }}
+          >
             <input
               type="checkbox"
               checked={compareOutput}
@@ -162,7 +185,15 @@ export function JavaSandboxPanel({ sourceCode }: JavaSandboxPanelProps) {
           </label>
 
           {compareOutput && (
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 5, color: '#cbd5e1', fontSize: 11 }}>
+            <label
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+                color: '#cbd5e1',
+                fontSize: 11,
+              }}
+            >
               Expected output
               <textarea
                 value={expectedOutput}
@@ -188,7 +219,16 @@ export function JavaSandboxPanel({ sourceCode }: JavaSandboxPanelProps) {
             </label>
           )}
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 7, color: '#fcd34d', fontSize: 11, lineHeight: 1.45 }}>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 7,
+              color: '#fcd34d',
+              fontSize: 11,
+              lineHeight: 1.45,
+            }}
+          >
             <input
               type="checkbox"
               checked={acknowledged}

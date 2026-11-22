@@ -15,20 +15,22 @@ const runnableSource = [
   '}',
 ].join('\n');
 
-function createFakeRunner(options: {
-  platform?: NodeJS.Platform;
-  endpoint?: string;
-  securityOptions?: string[];
-  imageAvailable?: boolean;
-  startOutput?: string;
-  startError?: {
-    code: number | string;
-    stdout?: string;
-    stderr?: string;
-    killed?: boolean;
-    signal?: string;
-  };
-} = {}) {
+function createFakeRunner(
+  options: {
+    platform?: NodeJS.Platform;
+    endpoint?: string;
+    securityOptions?: string[];
+    imageAvailable?: boolean;
+    startOutput?: string;
+    startError?: {
+      code: number | string;
+      stdout?: string;
+      stderr?: string;
+      killed?: boolean;
+      signal?: string;
+    };
+  } = {}
+) {
   const calls: Array<{ file: string; args: string[] }> = [];
   const marker = '__IAC_JAVA_COMPILE_OK_test-uuid__';
   const execFile = vi.fn(async (file: string, args: string[]) => {
@@ -50,9 +52,10 @@ function createFakeRunner(options: {
     }
     if (args[0] === 'create') return { stdout: '0123456789abcdef0123456789abcdef', stderr: '' };
     if (args[0] === 'cp' || args[0] === 'rm') return { stdout: '', stderr: '' };
-    if (args[0] === 'start') {
+    if (args[0] === 'start') return { stdout: '', stderr: '' };
+    if (args[0] === 'exec') {
       if (options.startError) {
-        throw Object.assign(new Error('docker start failed'), options.startError);
+        throw Object.assign(new Error('docker exec failed'), options.startError);
       }
       return { stdout: options.startOutput ?? marker + '\n42\n', stderr: '' };
     }
@@ -83,7 +86,9 @@ describe('Java Docker sandbox runner', () => {
   });
 
   it('recognizes judge-style classes as compile-only and rejects package paths', () => {
-    expect(analyzeJavaSource('class Solution { public int sum(int a, int b) { return a + b; } }')).toEqual({
+    expect(
+      analyzeJavaSource('class Solution { public int sum(int a, int b) { return a + b; } }')
+    ).toEqual({
       className: 'Solution',
       fileName: 'Solution.java',
       hasMainMethod: false,
@@ -138,21 +143,25 @@ describe('Java Docker sandbox runner', () => {
       'info',
       'image',
       'create',
-      'cp',
-      'cp',
       'start',
+      'cp',
+      'cp',
+      'exec',
       'rm',
     ]);
     const create = calls.find((call) => call.args[0] === 'create')!;
     expect(create.args).toContain('--network');
     expect(create.args).toContain('none');
-    expect(create.args.some((arg) => arg === 'IAC_COMPILE_MARKER=' + marker)).toBe(true);
+    const execution = calls.find((call) => call.args[0] === 'exec')!;
+    expect(execution.args.some((arg) => arg === 'IAC_COMPILE_MARKER=' + marker)).toBe(true);
     expect(writeFile).toHaveBeenCalledTimes(2);
     expect(removeDirectory).toHaveBeenCalledWith('/tmp/iac-java-sandbox-test');
   });
 
   it('reports compile-only success when no main method is present', async () => {
-    const { runner, calls } = createFakeRunner({ startOutput: '__IAC_JAVA_COMPILE_OK_test-uuid__\n' });
+    const { runner, calls } = createFakeRunner({
+      startOutput: '__IAC_JAVA_COMPILE_OK_test-uuid__\n',
+    });
     const result = await runner({
       sourceCode: 'class Solution { public int sum(int a, int b) { return a + b; } }',
       executeMain: true,
@@ -173,7 +182,9 @@ describe('Java Docker sandbox runner', () => {
   });
 
   it('requires rootless Docker on Linux', async () => {
-    const { runner, calls } = createFakeRunner({ securityOptions: ['name=seccomp,profile=builtin'] });
+    const { runner, calls } = createFakeRunner({
+      securityOptions: ['name=seccomp,profile=builtin'],
+    });
     const result = await runner({ sourceCode: runnableSource, executeMain: true });
 
     expect(result.status).toBe('ROOTLESS_DOCKER_REQUIRED');

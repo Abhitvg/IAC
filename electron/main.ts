@@ -1167,7 +1167,6 @@ ipcMain.handle('screen:ocr-image', async (event, filePath: string) => {
   }
 });
 
-
 ipcMain.handle('sandbox:java-run', async (event, request: unknown) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   return runJavaSandbox(request);

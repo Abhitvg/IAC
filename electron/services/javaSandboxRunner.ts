@@ -206,15 +206,13 @@ export function normalizeJavaOutput(value: string): string {
 }
 
 export function isLocalDockerEndpoint(endpoint: string): boolean {
-  return endpoint.startsWith('unix://') || endpoint.startsWith('npipe:');
+  return (
+    endpoint.startsWith('unix://') ||
+    /^npipe:\/\/\/\/\.\/pipe\/[A-Za-z0-9_.-]+$/.test(endpoint)
+  );
 }
 
-export function buildJavaSandboxCreateArgs(options: {
-  containerName: string;
-  marker: string;
-  executeMain: boolean;
-  className: string;
-}): string[] {
+export function buildJavaSandboxCreateArgs(options: { containerName: string }): string[] {
   return [
     'create',
     '--name',
@@ -256,13 +254,28 @@ export function buildJavaSandboxCreateArgs(options: {
     'HOME=/tmp',
     '--env',
     'TMPDIR=/tmp',
+    '--entrypoint',
+    '/bin/sh',
+    JAVA_SANDBOX_IMAGE,
+    '-c',
+    'exec sleep 60',
+  ];
+}
+
+export function buildJavaSandboxExecArgs(options: {
+  containerId: string;
+  marker: string;
+  executeMain: boolean;
+  className: string;
+}): string[] {
+  return [
+    'exec',
     '--env',
     'IAC_COMPILE_MARKER=' + options.marker,
     '--env',
     'IAC_EXECUTE_MAIN=' + (options.executeMain ? '1' : '0'),
-    '--entrypoint',
+    options.containerId,
     '/bin/sh',
-    JAVA_SANDBOX_IMAGE,
     '-c',
     CONTAINER_SCRIPT,
     'iac-java-sandbox',
@@ -308,8 +321,25 @@ export function createJavaSandboxRunner(
 
   return async (rawRequest: unknown): Promise<JavaSandboxResult> => {
     const startedAt = dependencies.now();
+    let lastResult: JavaSandboxResult | null = null;
+    const createTrackedResult = (
+      status: JavaSandboxResult['status'],
+      message: string,
+      fields: Partial<JavaSandboxResult> = {}
+    ): JavaSandboxResult => {
+      const response = createResult(status, message, fields);
+      lastResult = response;
+      return response;
+    };
+    const markCleanupFailed = (warning: string) => {
+      if (!lastResult) return;
+      lastResult.ok = false;
+      lastResult.status = 'CLEANUP_FAILED';
+      lastResult.cleanupWarning = warning;
+      lastResult.message += ' Cleanup was not confirmed: ' + warning;
+    };
     if (!rawRequest || typeof rawRequest !== 'object' || Array.isArray(rawRequest)) {
-      return createResult('INVALID_REQUEST', 'Invalid Java sandbox request.');
+      return createTrackedResult('INVALID_REQUEST', 'Invalid Java sandbox request.');
     }
 
     const request = rawRequest as Partial<JavaSandboxRequest>;
@@ -319,7 +349,7 @@ export function createJavaSandboxRunner(
       (request.stdin !== undefined && typeof request.stdin !== 'string') ||
       (request.expectedOutput !== undefined && typeof request.expectedOutput !== 'string')
     ) {
-      return createResult(
+      return createTrackedResult(
         'INVALID_REQUEST',
         'Source code, execution choice, or test input has an invalid type.'
       );
@@ -333,7 +363,7 @@ export function createJavaSandboxRunner(
       sourceBytes > JAVA_SANDBOX_LIMITS.maxSourceBytes ||
       request.sourceCode.includes('\0')
     ) {
-      return createResult(
+      return createTrackedResult(
         'INVALID_REQUEST',
         'Java source must be non-empty and no larger than ' +
           JAVA_SANDBOX_LIMITS.maxSourceBytes / 1024 +
@@ -341,7 +371,7 @@ export function createJavaSandboxRunner(
       );
     }
     if (Buffer.byteLength(stdin, 'utf8') > JAVA_SANDBOX_LIMITS.maxStdinBytes) {
-      return createResult(
+      return createTrackedResult(
         'INVALID_REQUEST',
         'Standard input must not exceed ' + JAVA_SANDBOX_LIMITS.maxStdinBytes / 1024 + ' KB.'
       );
@@ -350,7 +380,7 @@ export function createJavaSandboxRunner(
       expectedOutput !== undefined &&
       Buffer.byteLength(expectedOutput, 'utf8') > JAVA_SANDBOX_LIMITS.maxExpectedOutputBytes
     ) {
-      return createResult(
+      return createTrackedResult(
         'INVALID_REQUEST',
         'Expected output must not exceed ' +
           JAVA_SANDBOX_LIMITS.maxExpectedOutputBytes / 1024 +
@@ -360,7 +390,7 @@ export function createJavaSandboxRunner(
 
     const analysis = analyzeJavaSource(request.sourceCode);
     if (!analysis) {
-      return createResult(
+      return createTrackedResult(
         'INVALID_REQUEST',
         'Provide one Java class, record, or enum without a package declaration. Platform-specific snippets that need an external harness are not supported yet.'
       );
@@ -373,7 +403,7 @@ export function createJavaSandboxRunner(
       PREFLIGHT_TIMEOUT_MS
     );
     if (!context.ok) {
-      return createResult(
+      return createTrackedResult(
         'DOCKER_UNAVAILABLE',
         'A local Docker Engine is required. Start Docker Desktop or the local Docker service, then retry.'
       );
@@ -384,10 +414,13 @@ export function createJavaSandboxRunner(
       const endpointInfo = JSON.parse(context.stdout.trim()) as { Host?: unknown };
       contextEndpoint = typeof endpointInfo.Host === 'string' ? endpointInfo.Host : '';
     } catch {
-      return createResult('DOCKER_CONTEXT_REJECTED', 'Could not verify that the Docker context is local.');
+      return createTrackedResult(
+        'DOCKER_CONTEXT_REJECTED',
+        'Could not verify that the Docker context is local.'
+      );
     }
     if (!isLocalDockerEndpoint(contextEndpoint)) {
-      return createResult(
+      return createTrackedResult(
         'DOCKER_CONTEXT_REJECTED',
         'The selected Docker context is remote or unsupported. Switch to a local unix-socket or Windows named-pipe Docker context; source code must not be sent to a remote Docker host.'
       );
@@ -398,7 +431,7 @@ export function createJavaSandboxRunner(
       PREFLIGHT_TIMEOUT_MS
     );
     if (!info.ok) {
-      return createResult(
+      return createTrackedResult(
         'DOCKER_UNAVAILABLE',
         'Docker Engine is not responding. Start the local Docker service and retry.'
       );
@@ -410,13 +443,13 @@ export function createJavaSandboxRunner(
           !Array.isArray(securityOptions) ||
           !securityOptions.some((value) => /rootless/i.test(value))
         ) {
-          return createResult(
+          return createTrackedResult(
             'ROOTLESS_DOCKER_REQUIRED',
             'On Linux, configure rootless Docker before running untrusted code. A rootful Docker daemon is not accepted by this runner.'
           );
         }
       } catch {
-        return createResult(
+        return createTrackedResult(
           'ROOTLESS_DOCKER_REQUIRED',
           'Could not verify rootless Docker mode. The runner requires rootless Docker on Linux.'
         );
@@ -428,7 +461,7 @@ export function createJavaSandboxRunner(
       PREFLIGHT_TIMEOUT_MS
     );
     if (!image.ok) {
-      return createResult(
+      return createTrackedResult(
         'JAVA_IMAGE_MISSING',
         'The pinned Java 21 sandbox image is not installed locally. IAC will not download images automatically.',
         {
@@ -455,39 +488,53 @@ export function createJavaSandboxRunner(
 
       createAttempted = true;
       const create = await runCommand(
-        buildJavaSandboxCreateArgs({
-          containerName,
-          marker,
-          executeMain: shouldExecute,
-          className: analysis.className,
-        }),
+        buildJavaSandboxCreateArgs({ containerName }),
         CREATE_TIMEOUT_MS
       );
       if (!create.ok) {
-        return createResult('DOCKER_ERROR', 'Docker could not create the restricted Java container.', {
-          stderr: truncate(create.stderr || create.message || ''),
-          durationMs: dependencies.now() - startedAt,
-        });
+        return createTrackedResult(
+          'DOCKER_ERROR',
+          'Docker could not create the restricted Java container.',
+          {
+            stderr: truncate(create.stderr || create.message || ''),
+            durationMs: dependencies.now() - startedAt,
+          }
+        );
       }
+      containerCreated = true;
       const containerId = create.stdout.trim();
       if (!/^[a-f0-9]{12,64}$/i.test(containerId)) {
-        return createResult(
+        return createTrackedResult(
           'DOCKER_ERROR',
           'Docker returned an invalid container identifier; execution was stopped.',
           { durationMs: dependencies.now() - startedAt }
         );
       }
-      containerCreated = true;
+      const startContainer = await runCommand(['start', containerId], COPY_TIMEOUT_MS);
+      if (!startContainer.ok) {
+        return createTrackedResult(
+          'DOCKER_ERROR',
+          'Docker could not start the restricted Java container.',
+          {
+            stderr: truncate(startContainer.stderr || startContainer.message || ''),
+            durationMs: dependencies.now() - startedAt,
+          }
+        );
+      }
 
       const sourceCopy = await runCommand(
         ['cp', sourcePath, containerId + ':/workspace/' + analysis.fileName],
         COPY_TIMEOUT_MS
       );
       if (!sourceCopy.ok) {
-        return createResult('DOCKER_ERROR', 'Could not copy Java source into the isolated container.', {
-          stderr: truncate(sourceCopy.stderr || sourceCopy.message || ''),
-          durationMs: dependencies.now() - startedAt,
-        });
+        return createTrackedResult(
+          'DOCKER_ERROR',
+          'Could not copy Java source into the isolated container.',
+          {
+            stderr: truncate(sourceCopy.stderr || sourceCopy.message || ''),
+            durationMs: dependencies.now() - startedAt,
+          }
+        );
       }
 
       const inputCopy = await runCommand(
@@ -495,14 +542,23 @@ export function createJavaSandboxRunner(
         COPY_TIMEOUT_MS
       );
       if (!inputCopy.ok) {
-        return createResult('DOCKER_ERROR', 'Could not copy standard input into the isolated container.', {
-          stderr: truncate(inputCopy.stderr || inputCopy.message || ''),
-          durationMs: dependencies.now() - startedAt,
-        });
+        return createTrackedResult(
+          'DOCKER_ERROR',
+          'Could not copy standard input into the isolated container.',
+          {
+            stderr: truncate(inputCopy.stderr || inputCopy.message || ''),
+            durationMs: dependencies.now() - startedAt,
+          }
+        );
       }
 
       const started = await runCommand(
-        ['start', '--attach', containerId],
+        buildJavaSandboxExecArgs({
+          containerId,
+          marker,
+          executeMain: shouldExecute,
+          className: analysis.className,
+        }),
         JAVA_SANDBOX_LIMITS.runTimeoutMs
       );
       const compileSucceeded = hasCompileMarker(started.stdout, marker);
@@ -510,7 +566,7 @@ export function createJavaSandboxRunner(
       const stderr = truncate(started.stderr);
 
       if (started.timedOut) {
-        return createResult(
+        return createTrackedResult(
           'TIMEOUT',
           'The compile/run operation exceeded the 15-second limit and was terminated.',
           {
@@ -525,25 +581,33 @@ export function createJavaSandboxRunner(
 
       if (!compileSucceeded) {
         if (started.exitCode === COMPILE_FAILURE_EXIT_CODE) {
-          return createResult('COMPILE_FAILED', 'Java compilation failed. Review the compiler diagnostics.', {
+          return createTrackedResult(
+            'COMPILE_FAILED',
+            'Java compilation failed. Review the compiler diagnostics.',
+            {
+              stdout,
+              stderr,
+              durationMs: dependencies.now() - startedAt,
+              compileSucceeded: false,
+              exitCode: started.exitCode,
+            }
+          );
+        }
+        return createTrackedResult(
+          'DOCKER_ERROR',
+          'The Java container stopped before compilation could be confirmed.',
+          {
             stdout,
             stderr,
             durationMs: dependencies.now() - startedAt,
             compileSucceeded: false,
             exitCode: started.exitCode,
-          });
-        }
-        return createResult('DOCKER_ERROR', 'The Java container stopped before compilation could be confirmed.', {
-          stdout,
-          stderr,
-          durationMs: dependencies.now() - startedAt,
-          compileSucceeded: false,
-          exitCode: started.exitCode,
-        });
+          }
+        );
       }
 
       if (!shouldExecute) {
-        return createResult(
+        return createTrackedResult(
           'COMPILED',
           analysis.hasMainMethod
             ? 'Compilation passed. Execution was disabled by your selection.'
@@ -560,19 +624,22 @@ export function createJavaSandboxRunner(
       }
 
       if (!started.ok || started.exitCode !== 0) {
-        return createResult('RUNTIME_FAILED', 'Compilation passed, but the Java program exited with an error.', {
-          stdout,
-          stderr,
-          durationMs: dependencies.now() - startedAt,
-          compileSucceeded: true,
-          exitCode: started.exitCode,
-        });
+        return createTrackedResult(
+          'RUNTIME_FAILED',
+          'Compilation passed, but the Java program exited with an error.',
+          {
+            stdout,
+            stderr,
+            durationMs: dependencies.now() - startedAt,
+            compileSucceeded: true,
+            exitCode: started.exitCode,
+          }
+        );
       }
 
       if (expectedOutput !== undefined) {
-        const outputMatched =
-          normalizeJavaOutput(stdout) === normalizeJavaOutput(expectedOutput);
-        return createResult(
+        const outputMatched = normalizeJavaOutput(stdout) === normalizeJavaOutput(expectedOutput);
+        return createTrackedResult(
           outputMatched ? 'OUTPUT_MATCHED' : 'OUTPUT_MISMATCH',
           outputMatched
             ? 'Compilation passed and actual output matched the expected output.'
@@ -589,7 +656,7 @@ export function createJavaSandboxRunner(
         );
       }
 
-      return createResult(
+      return createTrackedResult(
         'EXECUTED',
         'Compilation and execution completed. No expected output was supplied, so correctness has not been asserted.',
         {
@@ -604,17 +671,25 @@ export function createJavaSandboxRunner(
     } catch (error) {
       const details = readErrorOutput(error);
       if (details.timedOut) {
-        return createResult('TIMEOUT', 'The sandbox operation exceeded its time limit and was terminated.', {
+        return createTrackedResult(
+          'TIMEOUT',
+          'The sandbox operation exceeded its time limit and was terminated.',
+          {
+            stdout: truncate(details.stdout),
+            stderr: truncate(details.stderr),
+            durationMs: dependencies.now() - startedAt,
+          }
+        );
+      }
+      return createTrackedResult(
+        'DOCKER_ERROR',
+        'The sandbox could not complete safely.',
+        {
           stdout: truncate(details.stdout),
           stderr: truncate(details.stderr),
           durationMs: dependencies.now() - startedAt,
-        });
-      }
-      return createResult('DOCKER_ERROR', 'The sandbox could not complete safely.', {
-        stdout: truncate(details.stdout),
-        stderr: truncate(details.stderr),
-        durationMs: dependencies.now() - startedAt,
-      });
+        }
+      );
     } finally {
       if (createAttempted) {
         const cleanup = await runCommand(
@@ -622,9 +697,11 @@ export function createJavaSandboxRunner(
           CLEANUP_TIMEOUT_MS
         );
         if (!cleanup.ok && containerCreated) {
-          console.error(
-            '[JavaSandbox] Failed to remove sandbox container:',
-            truncate(cleanup.stderr || cleanup.message || 'Unknown Docker cleanup error.')
+          markCleanupFailed(
+            'Docker did not confirm removal of the sandbox container. Inspect Docker for ' +
+              containerName +
+              ' and remove it before continuing. ' +
+              truncate(cleanup.stderr || cleanup.message || 'Unknown Docker cleanup error.')
           );
         }
       }
@@ -632,6 +709,9 @@ export function createJavaSandboxRunner(
         try {
           await dependencies.removeDirectory(tempDirectory);
         } catch (error) {
+          markCleanupFailed(
+            'The temporary source directory could not be removed. Check the operating system temp directory.'
+          );
           console.error('[JavaSandbox] Failed to remove temporary source directory:', error);
         }
       }

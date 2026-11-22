@@ -242,7 +242,8 @@ export type JavaSandboxStatus =
   | 'DOCKER_CONTEXT_REJECTED'
   | 'ROOTLESS_DOCKER_REQUIRED'
   | 'JAVA_IMAGE_MISSING'
-  | 'DOCKER_ERROR';
+  | 'DOCKER_ERROR'
+  | 'CLEANUP_FAILED';
 
 export interface JavaSandboxRequest {
   sourceCode: string;
@@ -262,6 +263,7 @@ export interface JavaSandboxResult {
   exitCode: number | null;
   outputMatched: boolean | null;
   setupCommand?: string;
+  cleanupWarning?: string;
 }
 
 // ─── Electron API Types ───
