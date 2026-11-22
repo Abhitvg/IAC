@@ -2924,6 +2924,9 @@ export default function TeleprompterView() {
             onClick={(e) => e.stopPropagation()}
             style={{
               width: 'min(100%, 420px)',
+              maxHeight: '100%',
+              overflowY: 'auto',
+              boxSizing: 'border-box',
               padding: 18,
               borderRadius: 12,
               background: '#101722',
