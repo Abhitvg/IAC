@@ -293,10 +293,7 @@ export class AudioRecorder {
     const stoppedGeneration = this.captureGeneration;
 
     void stopOperation.then(() => {
-      if (
-        this.captureGeneration !== stoppedGeneration ||
-        this.captureState !== 'stopped'
-      ) {
+      if (this.captureGeneration !== stoppedGeneration || this.captureState !== 'stopped') {
         return;
       }
 
