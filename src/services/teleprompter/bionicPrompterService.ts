@@ -42,6 +42,7 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
 
   const bullets: BionicGazeBullet[] = [];
   let bulletIndex = 0;
+  let hasSubstantiveContent = false;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index].trim();
@@ -74,6 +75,7 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
       }
 
       if (tableRows.length > 0) {
+        hasSubstantiveContent = true;
         const tableText = tableRows.map((row) => row.join(' | ')).join('\n');
         bullets.push({
           id: `gaze-${bulletIndex++}`,
@@ -95,6 +97,7 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
       .trim();
 
     if (!cleanLine) continue;
+    if (!isHeading) hasSubstantiveContent = true;
 
     // Keep complete sentences and list items intact. Headings remain standalone.
     const logicalUnits =
@@ -114,7 +117,7 @@ export function extractGlanceableGazeBullets(prose: string): BionicGazeBullet[] 
     }
   }
 
-  return bullets;
+  return hasSubstantiveContent ? bullets : [];
 }
 
 export const BIONIC_PRIMARY_BULLET_LIMIT = 7;
@@ -183,7 +186,7 @@ export function selectPrimaryGlanceableBullets(bullets: BionicGazeBullet[]): {
   }
 
   for (
-    let index = 4;
+    let index = 3;
     index < bullets.length && selectedIndexes.size < BIONIC_PRIMARY_BULLET_LIMIT;
     index += 1
   ) {
