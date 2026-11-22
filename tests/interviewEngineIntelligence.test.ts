@@ -200,6 +200,11 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
       vi.clearAllMocks();
       useAppStore.setState({
         status: 'idle',
+        isRecording: false,
+        diagnosticState: {
+          ...useAppStore.getState().diagnosticState,
+          micActive: false,
+        },
         recitalState: 'idle',
         currentQuestion: null,
         currentAnswer: null,
@@ -207,7 +212,7 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
       });
     });
 
-    it('preserves parenthetical technical context from speech through answer generation', async () => {
+    it('automatically generates an answer for question-shaped speech without speaker confirmation', async () => {
       const transcript =
         'What is CAP theorem (consistency, availability, and partition tolerance)?';
       const transcriptionSpy = vi
@@ -222,6 +227,7 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
         recitalState: 'listening',
         currentQuestion: null,
         currentAnswer: null,
+        lastUnconfirmedTranscript: null,
         settings: {
           aiProvider: 'groq',
           aiModel: 'openai/gpt-oss-120b',
@@ -237,12 +243,16 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
           blob: new Blob(['mock audio']),
         });
 
-        expect(answerSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            text: transcript,
-            originalTranscript: transcript,
-          }),
-          expect.any(Object)
+        expect(answerSpy).toHaveBeenCalledTimes(1);
+        expect(useAppStore.getState().lastUnconfirmedTranscript).toBeNull();
+        expect(useAppStore.getState().currentQuestion).toBe(transcript);
+        expect(useAppStore.getState().transcript).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              classification: 'AUTO_ACCEPTED_QUESTION',
+              text: transcript,
+            }),
+          ])
         );
       } finally {
         transcriptionSpy.mockRestore();
@@ -286,6 +296,51 @@ Skills: Java, TypeScript, Spring Boot, PostgreSQL, MongoDB, Kafka, Docker, AWS, 
 
       // Status remains 'generating' so in-flight answer is NOT destroyed!
       expect(useAppStore.getState().status).toBe('generating');
+    });
+
+    it('pauses and restarts microphone capture without cancelling an active answer', async () => {
+      const recorder = AudioRecorder.getInstance();
+      const captureStateSpy = vi.spyOn(recorder, 'getCaptureState');
+      const startSpy = vi.spyOn(recorder, 'start').mockImplementation(async () => {
+        useAppStore.getState().updateDiagnostics({ micActive: true });
+      });
+      const stopSpy = vi.spyOn(recorder, 'stop').mockImplementation(async () => {
+        useAppStore.getState().updateDiagnostics({ micActive: false });
+      });
+      const cancelSpy = vi.spyOn(InterviewEngine, 'cancelAllActiveWork');
+
+      useAppStore.setState({
+        status: 'generating',
+        currentQuestion: 'Explain a database transaction.',
+        currentAnswer: 'The answer is still streaming...',
+        diagnosticState: {
+          ...useAppStore.getState().diagnosticState,
+          micActive: true,
+        },
+        isRecording: true,
+      });
+
+      try {
+        captureStateSpy.mockReturnValue('active');
+        useAppStore.getState().toggleRecording();
+
+        await vi.waitFor(() => expect(stopSpy).toHaveBeenCalledWith(false));
+        expect(useAppStore.getState().status).toBe('generating');
+        expect(useAppStore.getState().isRecording).toBe(false);
+
+        captureStateSpy.mockReturnValue('stopped');
+        useAppStore.getState().toggleRecording();
+
+        await vi.waitFor(() => expect(startSpy).toHaveBeenCalledTimes(1));
+        expect(useAppStore.getState().status).toBe('generating');
+        expect(useAppStore.getState().isRecording).toBe(true);
+        expect(cancelSpy).not.toHaveBeenCalled();
+      } finally {
+        captureStateSpy.mockRestore();
+        startSpy.mockRestore();
+        stopSpy.mockRestore();
+        cancelSpy.mockRestore();
+      }
     });
 
     it('CANCEL_ACTIVE_REQUEST cleanly terminates active generation, purges queue, and restores safe state', async () => {

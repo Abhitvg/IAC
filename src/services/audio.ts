@@ -20,6 +20,8 @@ export class AudioRecorder {
   private captureState: AudioCaptureState = 'stopped';
   private captureRequestId: string | null = null;
   private captureStartedAt = 0;
+  private captureGeneration = 0;
+  private stopPromise: Promise<void> | null = null;
 
   public static getInstance(): AudioRecorder {
     if (!AudioRecorder.instance) {
@@ -66,14 +68,30 @@ export class AudioRecorder {
   private lastDbUpdate = 0;
 
   async start(onUtterance: (blob: Blob) => void): Promise<void> {
-    // Idempotent: if already active or starting, avoid re-attaching
+    // Serialize startup behind an in-progress stop. Re-check after waiting because
+    // another caller may already have started the recorder.
+    if (this.stopPromise) {
+      await this.stopPromise;
+      return this.start(onUtterance);
+    }
+
+    // Idempotent: repeated Start calls update the callback without creating another
+    // permission prompt or microphone stream.
     if (this.captureState === 'active' || this.captureState === 'starting') {
       this.onUtteranceCb = onUtterance;
       return;
     }
 
+    const generation = ++this.captureGeneration;
     this.captureState = 'starting';
-    await this.stop(false, 'ABORTED');
+    this.isListening = false;
+    this.onUtteranceCb = onUtterance;
+
+    // Clear resources left behind by a previously failed setup. This operation
+    // deliberately does not invalidate the generation owned by this start.
+    await this.releaseCaptureResources();
+    if (generation !== this.captureGeneration || this.captureState !== 'starting') return;
+
     this.captureRequestId = `capture_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     this.captureStartedAt = Date.now();
     DiagnosticLoggerService.getInstance().recordEvent({
@@ -82,17 +100,58 @@ export class AudioRecorder {
       audioCaptureOutcome: 'STARTING',
       message: 'Audio capture startup requested.',
     });
-    this.onUtteranceCb = onUtterance;
-    this.isListening = true;
     this.isCapturing = false;
     this.utteranceChunks = [];
     this.totalUtteranceSamples = 0;
+    this.speechStartDetectedTime = 0;
     this.preRollBuffer.fill(0);
     const storeTolerance = useAppStore.getState().speechPauseTolerance;
     if (typeof storeTolerance === 'number' && storeTolerance >= 400) {
       this.speechSilenceDuration = storeTolerance;
     }
     this.preRollIndex = 0;
+
+    let pendingStream: MediaStream | null = null;
+    let pendingContext: AudioContext | null = null;
+    let pendingSource: MediaStreamAudioSourceNode | null = null;
+    let pendingProcessor: ScriptProcessorNode | null = null;
+    let pendingGain: GainNode | null = null;
+
+    const isCurrentStartup = () =>
+      generation === this.captureGeneration && this.captureState === 'starting';
+    const stopPendingStream = () => {
+      try {
+        pendingStream?.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch {}
+        });
+      } catch {}
+      pendingStream = null;
+    };
+    const closePendingContext = async () => {
+      if (pendingContext && pendingContext.state !== 'closed') {
+        await pendingContext.close().catch(() => undefined);
+      }
+      pendingContext = null;
+    };
+    const disconnectPendingNodes = () => {
+      if (pendingProcessor) {
+        pendingProcessor.onaudioprocess = null;
+        try {
+          pendingProcessor.disconnect();
+        } catch {}
+        pendingProcessor = null;
+      }
+      try {
+        pendingSource?.disconnect();
+      } catch {}
+      pendingSource = null;
+      try {
+        pendingGain?.disconnect();
+      } catch {}
+      pendingGain = null;
+    };
 
     try {
       const selectedDeviceId = useAppStore.getState().selectedAudioDeviceId;
@@ -107,36 +166,60 @@ export class AudioRecorder {
         throw new Error('navigator.mediaDevices.getUserMedia is not supported in this environment');
       }
 
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: audioConstraints,
-      });
+      pendingStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      if (!isCurrentStartup()) {
+        stopPendingStream();
+        return;
+      }
 
       const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextCtor) {
         throw new Error('AudioContext is not supported in this environment');
       }
-      this.audioContext = new AudioContextCtor();
-      if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
+      pendingContext = new AudioContextCtor();
+      if (pendingContext.state === 'suspended') {
+        await pendingContext.resume();
+      }
+      if (!isCurrentStartup()) {
+        stopPendingStream();
+        await closePendingContext();
+        return;
       }
 
-      this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
-      this.processorNode = this.audioContext.createScriptProcessor(1024, 1, 1);
+      pendingSource = pendingContext.createMediaStreamSource(pendingStream);
+      pendingProcessor = pendingContext.createScriptProcessor(1024, 1, 1);
+      pendingGain = pendingContext.createGain();
+      pendingGain.gain.value = 0;
+
+      // Transfer resource ownership only after all awaited startup steps have
+      // passed the generation check. Stop can now safely tear down instance fields.
+      this.mediaStream = pendingStream;
+      this.audioContext = pendingContext;
+      this.sourceNode = pendingSource;
+      this.processorNode = pendingProcessor;
+      this.gainNode = pendingGain;
+      pendingStream = null;
+      pendingContext = null;
+      pendingSource = null;
+      pendingProcessor = null;
+      pendingGain = null;
 
       this.processorNode.onaudioprocess = (e) => {
-        if (!this.isListening) return;
+        if (!this.isListening || generation !== this.captureGeneration) return;
         const channelData = e.inputBuffer.getChannelData(0);
         this.processAudioFrame(channelData);
       };
-
-      // Mute audio output to prevent loopback/feedback
-      this.gainNode = this.audioContext.createGain();
-      this.gainNode.gain.value = 0;
 
       this.sourceNode.connect(this.processorNode);
       this.processorNode.connect(this.gainNode);
       this.gainNode.connect(this.audioContext.destination);
 
+      if (!isCurrentStartup()) {
+        await this.releaseCaptureResources();
+        return;
+      }
+
+      this.isListening = true;
       this.captureState = 'active';
       if (this.captureRequestId) {
         DiagnosticLoggerService.getInstance().recordEvent({
@@ -151,8 +234,23 @@ export class AudioRecorder {
         mimeType: 'audio/wav (16kHz mono PCM)',
       });
     } catch (e: any) {
+      disconnectPendingNodes();
+      stopPendingStream();
+      await closePendingContext();
+      // A synchronous graph-connect failure can happen after ownership moved to
+      // instance fields. Release those as well before reporting the setup error,
+      // but never tear down resources belonging to a newer capture generation.
+      if (isCurrentStartup()) {
+        await this.releaseCaptureResources();
+      }
+
+      // Stop or a newer start owns the state now. A cancelled permission request
+      // must not surface as a microphone failure or overwrite the replacement state.
+      if (!isCurrentStartup()) return;
+
       this.isListening = false;
       this.captureState = 'error';
+      this.onUtteranceCb = null;
       if (this.captureRequestId) {
         DiagnosticLoggerService.getInstance().recordEvent({
           requestId: this.captureRequestId,
@@ -170,6 +268,46 @@ export class AudioRecorder {
         whisperStatus: 'Mic error: ' + (e?.message || e),
       });
       throw e;
+    }
+  }
+
+  private async releaseCaptureResources(): Promise<void> {
+    if (this.processorNode) {
+      this.processorNode.onaudioprocess = null;
+      try {
+        this.processorNode.disconnect();
+      } catch {}
+      this.processorNode = null;
+    }
+
+    if (this.sourceNode) {
+      try {
+        this.sourceNode.disconnect();
+      } catch {}
+      this.sourceNode = null;
+    }
+
+    if (this.gainNode) {
+      try {
+        this.gainNode.disconnect();
+      } catch {}
+      this.gainNode = null;
+    }
+
+    const stream = this.mediaStream;
+    this.mediaStream = null;
+    try {
+      stream?.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {}
+      });
+    } catch {}
+
+    const context = this.audioContext;
+    this.audioContext = null;
+    if (context && context.state !== 'closed') {
+      await context.close().catch(() => undefined);
     }
   }
 
@@ -305,9 +443,25 @@ export class AudioRecorder {
    *              If false (default), discards in-progress buffer to avoid triggering unwanted requests on stop.
    */
   async stop(flush: boolean = false, outcome: 'STOPPED' | 'ABORTED' = 'STOPPED'): Promise<void> {
-    if (this.captureState === 'stopped') {
+    // Invalidate pending permission/resume continuations synchronously.
+    const generation = ++this.captureGeneration;
+
+    if (this.stopPromise) {
+      const pendingStop = this.stopPromise;
+      await pendingStop;
+      if (generation === this.captureGeneration) this.captureState = 'stopped';
       return;
     }
+
+    if (
+      this.captureState === 'stopped' &&
+      !this.mediaStream &&
+      !this.audioContext &&
+      !this.captureRequestId
+    ) {
+      return;
+    }
+
     this.captureState = 'stopping';
     this.isListening = false;
 
@@ -315,7 +469,6 @@ export class AudioRecorder {
       if (flush) {
         this.finalizeUtterance();
       } else {
-        // Discard in-progress chunks cleanly
         this.isCapturing = false;
         this.utteranceChunks = [];
         this.totalUtteranceSamples = 0;
@@ -323,59 +476,41 @@ export class AudioRecorder {
       }
     }
 
-    if (this.processorNode) {
-      this.processorNode.onaudioprocess = null;
-      try {
-        this.processorNode.disconnect();
-      } catch (_) {}
-      this.processorNode = null;
-    }
+    this.onUtteranceCb = null;
+    const requestId = this.captureRequestId;
+    const captureStartedAt = this.captureStartedAt;
+    this.captureRequestId = null;
+    this.captureStartedAt = 0;
 
-    if (this.sourceNode) {
-      try {
-        this.sourceNode.disconnect();
-      } catch (_) {}
-      this.sourceNode = null;
-    }
+    const stopOperation = (async () => {
+      await this.releaseCaptureResources();
+      if (generation === this.captureGeneration) this.captureState = 'stopped';
 
-    if (this.gainNode) {
-      try {
-        this.gainNode.disconnect();
-      } catch (_) {}
-      this.gainNode = null;
-    }
-
-    if (this.mediaStream) {
-      this.mediaStream.getTracks().forEach((t) => t.stop());
-      this.mediaStream = null;
-    }
-
-    if (this.audioContext && this.audioContext.state !== 'closed') {
-      await this.audioContext.close().catch(() => undefined);
-      this.audioContext = null;
-    }
-
-    this.captureState = 'stopped';
-    if (this.captureRequestId) {
-      const captureDurationMs = Date.now() - this.captureStartedAt;
-      DiagnosticLoggerService.getInstance().recordEvent({
-        requestId: this.captureRequestId,
-        pipelineStage: outcome === 'STOPPED' ? 'listening' : 'failed',
-        audioCaptureDurationMs: captureDurationMs,
-        audioCaptureOutcome: outcome,
-        finalOutcome: outcome === 'STOPPED' ? 'SUCCESS' : 'ABORTED',
-        message:
-          outcome === 'STOPPED'
-            ? 'Audio capture session stopped.'
-            : 'Audio capture session cancelled.',
+      if (requestId) {
+        DiagnosticLoggerService.getInstance().recordEvent({
+          requestId,
+          pipelineStage: outcome === 'STOPPED' ? 'listening' : 'failed',
+          audioCaptureDurationMs: Date.now() - captureStartedAt,
+          audioCaptureOutcome: outcome,
+          finalOutcome: outcome === 'STOPPED' ? 'SUCCESS' : 'ABORTED',
+          message:
+            outcome === 'STOPPED'
+              ? 'Audio capture session stopped.'
+              : 'Audio capture session cancelled.',
+        });
+      }
+      useAppStore.getState().updateDiagnostics({
+        micActive: false,
+        speechDetected: false,
       });
-      this.captureRequestId = null;
-      this.captureStartedAt = 0;
+    })();
+
+    this.stopPromise = stopOperation;
+    try {
+      await stopOperation;
+    } finally {
+      if (this.stopPromise === stopOperation) this.stopPromise = null;
     }
-    useAppStore.getState().updateDiagnostics({
-      micActive: false,
-      speechDetected: false,
-    });
   }
 
   async cancel(): Promise<void> {

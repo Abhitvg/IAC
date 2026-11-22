@@ -15,6 +15,10 @@ import { transcribeAudio } from './whisper';
 import { AnswerGenerationService } from './AnswerGenerationService';
 import { DiagnosticLoggerService } from './diagnosticLogger';
 import {
+  isQuestionShapedSpeech,
+  shouldAutoRouteUncertainQuestion,
+} from './interviewQuestionRouting';
+import {
   FactualGroundingValidator,
   CandidateKnowledgeBase,
   SpeakingDecision,
@@ -48,6 +52,7 @@ let activeAbortController: AbortController | null = null;
 let activeRequestId: string | null = null;
 
 let activeTranscriptionController: AbortController | null = null;
+let activeTranscriptionRequestId: string | null = null;
 let pendingQuestionTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingQuestionText = '';
 let pendingQuestionTranscript = '';
@@ -185,6 +190,7 @@ export class InterviewEngine {
    * Aborts in-flight audio transcription.
    */
   static abortActiveTranscription(): void {
+    activeTranscriptionRequestId = null;
     if (activeTranscriptionController) {
       activeTranscriptionController.abort();
       activeTranscriptionController = null;
@@ -209,14 +215,21 @@ export class InterviewEngine {
 
     switch (event.type) {
       case 'START_LISTENING': {
-        // Idempotent start: if already active or starting, ignore redundant trigger
-        if (store.status === 'listening' || audioService.getCaptureState() === 'active') {
+        const captureState = audioService.getCaptureState();
+        // The microphone, not the answer-generation status, decides whether Start is redundant.
+        if (captureState === 'active' || captureState === 'starting') {
           return;
         }
 
-        InterviewEngine.cancelAllActiveWork();
+        const answerWasActive = store.status === 'analyzing' || store.status === 'generating';
+        InterviewEngine.clearPendingQuestion();
+        InterviewEngine.abortActiveTranscription();
         globalLatencyTracker.mark('speechStart');
-        store.setStatus('listening');
+
+        // Starting the microphone must not cancel or overwrite an answer already in flight.
+        if (!answerWasActive) {
+          store.setStatus('listening');
+        }
         store.setRecitalState('listening');
         store.setToast('🎙️ Microphone Active — Listening for speech...');
 
@@ -242,7 +255,11 @@ export class InterviewEngine {
             });
           });
         } catch (e: any) {
-          store.updateDiagnostics({ whisperStatus: 'Mic error: ' + (e?.message || e) });
+          const currentStore = useAppStore.getState();
+          currentStore.updateDiagnostics({
+            whisperStatus: 'Mic error: ' + (e?.message || e),
+            micActive: false,
+          });
           console.error('[InterviewEngine] Microphone start error:', e);
           const isPermission =
             e?.name === 'NotAllowedError' ||
@@ -251,28 +268,51 @@ export class InterviewEngine {
           const errorMsg = isPermission
             ? '🎙️ Microphone permission denied. Please grant microphone access in macOS System Settings > Privacy & Security > Microphone.'
             : `🎙️ Microphone error: ${e?.message || e}`;
-          store.setToast(errorMsg);
-          store.setStatus('idle');
-          store.setRecitalState('idle');
+          currentStore.setToast(errorMsg);
+
+          // A failed microphone startup does not invalidate a concurrently active answer.
+          const answerIsStillActive =
+            currentStore.status === 'analyzing' || currentStore.status === 'generating';
+          if (!answerIsStillActive) {
+            currentStore.setStatus('idle');
+            currentStore.setRecitalState('idle');
+          }
         }
         break;
       }
 
       case 'UTTERANCE_FINALIZED': {
+        // Live interview flow is non-blocking: uncertain segments are classified and
+        // routed automatically below; no transcript confirmation gate may stall listening.
+
         // Guard: Stale or stopped session check
         if (store.status === 'idle') {
           return;
         }
 
         const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-        activeRequestId = requestId;
-
         InterviewEngine.abortActiveTranscription();
-        activeTranscriptionController = new AbortController();
+        const transcriptionController = new AbortController();
+        activeTranscriptionController = transcriptionController;
+        activeTranscriptionRequestId = requestId;
+        const generationWasActive = store.status === 'analyzing' || store.status === 'generating';
+
+        const restoreListeningAfterTranscription = () => {
+          const currentState = useAppStore.getState();
+          if (
+            !generationWasActive &&
+            ['transcribing', 'transcript_received', 'identifying_question'].includes(
+              currentState.status
+            )
+          ) {
+            currentState.setStatus('listening');
+            currentState.setPipelineStage('listening');
+          }
+        };
 
         globalLatencyTracker.mark('speechEnd');
         globalLatencyTracker.mark('transcriptionStart');
-        store.setStatus('transcribing');
+        if (!generationWasActive) store.setStatus('transcribing');
         const transcriptionStartedAt = Date.now();
         DiagnosticLoggerService.getInstance().recordEvent({
           requestId,
@@ -282,14 +322,22 @@ export class InterviewEngine {
         });
 
         try {
+          const sttLanguage =
+            typeof store.settings?.language === 'string' && store.settings.language.trim()
+              ? store.settings.language.trim()
+              : undefined;
           const result = await transcribeAudio(
             event.blob,
-            store.settings,
-            activeTranscriptionController.signal
+            { ...store.settings, language: sttLanguage },
+            transcriptionController.signal
           );
 
-          // Check if this transcription was superseded by a newer request or cancelled
-          if (activeRequestId !== requestId || useAppStore.getState().status === 'idle') {
+          // Transcription has its own request identity; it must not invalidate answer streaming.
+          if (
+            activeTranscriptionRequestId !== requestId ||
+            transcriptionController.signal.aborted ||
+            useAppStore.getState().status === 'idle'
+          ) {
             return;
           }
 
@@ -313,8 +361,7 @@ export class InterviewEngine {
             useAppStore.getState().updateDiagnostics({
               whisperStatus: 'no speech detected in utterance',
             });
-            useAppStore.getState().setStatus('listening');
-            useAppStore.getState().setPipelineStage('listening');
+            restoreListeningAfterTranscription();
             return;
           }
 
@@ -337,8 +384,11 @@ export class InterviewEngine {
             return;
           }
 
-          useAppStore.getState().setPipelineStage('transcript_received');
-          useAppStore.getState().updateDiagnostics({
+          const postTranscriptionState = useAppStore.getState();
+          if (!generationWasActive && postTranscriptionState.status === 'transcribing') {
+            postTranscriptionState.setPipelineStage('transcript_received');
+          }
+          postTranscriptionState.updateDiagnostics({
             latestTranscript: text,
           });
 
@@ -348,7 +398,10 @@ export class InterviewEngine {
             message: 'Transcript received; text content omitted from diagnostics.',
           });
 
-          useAppStore.getState().setPipelineStage('identifying_question');
+          const classificationState = useAppStore.getState();
+          if (!generationWasActive && classificationState.status === 'transcribing') {
+            classificationState.setPipelineStage('identifying_question');
+          }
 
           // Intelligent Classification: Distinguish Candidate Recital vs. Third-Person Interruption
           const classification = classifyUtterance(
@@ -374,19 +427,8 @@ export class InterviewEngine {
             },
           });
 
-          // Preserve all recognized speech before classification-specific handling. A
-          // classifier decision must never be the condition for transcript retention.
-          useAppStore.getState().addTranscript({
-            id: `transcript_${requestId}`,
-            speaker: classification.type === 'CANDIDATE_RECITAL' ? 'user' : 'unknown',
-            text,
-            timestamp: Date.now(),
-            classification: classification.type,
-            confidence: classification.confidence,
-            reason: classification.reason,
-          });
-
-          // Strong recital evidence remains the only automatic echo-suppression path.
+          // Candidate recital and ordinary conversation are suppressed. Question-shaped
+          // speech is routed automatically; no manual transcript confirmation is used.
           if (classification.type === 'CANDIDATE_RECITAL') {
             useAppStore.getState().setRecitalState('reciting');
             useAppStore.getState().updateDiagnostics({
@@ -394,43 +436,59 @@ export class InterviewEngine {
               recitalState: 'reciting',
               questionMatched: false,
             });
-            useAppStore.getState().setStatus('listening');
-            useAppStore.getState().setPipelineStage('listening');
+            restoreListeningAfterTranscription();
             return;
           }
 
-          // Ambiguous words are preserved. Plausible question intent can proceed to
-          // generation even when speaker identity cannot be established.
           if (classification.type === 'UNCLASSIFIED') {
-            const candidateQuestion = classification.questionText || text;
-            // Store the uncertain speech as a recoverable question candidate. It is
-            // retained independently of the eventual finalized question.
-            useAppStore.getState().setLastUnconfirmedTranscript({
-              id: `unconfirmed_${requestId}`,
-              text: candidateQuestion,
-              confidence: classification.confidence,
-              reason: classification.reason,
-              timestamp: Date.now(),
-            });
-            if (classification.needsConfirmation) {
-              await InterviewEngine.handleEvent({
-                type: 'QUESTION_DETECTED',
-                text: candidateQuestion,
-                requestId,
+            if (!shouldAutoRouteUncertainQuestion(classification, text)) {
+              useAppStore.getState().updateDiagnostics({
+                whisperStatus: 'Non-question speech ignored; waiting for a question.',
+                questionMatched: false,
               });
+              restoreListeningAfterTranscription();
               return;
             }
-            useAppStore.getState().updateDiagnostics({
-              latestTranscript: text,
-              whisperStatus: `Speaker uncertain; transcript retained: ${classification.reason}`,
-              questionMatched: false,
+
+            const candidateQuestion = classification.questionText || text;
+            useAppStore.getState().addTranscript({
+              id: `transcript_${requestId}`,
+              speaker: 'unknown',
+              text: candidateQuestion,
+              timestamp: Date.now(),
+              classification: 'AUTO_ACCEPTED_QUESTION',
+              confidence: classification.confidence,
+              reason: classification.reason,
             });
-            useAppStore
-              .getState()
-              .setToast('Speech retained. Confirm as a question or dismiss it.');
-            useAppStore.getState().setStatus('confirmation_required');
-            useAppStore.getState().setPipelineStage('confirmation_required');
+            useAppStore.getState().setLastUnconfirmedTranscript(null);
+            useAppStore.getState().updateDiagnostics({
+              latestTranscript: candidateQuestion,
+              whisperStatus: 'Possible interviewer question detected and routed automatically.',
+              questionMatched: true,
+            });
+            await InterviewEngine.handleEvent({
+              type: 'QUESTION_DETECTED',
+              text: candidateQuestion,
+              requestId,
+            });
             return;
+          }
+
+          if (
+            (classification.type === 'INTERVIEWER_INTERRUPTION' ||
+              classification.type === 'INTERVIEWER_QUESTION') &&
+            !classification.needsConfirmation &&
+            !(classification.confidence < 0.7 && classification.type === 'INTERVIEWER_INTERRUPTION')
+          ) {
+            useAppStore.getState().addTranscript({
+              id: `transcript_${requestId}`,
+              speaker: 'unknown',
+              text,
+              timestamp: Date.now(),
+              classification: classification.type,
+              confidence: classification.confidence,
+              reason: classification.reason,
+            });
           }
 
           // 2. CONVERSATIONAL FILLER ("Yeah", "Okay", "Right")
@@ -438,47 +496,45 @@ export class InterviewEngine {
             useAppStore.getState().updateDiagnostics({
               whisperStatus: `Conversational filler ignored ("${text}")`,
             });
-            useAppStore.getState().setStatus('listening');
-            useAppStore.getState().setPipelineStage('listening');
+            restoreListeningAfterTranscription();
             return;
           }
 
-          // 3. AMBIGUOUS SPEECH: Require confirmation before generating answer
-          if (
-            classification.needsConfirmation ||
-            (classification.confidence < 0.7 && classification.type === 'INTERVIEWER_INTERRUPTION')
-          ) {
+          // 3. AMBIGUOUS SPEECH: route question-shaped speech automatically.
+          // Confidence is retained as metadata; it never creates an interaction gate.
+          if (shouldAutoRouteUncertainQuestion(classification, text)) {
             const questionCandidate = classification.questionText || text;
-            useAppStore.getState().setLastUnconfirmedTranscript({
-              id: Date.now().toString(),
-              text: questionCandidate,
-              confidence: classification.confidence,
-              reason: classification.reason,
-              timestamp: Date.now(),
-            });
-            useAppStore.getState().setPipelineStage('confirmation_required');
+            useAppStore.getState().setLastUnconfirmedTranscript(null);
             useAppStore.getState().updateDiagnostics({
               latestTranscript: questionCandidate,
-              whisperStatus: `Awaiting user confirmation: "${questionCandidate.slice(0, 35)}..."`,
-              questionMatched: false,
+              whisperStatus: 'Low-confidence interviewer question routed automatically.',
+              questionMatched: true,
             });
-
             useAppStore.getState().addTranscript({
               id: Date.now().toString(),
-              speaker: 'interviewer',
+              speaker: 'unknown',
               text: questionCandidate,
               timestamp: Date.now(),
-              classification: 'CONFIRMATION_REQUIRED',
+              classification: 'AUTO_ACCEPTED_LOW_CONFIDENCE',
               confidence: classification.confidence,
               reason: classification.reason,
             });
-
-            DiagnosticLoggerService.getInstance().recordEvent({
+            await InterviewEngine.handleEvent({
+              type: 'QUESTION_DETECTED',
+              text: questionCandidate,
               requestId,
-              pipelineStage: 'confirmation_required',
-              finalOutcome: 'CONFIRMATION_NEEDED',
-              message: `Awaiting user confirmation for: "${questionCandidate.slice(0, 80)}" (${classification.reason})`,
             });
+            return;
+          }
+
+          // Uncertain interruptions that do not resemble a question are not
+          // auto-promoted to answers. Keep listening without interrupting the candidate.
+          if (
+            classification.type === 'INTERVIEWER_INTERRUPTION' &&
+            (classification.needsConfirmation || classification.confidence < 0.7) &&
+            !isQuestionShapedSpeech(classification.questionText || text)
+          ) {
+            restoreListeningAfterTranscription();
             return;
           }
 
@@ -513,7 +569,7 @@ export class InterviewEngine {
 
             useAppStore.getState().addTranscript({
               id: Date.now().toString(),
-              speaker: 'interviewer',
+              speaker: 'unknown',
               text: questionText,
               timestamp: Date.now(),
               classification: classification.type,
@@ -521,6 +577,7 @@ export class InterviewEngine {
               reason: classification.reason,
             });
 
+            useAppStore.getState().setLastUnconfirmedTranscript(null);
             await InterviewEngine.handleEvent({
               type: 'QUESTION_DETECTED',
               text: questionText,
@@ -529,8 +586,7 @@ export class InterviewEngine {
             return;
           }
 
-          useAppStore.getState().setStatus('listening');
-          useAppStore.getState().setPipelineStage('listening');
+          restoreListeningAfterTranscription();
         } catch (e: any) {
           const isAbort = e?.name === 'AbortError';
           const isEmptyTranscript = String(e?.message || e).includes('[TRANSCRIPTION_EMPTY]');
@@ -547,19 +603,35 @@ export class InterviewEngine {
                 ? 'Speech transcription returned no usable text.'
                 : 'Speech transcription failed; details remain in local diagnostics.',
           });
-          if (!isAbort) {
+          const ownsTranscription =
+            activeTranscriptionRequestId === requestId && !transcriptionController.signal.aborted;
+          if (!isAbort && ownsTranscription) {
             const state = useAppStore.getState();
             state.updateDiagnostics({
               whisperStatus: 'error: ' + (e?.message || e),
             });
             console.error('[InterviewEngine] Transcription error:', e);
-            state.setToast(
-              isEmptyTranscript
-                ? 'No speech was recognized. Repeat the question or enter it manually.'
-                : 'Speech transcription failed. Please retry or enter the question manually.'
-            );
-            state.setStatus('listening');
-            state.setPipelineStage('listening');
+            const transcriptionStillOwnsUi =
+              !generationWasActive &&
+              ['transcribing', 'transcript_received', 'identifying_question'].includes(
+                state.status
+              );
+            if (transcriptionStillOwnsUi) {
+              state.setToast(
+                isEmptyTranscript
+                  ? 'No speech was recognized. Repeat the question or enter it manually.'
+                  : 'Speech transcription failed. Please retry or enter the question manually.'
+              );
+              state.setStatus('listening');
+              state.setPipelineStage('listening');
+            }
+          }
+        } finally {
+          if (activeTranscriptionRequestId === requestId) {
+            activeTranscriptionRequestId = null;
+          }
+          if (activeTranscriptionController === transcriptionController) {
+            activeTranscriptionController = null;
           }
         }
         break;
@@ -581,6 +653,7 @@ export class InterviewEngine {
           return;
         }
 
+        InterviewEngine.abortActiveTranscription();
         globalLatencyTracker.mark('questionDetected');
 
         const isExtending = store.isIncompleteQuestionMode && Boolean(store.currentQuestion);
@@ -859,6 +932,7 @@ export class InterviewEngine {
       }
 
       case 'SCREEN_PROBLEM_DETECTED': {
+        InterviewEngine.abortActiveTranscription();
         globalLatencyTracker.mark('questionDetected');
 
         if (store.currentQuestion && store.currentQuestion.trim() !== '') {
