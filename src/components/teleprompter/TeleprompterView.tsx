@@ -283,7 +283,7 @@ function BionicGazeHUD({
             }}
           >
             <span style={{ fontSize: '11px', fontWeight: 800, color: '#34d399', opacity: 0.85 }}>
-              {b.id.match(/gaze-(\\d+)/) ? Number(b.id.match(/gaze-(\\d+)/)?.[1]) + 1 : i + 1}.
+              {Number(b.id.replace('gaze-', '')) + 1 || i + 1}.
             </span>
 
             {/* Bionic Formatted Text */}
@@ -716,9 +716,9 @@ function GroundingBadge({
           background: 'rgba(239, 68, 68, 0.2)',
           border: '1px solid rgba(239, 68, 68, 0.6)',
         }}
-        title="Candidate claims in this answer could not be safely verified or qualified; answer is blocked from speaking queue."
+        title="Candidate-specific claims could not be supported or qualified; this answer is blocked from the speakable queue."
       >
-        🚫 Speaking Blocked (Ungrounded Claims)
+        🚫 Speaking blocked (unsupported candidate claims)
       </span>
     );
   }
@@ -781,9 +781,9 @@ function GroundingBadge({
           background: 'rgba(239, 68, 68, 0.15)',
           border: '1px solid rgba(239, 68, 68, 0.4)',
         }}
-        title="Validation failed closed: unsafe or unvalidated answer blocked."
+        title="Candidate-claim checks could not complete safely, so this answer is blocked."
       >
-        ❌ Factual Grounding: FAILED
+        ❌ Candidate-claim check failed
       </span>
     );
   }
