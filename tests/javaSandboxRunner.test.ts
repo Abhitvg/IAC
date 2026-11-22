@@ -147,7 +147,7 @@ describe('Java Docker sandbox runner', () => {
     expect(result.ok).toBe(true);
     expect(result.compileSucceeded).toBe(true);
     expect(result.outputMatched).toBe(true);
-    expect(result.stdout).toBe('42');
+    expect(result.stdout).toBe('42\n');
     expect(calls.map((call) => call.args[0])).toEqual([
       'context',
       'info',
