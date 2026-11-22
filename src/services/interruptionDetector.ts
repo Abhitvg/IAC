@@ -209,7 +209,7 @@ export function detectQuestionIntent(text: string): {
     /^(what|why|how|who|when|where|which|whose|whom|can|could|would|should|do|does|did|is|are|was|were)\b/i.test(
       trimmed
     ) ||
-    /^(please\s+)?(explain|describe|define|compare|implement|discuss|outline|elaborate)\b/i.test(
+    /^(please\s+)?(explain|describe|define|compare|implement|discuss|outline|elaborate|design|debug|solve|write|code|build|create|calculate|find|show|give|list|name|state|prove|derive|trace)\b/i.test(
       trimmed
     ) ||
     /^(give me|tell me|walk me through)\b/i.test(trimmed) ||
@@ -251,16 +251,6 @@ export function classifyUtterance(
 
   // Explicit question/interruption cues outrank similarity to the answer. Questions
   // naturally reuse technical nouns from the answer they are following up on.
-  if (hasActiveAnswer && intent.plausibleQuestion) {
-    return {
-      type: 'INTERVIEWER_INTERRUPTION',
-      confidence: 0.86,
-      reason: 'Question intent detected independently of speaker overlap',
-      questionText: trimmed,
-      overlapScore: compositeScore,
-      isIncomplete: intent.incomplete,
-    };
-  }
 
   // First-person candidate narration is a stronger speaker cue than topical overlap.
   // Keep this rule narrow so ordinary declarative speech is not silently discarded.
@@ -307,11 +297,14 @@ export function classifyUtterance(
 
   if (intent.plausibleQuestion) {
     return {
-      type: 'INTERVIEWER_QUESTION',
-      confidence: 0.86,
-      reason: 'Question intent detected; speaker attribution unavailable',
+      type: 'UNCLASSIFIED',
+      confidence: 0.55,
+      reason:
+        'Question intent detected, but speaker identity is unavailable; route using question-shaped speech policy',
       questionText: trimmed,
+      overlapScore: compositeScore,
       isIncomplete: intent.incomplete,
+      needsConfirmation: true,
     };
   }
 
