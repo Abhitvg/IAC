@@ -231,7 +231,7 @@ function parseInterviewAnswerBlocks(content: string): InterviewAnswerBlock[] {
     markdownLines = [];
   };
 
-  for (let index = 0; index < lines.length; ) {
+  for (let index = 0; index < lines.length;) {
     const line = lines[index];
     const trimmed = line.trim();
 
@@ -289,19 +289,13 @@ function InterviewAnswerMarkdown({ content }: { content: string }) {
                 <p style={{ margin: '0 0 10px', lineHeight: 1.7 }}>{children}</p>
               ),
               h1: ({ children }) => (
-                <h1 style={{ margin: '18px 0 9px', fontSize: 20, fontWeight: 750 }}>
-                  {children}
-                </h1>
+                <h1 style={{ margin: '18px 0 9px', fontSize: 20, fontWeight: 750 }}>{children}</h1>
               ),
               h2: ({ children }) => (
-                <h2 style={{ margin: '16px 0 8px', fontSize: 17, fontWeight: 700 }}>
-                  {children}
-                </h2>
+                <h2 style={{ margin: '16px 0 8px', fontSize: 17, fontWeight: 700 }}>{children}</h2>
               ),
               h3: ({ children }) => (
-                <h3 style={{ margin: '14px 0 7px', fontSize: 15, fontWeight: 700 }}>
-                  {children}
-                </h3>
+                <h3 style={{ margin: '14px 0 7px', fontSize: 15, fontWeight: 700 }}>{children}</h3>
               ),
               ul: ({ children }) => (
                 <ul style={{ margin: '6px 0 12px', paddingLeft: 22 }}>{children}</ul>
@@ -310,9 +304,7 @@ function InterviewAnswerMarkdown({ content }: { content: string }) {
                 <ol style={{ margin: '6px 0 12px', paddingLeft: 24 }}>{children}</ol>
               ),
               li: ({ children }) => (
-                <li style={{ margin: '4px 0', paddingLeft: 3, lineHeight: 1.6 }}>
-                  {children}
-                </li>
+                <li style={{ margin: '4px 0', paddingLeft: 3, lineHeight: 1.6 }}>{children}</li>
               ),
               blockquote: ({ children }) => (
                 <blockquote
@@ -374,13 +366,7 @@ function InterviewAnswerMarkdown({ content }: { content: string }) {
   );
 }
 
-function BionicTable({
-  rows,
-  compact = false,
-}: {
-  rows: string[][];
-  compact?: boolean;
-}) {
+function BionicTable({ rows, compact = false }: { rows: string[][]; compact?: boolean }) {
   const [headerRow, ...bodyRows] = rows;
   const cellStyle: React.CSSProperties = {
     padding: compact ? '5px 7px' : '7px 9px',
@@ -2525,12 +2511,8 @@ export default function TeleprompterView() {
               maxWidth: 840,
               boxSizing: 'border-box',
               padding: isBionicGazeMode ? 0 : '16px 18px',
-              background: isBionicGazeMode
-                ? 'transparent'
-                : 'rgba(8, 12, 18, 0.96)',
-              border: isBionicGazeMode
-                ? 'none'
-                : '1px solid rgba(148, 163, 184, 0.16)',
+              background: isBionicGazeMode ? 'transparent' : 'rgba(8, 12, 18, 0.96)',
+              border: isBionicGazeMode ? 'none' : '1px solid rgba(148, 163, 184, 0.16)',
               borderRadius: isBionicGazeMode ? 0 : 12,
               color: '#e5eaf2',
               whiteSpace: 'normal',
@@ -2539,21 +2521,21 @@ export default function TeleprompterView() {
               fontSize: 14,
             }}
           >
-            {isBionicGazeMode && (currentAnswer || draftAnswer)
-              ? (() => {
-                  const answerText = currentAnswer || draftAnswer;
-                  const presentation = getBionicAnswerPresentation(answerText);
-                  return presentation.bullets.length > 0 ? (
-                    <BionicGazeHUD bullets={presentation.bullets} sourceText={answerText} />
-                  ) : (
-                    <InterviewAnswerMarkdown content={presentation.fallbackText || answerText} />
-                  );
-                })()
-              : (
-                  <InterviewAnswerMarkdown
-                    content={currentAnswer || draftAnswer || 'Preparing an answer…'}
-                  />
-                )}
+            {isBionicGazeMode && (currentAnswer || draftAnswer) ? (
+              (() => {
+                const answerText = currentAnswer || draftAnswer;
+                const presentation = getBionicAnswerPresentation(answerText);
+                return presentation.bullets.length > 0 ? (
+                  <BionicGazeHUD bullets={presentation.bullets} sourceText={answerText} />
+                ) : (
+                  <InterviewAnswerMarkdown content={presentation.fallbackText || answerText} />
+                );
+              })()
+            ) : (
+              <InterviewAnswerMarkdown
+                content={currentAnswer || draftAnswer || 'Preparing an answer…'}
+              />
+            )}
             {blockedReason && (
               <div role="alert" style={{ color: '#fca5a5', fontSize: 12, marginTop: 10 }}>
                 {blockedReason}
@@ -2596,9 +2578,7 @@ export default function TeleprompterView() {
             role="alert"
             style={{ marginBottom: 10, color: '#fca5a5', fontSize: 12, lineHeight: 1.5 }}
           >
-            <div style={{ fontWeight: 700 }}>
-              Answer blocked by candidate-evidence checks
-            </div>
+            <div style={{ fontWeight: 700 }}>Answer blocked by candidate-evidence checks</div>
             {technicalGuidance && (
               <div style={{ marginTop: 8, color: '#cbd5e1' }}>
                 <div style={{ color: '#93c5fd', fontWeight: 600 }}>
