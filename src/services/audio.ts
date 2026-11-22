@@ -265,7 +265,9 @@ export class AudioRecorder {
       useAppStore.getState().updateDiagnostics({
         micActive: true,
         micInputMuted: isInputMuted,
-        whisperStatus: isInputMuted\n          ? 'Microphone input is muted by the device.'\n          : 'Microphone ready.',
+        whisperStatus: isInputMuted
+          ? 'Microphone input is muted by the device.'
+          : 'Microphone ready.',
         mimeType: 'audio/wav (16kHz mono PCM)',
       });
     } catch (e: any) {
