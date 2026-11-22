@@ -22,6 +22,10 @@ export class AudioRecorder {
   private captureStartedAt = 0;
   private captureGeneration = 0;
   private stopPromise: Promise<void> | null = null;
+  private mediaTrackEndedListeners: Array<{
+    track: MediaStreamTrack;
+    listener: () => void;
+  }> = [];
 
   public static getInstance(): AudioRecorder {
     if (!AudioRecorder.instance) {
@@ -221,6 +225,15 @@ export class AudioRecorder {
 
       this.isListening = true;
       this.captureState = 'active';
+
+      // A browser can keep the MediaStream object alive after the physical input
+      // disappears. Listen for a track ending so the UI cannot remain falsely active.
+      for (const track of this.mediaStream?.getAudioTracks() || []) {
+        const listener = () => this.handleUnexpectedTrackEnd(generation);
+        track.addEventListener('ended', listener);
+        this.mediaTrackEndedListeners.push({ track, listener });
+      }
+
       if (this.captureRequestId) {
         DiagnosticLoggerService.getInstance().recordEvent({
           requestId: this.captureRequestId,
@@ -271,7 +284,37 @@ export class AudioRecorder {
     }
   }
 
+  private handleUnexpectedTrackEnd(generation: number): void {
+    if (generation !== this.captureGeneration || this.captureState !== 'active') return;
+
+    // stop() invalidates this generation synchronously and serializes cleanup with
+    // any later Start action. FAILED is distinct from a user-requested Stop.
+    const stopOperation = this.stop(false, 'FAILED');
+    const stoppedGeneration = this.captureGeneration;
+
+    void stopOperation.then(() => {
+      if (
+        this.captureGeneration !== stoppedGeneration ||
+        this.captureState !== 'stopped'
+      ) {
+        return;
+      }
+
+      this.captureState = 'error';
+      useAppStore.getState().updateDiagnostics({
+        micActive: false,
+        speechDetected: false,
+        whisperStatus: 'Microphone input disconnected. Restart the microphone.',
+      });
+    });
+  }
+
   private async releaseCaptureResources(): Promise<void> {
+    for (const { track, listener } of this.mediaTrackEndedListeners) {
+      track.removeEventListener('ended', listener);
+    }
+    this.mediaTrackEndedListeners = [];
+
     if (this.processorNode) {
       this.processorNode.onaudioprocess = null;
       try {
@@ -442,7 +485,10 @@ export class AudioRecorder {
    * @param flush If true, flushes and finalizes any in-progress speech.
    *              If false (default), discards in-progress buffer to avoid triggering unwanted requests on stop.
    */
-  async stop(flush: boolean = false, outcome: 'STOPPED' | 'ABORTED' = 'STOPPED'): Promise<void> {
+  async stop(
+    flush: boolean = false,
+    outcome: 'STOPPED' | 'ABORTED' | 'FAILED' = 'STOPPED'
+  ): Promise<void> {
     // Invalidate pending permission/resume continuations synchronously.
     const generation = ++this.captureGeneration;
 
@@ -492,11 +538,13 @@ export class AudioRecorder {
           pipelineStage: outcome === 'STOPPED' ? 'listening' : 'failed',
           audioCaptureDurationMs: Date.now() - captureStartedAt,
           audioCaptureOutcome: outcome,
-          finalOutcome: outcome === 'STOPPED' ? 'SUCCESS' : 'ABORTED',
+          finalOutcome: outcome === 'STOPPED' ? 'SUCCESS' : outcome,
           message:
             outcome === 'STOPPED'
               ? 'Audio capture session stopped.'
-              : 'Audio capture session cancelled.',
+              : outcome === 'ABORTED'
+                ? 'Audio capture session cancelled.'
+                : 'Audio capture session failed because the input track ended.',
         });
       }
       useAppStore.getState().updateDiagnostics({
