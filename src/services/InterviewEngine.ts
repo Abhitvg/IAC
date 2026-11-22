@@ -962,7 +962,12 @@ export class InterviewEngine {
                   pipelineStage: 'answer_ready',
                   finalOutcome: 'SUCCESS',
                   receivedTokenCount: finalAnswer?.length,
-                  message: `Answer validated and ready (${res.confidence} confidence)`,
+                  message:
+                    res.verificationBasis === 'CANDIDATE_EVIDENCE'
+                      ? `Candidate-evidence review completed (${res.confidence} confidence)`
+                      : res.verificationBasis === 'SCREEN_CODE_NOT_EXECUTED'
+                        ? `Screen-code reasoning generated; code not executed (${res.confidence} confidence)`
+                        : `General technical reasoning generated; not independently verified (${res.confidence} confidence)`,
                 });
 
                 const currentQ = state.currentQuestion;
