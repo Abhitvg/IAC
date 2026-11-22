@@ -27,6 +27,7 @@ describe('SerializedTaskQueue', () => {
       active -= 1;
     });
 
+    await Promise.resolve();
     expect(order).toEqual(['first:start']);
     releaseFirst?.();
     await Promise.all([first, second]);
@@ -51,6 +52,7 @@ describe('SerializedTaskQueue', () => {
       secondRan = true;
     });
 
+    await Promise.resolve();
     queue.clear();
     releaseFirst?.();
     await Promise.all([first, second]);
@@ -70,6 +72,7 @@ describe('SerializedTaskQueue', () => {
         })
     );
 
+    await Promise.resolve();
     await expect(queue.enqueue(() => undefined)).rejects.toThrow('UTTERANCE_QUEUE_FULL');
 
     releaseFirst?.();
