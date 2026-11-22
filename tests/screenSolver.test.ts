@@ -174,7 +174,7 @@ public int[] searchRange(int[] nums, int target) {
         expect(prompt).not.toContain('FORMAT 2: COMPLETE ONLINE JUDGE CLASS');
         expect(prompt).not.toContain('N <= 10^5: MUST be O(N) or O(N log N)');
         expect(prompt).not.toContain('64-bit integer overflow guard');
-        expect(prompt).not.toContain('100% guaranteed');
+        expect(prompt).toContain('Avoid inflated claims');
       });
     });
 
