@@ -14,6 +14,7 @@ import { ApplicationAssistanceView } from './ApplicationAssistanceView';
 import {
   extractGlanceableGazeBullets,
   formatBionicWord,
+  selectPrimaryGlanceableBullets,
   BionicGazeBullet,
 } from '../../services/teleprompter/bionicPrompterService';
 import { getBionicAnswerPresentation } from '../../services/teleprompter/bionicAnswerPresentation';
@@ -126,7 +127,7 @@ function QuizAnswerCard({
               textTransform: 'uppercase',
             }}
           >
-            Verified Correct Option
+            Suggested Correct Option
           </span>
         </div>
         {correctOptionText && (
@@ -201,6 +202,8 @@ function BionicGazeHUD({
   bullets: BionicGazeBullet[];
   sourceText?: string;
 }) {
+  const { primary, remaining } = selectPrimaryGlanceableBullets(bullets);
+
   return (
     <div
       style={{
@@ -247,7 +250,7 @@ function BionicGazeHUD({
             color: '#6ee7b7',
           }}
         >
-          Optimal Webcam Eye-Contact Zone · Glance Naturally
+          Glanceable answer · Key points
         </span>
       </div>
 
@@ -261,7 +264,7 @@ function BionicGazeHUD({
           gap: '8px',
         }}
       >
-        {bullets.map((b, i) => (
+        {primary.map((b, i) => (
           <div
             key={b.id || i}
             style={{
@@ -280,7 +283,7 @@ function BionicGazeHUD({
             }}
           >
             <span style={{ fontSize: '11px', fontWeight: 800, color: '#34d399', opacity: 0.85 }}>
-              {i + 1}.
+              {b.id.match(/gaze-(\\d+)/) ? Number(b.id.match(/gaze-(\\d+)/)?.[1]) + 1 : i + 1}.
             </span>
 
             {/* Bionic Formatted Text */}
@@ -324,6 +327,31 @@ function BionicGazeHUD({
           </div>
         ))}
       </div>
+      {remaining.length > 0 && (
+        <details style={{ width: '100%', marginTop: 4, color: '#cbd5e1' }}>
+          <summary style={{ cursor: 'pointer', fontSize: 11, color: '#a7f3d0' }}>
+            Show {remaining.length} additional key points
+          </summary>
+          <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+            {remaining.map((bullet) => (
+              <div
+                key={bullet.id}
+                style={{
+                  padding: '6px 9px',
+                  borderRadius: 7,
+                  background: 'rgba(255,255,255,0.035)',
+                  color: '#cbd5e1',
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                {bullet.text}
+                {bullet.metricChip ? ` · ${bullet.metricChip}` : ''}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
       {sourceText && (
         <details style={{ width: '100%', marginTop: 4, color: '#cbd5e1' }}>
           <summary style={{ cursor: 'pointer', fontSize: 11, color: '#a7f3d0' }}>
@@ -666,7 +694,7 @@ function GroundingBadge({
           background: 'rgba(59, 130, 246, 0.12)',
           border: '1px solid rgba(96, 165, 250, 0.35)',
         }}
-        title="Streaming live token stream. Factual grounding validation occurs upon completion."
+        title="Candidate-specific claim checks run after the answer is complete. This is not independent fact verification."
       >
         ⚡ Live Stream (Validation Pending)
       </span>
@@ -780,9 +808,9 @@ function GroundingBadge({
           background: 'rgba(16, 185, 129, 0.12)',
           border: '1px solid rgba(52, 211, 153, 0.35)',
         }}
-        title="100% grounded in verified candidate facts without unsupported technical claims."
+        title="Automated checks found no unsupported candidate-specific claims. This is not independent fact verification."
       >
-        🛡️ Factual Grounding: Verified
+        🛡️ Candidate-claim check passed
       </span>
     );
   }
@@ -803,7 +831,7 @@ function GroundingBadge({
       }}
       title={`${violationsCount} ungrounded claims neutralized and qualified for speaking safety.`}
     >
-      ⚠️ Grounding: Qualified ({violationsCount} Claim{violationsCount > 1 ? 's' : ''} Neutralized)
+      ⚠️ Candidate claims qualified ({violationsCount} neutralized)
     </span>
   );
 }
@@ -2288,7 +2316,7 @@ export default function TeleprompterView() {
         )}
         {draftAnswer && (
           <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11, fontWeight: 600 }}>
-            🛡️ Live Generation Draft — Grounding validation in progress
+            Draft answer · candidate-claim checks pending
           </div>
         )}
         {answerValidationStatus === 'BLOCKED' && (
@@ -2297,7 +2325,7 @@ export default function TeleprompterView() {
             style={{ marginBottom: 10, color: '#fca5a5', fontSize: 12, lineHeight: 1.5 }}
           >
             <div style={{ fontWeight: 700 }}>
-              Candidate Recital Blocked (Factual Grounding Safety Gate)
+              Answer blocked by candidate-evidence checks
             </div>
             {technicalGuidance && (
               <div style={{ marginTop: 8, color: '#cbd5e1' }}>
@@ -2311,12 +2339,12 @@ export default function TeleprompterView() {
         )}
         {isAnswerValidated && answerValidationStatus === 'VALIDATED' && (
           <div style={{ marginBottom: 8, color: '#6ee7b7', fontSize: 11 }}>
-            🛡️ Factual Grounding: Verified
+            🛡️ Candidate-claim check passed
           </div>
         )}
         {answerValidationStatus === 'FLAGGED_BUT_QUALIFIED' && (
           <div style={{ marginBottom: 8, color: '#fbbf24', fontSize: 11 }}>
-            ⚠️ Grounding: Qualified
+            ⚠️ Candidate claims qualified
           </div>
         )}
         {!questionHistory.length && !currentQuestion && !currentAnswer && !draftAnswer && (
