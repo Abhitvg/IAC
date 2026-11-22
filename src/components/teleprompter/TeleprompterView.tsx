@@ -700,6 +700,8 @@ export function ShortcutSettings({
               setCaptureError('');
               setCapturing(action);
             }}
+            aria-label={`Change ${INTERVIEW_SHORTCUT_LABELS[action]} shortcut`}
+            aria-pressed={capturing === action}
             style={{
               minWidth: 118,
               border: '1px solid rgba(148,163,184,0.25)',
@@ -752,16 +754,16 @@ export function ShortcutSettings({
         }}
       >
         <div style={{ color: '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
-          Built-in conversation controls · macOS
+          Built-in conversation controls · {isMacPlatform ? 'macOS' : 'Windows / Linux'}
         </div>
         <div style={{ color: '#aeb9c8', fontSize: 11, lineHeight: 1.55 }}>
           <strong>⌘Z</strong> / <strong>⌘[</strong> restore · <strong>⌘⇧Z</strong> /{' '}
           <strong>⌘Y</strong> /<strong>⌘]</strong> redo · <strong>⌥C</strong> mark incomplete
         </div>
         <div style={{ color: '#8492a6', fontSize: 10, lineHeight: 1.5 }}>
-          <strong>⌘⌫</strong> new question · <strong>⌘1</strong> Coding · <strong>⌘2</strong>{' '}
-          Interview ·<strong>⌘3</strong> Quiz · <strong>⌘J</strong> auto-follow ·{' '}
-          <strong>Esc</strong> close overlay. On Windows / Linux, use Ctrl instead of ⌘.
+          <strong>{isMacPlatform ? '⌘⌫' : 'Ctrl+Backspace'}</strong> new question · <strong>{isMacPlatform ? '⌘1' : 'Ctrl+1'}</strong> Coding · <strong>{isMacPlatform ? '⌘2' : 'Ctrl+2'}</strong>{' '}
+          Interview · <strong>{isMacPlatform ? '⌘3' : 'Ctrl+3'}</strong> Quiz · <strong>{isMacPlatform ? '⌘J' : 'Ctrl+J'}</strong> auto-follow ·{' '}
+          <strong>Esc</strong> close overlay.
         </div>
       </div>
       {capturing && (
