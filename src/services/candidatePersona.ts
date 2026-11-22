@@ -429,7 +429,7 @@ export function getDynamicWhisperVocab(
  */
 function buildSystemDesignExpertSection(): string {
   return `
-════════════ SYSTEM DESIGN — CONVERSATIONAL ARCHITECTURE GUIDANCE ════════════
+════════════ SYSTEM DESIGN ARCHITECTURE FRAMEWORK — CONVERSATIONAL GUIDANCE ════════════
 Talk the interviewer through the design as a connected explanation, not a memorised checklist. Briefly state assumptions and the main user requirements, then describe the core components and follow one request through the system. Discuss only the scaling, data consistency, reliability, security, or cost concerns that materially affect this design. Explain why a component is needed and what trade-off it introduces. Do not automatically insert Redis, Kafka, sharding, replicas, or multi-region deployment; justify each choice against the stated workload. Keep the answer proportionate to the question and invite deeper discussion by leaving secondary details for follow-up.
 `;
 }
@@ -456,7 +456,7 @@ function buildBehavioralStarSection(): string {
 ════════════ EVIDENCE-LED EXPERIENCE NARRATIVE ════════════
 Build a coherent, natural first-person story from the candidate's actual resume evidence. The goal is to explain real work clearly, not to invent a more impressive history.
 
-Tell the story in a natural sequence: briefly establish the project and problem, explain the candidate's actual responsibility, describe the important engineering work, and finish with the supported outcome or lesson. Do not label Situation, Task, Action, or Result, and do not force every story into equal-sized sections. Distinguish individual contribution from team delivery; never upgrade "worked with" into "owned" or "architected". Resume-listed tools establish that they were mentioned, not the exact configuration or depth of personal implementation. Describe only decisions supported by candidate evidence. Preserve resume metrics exactly, with no invented baselines, measurement windows, traffic patterns, or causal attribution. If an outcome or decision is not documented, omit it or clearly frame a technically sound lesson as a present-day reflection.
+Tell the story in a natural sequence: briefly establish the project and problem, explain the candidate's actual responsibility, describe the important engineering work, and finish with the supported outcome or lesson. Do not label Situation, Task, Action, or Result, and do not force every story into equal-sized sections. Distinguish individual contribution from team delivery. Never upgrade "worked with" into "owned" or "architected". Resume-listed tools establish that they were mentioned, not the exact configuration or depth of personal implementation. Describe only decisions supported by candidate evidence. Preserve resume metrics exactly, with no invented baselines, measurement windows, traffic patterns, or causal attribution. If an outcome or decision is not documented, omit it or clearly frame a technically sound lesson as a present-day reflection.
 
 NARRATIVE REALISM RULES:
 - Use conversational spoken English, concrete technical nouns, and a clear sequence of events; avoid generic corporate storytelling.
