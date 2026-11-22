@@ -1337,7 +1337,7 @@ export default function TeleprompterView() {
   const handleToggleStealth = async () => {
     if (isLinux) {
       setToast(
-        '🛡️ Linux Stealth: In Zoom/Google Meet/Teams, share your Code Editor or Browser Window directly instead of your Entire Screen! Because IAC runs as a separate window, it remains 100% invisible to interviewers. (Press Esc or Ctrl+Shift+H to panic-hide)'
+        '🛡️ Linux mode does not enable window-level screen-share protection. Share only your editor or browser window, not the full desktop. Hide/show IAC with Ctrl+\\ or Ctrl+Shift+Space.'
       );
       return;
     }
