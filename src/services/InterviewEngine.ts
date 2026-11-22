@@ -438,8 +438,7 @@ export class InterviewEngine {
 
           // If explicit Still Asking mode is active, retain each segment and give
           // continuation a bounded window. The timer guarantees eventual finalization.
-          const pendingUtteranceResult =
-            InterviewEngine.appendPendingQuestionUtterance(text);
+          const pendingUtteranceResult = InterviewEngine.appendPendingQuestionUtterance(text);
 
           if (pendingUtteranceResult === 'appended') {
             useAppStore.getState().addTranscript({
