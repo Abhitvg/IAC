@@ -184,6 +184,13 @@ export class AudioRecorder {
       if (pendingContext.state === 'suspended') {
         await pendingContext.resume();
       }
+      const startupAudioTracks = pendingStream.getAudioTracks?.() || [];
+      if (
+        startupAudioTracks.length > 0 &&
+        startupAudioTracks.every((track) => track.readyState === 'ended')
+      ) {
+        throw new Error('Microphone input ended during startup. Reconnect the input device and retry.');
+      }
       if (!isCurrentStartup()) {
         stopPendingStream();
         await closePendingContext();
