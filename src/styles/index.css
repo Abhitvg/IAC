@@ -1847,3 +1847,38 @@ body {
     transition: none !important;
   }
 }
+
+/* Prevent wide content from forcing horizontal overflow in compact workspaces. */
+.app-workspace img,
+.app-workspace video,
+.app-workspace canvas,
+.app-workspace iframe {
+  max-width: 100%;
+}
+.app-workspace pre,
+.app-workspace table {
+  max-width: 100%;
+}
+.app-workspace pre {
+  overflow-x: auto;
+}
+.app-workspace table {
+  display: block;
+  overflow-x: auto;
+}
+@media (max-width: 900px) {
+  .app-workspace [class*='grid-cols-3'],
+  .app-workspace [class*='grid-cols-4'],
+  .app-workspace [class*='grid-cols-5'],
+  .app-workspace [class*='grid-cols-6'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 420px) {
+  .app-workspace [class*='grid-cols-3'],
+  .app-workspace [class*='grid-cols-4'],
+  .app-workspace [class*='grid-cols-5'],
+  .app-workspace [class*='grid-cols-6'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
