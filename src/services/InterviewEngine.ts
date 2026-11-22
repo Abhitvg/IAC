@@ -157,24 +157,30 @@ export class InterviewEngine {
     );
   }
 
-  static appendPendingQuestionUtterance(text: string): boolean {
+  static appendPendingQuestionUtterance(
+    text: string
+  ): 'none' | 'appended' | 'ignored' | 'candidate-speech' | 'new-question' {
     const incoming = (text || '').trim();
     const now = Date.now();
-    if (!incoming || !pendingQuestionText) return false;
+    if (!incoming || !pendingQuestionText) return 'none';
 
     if (now > pendingQuestionDeadline || now > pendingQuestionHardDeadline) {
       InterviewEngine.clearPendingQuestion();
-      return false;
+      return 'none';
     }
 
     const continuationDecision = resolvePendingQuestionContinuation(incoming);
-    if (continuationDecision === 'new-question' || continuationDecision === 'candidate-speech') {
-      // Do not let the old timer generate a stale partial after a new question
-      // or candidate answer has entered the normal classification path.
+    if (continuationDecision === 'new-question') {
       InterviewEngine.clearPendingQuestion();
-      return false;
+      return 'new-question';
     }
-    if (continuationDecision !== 'append') return false;
+    if (continuationDecision === 'candidate-speech') {
+      // Candidate narration must not be mistaken for a continuation or
+      // re-enter interviewer-question routing after the stale partial is cleared.
+      InterviewEngine.clearPendingQuestion();
+      return 'candidate-speech';
+    }
+    if (continuationDecision === 'ignore') return 'ignored';
 
     pendingQuestionText = `${pendingQuestionText.replace(/[.?!…]+$/, '')} ${incoming}`.trim();
     pendingQuestionTranscript = `${pendingQuestionTranscript} ${incoming}`.trim();
@@ -194,7 +200,7 @@ export class InterviewEngine {
       },
       Math.max(0, pendingQuestionDeadline - Date.now())
     );
-    return true;
+    return 'appended';
   }
 
   static async finalizePendingQuestion(): Promise<void> {
@@ -432,7 +438,10 @@ export class InterviewEngine {
 
           // If explicit Still Asking mode is active, retain each segment and give
           // continuation a bounded window. The timer guarantees eventual finalization.
-          if (InterviewEngine.appendPendingQuestionUtterance(text)) {
+          const pendingUtteranceResult =
+            InterviewEngine.appendPendingQuestionUtterance(text);
+
+          if (pendingUtteranceResult === 'appended') {
             useAppStore.getState().addTranscript({
               id: `continuation_${requestId}`,
               speaker: 'unknown',
@@ -446,6 +455,36 @@ export class InterviewEngine {
               latestTranscript: text,
               whisperStatus: 'Pending question extended; finalization timer restarted',
             });
+            return;
+          }
+
+          if (
+            pendingUtteranceResult === 'ignored' ||
+            pendingUtteranceResult === 'candidate-speech'
+          ) {
+            useAppStore.getState().addTranscript({
+              id: `pending_question_${pendingUtteranceResult}_${requestId}`,
+              speaker: 'unknown',
+              text,
+              timestamp: Date.now(),
+              classification:
+                pendingUtteranceResult === 'candidate-speech'
+                  ? 'CANDIDATE_NARRATION_DETECTED'
+                  : 'PENDING_QUESTION_FILLER_IGNORED',
+              reason:
+                pendingUtteranceResult === 'candidate-speech'
+                  ? 'Candidate-style narration detected; stale pending question discarded'
+                  : 'Neutral filler ignored; pending question was not extended',
+            });
+            useAppStore.getState().updateDiagnostics({
+              latestTranscript: text,
+              whisperStatus:
+                pendingUtteranceResult === 'candidate-speech'
+                  ? 'Candidate narration detected; incomplete question discarded.'
+                  : 'Neutral filler ignored while waiting for question continuation.',
+              questionMatched: false,
+            });
+            restoreListeningAfterTranscription();
             return;
           }
 
