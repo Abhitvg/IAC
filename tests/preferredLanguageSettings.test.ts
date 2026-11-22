@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizePreferredLanguage } from '../src/utils/settings';
+import { normalizePreferredLanguage, normalizeWindowOpacity } from '../src/utils/settings';
 
 describe('normalizePreferredLanguage', () => {
   it.each([
@@ -26,7 +26,6 @@ describe('normalizePreferredLanguage', () => {
   });
 });
 
-import { normalizeWindowOpacity } from '../src/utils/settings';
 
 describe('window opacity settings', () => {
   it('clamps valid opacity values to the native window range', () => {
