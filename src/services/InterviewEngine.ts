@@ -36,7 +36,13 @@ export type EngineEvent =
   | { type: 'START_LISTENING' }
   | { type: 'STOP_LISTENING' }
   | { type: 'UTTERANCE_FINALIZED'; blob: Blob; requestId?: string }
-  | { type: 'QUESTION_DETECTED'; text: string; requestId?: string; originalTranscript?: string }
+  | {
+      type: 'QUESTION_DETECTED';
+      text: string;
+      requestId?: string;
+      originalTranscript?: string;
+      preserveQueuedUtterances?: boolean;
+    }
   | {
       type: 'SCREEN_PROBLEM_DETECTED';
       text?: string;
@@ -225,6 +231,7 @@ export class InterviewEngine {
       type: 'QUESTION_DETECTED',
       text: question,
       originalTranscript: fullTranscript,
+      preserveQueuedUtterances: true,
     });
   }
 
@@ -284,7 +291,12 @@ export class InterviewEngine {
    * serialized transcription queue open until the model finishes streaming.
    */
   static dispatchDetectedQuestion(text: string, requestId: string): void {
-    void InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text, requestId }).catch(
+    void InterviewEngine.handleEvent({
+      type: 'QUESTION_DETECTED',
+      text,
+      requestId,
+      preserveQueuedUtterances: true,
+    }).catch(
       (error: unknown) => {
         const errorName = error instanceof Error ? error.name : 'UnknownError';
         console.error('[InterviewEngine] Failed to dispatch a recognized question.', {
@@ -825,7 +837,7 @@ export class InterviewEngine {
           return;
         }
 
-        InterviewEngine.abortActiveTranscription(false);
+        InterviewEngine.abortActiveTranscription(!event.preserveQueuedUtterances);
         globalLatencyTracker.mark('questionDetected');
 
         const isExtending = store.isIncompleteQuestionMode && Boolean(store.currentQuestion);
