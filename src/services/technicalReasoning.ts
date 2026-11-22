@@ -36,13 +36,15 @@ export class TechnicalReasoningEngine {
       stepNumber: 1,
       name: 'Understand the requirement',
       description: 'Pinpoint the exact question being asked and its underlying intent.',
-      guidance: 'Answer the actual question immediately in sentence 1; do not diverge into adjacent topics.',
+      guidance:
+        'Answer the actual question immediately in sentence 1; do not diverge into adjacent topics.',
     },
     {
       stepNumber: 2,
       name: 'Identify assumptions and constraints',
       description: 'Surface scale, memory, runtime, and failure assumptions.',
-      guidance: 'Explicitly state operating boundaries (e.g. single-node vs distributed, memory vs latency).',
+      guidance:
+        'Explicitly state operating boundaries (e.g. single-node vs distributed, memory vs latency).',
     },
     {
       stepNumber: 3,
@@ -60,7 +62,8 @@ export class TechnicalReasoningEngine {
       stepNumber: 5,
       name: 'Verify correctness',
       description: 'Validate against domain laws (JMM, MVCC, CAP, ACID).',
-      guidance: 'Ensure algorithm logic, memory barriers, and synchronization guarantees hold true.',
+      guidance:
+        'Ensure algorithm logic, memory barriers, and synchronization guarantees hold true.',
     },
     {
       stepNumber: 6,
@@ -151,6 +154,46 @@ export class TechnicalReasoningEngine {
           strictProhibitions: [
             'NEVER claim "exactly-once" delivery across independent distributed systems without explicitly qualifying it as at-least-once + idempotent deduplication.',
             'NEVER claim Kafka guarantees global message ordering across partitions.',
+          ],
+        };
+
+      case 'DevOps':
+        return {
+          domain: 'DevOps, CI/CD & Infrastructure as Code',
+          mandatoryChecks: [
+            'Terraform workflow: distinguish init, validate, plan, and apply; review the exact plan and never describe plan as a deployment.',
+            'Terraform state: use a remote backend with access control, versioning, encryption, and state locking; for the S3 backend, understand native lockfile support and do not assume a DynamoDB lock table is required.',
+            'Terraform safety: separate environments, keep reusable modules small and versioned, detect drift, protect state, and avoid secrets in plans, outputs, logs, or source control.',
+            'CI/CD integrity: build once and promote the same immutable artifact; gate promotion on tests, security scans, approvals where required, and deployment health.',
+            'Deployment strategy: explain rolling, blue/green, or canary trade-offs; define health checks, rollback criteria, and database migration compatibility.',
+            'Containers: use trusted minimal base images, pin dependencies, run as non-root, and avoid embedding credentials in image layers.',
+            'Kubernetes: distinguish readiness, liveness, and startup probes; set resource requests/limits and explain how bad probes or limits can cause restarts or throttling.',
+            'Observability: correlate logs, metrics, and traces; define service-level indicators and alert on user-visible symptoms rather than CPU alone.',
+          ],
+          strictProhibitions: [
+            'NEVER claim terraform plan changes infrastructure; apply performs the change.',
+            'NEVER store plaintext credentials in Terraform state, plan artifacts, container images, or CI logs.',
+            'NEVER claim a liveness probe should fail merely because a downstream dependency is temporarily unavailable.',
+            'NEVER claim Kubernetes resource limits are equivalent to requests.',
+          ],
+        };
+
+      case 'AWS and cloud':
+        return {
+          domain: 'AWS Cloud Architecture & Operations',
+          mandatoryChecks: [
+            'IAM: apply least privilege, short-lived workload credentials, and explicit trust policies; distinguish identity policies from resource policies.',
+            'Networking: explain VPC CIDRs, subnet routing, security groups, network ACLs, NAT, VPC endpoints, and public versus private reachability.',
+            'Resilience: select multi-AZ or multi-region design based on recovery objectives, failure domains, and cost rather than assuming every workload needs active-active.',
+            'Storage: choose S3, EBS, EFS, RDS, or DynamoDB based on access pattern, consistency, durability, and operational requirements.',
+            'Operations: use CloudWatch metrics/logs/alarms and distributed tracing; define actionable alarms and tested recovery procedures.',
+            'Security: encrypt data in transit and at rest, control secret access, rotate credentials, and avoid exposing sensitive values in logs or outputs.',
+          ],
+          strictProhibitions: [
+            'NEVER place long-lived AWS access keys in application code, source control, or container images.',
+            'NEVER describe a security group as stateless; security groups are stateful and network ACLs are stateless.',
+            'NEVER assume a private subnet has internet access without a valid egress route or service endpoint.',
+            'NEVER promise multi-region availability without addressing replication, consistency, failover, and recovery testing.',
           ],
         };
 

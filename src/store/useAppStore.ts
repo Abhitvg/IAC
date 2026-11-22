@@ -30,7 +30,6 @@ export type InterviewStatus =
   | 'paused'
   | 'waiting_quota_reset'
   | 'retrying'
-  | 'confirmation_required'
   | 'error';
 
 export type InterviewPipelineStage =
@@ -47,8 +46,7 @@ export type InterviewPipelineStage =
   | 'answer_ready'
   | 'waiting_quota_reset'
   | 'retrying'
-  | 'failed'
-  | 'confirmation_required';
+  | 'failed';
 
 export type RecitalState = 'idle' | 'listening' | 'reciting' | 'interrupted';
 
@@ -689,12 +687,6 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   setStatus: (s) => {
     set({
       status: s,
-      isRecording:
-        s === 'listening' ||
-        s === 'transcribing' ||
-        s === 'analyzing' ||
-        s === 'generating' ||
-        s === 'confirmation_required',
       isGenerating: s === 'analyzing' || s === 'generating',
     });
   },
@@ -789,21 +781,13 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   },
 
   toggleRecording: () => {
-    const { status } = get();
-    if (
-      status === 'listening' ||
-      status === 'transcribing' ||
-      status === 'analyzing' ||
-      status === 'generating' ||
-      status === 'confirmation_required'
-    ) {
-      InterviewEngine.handleEvent({ type: 'STOP_LISTENING' });
-      get().setStatus('idle');
-      set({ recitalState: 'idle' });
-    } else {
-      InterviewEngine.handleEvent({ type: 'START_LISTENING' });
-      set({ recitalState: 'listening' });
-    }
+    void import('../services/audio').then(({ AudioRecorder }) => {
+      const captureState = AudioRecorder.getInstance().getCaptureState();
+      const isCapturing = captureState === 'active' || captureState === 'starting';
+      void InterviewEngine.handleEvent({
+        type: isCapturing ? 'STOP_LISTENING' : 'START_LISTENING',
+      });
+    });
   },
 
   analyzeTranscript: () => {
@@ -1263,6 +1247,9 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     lastInterruption: null,
   },
   updateDiagnostics: (updates) =>
-    set((state) => ({ diagnosticState: { ...state.diagnosticState, ...updates } })),
+    set((state) => ({
+      diagnosticState: { ...state.diagnosticState, ...updates },
+      ...(typeof updates.micActive === 'boolean' ? { isRecording: updates.micActive } : {}),
+    })),
   currentResponse: { interviewAnswer: '', followUpQuestions: [] },
 }));
