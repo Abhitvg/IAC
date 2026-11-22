@@ -73,6 +73,62 @@ export class InterviewEngine {
    * The silence threshold remains user-configurable; the extra grace window is
    * a fixed continuation cap so incomplete-question mode cannot wait forever.
    */
+  /**
+   * Starts automatic bounded collection when speech is clearly a question but
+   * ends mid-thought. This replaces the previous answered question in history,
+   * holds generation, and lets subsequent transcript fragments complete it.
+   */
+  static beginPendingQuestionFromTranscript(
+    text: string,
+    originalTranscript: string = text
+  ): boolean {
+    const initialQuestion = (text || '').trim();
+    if (!initialQuestion) return false;
+
+    const state = useAppStore.getState();
+    const previousQuestion = state.currentQuestion?.trim() || '';
+    if (previousQuestion && previousQuestion.toLowerCase() !== initialQuestion.toLowerCase()) {
+      state.pushToQuestionHistory({
+        question: previousQuestion,
+        answer: state.currentAnswer,
+        confidence: state.answerConfidence,
+      });
+    }
+
+    InterviewEngine.abortActiveGeneration();
+    clearPendingQuestionTimer();
+    pendingQuestionText = initialQuestion;
+    pendingQuestionTranscript = (originalTranscript || initialQuestion).trim();
+
+    const now = Date.now();
+    pendingQuestionHardDeadline = now + QUESTION_CONTINUATION_MAX_MS;
+    pendingQuestionDeadline = Math.min(
+      pendingQuestionHardDeadline,
+      now +
+        Math.min(3500, Math.max(400, state.speechPauseTolerance)) +
+        QUESTION_CONTINUATION_GRACE_MS
+    );
+
+    state.clearAnswerQueue();
+    state.setCurrentQuestion(initialQuestion);
+    state.setIsIncompleteQuestionMode(true);
+    state.setPipelineStage('pending_finalization');
+    state.setStatus('listening');
+    state.updateDiagnostics({
+      latestTranscript: pendingQuestionTranscript,
+      whisperStatus: 'Incomplete interviewer question detected; waiting briefly for continuation.',
+      questionMatched: false,
+    });
+
+    pendingQuestionTimer = setTimeout(
+      () => {
+        void InterviewEngine.finalizePendingQuestion();
+      },
+      Math.max(0, pendingQuestionDeadline - Date.now())
+    );
+    return true;
+  }
+
   static markQuestionPendingFinalization(): void {
     const state = useAppStore.getState();
     const existing = state.currentQuestion?.trim() || '';
@@ -438,6 +494,26 @@ export class InterviewEngine {
             });
             restoreListeningAfterTranscription();
             return;
+          }
+
+          if (
+            classification.type === 'UNCLASSIFIED' &&
+            classification.isIncomplete &&
+            shouldAutoRouteUncertainQuestion(classification, text)
+          ) {
+            const candidateQuestion = classification.questionText || text;
+            if (InterviewEngine.beginPendingQuestionFromTranscript(candidateQuestion, text)) {
+              useAppStore.getState().addTranscript({
+                id: `pending_question_${requestId}`,
+                speaker: 'unknown',
+                text: candidateQuestion,
+                timestamp: Date.now(),
+                classification: 'PENDING_INCOMPLETE_QUESTION',
+                confidence: classification.confidence,
+                reason: 'Incomplete question retained for automatic continuation',
+              });
+              return;
+            }
           }
 
           if (classification.type === 'UNCLASSIFIED') {
