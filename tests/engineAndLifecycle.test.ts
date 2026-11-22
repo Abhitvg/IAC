@@ -23,6 +23,11 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
     vi.clearAllMocks();
     useAppStore.setState({
       status: 'idle',
+      isRecording: false,
+      diagnosticState: {
+        ...useAppStore.getState().diagnosticState,
+        micActive: false,
+      },
       recitalState: 'idle',
       currentQuestion: null,
       currentAnswer: null,
@@ -35,20 +40,26 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
   });
 
   it('handles START_LISTENING and STOP_LISTENING idempotently', async () => {
-    const audioSpyStart = vi.spyOn(AudioRecorder.getInstance(), 'start').mockImplementation(async () => {});
-    const audioSpyStop = vi.spyOn(AudioRecorder.getInstance(), 'stop').mockImplementation(async () => {});
+    const recorder = AudioRecorder.getInstance();
+    const captureStateSpy = vi.spyOn(recorder, 'getCaptureState').mockReturnValue('stopped');
+    const audioSpyStart = vi.spyOn(recorder, 'start').mockImplementation(async () => {
+      captureStateSpy.mockReturnValue('active');
+    });
+    const audioSpyStop = vi.spyOn(recorder, 'stop').mockImplementation(async () => {});
 
     await InterviewEngine.handleEvent({ type: 'START_LISTENING' });
     expect(useAppStore.getState().status).toBe('listening');
     expect(audioSpyStart).toHaveBeenCalled();
 
-    // Redundant start call when already listening does not start duplicate audio capture
+    // Redundant start is ignored because the recorder itself reports active capture.
     await InterviewEngine.handleEvent({ type: 'START_LISTENING' });
     expect(audioSpyStart).toHaveBeenCalledTimes(1);
 
     await InterviewEngine.handleEvent({ type: 'STOP_LISTENING' });
     expect(useAppStore.getState().status).toBe('idle');
     expect(audioSpyStop).toHaveBeenCalledWith(false);
+
+    captureStateSpy.mockRestore();
   });
 
   it('regenerateAnswer dispatches REGENERATE_ACTIVE_ANSWER when a current question exists', () => {
