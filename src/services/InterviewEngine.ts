@@ -1261,9 +1261,7 @@ export class InterviewEngine {
                 return;
               }
 
-              state.setAnswerVerificationBasis(
-                res.verificationBasis ?? 'SCREEN_CODE_NOT_EXECUTED'
-              );
+              state.setAnswerVerificationBasis(res.verificationBasis ?? 'SCREEN_CODE_NOT_EXECUTED');
 
               if (decision.isSpeakable) {
                 const finalAnswer = decision.speakableAnswer;
