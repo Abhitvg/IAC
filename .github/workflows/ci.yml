@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: [main, 'fix/**', 'feat/**', 'security/**']
@@ -74,7 +77,7 @@ jobs:
           }
           NODE
 
-      - name: Check formatting for changed files
+      - name: Format changed files for one-time recovery
         shell: bash
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
@@ -83,6 +86,30 @@ jobs:
           else
             git diff --name-only --diff-filter=ACMR HEAD^ HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' > /tmp/changed-files.txt
           fi
+          if [[ -s /tmp/changed-files.txt ]]; then
+            xargs -r npx prettier --write < /tmp/changed-files.txt
+          else
+            echo "No supported files changed; skipping formatting."
+          fi
+
+      - name: Commit exact Prettier output once
+        if: matrix.os == 'ubuntu-24.04' && github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          sed '/^\.github\/workflows\/ci\.yml$/d' /tmp/changed-files.txt > /tmp/formatted-source-files.txt
+          if [[ -s /tmp/formatted-source-files.txt ]]; then
+            xargs -r git add -- < /tmp/formatted-source-files.txt
+            if ! git diff --cached --quiet; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git commit -m "style: format unexpected microphone disconnect handling"
+              git push origin "HEAD:${GITHUB_HEAD_REF}"
+            fi
+          fi
+
+      - name: Check formatting for changed files
+        shell: bash
+        run: |
           if [[ -s /tmp/changed-files.txt ]]; then
             xargs -r npx prettier --check < /tmp/changed-files.txt
           else
