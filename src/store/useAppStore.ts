@@ -53,6 +53,7 @@ export type RecitalState = 'idle' | 'listening' | 'reciting' | 'interrupted';
 
 export interface DiagnosticState {
   micActive: boolean;
+  micInputMuted?: boolean;
   currentDb: number;
   speechDetected: boolean;
   blobSize: number;
@@ -1228,6 +1229,7 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   toast: null,
   diagnosticState: {
     micActive: false,
+    micInputMuted: false,
     currentDb: -100,
     speechDetected: false,
     blobSize: 0,
