@@ -615,8 +615,8 @@ describe('Adversarial Speaking Gate & Grounding Violation Invariant (Section 1, 
       });
 
       const html = renderToString(React.createElement(TeleprompterView));
-      expect(html).toContain('Draft answer · candidate-claim checks pending');
-      expect(html).toContain('Grounding validation in progress');
+      expect(html).toContain('Live Generation Draft · candidate-claim checks pending');
+      expect(html).toContain('Preparing answer');
       expect(html).toContain('Kafka uses partition keys');
     });
 

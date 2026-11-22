@@ -7,12 +7,12 @@ export interface BionicAnswerPresentation {
 }
 
 const hasSubstantiveAnswerContent = (prose: string): boolean => {
-  const textWithoutCode = prose.replace(/\`\`\`[\\s\\S]*?\`\`\`/g, '');
+  const textWithoutCode = prose.replace(/\x60{3}[\s\S]*?\x60{3}/g, '');
 
-  return textWithoutCode.split(/\\r?\\n/).some((line) => {
+  return textWithoutCode.split(/\r?\n/).some((line) => {
     const normalized = line.trim();
-    if (!normalized || /^#{1,6}\\s+/.test(normalized)) return false;
-    if (/^(?:-{3,}|\\*{3,}|_{3,})$/.test(normalized)) return false;
+    if (!normalized || /^#{1,6}\s+/.test(normalized)) return false;
+    if (/^(?:-{3,}|\*{3,}|_{3,})$/.test(normalized)) return false;
     return true;
   });
 };

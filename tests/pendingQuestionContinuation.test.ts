@@ -15,15 +15,19 @@ describe('pending interviewer-question continuation routing', () => {
     expect(resolvePendingQuestionContinuation('okay')).toBe('ignore');
     expect(
       resolvePendingQuestionContinuation('I would start by defining the service boundaries.')
-    ).toBe('ignore');
+    ).toBe('candidate-speech');
     expect(resolvePendingQuestionContinuation('First, I would measure the baseline.')).toBe(
-      'ignore'
+      'candidate-speech'
     );
-    expect(resolvePendingQuestionContinuation('Yeah, so I would use Redis.')).toBe('ignore');
+    expect(resolvePendingQuestionContinuation('Yeah, so I would use Redis.')).toBe(
+      'candidate-speech'
+    );
     expect(resolvePendingQuestionContinuation('The first thing I would do is profile latency.')).toBe(
-      'ignore'
+      'candidate-speech'
     );
-    expect(resolvePendingQuestionContinuation("What I'd do is add a cache.")).toBe('ignore');
+    expect(resolvePendingQuestionContinuation("What I'd do is add a cache.")).toBe(
+      'candidate-speech'
+    );
     expect(resolvePendingQuestionContinuation('What is your approach to caching?')).toBe(
       'new-question'
     );

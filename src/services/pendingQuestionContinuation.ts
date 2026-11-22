@@ -21,8 +21,9 @@ const CANDIDATE_LEAD_IN =
 
 /**
  * Decides whether a transcript arriving during the short incomplete-question
- * window is a continuation, unrelated candidate/filler speech, or a new
- * interviewer question. Speaker identity is not inferred.
+ * window is a continuation, neutral filler, candidate speech, or a new
+ * interviewer question. Candidate speech is returned separately so callers
+ * can cancel stale partial-question timers. Speaker identity is not inferred.
  */
 export function resolvePendingQuestionContinuation(
   transcript: string
@@ -31,7 +32,7 @@ export function resolvePendingQuestionContinuation(
   if (!text || FILLER_UTTERANCE.test(text)) return 'ignore';
 
   if (CANDIDATE_NARRATION_START.test(text) || CANDIDATE_LEAD_IN.test(text)) {
-    return 'ignore';
+    return 'candidate-speech';
   }
 
   if (NEW_QUESTION_START.test(text) || AUXILIARY_QUESTION_START.test(text)) {
