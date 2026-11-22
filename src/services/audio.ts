@@ -319,6 +319,9 @@ export class AudioRecorder {
     this.utteranceChunks = [];
     this.totalUtteranceSamples = 0;
     this.speechStartDetectedTime = 0;
+    this.lastSpeechTime = 0;
+    this.preRollBuffer.fill(0);
+    this.preRollIndex = 0;
     state.updateDiagnostics({
       micInputMuted: true,
       speechDetected: false,
