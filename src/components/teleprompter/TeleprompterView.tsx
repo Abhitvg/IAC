@@ -1337,7 +1337,7 @@ export default function TeleprompterView() {
   const isListening = diagnosticState.micActive;
   const isGenerating = status === 'analyzing' || status === 'generating';
   const responseModeLabel =
-    responseMode === 'coding' ? 'Coding' : responseMode === 'quiz' ? 'Quiz' : 'Interview';
+    responseMode === 'coding'\n      ? 'Coding'\n      : responseMode === 'quiz'\n        ? 'Quiz'\n        : responseMode === 'application'\n          ? 'Application'\n          : 'Interview';
 
   const [manualInput, setManualInput] = useState('');
   const [copiedCodeIndices, setCopiedCodeIndices] = useState<Record<number, boolean>>({});
