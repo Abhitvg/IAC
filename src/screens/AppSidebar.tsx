@@ -90,6 +90,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   return (
     <aside
+      className="app-sidebar"
       aria-label="Primary Navigation"
       style={{
         width: collapsed ? '72px' : '240px',
