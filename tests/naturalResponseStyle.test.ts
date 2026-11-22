@@ -356,19 +356,22 @@ Skills: Java, TypeScript, Spring Boot, React, Kafka, Docker, AWS.`;
     expect(prompt).toContain('❌ WHY OTHER OPTIONS ARE INCORRECT:');
   });
 
-  it('9. Screen-captured coding problem retains complete runnable code and concise verbal walkthrough', () => {
+  it('9. Screen-captured coding problem uses one adaptive solution contract', () => {
     const ocr = `33. Search in Rotated Sorted Array
 Given a sorted array of distinct integers nums and an integer target, return the index of target.
 1 <= nums.length <= 10^5`;
 
     const prompt = buildScreenSolverPrompt(ocr, 'Java', 'Staff Engineer', 'coding');
 
-    expect(prompt).toContain('ACTIVE MODE: ZERO-FAIL CODING CHALLENGE (Java)');
-    expect(prompt).toContain('FORMAT 1: ULTRA-MINIMAL TYPEABLE SOLUTION');
-    expect(prompt).toContain('FORMAT 2: COMPLETE ONLINE JUDGE CLASS');
-    expect(prompt).toContain('class Solution');
-    expect(prompt).toContain('SPOKEN CANDIDATE SCRIPT');
-    expect(prompt).toContain('60-80 word');
+    expect(prompt).toContain('MODE: LIVE CODING — Java');
+    expect(prompt).toContain('SELECT ONE IMPLEMENTATION CONTRACT');
+    expect(prompt).toContain('Preserve visible class names, method signatures');
+    expect(prompt).toContain('exactly one complete implementation');
+    expect(prompt).toContain('exactly one fenced code block');
+    expect(prompt).toContain('Do not invent constraints');
+    expect(prompt).not.toContain('FORMAT 1: ULTRA-MINIMAL TYPEABLE SOLUTION');
+    expect(prompt).not.toContain('FORMAT 2: COMPLETE ONLINE JUDGE CLASS');
+    expect(prompt).not.toContain('SPOKEN CANDIDATE SCRIPT');
   });
 
   it('10. Follow-up question references prior context without duplicating previous definitions', () => {
