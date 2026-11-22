@@ -159,7 +159,9 @@ describe('Question History & Incomplete Question Recovery', () => {
 
         for (let i = 0; i < 4; i++) {
           await vi.advanceTimersByTimeAsync(3000);
-          expect(InterviewEngine.appendPendingQuestionUtterance(`continuation ${i}`)).toBe('appended');
+          expect(InterviewEngine.appendPendingQuestionUtterance(`continuation ${i}`)).toBe(
+            'appended'
+          );
         }
 
         await vi.advanceTimersByTimeAsync(3001);
