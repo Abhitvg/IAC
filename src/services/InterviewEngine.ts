@@ -30,6 +30,7 @@ import {
   ApplicationFormSession,
 } from './ApplicationFormAssistanceService';
 import { CandidateRagService } from './rag';
+import { SerializedTaskQueue } from './serializedTaskQueue';
 
 export type EngineEvent =
   | { type: 'START_LISTENING' }
@@ -48,6 +49,7 @@ export type EngineEvent =
 
 const audioService = AudioRecorder.getInstance();
 const answerService = AnswerGenerationService.getInstance();
+const finalizedUtteranceQueue = new SerializedTaskQueue(8);
 
 let activeAbortController: AbortController | null = null;
 let activeRequestId: string | null = null;
@@ -259,9 +261,52 @@ export class InterviewEngine {
   }
 
   /**
-   * Aborts in-flight audio transcription.
+   * Enqueue finalized microphone audio without allowing a later pause to cancel
+   * an earlier transcription. The queue serializes STT only; answer generation
+   * is dispatched separately so new interviewer interruptions remain responsive.
    */
-  static abortActiveTranscription(): void {
+  static enqueueFinalizedUtterance(blob: Blob): Promise<void> {
+    return finalizedUtteranceQueue
+      .enqueue(async () => {
+        if (
+          audioService.getCaptureState() !== 'active' ||
+          useAppStore.getState().status === 'idle'
+        ) {
+          return;
+        }
+        await InterviewEngine.handleEvent({ type: 'UTTERANCE_FINALIZED', blob });
+      })
+      .then(() => undefined);
+  }
+
+  /**
+   * Starts answer generation for a recognized question without holding the
+   * serialized transcription queue open until the model finishes streaming.
+   */
+  static dispatchDetectedQuestion(text: string, requestId: string): void {
+    void InterviewEngine.handleEvent({ type: 'QUESTION_DETECTED', text, requestId }).catch(
+      (error: unknown) => {
+        const errorName = error instanceof Error ? error.name : 'UnknownError';
+        console.error('[InterviewEngine] Failed to dispatch a recognized question.', {
+          requestId,
+          errorName,
+        });
+        const state = useAppStore.getState();
+        if (state.activeRequestId === requestId) {
+          state.setPipelineStage('failed');
+          state.setStatus('error');
+          state.setToast('Could not start an answer for the recognized question. Please retry.');
+        }
+      }
+    );
+  }
+
+  /**
+   * Aborts in-flight audio transcription and, by default, invalidates queued
+   * utterances. Question dispatch opts out so subsequent speech can still be heard.
+   */
+  static abortActiveTranscription(clearQueuedUtterances: boolean = true): void {
+    if (clearQueuedUtterances) finalizedUtteranceQueue.clear();
     activeTranscriptionRequestId = null;
     if (activeTranscriptionController) {
       activeTranscriptionController.abort();
@@ -321,10 +366,24 @@ export class InterviewEngine {
             }
 
             useAppStore.getState().updateDiagnostics({ whisperStatus: 'transcribing...' });
-            await InterviewEngine.handleEvent({
-              type: 'UTTERANCE_FINALIZED',
-              blob: utteranceBlob,
-            });
+            try {
+              await InterviewEngine.enqueueFinalizedUtterance(utteranceBlob);
+            } catch (error) {
+              const queueFull = error instanceof Error && error.message === 'UTTERANCE_QUEUE_FULL';
+              useAppStore.getState().updateDiagnostics({
+                whisperStatus: queueFull
+                  ? 'Transcription is falling behind; this speech segment was not queued.'
+                  : 'Unable to queue finalized speech for transcription.',
+              });
+              useAppStore.getState().setToast(
+                queueFull
+                  ? 'Transcription is overloaded. Pause briefly and repeat the last question.'
+                  : 'Speech could not be queued. Please repeat the last question.'
+              );
+              console.error('[InterviewEngine] Unable to queue finalized audio.', {
+                errorName: error instanceof Error ? error.name : 'UnknownError',
+              });
+            }
           });
         } catch (e: any) {
           const currentStore = useAppStore.getState();
@@ -363,7 +422,6 @@ export class InterviewEngine {
         }
 
         const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-        InterviewEngine.abortActiveTranscription();
         const transcriptionController = new AbortController();
         activeTranscriptionController = transcriptionController;
         activeTranscriptionRequestId = requestId;
@@ -590,11 +648,7 @@ export class InterviewEngine {
               whisperStatus: 'Possible interviewer question detected and routed automatically.',
               questionMatched: true,
             });
-            await InterviewEngine.handleEvent({
-              type: 'QUESTION_DETECTED',
-              text: candidateQuestion,
-              requestId,
-            });
+            InterviewEngine.dispatchDetectedQuestion(candidateQuestion, requestId);
             return;
           }
 
@@ -643,11 +697,7 @@ export class InterviewEngine {
               confidence: classification.confidence,
               reason: classification.reason,
             });
-            await InterviewEngine.handleEvent({
-              type: 'QUESTION_DETECTED',
-              text: questionCandidate,
-              requestId,
-            });
+            InterviewEngine.dispatchDetectedQuestion(questionCandidate, requestId);
             return;
           }
 
@@ -702,11 +752,7 @@ export class InterviewEngine {
             });
 
             useAppStore.getState().setLastUnconfirmedTranscript(null);
-            await InterviewEngine.handleEvent({
-              type: 'QUESTION_DETECTED',
-              text: questionText,
-              requestId,
-            });
+            InterviewEngine.dispatchDetectedQuestion(questionText, requestId);
             return;
           }
 
@@ -777,7 +823,7 @@ export class InterviewEngine {
           return;
         }
 
-        InterviewEngine.abortActiveTranscription();
+        InterviewEngine.abortActiveTranscription(false);
         globalLatencyTracker.mark('questionDetected');
 
         const isExtending = store.isIncompleteQuestionMode && Boolean(store.currentQuestion);
