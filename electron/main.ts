@@ -222,11 +222,19 @@ function setupTray() {
     : nativeImage.createEmpty();
   try {
     tray = new Tray(icon);
-    tray.setToolTip('AI Interview Assistant (Alt+H to show or hide)');
+    tray.setToolTip('AI Interview Assistant (⌘\\ or ⌘⇧Space to show / hide)');
     const trayMenu = Menu.buildFromTemplate([
       {
-        label: 'Show / Hide Window (Alt+H)',
+        label: 'Show / Hide Window (⌘\\ or ⌘⇧Space)',
         click: () => toggleWindowVisibility(),
+      },
+      {
+        label: 'Move Window to Left Corner (⌘⌥←)',
+        click: () => positionWindowInCorner('left'),
+      },
+      {
+        label: 'Move Window to Right Corner (⌘⌥→)',
+        click: () => positionWindowInCorner('right'),
       },
       {
         label: 'Solve Screen Problem (Alt+Shift+S)',
