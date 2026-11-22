@@ -25,3 +25,19 @@ describe('normalizePreferredLanguage', () => {
     expect(normalizePreferredLanguage(42)).toBe('java');
   });
 });
+
+import { normalizeWindowOpacity } from '../src/utils/settings';
+
+describe('window opacity settings', () => {
+  it('clamps valid opacity values to the native window range', () => {
+    expect(normalizeWindowOpacity(0.7)).toBe(0.7);
+    expect(normalizeWindowOpacity(0)).toBe(0.12);
+    expect(normalizeWindowOpacity(1.5)).toBe(1);
+  });
+
+  it('normalizes persisted strings and falls back for invalid values', () => {
+    expect(normalizeWindowOpacity('0.55')).toBe(0.55);
+    expect(normalizeWindowOpacity('not-a-number')).toBe(0.35);
+    expect(normalizeWindowOpacity(Number.NaN, 0.5)).toBe(0.5);
+  });
+});
