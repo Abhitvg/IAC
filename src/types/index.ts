@@ -243,7 +243,8 @@ export type JavaSandboxStatus =
   | 'ROOTLESS_DOCKER_REQUIRED'
   | 'JAVA_IMAGE_MISSING'
   | 'DOCKER_ERROR'
-  | 'CLEANUP_FAILED';
+  | 'CLEANUP_FAILED'
+  | 'INVALID_REQUEST';
 
 export interface JavaSandboxRequest {
   sourceCode: string;
