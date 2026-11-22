@@ -103,7 +103,7 @@ export function selectPrimaryGlanceableBullets(bullets: BionicGazeBullet[]): {
 
   // Prioritise the opening answer, then reserve space for the ending and
   // high-signal engineering details without changing their original order.
-  for (let index = 0; index < Math.min(4, bullets.length); index += 1) addIndex(index);
+  for (let index = 0; index < Math.min(3, bullets.length); index += 1) addIndex(index);
 
   for (let index = Math.max(4, bullets.length - 2); index < bullets.length; index += 1) {
     addIndex(index);
