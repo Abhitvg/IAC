@@ -2580,6 +2580,7 @@ export default function TeleprompterView() {
                     />
                   ) : (
                     <div
+                      data-conversation-anchor={conversationId + '-answer'}
                       style={{
                         alignSelf: 'flex-start',
                         maxWidth: '96%',
