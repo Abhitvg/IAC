@@ -1,4 +1,4 @@
-export type InterviewResponseMode = 'coding' | 'interview' | 'quiz';
+export type InterviewResponseMode = 'coding' | 'interview' | 'quiz' | 'application';
 
 /**
  * A fresh live-interview workspace must not silently inherit Coding mode.
@@ -6,5 +6,5 @@ export type InterviewResponseMode = 'coding' | 'interview' | 'quiz';
  * installs and for stale/unknown persisted values.
  */
 export function resolveInterviewResponseMode(value: unknown): InterviewResponseMode {
-  return value === 'coding' || value === 'interview' || value === 'quiz' ? value : 'interview';
+  return value === 'coding' || value === 'interview' || value === 'quiz' || value === 'application'\n    ? value\n    : 'interview';
 }
