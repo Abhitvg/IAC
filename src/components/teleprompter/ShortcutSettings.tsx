@@ -14,8 +14,7 @@ export function ShortcutSettings({
 }) {
   const [capturing, setCapturing] = useState<InterviewShortcutAction | null>(null);
   const [captureError, setCaptureError] = useState('');
-  const isMacPlatform =
-    typeof window !== 'undefined' && window.electronAPI?.platform === 'darwin';
+  const isMacPlatform = typeof window !== 'undefined' && window.electronAPI?.platform === 'darwin';
 
   useEffect(() => {
     if (!capturing) return;
@@ -116,15 +115,21 @@ export function ShortcutSettings({
           System-wide controls · {isMacPlatform ? 'macOS' : 'Windows / Linux'}
         </div>
         <div style={{ color: '#aeb9c8', fontSize: 11, lineHeight: 1.55 }}>
-          <strong>{isMacPlatform ? '⌘\\' : 'Ctrl+\\'}</strong> or <strong>{isMacPlatform ? '⌘⇧Space' : 'Ctrl+Shift+Space'}</strong> show / hide · <strong>{isMacPlatform ? '⌘⌥←' : 'Ctrl+Alt+←'}</strong> left
-          corner · <strong>{isMacPlatform ? '⌘⌥→' : 'Ctrl+Alt+→'}</strong> right corner
+          <strong>{isMacPlatform ? '⌘\\' : 'Ctrl+\\'}</strong> or{' '}
+          <strong>{isMacPlatform ? '⌘⇧Space' : 'Ctrl+Shift+Space'}</strong> show / hide ·{' '}
+          <strong>{isMacPlatform ? '⌘⌥←' : 'Ctrl+Alt+←'}</strong> left corner ·{' '}
+          <strong>{isMacPlatform ? '⌘⌥→' : 'Ctrl+Alt+→'}</strong> right corner
         </div>
         <div style={{ color: '#8492a6', fontSize: 10, lineHeight: 1.5 }}>
-          Also available: {isMacPlatform ? '⌘⌥⇧H / ⌥H' : 'Ctrl+Alt+Shift+H / Alt+H'} show or hide, {isMacPlatform ? '⌥⇧S' : 'Alt+Shift+S'} solve screen, {isMacPlatform ? '⌘⇧A' : 'Ctrl+Shift+A'} append capture, {isMacPlatform ? '⌥V' : 'Alt+V'} auto-type
-          code, {isMacPlatform ? '⌥T' : 'Alt+T'} auto-type answer. Global bindings are fixed and may be unavailable if another application has claimed them.
+          Also available: {isMacPlatform ? '⌘⌥⇧H / ⌥H' : 'Ctrl+Alt+Shift+H / Alt+H'} show or hide,{' '}
+          {isMacPlatform ? '⌥⇧S' : 'Alt+Shift+S'} solve screen,{' '}
+          {isMacPlatform ? '⌘⇧A' : 'Ctrl+Shift+A'} append capture, {isMacPlatform ? '⌥V' : 'Alt+V'}{' '}
+          auto-type code, {isMacPlatform ? '⌥T' : 'Alt+T'} auto-type answer. Global bindings are
+          fixed and may be unavailable if another application has claimed them.
         </div>
         <div style={{ color: '#8492a6', fontSize: 10 }}>
-          The macOS Dock or Windows / Linux system-tray icon remains available to reopen the assistant.
+          The macOS Dock or Windows / Linux system-tray icon remains available to reopen the
+          assistant.
         </div>
       </div>
       <div
@@ -145,9 +150,12 @@ export function ShortcutSettings({
           <strong>⌘Y</strong> /<strong>⌘]</strong> redo · <strong>⌥C</strong> mark incomplete
         </div>
         <div style={{ color: '#8492a6', fontSize: 10, lineHeight: 1.5 }}>
-          <strong>{isMacPlatform ? '⌘⌫' : 'Ctrl+Backspace'}</strong> new question · <strong>{isMacPlatform ? '⌘1' : 'Ctrl+1'}</strong> Coding · <strong>{isMacPlatform ? '⌘2' : 'Ctrl+2'}</strong>{' '}
-          Interview · <strong>{isMacPlatform ? '⌘3' : 'Ctrl+3'}</strong> Quiz · <strong>{isMacPlatform ? '⌘J' : 'Ctrl+J'}</strong> auto-follow ·{' '}
-          <strong>Esc</strong> close overlay.
+          <strong>{isMacPlatform ? '⌘⌫' : 'Ctrl+Backspace'}</strong> new question ·{' '}
+          <strong>{isMacPlatform ? '⌘1' : 'Ctrl+1'}</strong> Coding ·{' '}
+          <strong>{isMacPlatform ? '⌘2' : 'Ctrl+2'}</strong> Interview ·{' '}
+          <strong>{isMacPlatform ? '⌘3' : 'Ctrl+3'}</strong> Quiz ·{' '}
+          <strong>{isMacPlatform ? '⌘J' : 'Ctrl+J'}</strong> auto-follow · <strong>Esc</strong>{' '}
+          close overlay.
         </div>
       </div>
       {capturing && (
