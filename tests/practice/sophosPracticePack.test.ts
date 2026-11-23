@@ -18,7 +18,7 @@ function createMemoryStorage() {
   };
 }
 
-describe('Sophos Java/software-engineering practice pack', () => {
+describe('Sophos DevOps/cloud platform practice pack', () => {
   beforeEach(() => {
     QuestionBank.resetCustomQuestions();
     vi.stubGlobal('localStorage', createMemoryStorage());
@@ -31,7 +31,10 @@ describe('Sophos Java/software-engineering practice pack', () => {
   });
 
   it('contains unique, schema-valid questions across Java, DSA, backend, cloud, and security', () => {
-    expect(sophosPracticePack.length).toBeGreaterThanOrEqual(12);
+    expect(sophosPracticePack).toHaveLength(20);
+    expect(Math.max(...sophosPracticePack.map((question) => question.difficulty))).toBeLessThanOrEqual(
+      3
+    );
 
     const ids = new Set<string>();
     for (const question of sophosPracticePack) {
@@ -47,6 +50,12 @@ describe('Sophos Java/software-engineering practice pack', () => {
     expect(sophosPracticePack.some((question) => question.type === 'coding')).toBe(true);
     expect(sophosPracticePack.some((question) => question.type === 'system_design')).toBe(true);
     expect(sophosPracticePack.some((question) => question.type === 'behavioral')).toBe(true);
+    const allTags = new Set(sophosPracticePack.flatMap((question) => question.tags));
+    expect(allTags.has('terraform')).toBe(true);
+    expect(allTags.has('jenkins')).toBe(true);
+    expect(allTags.has('kubernetes')).toBe(true);
+    expect(allTags.has('iaas')).toBe(true);
+    expect(allTags.has('sla')).toBe(true);
   });
 
   it('rolls back an imported pack when local persistence fails', () => {
