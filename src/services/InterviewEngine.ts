@@ -353,8 +353,12 @@ export class InterviewEngine {
         }
 
         const answerWasActive = store.status === 'analyzing' || store.status === 'generating';
-        InterviewEngine.clearPendingQuestion();
-        InterviewEngine.abortActiveTranscription();
+        // A failed microphone can be restarted within the same interview. Keep
+        // already-finalized audio and any pending question continuation intact.
+        if (captureState !== 'error') {
+          InterviewEngine.clearPendingQuestion();
+          InterviewEngine.abortActiveTranscription();
+        }
         globalLatencyTracker.mark('speechStart');
 
         // Starting the microphone must not cancel or overwrite an answer already in flight.
