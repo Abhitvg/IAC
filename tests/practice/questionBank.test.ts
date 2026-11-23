@@ -136,7 +136,7 @@ describe('Phase 4 - Question Bank & Spaced Mastery Suite', () => {
   });
 
   describe('Dress Rehearsal Bank Integration & Adaptive Progression', () => {
-    it('draws all questions exclusively from the question bank with zero repeats across a 45-minute dress rehearsal', () => {
+    it('draws bank questions without repeats and finishes with a distinct candidate Q&A phase in the 50-minute rehearsal', () => {
       const session = MockInterviewerEngine.createSession('dress_rehearsal');
       const bankQuestions = QuestionBank.getAllQuestions();
       const bankPrompts = new Set(bankQuestions.map((q) => q.prompt));
@@ -165,16 +165,23 @@ describe('Phase 4 - Question Bank & Spaced Mastery Suite', () => {
       const techQuestion = QuestionBank.getQuestionById(p2.questionId);
       expect(techQuestion?.difficulty).toBeGreaterThanOrEqual(3);
 
-      // 4. Advance to system design phase (with low score 2.0 -> adapts difficulty downwards)
+      // 4. Advance to the distinct system-design phase.
       const p3 = MockInterviewerEngine.advanceRehearsalPhase('technical', usedIds, 2.0);
-      expect(p3.nextPhase).toBe('candidate_qa');
+      expect(p3.nextPhase).toBe('system_design');
+      expect(p3.category).toBe('system_design');
       expect(bankPrompts.has(p3.question)).toBe(true);
       expect(usedIds).not.toContain(p3.questionId);
       usedIds.push(p3.questionId);
 
-      // 5. Advance to wrapup
-      const p4 = MockInterviewerEngine.advanceRehearsalPhase('candidate_qa', usedIds, 4.0);
-      expect(p4.nextPhase).toBe('wrapup');
+      // 5. Candidate Q&A is a discussion prompt, not a scored bank question.
+      const p4 = MockInterviewerEngine.advanceRehearsalPhase('system_design', usedIds, 4.0);
+      expect(p4.nextPhase).toBe('candidate_qa');
+      expect(p4.category).toBe('candidate_qa');
+      expect(p4.question).toContain('10 minutes');
+
+      // 6. Advance to wrapup after candidate questions are captured.
+      const p5 = MockInterviewerEngine.advanceRehearsalPhase('candidate_qa', usedIds, 4.0);
+      expect(p5.nextPhase).toBe('wrapup');
 
       // Verify that all used questions are distinct
       expect(new Set(usedIds).size).toBe(usedIds.length);

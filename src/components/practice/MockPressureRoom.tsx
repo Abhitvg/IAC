@@ -5,6 +5,16 @@ import { usePracticeStore } from '../../store/usePracticeStore';
 import { useAppStore } from '../../store/useAppStore';
 import { EvidenceScorecard } from './EvidenceScorecard';
 import { InterviewReportGenerator } from '../../services/practice/InterviewReportGenerator';
+import type { RehearsalPhase } from '../../services/practice/types';
+
+const REHEARSAL_PHASE_LABELS: Record<RehearsalPhase, string> = {
+  icebreaker: 'Icebreaker',
+  behavioral: 'Behavioral',
+  technical: 'Technical / Coding',
+  system_design: 'System Design',
+  candidate_qa: 'Your Questions',
+  wrapup: 'Wrap-up',
+};
 
 export const MockPressureRoom: React.FC = () => {
   const {
@@ -108,6 +118,7 @@ export const MockPressureRoom: React.FC = () => {
   const secs = activeSession.timeRemainingSeconds % 60;
   const timerStr = mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');
   const isTimeCritical = activeSession.timeRemainingSeconds < 300; // < 5 mins
+  const isCandidateQAPhase = activeSession.rehearsalPhase === 'candidate_qa';
 
   // Current active question item
   const currentHistoryItem =
@@ -167,7 +178,7 @@ export const MockPressureRoom: React.FC = () => {
               </span>
               {activeSession.rehearsalPhase && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  {activeSession.rehearsalPhase} Phase
+                  {REHEARSAL_PHASE_LABELS[activeSession.rehearsalPhase]}
                 </span>
               )}
             </div>
@@ -401,16 +412,35 @@ export const MockPressureRoom: React.FC = () => {
                     : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700')
                 }
               >
-                <span>{isRecording ? '⏹️ Stop Dictation' : '🎤 Speak Answer'}</span>
+                <span>
+                  {isRecording
+                    ? '⏹️ Stop Dictation'
+                    : isCandidateQAPhase
+                      ? '🎤 Speak Questions'
+                      : '🎤 Speak Answer'}
+                </span>
               </button>
             </div>
 
+            {isCandidateQAPhase && (
+              <p className="text-xs text-indigo-200 bg-indigo-950/40 border border-indigo-500/20 rounded-lg px-3 py-2">
+                This discussion is not scored. Use it to ask about the role, team, engineering
+                challenges, expectations, and how success is measured.
+              </p>
+            )}
+
             <textarea
               id="candidate-response-input"
-              aria-label="Your Live Response"
+              aria-label={
+                isCandidateQAPhase ? 'Questions for the interviewer' : 'Your Live Response'
+              }
               value={currentCandidateAnswer}
               onChange={(e) => setCurrentCandidateAnswer(e.target.value)}
-              placeholder="Start speaking into your microphone or type your initial technical thoughts here..."
+              placeholder={
+                isCandidateQAPhase
+                  ? 'Write the questions you would ask the interviewer in this final discussion...'
+                  : 'Start speaking into your microphone or type your initial technical thoughts here...'
+              }
               className="w-full h-36 p-3.5 bg-slate-950/90 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none leading-relaxed font-mono shadow-inner transition"
             />
 
@@ -428,18 +458,28 @@ export const MockPressureRoom: React.FC = () => {
               </div>
 
               <button
-                onClick={() => { void submitCurrentAnswer(); }}
+                onClick={() => {
+                  void submitCurrentAnswer();
+                }}
                 disabled={currentCandidateAnswer.trim().length === 0 || isEvaluatingAnswer}
                 className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-40 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/25 transition active:scale-[0.98] flex items-center gap-2"
               >
                 {isEvaluatingAnswer ? (
                   <>
                     <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Evaluating Evidence & Formulating Turn...</span>
+                    <span>
+                      {isCandidateQAPhase
+                        ? 'Saving your questions...'
+                        : 'Evaluating Evidence & Formulating Turn...'}
+                    </span>
                   </>
                 ) : (
                   <>
-                    <span>Submit Answer & Get Evidence Assessment</span>
+                    {isCandidateQAPhase ? (
+                      <span>Save Questions & Finish Interview</span>
+                    ) : (
+                      <span>Submit Answer & Get Evidence Assessment</span>
+                    )}
                     <span>→</span>
                   </>
                 )}
@@ -538,8 +578,8 @@ export const MockPressureRoom: React.FC = () => {
                               (dim.score >= 4.0
                                 ? 'text-emerald-400'
                                 : dim.score >= 3.0
-                                ? 'text-amber-400'
-                                : 'text-rose-400')
+                                  ? 'text-amber-400'
+                                  : 'text-rose-400')
                             }
                           >
                             {dim.score.toFixed(1)} / 5.0
@@ -572,8 +612,8 @@ export const MockPressureRoom: React.FC = () => {
                                 (item.status === 'demonstrated_strength'
                                   ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
                                   : item.status === 'weak_area'
-                                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                                  : 'bg-slate-800 text-slate-400 border border-slate-700')
+                                    ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                                    : 'bg-slate-800 text-slate-400 border border-slate-700')
                               }
                             >
                               {item.status.replace(/_/g, ' ')}

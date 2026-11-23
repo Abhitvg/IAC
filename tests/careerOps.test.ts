@@ -212,6 +212,24 @@ Staff Engineer. Salary: $180,000 - $220,000 per year + equity.
   });
 
   describe('useCareerOpsStore Pipeline Integration', () => {
+    it('starts with a clean real pipeline and loads demo records only after explicit opt-in', () => {
+      const store = useCareerOpsStore.getState();
+
+      expect(store.applications).toEqual([]);
+      expect(store.isDemoMode).toBe(false);
+
+      store.enableDemoMode();
+      expect(useCareerOpsStore.getState().isDemoMode).toBe(true);
+      expect(useCareerOpsStore.getState().applications.length).toBeGreaterThan(0);
+      expect(
+        useCareerOpsStore.getState().applications.every((application) => application.isDemo)
+      ).toBe(true);
+
+      useCareerOpsStore.getState().clearDemoData();
+      expect(useCareerOpsStore.getState().applications).toEqual([]);
+      expect(useCareerOpsStore.getState().isDemoMode).toBe(false);
+    });
+
     it('adds, updates, filters, and calculates pipeline stats correctly', () => {
       const store = useCareerOpsStore.getState();
 

@@ -208,15 +208,54 @@ describe('CompanyPlanGenerator', () => {
 });
 
 describe('MockInterviewerEngine', () => {
-  it('creates a 45-minute dress rehearsal session with initial icebreaker', () => {
+  it('creates a 50-minute dress rehearsal session with initial icebreaker', () => {
     const defaultSession = MockInterviewerEngine.createSession('dress_rehearsal');
     expect(defaultSession.interruptionEnabled).toBe(false);
 
     const session = MockInterviewerEngine.createSession('dress_rehearsal', 'strict_big_tech', true);
-    expect(session.totalTimeSeconds).toBe(45 * 60);
+    expect(session.totalTimeSeconds).toBe(50 * 60);
     expect(session.rehearsalPhase).toBe('icebreaker');
     expect(session.currentQuestion.length).toBeGreaterThan(10);
     expect(session.interruptionEnabled).toBe(true);
+  });
+
+  it('separates system design from an unscored final candidate Q&A phase', async () => {
+    const systemDesign = MockInterviewerEngine.advanceRehearsalPhase('technical');
+    expect(systemDesign.nextPhase).toBe('system_design');
+    expect(systemDesign.category).toBe('system_design');
+
+    const candidateQA = MockInterviewerEngine.advanceRehearsalPhase('system_design');
+    expect(candidateQA.nextPhase).toBe('candidate_qa');
+    expect(candidateQA.category).toBe('candidate_qa');
+    expect(candidateQA.question).toContain('10 minutes');
+
+    const session = MockInterviewerEngine.createSession('dress_rehearsal');
+    session.rehearsalPhase = 'candidate_qa';
+    session.questionHistory.push({
+      question: candidateQA.question,
+      category: candidateQA.category,
+      isFollowUp: false,
+      candidateTranscript: '',
+      hintsUsed: [],
+      probeCount: 0,
+      questionId: 'candidate_qa',
+    });
+
+    const completed = await MockInterviewerEngine.processAnswerSubmissionAsync(
+      session,
+      'How does the team define success in the first 90 days?',
+      30,
+      []
+    );
+
+    const qaEntry = completed.questionHistory[completed.questionHistory.length - 1];
+    expect(completed.isActive).toBe(false);
+    expect(completed.rehearsalPhase).toBe('wrapup');
+    expect(qaEntry.candidateTranscript).toContain('first 90 days');
+    expect(qaEntry.evaluation).toBeUndefined();
+    expect(MockInterviewerEngine.advanceRehearsalPhase('candidate_qa').question).toContain(
+      '50-minute'
+    );
   });
 
   it('reverses follow-up prediction to probe candidate weakness on caching', () => {

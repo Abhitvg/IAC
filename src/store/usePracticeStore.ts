@@ -133,6 +133,7 @@ const STORAGE_KEYS = {
   WEAKNESS_PLAN: 'ai_practice_weakness_plan_v1',
   EXPLAINER_ATTEMPTS: 'ai_practice_explainer_attempts_v1',
   CONCEPT_CARDS: 'ai_practice_concept_cards_v1',
+  CUSTOM_QUESTIONS: 'ai_practice_custom_questions_v1',
 };
 
 function loadStored<T>(key: string, fallback: T): T {
@@ -151,6 +152,32 @@ function persist<T>(key: string, data: T) {
     console.error('Storage persist error for', key, e);
   }
 }
+
+export function restorePersistedCustomQuestions(): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+
+    const raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
+    if (!raw) return;
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      console.warn('[PracticeStore] Saved custom question pack is not an array.');
+      return;
+    }
+
+    if (parsed.length === 0) return;
+
+    const result = QuestionBank.importCustomPack(parsed);
+    if (!result.success) {
+      console.warn('[PracticeStore] Saved custom question pack failed validation:', result.errors);
+    }
+  } catch (error) {
+    console.warn('[PracticeStore] Could not restore custom question pack:', error);
+  }
+}
+
+restorePersistedCustomQuestions();
 
 function isValidMockSessionState(data: any): data is MockSessionState {
   return (
@@ -473,7 +500,27 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   },
 
   importCustomQuestionPack: (pack) => {
-    return QuestionBank.importCustomPack(pack);
+    const existingQuestions = QuestionBank.getCustomQuestions();
+    const result = QuestionBank.importCustomPack(pack);
+    if (!result.success) return result;
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(
+          STORAGE_KEYS.CUSTOM_QUESTIONS,
+          JSON.stringify(QuestionBank.getCustomQuestions())
+        );
+      }
+      return result;
+    } catch (error) {
+      QuestionBank.replaceCustomQuestions(existingQuestions);
+      console.error('[PracticeStore] Failed to persist custom question pack:', error);
+      return {
+        success: false,
+        importedCount: 0,
+        errors: ['Questions were not saved. Check available local storage and try again.'],
+      };
+    }
   },
 
   recordTopicScore: (topicId, score) => {
@@ -618,6 +665,9 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
         }
       }
     }
+
+    // Clear imported questions from memory as well as their persisted copy.
+    QuestionBank.replaceCustomQuestions([]);
 
     // Always clear sensitive in-memory state; the caller must not report full success
     // while a persisted key remains.

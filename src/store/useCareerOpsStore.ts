@@ -68,13 +68,15 @@ export const DEMO_SAMPLE_APPLICATIONS: JobApplication[] = [
           requirement: 'Python & TypeScript Test Suite Architecture',
           weight: 'critical',
           fit: 'strong',
-          evidence: 'Over 250 unit and integration tests with 98% coverage in candidate repositories.',
+          evidence:
+            'Over 250 unit and integration tests with 98% coverage in candidate repositories.',
         },
         {
           requirement: 'Frontier AI Code Benchmarking & Rigorous Quality Auditing',
           weight: 'critical',
           fit: 'strong',
-          evidence: 'Hands-on experience benchmarking LLM code outputs against deterministic test suites.',
+          evidence:
+            'Hands-on experience benchmarking LLM code outputs against deterministic test suites.',
         },
         {
           requirement: 'Deterministic AST & Syntax Parsing',
@@ -86,7 +88,8 @@ export const DEMO_SAMPLE_APPLICATIONS: JobApplication[] = [
           requirement: 'Asynchronous Remote Collaboration',
           weight: 'medium',
           fit: 'strong',
-          evidence: 'Demonstrated history of high-velocity independent deliverables and open-source contributions.',
+          evidence:
+            'Demonstrated history of high-velocity independent deliverables and open-source contributions.',
         },
       ],
       levelStrategy:
@@ -98,7 +101,8 @@ export const DEMO_SAMPLE_APPLICATIONS: JobApplication[] = [
         'Highlight deep test-suite design and deterministic regression detection on mission-critical codebases.',
       compensationEstimate: {
         estimatedRange: '$75 - $95 / hr',
-        analysis: 'Stated explicitly in job posting. High percentile for specialized AI code evaluation.',
+        analysis:
+          'Stated explicitly in job posting. High percentile for specialized AI code evaluation.',
       },
       workAuthAlert: undefined,
       topInterviewStories: [
@@ -209,7 +213,8 @@ Candidate Engineer`,
           requirement: 'Go / Low-Latency Systems Programming',
           weight: 'critical',
           fit: 'strong',
-          evidence: 'Experience profiling memory allocations and optimizing concurrency in distributed nodes.',
+          evidence:
+            'Experience profiling memory allocations and optimizing concurrency in distributed nodes.',
         },
         {
           requirement: 'Multi-Tenant High Availability & Disaster Recovery',
@@ -220,9 +225,7 @@ Candidate Engineer`,
       ],
       levelStrategy:
         'Focus on technical depth in stream processing, partition management, and P99 latency reduction.',
-      identifiedGaps: [
-        'Proprietary Datadog storage engine internals (standard learning curve).',
-      ],
+      identifiedGaps: ['Proprietary Datadog storage engine internals (standard learning curve).'],
       strategicAngle:
         'Emphasize proven experience keeping ingestion reliable during traffic spikes.',
       compensationEstimate: {
@@ -379,8 +382,9 @@ function loadInitialApplications(): JobApplication[] {
     }
   }
 
-  // Initial fresh launch: populate with DEMO_SAMPLE_APPLICATIONS so all tabs immediately have live data
-  return DEMO_SAMPLE_APPLICATIONS;
+  // A fresh install must represent the user's real pipeline, not fabricated sample applications.
+  // Demo records remain available through the explicit enableDemoMode() action.
+  return [];
 }
 
 interface CareerOpsState {
