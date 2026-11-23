@@ -61,7 +61,7 @@ export const MockGymView: React.FC = () => {
     const result = importCustomQuestionPack(sophosPracticePack);
     setPackNotice(
       result.success
-        ? `Loaded ${result.importedCount} Sophos Java/software-engineering practice questions. The pack is saved locally.`
+        ? `Loaded ${result.importedCount} Sophos cloud platform practice questions. The pack is saved locally.`
         : result.errors?.join(' ') || 'The Sophos practice pack could not be loaded.'
     );
   };
@@ -287,18 +287,18 @@ export const MockGymView: React.FC = () => {
                     aria-label={
                       isSophosPackLoaded
                         ? 'Sophos practice pack loaded'
-                        : 'Load Sophos Java interview practice pack'
+                        : 'Load Sophos cloud platform interview practice pack'
                     }
                     title="Role-aligned practice material; not an official Sophos question list."
                     className="flex items-center gap-2 px-3 py-2 rounded-lg border border-indigo-400/30 bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25 disabled:opacity-60 disabled:cursor-default text-xs font-semibold"
                   >
                     <span>📘</span>
                     <span>
-                      {isSophosPackLoaded ? 'Sophos Pack Loaded' : 'Load Sophos Java Practice Pack'}
+                      {isSophosPackLoaded ? 'Sophos Pack Loaded' : 'Load Sophos Cloud Platform Pack'}
                     </span>
                   </button>
                   <span className="text-[11px] text-slate-400">
-                    Optional Java, DSA, Spring, backend, cloud, and security rehearsal pack
+                    Java/Spring Boot, Terraform, Jenkins, AWS, Docker/Kubernetes, testing, and SLA practice
                   </span>
                 </div>
 
