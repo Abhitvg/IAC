@@ -15,7 +15,9 @@ PR #243 (`feat/responsive-shortcuts-transparency`) is separate from this branch.
 
 The uploaded `Sophos Interview Guide.pdf` is a general candidate guide, not a job description. It says a typical interview is 50 minutes, with the last 10 minutes reserved for candidate questions; the number of interviews varies by role and level. It emphasizes authentic, specific examples and asks candidates to explain the situation, their personal role, the actions they took and why, and the outcome, impact, and learning. It also encourages candidates to ask for clarification and treat the interview as a two-way conversation.
 
-The full dress-rehearsal timer is now 50 minutes and has separate technical, system-design, and candidate-Q&A phases. Candidate questions are recorded under their own category, excluded from behavioral scoring and competency coverage, and not scored as interview answers; the Q&A prompt reminds candidates that around 10 minutes are reserved. The application does not yet enforce a separate 10-minute phase countdown, so candidates should still manage that boundary deliberately. The guide does not disclose a technical syllabus, exact role title, or actual interview questions, so the included Java/SWE pack is preparation material based on the user's current study focus—not a representation of Sophos's question bank.
+The full dress-rehearsal timer is now 50 minutes and has separate technical, system-design, and candidate-Q&A phases. Candidate questions are recorded under their own category, excluded from behavioral scoring and competency coverage, and not scored as interview answers; the Q&A prompt reminds candidates that around 10 minutes are reserved. The application does not yet enforce a separate 10-minute phase countdown, so candidates should still manage that boundary deliberately.
+
+The PDF itself is a general candidate guide and does not identify a job title or technical stack. Separately, the repository's existing Sophos role fixture (PR #235) identifies the target as **Software Engineer — DevOps / Cloud Platform**, an early-career role asking for 1–2 years of experience and covering Java/Spring Boot, REST/microservices, AWS, Terraform/IaC, Jenkins/CI/CD, Docker/Kubernetes, automated testing/SDLC, and SLA/defect handling. PR #235 already adds full-JD role extraction and three role-specific rehearsal questions to Interview Preparation. The 20-question pack in this branch extends that existing capability into Mock Practice Gym. Its questions are original preparation material, not official, proprietary, or leaked Sophos questions.
 
 ## Product and engineering findings
 
@@ -46,8 +48,8 @@ The full dress-rehearsal timer is now 50 minutes and has separate technical, sys
 
 ### P2 — Interview-practice relevance
 
-- **Evidence:** The existing practice engine supports coding, conceptual, system-design, behavioral, evidence-based scoring, hints, and adaptive rounds. The user's current preparation benefits from a focused Java/software-engineering rehearsal path; the supplied Sophos guide does not identify a specific job title or technical stack.
-- **Disposition:** Added an opt-in Sophos Java/software-engineering practice pack and a one-click loader in Mock Practice Gym. It is original practice material, not a claim about actual Sophos interview questions.
+- **Evidence:** The existing practice engine supports coding, conceptual, system-design, behavioral, evidence-based scoring, hints, and adaptive rounds. The existing PR #235 role fixture identifies a Software Engineer — DevOps / Cloud Platform posting at the 1–2 year level; the PDF guide itself is general and does not provide the technical syllabus.
+- **Disposition:** Added an opt-in 20-question Sophos DevOps/cloud platform practice pack and a one-click loader in Mock Practice Gym. It is original practice material, not a claim about actual Sophos interview questions.
 
 ### P2 — Responsive/accessibility acceptance
 
@@ -73,8 +75,9 @@ The full dress-rehearsal timer is now 50 minutes and has separate technical, sys
    - A failed persistence write rolls back the in-memory import.
    - The existing delete-all-practice-data action removes the saved pack and clears its in-memory entries.
 
-3. **Sophos Java/software-engineering practice pack**
-   - Original practice questions covering Java/OOP, collections, DSA, Spring Boot, REST, SQL, concurrency, microservices, AWS/CI-CD, application security, automated testing, troubleshooting, and behavioral ownership.
+3. **Sophos DevOps/cloud platform practice pack**
+   - Twenty original early-career questions covering Java/OOP, collections, DSA, Spring Boot, REST, SQL, concurrency, Terraform remote state, Jenkins/CI-CD, AWS, Docker/Kubernetes, IaaS, SLA/defect handling, application security, automated testing, troubleshooting, and behavioral ownership.
+   - General mock rounds prioritize the imported pack while explicit curriculum-topic selection continues to take precedence.
    - Loaded explicitly from Mock Practice Gym; the user is not forced into a company-specific curriculum.
    - The pack is clearly not represented as official or leaked company interview material.
 
