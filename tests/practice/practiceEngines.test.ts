@@ -233,7 +233,7 @@ describe('MockInterviewerEngine', () => {
     session.rehearsalPhase = 'candidate_qa';
     session.questionHistory.push({
       question: candidateQA.question,
-      category: 'behavioral',
+      category: candidateQA.category,
       isFollowUp: false,
       candidateTranscript: '',
       hintsUsed: [],
