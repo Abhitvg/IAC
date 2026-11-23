@@ -32,9 +32,9 @@ describe('Sophos DevOps/cloud platform practice pack', () => {
 
   it('contains unique, schema-valid questions across Java, DSA, backend, cloud, and security', () => {
     expect(sophosPracticePack).toHaveLength(20);
-    expect(Math.max(...sophosPracticePack.map((question) => question.difficulty))).toBeLessThanOrEqual(
-      3
-    );
+    expect(
+      Math.max(...sophosPracticePack.map((question) => question.difficulty))
+    ).toBeLessThanOrEqual(3);
 
     const ids = new Set<string>();
     for (const question of sophosPracticePack) {
