@@ -370,7 +370,9 @@
       "docker",
       "jenkins",
       "terraform",
-      "cicd"
+      "cicd",
+      "kubernetes",
+      "spring-boot"
     ],
     "difficulty": 3,
     "prompt": "Design a Jenkins CI/CD pipeline for a Spring Boot service deployed to AWS with Docker and Kubernetes. Cover source checkout, build, unit and integration tests, security checks, immutable image publishing, deployment health checks, and rollback.",
