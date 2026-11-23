@@ -61,6 +61,33 @@ describe('SerializedTaskQueue', () => {
     expect(queue.pendingCount).toBe(0);
   });
 
+  it('preserves a realistic burst of interview utterances in FIFO order', async () => {
+    const queue = new SerializedTaskQueue(32);
+    const processed: number[] = [];
+    let releaseFirst: (() => void) | undefined;
+
+    const tasks = Array.from({ length: 24 }, (_, index) =>
+      queue.enqueue(async () => {
+        if (index === 0) {
+          await new Promise<void>((resolve) => {
+            releaseFirst = resolve;
+          });
+        }
+        processed.push(index);
+      })
+    );
+
+    await Promise.resolve();
+    expect(queue.pendingCount).toBe(24);
+    expect(processed).toEqual([]);
+
+    releaseFirst?.();
+    await Promise.all(tasks);
+
+    expect(processed).toEqual(Array.from({ length: 24 }, (_, index) => index));
+    expect(queue.pendingCount).toBe(0);
+  });
+
   it('bounds queued work and reports overload explicitly', async () => {
     const queue = new SerializedTaskQueue(1);
     let releaseFirst: (() => void) | undefined;
