@@ -279,10 +279,10 @@ export class InterviewEngine {
   static enqueueFinalizedUtterance(blob: Blob): Promise<void> {
     return finalizedUtteranceQueue
       .enqueue(async () => {
-        if (
-          audioService.getCaptureState() !== 'active' ||
-          useAppStore.getState().status === 'idle'
-        ) {
+        // Once finalized, audio belongs to the interview queue even if the
+        // physical input disconnects. Explicit Stop invalidates queued work and
+        // sets the store idle; a device failure must not discard captured segments.
+        if (useAppStore.getState().status === 'idle') {
           return;
         }
         await InterviewEngine.handleEvent({ type: 'UTTERANCE_FINALIZED', blob });
@@ -369,7 +369,7 @@ export class InterviewEngine {
             // Guard: If capture was stopped while an utterance was finalizing, ignore
             if (
               useAppStore.getState().status === 'idle' ||
-              audioService.getCaptureState() === 'stopped'
+              ['stopping', 'stopped'].includes(audioService.getCaptureState())
             ) {
               return;
             }
