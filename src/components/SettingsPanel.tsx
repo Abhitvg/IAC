@@ -14,7 +14,7 @@ import {
   resolveInterviewShortcutBindings,
 } from '../services/teleprompter/interviewShortcuts';
 import type { InterviewShortcutAction } from '../services/teleprompter/interviewShortcuts';
-import { ShortcutSettings } from './teleprompter/TeleprompterView';
+import { ShortcutSettings } from './teleprompter/ShortcutSettings';
 import {
   getActiveModelsForProvider,
   getDefaultModelForProvider,
