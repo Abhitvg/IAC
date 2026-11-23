@@ -59,9 +59,7 @@ const answerService = AnswerGenerationService.getInstance();
 // responding slowly. Keep a larger bounded FIFO so normal latency spikes do not
 // discard captured questions; explicit overload is still surfaced to the user.
 export const MAX_PENDING_UTTERANCE_TRANSCRIPTIONS = 32;
-const finalizedUtteranceQueue = new SerializedTaskQueue(
-  MAX_PENDING_UTTERANCE_TRANSCRIPTIONS
-);
+const finalizedUtteranceQueue = new SerializedTaskQueue(MAX_PENDING_UTTERANCE_TRANSCRIPTIONS);
 
 let activeAbortController: AbortController | null = null;
 let activeRequestId: string | null = null;
