@@ -65,7 +65,7 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
   it('keeps the existing microphone session when an answer is generating', async () => {
     const recorder = AudioRecorder.getInstance();
     const captureStateSpy = vi.spyOn(recorder, 'getCaptureState').mockReturnValue('active');
-    const audioSpyStart = vi.spyOn(recorder, 'start').mockResolvedValue();
+    const audioSpyStart = vi.spyOn(recorder, 'start').mockResolvedValue(undefined);
 
     useAppStore.setState({
       status: 'generating',
