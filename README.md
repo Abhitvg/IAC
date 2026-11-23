@@ -58,7 +58,7 @@ The app simulates realistic interview sessions with an AI interviewer across mul
 - **SuperMemo (SM-2) Spaced Drills**: Tracks topic mastery across coding, algorithms, system design, and behavioral competencies.
 - **Weakest-Topic Prioritization**: Automatically schedules tomorrow's rehearsal queue targeting the user's lowest-scoring areas.
 - **Curriculum Question Bank**: Curated, original question bank across 60 technical topics with customizable JSON pack imports. Imported packs are schema-validated, prioritized in general mock rounds, and saved locally across restarts.
-- **Role-Aligned Practice Packs**: Mock Practice Gym includes an optional Sophos Java/software-engineering practice pack covering DSA, Java, Spring Boot, backend APIs, SQL, concurrency, cloud/CI-CD, security, testing, and troubleshooting. It is original preparation material, not an official or leaked company question list.
+- **Role-Aligned Practice Packs**: Mock Practice Gym includes an optional Sophos Software Engineer — DevOps / Cloud Platform pack aligned to the supplied early-career posting: Java/Spring Boot, REST/microservices, AWS, Terraform, Jenkins/CI-CD, Docker/Kubernetes, testing, IaaS, and SLA/defect handling. It is original preparation material, not an official or leaked company question list.
 
 ### 5. 💼 Resume Story Bank & Company Prep
 
