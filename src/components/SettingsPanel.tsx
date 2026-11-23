@@ -112,12 +112,17 @@ export default function SettingsPanel() {
           canonicalizeInterviewShortcut(shortcutBindings[candidate]) === canonical
       );
       if (duplicate) {
-        setToast('That shortcut is already assigned to ' + INTERVIEW_SHORTCUT_LABELS[duplicate] + '.');
+        setToast(
+          'That shortcut is already assigned to ' + INTERVIEW_SHORTCUT_LABELS[duplicate] + '.'
+        );
         return;
       }
       updateSetting('shortcuts', { ...(settings?.shortcuts || {}), [action]: canonical });
       setToast(
-        INTERVIEW_SHORTCUT_LABELS[action] + ' shortcut updated to ' + formatInterviewShortcut(canonical) + '.'
+        INTERVIEW_SHORTCUT_LABELS[action] +
+          ' shortcut updated to ' +
+          formatInterviewShortcut(canonical) +
+          '.'
       );
     },
     [shortcutBindings, settings?.shortcuts, updateSetting, setToast]
@@ -869,7 +874,10 @@ export default function SettingsPanel() {
                 <label className="field__label" htmlFor="window-opacity-slider">
                   Window transparency
                 </label>
-                <output htmlFor="window-opacity-slider" className="text-xs font-semibold text-slate-200 tabular-nums">
+                <output
+                  htmlFor="window-opacity-slider"
+                  className="text-xs font-semibold text-slate-200 tabular-nums"
+                >
                   {Math.round(windowOpacity * 100)}%
                 </output>
               </div>
@@ -890,13 +898,18 @@ export default function SettingsPanel() {
               />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="field__hint">
-                {supportsNativeOpacity
-                  ? 'Lower opacity lets you see forms and coding editors behind the live overlay. Applies to the Live Interview window, not the main workspace.'
-                  : window.electronAPI?.platform === 'linux'
-                    ? 'Native Electron window opacity is not supported on Linux. The control is disabled rather than pretending the setting works.'
-                    : 'Native window opacity is unavailable in this session.'}
-              </span>
-                <button type="button" className="action-btn" disabled={!supportsNativeOpacity} onClick={() => setWindowOpacity(0.35)}>
+                  {supportsNativeOpacity
+                    ? 'Lower opacity lets you see forms and coding editors behind the live overlay. Applies to the Live Interview window, not the main workspace.'
+                    : window.electronAPI?.platform === 'linux'
+                      ? 'Native Electron window opacity is not supported on Linux. The control is disabled rather than pretending the setting works.'
+                      : 'Native window opacity is unavailable in this session.'}
+                </span>
+                <button
+                  type="button"
+                  className="action-btn"
+                  disabled={!supportsNativeOpacity}
+                  onClick={() => setWindowOpacity(0.35)}
+                >
                   Reset · 35%
                 </button>
               </div>
@@ -905,7 +918,11 @@ export default function SettingsPanel() {
                   <button
                     key={value}
                     type="button"
-                    className={Math.round(windowOpacity * 100) === value ? 'action-btn action-btn--primary' : 'action-btn'}
+                    className={
+                      Math.round(windowOpacity * 100) === value
+                        ? 'action-btn action-btn--primary'
+                        : 'action-btn'
+                    }
                     aria-pressed={Math.round(windowOpacity * 100) === value}
                     disabled={!supportsNativeOpacity}
                     onClick={() => setWindowOpacity(value / 100)}
@@ -914,23 +931,33 @@ export default function SettingsPanel() {
                   </button>
                 ))}
               </div>
-              <span className="field__hint">At very low opacity, text can become difficult to read. Increase it whenever contrast is poor.</span>
+              <span className="field__hint">
+                At very low opacity, text can become difficult to read. Increase it whenever
+                contrast is poor.
+              </span>
             </div>
           </div>
 
           <div className="settings-section" data-testid="custom-shortcut-settings">
             <h3 className="settings-section__title">Keyboard Shortcuts</h3>
             <p className="field__hint">
-              Select a shortcut and press a new key combination. Changes are saved to your app settings and work inside the Live Interview view.
+              Select a shortcut and press a new key combination. Changes are saved to your app
+              settings and work inside the Live Interview view.
             </p>
             <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
             <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
-              <span className="field__hint">Global show / hide and corner-position shortcuts remain system-wide and are not remappable here.</span>
+              <span className="field__hint">
+                Global show / hide and corner-position shortcuts remain system-wide and are not
+                remappable here.
+              </span>
               <button
                 type="button"
                 className="action-btn"
                 onClick={() => {
-                  updateSetting('shortcuts', { ...(settings?.shortcuts || {}), ...DEFAULT_INTERVIEW_SHORTCUTS });
+                  updateSetting('shortcuts', {
+                    ...(settings?.shortcuts || {}),
+                    ...DEFAULT_INTERVIEW_SHORTCUTS,
+                  });
                   setToast('Interview shortcuts restored to defaults.');
                 }}
               >
