@@ -128,10 +128,11 @@ export default function SettingsPanel() {
     [shortcutBindings, settings?.shortcuts, updateSetting, setToast]
   );
 
+  const platform = typeof window !== 'undefined' ? window.electronAPI?.platform : undefined;
   const supportsNativeOpacity =
     typeof window !== 'undefined' &&
     Boolean(window.electronAPI?.setWindowOpacity) &&
-    window.electronAPI?.platform !== 'linux';
+    platform !== 'linux';
 
   const refreshReliabilitySummary = () => {
     setReliabilitySummary(DiagnosticLoggerService.getInstance().getReliabilitySummary());
@@ -900,7 +901,7 @@ export default function SettingsPanel() {
                 <span className="field__hint">
                   {supportsNativeOpacity
                     ? 'Lower opacity lets you see forms and coding editors behind the live overlay. Applies to the Live Interview window, not the main workspace.'
-                    : window.electronAPI?.platform === 'linux'
+                    : platform === 'linux'
                       ? 'Native Electron window opacity is not supported on Linux. The control is disabled rather than pretending the setting works.'
                       : 'Native window opacity is unavailable in this session.'}
                 </span>
