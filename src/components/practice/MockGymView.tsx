@@ -12,6 +12,8 @@ import { FeedbackImportView } from './FeedbackImportView';
 import { WeaknessMapView } from './WeaknessMapView';
 import { ExplainerDrillView } from './ExplainerDrillView';
 import { ProgressView } from './ProgressView';
+import sophosPracticePack from '../../data/questions/sophos_java_software_engineering.json';
+import { QuestionBank } from '../../services/practice/QuestionBank';
 
 export const MockGymView: React.FC = () => {
   const {
@@ -22,6 +24,7 @@ export const MockGymView: React.FC = () => {
     sessionHistory,
     storyBank,
     topicMasteries,
+    importCustomQuestionPack,
   } = usePracticeStore();
 
   const totalRounds = sessionHistory?.length || 0;
@@ -29,8 +32,7 @@ export const MockGymView: React.FC = () => {
   const avgMastery =
     topicMasteries && topicMasteries.length > 0
       ? Math.round(
-          topicMasteries.reduce((acc, t) => acc + (t.masteryScore || 0), 0) /
-            topicMasteries.length
+          topicMasteries.reduce((acc, t) => acc + (t.masteryScore || 0), 0) / topicMasteries.length
         )
       : 0;
 
@@ -50,11 +52,24 @@ export const MockGymView: React.FC = () => {
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('intermediate');
   const [interruptionEnabled, setInterruptionEnabled] = useState(false);
   const [showLauncher, setShowLauncher] = useState(false);
+  const [packNotice, setPackNotice] = useState('');
+  const isSophosPackLoaded = QuestionBank.getQuestionById('sophos_java_se_two_sum') !== undefined;
 
   const catalogTopics = CurriculumCatalogService.getInstance().getAllTopics();
 
+  const handleLoadSophosPack = () => {
+    const result = importCustomQuestionPack(sophosPracticePack);
+    setPackNotice(
+      result.success
+        ? `Loaded ${result.importedCount} Sophos Java/software-engineering practice questions. The pack is saved locally.`
+        : result.errors?.join(' ') || 'The Sophos practice pack could not be loaded.'
+    );
+  };
+
   const handleLaunch = (roundType: MockRoundType) => {
-    try { playRoundStartChime(); } catch (_e) {}
+    try {
+      playRoundStartChime();
+    } catch (_e) {}
     startMockSession(
       roundType,
       selectedPersona,
@@ -124,7 +139,9 @@ export const MockGymView: React.FC = () => {
           )}
           {/* Segmented Pressure Selector */}
           <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-lg p-0.5 text-xs">
-            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 pl-1.5 sm:pl-2 pr-1">Pressure:</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 pl-1.5 sm:pl-2 pr-1">
+              Pressure:
+            </span>
             {(['low', 'normal', 'high'] as InterviewPressure[]).map((p) => {
               const isSelected = selectedPressure === p;
               return (
@@ -179,7 +196,9 @@ export const MockGymView: React.FC = () => {
               className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 bg-rose-600/20 border border-rose-500/40 text-rose-300 hover:bg-rose-600/30 rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap shrink-0"
             >
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-              <span className="hidden sm:inline">In Session ({activeSession.persona.replace(/_/g, ' ')})</span>
+              <span className="hidden sm:inline">
+                In Session ({activeSession.persona.replace(/_/g, ' ')})
+              </span>
               <span className="sm:hidden">In Session</span>
             </button>
           ) : (
@@ -193,6 +212,16 @@ export const MockGymView: React.FC = () => {
           )}
         </div>
       </div>
+
+      {packNotice && (
+        <div
+          className="px-4 py-2 text-xs text-indigo-200 bg-indigo-950/60 border-b border-indigo-500/20"
+          role="status"
+          aria-live="polite"
+        >
+          {packNotice}
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div
@@ -224,7 +253,7 @@ export const MockGymView: React.FC = () => {
                       </span>
                       <span className="flex items-center gap-1 text-[11px] text-slate-300 font-medium ml-auto">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        {totalRounds} Round{totalRounds === 1 ? "" : "s"} Logged
+                        {totalRounds} Round{totalRounds === 1 ? '' : 's'} Logged
                       </span>
                     </>
                   ) : (
@@ -241,33 +270,56 @@ export const MockGymView: React.FC = () => {
                 </div>
 
                 <h1 className="text-3xl sm:text-4xl font-black text-white leading-tight tracking-tight">
-                  {isReturningUser ? "Welcome back, Engineer." : "Perform Under Real Pressure."}
+                  {isReturningUser ? 'Welcome back, Engineer.' : 'Perform Under Real Pressure.'}
                 </h1>
 
                 <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
                   {isReturningUser
-                    ? "Consistent deliberate practice compounds into interview fluency. Continue with your scheduled drills, simulate real interruptions, and track quantitative rubric scores."
-                    : "Real interviews are decided in the second and third question. Train against an AI interviewer with visible countdown timers, realistic notetaking pauses, mid-answer interruptions, and strict rubric evidence."}
+                    ? 'Consistent deliberate practice compounds into interview fluency. Continue with your scheduled drills, simulate real interruptions, and track quantitative rubric scores.'
+                    : 'Real interviews are decided in the second and third question. Train against an AI interviewer with visible countdown timers, realistic notetaking pauses, mid-answer interruptions, and strict rubric evidence.'}
                 </p>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleLoadSophosPack}
+                    disabled={isSophosPackLoaded}
+                    aria-label={
+                      isSophosPackLoaded
+                        ? 'Sophos practice pack loaded'
+                        : 'Load Sophos Java interview practice pack'
+                    }
+                    title="Role-aligned practice material; not an official Sophos question list."
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-indigo-400/30 bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25 disabled:opacity-60 disabled:cursor-default text-xs font-semibold"
+                  >
+                    <span>📘</span>
+                    <span>
+                      {isSophosPackLoaded ? 'Sophos Pack Loaded' : 'Load Sophos Java Practice Pack'}
+                    </span>
+                  </button>
+                  <span className="text-[11px] text-slate-400">
+                    Optional Java, DSA, Spring, backend, cloud, and security rehearsal pack
+                  </span>
+                </div>
 
                 {/* Quick Presets Grid with Differentiated Vibrant Accents */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
                   {/* Rehearsal */}
                   <button
-                    onClick={() => handleLaunch("dress_rehearsal")}
+                    onClick={() => handleLaunch('dress_rehearsal')}
                     className="card-interactive drill-card-rehearsal p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
                   >
                     <div className="flex justify-between items-center mb-1.5">
                       <span className="text-lg">🚀</span>
                       <span className="px-2 py-0.5 bg-black/40 text-[10px] font-mono font-bold rounded text-indigo-200 border border-indigo-400/30">
-                        45m · 5 Phases
+                        50m · 5 Phases
                       </span>
                     </div>
                     <div className="text-xs font-bold text-white group-hover:text-indigo-200 transition">
                       Full Dress Rehearsal
                     </div>
                     <div className="text-[11px] text-indigo-100/80 mt-0.5 leading-snug">
-                      Icebreaker, DSA, System Design, STAR &amp; Q&amp;A
+                      Icebreaker, STAR, Coding, System Design &amp; Q&amp;A
                     </div>
                     <div className="mt-2.5 flex items-center gap-1 text-[10px] text-indigo-300 font-semibold">
                       <span>✨</span>
@@ -277,7 +329,7 @@ export const MockGymView: React.FC = () => {
 
                   {/* Adaptive Loop */}
                   <button
-                    onClick={() => handleLaunch("adaptive_loop")}
+                    onClick={() => handleLaunch('adaptive_loop')}
                     className="card-interactive drill-card-rehearsal p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
                   >
                     <div className="flex justify-between items-center mb-1.5">
@@ -300,7 +352,7 @@ export const MockGymView: React.FC = () => {
 
                   {/* DSA */}
                   <button
-                    onClick={() => handleLaunch("dsa_coding")}
+                    onClick={() => handleLaunch('dsa_coding')}
                     className="card-interactive drill-card-dsa p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
                   >
                     <div className="flex justify-between items-center mb-1.5">
@@ -323,7 +375,7 @@ export const MockGymView: React.FC = () => {
 
                   {/* Core CS */}
                   <button
-                    onClick={() => handleLaunch("core_cs")}
+                    onClick={() => handleLaunch('core_cs')}
                     className="card-interactive drill-card-rehearsal p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
                   >
                     <div className="flex justify-between items-center mb-1.5">
@@ -346,7 +398,7 @@ export const MockGymView: React.FC = () => {
 
                   {/* System Design */}
                   <button
-                    onClick={() => handleLaunch("system_design")}
+                    onClick={() => handleLaunch('system_design')}
                     className="card-interactive drill-card-sysdesign p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
                   >
                     <div className="flex justify-between items-center mb-1.5">
@@ -369,7 +421,7 @@ export const MockGymView: React.FC = () => {
 
                   {/* Behavioral */}
                   <button
-                    onClick={() => handleLaunch("behavioral")}
+                    onClick={() => handleLaunch('behavioral')}
                     className="card-interactive drill-card-star p-4 rounded-2xl text-left shadow-lg relative overflow-hidden group"
                   >
                     <div className="flex justify-between items-center mb-1.5">
@@ -601,14 +653,14 @@ export const MockGymView: React.FC = () => {
                   >
                     <div>
                       <span className="font-bold text-white block group-hover:text-indigo-300 transition">
-                        🚀 45-Minute Dress Rehearsal
+                        🚀 50-Minute Dress Rehearsal
                       </span>
                       <span className="text-[11px] text-slate-400">
-                        Icebreaker → STAR → Tech Deep Dive → Q&amp;A → Scorecard
+                        Icebreaker → STAR → Coding → System Design → Your Questions → Scorecard
                       </span>
                     </div>
                     <span className="text-indigo-400 font-bold px-2 py-0.5 bg-indigo-500/10 rounded">
-                      45m
+                      50m
                     </span>
                   </button>
 

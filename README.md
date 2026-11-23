@@ -36,6 +36,7 @@ The app simulates realistic interview sessions with an AI interviewer across mul
 - **Dynamic Follow-Up Probes**: Probes candidate answers by directly quoting statements from the transcript (`"You mentioned caching; what is your invalidation strategy?"`) instead of generic scripted questions.
 - **Opt-In Interruption Practice**: Realistic mid-answer interruptions (off by default) that trigger only after 30 seconds of speech if an answer lacks specifics.
 - **Tiered Hint System**: Progressive help (Tier 1 Nudge, Tier 2 Approach, Tier 3 Near-Solution) with deterministic rubric penalties applied in code.
+- **50-Minute Full Dress Rehearsal**: Separate icebreaker, STAR, coding, system-design, and candidate-Q&A phases. Candidate questions are retained for review but excluded from answer scoring and competency coverage.
 
 ### 2. 📊 Evidence-Based Rubric Scoring
 
@@ -56,7 +57,8 @@ The app simulates realistic interview sessions with an AI interviewer across mul
 
 - **SuperMemo (SM-2) Spaced Drills**: Tracks topic mastery across coding, algorithms, system design, and behavioral competencies.
 - **Weakest-Topic Prioritization**: Automatically schedules tomorrow's rehearsal queue targeting the user's lowest-scoring areas.
-- **Curriculum Question Bank**: Curated, original question bank across 60 technical topics with customizable JSON pack imports.
+- **Curriculum Question Bank**: Curated, original question bank across 60 technical topics with customizable JSON pack imports. Imported packs are schema-validated, prioritized in general mock rounds, and saved locally across restarts.
+- **Role-Aligned Practice Packs**: Mock Practice Gym includes an optional Sophos Java/software-engineering practice pack covering DSA, Java, Spring Boot, backend APIs, SQL, concurrency, cloud/CI-CD, security, testing, and troubleshooting. It is original preparation material, not an official or leaked company question list.
 
 ### 5. 💼 Resume Story Bank & Company Prep
 
@@ -126,7 +128,7 @@ You can delete every trace of stored feedback, mock sessions, audio transcripts,
 2. Scroll to the **Danger Zone** section at the bottom.
 3. Click **"Delete all feedback and practice data"**.
 
-This permanently removes all 9 practice local storage keys, wipes in-memory Zustand store states, and resets the practice gym to a fresh installation state.
+This permanently removes all practice local storage keys (including imported question packs), wipes in-memory Zustand store states, and resets the practice gym to a fresh installation state.
 
 ---
 
@@ -144,19 +146,23 @@ This permanently removes all 9 practice local storage keys, wipes in-memory Zust
 
 ### Prerequisites
 
-- Node.js v20+ and npm v10+
+- Node.js 22.13.0 (the version used by the cross-platform CI matrix)
+- npm (use the committed lockfile for deterministic installs)
 
 ### Setup & Run
 
 ```bash
-# Install dependencies
-npm install
+# Install the exact dependency graph from package-lock.json
+npm ci
 
 # Start in development mode
 npm run dev
 
 # Run all test suites
 npm test
+
+# Run the Electron launch smoke suite
+npm run test:e2e
 
 # Run linting and typecheck
 npm run lint

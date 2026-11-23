@@ -36,7 +36,7 @@ export class MockInterviewerEngine {
       difficulty?: string | number;
     }
   ): MockSessionState {
-    const totalTimeSeconds = roundType === 'dress_rehearsal' ? 45 * 60 : 30 * 60;
+    const totalTimeSeconds = roundType === 'dress_rehearsal' ? 50 * 60 : 30 * 60;
     const initialCategory = this.getCategoryForRound(roundType, 'icebreaker');
 
     // Topic ID validation against curriculum catalog
@@ -53,9 +53,7 @@ export class MockInterviewerEngine {
     if (options?.difficulty !== undefined) {
       if (typeof options.difficulty === 'string') {
         const tierLower = options.difficulty.toLowerCase();
-        if (
-          ['beginner', 'easy', 'intermediate', 'advanced', 'expert'].includes(tierLower)
-        ) {
+        if (['beginner', 'easy', 'intermediate', 'advanced', 'expert'].includes(tierLower)) {
           validatedDifficulty = difficultyTierToNumeric(tierLower as any);
         }
       } else if (typeof options.difficulty === 'number' && !isNaN(options.difficulty)) {
@@ -490,12 +488,39 @@ export class MockInterviewerEngine {
    * Advances the mock session when candidate finishes an answer.
    * Performs rubric evaluation, delivery coaching, and decides follow-up vs next round phase.
    */
+  private static finishCandidateQAPhase(
+    session: MockSessionState,
+    candidateTranscript: string,
+    hintsUsed: TieredHint[]
+  ): MockSessionState {
+    const activeItem = session.questionHistory[session.questionHistory.length - 1];
+    if (activeItem) {
+      activeItem.candidateTranscript = candidateTranscript;
+      activeItem.hintsUsed = [...hintsUsed];
+    }
+
+    const progression = this.advanceRehearsalPhase('candidate_qa');
+    session.isActive = false;
+    session.overallScorecard = this.generateConsolidatedScorecard(session);
+
+    return {
+      ...session,
+      rehearsalPhase: progression.nextPhase,
+      currentQuestion: progression.question,
+      interviewerThinkingSeconds: 0,
+    };
+  }
+
   public static processAnswerSubmission(
     session: MockSessionState,
     candidateTranscript: string,
     durationSeconds: number,
     hintsUsed: TieredHint[]
   ): MockSessionState {
+    if (session.roundType === 'dress_rehearsal' && session.rehearsalPhase === 'candidate_qa') {
+      return this.finishCandidateQAPhase(session, candidateTranscript, hintsUsed);
+    }
+
     const activeItem = session.questionHistory[session.questionHistory.length - 1];
     activeItem.candidateTranscript = candidateTranscript;
     activeItem.hintsUsed = [...hintsUsed];
@@ -653,14 +678,16 @@ export class MockInterviewerEngine {
     hintsUsed: TieredHint[],
     llmCaller?: (prompt: string, model: string) => Promise<string>
   ): Promise<MockSessionState> {
+    if (session.roundType === 'dress_rehearsal' && session.rehearsalPhase === 'candidate_qa') {
+      return this.finishCandidateQAPhase(session, candidateTranscript, hintsUsed);
+    }
+
     const activeItem = session.questionHistory[session.questionHistory.length - 1];
     activeItem.candidateTranscript = candidateTranscript;
     activeItem.hintsUsed = [...hintsUsed];
 
     const category = (activeItem.category || 'behavioral') as
-      | 'coding'
-      | 'system_design'
-      | 'behavioral';
+      'coding' | 'system_design' | 'behavioral';
 
     // 1. Coding Evaluation Integration (Phase 4)
     if (category === 'coding' || session.roundType === 'dsa_coding') {
@@ -763,8 +790,8 @@ export class MockInterviewerEngine {
               session.persona === 'friendly_recruiter'
                 ? 'friendly'
                 : session.persona === 'startup_pragmatist'
-                ? 'startup'
-                : 'rigorous',
+                  ? 'startup'
+                  : 'rigorous',
             interview_type: category,
             question_json: activeItem.question,
             rolling_transcript: `Candidate: ${candidateTranscript}`,
@@ -773,11 +800,7 @@ export class MockInterviewerEngine {
             targetWeakness,
             feedbackRecords: session.feedbackRecords,
             pressure:
-              session.pressure === 'high'
-                ? 'high'
-                : session.pressure === 'low'
-                ? 'low'
-                : 'normal',
+              session.pressure === 'high' ? 'high' : session.pressure === 'low' ? 'low' : 'normal',
             curriculumTopicId: activeItem.curriculumTopicId || session.selectedTopicId,
           },
           llmCaller
@@ -942,7 +965,7 @@ export class MockInterviewerEngine {
       case 'role_specific':
         return 'Can you describe the architectural anatomy of a high-concurrency Node.js / React application and how you debug memory leaks or event loop blockages?';
       case 'adaptive_loop':
-        return "Welcome to the adaptive technical interview. We will explore core data structures, algorithms, and system mechanics across dynamic depth levels. To begin: explain how dynamic arrays allocate memory and achieve amortized O(1) append time.";
+        return 'Welcome to the adaptive technical interview. We will explore core data structures, algorithms, and system mechanics across dynamic depth levels. To begin: explain how dynamic arrays allocate memory and achieve amortized O(1) append time.';
       case 'core_cs':
         return 'Welcome to the Core Computer Science round. Trace what occurs in the CPU, MMU, and OS kernel during a major virtual memory page fault.';
       case 'conceptual':
@@ -1015,19 +1038,27 @@ export class MockInterviewerEngine {
           topicMasteries,
         });
         return {
-          nextPhase: 'candidate_qa',
+          nextPhase: 'system_design',
           question: q.prompt,
           category: 'system_design',
           questionId: q.id,
           curriculumTopicId: q.curriculumTopicId,
         };
       }
+      case 'system_design':
+        return {
+          nextPhase: 'candidate_qa',
+          question:
+            'We have reached your questions. You have around 10 minutes reserved for this part. What would you like to ask about the role, engineering challenges, team, expectations, or how success is measured?',
+          category: 'candidate_qa',
+          questionId: 'candidate_qa',
+        };
       case 'candidate_qa':
       default:
         return {
           nextPhase: 'wrapup',
           question:
-            "That concludes our 45-minute dress rehearsal. Let's review your overall rubric breakdown.",
+            "That concludes our 50-minute dress rehearsal. Let's review your overall rubric breakdown.",
           category: 'behavioral',
           questionId: 'wrapup',
         };
@@ -1047,15 +1078,22 @@ export class MockInterviewerEngine {
         return {
           nextPhase: 'technical',
           question:
-            "Let's move into our technical evaluation. Design a real-time collaborative document editing system (like Google Docs or Notion). What are the functional requirements, scale estimates, and conflict resolution strategy you would employ?",
-          category: 'system_design',
+            'Solve a coding problem out loud. Explain your approach, complexity, and edge cases before writing the Java implementation.',
+          category: 'coding',
         };
       case 'technical':
         return {
+          nextPhase: 'system_design',
+          question:
+            'Design a reliable backend service. Explain its API, data model, failure handling, security boundaries, and observability.',
+          category: 'system_design',
+        };
+      case 'system_design':
+        return {
           nextPhase: 'candidate_qa',
           question:
-            'We have about 5 minutes left. What questions do you have for me about our engineering architecture, team culture, or roadmap?',
-          category: 'behavioral',
+            'We have around 10 minutes reserved for your questions. What would you like to ask about the role, team, engineering challenges, or expectations?',
+          category: 'candidate_qa',
         };
       case 'candidate_qa':
       default:

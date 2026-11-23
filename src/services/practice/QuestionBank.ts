@@ -49,7 +49,7 @@ const LEGACY_TOPIC_TO_CURRICULUM_ID: Record<string, string> = {
   // Coding topics
   'sliding window': 'ds_arrays_strings',
   'two pointers': 'ds_arrays_strings',
-  'intervals': 'ds_arrays_strings',
+  intervals: 'ds_arrays_strings',
   'string parsing': 'ds_arrays_strings',
   'matrix traversal': 'ds_arrays_strings',
   'linked list': 'ds_linked_lists',
@@ -63,7 +63,7 @@ const LEGACY_TOPIC_TO_CURRICULUM_ID: Record<string, string> = {
   'graph traversal': 'algo_graph_algorithms',
   'graph shortest path': 'algo_graph_algorithms',
   'binary search': 'algo_binary_search',
-  'backtracking': 'algo_backtracking',
+  backtracking: 'algo_backtracking',
   'greedy algorithms': 'algo_greedy',
   'dynamic programming': 'algo_dynamic_programming',
   'bit manipulation': 'algo_bit_manipulation',
@@ -107,9 +107,9 @@ export class QuestionBank {
     const directTopic = catalog.getTopic(topicName);
     if (directTopic) return directTopic.id;
 
-    const matched = catalog.getAllTopics().find(
-      (t) => t.name.toLowerCase() === normalized || t.id.toLowerCase() === normalized
-    );
+    const matched = catalog
+      .getAllTopics()
+      .find((t) => t.name.toLowerCase() === normalized || t.id.toLowerCase() === normalized);
     return matched?.id;
   }
 
@@ -193,6 +193,16 @@ export class QuestionBank {
    */
   public static getAllQuestions(): QuestionEntry[] {
     return [...this.getCoreQuestions(), ...this.customQuestions];
+  }
+
+  /** Returns a defensive copy of custom-imported questions for persistence. */
+  public static getCustomQuestions(): QuestionEntry[] {
+    return [...this.customQuestions];
+  }
+
+  /** Restores a previously validated custom-question snapshot after a failed save. */
+  public static replaceCustomQuestions(questions: QuestionEntry[]): void {
+    this.customQuestions = [...questions];
   }
 
   /**
@@ -295,9 +305,15 @@ export class QuestionBank {
     topicMasteries?: TopicMastery[];
     curriculumTopicId?: string;
   }): QuestionEntry {
-    const candidates = this.getQuestionsByType(params.type).filter(
-      (q) => !(params.excludedIds || []).includes(q.id)
+    const excludedIds = new Set(params.excludedIds || []);
+    const allCandidates = this.getQuestionsByType(params.type).filter(
+      (q) => !excludedIds.has(q.id)
     );
+    const customCandidates = this.customQuestions.filter(
+      (q) => q.type === params.type && !excludedIds.has(q.id)
+    );
+    const candidates =
+      !params.curriculumTopicId && customCandidates.length > 0 ? customCandidates : allCandidates;
 
     let targetDifficulty = params.currentDifficulty || 3;
     if (params.previousScore !== undefined) {
@@ -329,8 +345,8 @@ export class QuestionBank {
         params.type === 'coding'
           ? 'coding_problem'
           : params.type === 'system_design'
-          ? 'architecture_tradeoff'
-          : 'conceptual';
+            ? 'architecture_tradeoff'
+            : 'conceptual';
       return this.selectQuestionForCurriculumTopic(
         params.curriculumTopicId,
         tier,

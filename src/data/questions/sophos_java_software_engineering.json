@@ -1,0 +1,537 @@
+[
+  {
+    "id": "sophos_java_se_two_sum",
+    "type": "coding",
+    "topic": "DSA — Hashing",
+    "tags": ["sophos", "java", "software-engineering", "dsa", "hashmap"],
+    "difficulty": 2,
+    "prompt": "Given an integer array and a target, return the indices of two distinct elements whose values add up to the target. Implement the solution in Java and explain the time and space complexity.",
+    "clarifyingInfo": "Assume exactly one valid answer exists unless you explicitly state how you would handle no solution. You may not reuse the same array element.",
+    "expectedPoints": [
+      "Use a HashMap from value to previously seen index.",
+      "For each value x, check whether target - x is already in the map before inserting x.",
+      "Return the stored index and current index when a complement is found.",
+      "Expected O(n) time and O(n) auxiliary space.",
+      "Explain duplicate values and why lookup-before-insert prevents reusing the same element."
+    ],
+    "commonMistakes": [
+      "Using nested loops without discussing the O(n²) cost.",
+      "Inserting the current value before checking the complement and accidentally reusing one element.",
+      "Returning values instead of indices when indices are required.",
+      "Ignoring duplicate values or integer overflow assumptions."
+    ],
+    "followUps": [
+      "What changes if the input is sorted and you must use O(1) extra space?",
+      "How would you return all unique pairs rather than the first pair?",
+      "What is the expected lookup complexity of HashMap and what can degrade it?"
+    ],
+    "rubricHooks": ["correctness", "hash map invariant", "complexity", "edge cases"],
+    "timeBudgetMinutes": 18,
+    "questionType": "coding_problem",
+    "difficultyTier": "easy"
+  },
+  {
+    "id": "sophos_java_se_move_zeroes",
+    "type": "coding",
+    "topic": "DSA — Arrays",
+    "tags": ["sophos", "java", "software-engineering", "dsa", "two-pointers"],
+    "difficulty": 2,
+    "prompt": "Move every zero in an integer array to the end while preserving the relative order of all non-zero elements. Modify the array in place and explain your invariant.",
+    "clarifyingInfo": "Do not allocate another array. The relative order of non-zero values must remain unchanged.",
+    "expectedPoints": [
+      "Use a write pointer for the next non-zero position.",
+      "Scan once and copy each non-zero value to the write position.",
+      "Fill the remaining suffix with zeros.",
+      "Expected O(n) time and O(1) auxiliary space.",
+      "Handle all-zero, no-zero, single-element, and negative-value inputs."
+    ],
+    "commonMistakes": [
+      "Swapping in a way that changes non-zero relative order.",
+      "Using a second array despite the in-place requirement.",
+      "Failing to fill the remaining suffix with zeros."
+    ],
+    "followUps": [
+      "Can you solve it with swaps instead of overwriting?",
+      "How would you minimize writes if the array is mostly non-zero?"
+    ],
+    "rubricHooks": ["in-place mutation", "stable ordering", "complexity", "edge cases"],
+    "timeBudgetMinutes": 15,
+    "questionType": "coding_problem",
+    "difficultyTier": "easy"
+  },
+  {
+    "id": "sophos_java_se_first_unique_char",
+    "type": "coding",
+    "topic": "DSA — Strings and Hashing",
+    "tags": ["sophos", "java", "software-engineering", "string", "frequency-map"],
+    "difficulty": 3,
+    "prompt": "Given a string, return the index of its first non-repeating character, or -1 if every character repeats. Implement it in Java.",
+    "clarifyingInfo": "State whether your implementation treats UTF-16 code units or Unicode code points as characters.",
+    "expectedPoints": [
+      "Count character frequencies in a first pass.",
+      "Scan in original order in a second pass and return the first frequency-one index.",
+      "Expected O(n) time and O(k) space for k distinct characters.",
+      "Return -1 when no unique character exists.",
+      "Discuss case sensitivity and Unicode representation."
+    ],
+    "commonMistakes": [
+      "Using a sorted map and losing original order.",
+      "Returning the character rather than its index.",
+      "Returning the first character with count one from an unordered iteration."
+    ],
+    "followUps": [
+      "How would you support case-insensitive matching?",
+      "What changes for full Unicode code-point correctness?"
+    ],
+    "rubricHooks": ["frequency counting", "preserve order", "complexity", "input semantics"],
+    "timeBudgetMinutes": 20,
+    "questionType": "coding_problem",
+    "difficultyTier": "intermediate"
+  },
+  {
+    "id": "sophos_java_se_longest_substring",
+    "type": "coding",
+    "topic": "DSA — Sliding Window",
+    "tags": ["sophos", "java", "software-engineering", "sliding-window", "strings"],
+    "difficulty": 4,
+    "prompt": "Given a string, find the length of the longest substring without repeating characters. Implement an O(n) Java solution and explain how the window moves.",
+    "clarifyingInfo": "A substring must be contiguous. Empty input should return zero.",
+    "expectedPoints": [
+      "Maintain a left boundary and a map from character to last-seen index.",
+      "When a repeated character is inside the current window, move left to lastSeen + 1.",
+      "Update the maximum window length after adjusting the boundary.",
+      "Expected O(n) time and O(k) space.",
+      "Never move the left boundary backwards."
+    ],
+    "commonMistakes": [
+      "Resetting the entire window on every duplicate.",
+      "Moving left to a stale last-seen index before the current window.",
+      "Confusing substring with subsequence."
+    ],
+    "followUps": [
+      "What is the invariant for the current window?",
+      "How do you adapt it to return the substring, not only its length?"
+    ],
+    "rubricHooks": ["sliding-window invariant", "index handling", "complexity", "edge cases"],
+    "timeBudgetMinutes": 25,
+    "questionType": "coding_problem",
+    "difficultyTier": "advanced"
+  },
+  {
+    "id": "sophos_java_se_java_overload_override",
+    "type": "technical_concept",
+    "topic": "Java — OOP and Dispatch",
+    "tags": ["sophos", "java", "software-engineering", "oop", "overloading", "overriding"],
+    "difficulty": 2,
+    "prompt": "Explain method overloading versus method overriding in Java. Then explain what happens when a static method in a subclass has the same signature as a static method in its parent.",
+    "expectedPoints": [
+      "Overloading uses the same method name with a different parameter list and is resolved at compile time.",
+      "Overriding replaces an inherited instance method with a compatible implementation and uses runtime dispatch.",
+      "Static methods are hidden, not overridden; selection depends on the reference or declared type.",
+      "Return-type-only changes do not create a valid overload.",
+      "Mention access, visibility, and covariant return constraints for overriding."
+    ],
+    "commonMistakes": [
+      "Claiming static methods are dynamically overridden.",
+      "Saying return type alone is enough to overload.",
+      "Confusing compile-time overload resolution with runtime virtual dispatch."
+    ],
+    "followUps": [
+      "Can a private method be overridden? Why or why not?",
+      "Can an overriding method reduce visibility?",
+      "What is a covariant return type?"
+    ],
+    "rubricHooks": [
+      "compile-time resolution",
+      "runtime dispatch",
+      "static hiding",
+      "language rules"
+    ],
+    "timeBudgetMinutes": 10,
+    "questionType": "conceptual",
+    "difficultyTier": "easy"
+  },
+  {
+    "id": "sophos_java_se_equals_hashcode",
+    "type": "technical_concept",
+    "topic": "Java — Collections and Contracts",
+    "tags": ["sophos", "java", "software-engineering", "equals", "hashcode", "hashmap"],
+    "difficulty": 3,
+    "prompt": "Explain the contract between equals() and hashCode() in Java. What breaks if two objects are equal according to equals() but return different hash codes when used as HashMap keys?",
+    "expectedPoints": [
+      "Equal objects must return the same hash code.",
+      "Unequal objects may share a hash code; collisions are legal.",
+      "HashMap uses hash code to choose a bucket and equals to identify the matching key.",
+      "Violating the contract can make logically equal keys appear in different buckets and break lookup semantics.",
+      "Fields used by equals/hashCode should not mutate while an object is a map key."
+    ],
+    "commonMistakes": [
+      "Claiming different objects must always have different hash codes.",
+      "Saying HashMap uses equals alone for lookup.",
+      "Ignoring mutable-key hazards."
+    ],
+    "followUps": [
+      "What happens when a key's hash-relevant field changes after insertion?",
+      "Why should equals be reflexive, symmetric, transitive, and consistent?"
+    ],
+    "rubricHooks": ["contract correctness", "hash map internals", "mutability", "edge cases"],
+    "timeBudgetMinutes": 12,
+    "questionType": "conceptual",
+    "difficultyTier": "intermediate"
+  },
+  {
+    "id": "sophos_java_se_hashmap_concurrent",
+    "type": "technical_concept",
+    "topic": "Java — Collections and Concurrency",
+    "tags": ["sophos", "java", "software-engineering", "hashmap", "concurrenthashmap"],
+    "difficulty": 3,
+    "prompt": "Compare HashMap and ConcurrentHashMap. When would you choose each, and what guarantees does ConcurrentHashMap provide that HashMap does not?",
+    "expectedPoints": [
+      "HashMap is not safe for concurrent structural modification without external synchronization.",
+      "ConcurrentHashMap supports concurrent retrievals and updates with documented thread-safety guarantees.",
+      "Compound read-modify-write sequences may still need atomic methods such as compute, merge, or putIfAbsent.",
+      "ConcurrentHashMap rejects null keys and values.",
+      "Choose based on concurrency needs and operation semantics, not simply because one is newer."
+    ],
+    "commonMistakes": [
+      "Calling ConcurrentHashMap a global-lock map.",
+      "Assuming every multi-step operation is automatically atomic.",
+      "Claiming null keys and values are accepted."
+    ],
+    "followUps": [
+      "Why is containsKey followed by put not an atomic check-then-act?",
+      "How would you count frequencies safely across worker threads?"
+    ],
+    "rubricHooks": ["thread-safety", "atomicity", "API semantics", "trade-offs"],
+    "timeBudgetMinutes": 12,
+    "questionType": "conceptual",
+    "difficultyTier": "intermediate"
+  },
+  {
+    "id": "sophos_java_se_spring_di",
+    "type": "technical_concept",
+    "topic": "Spring Boot — Dependency Injection",
+    "tags": ["sophos", "java", "software-engineering", "spring-boot", "dependency-injection"],
+    "difficulty": 2,
+    "prompt": "What is dependency injection in Spring? Explain constructor injection, bean scope, and how you would avoid circular dependencies.",
+    "expectedPoints": [
+      "The container creates and wires collaborators rather than classes constructing dependencies directly.",
+      "Constructor injection makes required dependencies explicit and supports immutable fields and testability.",
+      "Singleton is the default Spring bean scope; prototype and web scopes have different lifecycle semantics.",
+      "Circular dependencies indicate coupling or design problems and should usually be refactored.",
+      "Use interfaces and focused services to keep dependency direction clear."
+    ],
+    "commonMistakes": [
+      "Confusing singleton bean scope with one instance per user request.",
+      "Using field injection as the default without discussing testability.",
+      "Treating @Autowired as the definition of dependency injection."
+    ],
+    "followUps": [
+      "What happens if a singleton bean stores mutable request-specific state?",
+      "How would you test a service with constructor-injected dependencies?"
+    ],
+    "rubricHooks": ["container lifecycle", "constructor injection", "bean scope", "design quality"],
+    "timeBudgetMinutes": 12,
+    "questionType": "conceptual",
+    "difficultyTier": "easy"
+  },
+  {
+    "id": "sophos_java_se_rest_idempotency",
+    "type": "technical_concept",
+    "topic": "Backend — REST API Design",
+    "tags": ["sophos", "java", "software-engineering", "rest", "http", "idempotency"],
+    "difficulty": 3,
+    "prompt": "Design a REST endpoint that creates a security scan job. Explain HTTP method choice, validation, status codes, idempotency, and how clients safely retry after a timeout.",
+    "expectedPoints": [
+      "Use POST to create a job resource and return 201 with its location/identifier when created.",
+      "Validate request shape and authorization before side effects.",
+      "Use an idempotency key or client request identifier to prevent duplicate job creation on retries.",
+      "Return consistent 4xx errors for invalid/unauthorized requests and 5xx for server failures.",
+      "Make job state observable through a resource endpoint; do not equate request acceptance with job completion."
+    ],
+    "commonMistakes": [
+      "Using GET for a state-changing operation.",
+      "Assuming a timeout means the server did not process the request.",
+      "Returning 200 for every outcome without a stable error contract."
+    ],
+    "followUps": [
+      "How long should idempotency keys be retained?",
+      "What if the same key is reused with a different request body?",
+      "How would you version the API?"
+    ],
+    "rubricHooks": ["HTTP semantics", "retry safety", "validation", "resource lifecycle"],
+    "timeBudgetMinutes": 15,
+    "questionType": "real_world_scenario",
+    "difficultyTier": "intermediate"
+  },
+  {
+    "id": "sophos_java_se_sql_transaction",
+    "type": "technical_concept",
+    "topic": "Databases — SQL and Transactions",
+    "tags": ["sophos", "java", "software-engineering", "sql", "postgresql", "transactions"],
+    "difficulty": 3,
+    "prompt": "A service updates an account row and writes an audit record. Explain how you would keep both operations consistent, what an index does, and how transaction isolation affects concurrent requests.",
+    "expectedPoints": [
+      "Perform both writes in one database transaction.",
+      "Commit both or roll back both on failure.",
+      "An index accelerates selected reads at the cost of storage and write maintenance.",
+      "Explain at least one isolation anomaly such as dirty reads, non-repeatable reads, or serialization conflicts.",
+      "Use constraints and parameterized queries as additional integrity and security controls."
+    ],
+    "commonMistakes": [
+      "Treating two sequential SQL statements as automatically atomic.",
+      "Adding indexes without considering write cost or query plans.",
+      "Using string concatenation for SQL parameters."
+    ],
+    "followUps": [
+      "When would you choose optimistic locking?",
+      "How do you diagnose a slow query with EXPLAIN?",
+      "What is the difference between a unique constraint and an application-level check?"
+    ],
+    "rubricHooks": ["atomicity", "index trade-offs", "isolation", "SQL safety"],
+    "timeBudgetMinutes": 15,
+    "questionType": "real_world_scenario",
+    "difficultyTier": "intermediate"
+  },
+  {
+    "id": "sophos_java_se_java_concurrency",
+    "type": "technical_concept",
+    "topic": "Java — Multithreading",
+    "tags": [
+      "sophos",
+      "java",
+      "software-engineering",
+      "concurrency",
+      "executorservice",
+      "race-condition"
+    ],
+    "difficulty": 4,
+    "prompt": "Two threads increment a shared counter one million times each, but the final result is smaller than two million. Explain the race condition and give two safe Java approaches. Compare their trade-offs.",
+    "expectedPoints": [
+      "counter++ is a read-modify-write sequence and is not atomic.",
+      "Use synchronized or Lock to protect the critical section.",
+      "Use AtomicInteger for a simple atomic counter, or LongAdder under high contention when appropriate.",
+      "ExecutorService manages worker lifecycle; tasks should be awaited before reading the final result.",
+      "Discuss visibility and happens-before, not only mutual exclusion."
+    ],
+    "commonMistakes": [
+      "Assuming volatile makes counter++ atomic.",
+      "Starting threads without waiting for completion.",
+      "Using a thread-safe primitive but ignoring the consistency semantics of a larger multi-field invariant."
+    ],
+    "followUps": [
+      "What does volatile guarantee and what does it not guarantee?",
+      "When would you use a fixed thread pool?",
+      "How can deadlock occur and how would you prevent it?"
+    ],
+    "rubricHooks": ["atomicity", "visibility", "synchronization", "lifecycle"],
+    "timeBudgetMinutes": 18,
+    "questionType": "debugging",
+    "difficultyTier": "advanced"
+  },
+  {
+    "id": "sophos_java_se_microservices_resilience",
+    "type": "system_design",
+    "topic": "Microservices — Reliability",
+    "tags": ["sophos", "java", "software-engineering", "microservices", "resilience", "timeouts"],
+    "difficulty": 4,
+    "prompt": "A Java service calls three downstream services to complete a request. One dependency becomes slow and causes thread exhaustion. Design a resilient call path and explain how you would observe it.",
+    "expectedPoints": [
+      "Set explicit connection, read, and overall request deadlines.",
+      "Use bounded concurrency and bulkheads to isolate slow dependencies.",
+      "Apply circuit breaking to stop repeated calls to an unhealthy dependency.",
+      "Use bounded retries with backoff and jitter only for transient, retry-safe operations.",
+      "Instrument latency, error rate, saturation, traces, and dependency health."
+    ],
+    "commonMistakes": [
+      "Retrying indefinitely or immediately without backoff.",
+      "Increasing thread pools without addressing the slow dependency.",
+      "Using circuit breakers as a substitute for timeouts."
+    ],
+    "followUps": [
+      "How do you prevent retry storms across multiple services?",
+      "What is the difference between a timeout and a circuit breaker?",
+      "How would you degrade gracefully?"
+    ],
+    "rubricHooks": ["failure isolation", "retry policy", "resource bounds", "observability"],
+    "timeBudgetMinutes": 22,
+    "questionType": "architecture_tradeoff",
+    "difficultyTier": "advanced"
+  },
+  {
+    "id": "sophos_java_se_pipeline_deploy",
+    "type": "system_design",
+    "topic": "DevOps — CI/CD and AWS",
+    "tags": [
+      "sophos",
+      "java",
+      "software-engineering",
+      "aws",
+      "docker",
+      "jenkins",
+      "terraform",
+      "cicd"
+    ],
+    "difficulty": 4,
+    "prompt": "Design a CI/CD pipeline for a Spring Boot service deployed to AWS. Cover build, tests, artifact creation, infrastructure changes, deployment strategy, secrets, and rollback.",
+    "expectedPoints": [
+      "Run formatting, static analysis, unit tests, integration tests, and dependency/security scans before publishing.",
+      "Build an immutable versioned container image and publish it to a trusted registry.",
+      "Use Terraform plan review and controlled apply with least-privilege deployment identity.",
+      "Deploy gradually using rolling, canary, or blue-green strategy with health checks.",
+      "Store secrets in an appropriate secret manager and keep them out of source, logs, and images.",
+      "Define rollback criteria and ensure database migrations are backward-compatible."
+    ],
+    "commonMistakes": [
+      "Building a different artifact in each environment.",
+      "Applying Terraform automatically from untrusted pull requests.",
+      "Deploying without health checks or a rollback plan."
+    ],
+    "followUps": [
+      "How would you handle a failed database migration?",
+      "How do you prevent a secret from leaking in build logs?",
+      "What is the difference between readiness and liveness checks?"
+    ],
+    "rubricHooks": ["pipeline stages", "immutable artifacts", "least privilege", "rollback safety"],
+    "timeBudgetMinutes": 25,
+    "questionType": "architecture_tradeoff",
+    "difficultyTier": "advanced"
+  },
+  {
+    "id": "sophos_java_se_api_security",
+    "type": "technical_concept",
+    "topic": "Application Security — API Threats",
+    "tags": [
+      "sophos",
+      "java",
+      "software-engineering",
+      "security",
+      "authentication",
+      "authorization"
+    ],
+    "difficulty": 4,
+    "prompt": "A Spring Boot API accepts a user-supplied URL and fetches its contents. Explain the main security risks and how you would prevent SSRF, authorization bypass, and secret leakage.",
+    "expectedPoints": [
+      "Treat user-supplied URLs and remote content as untrusted input.",
+      "Restrict schemes, resolve and validate destination IPs, block loopback/private/link-local/reserved ranges, and revalidate redirects and DNS resolution.",
+      "Enforce object-level authorization on every resource access; authentication alone is insufficient.",
+      "Keep credentials in a secure server-side secret store and redact tokens/PII from logs.",
+      "Apply request size, timeout, redirect, and response-size limits."
+    ],
+    "commonMistakes": [
+      "Blocking only localhost by string matching.",
+      "Validating a hostname once and ignoring DNS rebinding or redirects.",
+      "Assuming a valid JWT means the caller can access every object."
+    ],
+    "followUps": [
+      "What is DNS rebinding?",
+      "How do you prevent IDOR?",
+      "How should refresh tokens be stored and rotated?"
+    ],
+    "rubricHooks": ["SSRF defenses", "authorization", "secret handling", "resource limits"],
+    "timeBudgetMinutes": 18,
+    "questionType": "real_world_scenario",
+    "difficultyTier": "advanced"
+  },
+  {
+    "id": "sophos_java_se_testing",
+    "type": "technical_concept",
+    "topic": "Java — Automated Testing",
+    "tags": ["sophos", "java", "software-engineering", "junit", "mockito", "testing"],
+    "difficulty": 2,
+    "prompt": "How would you test a Spring service that reads a repository, calls an external API, and persists a result? Explain unit versus integration tests and where Mockito belongs.",
+    "expectedPoints": [
+      "Unit-test business logic with controlled collaborators and deterministic inputs.",
+      "Use Mockito to isolate external dependencies and verify important interactions, not every implementation detail.",
+      "Integration-test persistence, transaction behavior, serialization, and framework wiring against realistic infrastructure.",
+      "Cover success, timeout, malformed response, retry, and persistence failure paths.",
+      "Keep tests independent, deterministic, and explicit about external resources."
+    ],
+    "commonMistakes": [
+      "Mocking the class under test.",
+      "Using mocks to claim database integration correctness.",
+      "Writing only happy-path tests."
+    ],
+    "followUps": [
+      "When would you use @SpringBootTest versus a slice test?",
+      "How do you test retry logic without slow sleeps?",
+      "What makes a test flaky?"
+    ],
+    "rubricHooks": [
+      "test boundaries",
+      "mocking discipline",
+      "failure-path coverage",
+      "determinism"
+    ],
+    "timeBudgetMinutes": 12,
+    "questionType": "conceptual",
+    "difficultyTier": "easy"
+  },
+  {
+    "id": "sophos_java_se_debug_production",
+    "type": "behavioral",
+    "topic": "Behavioral — Incident Ownership",
+    "tags": ["sophos", "java", "software-engineering", "debugging", "ownership", "star"],
+    "difficulty": 3,
+    "prompt": "Tell me about a production or high-impact defect you personally investigated. Walk through the symptoms, how you isolated the root cause, the fix, validation, and what you changed to prevent recurrence. Use a real example; do not invent metrics or ownership.",
+    "clarifyingInfo": "Use only an experience you can substantiate. If you have no production incident, choose a real project defect and state its scope honestly.",
+    "expectedPoints": [
+      "Clear situation and user/system impact without invented numbers.",
+      "Specific personal responsibility distinguished from team work.",
+      "A reproducible debugging process using logs, traces, metrics, tests, or code inspection.",
+      "A reasoned fix with regression coverage and safe rollout/verification.",
+      "A concrete lesson or prevention measure."
+    ],
+    "commonMistakes": [
+      "Saying only 'we fixed it' without personal contribution.",
+      "Inventing uptime, traffic, latency, or business impact.",
+      "Describing the fix without explaining diagnosis or regression prevention."
+    ],
+    "followUps": [
+      "What hypothesis did you rule out first?",
+      "How did you know the fix worked?",
+      "What would you do differently now?"
+    ],
+    "rubricHooks": ["STAR structure", "individual ownership", "evidence", "learning"],
+    "timeBudgetMinutes": 12,
+    "questionType": "real_world_scenario",
+    "difficultyTier": "intermediate"
+  },
+  {
+    "id": "sophos_java_se_spring_test_failure",
+    "type": "technical_concept",
+    "topic": "Spring Boot — Troubleshooting",
+    "tags": [
+      "sophos",
+      "java",
+      "software-engineering",
+      "spring-boot",
+      "debugging",
+      "dependency-injection"
+    ],
+    "difficulty": 3,
+    "prompt": "A Spring Boot application starts locally but fails in a container with a bean creation error and a database connection timeout. Describe a systematic diagnosis rather than guessing at fixes.",
+    "clarifyingInfo": "Explain what evidence you would collect and in what order.",
+    "expectedPoints": [
+      "Read the complete exception chain and identify the first causal exception, not only the top-level bean error.",
+      "Check active profile and resolved configuration without printing secrets.",
+      "Verify DNS, network path, port, TLS, credentials, database readiness, and connection pool limits.",
+      "Check container environment variables and secret injection separately from local developer configuration.",
+      "Add a startup/readiness check and a regression test for configuration validation."
+    ],
+    "commonMistakes": [
+      "Increasing timeouts before identifying the failing dependency.",
+      "Logging credentials or full connection URLs.",
+      "Assuming a local success proves the container environment is configured correctly."
+    ],
+    "followUps": [
+      "How would you distinguish DNS failure from connection refusal?",
+      "What should a readiness probe check?",
+      "How would you make startup fail with a useful sanitized error?"
+    ],
+    "rubricHooks": ["diagnostic order", "environment parity", "secret hygiene", "operability"],
+    "timeBudgetMinutes": 15,
+    "questionType": "debugging",
+    "difficultyTier": "intermediate"
+  }
+]

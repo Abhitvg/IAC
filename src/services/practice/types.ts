@@ -3,7 +3,7 @@ export type InterviewPersona = 'strict_big_tech' | 'startup_pragmatist' | 'frien
 export type InterviewPressure = 'low' | 'normal' | 'high';
 
 export type MockRoundType =
-  | 'dress_rehearsal' // Complete 45-minute loop
+  | 'dress_rehearsal' // Complete 50-minute loop
   | 'dsa_coding'
   | 'system_design'
   | 'behavioral'
@@ -15,8 +15,9 @@ export type MockRoundType =
 export type RehearsalPhase =
   | 'icebreaker' // 3 min
   | 'behavioral' // 10 min
-  | 'technical' // 22 min
-  | 'candidate_qa' // 5 min
+  | 'technical' // 12 min
+  | 'system_design' // 10 min
+  | 'candidate_qa' // 10 min
   | 'wrapup'; // 5 min
 
 export interface RubricDimension {
