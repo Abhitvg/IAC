@@ -31,6 +31,18 @@ describe('live transcription provider routing', () => {
       'I used AWS CodePipeline (with manual approvals).'
     );
   });
+
+  it('does not rewrite acoustically similar ordinary phrases into AWS product names', () => {
+    expect(postProcessTranscript('The cold pipeline failed during the test.')).toBe(
+      'The cold pipeline failed during the test.'
+    );
+    expect(postProcessTranscript('Please call the pipeline after deployment.')).toBe(
+      'Please call the pipeline after deployment.'
+    );
+    expect(postProcessTranscript('The court pipeline is part of the data workflow.')).toBe(
+      'The court pipeline is part of the data workflow.'
+    );
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
