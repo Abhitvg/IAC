@@ -93,7 +93,7 @@
     "type": "coding",
     "topic": "DSA — Sliding Window",
     "tags": ["sophos", "java", "software-engineering", "sliding-window", "strings"],
-    "difficulty": 4,
+    "difficulty": 3,
     "prompt": "Given a string, find the length of the longest substring without repeating characters. Implement an O(n) Java solution and explain how the window moves.",
     "clarifyingInfo": "A substring must be contiguous. Empty input should return zero.",
     "expectedPoints": [
@@ -115,7 +115,7 @@
     "rubricHooks": ["sliding-window invariant", "index handling", "complexity", "edge cases"],
     "timeBudgetMinutes": 25,
     "questionType": "coding_problem",
-    "difficultyTier": "advanced"
+    "difficultyTier": "intermediate"
   },
   {
     "id": "sophos_java_se_java_overload_override",
@@ -305,7 +305,7 @@
       "executorservice",
       "race-condition"
     ],
-    "difficulty": 4,
+    "difficulty": 3,
     "prompt": "Two threads increment a shared counter one million times each, but the final result is smaller than two million. Explain the race condition and give two safe Java approaches. Compare their trade-offs.",
     "expectedPoints": [
       "counter++ is a read-modify-write sequence and is not atomic.",
@@ -327,14 +327,14 @@
     "rubricHooks": ["atomicity", "visibility", "synchronization", "lifecycle"],
     "timeBudgetMinutes": 18,
     "questionType": "debugging",
-    "difficultyTier": "advanced"
+    "difficultyTier": "intermediate"
   },
   {
     "id": "sophos_java_se_microservices_resilience",
     "type": "system_design",
     "topic": "Microservices — Reliability",
     "tags": ["sophos", "java", "software-engineering", "microservices", "resilience", "timeouts"],
-    "difficulty": 4,
+    "difficulty": 3,
     "prompt": "A Java service calls three downstream services to complete a request. One dependency becomes slow and causes thread exhaustion. Design a resilient call path and explain how you would observe it.",
     "expectedPoints": [
       "Set explicit connection, read, and overall request deadlines.",
@@ -356,7 +356,7 @@
     "rubricHooks": ["failure isolation", "retry policy", "resource bounds", "observability"],
     "timeBudgetMinutes": 22,
     "questionType": "architecture_tradeoff",
-    "difficultyTier": "advanced"
+    "difficultyTier": "intermediate"
   },
   {
     "id": "sophos_java_se_pipeline_deploy",
@@ -372,15 +372,15 @@
       "terraform",
       "cicd"
     ],
-    "difficulty": 4,
-    "prompt": "Design a CI/CD pipeline for a Spring Boot service deployed to AWS. Cover build, tests, artifact creation, infrastructure changes, deployment strategy, secrets, and rollback.",
+    "difficulty": 3,
+    "prompt": "Design a Jenkins CI/CD pipeline for a Spring Boot service deployed to AWS with Docker and Kubernetes. Cover source checkout, build, unit and integration tests, security checks, immutable image publishing, deployment health checks, and rollback.",
     "expectedPoints": [
-      "Run formatting, static analysis, unit tests, integration tests, and dependency/security scans before publishing.",
-      "Build an immutable versioned container image and publish it to a trusted registry.",
-      "Use Terraform plan review and controlled apply with least-privilege deployment identity.",
-      "Deploy gradually using rolling, canary, or blue-green strategy with health checks.",
-      "Store secrets in an appropriate secret manager and keep them out of source, logs, and images.",
-      "Define rollback criteria and ensure database migrations are backward-compatible."
+      "Use a staged Jenkins pipeline with source checkout, dependency resolution, compilation, unit tests, and integration tests.",
+      "Run static analysis and dependency/container vulnerability checks before publishing an artifact.",
+      "Build an immutable, versioned Docker image and push it to a trusted registry.",
+      "Deploy to Kubernetes with bounded rollout, readiness/liveness probes, and resource requests/limits.",
+      "Use least-privilege deployment credentials and inject secrets at runtime rather than baking them into images or logs.",
+      "Define health-based rollback criteria and keep database changes backward-compatible."
     ],
     "commonMistakes": [
       "Building a different artifact in each environment.",
@@ -388,14 +388,14 @@
       "Deploying without health checks or a rollback plan."
     ],
     "followUps": [
-      "How would you handle a failed database migration?",
-      "How do you prevent a secret from leaking in build logs?",
-      "What is the difference between readiness and liveness checks?"
+      "How would you keep credentials out of Jenkins logs?",
+      "What is the difference between readiness and liveness probes?",
+      "What would you do if the deployment succeeds but error rates increase?"
     ],
     "rubricHooks": ["pipeline stages", "immutable artifacts", "least privilege", "rollback safety"],
     "timeBudgetMinutes": 25,
     "questionType": "architecture_tradeoff",
-    "difficultyTier": "advanced"
+    "difficultyTier": "intermediate"
   },
   {
     "id": "sophos_java_se_api_security",
@@ -409,7 +409,7 @@
       "authentication",
       "authorization"
     ],
-    "difficulty": 4,
+    "difficulty": 3,
     "prompt": "A Spring Boot API accepts a user-supplied URL and fetches its contents. Explain the main security risks and how you would prevent SSRF, authorization bypass, and secret leakage.",
     "expectedPoints": [
       "Treat user-supplied URLs and remote content as untrusted input.",
@@ -431,7 +431,7 @@
     "rubricHooks": ["SSRF defenses", "authorization", "secret handling", "resource limits"],
     "timeBudgetMinutes": 18,
     "questionType": "real_world_scenario",
-    "difficultyTier": "advanced"
+    "difficultyTier": "intermediate"
   },
   {
     "id": "sophos_java_se_testing",
@@ -532,6 +532,94 @@
     "rubricHooks": ["diagnostic order", "environment parity", "secret hygiene", "operability"],
     "timeBudgetMinutes": 15,
     "questionType": "debugging",
+    "difficultyTier": "intermediate"
+  },
+  {
+    "id": "sophos_java_se_terraform_state",
+    "type": "technical_concept",
+    "topic": "DevOps — Terraform State and IaC",
+    "tags": ["sophos", "software-engineering", "terraform", "infrastructure-as-code", "aws"],
+    "difficulty": 3,
+    "prompt": "Two engineers trigger Terraform applies against the same AWS environment at nearly the same time. Explain remote state, state locking, plan/apply workflow, drift detection, and safe recovery if an apply fails.",
+    "expectedPoints": [
+      "Use a shared remote backend with access control, encryption, and versioning rather than local state shared manually.",
+      "State locking prevents concurrent writers from corrupting the same state; do not bypass the lock to force an apply.",
+      "Review terraform plan before apply and run changes through a controlled CI/CD identity with least privilege.",
+      "Detect drift with refresh/plan and reconcile intentional changes; avoid editing state files by hand.",
+      "If apply partially fails, inspect actual infrastructure and state, use backend version history where appropriate, and produce a new reviewed plan before recovery."
+    ],
+    "commonMistakes": [
+      "Committing state files or sharing them through chat.",
+      "Disabling state locking to get past a concurrent operation.",
+      "Running apply automatically from an untrusted pull request.",
+      "Assuming a failed apply means no resources changed."
+    ],
+    "followUps": [
+      "What belongs in Terraform state and why is it sensitive?",
+      "How would you separate dev, test, and production state?",
+      "When would terraform import be appropriate?"
+    ],
+    "rubricHooks": ["remote state", "locking", "plan review", "drift recovery"],
+    "timeBudgetMinutes": 15,
+    "questionType": "architecture_tradeoff",
+    "difficultyTier": "intermediate"
+  },
+  {
+    "id": "sophos_java_se_iaas_responsibility",
+    "type": "technical_concept",
+    "topic": "Cloud — IaaS, PaaS, and SaaS",
+    "tags": ["sophos", "software-engineering", "aws", "iaas", "cloud"],
+    "difficulty": 2,
+    "prompt": "Explain IaaS, PaaS, and SaaS with one example of each. If a team deploys a Spring Boot service on AWS virtual machines, which responsibilities remain with the team and which are handled by the cloud provider?",
+    "expectedPoints": [
+      "IaaS provides virtualized compute, storage, and networking while the customer manages the operating system and application stack.",
+      "PaaS abstracts more of the runtime and infrastructure management; SaaS delivers a complete application to end users.",
+      "For an IaaS virtual machine, the team still owns OS patching, runtime configuration, application security, deployment, monitoring, and data protection.",
+      "The provider remains responsible for the underlying physical facilities and foundational infrastructure within the shared-responsibility model.",
+      "Choose the service model based on control, operational effort, compliance, and reliability needs."
+    ],
+    "commonMistakes": [
+      "Claiming the cloud provider secures every layer automatically.",
+      "Confusing SaaS with a managed compute service.",
+      "Ignoring the shared-responsibility model."
+    ],
+    "followUps": [
+      "How would the responsibility boundary change with a managed container service?",
+      "What controls would you automate for VM patching and configuration?"
+    ],
+    "rubricHooks": ["service model distinctions", "shared responsibility", "operational ownership"],
+    "timeBudgetMinutes": 10,
+    "questionType": "conceptual",
+    "difficultyTier": "easy"
+  },
+  {
+    "id": "sophos_java_se_sla_defect",
+    "type": "technical_concept",
+    "topic": "Reliability — SLAs and Defect Handling",
+    "tags": ["sophos", "software-engineering", "sla", "production-support", "reliability"],
+    "difficulty": 3,
+    "prompt": "A customer reports an intermittent defect in a service covered by an SLA. Walk through how you would assess impact, reproduce and diagnose the issue, mitigate safely, communicate status, and prevent recurrence. Also distinguish an SLA, SLO, and SLI.",
+    "expectedPoints": [
+      "Establish affected users, severity, scope, start time, and customer impact before choosing a response.",
+      "Use logs, metrics, traces, recent changes, and a reproducible test case to narrow the cause.",
+      "Mitigate safely with rollback, feature flag, traffic isolation, or a targeted fix while preserving evidence.",
+      "Communicate ownership, next update time, impact, and recovery status without promising an unverified resolution time.",
+      "An SLI is a measured indicator, an SLO is an internal target, and an SLA is an external commitment with consequences.",
+      "Add regression coverage, alerting, and a blameless root-cause review after recovery."
+    ],
+    "commonMistakes": [
+      "Jumping to a code change before establishing impact and reproducing the defect.",
+      "Confusing SLA, SLO, and SLI.",
+      "Declaring resolution without verifying recovery and customer impact."
+    ],
+    "followUps": [
+      "What would you monitor to detect this issue earlier?",
+      "When would you roll back rather than hotfix?",
+      "How do you avoid breaching an SLA during an incident?"
+    ],
+    "rubricHooks": ["impact assessment", "diagnosis", "communication", "reliability concepts"],
+    "timeBudgetMinutes": 15,
+    "questionType": "real_world_scenario",
     "difficultyTier": "intermediate"
   }
 ]
