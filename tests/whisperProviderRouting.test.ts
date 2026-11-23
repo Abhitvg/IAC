@@ -76,6 +76,8 @@ describe('live transcription provider routing', () => {
     expect(result.text).toBe('local transcript');
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8080/inference');
+    const localPrompt = fetchMock.mock.calls[0][1].body as FormData;
+    expect(localPrompt.get('prompt')).not.toContain('AWS CodePipeline, AWS, Kubernetes');
     expect(transcribeCloudAudio).not.toHaveBeenCalled();
   });
 
@@ -96,6 +98,9 @@ describe('live transcription provider routing', () => {
       provider: 'openai',
       model: 'whisper-1',
     });
+    expect(transcribeCloudAudio.mock.calls[0][0].prompt).not.toContain(
+      'AWS CodePipeline, AWS, Kubernetes'
+    );
     expect(transcribeCloudAudio.mock.calls[0][0].audio).toBeInstanceOf(Uint8Array);
     expect(fetchMock).not.toHaveBeenCalled();
   });
