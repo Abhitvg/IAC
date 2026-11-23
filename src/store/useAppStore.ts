@@ -12,7 +12,7 @@ import {
 } from '../utils/settingWriteQueue';
 import { InterviewEngine } from '../services/InterviewEngine';
 import { InterviewWorkspace } from '../types';
-import { normalizePreferredLanguage } from '../utils/settings';
+import { normalizePreferredLanguage, normalizeWindowOpacity } from '../utils/settings';
 import { resolveInterviewResponseMode } from '../utils/responseMode';
 import type { AnswerVerificationBasis } from '../services/answerVerification';
 import {
@@ -297,18 +297,19 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   windowOpacity: (() => {
     try {
       const saved = localStorage.getItem('teleprompter_opacity');
-      if (saved) return parseFloat(saved);
+      if (saved !== null) return normalizeWindowOpacity(saved);
     } catch {}
     return 0.35;
   })(),
-  setWindowOpacity: (windowOpacity) => {
+  setWindowOpacity: (requestedOpacity) => {
+    const windowOpacity = normalizeWindowOpacity(requestedOpacity);
     try {
       localStorage.setItem('teleprompter_opacity', String(windowOpacity));
     } catch {}
     set({ windowOpacity });
     try {
       if (typeof window !== 'undefined' && window.electronAPI?.setWindowOpacity) {
-        window.electronAPI.setWindowOpacity(windowOpacity);
+        void window.electronAPI.setWindowOpacity(windowOpacity);
       }
     } catch {}
   },

@@ -59,7 +59,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       items: [
         { id: 'overview' as AppNavId, label: 'Overview', icon: <Layers size={16} /> },
         { id: 'preparation' as AppNavId, label: 'Interview Prep', icon: <Sparkles size={16} /> },
-        { id: 'teleprompter' as AppNavId, label: 'Live Interview', icon: <Video size={16} />, badge: 'LIVE' },
+        {
+          id: 'teleprompter' as AppNavId,
+          label: 'Live Interview',
+          icon: <Video size={16} />,
+          badge: 'LIVE',
+        },
         { id: 'mock_gym' as AppNavId, label: 'Practice Studio', icon: <Dumbbell size={16} /> },
         { id: 'career_ops' as AppNavId, label: 'CareerOps', icon: <Briefcase size={16} /> },
       ],
@@ -68,8 +73,17 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       title: 'CANDIDATE INTELLIGENCE',
       items: [
         { id: 'projects' as AppNavId, label: 'Projects', icon: <FolderGit2 size={16} /> },
-        { id: 'evidence_vault' as AppNavId, label: 'Evidence Vault', icon: <ShieldCheck size={16} />, badge: 'ZERO-TRUST' },
-        { id: 'resume_docs' as AppNavId, label: 'Resume & Documents', icon: <FileText size={16} /> },
+        {
+          id: 'evidence_vault' as AppNavId,
+          label: 'Evidence Vault',
+          icon: <ShieldCheck size={16} />,
+          badge: 'ZERO-TRUST',
+        },
+        {
+          id: 'resume_docs' as AppNavId,
+          label: 'Resume & Documents',
+          icon: <FileText size={16} />,
+        },
         { id: 'knowledge_base' as AppNavId, label: 'Knowledge Base', icon: <BookOpen size={16} /> },
       ],
     },
@@ -82,14 +96,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     },
     {
       title: 'SYSTEM',
-      items: [
-        { id: 'settings' as AppNavId, label: 'Settings', icon: <Settings size={16} /> },
-      ],
+      items: [{ id: 'settings' as AppNavId, label: 'Settings', icon: <Settings size={16} /> }],
     },
   ];
 
   return (
     <aside
+      className="app-sidebar"
       aria-label="Primary Navigation"
       style={{
         width: collapsed ? '72px' : '240px',
@@ -135,8 +148,16 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               ⚡
             </div>
             {!collapsed && (
-              <span style={{ fontSize: '14px', fontWeight: 700, color: '#F3F4F8', letterSpacing: '-0.02em' }}>
-                IAC <span style={{ color: '#8B7CFF', fontWeight: 500, fontSize: '11px' }}>Copilot</span>
+              <span
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  color: '#F3F4F8',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                IAC{' '}
+                <span style={{ color: '#8B7CFF', fontWeight: 500, fontSize: '11px' }}>Copilot</span>
               </span>
             )}
           </div>
@@ -221,7 +242,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                             fontWeight: 700,
                             padding: '1px 5px',
                             borderRadius: '4px',
-                            background: item.badge === 'LIVE' ? 'rgba(241, 111, 120, 0.2)' : 'rgba(139, 124, 255, 0.15)',
+                            background:
+                              item.badge === 'LIVE'
+                                ? 'rgba(241, 111, 120, 0.2)'
+                                : 'rgba(139, 124, 255, 0.15)',
                             color: item.badge === 'LIVE' ? '#F16F78' : '#8B7CFF',
                             border: `1px solid ${item.badge === 'LIVE' ? 'rgba(241, 111, 120, 0.3)' : 'rgba(139, 124, 255, 0.3)'}`,
                           }}
@@ -249,7 +273,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         }}
       >
         {collapsed ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}
+          >
             <button
               type="button"
               onClick={onToggleCollapse}
@@ -325,7 +351,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 >
                   <User size={12} />
                 </div>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#F3F4F8' }}>Candidate</span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#F3F4F8' }}>
+                  Candidate
+                </span>
               </div>
               <span style={{ fontSize: '10px', color: '#35C991', fontWeight: 600 }}>Active</span>
             </div>
@@ -369,4 +397,3 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     </aside>
   );
 };
-

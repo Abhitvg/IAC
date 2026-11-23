@@ -23,3 +23,10 @@ export function normalizePreferredLanguage(value: unknown): ProgrammingLanguage 
   if (typeof value !== 'string') return 'java';
   return LANGUAGE_ALIASES[value.trim().toLowerCase()] ?? 'java';
 }
+
+/** Clamp persisted or user-entered native window opacity to Electron's supported range. */
+export function normalizeWindowOpacity(value: unknown, fallback = 0.35): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0.12, Math.min(1, parsed));
+}

@@ -188,6 +188,7 @@ export default function App() {
 
   return (
     <div
+      className="app-shell"
       style={{
         height: '100vh',
         width: '100vw',
@@ -211,6 +212,8 @@ export default function App() {
       <div
         style={{
           flex: 1,
+          minWidth: 0,
+          minHeight: 0,
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -227,6 +230,7 @@ export default function App() {
 
         {/* View Routing Region */}
         <main
+          className="app-workspace"
           role="main"
           aria-label="Application Workspace"
           style={{

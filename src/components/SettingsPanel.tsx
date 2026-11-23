@@ -1,10 +1,20 @@
 import { deleteStoredCredential, persistCredential } from '../services/onboarding/credentialSetup';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { usePracticeStore } from '../store/usePracticeStore';
 import { X, Save, AlertTriangle, Volume2, VolumeX, CheckCircle, ShieldAlert } from 'lucide-react';
 import { isSoundMuted, toggleSoundMuted } from '../utils/soundEffects';
 import { DiagnosticLoggerService, ReliabilitySummary } from '../services/diagnosticLogger';
+import {
+  DEFAULT_INTERVIEW_SHORTCUTS,
+  INTERVIEW_SHORTCUT_LABELS,
+  canonicalizeInterviewShortcut,
+  formatInterviewShortcut,
+  isReservedInterviewShortcut,
+  resolveInterviewShortcutBindings,
+} from '../services/teleprompter/interviewShortcuts';
+import type { InterviewShortcutAction } from '../services/teleprompter/interviewShortcuts';
+import { ShortcutSettings } from './teleprompter/ShortcutSettings';
 import {
   getActiveModelsForProvider,
   getDefaultModelForProvider,
@@ -17,6 +27,8 @@ export default function SettingsPanel() {
   const {
     settings,
     updateSetting,
+    windowOpacity,
+    setWindowOpacity,
     setSettingsOpen,
     clearAllData,
     setToast,
@@ -81,6 +93,46 @@ export default function SettingsPanel() {
       if (info?.tokenPreview) setExtensionTokenPreview(info.tokenPreview);
     });
   }, [settings?.aiProvider]);
+
+  const shortcutBindings = resolveInterviewShortcutBindings(settings?.shortcuts);
+  const handleShortcutChange = useCallback(
+    (action: InterviewShortcutAction, binding: string) => {
+      const canonical = canonicalizeInterviewShortcut(binding);
+      if (!canonical) {
+        setToast('That key combination is not supported. Choose a valid shortcut.');
+        return;
+      }
+      if (isReservedInterviewShortcut(canonical)) {
+        setToast('That shortcut is reserved by another application control.');
+        return;
+      }
+      const duplicate = (Object.keys(shortcutBindings) as InterviewShortcutAction[]).find(
+        (candidate) =>
+          candidate !== action &&
+          canonicalizeInterviewShortcut(shortcutBindings[candidate]) === canonical
+      );
+      if (duplicate) {
+        setToast(
+          'That shortcut is already assigned to ' + INTERVIEW_SHORTCUT_LABELS[duplicate] + '.'
+        );
+        return;
+      }
+      updateSetting('shortcuts', { ...(settings?.shortcuts || {}), [action]: canonical });
+      setToast(
+        INTERVIEW_SHORTCUT_LABELS[action] +
+          ' shortcut updated to ' +
+          formatInterviewShortcut(canonical) +
+          '.'
+      );
+    },
+    [shortcutBindings, settings?.shortcuts, updateSetting, setToast]
+  );
+
+  const platform = typeof window !== 'undefined' ? window.electronAPI?.platform : undefined;
+  const supportsNativeOpacity =
+    typeof window !== 'undefined' &&
+    Boolean(window.electronAPI?.setWindowOpacity) &&
+    platform !== 'linux';
 
   const refreshReliabilitySummary = () => {
     setReliabilitySummary(DiagnosticLoggerService.getInstance().getReliabilitySummary());
@@ -814,6 +866,105 @@ export default function SettingsPanel() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="settings-section" data-testid="window-transparency-settings">
+            <h3 className="settings-section__title">Live Interview Window</h3>
+            <div className="field">
+              <div className="flex items-center justify-between gap-3">
+                <label className="field__label" htmlFor="window-opacity-slider">
+                  Window transparency
+                </label>
+                <output
+                  htmlFor="window-opacity-slider"
+                  className="text-xs font-semibold text-slate-200 tabular-nums"
+                >
+                  {Math.round(windowOpacity * 100)}%
+                </output>
+              </div>
+              <input
+                id="window-opacity-slider"
+                type="range"
+                min="12"
+                max="100"
+                step="1"
+                value={Math.round(windowOpacity * 100)}
+                onChange={(event) => setWindowOpacity(Number(event.target.value) / 100)}
+                disabled={!supportsNativeOpacity}
+                aria-label="Live interview window opacity"
+                aria-valuemin={12}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(windowOpacity * 100)}
+                className="w-full accent-violet-500"
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="field__hint">
+                  {supportsNativeOpacity
+                    ? 'Lower opacity lets you see forms and coding editors behind the live overlay. Applies to the Live Interview window, not the main workspace.'
+                    : platform === 'linux'
+                      ? 'Native Electron window opacity is not supported on Linux. The control is disabled rather than pretending the setting works.'
+                      : 'Native window opacity is unavailable in this session.'}
+                </span>
+                <button
+                  type="button"
+                  className="action-btn"
+                  disabled={!supportsNativeOpacity}
+                  onClick={() => setWindowOpacity(0.35)}
+                >
+                  Reset · 35%
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Transparency presets">
+                {[100, 85, 70, 55, 40].map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={
+                      Math.round(windowOpacity * 100) === value
+                        ? 'action-btn action-btn--primary'
+                        : 'action-btn'
+                    }
+                    aria-pressed={Math.round(windowOpacity * 100) === value}
+                    disabled={!supportsNativeOpacity}
+                    onClick={() => setWindowOpacity(value / 100)}
+                  >
+                    {value}%
+                  </button>
+                ))}
+              </div>
+              <span className="field__hint">
+                At very low opacity, text can become difficult to read. Increase it whenever
+                contrast is poor.
+              </span>
+            </div>
+          </div>
+
+          <div className="settings-section" data-testid="custom-shortcut-settings">
+            <h3 className="settings-section__title">Keyboard Shortcuts</h3>
+            <p className="field__hint">
+              Select a shortcut and press a new key combination. Changes are saved to your app
+              settings and work inside the Live Interview view.
+            </p>
+            <ShortcutSettings bindings={shortcutBindings} onChange={handleShortcutChange} />
+            <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
+              <span className="field__hint">
+                Global show / hide and corner-position shortcuts remain system-wide and are not
+                remappable here.
+              </span>
+              <button
+                type="button"
+                className="action-btn"
+                onClick={() => {
+                  updateSetting('shortcuts', {
+                    ...(settings?.shortcuts || {}),
+                    ...DEFAULT_INTERVIEW_SHORTCUTS,
+                  });
+                  setToast('Interview shortcuts restored to defaults.');
+                }}
+              >
+                Restore defaults
+              </button>
+            </div>
           </div>
 
           <div className="settings-section">

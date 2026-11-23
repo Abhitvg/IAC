@@ -39,6 +39,7 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({ currentTitle, onOpenSpotli
 
   return (
     <header
+      className="app-topbar"
       role="banner"
       style={{
         height: '48px',
@@ -267,4 +268,3 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({ currentTitle, onOpenSpotli
     </header>
   );
 };
-
