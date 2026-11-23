@@ -26,7 +26,6 @@ describe('normalizePreferredLanguage', () => {
   });
 });
 
-
 describe('window opacity settings', () => {
   it('clamps valid opacity values to the native window range', () => {
     expect(normalizeWindowOpacity(0.7)).toBe(0.7);
