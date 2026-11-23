@@ -294,11 +294,14 @@ export const MockGymView: React.FC = () => {
                   >
                     <span>📘</span>
                     <span>
-                      {isSophosPackLoaded ? 'Sophos Pack Loaded' : 'Load Sophos Cloud Platform Pack'}
+                      {isSophosPackLoaded
+                        ? 'Sophos Pack Loaded'
+                        : 'Load Sophos Cloud Platform Pack'}
                     </span>
                   </button>
                   <span className="text-[11px] text-slate-400">
-                    Java/Spring Boot, Terraform, Jenkins, AWS, Docker/Kubernetes, testing, and SLA practice
+                    Java/Spring Boot, Terraform, Jenkins, AWS, Docker/Kubernetes, testing, and SLA
+                    practice
                   </span>
                 </div>
 
