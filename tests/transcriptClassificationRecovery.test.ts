@@ -193,6 +193,35 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     }
   });
 
+  it('continues processing later speech after an earlier segment fails transcription', async () => {
+    InterviewEngine.abortActiveTranscription();
+    vi.mocked(transcribeAudio).mockReset();
+    const captureStateSpy = vi
+      .spyOn(AudioRecorder.getInstance(), 'getCaptureState')
+      .mockReturnValue('active');
+
+    vi.mocked(transcribeAudio)
+      .mockRejectedValueOnce(new Error('temporary transcription provider failure'))
+      .mockResolvedValueOnce({ text: 'Thank you.' });
+
+    const first = InterviewEngine.enqueueFinalizedUtterance(new Blob([new Uint8Array(512)]));
+    const second = InterviewEngine.enqueueFinalizedUtterance(new Blob([new Uint8Array(512)]));
+
+    try {
+      await Promise.all([first, second]);
+
+      expect(transcribeAudio).toHaveBeenCalledTimes(2);
+      expect(useAppStore.getState().diagnosticState.whisperStatus).toContain(
+        'Conversational filler ignored'
+      );
+      expect(useAppStore.getState().status).toBe('listening');
+    } finally {
+      captureStateSpy.mockRestore();
+      InterviewEngine.abortActiveTranscription();
+      vi.mocked(transcribeAudio).mockReset();
+    }
+  });
+
   it('preserves later queued speech when dispatching an automatically recognized question', async () => {
     const handleEventSpy = vi.spyOn(InterviewEngine, 'handleEvent').mockResolvedValue(undefined);
 
