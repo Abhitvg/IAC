@@ -5,7 +5,6 @@
  * dynamic domain vocabulary priming, and post-processing corrections.
  */
 
-import { TECH_TERMS } from './ai';
 import { getDynamicWhisperVocab } from './candidatePersona';
 import { useAppStore } from '../store/useAppStore';
 import { convertBlobToWav, isValidWav } from '../utils/audioConversion';
@@ -246,27 +245,21 @@ export async function transcribeAudio(
   const targetModel = resolveTranscriptionModel(targetProvider, sttConfig.model);
   const wavBlob = await convertBlobToWav(audioBlob);
   const audio = await wavBlob.arrayBuffer();
-  let prompt: string;
-
-  if (targetProvider === 'groq') {
-    const store = useAppStore.getState();
-    const lastCategory =
-      store.conversationHistory?.length > 0
-        ? store.conversationHistory[store.conversationHistory.length - 1].category
-        : 'General';
-    const dynamicVocab = getDynamicWhisperVocab(
-      lastCategory,
-      store.resumeText || '',
-      store.targetRole || ''
-    );
-    const techPrompt = [...new Set([...dynamicVocab, ...TECH_TERMS.slice(0, 30)])]
-      .slice(0, 60)
-      .join(', ');
-    prompt = `Technical interview discussion: ${techPrompt}`;
-  } else {
-    const techPrompt = TECH_TERMS.slice(0, 50).join(', ');
-    prompt = `Technical interview discussion about: AWS CodePipeline, AWS, Kubernetes, Docker, CI/CD, DevOps, ${techPrompt}`;
-  }
+  const store = useAppStore.getState();
+  const lastCategory =
+    store.conversationHistory?.length > 0
+      ? store.conversationHistory[store.conversationHistory.length - 1].category
+      : 'General';
+  const dynamicVocab = getDynamicWhisperVocab(
+    lastCategory,
+    store.resumeText || '',
+    store.targetRole || ''
+  );
+  // Keep the prompt short and specific. A broad technology list can bias Whisper
+  // toward words that were never spoken, especially in unrelated interview tracks.
+  const prompt = dynamicVocab.length
+    ? `Relevant interview vocabulary: ${dynamicVocab.slice(0, 24).join(', ')}`
+    : undefined;
 
   return withTranscriptionRetries(async () => {
     if (signal?.aborted) throw createTranscriptionAbortError(signal);
@@ -330,12 +323,24 @@ async function transcribeLocal(
   formData.append('file', wavBlob, 'recording.wav');
   if (config.language) formData.append('language', config.language);
 
-  // Pass technical vocabulary prompt and greedy temperature to prime Whisper
-  const techPrompt = TECH_TERMS.slice(0, 50).join(', ');
-  formData.append(
-    'prompt',
-    `Technical interview discussion: AWS CodePipeline, AWS, Kubernetes, Docker, CI/CD, DevOps, ${techPrompt}`
+  // Do not prime local Whisper with a fixed AWS/DevOps vocabulary list.
+  // A biased prompt can turn acoustically similar speech into unrelated technical terms.
+  const store = useAppStore.getState();
+  const lastCategory =
+    store.conversationHistory?.length > 0
+      ? store.conversationHistory[store.conversationHistory.length - 1].category
+      : 'General';
+  const localVocab = getDynamicWhisperVocab(
+    lastCategory,
+    store.resumeText || '',
+    store.targetRole || ''
   );
+  if (localVocab.length) {
+    formData.append(
+      'prompt',
+      `Relevant interview vocabulary: ${localVocab.slice(0, 24).join(', ')}`
+    );
+  }
   formData.append('temperature', '0.0');
   formData.append('response_format', 'json');
 
@@ -360,7 +365,7 @@ async function transcribeLocal(
     typeof data === 'string' ? data : data.text || data.transcription || data.result || '';
 
   return {
-    text: postProcessTranscript(String(transcript)),
+    text: String(transcript),
     language: data.language,
     duration: data.duration,
   };
@@ -379,11 +384,6 @@ export function postProcessTranscript(text: string): string {
     'aws codedeploy': 'AWS CodeDeploy',
     'aws code commit': 'AWS CodeCommit',
     'aws codecommit': 'AWS CodeCommit',
-    'port pipeline': 'CodePipeline',
-    'court pipeline': 'CodePipeline',
-    'cold pipeline': 'CodePipeline',
-    'call pipeline': 'CodePipeline',
-    'code pipeline': 'CodePipeline',
     codepipeline: 'CodePipeline',
     'code build': 'CodeBuild',
     codebuild: 'CodeBuild',
