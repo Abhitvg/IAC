@@ -85,6 +85,27 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
     audioSpyStart.mockRestore();
   });
 
+  it('preserves queued interview work when restarting after microphone failure', async () => {
+    const recorder = AudioRecorder.getInstance();
+    const captureStateSpy = vi.spyOn(recorder, 'getCaptureState').mockReturnValue('error');
+    const audioSpyStart = vi.spyOn(recorder, 'start').mockResolvedValue(undefined);
+    const abortSpy = vi.spyOn(InterviewEngine, 'abortActiveTranscription');
+    const clearPendingSpy = vi.spyOn(InterviewEngine, 'clearPendingQuestion');
+
+    try {
+      await InterviewEngine.handleEvent({ type: 'START_LISTENING' });
+
+      expect(audioSpyStart).toHaveBeenCalledOnce();
+      expect(abortSpy).not.toHaveBeenCalled();
+      expect(clearPendingSpy).not.toHaveBeenCalled();
+    } finally {
+      captureStateSpy.mockRestore();
+      audioSpyStart.mockRestore();
+      abortSpy.mockRestore();
+      clearPendingSpy.mockRestore();
+    }
+  });
+
   it('regenerateAnswer dispatches REGENERATE_ACTIVE_ANSWER when a current question exists', () => {
     const engineSpy = vi.spyOn(InterviewEngine, 'handleEvent').mockImplementation(async () => {});
     useAppStore.setState({ currentQuestion: 'Explain CAP theorem in distributed systems' });
