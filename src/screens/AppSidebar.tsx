@@ -59,7 +59,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       items: [
         { id: 'overview' as AppNavId, label: 'Overview', icon: <Layers size={16} /> },
         { id: 'preparation' as AppNavId, label: 'Interview Prep', icon: <Sparkles size={16} /> },
-        { id: 'teleprompter' as AppNavId, label: 'Live Interview', icon: <Video size={16} />, badge: 'LIVE' },
+        {
+          id: 'teleprompter' as AppNavId,
+          label: 'Live Interview',
+          icon: <Video size={16} />,
+          badge: 'LIVE',
+        },
         { id: 'mock_gym' as AppNavId, label: 'Practice Studio', icon: <Dumbbell size={16} /> },
         { id: 'career_ops' as AppNavId, label: 'CareerOps', icon: <Briefcase size={16} /> },
       ],
@@ -91,9 +96,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     },
     {
       title: 'SYSTEM',
-      items: [
-        { id: 'settings' as AppNavId, label: 'Settings', icon: <Settings size={16} /> },
-      ],
+      items: [{ id: 'settings' as AppNavId, label: 'Settings', icon: <Settings size={16} /> }],
     },
   ];
 
