@@ -9,7 +9,6 @@ export default function SessionControls() {
   // Answer generation and transcription change status while the microphone
   // remains active. The physical capture diagnostic is the source of truth.
   const isListening = diagnosticState.micActive;
-  const isMicStarting = status === 'listening' && !isListening;
 
   const handleSendCustom = (textToSend?: string) => {
     const q = (textToSend || customQuery).trim();
@@ -54,10 +53,6 @@ export default function SessionControls() {
           {isListening ? (
             <>
               <MicOff size={16} /> Stop Listening
-            </>
-          ) : isMicStarting ? (
-            <>
-              <MicOff size={16} /> Starting microphone…
             </>
           ) : (
             <>
