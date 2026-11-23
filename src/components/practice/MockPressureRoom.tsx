@@ -431,7 +431,9 @@ export const MockPressureRoom: React.FC = () => {
 
             <textarea
               id="candidate-response-input"
-              aria-label={isCandidateQAPhase ? 'Questions for the interviewer' : 'Your Live Response'}
+              aria-label={
+                isCandidateQAPhase ? 'Questions for the interviewer' : 'Your Live Response'
+              }
               value={currentCandidateAnswer}
               onChange={(e) => setCurrentCandidateAnswer(e.target.value)}
               placeholder={
