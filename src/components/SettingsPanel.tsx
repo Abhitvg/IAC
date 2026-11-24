@@ -22,6 +22,8 @@ export default function SettingsPanel() {
     setToast,
     selectedAudioDeviceId,
     setSelectedAudioDeviceId,
+    windowOpacity,
+    setWindowOpacity,
   } = useAppStore();
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [apiKey, setApiKey] = useState('');
@@ -663,6 +665,42 @@ export default function SettingsPanel() {
                 <option value="dark">Dark Theme (Studio High Contrast)</option>
                 <option value="light">Light Theme (Clean Daylight Studio)</option>
               </select>
+            </div>
+
+            <div className="field" data-testid="window-opacity-setting">
+              <label className="field__label" htmlFor="window-opacity-slider">
+                Live Interview Window Transparency
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <input
+                  id="window-opacity-slider"
+                  type="range"
+                  min={12}
+                  max={100}
+                  step={1}
+                  value={Math.round(windowOpacity * 100)}
+                  onChange={(e) => setWindowOpacity(Number(e.target.value) / 100)}
+                  aria-label="Live Interview window opacity"
+                  style={{ flex: 1, accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+                />
+                <output
+                  htmlFor="window-opacity-slider"
+                  aria-live="polite"
+                  style={{
+                    minWidth: '42px',
+                    textAlign: 'right',
+                    color: 'var(--text-primary)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {Math.round(windowOpacity * 100)}%
+                </output>
+              </div>
+              <span className="field__hint">
+                Adjust how transparent the Live Interview window appears over other apps. Lower
+                opacity reveals more of the screen behind it; higher opacity makes text easier to
+                read. This applies when the Live Interview workspace is active.
+              </span>
             </div>
 
             <div className="field">
