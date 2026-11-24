@@ -817,11 +817,10 @@ export class InterviewEngine {
                 state.status
               );
             if (transcriptionStillOwnsUi) {
-              state.setToast(
-                isEmptyTranscript
-                  ? 'No speech was recognized. Repeat the question or enter it manually.'
-                  : 'Speech transcription failed. Please retry or enter the question manually.'
-              );
+              const toastMessage = isEmptyTranscript
+                ? 'No speech was recognized. Repeat the question or enter it manually.'
+                : `Speech transcription failed: ${transcriptionErrorMessage.slice(0, 180)}`;
+              state.setToast(toastMessage);
               state.setStatus('listening');
               state.setPipelineStage('listening');
             }
