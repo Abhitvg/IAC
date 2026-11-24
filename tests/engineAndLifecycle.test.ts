@@ -127,6 +127,39 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
     }
   });
 
+  it('does not let an older Stop completion overwrite a newer Start request', async () => {
+    const recorder = AudioRecorder.getInstance();
+    const captureStateSpy = vi.spyOn(recorder, 'getCaptureState').mockReturnValue('stopping');
+    let finishStop: (() => void) | undefined;
+    const audioSpyStop = vi.spyOn(recorder, 'stop').mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishStop = resolve;
+        })
+    );
+    const audioSpyStart = vi.spyOn(recorder, 'start').mockResolvedValue(undefined);
+
+    try {
+      const stopping = InterviewEngine.handleEvent({ type: 'STOP_LISTENING' });
+      await vi.waitFor(() => expect(audioSpyStop).toHaveBeenCalledOnce());
+
+      await InterviewEngine.handleEvent({ type: 'START_LISTENING' });
+      expect(useAppStore.getState().status).toBe('listening');
+
+      finishStop?.();
+      await stopping;
+
+      expect(useAppStore.getState().status).toBe('listening');
+      expect(audioSpyStart).toHaveBeenCalledOnce();
+    } finally {
+      finishStop?.();
+      await Promise.resolve();
+      captureStateSpy.mockRestore();
+      audioSpyStop.mockRestore();
+      audioSpyStart.mockRestore();
+    }
+  });
+
   it('regenerateAnswer dispatches REGENERATE_ACTIVE_ANSWER when a current question exists', () => {
     const engineSpy = vi.spyOn(InterviewEngine, 'handleEvent').mockImplementation(async () => {});
     useAppStore.setState({ currentQuestion: 'Explain CAP theorem in distributed systems' });
