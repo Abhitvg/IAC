@@ -66,6 +66,7 @@ let activeRequestId: string | null = null;
 
 let activeTranscriptionController: AbortController | null = null;
 let activeTranscriptionRequestId: string | null = null;
+let listeningCommandGeneration = 0;
 let pendingQuestionTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingQuestionText = '';
 let pendingQuestionTranscript = '';
@@ -352,6 +353,8 @@ export class InterviewEngine {
           return;
         }
 
+        // Ensure an older asynchronous Stop cannot overwrite a newer Start.
+        const startGeneration = ++listeningCommandGeneration;
         const answerWasActive = store.status === 'analyzing' || store.status === 'generating';
         // A failed microphone can be restarted within the same interview. Keep
         // already-finalized audio and any pending question continuation intact.
@@ -1407,9 +1410,15 @@ export class InterviewEngine {
       }
 
       case 'STOP_LISTENING': {
+        // A later Start request supersedes this stop's post-cleanup UI updates.
+        const stopGeneration = ++listeningCommandGeneration;
         InterviewEngine.clearPendingQuestion();
         InterviewEngine.abortActiveTranscription();
         await audioService.stop(false); // Discard in-progress chunks cleanly
+
+        if (listeningCommandGeneration !== stopGeneration) {
+          break;
+        }
 
         // Decouple audio capture stop from active AI answer generation:
         // If an answer is currently generating or analyzing, do NOT abort generation!
