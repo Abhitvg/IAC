@@ -1680,6 +1680,7 @@ export default function TeleprompterView() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showControlsPopover, setShowControlsPopover] = useState(false);
   const [isWindowAlwaysOnTop, setIsWindowAlwaysOnTop] = useState(false);
+  const [isStealthModeEnabled, setIsStealthModeEnabled] = useState(false);
   const [showConversationSearch, setShowConversationSearch] = useState(false);
 
   useEffect(() => {
@@ -1695,6 +1696,23 @@ export default function TeleprompterView() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const syncContentProtection = async () => {
+      try {
+        const enabled = await window.electronAPI?.isContentProtected?.();
+        if (mounted) setIsStealthModeEnabled(Boolean(enabled));
+      } catch {
+        if (mounted) setIsStealthModeEnabled(false);
+      }
+    };
+    void syncContentProtection();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const [conversationSearchQuery, setConversationSearchQuery] = useState('');
   const shortcutBindings = useMemo(
     () => resolveInterviewShortcutBindings(settings?.shortcuts),
@@ -2358,6 +2376,26 @@ export default function TeleprompterView() {
     setIsWindowAlwaysOnTop(next);
   };
 
+  const handleToggleStealthMode = async () => {
+    const next = !isStealthModeEnabled;
+    try {
+      const applied = await window.electronAPI?.setContentProtection?.(next);
+      if (applied !== true) {
+        throw new Error('Screen-capture protection is unavailable on this platform.');
+      }
+      setIsStealthModeEnabled(next);
+      setToast(
+        next
+          ? 'Stealth mode enabled: OS-level screen-capture protection requested.'
+          : 'Stealth mode disabled.'
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to change screen-capture protection.';
+      setToast('Stealth mode: ' + message);
+    }
+  };
+
   const handlePositionWindowInCorner = async (side: 'left' | 'right') => {
     try {
       const positioned = await window.electronAPI?.positionWindowInCorner?.(side);
@@ -2729,6 +2767,27 @@ export default function TeleprompterView() {
             </button>
             <button
               type="button"
+              onClick={() => void handleToggleStealthMode()}
+              aria-pressed={isStealthModeEnabled}
+              data-testid="stealth-mode-toggle"
+              title="Request OS-level protection against supported screen-capture apps"
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: isStealthModeEnabled
+                  ? 'rgba(16,185,129,0.18)'
+                  : 'rgba(255,255,255,0.055)',
+                color: isStealthModeEnabled ? '#a7f3d0' : '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <Shield size={12} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+              {isStealthModeEnabled ? 'Stealth mode · ON' : 'Stealth mode · OFF'}
+            </button>
+            <button
+              type="button"
               onClick={() => void handleToggleCompactWindow()}
               style={{
                 border: '1px solid rgba(148,163,184,0.22)',
@@ -2829,6 +2888,10 @@ export default function TeleprompterView() {
           <p style={{ marginTop: 10, fontSize: 10, color: '#8290a3', lineHeight: 1.5 }}>
             Shortcut: <strong>⌘⇧O</strong> opens or closes this panel. Use{' '}
             <strong>⌘⌥←</strong> / <strong>⌘⌥→</strong> to move the window.
+          </p>
+          <p style={{ marginTop: 6, fontSize: 10, color: '#8290a3', lineHeight: 1.5 }}>
+            Stealth mode requests OS-level screen-capture protection where supported. It cannot block
+            every screen-sharing or recording method, particularly some newer macOS capture APIs.
           </p>
         </section>
       )}
