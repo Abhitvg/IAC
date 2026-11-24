@@ -311,12 +311,9 @@ export const useAppStore = create<InterviewState>((set, get) => ({
     try {
       localStorage.setItem('teleprompter_opacity', String(normalizedOpacity));
     } catch {}
+    // Keep text and controls fully opaque. The value is applied only to
+    // the Live Interview surfaces in the renderer, not to the native window.
     set({ windowOpacity: normalizedOpacity });
-    try {
-      if (typeof window !== 'undefined' && window.electronAPI?.setWindowOpacity) {
-        void window.electronAPI.setWindowOpacity(normalizedOpacity);
-      }
-    } catch {}
   },
   selectedAudioDeviceId: (() => {
     try {
