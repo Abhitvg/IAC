@@ -88,6 +88,7 @@ async function readErrorBody(response: Response): Promise<string> {
 }
 
 const TRANSCRIPTION_RETRY_DELAYS_MS = [500, 1500] as const;
+const LOCAL_TRANSCRIPTION_TIMEOUT_MS = 60_000;
 const RATE_LIMIT_RETRY_DELAYS_MS = [2000, 5000] as const;
 
 function createTranscriptionAbortError(signal?: AbortSignal): Error {
@@ -345,7 +346,15 @@ async function transcribeLocal(
   formData.append('response_format', 'json');
 
   const endpoint = config.endpoint || 'http://localhost:8080/inference';
-  const response = await fetch(endpoint, { method: 'POST', body: formData, signal });
+  // A stalled local server must not hold the serialized interview queue forever.
+  // Caller cancellation takes precedence over this per-request timeout.
+  const timeoutSignal = AbortSignal.timeout(LOCAL_TRANSCRIPTION_TIMEOUT_MS);
+  const requestSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    body: formData,
+    signal: requestSignal,
+  });
 
   if (!response.ok) {
     const detail = await readErrorBody(response);
