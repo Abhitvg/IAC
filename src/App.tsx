@@ -41,7 +41,6 @@ export default function App() {
     setProfileWizardOpen,
     isRecording,
     isGenerating,
-    windowOpacity,
     isInterviewFocusMode,
     toggleInterviewFocusMode,
   } = useAppStore();
@@ -49,18 +48,6 @@ export default function App() {
   const [currentNav, setCurrentNav] = useState<AppNavId>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
-
-  // Synchronize native Electron window opacity between translucent teleprompter overlay and solid
-  // application shell
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI?.setWindowOpacity) {
-      if (currentNav === 'teleprompter') {
-        window.electronAPI.setWindowOpacity(windowOpacity);
-      } else {
-        window.electronAPI.setWindowOpacity(1.0);
-      }
-    }
-  }, [currentNav, windowOpacity]);
 
   useEffect(() => {
     loadSettings();

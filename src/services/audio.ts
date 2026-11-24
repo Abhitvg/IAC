@@ -348,7 +348,8 @@ export class AudioRecorder {
 
     // stop() invalidates this generation synchronously and serializes cleanup with
     // any later Start action. FAILED is distinct from a user-requested Stop.
-    const stopOperation = this.stop(false, 'FAILED');
+    // Preserve the utterance that was being spoken when the input disappeared.
+    const stopOperation = this.stop(true, 'FAILED');
     const stoppedGeneration = this.captureGeneration;
 
     void stopOperation.then(() => {
@@ -567,9 +568,8 @@ export class AudioRecorder {
       return;
     }
 
-    this.captureState = 'stopping';
-    this.isListening = false;
-
+    // Invalidate further processor callbacks first. When flushing, finalize while
+    // captureState is still active so the interview callback accepts this last segment.
     if (this.isCapturing) {
       if (flush) {
         this.finalizeUtterance();
@@ -581,6 +581,8 @@ export class AudioRecorder {
       }
     }
 
+    this.captureState = 'stopping';
+    this.isListening = false;
     this.onUtteranceCb = null;
     const requestId = this.captureRequestId;
     const captureStartedAt = this.captureStartedAt;

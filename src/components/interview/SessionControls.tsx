@@ -4,9 +4,11 @@ import { InterviewEngine } from '../../services/InterviewEngine';
 import { Mic, MicOff, Play, Send } from 'lucide-react';
 
 export default function SessionControls() {
-  const { status, toggleRecording, analyzeTranscript } = useAppStore();
+  const { diagnosticState, toggleRecording, analyzeTranscript } = useAppStore();
   const [customQuery, setCustomQuery] = useState('');
-  const isListening = status === 'listening';
+  // Answer generation and transcription change status while the microphone
+  // remains active. The physical capture diagnostic is the source of truth.
+  const isListening = diagnosticState.micActive;
 
   const handleSendCustom = (textToSend?: string) => {
     const q = (textToSend || customQuery).trim();

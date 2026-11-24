@@ -62,6 +62,7 @@ import {
   EyeOff,
   Keyboard,
   SlidersHorizontal,
+  Pin,
   X,
   Power,
   Settings as SettingsIcon,
@@ -431,10 +432,12 @@ function BionicGazeHUD({
   bullets,
   sourceText,
   anchorId,
+  backgroundOpacity = 0.96,
 }: {
   bullets: BionicGazeBullet[];
   sourceText?: string;
   anchorId?: string;
+  backgroundOpacity?: number;
 }) {
   const { primary, remaining } = selectPrimaryGlanceableBullets(bullets);
 
@@ -444,7 +447,7 @@ function BionicGazeHUD({
       style={{
         margin: '8px 0 14px 0',
         padding: '12px 14px',
-        background: 'rgba(8, 12, 18, 0.96)',
+        background: 'rgba(8, 12, 18, ' + backgroundOpacity + ')',
         border: '1px solid rgba(148, 163, 184, 0.16)',
         borderRadius: '10px',
         boxShadow: 'none',
@@ -1607,6 +1610,8 @@ export default function TeleprompterView() {
     doneAnswering,
     settings,
     updateSetting,
+    updateDiagnostics,
+    setSettingsOpen,
     answerConfidence,
     predictedFollowUps,
     conversationHistory,
@@ -1626,6 +1631,9 @@ export default function TeleprompterView() {
   } = useAppStore();
 
   const isListening = diagnosticState.micActive;
+  const transcriptionError = /^error:\s*/i.test(diagnosticState.whisperStatus || '')
+    ? diagnosticState.whisperStatus.replace(/^error:\s*/i, '').trim()
+    : '';
   const isGenerating = status === 'analyzing' || status === 'generating';
   const responseModeLabel =
     responseMode === 'coding'
@@ -1671,7 +1679,49 @@ export default function TeleprompterView() {
   const conversationScrollAnchorRef = useRef<{ id: string; offset: number } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showControlsPopover, setShowControlsPopover] = useState(false);
+  const [isWindowAlwaysOnTop, setIsWindowAlwaysOnTop] = useState(false);
+  const [isStealthModeEnabled, setIsStealthModeEnabled] = useState(false);
   const [showConversationSearch, setShowConversationSearch] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    window.electronAPI?.isAlwaysOnTop?.()
+      .then((value) => {
+        if (mounted) setIsWindowAlwaysOnTop(Boolean(value));
+      })
+      .catch(() => {
+        if (mounted) setIsWindowAlwaysOnTop(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const syncContentProtection = async () => {
+      try {
+        const savedPreference = localStorage.getItem('iac_stealth_mode_enabled');
+        if (savedPreference === 'true' || savedPreference === 'false') {
+          const preferred = savedPreference === 'true';
+          const applied = await window.electronAPI?.setContentProtection?.(preferred);
+          if (applied === true) {
+            if (mounted) setIsStealthModeEnabled(preferred);
+            return;
+          }
+        }
+        const enabled = await window.electronAPI?.isContentProtected?.();
+        if (mounted) setIsStealthModeEnabled(Boolean(enabled));
+      } catch {
+        if (mounted) setIsStealthModeEnabled(false);
+      }
+    };
+    void syncContentProtection();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const [conversationSearchQuery, setConversationSearchQuery] = useState('');
   const shortcutBindings = useMemo(
     () => resolveInterviewShortcutBindings(settings?.shortcuts),
@@ -2137,6 +2187,15 @@ export default function TeleprompterView() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key.toLowerCase() === 'o'
+      ) {
+        e.preventDefault();
+        setShowControlsPopover((open) => !open);
+        return;
+      }
       if (e.key === 'Escape') {
         if (showShortcuts || showControlsPopover || showConversationSearch) {
           e.preventDefault();
@@ -2320,6 +2379,48 @@ export default function TeleprompterView() {
     }
   };
 
+  const handleToggleWindowPin = () => {
+    const next = !isWindowAlwaysOnTop;
+    window.electronAPI?.toggleAlwaysOnTop?.();
+    setIsWindowAlwaysOnTop(next);
+  };
+
+  const handleToggleStealthMode = async () => {
+    const next = !isStealthModeEnabled;
+    try {
+      const applied = await window.electronAPI?.setContentProtection?.(next);
+      if (applied !== true) {
+        throw new Error('Screen-capture protection is unavailable on this platform.');
+      }
+      setIsStealthModeEnabled(next);
+      try {
+        localStorage.setItem('iac_stealth_mode_enabled', String(next));
+      } catch {
+        // The native setting still applies for this session if storage is unavailable.
+      }
+      setToast(
+        next
+          ? 'Stealth mode enabled: OS-level screen-capture protection requested.'
+          : 'Stealth mode disabled.'
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to change screen-capture protection.';
+      setToast('Stealth mode: ' + message);
+    }
+  };
+
+  const handlePositionWindowInCorner = async (side: 'left' | 'right') => {
+    try {
+      const positioned = await window.electronAPI?.positionWindowInCorner?.(side);
+      if (!positioned) throw new Error('Window positioning is unavailable.');
+      setIsWindowAlwaysOnTop(true);
+      setShowControlsPopover(false);
+    } catch {
+      setToast('Could not move the overlay to the ' + side + ' corner.');
+    }
+  };
+
   const fontSizes: Record<TeleprompterFontSize, { label: string; size: string; line: string }> = {
     small: { label: 'Small', size: '15px', line: '1.7' },
     medium: { label: 'Medium', size: '18px', line: '1.75' },
@@ -2435,10 +2536,11 @@ export default function TeleprompterView() {
         width: '100%',
         minHeight: 0,
         overflow: 'hidden',
+        position: 'relative',
         color: '#f8fafc',
-        background: 'rgba(5, 7, 11, 0.95)',
-        backdropFilter: 'blur(18px)',
-        WebkitBackdropFilter: 'blur(18px)',
+        background: 'rgba(5, 7, 11, ' + windowOpacity + ')',
+        backdropFilter: 'blur(' + Math.round(windowOpacity * 18) + 'px)',
+        WebkitBackdropFilter: 'blur(' + Math.round(windowOpacity * 18) + 'px)',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
     >
@@ -2451,7 +2553,7 @@ export default function TeleprompterView() {
           gap: 10,
           padding: '10px 14px',
           borderBottom: '1px solid rgba(255,255,255,0.09)',
-          background: 'rgba(9,12,18,0.94)',
+          background: 'rgba(9, 12, 18, ' + windowOpacity + ')',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -2508,6 +2610,30 @@ export default function TeleprompterView() {
           </button>
           <button
             type="button"
+            onClick={() => setShowControlsPopover((open) => !open)}
+            aria-expanded={showControlsPopover}
+            aria-controls="live-interview-controls-panel"
+            title="Live Interview controls (⌘⇧O)"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              border: '1px solid rgba(255,255,255,0.18)',
+              background: showControlsPopover
+              ? 'rgba(99,102,241,0.28)'
+              : 'rgba(255,255,255,0.07)',
+              color: '#e2e8f0',
+              borderRadius: 7,
+              padding: '6px 9px',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+          >
+            <SlidersHorizontal size={13} />
+            <span>Controls</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setShowShortcuts(true)}
             title="Keyboard shortcuts"
             style={{
@@ -2540,6 +2666,331 @@ export default function TeleprompterView() {
           </button>
         </div>
       </header>
+      {showControlsPopover && (
+        <section
+          id="live-interview-controls-panel"
+          role="dialog"
+          aria-label="Live Interview overlay controls"
+          className="teleprompter-nodrag"
+          style={{
+            position: 'absolute',
+            top: 54,
+            right: 12,
+            zIndex: 120,
+            width: 'min(340px, calc(100vw - 24px))',
+            maxHeight: 'calc(100% - 66px)',
+            overflowY: 'auto',
+            boxSizing: 'border-box',
+            padding: 14,
+            border: '1px solid rgba(148,163,184,0.3)',
+            borderRadius: 12,
+            background: 'rgba(8, 12, 19, 0.97)',
+            color: '#e5eaf2',
+            boxShadow: '0 18px 48px rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(18px)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+            }}
+          >
+            <strong style={{ fontSize: 13 }}>Overlay controls</strong>
+            <button
+              type="button"
+              onClick={() => setShowControlsPopover(false)}
+              aria-label="Close overlay controls"
+              style={{
+                border: '1px solid rgba(255,255,255,0.16)',
+                borderRadius: 6,
+                background: 'rgba(255,255,255,0.06)',
+                color: '#e2e8f0',
+                width: 28,
+                height: 28,
+                cursor: 'pointer',
+              }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gap: 7, marginTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <label
+                htmlFor="live-overlay-transparency"
+                style={{ fontSize: 11, color: '#cbd5e1' }}
+              >
+                Background transparency
+              </label>
+              <output
+                htmlFor="live-overlay-transparency"
+                style={{
+                fontSize: 11,
+                color: '#a5b4fc',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+              >
+                {Math.round((1 - windowOpacity) * 100)}%
+              </output>
+            </div>
+            <input
+              id="live-overlay-transparency"
+              type="range"
+              min={0}
+              max={88}
+              step={1}
+              value={Math.round((1 - windowOpacity) * 100)}
+              onChange={(event) => setWindowOpacity(1 - Number(event.target.value) / 100)}
+              aria-label="Live Interview background transparency"
+              style={{ width: '100%', accentColor: '#8b7cff', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: 10, color: '#93a0b2', lineHeight: 1.45 }}>
+              Only panel backgrounds change. Text and controls stay fully opaque.
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 7,
+              marginTop: 13,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => void handleToggleWindowPin()}
+              aria-pressed={isWindowAlwaysOnTop}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: isWindowAlwaysOnTop
+                  ? 'rgba(99,102,241,0.25)'
+                  : 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <Pin size={12} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+              {isWindowAlwaysOnTop ? 'Unpin window' : 'Keep on top'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleToggleStealthMode()}
+              aria-pressed={isStealthModeEnabled}
+              data-testid="stealth-mode-toggle"
+              title="Request OS-level protection against supported screen-capture apps"
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: isStealthModeEnabled
+                  ? 'rgba(16,185,129,0.18)'
+                  : 'rgba(255,255,255,0.055)',
+                color: isStealthModeEnabled ? '#a7f3d0' : '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <Shield size={12} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+              {isStealthModeEnabled ? 'Stealth mode · ON' : 'Stealth mode · OFF'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleToggleCompactWindow()}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Compact / Restore
+            </button>
+            <button
+              type="button"
+              onClick={() => void handlePositionWindowInCorner('left')}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Move to left
+            </button>
+            <button
+              type="button"
+              onClick={() => void handlePositionWindowInCorner('right')}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Move to right
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowControlsPopover(false);
+                toggleInterviewFocusMode();
+              }}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              {isInterviewFocusMode ? 'Exit focus mode' : 'Focus mode'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowControlsPopover(false);
+                setSettingsOpen(true);
+              }}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <SettingsIcon size={12} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+              Settings
+            </button>
+            <button
+              type="button"
+              onClick={() => window.electronAPI?.toggleVisibility?.()}
+              style={{
+                gridColumn: '1 / -1',
+                border: '1px solid rgba(248,113,113,0.3)',
+                borderRadius: 7,
+                background: 'rgba(127,29,29,0.22)',
+                color: '#fecaca',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Hide overlay
+            </button>
+          </div>
+          <p style={{ marginTop: 10, fontSize: 10, color: '#8290a3', lineHeight: 1.5 }}>
+            Shortcut: <strong>⌘⇧O</strong> opens or closes this panel. Use{' '}
+            <strong>⌘⌥←</strong> / <strong>⌘⌥→</strong> to move the window.
+          </p>
+          <p style={{ marginTop: 6, fontSize: 10, color: '#8290a3', lineHeight: 1.5 }}>
+            Stealth mode requests OS-level screen-capture protection where supported. It cannot block
+            every screen-sharing or recording method, particularly some newer macOS capture APIs.
+          </p>
+        </section>
+      )}
+      {transcriptionError && (
+        <section
+          role="alert"
+          aria-live="assertive"
+          aria-label="Speech transcription failure"
+          data-testid="speech-transcription-error"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 14,
+            flexWrap: 'wrap',
+            padding: '12px 16px',
+            background: 'rgba(127, 29, 29, 0.38)',
+            borderBottom: '1px solid rgba(248, 113, 113, 0.45)',
+            color: '#fee2e2',
+          }}
+        >
+          <div style={{ minWidth: 0, flex: '1 1 280px' }}>
+            <strong style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>
+              Speech transcription failed
+            </strong>
+            <p style={{ fontSize: 11, lineHeight: 1.5, margin: '0 0 6px', color: '#fecaca' }}>
+              {isListening
+                ? 'The microphone is active, but this segment could not be transcribed.'
+                : 'This segment could not be transcribed. Check your microphone and speech provider.'}{' '}
+              Repeat the question or enter it manually.
+            </p>
+            <p
+              data-testid="speech-transcription-error-details"
+              style={{
+                margin: 0,
+                fontSize: 11,
+                lineHeight: 1.5,
+                color: '#fef2f2',
+                whiteSpace: 'pre-wrap',
+                overflowWrap: 'anywhere',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              }}
+            >
+              {transcriptionError}
+            </p>
+          </div>
+          <div className="teleprompter-nodrag" style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              style={{
+                border: '1px solid rgba(252, 165, 165, 0.5)',
+                borderRadius: 7,
+                padding: '6px 9px',
+                background: 'rgba(127, 29, 29, 0.5)',
+                color: '#fff1f2',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Speech settings
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                updateDiagnostics({
+                  whisperStatus: isListening ? 'Listening' : 'idle',
+                })
+              }
+              aria-label="Dismiss speech transcription error"
+              style={{
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 7,
+                padding: '6px 9px',
+                background: 'rgba(15, 23, 42, 0.55)',
+                color: '#e2e8f0',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </section>
+      )}
       <div
         ref={conversationScrollRef}
         onScroll={(event) => {
@@ -2579,7 +3030,7 @@ export default function TeleprompterView() {
                 <div
                   style={{
                     maxWidth: '88%',
-                    background: 'rgba(39,50,67,0.82)',
+                    background: 'rgba(39, 50, 67, ' + windowOpacity + ')',
                     border: '1px solid rgba(148,163,184,0.14)',
                     borderRadius: '16px 16px 4px 16px',
                     padding: '11px 14px',
@@ -2600,6 +3051,7 @@ export default function TeleprompterView() {
                         bullets={presentation.bullets}
                         sourceText={item.answer}
                         anchorId={conversationId + '-answer'}
+                        backgroundOpacity={windowOpacity}
                       />
                     ) : (
                       <div
@@ -2646,7 +3098,7 @@ export default function TeleprompterView() {
             <div
               style={{
                 maxWidth: '88%',
-                background: 'rgba(39,50,67,0.82)',
+                background: 'rgba(39, 50, 67, ' + windowOpacity + ')',
                 border: '1px solid rgba(148,163,184,0.14)',
                 borderRadius: '16px 16px 4px 16px',
                 padding: '11px 14px',
@@ -2668,7 +3120,9 @@ export default function TeleprompterView() {
               maxWidth: 840,
               boxSizing: 'border-box',
               padding: isBionicGazeMode ? 0 : '16px 18px',
-              background: isBionicGazeMode ? 'transparent' : 'rgba(8, 12, 18, 0.96)',
+              background: isBionicGazeMode
+                ? 'transparent'
+                : 'rgba(8, 12, 18, ' + windowOpacity + ')',
               border: isBionicGazeMode ? 'none' : '1px solid rgba(148, 163, 184, 0.16)',
               borderRadius: isBionicGazeMode ? 0 : 12,
               color: '#e5eaf2',
@@ -2683,7 +3137,11 @@ export default function TeleprompterView() {
                 const answerText = currentAnswer || draftAnswer;
                 const presentation = getBionicAnswerPresentation(answerText);
                 return presentation.bullets.length > 0 ? (
-                  <BionicGazeHUD bullets={presentation.bullets} sourceText={answerText} />
+                  <BionicGazeHUD
+                    bullets={presentation.bullets}
+                    sourceText={answerText}
+                    backgroundOpacity={windowOpacity}
+                  />
                 ) : (
                   <InterviewAnswerMarkdown content={presentation.fallbackText || answerText} />
                 );
@@ -2797,7 +3255,7 @@ export default function TeleprompterView() {
         className="teleprompter-nodrag"
         style={{
           borderTop: '1px solid rgba(255,255,255,0.09)',
-          background: 'rgba(8,11,16,0.88)',
+          background: 'rgba(8, 11, 16, ' + windowOpacity + ')',
           padding: '10px 14px',
           display: 'flex',
           flexDirection: 'column',

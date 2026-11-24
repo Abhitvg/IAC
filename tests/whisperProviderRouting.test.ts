@@ -31,6 +31,18 @@ describe('live transcription provider routing', () => {
       'I used AWS CodePipeline (with manual approvals).'
     );
   });
+
+  it('does not rewrite acoustically similar ordinary phrases into AWS product names', () => {
+    expect(postProcessTranscript('The cold pipeline failed during the test.')).toBe(
+      'The cold pipeline failed during the test.'
+    );
+    expect(postProcessTranscript('Please call the pipeline after deployment.')).toBe(
+      'Please call the pipeline after deployment.'
+    );
+    expect(postProcessTranscript('The court pipeline is part of the data workflow.')).toBe(
+      'The court pipeline is part of the data workflow.'
+    );
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -64,7 +76,41 @@ describe('live transcription provider routing', () => {
     expect(result.text).toBe('local transcript');
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8080/inference');
+    const localPrompt = fetchMock.mock.calls[0][1].body as FormData;
+    expect(localPrompt.get('prompt')).not.toContain('AWS CodePipeline, AWS, Kubernetes');
     expect(transcribeCloudAudio).not.toHaveBeenCalled();
+  });
+
+  it('aborts a stalled local Whisper request when the interview request is cancelled', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          const requestSignal = init?.signal;
+          requestSignal?.addEventListener(
+            'abort',
+            () => reject(requestSignal.reason || new DOMException('Aborted', 'AbortError')),
+            { once: true }
+          );
+        })
+    );
+    vi.stubGlobal('window', { electronAPI: createElectronApi() });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const pending = transcribeAudio(
+      createAudioBlob(),
+      { aiProvider: 'ollama', whisperModel: 'local-whisper-cpp' },
+      controller.signal
+    );
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const requestSignal = fetchMock.mock.calls[0][1]?.signal;
+    expect(requestSignal).toBeDefined();
+    expect(requestSignal?.aborted).toBe(false);
+
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it('routes OpenAI transcription through Electron main without exposing the key', async () => {
@@ -84,6 +130,9 @@ describe('live transcription provider routing', () => {
       provider: 'openai',
       model: 'whisper-1',
     });
+    expect(transcribeCloudAudio.mock.calls[0][0].prompt).not.toContain(
+      'AWS CodePipeline, AWS, Kubernetes'
+    );
     expect(transcribeCloudAudio.mock.calls[0][0].audio).toBeInstanceOf(Uint8Array);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -119,7 +168,7 @@ describe('live transcription provider routing', () => {
       model: 'whisper-large-v3-turbo',
     });
     expect(transcribeCloudAudio.mock.calls[0][0].prompt).toContain(
-      'Technical interview discussion'
+      'Relevant interview vocabulary:'
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });

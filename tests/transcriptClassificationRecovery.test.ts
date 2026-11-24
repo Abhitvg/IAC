@@ -193,6 +193,74 @@ describe('Suite A: Transcript Classification & Recovery', () => {
     }
   });
 
+  it('continues processing later speech after an earlier segment fails transcription', async () => {
+    InterviewEngine.abortActiveTranscription();
+    vi.mocked(transcribeAudio).mockReset();
+    const captureStateSpy = vi
+      .spyOn(AudioRecorder.getInstance(), 'getCaptureState')
+      .mockReturnValue('active');
+
+    vi.mocked(transcribeAudio)
+      .mockRejectedValueOnce(new Error('temporary transcription provider failure'))
+      .mockResolvedValueOnce({ text: 'Thank you.' });
+
+    const first = InterviewEngine.enqueueFinalizedUtterance(new Blob([new Uint8Array(512)]));
+    const second = InterviewEngine.enqueueFinalizedUtterance(new Blob([new Uint8Array(512)]));
+
+    try {
+      await Promise.all([first, second]);
+
+      expect(transcribeAudio).toHaveBeenCalledTimes(2);
+      expect(useAppStore.getState().diagnosticState.whisperStatus).toContain(
+        'Conversational filler ignored'
+      );
+      expect(useAppStore.getState().status).toBe('listening');
+    } finally {
+      captureStateSpy.mockRestore();
+      InterviewEngine.abortActiveTranscription();
+      vi.mocked(transcribeAudio).mockReset();
+    }
+  });
+
+  it('processes already-finalized audio after the microphone disconnects', async () => {
+    InterviewEngine.abortActiveTranscription();
+    vi.mocked(transcribeAudio).mockReset();
+    const captureStateSpy = vi
+      .spyOn(AudioRecorder.getInstance(), 'getCaptureState')
+      .mockReturnValue('active');
+    let resolveFirst: ((result: Awaited<ReturnType<typeof transcribeAudio>>) => void) | undefined;
+
+    vi.mocked(transcribeAudio)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          })
+      )
+      .mockResolvedValueOnce({ text: 'Thank you.' });
+
+    const first = InterviewEngine.enqueueFinalizedUtterance(new Blob([new Uint8Array(512)]));
+    const second = InterviewEngine.enqueueFinalizedUtterance(new Blob([new Uint8Array(512)]));
+
+    try {
+      await vi.waitFor(() => expect(transcribeAudio).toHaveBeenCalledTimes(1));
+      captureStateSpy.mockReturnValue('error');
+      resolveFirst?.({ text: 'Thank you.' });
+      await Promise.all([first, second]);
+
+      expect(transcribeAudio).toHaveBeenCalledTimes(2);
+      expect(useAppStore.getState().diagnosticState.whisperStatus).toContain(
+        'Conversational filler ignored'
+      );
+    } finally {
+      resolveFirst?.({ text: 'Thank you.' });
+      await Promise.allSettled([first, second]);
+      captureStateSpy.mockRestore();
+      InterviewEngine.abortActiveTranscription();
+      vi.mocked(transcribeAudio).mockReset();
+    }
+  });
+
   it('preserves later queued speech when dispatching an automatically recognized question', async () => {
     const handleEventSpy = vi.spyOn(InterviewEngine, 'handleEvent').mockResolvedValue(undefined);
 

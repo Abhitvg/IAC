@@ -15,6 +15,7 @@ import { resolvePendingQuestionContinuation } from './pendingQuestionContinuatio
 import { transcribeAudio } from './whisper';
 import { AnswerGenerationService } from './AnswerGenerationService';
 import { DiagnosticLoggerService } from './diagnosticLogger';
+import { sanitizeDiagnosticSecret } from './models/modelRegistry';
 import {
   isQuestionShapedSpeech,
   shouldAutoRouteUncertainQuestion,
@@ -55,13 +56,18 @@ export type EngineEvent =
 
 const audioService = AudioRecorder.getInstance();
 const answerService = AnswerGenerationService.getInstance();
-const finalizedUtteranceQueue = new SerializedTaskQueue(8);
+// A short interview can produce several finalized segments while a provider is
+// responding slowly. Keep a larger bounded FIFO so normal latency spikes do not
+// discard captured questions; explicit overload is still surfaced to the user.
+export const MAX_PENDING_UTTERANCE_TRANSCRIPTIONS = 32;
+const finalizedUtteranceQueue = new SerializedTaskQueue(MAX_PENDING_UTTERANCE_TRANSCRIPTIONS);
 
 let activeAbortController: AbortController | null = null;
 let activeRequestId: string | null = null;
 
 let activeTranscriptionController: AbortController | null = null;
 let activeTranscriptionRequestId: string | null = null;
+let listeningCommandGeneration = 0;
 let pendingQuestionTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingQuestionText = '';
 let pendingQuestionTranscript = '';
@@ -275,10 +281,10 @@ export class InterviewEngine {
   static enqueueFinalizedUtterance(blob: Blob): Promise<void> {
     return finalizedUtteranceQueue
       .enqueue(async () => {
-        if (
-          audioService.getCaptureState() !== 'active' ||
-          useAppStore.getState().status === 'idle'
-        ) {
+        // Once finalized, audio belongs to the interview queue even if the
+        // physical input disconnects. Explicit Stop invalidates queued work and
+        // sets the store idle; a device failure must not discard captured segments.
+        if (useAppStore.getState().status === 'idle') {
           return;
         }
         await InterviewEngine.handleEvent({ type: 'UTTERANCE_FINALIZED', blob });
@@ -348,9 +354,15 @@ export class InterviewEngine {
           return;
         }
 
+        // Ensure an older asynchronous Stop cannot overwrite a newer Start.
+        const startCommandGeneration = ++listeningCommandGeneration;
         const answerWasActive = store.status === 'analyzing' || store.status === 'generating';
-        InterviewEngine.clearPendingQuestion();
-        InterviewEngine.abortActiveTranscription();
+        // A failed microphone can be restarted within the same interview. Keep
+        // already-finalized audio and any pending question continuation intact.
+        if (captureState !== 'error' && captureState !== 'stopping') {
+          InterviewEngine.clearPendingQuestion();
+          InterviewEngine.abortActiveTranscription();
+        }
         globalLatencyTracker.mark('speechStart');
 
         // Starting the microphone must not cancel or overwrite an answer already in flight.
@@ -365,7 +377,7 @@ export class InterviewEngine {
             // Guard: If capture was stopped while an utterance was finalizing, ignore
             if (
               useAppStore.getState().status === 'idle' ||
-              audioService.getCaptureState() === 'stopped'
+              ['stopping', 'stopped'].includes(audioService.getCaptureState())
             ) {
               return;
             }
@@ -398,6 +410,8 @@ export class InterviewEngine {
             }
           });
         } catch (e: any) {
+          // Ignore a stale startup failure if a newer Start or Stop command won.
+          if (listeningCommandGeneration !== startCommandGeneration) return;
           const currentStore = useAppStore.getState();
           currentStore.updateDiagnostics({
             whisperStatus: 'Mic error: ' + (e?.message || e),
@@ -564,6 +578,7 @@ export class InterviewEngine {
           }
           postTranscriptionState.updateDiagnostics({
             latestTranscript: text,
+            whisperStatus: 'transcription successful',
           });
 
           DiagnosticLoggerService.getInstance().recordEvent({
@@ -772,6 +787,9 @@ export class InterviewEngine {
         } catch (e: any) {
           const isAbort = e?.name === 'AbortError';
           const isEmptyTranscript = String(e?.message || e).includes('[TRANSCRIPTION_EMPTY]');
+          const transcriptionErrorMessage = sanitizeDiagnosticSecret(
+            e instanceof Error ? e.message : String(e || 'Unknown transcription error')
+          ).slice(0, 1200);
           DiagnosticLoggerService.getInstance().recordEvent({
             requestId,
             pipelineStage: 'failed',
@@ -783,14 +801,14 @@ export class InterviewEngine {
               ? 'Speech transcription was cancelled.'
               : isEmptyTranscript
                 ? 'Speech transcription returned no usable text.'
-                : 'Speech transcription failed; details remain in local diagnostics.',
+                : `Speech transcription failed: ${transcriptionErrorMessage}`,
           });
           const ownsTranscription =
             activeTranscriptionRequestId === requestId && !transcriptionController.signal.aborted;
           if (!isAbort && ownsTranscription) {
             const state = useAppStore.getState();
             state.updateDiagnostics({
-              whisperStatus: 'error: ' + (e?.message || e),
+              whisperStatus: 'error: ' + transcriptionErrorMessage,
             });
             console.error('[InterviewEngine] Transcription error:', e);
             const transcriptionStillOwnsUi =
@@ -799,11 +817,10 @@ export class InterviewEngine {
                 state.status
               );
             if (transcriptionStillOwnsUi) {
-              state.setToast(
-                isEmptyTranscript
-                  ? 'No speech was recognized. Repeat the question or enter it manually.'
-                  : 'Speech transcription failed. Please retry or enter the question manually.'
-              );
+              const toastMessage = isEmptyTranscript
+                ? 'No speech was recognized. Repeat the question or enter it manually.'
+                : `Speech transcription failed: ${transcriptionErrorMessage.slice(0, 180)}`;
+              state.setToast(toastMessage);
               state.setStatus('listening');
               state.setPipelineStage('listening');
             }
@@ -1399,9 +1416,15 @@ export class InterviewEngine {
       }
 
       case 'STOP_LISTENING': {
+        // A later Start request supersedes this stop's post-cleanup UI updates.
+        const stopGeneration = ++listeningCommandGeneration;
         InterviewEngine.clearPendingQuestion();
         InterviewEngine.abortActiveTranscription();
         await audioService.stop(false); // Discard in-progress chunks cleanly
+
+        if (listeningCommandGeneration !== stopGeneration) {
+          break;
+        }
 
         // Decouple audio capture stop from active AI answer generation:
         // If an answer is currently generating or analyzing, do NOT abort generation!

@@ -297,20 +297,23 @@ export const useAppStore = create<InterviewState>((set, get) => ({
   windowOpacity: (() => {
     try {
       const saved = localStorage.getItem('teleprompter_opacity');
-      if (saved) return parseFloat(saved);
+      if (saved) {
+        const parsed = Number.parseFloat(saved);
+        if (Number.isFinite(parsed)) return Math.min(1, Math.max(0.12, parsed));
+      }
     } catch {}
     return 0.35;
   })(),
   setWindowOpacity: (windowOpacity) => {
+    const normalizedOpacity = Number.isFinite(windowOpacity)
+      ? Math.min(1, Math.max(0.12, windowOpacity))
+      : 0.35;
     try {
-      localStorage.setItem('teleprompter_opacity', String(windowOpacity));
+      localStorage.setItem('teleprompter_opacity', String(normalizedOpacity));
     } catch {}
-    set({ windowOpacity });
-    try {
-      if (typeof window !== 'undefined' && window.electronAPI?.setWindowOpacity) {
-        window.electronAPI.setWindowOpacity(windowOpacity);
-      }
-    } catch {}
+    // Keep text and controls fully opaque. The value is applied only to
+    // the Live Interview surfaces in the renderer, not to the native window.
+    set({ windowOpacity: normalizedOpacity });
   },
   selectedAudioDeviceId: (() => {
     try {

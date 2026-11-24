@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getWindowSize: () => ipcRenderer.invoke('window:get-size'),
   setWindowPosition: (x: number, y: number) => ipcRenderer.invoke('window:set-position', x, y),
   getWindowPosition: () => ipcRenderer.invoke('window:get-position'),
+  positionWindowInCorner: (side: 'left' | 'right') =>
+    ipcRenderer.invoke('window:position-corner', side),
   setIgnoreMouseEvents: (ignore: boolean, options?: { forward?: boolean }) =>
     ipcRenderer.invoke('window:set-ignore-mouse-events', ignore, options),
 
