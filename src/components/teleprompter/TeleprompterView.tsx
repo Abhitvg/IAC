@@ -62,6 +62,7 @@ import {
   EyeOff,
   Keyboard,
   SlidersHorizontal,
+  Pin,
   X,
   Power,
   Settings as SettingsIcon,
@@ -431,10 +432,12 @@ function BionicGazeHUD({
   bullets,
   sourceText,
   anchorId,
+  backgroundOpacity = 0.96,
 }: {
   bullets: BionicGazeBullet[];
   sourceText?: string;
   anchorId?: string;
+  backgroundOpacity?: number;
 }) {
   const { primary, remaining } = selectPrimaryGlanceableBullets(bullets);
 
@@ -444,7 +447,7 @@ function BionicGazeHUD({
       style={{
         margin: '8px 0 14px 0',
         padding: '12px 14px',
-        background: 'rgba(8, 12, 18, 0.96)',
+        background: 'rgba(8, 12, 18, ' + backgroundOpacity + ')',
         border: '1px solid rgba(148, 163, 184, 0.16)',
         borderRadius: '10px',
         boxShadow: 'none',
@@ -1676,7 +1679,16 @@ export default function TeleprompterView() {
   const conversationScrollAnchorRef = useRef<{ id: string; offset: number } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showControlsPopover, setShowControlsPopover] = useState(false);
+  const [isWindowAlwaysOnTop, setIsWindowAlwaysOnTop] = useState(false);
   const [showConversationSearch, setShowConversationSearch] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    window.electronAPI?.isAlwaysOnTop?.()
+      .then((value) => { if (mounted) setIsWindowAlwaysOnTop(Boolean(value)); })
+      .catch(() => { if (mounted) setIsWindowAlwaysOnTop(false); });
+    return () => { mounted = false; };
+  }, []);
   const [conversationSearchQuery, setConversationSearchQuery] = useState('');
   const shortcutBindings = useMemo(
     () => resolveInterviewShortcutBindings(settings?.shortcuts),
@@ -2325,6 +2337,26 @@ export default function TeleprompterView() {
     }
   };
 
+  const handleToggleWindowPin = async () => {
+    try {
+      window.electronAPI?.toggleAlwaysOnTop?.();
+      const next = await window.electronAPI?.isAlwaysOnTop?.();
+      setIsWindowAlwaysOnTop(Boolean(next));
+    } catch {
+      setToast('Could not change the overlay pin state.');
+    }
+  };
+
+  const handlePositionWindowInCorner = async (side: 'left' | 'right') => {
+    try {
+      const positioned = await window.electronAPI?.positionWindowInCorner?.(side);
+      if (!positioned) throw new Error('Window positioning is unavailable.');
+      setShowControlsPopover(false);
+    } catch {
+      setToast('Could not move the overlay to the ' + side + ' corner.');
+    }
+  };
+
   const fontSizes: Record<TeleprompterFontSize, { label: string; size: string; line: string }> = {
     small: { label: 'Small', size: '15px', line: '1.7' },
     medium: { label: 'Medium', size: '18px', line: '1.75' },
@@ -2440,8 +2472,9 @@ export default function TeleprompterView() {
         width: '100%',
         minHeight: 0,
         overflow: 'hidden',
+        position: 'relative',
         color: '#f8fafc',
-        background: 'rgba(5, 7, 11, 0.95)',
+        background: 'rgba(5, 7, 11, ' + windowOpacity + ')',
         backdropFilter: 'blur(18px)',
         WebkitBackdropFilter: 'blur(18px)',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -2456,7 +2489,7 @@ export default function TeleprompterView() {
           gap: 10,
           padding: '10px 14px',
           borderBottom: '1px solid rgba(255,255,255,0.09)',
-          background: 'rgba(9,12,18,0.94)',
+          background: 'rgba(9, 12, 18, ' + windowOpacity + ')',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -2666,7 +2699,7 @@ export default function TeleprompterView() {
                 <div
                   style={{
                     maxWidth: '88%',
-                    background: 'rgba(39,50,67,0.82)',
+                    background: 'rgba(39, 50, 67, ' + windowOpacity + ')',
                     border: '1px solid rgba(148,163,184,0.14)',
                     borderRadius: '16px 16px 4px 16px',
                     padding: '11px 14px',
@@ -2687,6 +2720,7 @@ export default function TeleprompterView() {
                         bullets={presentation.bullets}
                         sourceText={item.answer}
                         anchorId={conversationId + '-answer'}
+                        backgroundOpacity={windowOpacity}
                       />
                     ) : (
                       <div
@@ -2733,7 +2767,7 @@ export default function TeleprompterView() {
             <div
               style={{
                 maxWidth: '88%',
-                background: 'rgba(39,50,67,0.82)',
+                background: 'rgba(39, 50, 67, ' + windowOpacity + ')',
                 border: '1px solid rgba(148,163,184,0.14)',
                 borderRadius: '16px 16px 4px 16px',
                 padding: '11px 14px',
@@ -2755,7 +2789,7 @@ export default function TeleprompterView() {
               maxWidth: 840,
               boxSizing: 'border-box',
               padding: isBionicGazeMode ? 0 : '16px 18px',
-              background: isBionicGazeMode ? 'transparent' : 'rgba(8, 12, 18, 0.96)',
+              background: isBionicGazeMode ? 'transparent' : 'rgba(8, 12, 18, ' + windowOpacity + ')',
               border: isBionicGazeMode ? 'none' : '1px solid rgba(148, 163, 184, 0.16)',
               borderRadius: isBionicGazeMode ? 0 : 12,
               color: '#e5eaf2',
@@ -2770,7 +2804,7 @@ export default function TeleprompterView() {
                 const answerText = currentAnswer || draftAnswer;
                 const presentation = getBionicAnswerPresentation(answerText);
                 return presentation.bullets.length > 0 ? (
-                  <BionicGazeHUD bullets={presentation.bullets} sourceText={answerText} />
+                  <BionicGazeHUD bullets={presentation.bullets} sourceText={answerText} backgroundOpacity={windowOpacity} />
                 ) : (
                   <InterviewAnswerMarkdown content={presentation.fallbackText || answerText} />
                 );
@@ -2884,7 +2918,7 @@ export default function TeleprompterView() {
         className="teleprompter-nodrag"
         style={{
           borderTop: '1px solid rgba(255,255,255,0.09)',
-          background: 'rgba(8,11,16,0.88)',
+          background: 'rgba(8, 11, 16, ' + windowOpacity + ')',
           padding: '10px 14px',
           display: 'flex',
           flexDirection: 'column',
