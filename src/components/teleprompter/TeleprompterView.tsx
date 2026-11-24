@@ -1701,6 +1701,15 @@ export default function TeleprompterView() {
     let mounted = true;
     const syncContentProtection = async () => {
       try {
+        const savedPreference = localStorage.getItem('iac_stealth_mode_enabled');
+        if (savedPreference === 'true' || savedPreference === 'false') {
+          const preferred = savedPreference === 'true';
+          const applied = await window.electronAPI?.setContentProtection?.(preferred);
+          if (applied === true) {
+            if (mounted) setIsStealthModeEnabled(preferred);
+            return;
+          }
+        }
         const enabled = await window.electronAPI?.isContentProtected?.();
         if (mounted) setIsStealthModeEnabled(Boolean(enabled));
       } catch {
@@ -2384,6 +2393,11 @@ export default function TeleprompterView() {
         throw new Error('Screen-capture protection is unavailable on this platform.');
       }
       setIsStealthModeEnabled(next);
+      try {
+        localStorage.setItem('iac_stealth_mode_enabled', String(next));
+      } catch {
+        // The native setting still applies for this session if storage is unavailable.
+      }
       setToast(
         next
           ? 'Stealth mode enabled: OS-level screen-capture protection requested.'
