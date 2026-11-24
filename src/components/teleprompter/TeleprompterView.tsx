@@ -1607,6 +1607,8 @@ export default function TeleprompterView() {
     doneAnswering,
     settings,
     updateSetting,
+    updateDiagnostics,
+    setSettingsOpen,
     answerConfidence,
     predictedFollowUps,
     conversationHistory,
@@ -1626,6 +1628,9 @@ export default function TeleprompterView() {
   } = useAppStore();
 
   const isListening = diagnosticState.micActive;
+  const transcriptionError = /^error:\s*/i.test(diagnosticState.whisperStatus || '')
+    ? diagnosticState.whisperStatus.replace(/^error:\s*/i, '').trim()
+    : '';
   const isGenerating = status === 'analyzing' || status === 'generating';
   const responseModeLabel =
     responseMode === 'coding'
@@ -2540,6 +2545,84 @@ export default function TeleprompterView() {
           </button>
         </div>
       </header>
+      {transcriptionError && (
+        <section
+          role="alert"
+          aria-live="assertive"
+          aria-label="Speech transcription failure"
+          data-testid="speech-transcription-error"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 14,
+            flexWrap: 'wrap',
+            padding: '12px 16px',
+            background: 'rgba(127, 29, 29, 0.38)',
+            borderBottom: '1px solid rgba(248, 113, 113, 0.45)',
+            color: '#fee2e2',
+          }}
+        >
+          <div style={{ minWidth: 0, flex: '1 1 280px' }}>
+            <strong style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>
+              Speech transcription failed
+            </strong>
+            <p style={{ fontSize: 11, lineHeight: 1.5, margin: '0 0 6px', color: '#fecaca' }}>
+              {isListening
+                ? 'The microphone is still active, but this speech segment could not be converted to text.'
+                : 'This speech segment could not be converted to text. Check your microphone and transcription provider.'}{' '}
+              Repeat the question or enter it manually.
+            </p>
+            <p
+              data-testid="speech-transcription-error-details"
+              style={{
+                margin: 0,
+                fontSize: 11,
+                lineHeight: 1.5,
+                color: '#fef2f2',
+                whiteSpace: 'pre-wrap',
+                overflowWrap: 'anywhere',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              }}
+            >
+              {transcriptionError}
+            </p>
+          </div>
+          <div className="teleprompter-nodrag" style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              style={{
+                border: '1px solid rgba(252, 165, 165, 0.5)',
+                borderRadius: 7,
+                padding: '6px 9px',
+                background: 'rgba(127, 29, 29, 0.5)',
+                color: '#fff1f2',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Speech settings
+            </button>
+            <button
+              type="button"
+              onClick={() => updateDiagnostics({ whisperStatus: isListening ? 'Listening' : 'idle' })}
+              aria-label="Dismiss speech transcription error"
+              style={{
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 7,
+                padding: '6px 9px',
+                background: 'rgba(15, 23, 42, 0.55)',
+                color: '#e2e8f0',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </section>
+      )}
       <div
         ref={conversationScrollRef}
         onScroll={(event) => {
