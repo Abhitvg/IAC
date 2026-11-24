@@ -578,6 +578,7 @@ export class InterviewEngine {
           }
           postTranscriptionState.updateDiagnostics({
             latestTranscript: text,
+            whisperStatus: 'transcription successful',
           });
 
           DiagnosticLoggerService.getInstance().recordEvent({
