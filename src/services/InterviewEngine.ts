@@ -354,7 +354,7 @@ export class InterviewEngine {
         }
 
         // Ensure an older asynchronous Stop cannot overwrite a newer Start.
-        listeningCommandGeneration += 1;
+        const startCommandGeneration = ++listeningCommandGeneration;
         const answerWasActive = store.status === 'analyzing' || store.status === 'generating';
         // A failed microphone can be restarted within the same interview. Keep
         // already-finalized audio and any pending question continuation intact.
@@ -409,6 +409,8 @@ export class InterviewEngine {
             }
           });
         } catch (e: any) {
+          // Ignore a stale startup failure if a newer Start or Stop command won.
+          if (listeningCommandGeneration !== startCommandGeneration) return;
           const currentStore = useAppStore.getState();
           currentStore.updateDiagnostics({
             whisperStatus: 'Mic error: ' + (e?.message || e),
