@@ -81,6 +81,38 @@ describe('live transcription provider routing', () => {
     expect(transcribeCloudAudio).not.toHaveBeenCalled();
   });
 
+  it('aborts a stalled local Whisper request when the interview request is cancelled', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          const requestSignal = init?.signal;
+          requestSignal?.addEventListener(
+            'abort',
+            () => reject(requestSignal.reason || new DOMException('Aborted', 'AbortError')),
+            { once: true }
+          );
+        })
+    );
+    vi.stubGlobal('window', { electronAPI: createElectronApi() });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const pending = transcribeAudio(
+      createAudioBlob(),
+      { aiProvider: 'ollama', whisperModel: 'local-whisper-cpp' },
+      controller.signal
+    );
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const requestSignal = fetchMock.mock.calls[0][1]?.signal;
+    expect(requestSignal).toBeDefined();
+    expect(requestSignal?.aborted).toBe(false);
+
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it('routes OpenAI transcription through Electron main without exposing the key', async () => {
     const transcribeCloudAudio = vi.fn().mockResolvedValue({ text: 'openai transcript' });
     vi.stubGlobal('window', { electronAPI: createElectronApi(transcribeCloudAudio) });
