@@ -554,6 +554,15 @@ ipcMain.handle('window:get-position', (event) => {
   return { x, y };
 });
 
+ipcMain.handle('window:position-corner', (event, side: unknown) => {
+  if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
+  if (side !== 'left' && side !== 'right') {
+    throw new Error('Invalid corner position. Expected "left" or "right".');
+  }
+  positionWindowInCorner(side);
+  return true;
+});
+
 ipcMain.handle(
   'window:set-ignore-mouse-events',
   (event, ignore: boolean, options?: { forward?: boolean }) => {
