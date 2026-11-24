@@ -247,6 +247,83 @@ describe('audio capture diagnostics', () => {
     ).toEqual(['STARTING', 'ACTIVE', 'STOPPED']);
   });
 
+  it('keeps one microphone stream active across multiple finalized speech segments', async () => {
+    vi.useFakeTimers();
+    const stopTrack = vi.fn();
+    const track = { stop: stopTrack } as unknown as MediaStreamTrack;
+    const stream = {
+      getTracks: () => [track],
+    } as unknown as MediaStream;
+    const getUserMedia = vi.fn().mockResolvedValue(stream);
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+
+    const processorNode = {
+      onaudioprocess: null as ((event: AudioProcessingEvent) => void) | null,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    const sourceNode = { connect: vi.fn(), disconnect: vi.fn() };
+    const gainNode = {
+      gain: { value: 1 },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+
+    class ActiveAudioContext {
+      state: AudioContextState = 'running';
+      sampleRate = 48000;
+      destination = {} as AudioDestinationNode;
+      resume = vi.fn(async () => undefined);
+      close = vi.fn(async () => {
+        this.state = 'closed';
+      });
+      createMediaStreamSource = vi.fn(() => sourceNode);
+      createScriptProcessor = vi.fn(() => processorNode);
+      createGain = vi.fn(() => gainNode);
+    }
+
+    vi.stubGlobal('window', { AudioContext: ActiveAudioContext });
+    const finalizedSegments: Blob[] = [];
+    const recorder = new AudioRecorder();
+
+    const sendFrame = (amplitude: number) => {
+      const samples = new Float32Array(1024).fill(amplitude);
+      processorNode.onaudioprocess?.({
+        inputBuffer: { getChannelData: () => samples },
+      } as unknown as AudioProcessingEvent);
+      vi.advanceTimersByTime(25);
+    };
+
+    const speakThenPause = () => {
+      // Four frames confirm speech start (60ms VAD confirmation), followed by
+      // enough silence to cross the configured 1-second utterance boundary.
+      for (let frame = 0; frame < 5; frame += 1) sendFrame(0.1);
+      for (let frame = 0; frame < 45; frame += 1) sendFrame(0);
+    };
+
+    try {
+      await recorder.start((blob) => finalizedSegments.push(blob));
+      expect(recorder.getCaptureState()).toBe('active');
+      speakThenPause();
+
+      expect(finalizedSegments).toHaveLength(1);
+      expect(recorder.getCaptureState()).toBe('active');
+
+      speakThenPause();
+
+      expect(finalizedSegments).toHaveLength(2);
+      expect(finalizedSegments.every((blob) => blob.size > 500)).toBe(true);
+      expect(recorder.getCaptureState()).toBe('active');
+      expect(getUserMedia).toHaveBeenCalledOnce();
+    } finally {
+      await recorder.stop();
+      vi.useRealTimers();
+    }
+
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(recorder.getCaptureState()).toBe('stopped');
+  });
+
   it('marks capture failed and releases resources when the physical audio track ends', async () => {
     let endedListener: (() => void) | undefined;
     const trackStop = vi.fn();
