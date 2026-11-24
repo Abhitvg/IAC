@@ -160,6 +160,39 @@ describe('State, Lifecycle & Engine Coordination Suite', () => {
     }
   });
 
+  it('ignores a stale microphone startup failure after a newer Stop command', async () => {
+    const recorder = AudioRecorder.getInstance();
+    const captureStateSpy = vi.spyOn(recorder, 'getCaptureState').mockReturnValue('error');
+    let rejectStart: ((error: Error) => void) | undefined;
+    const audioSpyStart = vi.spyOn(recorder, 'start').mockImplementation(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectStart = reject;
+        })
+    );
+    const audioSpyStop = vi.spyOn(recorder, 'stop').mockResolvedValue(undefined);
+
+    try {
+      const starting = InterviewEngine.handleEvent({ type: 'START_LISTENING' });
+      await vi.waitFor(() => expect(audioSpyStart).toHaveBeenCalledOnce());
+
+      await InterviewEngine.handleEvent({ type: 'STOP_LISTENING' });
+      expect(useAppStore.getState().status).toBe('idle');
+
+      rejectStart?.(new Error('late microphone permission failure'));
+      await starting;
+
+      expect(useAppStore.getState().status).toBe('idle');
+      expect(useAppStore.getState().toast).toContain('Audio recording stopped');
+      expect(audioSpyStop).toHaveBeenCalledOnce();
+    } finally {
+      rejectStart?.(new Error('cleanup'));
+      captureStateSpy.mockRestore();
+      audioSpyStart.mockRestore();
+      audioSpyStop.mockRestore();
+    }
+  });
+
   it('regenerateAnswer dispatches REGENERATE_ACTIVE_ANSWER when a current question exists', () => {
     const engineSpy = vi.spyOn(InterviewEngine, 'handleEvent').mockImplementation(async () => {});
     useAppStore.setState({ currentQuestion: 'Explain CAP theorem in distributed systems' });
