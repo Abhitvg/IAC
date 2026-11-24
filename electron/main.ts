@@ -66,9 +66,24 @@ process.on('unhandledRejection', (reason) => {
 });
 
 let mainWindow: BrowserWindow | null = null;
-let isContentProtected = !process.env.VITE_DEV_SERVER_URL;
+let isContentProtected = process.platform !== 'linux' && !process.env.VITE_DEV_SERVER_URL;
 let tray: Tray | null = null;
 let lastCapturedOcrText = '';
+
+function applyContentProtection(enable: boolean): boolean {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  if (process.platform !== 'darwin' && process.platform !== 'win32') {
+    throw new Error('Stealth mode content protection is supported only on macOS and Windows.');
+  }
+
+  mainWindow.setContentProtection(enable);
+  if (process.platform === 'darwin') {
+    mainWindow.setHiddenInMissionControl(enable);
+    mainWindow.excludedFromShownWindowsMenu = enable;
+  }
+  isContentProtected = enable;
+  return true;
+}
 
 let RECORDINGS_DIR = '';
 let SESSIONS_DIR = '';
@@ -163,12 +178,9 @@ function createWindow() {
 
   if (isContentProtected) {
     try {
-      mainWindow.setContentProtection(true);
-      if (process.platform === 'darwin') {
-        mainWindow.setHiddenInMissionControl(true);
-        mainWindow.excludedFromShownWindowsMenu = true;
-      }
+      applyContentProtection(true);
     } catch (e) {
+      isContentProtected = false;
       console.warn('[Electron] Could not enable initial content protection:', e);
     }
   }
@@ -879,12 +891,7 @@ ipcMain.on('window:show', (event) => {
 ipcMain.handle('window:set-content-protection', (event, enable: boolean) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
   if (typeof enable !== 'boolean') throw new Error('Invalid content protection value');
-  if (mainWindow) {
-    mainWindow.setContentProtection(enable);
-    isContentProtected = enable;
-    return true;
-  }
-  return false;
+  return applyContentProtection(enable);
 });
 ipcMain.handle('window:is-content-protected', (event) => {
   if (!isTrustedSender(event, mainWindow)) throw new Error('Unauthorized IPC sender');
@@ -892,9 +899,10 @@ ipcMain.handle('window:is-content-protected', (event) => {
 });
 ipcMain.on('window:toggle-content-protection', (event) => {
   if (!isTrustedSender(event, mainWindow)) return;
-  if (mainWindow) {
-    isContentProtected = !isContentProtected;
-    mainWindow.setContentProtection(isContentProtected);
+  try {
+    applyContentProtection(!isContentProtected);
+  } catch (error) {
+    console.warn('[Electron] Could not toggle content protection:', error);
   }
 });
 
