@@ -675,12 +675,12 @@ export default function SettingsPanel() {
                 <input
                   id="window-opacity-slider"
                   type="range"
-                  min={12}
-                  max={100}
+                  min={0}
+                  max={88}
                   step={1}
-                  value={Math.round(windowOpacity * 100)}
-                  onChange={(e) => setWindowOpacity(Number(e.target.value) / 100)}
-                  aria-label="Live Interview window opacity"
+                  value={Math.round((1 - windowOpacity) * 100)}
+                  onChange={(e) => setWindowOpacity(1 - Number(e.target.value) / 100)}
+                  aria-label="Live Interview window transparency"
                   style={{ flex: 1, accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
                 />
                 <output
@@ -693,7 +693,7 @@ export default function SettingsPanel() {
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
-                  {Math.round(windowOpacity * 100)}%
+                  {Math.round((1 - windowOpacity) * 100)}% transparent
                 </output>
               </div>
               <span className="field__hint">
