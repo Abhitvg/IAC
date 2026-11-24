@@ -2154,6 +2154,15 @@ export default function TeleprompterView() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key.toLowerCase() === 'o'
+      ) {
+        e.preventDefault();
+        setShowControlsPopover((open) => !open);
+        return;
+      }
       if (e.key === 'Escape') {
         if (showShortcuts || showControlsPopover || showConversationSearch) {
           e.preventDefault();
@@ -2546,6 +2555,28 @@ export default function TeleprompterView() {
           </button>
           <button
             type="button"
+            onClick={() => setShowControlsPopover((open) => !open)}
+            aria-expanded={showControlsPopover}
+            aria-controls="live-interview-controls-panel"
+            title="Live Interview controls (⌘⇧O)"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              border: '1px solid rgba(255,255,255,0.18)',
+              background: showControlsPopover ? 'rgba(99,102,241,0.28)' : 'rgba(255,255,255,0.07)',
+              color: '#e2e8f0',
+              borderRadius: 7,
+              padding: '6px 9px',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+          >
+            <SlidersHorizontal size={13} />
+            <span>Controls</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setShowShortcuts(true)}
             title="Keyboard shortcuts"
             style={{
@@ -2578,6 +2609,201 @@ export default function TeleprompterView() {
           </button>
         </div>
       </header>
+      {showControlsPopover && (
+        <section
+          id="live-interview-controls-panel"
+          role="dialog"
+          aria-label="Live Interview overlay controls"
+          className="teleprompter-nodrag"
+          style={{
+            position: 'absolute',
+            top: 54,
+            right: 12,
+            zIndex: 120,
+            width: 'min(340px, calc(100vw - 24px))',
+            maxHeight: 'calc(100% - 66px)',
+            overflowY: 'auto',
+            boxSizing: 'border-box',
+            padding: 14,
+            border: '1px solid rgba(148,163,184,0.3)',
+            borderRadius: 12,
+            background: 'rgba(8, 12, 19, 0.97)',
+            color: '#e5eaf2',
+            boxShadow: '0 18px 48px rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(18px)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <strong style={{ fontSize: 13 }}>Overlay controls</strong>
+            <button
+              type="button"
+              onClick={() => setShowControlsPopover(false)}
+              aria-label="Close overlay controls"
+              style={{
+                border: '1px solid rgba(255,255,255,0.16)',
+                borderRadius: 6,
+                background: 'rgba(255,255,255,0.06)',
+                color: '#e2e8f0',
+                width: 28,
+                height: 28,
+                cursor: 'pointer',
+              }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gap: 7, marginTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <label htmlFor="live-overlay-transparency" style={{ fontSize: 11, color: '#cbd5e1' }}>
+                Background transparency
+              </label>
+              <output
+                htmlFor="live-overlay-transparency"
+                style={{ fontSize: 11, color: '#a5b4fc', fontVariantNumeric: 'tabular-nums' }}
+              >
+                {Math.round((1 - windowOpacity) * 100)}%
+              </output>
+            </div>
+            <input
+              id="live-overlay-transparency"
+              type="range"
+              min={0}
+              max={88}
+              step={1}
+              value={Math.round((1 - windowOpacity) * 100)}
+              onChange={(event) => setWindowOpacity(1 - Number(event.target.value) / 100)}
+              aria-label="Live Interview background transparency"
+              style={{ width: '100%', accentColor: '#8b7cff', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: 10, color: '#93a0b2', lineHeight: 1.45 }}>
+              Only panel backgrounds change. Text and controls stay fully opaque.
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7, marginTop: 13 }}>
+            <button
+              type="button"
+              onClick={() => void handleToggleWindowPin()}
+              aria-pressed={isWindowAlwaysOnTop}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: isWindowAlwaysOnTop ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <Pin size={12} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+              {isWindowAlwaysOnTop ? 'Unpin window' : 'Keep on top'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleToggleCompactWindow()}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Compact / Restore
+            </button>
+            <button
+              type="button"
+              onClick={() => void handlePositionWindowInCorner('left')}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Move to left
+            </button>
+            <button
+              type="button"
+              onClick={() => void handlePositionWindowInCorner('right')}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Move to right
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowControlsPopover(false);
+                toggleInterviewFocusMode();
+              }}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              {isInterviewFocusMode ? 'Exit focus mode' : 'Focus mode'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowControlsPopover(false);
+                setSettingsOpen(true);
+              }}
+              style={{
+                border: '1px solid rgba(148,163,184,0.22)',
+                borderRadius: 7,
+                background: 'rgba(255,255,255,0.055)',
+                color: '#e5eaf2',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              <SettingsIcon size={12} style={{ verticalAlign: 'middle', marginRight: 5 }} />
+              Settings
+            </button>
+            <button
+              type="button"
+              onClick={() => window.electronAPI?.toggleVisibility?.()}
+              style={{
+                gridColumn: '1 / -1',
+                border: '1px solid rgba(248,113,113,0.3)',
+                borderRadius: 7,
+                background: 'rgba(127,29,29,0.22)',
+                color: '#fecaca',
+                padding: '8px 9px',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Hide overlay
+            </button>
+          </div>
+          <p style={{ marginTop: 10, fontSize: 10, color: '#8290a3', lineHeight: 1.5 }}>
+            Shortcut: <strong>⌘⇧O</strong> opens or closes this panel. Use{' '}
+            <strong>⌘⌥←</strong> / <strong>⌘⌥→</strong> to move the window.
+          </p>
+        </section>
+      )}
       {transcriptionError && (
         <section
           role="alert"
