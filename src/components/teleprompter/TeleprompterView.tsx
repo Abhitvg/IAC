@@ -2569,8 +2569,8 @@ export default function TeleprompterView() {
             </strong>
             <p style={{ fontSize: 11, lineHeight: 1.5, margin: '0 0 6px', color: '#fecaca' }}>
               {isListening
-                ? 'The microphone is still active, but this speech segment could not be converted to text.'
-                : 'This speech segment could not be converted to text. Check your microphone and transcription provider.'}{' '}
+                ? 'The microphone is active, but this segment could not be transcribed.'
+                : 'This segment could not be transcribed. Check your microphone and speech provider.'}{' '}
               Repeat the question or enter it manually.
             </p>
             <p
@@ -2606,7 +2606,11 @@ export default function TeleprompterView() {
             </button>
             <button
               type="button"
-              onClick={() => updateDiagnostics({ whisperStatus: isListening ? 'Listening' : 'idle' })}
+              onClick={() =>
+                updateDiagnostics({
+                  whisperStatus: isListening ? 'Listening' : 'idle',
+                })
+              }
               aria-label="Dismiss speech transcription error"
               style={{
                 border: '1px solid rgba(255,255,255,0.2)',
