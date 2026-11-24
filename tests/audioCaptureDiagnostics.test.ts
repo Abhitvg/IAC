@@ -372,15 +372,32 @@ describe('audio capture diagnostics', () => {
     });
     vi.stubGlobal('window', { AudioContext: ActiveAudioContext });
 
+    vi.useFakeTimers();
+    const finalizedSegments: Blob[] = [];
     const recorder = new AudioRecorder();
-    await recorder.start(() => undefined);
+    await recorder.start((blob) => finalizedSegments.push(blob));
 
     expect(recorder.getCaptureState()).toBe('active');
     expect(useAppStore.getState().diagnosticState.micActive).toBe(true);
 
+    // Simulate a question that has started but has not yet reached the silence
+    // boundary. A physical disconnect should flush this partial utterance.
+    for (let frame = 0; frame < 5; frame += 1) {
+      const samples = new Float32Array(1024).fill(0.1);
+      processorNode.onaudioprocess?.({
+        inputBuffer: { getChannelData: () => samples },
+      } as unknown as AudioProcessingEvent);
+      vi.advanceTimersByTime(25);
+    }
+    expect(useAppStore.getState().diagnosticState.speechDetected).toBe(true);
+    expect(finalizedSegments).toHaveLength(0);
+
+    vi.useRealTimers();
     endedListener?.();
     await vi.waitFor(() => expect(recorder.getCaptureState()).toBe('error'));
 
+    expect(finalizedSegments).toHaveLength(1);
+    expect(finalizedSegments[0].size).toBeGreaterThan(500);
     expect(trackStop).toHaveBeenCalledTimes(1);
     expect(removeEventListener).toHaveBeenCalledWith('ended', expect.any(Function));
     expect(useAppStore.getState().diagnosticState.micActive).toBe(false);
