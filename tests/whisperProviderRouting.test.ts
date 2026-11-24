@@ -136,7 +136,7 @@ describe('live transcription provider routing', () => {
       model: 'whisper-large-v3-turbo',
     });
     expect(transcribeCloudAudio.mock.calls[0][0].prompt).toContain(
-      'Technical interview discussion'
+      'Relevant interview vocabulary:'
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
