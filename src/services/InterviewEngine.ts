@@ -787,6 +787,9 @@ export class InterviewEngine {
         } catch (e: any) {
           const isAbort = e?.name === 'AbortError';
           const isEmptyTranscript = String(e?.message || e).includes('[TRANSCRIPTION_EMPTY]');
+          const transcriptionErrorMessage = sanitizeDiagnosticSecret(
+            e instanceof Error ? e.message : String(e || 'Unknown transcription error')
+          ).slice(0, 1200);
           DiagnosticLoggerService.getInstance().recordEvent({
             requestId,
             pipelineStage: 'failed',
@@ -798,15 +801,12 @@ export class InterviewEngine {
               ? 'Speech transcription was cancelled.'
               : isEmptyTranscript
                 ? 'Speech transcription returned no usable text.'
-                : 'Speech transcription failed; details remain in local diagnostics.',
+                : `Speech transcription failed: ${transcriptionErrorMessage}`,
           });
           const ownsTranscription =
             activeTranscriptionRequestId === requestId && !transcriptionController.signal.aborted;
           if (!isAbort && ownsTranscription) {
             const state = useAppStore.getState();
-            const transcriptionErrorMessage = sanitizeDiagnosticSecret(
-              e instanceof Error ? e.message : String(e || 'Unknown transcription error')
-            ).slice(0, 1200);
             state.updateDiagnostics({
               whisperStatus: 'error: ' + transcriptionErrorMessage,
             });
