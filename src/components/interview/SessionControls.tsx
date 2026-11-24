@@ -4,7 +4,7 @@ import { InterviewEngine } from '../../services/InterviewEngine';
 import { Mic, MicOff, Play, Send } from 'lucide-react';
 
 export default function SessionControls() {
-  const { status, diagnosticState, toggleRecording, analyzeTranscript } = useAppStore();
+  const { diagnosticState, toggleRecording, analyzeTranscript } = useAppStore();
   const [customQuery, setCustomQuery] = useState('');
   // Answer generation and transcription change status while the microphone
   // remains active. The physical capture diagnostic is the source of truth.
