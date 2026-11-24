@@ -15,6 +15,7 @@ import { resolvePendingQuestionContinuation } from './pendingQuestionContinuatio
 import { transcribeAudio } from './whisper';
 import { AnswerGenerationService } from './AnswerGenerationService';
 import { DiagnosticLoggerService } from './diagnosticLogger';
+import { sanitizeDiagnosticSecret } from './models/modelRegistry';
 import {
   isQuestionShapedSpeech,
   shouldAutoRouteUncertainQuestion,
@@ -802,8 +803,11 @@ export class InterviewEngine {
             activeTranscriptionRequestId === requestId && !transcriptionController.signal.aborted;
           if (!isAbort && ownsTranscription) {
             const state = useAppStore.getState();
+            const transcriptionErrorMessage = sanitizeDiagnosticSecret(
+              e instanceof Error ? e.message : String(e || 'Unknown transcription error')
+            ).slice(0, 1200);
             state.updateDiagnostics({
-              whisperStatus: 'error: ' + (e?.message || e),
+              whisperStatus: 'error: ' + transcriptionErrorMessage,
             });
             console.error('[InterviewEngine] Transcription error:', e);
             const transcriptionStillOwnsUi =
