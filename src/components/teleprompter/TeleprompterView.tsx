@@ -2487,8 +2487,8 @@ export default function TeleprompterView() {
         position: 'relative',
         color: '#f8fafc',
         background: 'rgba(5, 7, 11, ' + windowOpacity + ')',
-        backdropFilter: 'blur(18px)',
-        WebkitBackdropFilter: 'blur(18px)',
+        backdropFilter: 'blur(' + Math.round(windowOpacity * 18) + 'px)',
+        WebkitBackdropFilter: 'blur(' + Math.round(windowOpacity * 18) + 'px)',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
     >
