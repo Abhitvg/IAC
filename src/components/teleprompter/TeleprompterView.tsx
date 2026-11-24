@@ -1685,9 +1685,15 @@ export default function TeleprompterView() {
   useEffect(() => {
     let mounted = true;
     window.electronAPI?.isAlwaysOnTop?.()
-      .then((value) => { if (mounted) setIsWindowAlwaysOnTop(Boolean(value)); })
-      .catch(() => { if (mounted) setIsWindowAlwaysOnTop(false); });
-    return () => { mounted = false; };
+      .then((value) => {
+        if (mounted) setIsWindowAlwaysOnTop(Boolean(value));
+      })
+      .catch(() => {
+        if (mounted) setIsWindowAlwaysOnTop(false);
+      });
+    return () => {
+      mounted = false;
+    };
   }, []);
   const [conversationSearchQuery, setConversationSearchQuery] = useState('');
   const shortcutBindings = useMemo(
@@ -2346,20 +2352,17 @@ export default function TeleprompterView() {
     }
   };
 
-  const handleToggleWindowPin = async () => {
-    try {
-      window.electronAPI?.toggleAlwaysOnTop?.();
-      const next = await window.electronAPI?.isAlwaysOnTop?.();
-      setIsWindowAlwaysOnTop(Boolean(next));
-    } catch {
-      setToast('Could not change the overlay pin state.');
-    }
+  const handleToggleWindowPin = () => {
+    const next = !isWindowAlwaysOnTop;
+    window.electronAPI?.toggleAlwaysOnTop?.();
+    setIsWindowAlwaysOnTop(next);
   };
 
   const handlePositionWindowInCorner = async (side: 'left' | 'right') => {
     try {
       const positioned = await window.electronAPI?.positionWindowInCorner?.(side);
       if (!positioned) throw new Error('Window positioning is unavailable.');
+      setIsWindowAlwaysOnTop(true);
       setShowControlsPopover(false);
     } catch {
       setToast('Could not move the overlay to the ' + side + ' corner.');
@@ -2564,7 +2567,9 @@ export default function TeleprompterView() {
               alignItems: 'center',
               gap: 5,
               border: '1px solid rgba(255,255,255,0.18)',
-              background: showControlsPopover ? 'rgba(99,102,241,0.28)' : 'rgba(255,255,255,0.07)',
+              background: showControlsPopover
+              ? 'rgba(99,102,241,0.28)'
+              : 'rgba(255,255,255,0.07)',
               color: '#e2e8f0',
               borderRadius: 7,
               padding: '6px 9px',
@@ -2633,7 +2638,14 @@ export default function TeleprompterView() {
             backdropFilter: 'blur(18px)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+            }}
+          >
             <strong style={{ fontSize: 13 }}>Overlay controls</strong>
             <button
               type="button"
@@ -2655,12 +2667,19 @@ export default function TeleprompterView() {
 
           <div style={{ display: 'grid', gap: 7, marginTop: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-              <label htmlFor="live-overlay-transparency" style={{ fontSize: 11, color: '#cbd5e1' }}>
+              <label
+                htmlFor="live-overlay-transparency"
+                style={{ fontSize: 11, color: '#cbd5e1' }}
+              >
                 Background transparency
               </label>
               <output
                 htmlFor="live-overlay-transparency"
-                style={{ fontSize: 11, color: '#a5b4fc', fontVariantNumeric: 'tabular-nums' }}
+                style={{
+                fontSize: 11,
+                color: '#a5b4fc',
+                fontVariantNumeric: 'tabular-nums',
+              }}
               >
                 {Math.round((1 - windowOpacity) * 100)}%
               </output>
@@ -2681,7 +2700,14 @@ export default function TeleprompterView() {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7, marginTop: 13 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 7,
+              marginTop: 13,
+            }}
+          >
             <button
               type="button"
               onClick={() => void handleToggleWindowPin()}
@@ -2689,7 +2715,9 @@ export default function TeleprompterView() {
               style={{
                 border: '1px solid rgba(148,163,184,0.22)',
                 borderRadius: 7,
-                background: isWindowAlwaysOnTop ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.055)',
+                background: isWindowAlwaysOnTop
+                  ? 'rgba(99,102,241,0.25)'
+                  : 'rgba(255,255,255,0.055)',
                 color: '#e5eaf2',
                 padding: '8px 9px',
                 fontSize: 11,
@@ -3015,7 +3043,9 @@ export default function TeleprompterView() {
               maxWidth: 840,
               boxSizing: 'border-box',
               padding: isBionicGazeMode ? 0 : '16px 18px',
-              background: isBionicGazeMode ? 'transparent' : 'rgba(8, 12, 18, ' + windowOpacity + ')',
+              background: isBionicGazeMode
+                ? 'transparent'
+                : 'rgba(8, 12, 18, ' + windowOpacity + ')',
               border: isBionicGazeMode ? 'none' : '1px solid rgba(148, 163, 184, 0.16)',
               borderRadius: isBionicGazeMode ? 0 : 12,
               color: '#e5eaf2',
@@ -3030,7 +3060,11 @@ export default function TeleprompterView() {
                 const answerText = currentAnswer || draftAnswer;
                 const presentation = getBionicAnswerPresentation(answerText);
                 return presentation.bullets.length > 0 ? (
-                  <BionicGazeHUD bullets={presentation.bullets} sourceText={answerText} backgroundOpacity={windowOpacity} />
+                  <BionicGazeHUD
+                    bullets={presentation.bullets}
+                    sourceText={answerText}
+                    backgroundOpacity={windowOpacity}
+                  />
                 ) : (
                   <InterviewAnswerMarkdown content={presentation.fallbackText || answerText} />
                 );
