@@ -669,7 +669,7 @@ export default function SettingsPanel() {
 
             <div className="field" data-testid="window-opacity-setting">
               <label className="field__label" htmlFor="window-opacity-slider">
-                Live Interview Window Transparency
+                Live Interview Background Transparency
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <input
@@ -697,9 +697,9 @@ export default function SettingsPanel() {
                 </output>
               </div>
               <span className="field__hint">
-                Adjust how transparent the Live Interview window appears over other apps. Lower
-                opacity reveals more of the screen behind it; higher opacity makes text easier to
-                read. This applies when the Live Interview workspace is active.
+                Adjust the overlay background transparency. Text, buttons, and controls stay fully readable
+                while the panel surfaces become more or less transparent. This applies when the Live
+                Interview workspace is active.
               </span>
             </div>
 
