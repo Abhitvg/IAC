@@ -354,7 +354,7 @@ export class InterviewEngine {
         }
 
         // Ensure an older asynchronous Stop cannot overwrite a newer Start.
-        const startGeneration = ++listeningCommandGeneration;
+        listeningCommandGeneration += 1;
         const answerWasActive = store.status === 'analyzing' || store.status === 'generating';
         // A failed microphone can be restarted within the same interview. Keep
         // already-finalized audio and any pending question continuation intact.
