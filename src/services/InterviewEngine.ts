@@ -355,7 +355,7 @@ export class InterviewEngine {
         const answerWasActive = store.status === 'analyzing' || store.status === 'generating';
         // A failed microphone can be restarted within the same interview. Keep
         // already-finalized audio and any pending question continuation intact.
-        if (captureState !== 'error') {
+        if (captureState !== 'error' && captureState !== 'stopping') {
           InterviewEngine.clearPendingQuestion();
           InterviewEngine.abortActiveTranscription();
         }
